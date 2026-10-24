@@ -83,16 +83,8 @@ describe("elementView", () => {
       titleKey: "title",
       layout,
     });
+    // `refines` holds one mapping where a list belongs: no relation, as in the checks (SR-085).
     expect(view.relations).toEqual([
-      {
-        kind: "refines",
-        meaning: "derivation",
-        direction: "out",
-        id: "9a9a9a9a-1111-4222-8333-444455556666",
-        accessible: false,
-        targetState: "missing",
-        storedVersion: "n1:1111111111111111",
-      },
       {
         kind: "derives-from",
         meaning: "derivation",
@@ -145,6 +137,79 @@ describe("elementView", () => {
         storedVersion: "n1:0000000000000000",
       },
     ]);
+  });
+
+  it("reads relation properties as the checks do: one target, or a list with many, and skips malformed items", async () => {
+    const { metamodel, store, layout } = await context();
+    // A single-valued relation property next to the standard model's `validity` (many).
+    const withParent: Metamodel = {
+      ...metamodel,
+      properties: [...metamodel.properties, { key: "parent-item", name: "Parent Item", kind: "relation" }],
+    };
+    const view = (lines: readonly string[]) => {
+      const file = parsedFile(
+        [
+          "---",
+          `id: ${OTHER}`,
+          "type: system-requirement",
+          "status: draft",
+          "title: x",
+          ...lines,
+          "---",
+          "",
+        ].join("\n"),
+      );
+      const record = recordOf(file);
+      return elementView({
+        record,
+        file,
+        metamodel: withParent,
+        store,
+        shortIds: buildShortIds(store.byId, withParent),
+        titleKey: "title",
+        layout,
+      }).relations;
+    };
+    expect(
+      view([
+        `parent-item: { id: ${WIND}, version: n1:0000000000000000 }`,
+        "validity:",
+        "  - plain text",
+        "  - { id: not-a-uuid }",
+        "  - { id: 7 }",
+        `  - { id: ${WIND} }`,
+      ]),
+    ).toEqual([
+      {
+        kind: "validity",
+        property: true,
+        direction: "out",
+        id: WIND,
+        shortId: "SR-e88fb3",
+        title: "Show wind speed",
+        accessible: true,
+        targetState: "available",
+      },
+      {
+        kind: "parent-item",
+        property: true,
+        direction: "out",
+        id: WIND,
+        shortId: "SR-e88fb3",
+        title: "Show wind speed",
+        accessible: true,
+        targetState: "available",
+        storedVersion: "n1:0000000000000000",
+      },
+    ]);
+    // A list on the single-valued property and one mapping on the list property: no relation.
+    expect(
+      view([
+        "parent-item:",
+        `  - { id: ${WIND}, version: n1:0000000000000000 }`,
+        `validity: { id: ${WIND}, version: n1:0000000000000000 }`,
+      ]),
+    ).toEqual([]);
   });
 
   it("shows a status and title that are not text as empty and counts no property of an unknown type", async () => {

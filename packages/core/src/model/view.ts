@@ -13,6 +13,8 @@ import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
+import type { RelationKey } from "./relation-keys.js";
+import { hasId, relationItems } from "./relation-keys.js";
 import { targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
@@ -25,9 +27,6 @@ import { valueFindings } from "./values.js";
 const isVersion = (value: unknown): value is string =>
   fileSchemaValidator("common.schema.json#/$defs/version")(value);
 
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
 /** The key of the property with the meaning `title` (D-059); undefined when no property has it. */
@@ -35,51 +34,80 @@ export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
   propertyWithMeaning(metamodel, "title")?.key;
 
 /**
- * The element's own relations: the targets under the keys of relation kinds, in the order of the
- * relation kinds in the metamodel, then of the items. Items that are not a target with a UUID are
- * left out; the value-kind check reports them (SR-085). Each target has its `targetState` (D-058):
- * it is looked up in the repository it names, or in the source's own when it names none. It counts
- * as accessible only when it is `available`, that is that repository has exactly one element with
- * its UUID; then the title and short ID of that element are given, also across repositories, where
- * the file stores no title (SR-005 AK2). A target in a repository that is not on this machine shows
- * only its short ID (SR-006 AK1): the tail of its UUID with the prefix `UNKNOWN`, since its type is
- * not known (assumption until spec questions #154 and #193 are answered). Targets of properties of
- * kind `relation` stay under `properties` as stored and get no target state yet.
+ * The relations to the targets stored under `key`: a relation kind, or a property of kind
+ * `relation`, whose `kind` the entries carry; `extra` adds the relation kind's `meaning`, or
+ * `property: true` for a property. The items are read as the checks read them (`relationItems`,
+ * `hasId`; SR-086, SR-089), with `many` as `relationKey` gives it: a list for a relation kind and a
+ * property with `many`, one target otherwise. Items of the wrong shape and items that are not a target with a
+ * UUID are left out; the value-kind check reports them (SR-085). Each target has its `targetState`
+ * (D-058): it is looked up in the repository it names, or in the source's own when it names none.
+ * It counts as accessible only when it is `available`, that is that repository has exactly one
+ * element with its UUID; then the title and short ID of that element are given, also across
+ * repositories, where the file stores no title (SR-005 AK2). A target in a repository that is not
+ * on this machine shows only its short ID (SR-006 AK1): the tail of its UUID with the prefix
+ * `UNKNOWN`, since its type is not known (assumption until spec questions #154 and #193 are
+ * answered).
+ */
+const relationsUnder = (
+  input: ElementViewInput,
+  key: string,
+  relation: Pick<RelationKey, "many">,
+  extra: Pick<DataExportRelation, "meaning" | "property">,
+): DataExportRelation[] => {
+  const { record, store, shortIds, titleKey, layout } = input;
+  return relationItems(key, relation, record.data[key]).flatMap(([, item]): DataExportRelation[] => {
+    if (!hasId(item) || !isUuid(item.id)) {
+      return [];
+    }
+    const { id, version, repository } = item;
+    const state = targetState(layout, store, record.repository, { id, repository });
+    const target = state.kind === "available" ? state.element : undefined;
+    const title = target?.data[titleKey];
+    const shortId =
+      target !== undefined
+        ? shortIds.of(target)
+        : state.kind === "inaccessible"
+          ? `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(id)}`
+          : undefined;
+    return [
+      {
+        kind: key,
+        ...extra,
+        direction: "out",
+        id,
+        ...(shortId === undefined ? {} : { shortId }),
+        ...(typeof title === "string" ? { title } : {}),
+        accessible: target !== undefined,
+        targetState: state.kind,
+        ...(isVersion(version) ? { storedVersion: version } : {}),
+      },
+    ];
+  });
+};
+
+/**
+ * The element's own relations (`relationsUnder`): the targets under the keys of relation kinds, in
+ * the order of the relation kinds in the metamodel, then of the items; then the targets of
+ * properties of kind `relation` (validity, packages), in the order of the properties, with the
+ * property key as `kind`, `property: true` and no `meaning` (#187). Those targets also stay under
+ * `properties` as stored. Keys are unique across properties and relation kinds (ADR-0004), so no
+ * target is listed twice.
  */
 const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
-  const { record, metamodel, store, shortIds, titleKey, layout } = input;
-  return metamodel.relations.flatMap((kind) => {
-    const value = record.data[kind.key];
-    const items: readonly unknown[] = Array.isArray(value) ? value : value === undefined ? [] : [value];
-    return items.filter(isRecord).flatMap((item): DataExportRelation[] => {
-      const { id, version, repository } = item;
-      if (!isUuid(id)) {
-        return [];
-      }
-      const state = targetState(layout, store, record.repository, { id, repository });
-      const target = state.kind === "available" ? state.element : undefined;
-      const title = target?.data[titleKey];
-      const shortId =
-        target !== undefined
-          ? shortIds.of(target)
-          : state.kind === "inaccessible"
-            ? `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(id)}`
-            : undefined;
-      return [
-        {
-          kind: kind.key,
-          ...(kind.meaning === undefined ? {} : { meaning: kind.meaning }),
-          direction: "out",
-          id,
-          ...(shortId === undefined ? {} : { shortId }),
-          ...(typeof title === "string" ? { title } : {}),
-          accessible: target !== undefined,
-          targetState: state.kind,
-          ...(isVersion(version) ? { storedVersion: version } : {}),
-        },
-      ];
-    });
-  });
+  const { metamodel } = input;
+  return [
+    ...metamodel.relations.flatMap((kind) =>
+      relationsUnder(
+        input,
+        kind.key,
+        { many: true },
+        kind.meaning === undefined ? {} : { meaning: kind.meaning },
+      ),
+    ),
+    ...metamodel.properties
+      .filter((p) => p.kind === "relation")
+      .flatMap((p) => relationsUnder(input, p.key, { many: p.many === true }, { property: true })),
+  ];
 };
 
 /** The definitions of the properties the element's type has; none for an unknown type. */

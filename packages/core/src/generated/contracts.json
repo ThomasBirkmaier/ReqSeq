@@ -581,6 +581,7 @@
             },
             "relations": {
               "type": "array",
+              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them.",
               "items": {
                 "$ref": "#/$defs/relation"
               }
@@ -635,7 +636,12 @@
           ],
           "properties": {
             "kind": {
-              "$ref": "common.schema.json#/$defs/key"
+              "$ref": "common.schema.json#/$defs/key",
+              "description": "Key of the relation kind, or of the property of kind `relation` (e.g. `validity`, `packages`) that stores the target; such a property's targets also stay under `properties` as stored, and their entries have `property: true` and no `meaning`."
+            },
+            "property": {
+              "const": true,
+              "description": "`kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds."
             },
             "meaning": {
               "enum": [

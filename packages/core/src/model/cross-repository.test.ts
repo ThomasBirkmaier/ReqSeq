@@ -89,6 +89,27 @@ const sourceDerivingFrom = (...targets: string[]): string =>
     "",
   ].join("\n");
 
+/** The source file of the fixture with `validity` and `packages` targets in the repository `platform`. */
+const sourceWithPropertyTargets = (): string =>
+  [
+    "---",
+    `id: ${SOURCE.id}`,
+    "type: system-requirement",
+    "status: draft",
+    "title: Show gusts in red",
+    "requirement-type: functional",
+    "acceptance-criteria:",
+    "  - Given a gust, when it is measured, then the display shows it in red.",
+    "validity:",
+    `  - { id: ${VAR.id}, version: ${STORED_NEED}, repository: platform }`,
+    "packages:",
+    `  - { id: ${PKG.id}, version: ${STORED_NEED}, repository: platform }`,
+    "---",
+    "",
+    "The display shows gusts in red.",
+    "",
+  ].join("\n");
+
 /** The relations of the source as `element.update` shows them after a change of its text. */
 const relationsOfSource = async (opened: Opened): Promise<unknown> =>
   (await run(opened, "element.update", { ref: SOURCE.id, text: "The display shows gusts in bright red.\n" }))
@@ -178,6 +199,45 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
+  it("[SR-005/AK2] shows the title and short ID of validity and packages targets in another repository that are available locally", async () => {
+    const opened = await open({ [`system/${SOURCE.file}`]: sourceWithPropertyTargets() });
+    const out = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      text: "The display shows gusts in bright red.\n",
+    });
+    expect(out.element.relations).toEqual([
+      {
+        kind: "validity",
+        property: true,
+        direction: "out",
+        id: VAR.id,
+        shortId: "VAR-3b5c7d",
+        title: VAR.title,
+        accessible: true,
+        targetState: "available",
+        storedVersion: STORED_NEED,
+      },
+      {
+        kind: "packages",
+        property: true,
+        direction: "out",
+        id: PKG.id,
+        shortId: "PKG-8a0b1c",
+        title: PKG.title,
+        accessible: true,
+        targetState: "available",
+        storedVersion: STORED_NEED,
+      },
+    ]);
+    // The stored value is shown as stored: no title is added to it.
+    expect(out.element.properties["validity"]).toEqual([
+      { id: VAR.id, version: STORED_NEED, repository: "platform" },
+    ]);
+    expect(out.element.properties["packages"]).toEqual([
+      { id: PKG.id, version: STORED_NEED, repository: "platform" },
+    ]);
+  });
+
   it("shows a target whose repository is not text as not accessible", async () => {
     const opened = await open({
       [`system/${SOURCE.file}`]: sourceDerivingFrom(
@@ -231,6 +291,33 @@ describe("missing access (SR-006)", () => {
         direction: "out",
         id: NEED.id,
         shortId: "UNKNOWN-9c0d1e",
+        accessible: false,
+        targetState: "inaccessible",
+        storedVersion: STORED_NEED,
+      },
+    ]);
+  });
+
+  it("[SR-006/AK1] shows validity and packages targets whose repository is not on this machine only with their short ID and as not accessible", async () => {
+    const opened = await openWithoutPlatform({ [`system/${SOURCE.file}`]: sourceWithPropertyTargets() });
+    const relations = (await relationsOfSource(opened)) as readonly Record<string, unknown>[];
+    expect(relations).toEqual([
+      {
+        kind: "validity",
+        property: true,
+        direction: "out",
+        id: VAR.id,
+        shortId: "UNKNOWN-3b5c7d",
+        accessible: false,
+        targetState: "inaccessible",
+        storedVersion: STORED_NEED,
+      },
+      {
+        kind: "packages",
+        property: true,
+        direction: "out",
+        id: PKG.id,
+        shortId: "UNKNOWN-8a0b1c",
         accessible: false,
         targetState: "inaccessible",
         storedVersion: STORED_NEED,

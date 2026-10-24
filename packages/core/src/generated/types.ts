@@ -281,6 +281,7 @@ export interface DataExportElement {
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly {
@@ -295,7 +296,10 @@ export interface DataExportElement {
 
 /** Schema: `schemas/data-export.schema.json#/$defs/relation`. */
 export interface DataExportRelation {
+  /** Key of the relation kind, or of the property of kind `relation` (e.g. `validity`, `packages`) that stores the target; such a property's targets also stay under `properties` as stored, and their entries have `property: true` and no `meaning`. */
   readonly kind: Key;
+  /** `kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds. */
+  readonly property?: true;
   /** `reference` = inline link in the text (SR-066). */
   readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
