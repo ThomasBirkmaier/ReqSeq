@@ -5,7 +5,7 @@ import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
-import { listMarkdownFiles, listsFile } from "./discover.js";
+import { listMarkdownFiles, listsFile, newFileProblem } from "./discover.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 
@@ -212,6 +212,94 @@ describe("listsFile (#166)", () => {
       "c.md/inner.md",
       "outside/i.md",
     ]);
+  });
+
+  it("newFileProblem (#183): the rules of the walk on folders that exist, only names and globs on folders still to create", async () => {
+    const ws = await fixture({
+      "deep/a.md": "",
+      "own/.git": "gitdir: elsewhere\n",
+      "nested/b.md": "",
+      "file.md": "",
+    });
+    await fs.symlink(ws.path("deep"), ws.path("linked"), "junction");
+    const repo = repository(ws.root, [ws.path("nested"), ws.path("gone/nested")]);
+    const ignored = ignoreMatcher(["docs/**", "**/*.draft.md"]);
+    const answers = await Promise.all(
+      [
+        "new.md",
+        "deep/new.md",
+        "gone/er/new.md",
+        "deep/gone/new.md",
+        "gone/node_modules/new.md",
+        "gone/.git/new.md",
+        "gone/docs/new.md",
+        "docs/new.md",
+        "deep/x.draft.md",
+        "gone/nested/new.md",
+        "nested/new.md",
+        "own/new.md",
+        "linked/new.md",
+        "file.md/new.md",
+      ].map(async (file) => [file, await newFileProblem(repo, ignored, file)]),
+    );
+    expect(Object.fromEntries(answers)).toEqual({
+      "new.md": undefined,
+      "deep/new.md": undefined,
+      "gone/er/new.md": undefined,
+      "deep/gone/new.md": undefined,
+      "gone/docs/new.md": undefined,
+      "gone/node_modules/new.md": { rule: "skipped-name", path: "gone/node_modules" },
+      "gone/.git/new.md": { rule: "skipped-name", path: "gone/.git" },
+      "docs/new.md": { rule: "ignored", path: "docs" },
+      "deep/x.draft.md": { rule: "ignored", path: "deep/x.draft.md" },
+      "gone/nested/new.md": { rule: "nested-repository", path: "gone/nested" },
+      "nested/new.md": { rule: "nested-repository", path: "nested" },
+      "own/new.md": { rule: "git-entry", path: "own" },
+      "linked/new.md": { rule: "link", path: "linked" },
+      "file.md/new.md": { rule: "not-a-folder", path: "file.md" },
+    });
+  });
+
+  it("newFileProblem (#183): refuses what a file system that ignores case or drops trailing dots and spaces takes for another name", async () => {
+    const ws = await fixture({ ".git/HEAD": "ref: refs/heads/main\n", "requirements/a.md": "" });
+    // Linux keeps case, dots and spaces, so the answers of Windows and macOS are given here.
+    const fold = (p: string): string =>
+      p
+        .split(path.sep)
+        .map((name) => (name.toLowerCase().replace(/[. ]+$/, "") === "requirements" ? "requirements" : name))
+        .join(path.sep)
+        .replace(`${path.sep}.GIT`, `${path.sep}.git`);
+    const real = { lstat: fs.lstat.bind(fs), opendir: fs.opendir.bind(fs), realpath: fs.realpath.bind(fs) };
+    const spies = [
+      vi.spyOn(fs, "lstat").mockImplementation(((p: string) => real.lstat(fold(p))) as typeof fs.lstat),
+      vi.spyOn(fs, "opendir").mockImplementation(((p: string) => real.opendir(fold(p))) as typeof fs.opendir),
+      vi
+        .spyOn(fs, "realpath")
+        .mockImplementation(((p: string) => real.realpath(fold(p))) as typeof fs.realpath),
+    ];
+    onTestFinished(() => {
+      for (const spy of spies) {
+        spy.mockRestore();
+      }
+    });
+    const repo = repository(ws.root);
+    const answers = await Promise.all(
+      [
+        ".GIT/objects/x.md",
+        "Requirements/x.md",
+        "REQUIREMENTS/new/x.md",
+        "requirements./x.md",
+        "requirements /x.md",
+      ].map(async (file) => [file, await newFileProblem(repo, nothing, file)]),
+    );
+    expect(Object.fromEntries(answers)).toEqual({
+      ".GIT/objects/x.md": { rule: "skipped-name", path: ".GIT" },
+      "Requirements/x.md": { rule: "spelling", path: "Requirements", existing: "requirements" },
+      "REQUIREMENTS/new/x.md": { rule: "spelling", path: "REQUIREMENTS", existing: "requirements" },
+      "requirements./x.md": { rule: "not-portable", path: "requirements." },
+      "requirements /x.md": { rule: "not-portable", path: "requirements " },
+    });
+    expect(await newFileProblem(repo, nothing, "requirements/x.md")).toBeUndefined();
   });
 
   it("does not list a file below a folder the walk cannot open, or in a repository it cannot open", async () => {

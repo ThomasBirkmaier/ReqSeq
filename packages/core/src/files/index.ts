@@ -2,6 +2,7 @@
 // writes to disk. Core blocks import it relatively; it is not part of the package's public API.
 export { findConflictMarker } from "./conflict-markers.js";
 export { createFolder } from "./folder.js";
+export { resolveInRoot } from "./paths.js";
 export { splitFrontmatter } from "./frontmatter.js";
 export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";
 export { parseFileBytes, parseYamlFileBytes } from "./parse.js";

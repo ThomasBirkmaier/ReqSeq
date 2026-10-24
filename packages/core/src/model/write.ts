@@ -20,6 +20,7 @@ import {
   editElementFile,
   parseFileBytes,
   readElementFile,
+  resolveInRoot,
   writeFileAtomic,
 } from "../files/index.js";
 import type {
@@ -33,6 +34,8 @@ import { findType, metamodelState, requireMeaning, typeForNewElement } from "../
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import type { NewFileRule } from "./discover.js";
+import { newFileProblem } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, classifyFile } from "./elements.js";
 import { fileNameFor } from "./file-name.js";
@@ -40,7 +43,7 @@ import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState, recordWrites } from "./store.js";
+import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { elementView, titleKeyOf } from "./view.js";
@@ -292,6 +295,52 @@ const finish = async (
 
 const EMPTY_FILE: EditableFile = { frontmatter: "", body: "", eol: "\n", closingEol: "\n", bom: false };
 
+/** What `refuseUnlisted` tells the caller to change, per rule; `{path}` is the path the rule names. */
+const NOT_LISTED: Readonly<Record<NewFileRule, string>> = {
+  "skipped-name":
+    "is named .git or node_modules (or a spelling Windows or macOS take for it), which LogReq never reads or writes",
+  ignored: "matches an ignore glob of the workspace file",
+  "nested-repository": "is the folder of another repository of the workspace; give that repository instead",
+  "git-entry": "holds a .git entry, so it is a repository of its own",
+  link: "is a link, which LogReq does not follow",
+  unreadable: "cannot be opened",
+  "not-a-folder": "is not a folder",
+  spelling: "is spelled differently on disk",
+  "not-portable":
+    'is a name Windows changes or refuses (a trailing dot or space, <>:"|?*, a control character, a device name such as CON or NUL, or a short name such as GIT~1)',
+};
+
+/**
+ * Refuses `file` (relative to `repository`) with `input.invalid` when the element walk would not
+ * list it once created (`reason: "not-listed"`) or a name is not portable (`"not-portable"`), so
+ * LogReq never writes below `.git` (D-036, #183) and never creates an element nobody sees.
+ * `details.rule` says which rule, `details.path` which part of the path, and with `rule: "spelling"`
+ * `details.existing` the folder as it is spelled on disk.
+ */
+const refuseUnlisted = async (
+  layout: WorkspaceLayout,
+  repository: RepositoryLocation,
+  file: string,
+): Promise<void> => {
+  const problem = await newFileProblem(repository, ignoredBy(layout), file);
+  if (problem === undefined) {
+    return;
+  }
+  const { rule, path: part, existing } = problem;
+  const spelled = existing === undefined ? "" : ` (on disk: ${existing})`;
+  throw invalid(
+    `Not created: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}`,
+    {
+      repository: repository.name,
+      file,
+      reason: rule === "not-portable" ? "not-portable" : "not-listed",
+      rule,
+      path: part,
+      ...(existing === undefined ? {} : { existing }),
+    },
+  );
+};
+
 /** A folder relative to the repository with `/`; `""` for the repository folder itself. */
 const folderOf = (folder: string): string => {
   const normalized = path.posix.normalize(folder.replaceAll("\\", "/"));
@@ -302,7 +351,9 @@ const folderOf = (folder: string): string => {
  * `element.create` (SR-001, SR-002): a new element of `input.type` with a new random UUID (v4,
  * D-017) and the initial status of the metamodel, in one new file `<prefix>-<12 hex>.md` in
  * `input.folder` (default: the type key, created when missing) of `input.repository` (default: the
- * main repository). Never replaces a file.
+ * main repository). Never replaces a file. Before anything is written, the target (also the
+ * default type folder) is refused when the element walk would not list it or a name is not
+ * portable (`refuseUnlisted`).
  */
 export const createElement = async (
   workspace: Workspace,
@@ -328,6 +379,16 @@ export const createElement = async (
     folder === ""
       ? fileNameFor({ prefix: type.prefix, id })
       : `${folder}/${fileNameFor({ prefix: type.prefix, id })}`;
+  // A folder that leaves the repository (`..`, `/x`) is refused with the error `createFolder` gives.
+  // Any other folder is judged by its names first, so `a:b` (on Windows a path relative to drive
+  // A:) is refused as not portable on every OS.
+  const leaves = folder === ".." || folder.startsWith("../") || folder.startsWith("/");
+  if (!leaves) {
+    await refuseUnlisted(layout, repository, file);
+  }
+  if (folder !== "") {
+    resolveInRoot(repository.folder, folder);
+  }
   const edits: FrontmatterEdit[] = [
     { kind: "set", key: "id", value: id },
     { kind: "set", key: "type", value: type.key },
@@ -348,9 +409,12 @@ export const createElement = async (
     keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
   });
   // Every check is done and the bytes are verified before the folder is created, so only a failing
-  // write itself (a clash with an existing file, a disk error) can leave a new, empty folder.
+  // write itself (a clash with an existing file, a disk error) or a folder changed by someone else
+  // meanwhile can leave a new, empty folder. With every folder there now, the rules of the walk are
+  // checked on all of them again, so a link or `.git` entry put there meanwhile is not written into.
   if (folder !== "") {
     await createFolder(repository.folder, folder);
+    await refuseUnlisted(layout, repository, file);
   }
   const written = writtenElement(
     repository.name,

@@ -135,25 +135,84 @@ const canList = async (folder: string): Promise<boolean> => {
   }
 };
 
+/** Why the walk would leave out a path (`NewFileProblem`), or a name that is not portable. */
+export type NewFileRule =
+  | "skipped-name"
+  | "ignored"
+  | "nested-repository"
+  | "git-entry"
+  | "link"
+  | "unreadable"
+  | "not-a-folder"
+  | "spelling"
+  | "not-portable";
+
+/** A rule of the walk that leaves out `path` (relative to the repository, `/`; `.` for its folder). */
+export interface NewFileProblem {
+  readonly rule: NewFileRule;
+  readonly path: string;
+  /** With `spelling`: the folder as it is spelled on disk. */
+  readonly existing?: string;
+}
+
+/** The rule of the walk that leaves out `relative` by its name, an `ignore` glob or a nested repository. */
+const nameRule = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  relative: string,
+): NewFileRule | undefined => {
+  if (SKIPPED_NAMES.has(path.posix.basename(relative))) {
+    return "skipped-name";
+  }
+  if (ignored(relative)) {
+    return "ignored";
+  }
+  return repository.excludes.includes(path.join(repository.folder, relative))
+    ? "nested-repository"
+    : undefined;
+};
+
+/** The rule of the walk that leaves out the existing path `absolute` as a folder to go into. */
+const folderRule = async (absolute: string, stat: Stats): Promise<NewFileRule | undefined> => {
+  if (stat.isSymbolicLink()) {
+    return "link";
+  }
+  if (!stat.isDirectory()) {
+    return "not-a-folder";
+  }
+  if ((await lstatIfThere(path.join(absolute, ".git"))) !== undefined) {
+    return "git-entry";
+  }
+  return (await canList(absolute)) ? undefined : "unreadable";
+};
+
+/** `relative` (an existing path) as the file system spells it, relative to the repository with `/`. */
+const spelledOnDisk = async (repository: RepositoryLocation, relative: string): Promise<string> => {
+  // The native `realpath` gives the names as stored (and resolves links above the repository).
+  const [root, real] = await Promise.all([
+    fs.realpath(repository.folder),
+    fs.realpath(path.join(repository.folder, relative)),
+  ]);
+  return path.relative(root, real).split(path.sep).join("/");
+};
+
 /**
  * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
- * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for a file LogReq
- * has just created (#166). The rules are those of the walk: no folder or file named `.git` or
- * `node_modules` or matched by `ignored`; every folder above the file a real folder (not a link)
- * without a `.git` entry and not the folder of a nested repository (`repository.excludes`), and
- * the repository folder and every folder above the file one the walk can open (an unreadable
+ * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
+ * a file LogReq has just created (#166). The rules are those of the walk: no folder or file named
+ * `.git` or `node_modules` or matched by `ignored`; every folder above the file a real folder (not
+ * a link) without a `.git` entry and not the folder of a nested repository (`repository.excludes`),
+ * and the repository folder and every folder above the file one the walk can open (an unreadable
  * folder is a listing problem there, and nothing below it is listed); the file itself a regular
- * file. The path must also be spelled as the folders are: on a file system
- * that ignores case (Windows, macOS), `Requirements/a.md` names `requirements/a.md`, which the walk
- * lists under its own spelling. A path that is gone is not listed; other errors reject.
+ * file. The path must also be spelled as the folders are: on a file system that ignores case
+ * (Windows, macOS), `Requirements/a.md` names `requirements/a.md`, which the walk lists under its
+ * own spelling. A path that is gone is not listed; other errors reject.
  */
 export const listsFile = async (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
   file: string,
 ): Promise<boolean> => {
-  const left = (relative: string): boolean =>
-    SKIPPED_NAMES.has(path.posix.basename(relative)) || ignored(relative);
   if (!(await canList(repository.folder))) {
     return false;
   }
@@ -161,23 +220,105 @@ export const listsFile = async (
   for (const name of file.split("/").slice(0, -1)) {
     folder = folder === "" ? name : `${folder}/${name}`;
     const absolute = path.join(repository.folder, folder);
-    if (left(folder) || repository.excludes.includes(absolute)) {
+    if (nameRule(repository, ignored, folder) !== undefined) {
       return false;
     }
     const stat = await lstatIfThere(absolute);
-    if (
-      stat?.isDirectory() !== true ||
-      (await lstatIfThere(path.join(absolute, ".git"))) !== undefined ||
-      !(await canList(absolute))
-    ) {
+    if (stat === undefined || (await folderRule(absolute, stat)) !== undefined) {
       return false;
     }
   }
   const absolute = path.join(repository.folder, file);
-  if (left(file) || (await lstatIfThere(absolute))?.isFile() !== true) {
+  if (
+    nameRule(repository, ignored, file) !== undefined ||
+    (await lstatIfThere(absolute))?.isFile() !== true
+  ) {
     return false;
   }
-  // The native `realpath` gives the names as stored (and resolves links above the repository).
-  const [root, real] = await Promise.all([fs.realpath(repository.folder), fs.realpath(absolute)]);
-  return path.relative(root, real).split(path.sep).join("/") === file;
+  return (await spelledOnDisk(repository, file)) === file;
+};
+
+/** Names Windows reserves for devices, with or without an extension (`NUL`, `com1.md`, `CONIN$`). */
+const DEVICE_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])(?:\..*)?$/iu;
+
+/** A short name of the 8.3 shape Windows gives a long name (`GIT~1`, `NODE_M~1`, `PROGRA~1.TXT`). */
+const SHORT_NAME = /^[^.~]{1,6}~\d{1,6}(?:\.[^.]{0,3})?$/u;
+
+/** Characters Windows refuses in a name, besides the control characters. */
+const WINDOWS_REFUSED = /[<>:"|?*]/;
+
+/**
+ * The rule that leaves out a name wherever the repository is checked out (repositories move between
+ * operating systems): a name that Windows or macOS take for `.git` or `node_modules` (any case,
+ * trailing dots and spaces dropped) is `skipped-name`; one that Windows changes or refuses
+ * (a trailing dot or space, `<>:"|?*`, a control character, a device name, a short name such as
+ * `GIT~1`) is `not-portable`.
+ */
+const portableRule = (name: string): NewFileRule | undefined => {
+  if (SKIPPED_NAMES.has(name.toLowerCase().replace(/[. ]+$/, ""))) {
+    return "skipped-name";
+  }
+  const control = /\p{Cc}/u.test(name);
+  return control ||
+    /[. ]$/.test(name) ||
+    WINDOWS_REFUSED.test(name) ||
+    DEVICE_NAME.test(name) ||
+    SHORT_NAME.test(name)
+    ? "not-portable"
+    : undefined;
+};
+
+/**
+ * Why `listMarkdownFiles` would not list `file` (relative to the repository, `/` as separator,
+ * inside it) once LogReq has created it and the folders above it that are missing (#183), or
+ * undefined when it would. Every name of the path must be portable (`portableRule`) and pass the
+ * name rules of the walk (`.git`, `node_modules`, `ignore` globs, nested repositories); every
+ * folder above the file that exists must be one the walk goes into (a real folder, not a link,
+ * without a `.git` entry, one it can open), and so must the repository folder; below the first
+ * missing folder only the names count. The existing folders must be spelled as on disk
+ * (`spelling`, with `existing`): on a file system that ignores case, `.GIT` or `Requirements` would
+ * name `.git` or `requirements`. LogReq checks this before it writes anything, so it never writes
+ * below `.git` (D-036) and never creates an element that the walk cannot see. Errors other than
+ * "not there" reject.
+ */
+export const newFileProblem = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  file: string,
+): Promise<NewFileProblem | undefined> => {
+  if (!(await canList(repository.folder))) {
+    return { rule: "unreadable", path: "." };
+  }
+  const names = file.split("/");
+  let relative = "";
+  let existing = true;
+  let deepest: string | undefined;
+  for (const [index, name] of names.entries()) {
+    relative = relative === "" ? name : `${relative}/${name}`;
+    const rule = portableRule(name) ?? nameRule(repository, ignored, relative);
+    if (rule !== undefined) {
+      return { rule, path: relative };
+    }
+    if (!existing || index === names.length - 1) {
+      continue;
+    }
+    const absolute = path.join(repository.folder, relative);
+    const stat = await lstatIfThere(absolute);
+    if (stat === undefined) {
+      existing = false;
+      continue;
+    }
+    const problem = await folderRule(absolute, stat);
+    if (problem !== undefined) {
+      return { rule: problem, path: relative };
+    }
+    deepest = relative;
+  }
+  if (deepest !== undefined) {
+    const spelled = await spelledOnDisk(repository, deepest);
+    if (spelled !== deepest) {
+      return { rule: "spelling", path: deepest, existing: spelled };
+    }
+  }
+  return undefined;
 };

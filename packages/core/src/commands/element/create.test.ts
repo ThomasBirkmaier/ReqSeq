@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { createElement, elementStoreState, loadElements, shortIdState } from "../../model/index.js";
@@ -385,20 +385,233 @@ describe("element.create", () => {
     });
   });
 
-  it("reads the store again when the new file lies in the folder of a nested repository (#166)", async () => {
-    const opened = await standard({
-      "logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
-      "vendor/sub/README.md": "# Sub\n",
+  describe("refuses a file the element walk would not list, before anything is written (#183)", () => {
+    /** Every folder and file below `folder` with the bytes of each file, so nothing written or created goes unseen. */
+    const treeBelow = async (folder: string): Promise<Record<string, string>> => {
+      const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
+      const tree: Record<string, string> = {};
+      for (const e of entries) {
+        const absolute = path.join(e.parentPath, e.name);
+        const relative = path.relative(folder, absolute).split(path.sep).join("/");
+        tree[relative] = e.isFile()
+          ? (await fs.readFile(absolute)).toString("base64")
+          : e.isDirectory()
+            ? "folder"
+            : "link";
+      }
+      return tree;
+    };
+
+    /** An input, the rule that refuses it and the part of the path the rule names. */
+    type Case = readonly [input: Record<string, unknown>, rule: string, part: string];
+
+    const inFolder = (rule: string, ...folders: readonly string[]): Case[] =>
+      folders.map((folder) => [{ folder }, rule, folder]);
+
+    /**
+     * Each input is refused with `input.invalid`, `reason` `not-listed` (or `not-portable`) and the
+     * rule, and the tree below the workspace is unchanged byte for byte: no file, no folder.
+     */
+    const refused = async (opened: Opened, cases: readonly Case[]): Promise<void> => {
+      const before = await treeBelow(opened.root);
+      for (const [input, rule, part] of cases) {
+        const error = await createError(opened, { type: "need", title: "x", ...input });
+        expect([input, error.code, error.details]).toMatchObject([
+          input,
+          "input.invalid",
+          { reason: rule === "not-portable" ? "not-portable" : "not-listed", rule, path: part },
+        ]);
+      }
+      expect(await treeBelow(opened.root)).toEqual(before);
+    };
+
+    it("never writes below .git, at the top or in any folder (D-036: LogReq never writes to Git)", async () => {
+      const opened = await open({ fixture: "SR-001/two-elements", git: true });
+      await refused(opened, [
+        ...inFolder("skipped-name", ".git"),
+        [{ folder: ".git/objects" }, "skipped-name", ".git"],
+        [{ folder: ".git/refs/heads" }, "skipped-name", ".git"],
+        [{ folder: "requirements/.git" }, "skipped-name", "requirements/.git"],
+        [{ folder: "new/.git/x" }, "skipped-name", "new/.git"],
+      ]);
+      expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
     });
-    const before = await opened.workspace.get(elementStoreState);
-    const out = await create(opened, { type: "need", title: "Nested", folder: "vendor/sub" });
-    expect(opened.workspace.peek(elementStoreState)).toBeUndefined();
-    const after = await opened.workspace.get(elementStoreState);
-    expect(after).not.toBe(before);
-    expect(after.byId.get(out.element.id)?.map((e) => [e.repository, e.file])).toEqual([
-      ["sub", `N-${tail12(out.element.id)}.md`],
-    ]);
+
+    it("never writes below a name that Windows or macOS take for .git or node_modules (D-036)", async () => {
+      const opened = await open({ fixture: "SR-001/two-elements", git: true });
+      await refused(opened, [
+        [{ folder: ".GIT/objects" }, "skipped-name", ".GIT"],
+        ...inFolder("skipped-name", ".Git", ".git.", ".git ", ".git. .", "requirements/NODE_MODULES"),
+        [{ folder: ".git./objects" }, "skipped-name", ".git."],
+        [{ folder: ".git /x" }, "skipped-name", ".git "],
+        [{ folder: "Node_Modules/x" }, "skipped-name", "Node_Modules"],
+        [{ folder: "GIT~1/objects" }, "not-portable", "GIT~1"],
+        [{ folder: "NODE_M~1/x" }, "not-portable", "NODE_M~1"],
+      ]);
+      expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
+    });
+
+    it("refuses names that Windows changes or refuses, wherever the repository is checked out", async () => {
+      const opened = await standard();
+      await refused(opened, [
+        ...inFolder("not-portable", "drafts.", "drafts ", "a<b", "a>b", "a:b", 'a"b', "a|b", "a?b", "a*b"),
+        ...inFolder("not-portable", "a\u0001b", "CON", "nul", "Aux.md", "com1", "LPT9.txt", "prn.x.y"),
+        ...inFolder("not-portable", "CONIN$", "conout$.txt", "COM\u00b9", "lpt\u00b3"),
+        [{ folder: "requirements/notes./x" }, "not-portable", "requirements/notes."],
+      ]);
+      // Names that only look alike are fine.
+      for (const folder of [
+        "console",
+        "com0",
+        "lpt",
+        "a~b",
+        "Kapitel~1",
+        "release~2026",
+        ".gitlab",
+        "node_modules_old",
+      ]) {
+        const out = await create(opened, { type: "need", title: "Fine", folder });
+        expect(out.element.file).toBe(`${folder}/N-${tail12(out.element.id)}.md`);
+      }
+    });
+
+    it("refuses an existing folder spelled in another case, as a file system that ignores case finds it, and names the spelling on disk", async () => {
+      const opened = await standard();
+      await opened.workspace.get(elementStoreState);
+      // Linux tells the case apart, so the answers of Windows and macOS are given here.
+      const fold = (p: string): string => p.replace(`${path.sep}Requirements`, `${path.sep}requirements`);
+      const { lstat, opendir, realpath } = {
+        lstat: fs.lstat.bind(fs),
+        opendir: fs.opendir.bind(fs),
+        realpath: fs.realpath.bind(fs),
+      };
+      const spies = [
+        vi.spyOn(fs, "lstat").mockImplementation(((p: string) => lstat(fold(p))) as typeof fs.lstat),
+        vi.spyOn(fs, "opendir").mockImplementation(((p: string) => opendir(fold(p))) as typeof fs.opendir),
+        vi.spyOn(fs, "realpath").mockImplementation(((p: string) => realpath(fold(p))) as typeof fs.realpath),
+      ];
+      onTestFinished(() => {
+        for (const spy of spies) {
+          spy.mockRestore();
+        }
+      });
+      await refused(opened, [
+        [{ folder: "Requirements" }, "spelling", "Requirements"],
+        [{ folder: "Requirements/new" }, "spelling", "Requirements"],
+      ]);
+      const error = await createError(opened, { type: "need", title: "x", folder: "Requirements" });
+      expect(error.details).toMatchObject({ existing: "requirements" });
+      expect(error.message).toContain("(on disk: requirements)");
+      const out = await create(opened, { type: "need", title: "Fine", folder: "requirements" });
+      expect(out.element.file).toBe(`requirements/N-${tail12(out.element.id)}.md`);
+    });
+
+    it("never writes into node_modules", async () => {
+      const opened = await standard({ "node_modules/x/package.json": "{}\n" });
+      await refused(opened, [
+        ...inFolder("skipped-name", "node_modules", "requirements/node_modules"),
+        [{ folder: "node_modules/x" }, "skipped-name", "node_modules"],
+      ]);
+    });
+
+    it("refuses a folder or a file name matched by an ignore glob of the workspace file", async () => {
+      const opened = await standard({
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\nignore: [drafts/**, decision/*.md]\n",
+        "drafts/old/README.md": "# Old\n",
+      });
+      await refused(opened, [
+        ...inFolder("ignored", "drafts"),
+        [{ folder: "drafts/old" }, "ignored", "drafts"],
+        [{ folder: "drafts/new" }, "ignored", "drafts"],
+      ]);
+      const error = await createError(opened, { type: "decision", title: "Ignored file name" });
+      expect(error.details).toMatchObject({
+        reason: "not-listed",
+        rule: "ignored",
+        path: error.details?.["file"],
+      });
+      expect(error.details?.["file"]).toMatch(/^decision\/D-[0-9a-f]{12}\.md$/);
+    });
+
+    it("refuses the folder of a nested repository of the workspace; the caller names the repository instead", async () => {
+      const opened = await standard({
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+        "vendor/sub/README.md": "# Sub\n",
+      });
+      await refused(opened, [
+        ...inFolder("nested-repository", "vendor/sub"),
+        [{ folder: "vendor/sub/deeper" }, "nested-repository", "vendor/sub"],
+      ]);
+      const out = await create(opened, { type: "need", title: "Nested", repository: "sub", folder: "." });
+      expect(out.files).toEqual([`vendor/sub/N-${tail12(out.element.id)}.md`]);
+      expect(out.element).toMatchObject({ repository: "sub", file: `N-${tail12(out.element.id)}.md` });
+    });
+
+    it("refuses a folder with its own .git entry, a repository that is not part of the workspace", async () => {
+      const opened = await standard({ "own/.git": "gitdir: elsewhere\n" });
+      await refused(opened, [
+        ...inFolder("git-entry", "own"),
+        [{ folder: "own/deeper" }, "git-entry", "own"],
+      ]);
+    });
+
+    it("refuses a linked folder, which the walk does not follow, and a file in the way of a folder", async () => {
+      const opened = await standard();
+      await fs.symlink(opened.fixture.path("requirements"), opened.fixture.path("linked"), "junction");
+      await refused(opened, [
+        ...inFolder("link", "linked"),
+        [{ folder: "linked/new" }, "link", "linked"],
+        ...inFolder("not-a-folder", "requirements/SR-1d2e3f4a5b6c.md"),
+      ]);
+    });
+
+    it("refuses a folder the walk cannot open, and any file when it cannot open the repository", async () => {
+      const opened = await standard({ "locked/README.md": "# Locked\n" });
+      await opened.workspace.get(elementStoreState);
+      const opendir = fs.opendir.bind(fs);
+      let locked = ["locked"];
+      const spy = vi
+        .spyOn(fs, "opendir")
+        .mockImplementation(((folder: string) =>
+          locked.includes(path.basename(folder))
+            ? Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }))
+            : opendir(folder)) as typeof fs.opendir);
+      onTestFinished(() => {
+        spy.mockRestore();
+      });
+      await refused(opened, [
+        ...inFolder("unreadable", "locked"),
+        [{ folder: "locked/new" }, "unreadable", "locked"],
+      ]);
+      locked = [path.basename(opened.root)];
+      await refused(opened, [
+        [{ folder: "." }, "unreadable", "."],
+        [{ folder: "requirements" }, "unreadable", "."],
+      ]);
+    });
+
+    it("checks the folders again once they are created, so a .git entry put there meanwhile is not written into", async () => {
+      const opened = await standard();
+      await opened.workspace.get(elementStoreState);
+      const mkdir = fs.mkdir.bind(fs);
+      const spy = vi.spyOn(fs, "mkdir").mockImplementation((async (folder: string, options: object) => {
+        await mkdir(folder, options);
+        // Someone else turns the new folder into a repository of its own before LogReq writes.
+        await fs.writeFile(path.join(opened.root, "fresh", ".git"), "gitdir: elsewhere\n");
+        return undefined;
+      }) as typeof fs.mkdir);
+      onTestFinished(() => {
+        spy.mockRestore();
+      });
+      const error = await createError(opened, { type: "need", title: "x", folder: "fresh/deeper" });
+      expect([error.code, error.details]).toMatchObject([
+        "input.invalid",
+        { reason: "not-listed", rule: "git-entry", path: "fresh" },
+      ]);
+      expect(await filesBelow(opened.fixture.path("fresh"))).toEqual([".git"]);
+    });
   });
 
   it("is refused on a read-only workspace before anything is written", async () => {
