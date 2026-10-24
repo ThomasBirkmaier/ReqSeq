@@ -1043,3 +1043,24 @@ describe("watcherProblems (SR-007)", () => {
     expect(status.problems.map((p) => p.code)).toContain("workspace.not-watched");
   });
 });
+
+describe("the watcher and LogReq's own writes (#166)", () => {
+  it("does not apply a write of element.update or element.create a second time when it sees the file", async () => {
+    const { workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by LogReq" }, { workspace });
+    const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {
+      readonly files: readonly string[];
+    };
+    const store = workspace.peek(elementStoreState);
+    expect(store).toBeDefined();
+    const shortIds = await workspace.get(shortIdState);
+    expect(await title(workspace, REQUIREMENT)).toBe("Renamed by LogReq");
+    fake.only().send(REQUIREMENT_FILE, "change");
+    fake.only().send(String(created.files[0]));
+    await watcher.settled();
+    expect(workspace.peek(elementStoreState)).toBe(store);
+    expect(await workspace.get(shortIdState)).toBe(shortIds);
+  });
+});

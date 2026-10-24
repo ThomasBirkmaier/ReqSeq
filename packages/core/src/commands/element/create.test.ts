@@ -5,9 +5,10 @@ import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { createElement, elementStoreState } from "../../model/index.js";
+import { createElement, elementStoreState, loadElements, shortIdState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 import { computeVersion } from "../../version/version.js";
 
 type Output = CommandOutput<"element.create">;
@@ -375,6 +376,29 @@ describe("element.create", () => {
     expect(after).not.toBe(before);
     expect(after.byId.get(out.element.id)?.map((e) => e.file)).toEqual([out.element.file]);
     expect(out.element.shortId).toMatch(/^N-[0-9a-f]{6,}$/);
+    // In place (#166): the other elements were not read again; the store is what a full read gives.
+    expect(after.elements.filter((e) => before.elements.includes(e))).toHaveLength(before.elements.length);
+    expect(after).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    expect((await opened.workspace.get(shortIdState)).find(out.element.shortId)).toMatchObject({
+      kind: "found",
+      element: { id: out.element.id },
+    });
+  });
+
+  it("reads the store again when the new file lies in the folder of a nested repository (#166)", async () => {
+    const opened = await standard({
+      "logreq-workspace.yaml":
+        "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+      "vendor/sub/README.md": "# Sub\n",
+    });
+    const before = await opened.workspace.get(elementStoreState);
+    const out = await create(opened, { type: "need", title: "Nested", folder: "vendor/sub" });
+    expect(opened.workspace.peek(elementStoreState)).toBeUndefined();
+    const after = await opened.workspace.get(elementStoreState);
+    expect(after).not.toBe(before);
+    expect(after.byId.get(out.element.id)?.map((e) => [e.repository, e.file])).toEqual([
+      ["sub", `N-${tail12(out.element.id)}.md`],
+    ]);
   });
 
   it("is refused on a read-only workspace before anything is written", async () => {

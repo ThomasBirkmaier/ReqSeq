@@ -2,13 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { editElementFile, parseFileBytes } from "../../files/index.js";
-import { elementStoreState } from "../../model/index.js";
+import type { ElementRecord, ElementStore } from "../../model/index.js";
+import { elementStoreState, loadElements, shortIdState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
 
 type Output = CommandOutput<"element.update">;
 
@@ -232,13 +234,26 @@ describe("element.update", () => {
     expect(await opened.workspace.get(elementStoreState)).toBe(store);
   });
 
-  it("resets the element store after a write so the next read sees the change", async () => {
+  it("updates the element store in place after a write, equal to a full read (#166)", async () => {
     const opened = await open();
     const store = await opened.workspace.get(elementStoreState);
+    const shortIds = await opened.workspace.get(shortIdState);
     await update(opened, { ref: WIND.id, title: "Renamed" });
-    const after = await opened.workspace.get(elementStoreState);
-    expect(after).not.toBe(store);
-    expect(after.byId.get(WIND.id)?.[0]?.data["title"]).toBe("Renamed");
+    const after = opened.workspace.peek(elementStoreState);
+    expect(after).toBeDefined();
+    const now = await after;
+    expect(now).not.toBe(store);
+    expect(now?.byId.get(WIND.id)?.[0]?.data["title"]).toBe("Renamed");
+    // The other element was not read again, and the store is what a full read gives.
+    expect(now?.byId.get(GUSTS.id)?.[0]).toBe(store.byId.get(GUSTS.id)?.[0]);
+    expect(now).toEqual(await loadElements(await opened.workspace.get(workspaceLayoutState)));
+    // The states built on the store follow it.
+    const rebuilt = await opened.workspace.get(shortIdState);
+    expect(rebuilt).not.toBe(shortIds);
+    expect(rebuilt.find("SR-e88fb3")).toMatchObject({
+      kind: "found",
+      element: { data: { title: "Renamed" } },
+    });
   });
 
   it("keeps CRLF line endings and the byte order mark", async () => {
@@ -343,5 +358,87 @@ describe("element.update", () => {
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\ntitle: no longer an element\n---\n");
     expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+  });
+});
+
+describe("element.update in a workspace of 50,000 elements (#166, N-036)", () => {
+  /**
+   * A sanity bound only. What this test checks is that a save reads no other file and keeps the
+   * other records; wall-clock time in a parallel suite with coverage varies too much between
+   * machines (about 140 ms alone on 4 cores with Linux, up to 370 ms in the suite on macOS). The
+   * strict 200 ms check of SR-082 AK3 on the reference machine belongs to the nightly performance
+   * job (ADR-0008, #94). A full read of 50,000 files, which every save cost before #166, takes
+   * seconds.
+   */
+  const SANITY_BOUND_MS = 1500;
+
+  /** `count` elements that exist in the store only, as if read from files (none is read). */
+  const generated = (count: number): ElementRecord[] =>
+    Array.from({ length: count }, (_, n) => {
+      const id = `0f1e2d3c-4b5a-4968-8776-${n.toString(16).padStart(12, "0")}`;
+      const file = `generated/SR-${id.slice(-12)}.md`;
+      return {
+        id,
+        type: "system-requirement",
+        repository: "system",
+        file,
+        data: { id, type: "system-requirement", status: "draft", title: `Generated ${String(n)}` },
+        eol: "\n",
+        closingEol: "\n",
+        bom: false,
+        snapshot: { path: file, size: 100, mtimeMs: 0, sha256: "0".repeat(64) },
+      };
+    });
+
+  it("updates one element, then has store and short IDs current, reading no other file", async () => {
+    const opened = await open();
+    const current = opened.workspace.get(elementStoreState);
+    const small = await current;
+    const records = generated(50_000);
+    const [contents] = small.repositories ?? [];
+    if (contents === undefined) {
+      throw new Error("no repository contents");
+    }
+    const files = new Map(contents.files);
+    for (const record of records) {
+      files.set(record.file, { kind: "element", element: record, warnings: [], snapshot: record.snapshot });
+    }
+    const elements = [...small.elements, ...records];
+    const big: ElementStore = {
+      ...small,
+      elements,
+      byId: new Map(elements.map((e) => [e.id, [e]])),
+      repositories: [
+        { ...contents, files: new Map([...files].sort(([a], [b]) => Number(a > b) - Number(a < b))) },
+      ],
+    };
+    expect(await opened.workspace.replace(elementStoreState, current, Promise.resolve(big))).toBe(true);
+    // An editing session: a first save compiles the schemas once; then saves are measured, the
+    // best of three, so that a pause of the machine (GC, CI neighbours) does not decide.
+    await update(opened, { ref: GUSTS.id, title: "Show gusts now" });
+    await opened.workspace.get(shortIdState);
+    const reads = vi.spyOn(fs, "readFile");
+    onTestFinished(() => {
+      reads.mockRestore();
+    });
+    const times: number[] = [];
+    for (const title of ["Show wind", "Show the wind", "Show wind speed again"]) {
+      reads.mockClear();
+      const start = performance.now();
+      await update(opened, { ref: WIND.id, title });
+      // What element.get will read: the store and the short IDs.
+      const after = await opened.workspace.get(elementStoreState);
+      const found = (await opened.workspace.get(shortIdState)).find("SR-e88fb3");
+      times.push(performance.now() - start);
+      expect(found).toMatchObject({ kind: "found", element: { data: { title } } });
+      expect(after.elements).toHaveLength(50_002);
+      expect(after.byId.get(records[0]?.id ?? "")?.[0]).toBe(records[0]);
+      // The element's own file only: read before the write and checked by the write itself.
+      expect(reads.mock.calls.map(([file]) => path.basename(file as string))).toEqual([
+        path.basename(WIND.file),
+        path.basename(WIND.file),
+      ]);
+    }
+    expect(Math.min(...times)).toBeLessThan(SANITY_BOUND_MS);
   });
 });

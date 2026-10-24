@@ -1,17 +1,18 @@
 // The element store (ADR-0008): every element file of every available repository of the workspace,
 // found by its frontmatter in whatever folder it lies (SR-003, SR-004 AK1, D-056). Relations name
 // their target by UUID only, so moving a file to another folder changes nothing for them (SR-003 AK3).
-// The watcher keeps it current file by file (`updateElements`, SR-007).
+// The watcher keeps it current file by file (`updateElements`, SR-007), and so does a write of
+// LogReq itself (`withWrittenFiles`, `recordWrites`, #166).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
-import type { FileSnapshot } from "../files/index.js";
+import type { FileSnapshot, ParsedFile } from "../files/index.js";
 import { readElementFile } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
-import { listMarkdownFiles } from "./discover.js";
+import { listMarkdownFiles, listsFile } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
@@ -87,14 +88,19 @@ const contribution = async (repository: RepositoryLocation, file: string): Promi
   if (read.kind === "no-frontmatter") {
     return { kind: "not-element", file: read.path, warnings: [] };
   }
-  const { snapshot } = read.file;
-  const warnings = read.file.warnings.map((w) => withRepository(w, repository.name));
-  const classified = classifyFile(repository.name, read.file);
+  return parsedContribution(repository.name, read.file);
+};
+
+/** What a file that parsed contributes; the full read and a write (`withWrittenFiles`) use it. */
+const parsedContribution = (repository: string, file: ParsedFile): Contribution => {
+  const { snapshot } = file;
+  const warnings = file.warnings.map((w) => withRepository(w, repository));
+  const classified = classifyFile(repository, file);
   switch (classified.kind) {
     case "element":
       return { kind: "element", element: classified.element, warnings, snapshot };
     case "not-element":
-      return { kind: "not-element", file: read.file.path, warnings, snapshot };
+      return { kind: "not-element", file: file.path, warnings, snapshot };
     case "problem":
       return { kind: "problem", problem: classified.problem, warnings, snapshot };
   }
@@ -344,11 +350,109 @@ export const updateElements = async (
   return repositories.every((r, i) => r === before[i]) ? undefined : assemble(repositories);
 };
 
+/** A file LogReq has just written (`element.create`, `element.update`, ...), for `withWrittenFiles`. */
+export interface WrittenFile {
+  /** Workspace name of the repository. */
+  readonly repository: string;
+  /** The bytes as written, parsed, with the snapshot of the write. */
+  readonly file: ParsedFile;
+  /** The snapshot of the file the write replaced; undefined for a new file. */
+  readonly replaced: FileSnapshot | undefined;
+}
+
+/**
+ * `withWrittenFiles` cannot tell that its result equals a full read; the caller resets the store
+ * (`recordWrites`). Any other error is a bug and is passed on.
+ */
+export class StoreFallback extends Error {
+  override readonly name = "StoreFallback";
+}
+
+const sameSnapshot = (a: FileSnapshot | undefined, b: FileSnapshot | undefined): boolean =>
+  a === undefined || b === undefined
+    ? a === b
+    : a.path === b.path && a.size === b.size && a.mtimeMs === b.mtimeMs && a.sha256 === b.sha256;
+
+/** Whether the walk lists a new file; an error while looking counts as "cannot tell". */
+const listedNew = async (
+  contents: RepositoryContents,
+  layout: WorkspaceLayout,
+  file: string,
+): Promise<boolean> => {
+  if (contents.listing.some((p) => p.severity === "error")) {
+    return false;
+  }
+  try {
+    return await listsFile(contents.location, ignoredBy(layout), file);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The store with files as LogReq has just written them (#166, ADR-0008), without reading any
+ * file: each file's contribution is built from the bytes written and the snapshot of the write,
+ * the same way a full read builds it, and swapped in (a new file in path order); the store is
+ * assembled once for all of them and every other record stays the same object. Undefined when the
+ * store has every file as written already (the watcher saw them first), so a write is never
+ * applied twice; the watcher, in turn, finds the snapshots unchanged when it sees the files.
+ * Rejects with `StoreFallback` when the result could differ from `loadElements` on the working
+ * tree now, and the caller then resets the store: a store without `repositories` or without the
+ * repository; a file the store holds in another state than the one the write replaced (a newer
+ * change was seen meanwhile); a new file that the walk would not list under its repository
+ * (`listsFile`: ignored, linked, unreadable or nested folders, another spelling), or a repository
+ * with folders that cannot be listed.
+ */
+export const withWrittenFiles = async (
+  store: ElementStore,
+  layout: WorkspaceLayout,
+  written: readonly WrittenFile[],
+): Promise<ElementStore | undefined> => {
+  const repositories = [...(store.repositories ?? [])];
+  /** By index in `repositories`: the contents before and the files after the writes. */
+  const changed = new Map<
+    number,
+    { readonly contents: RepositoryContents; files: Map<string, Contribution> }
+  >();
+  for (const { repository, file: parsed, replaced } of written) {
+    const index = repositories.findIndex((r) => r.repository === repository);
+    const contents = repositories[index];
+    if (contents === undefined) {
+      throw new StoreFallback(`the element store holds no files of repository ${repository}`);
+    }
+    const files = changed.get(index)?.files ?? new Map(contents.files);
+    const file = parsed.path;
+    const old = files.get(file);
+    if (old !== undefined && sameSnapshot(old.snapshot, parsed.snapshot)) {
+      continue;
+    }
+    if (!sameSnapshot(old?.snapshot, replaced)) {
+      throw new StoreFallback(`the element store holds another state of ${file} than the write replaced`);
+    }
+    if (old === undefined && !(await listedNew(contents, layout, file))) {
+      throw new StoreFallback(`a full read may not list ${file} under repository ${repository}`);
+    }
+    files.set(file, parsedContribution(repository, parsed));
+    changed.set(index, {
+      contents,
+      files: old === undefined ? inListOrder([...files.keys()], files) : files,
+    });
+  }
+  if (changed.size === 0) {
+    return undefined;
+  }
+  for (const [index, { contents, files }] of changed) {
+    repositories[index] = { ...contents, files };
+  }
+  return assemble(repositories);
+};
+
 /**
  * The element store of a workspace, read on first use and kept until reset. Reading it again
  * (`workspace.reset(elementStoreState)` or a new `Workspace`) finds every element where it lies
- * now; the watcher updates it file by file instead (`applyStoreChange`, SR-007). Resetting the
- * workspace layout resets it too.
+ * now; the watcher and LogReq's own writes update it file by file instead (`applyStoreChange`;
+ * `updateElements`, SR-007; `recordWrites`, #166). Resetting the workspace layout resets it
+ * too.
  *
  * The store may be swapped while a command runs, and so may the states built on it (short IDs,
  * findings), each when it is next read. A command that needs one consistent view reads the store
@@ -387,8 +491,8 @@ const applyNow = async (
 };
 
 /**
- * Changes the element store of `workspace` without reading it again (the watcher, SR-007; writing
- * commands later): `change` gets the current store and returns the new one, or undefined for no
+ * Changes the element store of `workspace` without reading it again (the watcher, SR-007; LogReq's
+ * own writes, #166): `change` gets the current store and returns the new one, or undefined for no
  * change. Calls run one after the other per workspace. When the store was replaced while `change`
  * ran, `change` runs again on the newer store; when it was reset (or never read), nothing happens,
  * since the next read finds the files as they are. Resolves with the store set, or undefined.
@@ -401,4 +505,34 @@ export const applyStoreChange = (
   const run = queue.tail.then(() => applyNow(workspace, change));
   queue.tail = run.catch(() => undefined);
   return run;
+};
+
+/**
+ * Puts files LogReq has just written into the element store of `workspace` without reading any
+ * file again (#166, ADR-0008): `element.create`, `element.update` and every later command that
+ * writes element files call it once with all files of the command. It goes through the queue of
+ * `applyStoreChange`, so a save waits behind a watcher batch that is running. The states built on
+ * the store (short IDs, findings) are rebuilt from it when next read. When the result could differ
+ * from a full read (`StoreFallback`), or the layout `layout` is no longer the workspace's, the
+ * store is reset, so the next read finds the files as written. Other errors are passed on.
+ */
+export const recordWrites = async (
+  workspace: Workspace,
+  layout: WorkspaceLayout,
+  written: readonly WrittenFile[],
+): Promise<void> => {
+  try {
+    await applyStoreChange(workspace, async (store) => {
+      // The layout was read again (the workspace file changed): the store will be read with it.
+      if ((await workspace.peek(workspaceLayoutState)) !== layout) {
+        throw new StoreFallback("the workspace layout changed since the write");
+      }
+      return withWrittenFiles(store, layout, written);
+    });
+  } catch (error) {
+    if (!(error instanceof StoreFallback)) {
+      throw error;
+    }
+    await workspace.reset(elementStoreState);
+  }
 };

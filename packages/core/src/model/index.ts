@@ -1,6 +1,6 @@
 // The `model` block (ADR-0008, SR-003): the element store of a workspace. Core blocks and commands
 // import it relatively; it is not part of the package's public API.
-export { ELEMENT_FILE_EXTENSION, listMarkdownFiles } from "./discover.js";
+export { ELEMENT_FILE_EXTENSION, listMarkdownFiles, listsFile } from "./discover.js";
 export type { DiscoveredFiles } from "./discover.js";
 export { classifyFile } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
@@ -10,13 +10,23 @@ export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./dupl
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";
-export { applyStoreChange, elementStoreState, ignoredBy, loadElements, updateElements } from "./store.js";
+export {
+  applyStoreChange,
+  elementStoreState,
+  ignoredBy,
+  loadElements,
+  updateElements,
+  recordWrites,
+  StoreFallback,
+  withWrittenFiles,
+} from "./store.js";
 export type {
   Contribution,
   ElementStore,
   RepositoryChanges,
   RepositoryContents,
   RepositoryFile,
+  WrittenFile,
 } from "./store.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";

@@ -40,7 +40,7 @@ import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState } from "./store.js";
+import { elementStoreState, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { elementView, titleKeyOf } from "./view.js";
@@ -262,7 +262,10 @@ const withTargets = async (
     ]),
   );
 
-/** The result of a write; the element store is reset, so the next read finds the file as written. */
+/**
+ * The result of a write; with `files` written, the element store gets the file as written
+ * (`replaced`: the snapshot the write replaced, none for a new file; `recordWrites`, #166).
+ */
 const finish = async (
   workspace: Workspace,
   written: ReadElement,
@@ -270,6 +273,7 @@ const finish = async (
   shortIds: ShortIds,
   titleKey: string,
   files: readonly string[],
+  replaced?: FileSnapshot,
 ): Promise<ElementWriteResult> => {
   const element = elementView({
     ...written,
@@ -279,7 +283,9 @@ const finish = async (
     titleKey,
   });
   if (files.length > 0) {
-    await workspace.reset(elementStoreState);
+    await recordWrites(workspace, context.layout, [
+      { repository: written.record.repository, file: written.file, replaced },
+    ]);
   }
   return { element, files, problems: element.problems };
 };
@@ -450,7 +456,13 @@ export const updateElement = async (
     bytes,
     await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
   );
-  return finish(workspace, written, context, shortIds, titleKey, [
-    workspacePath(layout, repository, record.file),
-  ]);
+  return finish(
+    workspace,
+    written,
+    context,
+    shortIds,
+    titleKey,
+    [workspacePath(layout, repository, record.file)],
+    record.snapshot,
+  );
 };

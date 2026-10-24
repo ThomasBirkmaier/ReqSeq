@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { readElementFile } from "../files/index.js";
+import type { FileSnapshot } from "../files/index.js";
+import { readElementFile, writeFileAtomic } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { computeVersion } from "../version/version.js";
@@ -10,8 +11,17 @@ import type { VersionPropertyDefinition, VersionValue } from "../version/version
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
-import type { ElementStore, RepositoryChanges } from "./store.js";
-import { applyStoreChange, elementStoreState, loadElements, updateElements } from "./store.js";
+import type { ElementStore, RepositoryChanges, WrittenFile } from "./store.js";
+import {
+  applyStoreChange,
+  elementStoreState,
+  loadElements,
+  updateElements,
+  recordWrites,
+  StoreFallback,
+  withWrittenFiles,
+} from "./store.js";
+import { writtenElement } from "./write.js";
 
 const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace(options);
@@ -699,5 +709,223 @@ describe("applyStoreChange (SR-007)", () => {
     });
     expect(seen).toEqual([loaded, newer]);
     expect(await workspace.get(elementStoreState)).toBe(result);
+  });
+});
+
+describe("withWrittenFiles (#166)", () => {
+  /** One written file. */
+  const withWrittenFile = (
+    store: ElementStore,
+    layout: WorkspaceLayout,
+    written: WrittenFile,
+  ): Promise<ElementStore | undefined> => withWrittenFiles(store, layout, [written]);
+  const NEED = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
+  const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
+  const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
+
+  /** The fixture with its store read, and a way to write a file as LogReq does. */
+  const opened = async (
+    files: Readonly<Record<string, string>> = {},
+  ): Promise<{
+    ws: FixtureWorkspace;
+    before: ElementStore;
+    layout: WorkspaceLayout;
+    write: (file: string, text: string, replaced: FileSnapshot | undefined) => Promise<WrittenFile>;
+  }> => {
+    const ws = await fixture({ fixture: "SR-007/external-changes", files });
+    const workspace = open(ws.root);
+    const before = await workspace.get(elementStoreState);
+    const layout = await workspace.get(workspaceLayoutState);
+    const write = async (
+      file: string,
+      text: string,
+      replaced: FileSnapshot | undefined,
+    ): Promise<WrittenFile> => {
+      await fs.mkdir(ws.path(file.slice(0, file.lastIndexOf("/"))), { recursive: true });
+      const snapshot = await writeFileAtomic(ws.root, file, text, replaced ?? null);
+      const written = writtenElement("system", new TextEncoder().encode(text), snapshot);
+      return { repository: "system", file: written.file, replaced };
+    };
+    return { ws, before, layout, write };
+  };
+
+  /** Counts file reads while `run` runs. */
+  const reads = async <T>(run: () => Promise<T>): Promise<{ result: T; count: number }> => {
+    const spy = vi.spyOn(fs, "readFile");
+    try {
+      const result = await run();
+      return { result, count: spy.mock.calls.length };
+    } finally {
+      spy.mockRestore();
+    }
+  };
+
+  it("puts a changed file into the store without reading a file; the store equals a full read", async () => {
+    const { before, layout, write } = await opened();
+    const old = only(before, REQUIREMENT);
+    const written = await write(
+      REQUIREMENT_FILE,
+      element(REQUIREMENT, "system-requirement", "x: 1\n"),
+      old.snapshot,
+    );
+    const { result: after, count } = await reads(() => withWrittenFile(before, layout, written));
+    expect(count).toBe(0);
+    expect(after).toEqual(await loadElements(layout));
+    expect(after && only(after, REQUIREMENT).data["x"]).toBe(1);
+    expect(after && only(after, NEED)).toBe(only(before, NEED));
+  });
+
+  it("puts a new file into the store in path order; the store equals a full read", async () => {
+    const { before, layout, write } = await opened();
+    const first = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    const once = await withWrittenFile(before, layout, first);
+    expect(once).toEqual(await loadElements(layout));
+    if (once === undefined) {
+      throw new Error("expected a store");
+    }
+    expect(once.elements.map((e) => e.file)).toEqual([
+      "a/SR-0c1d2e3f4a5b.md",
+      "needs/N-8beffcbd8c26.md",
+      REQUIREMENT_FILE,
+    ]);
+    const second = await write("z/new/SR-1d2e3f4a5b6c.md", element(ID_B), undefined);
+    const twice = await withWrittenFile(once, layout, second);
+    expect(twice).toEqual(await loadElements(layout));
+    expect(twice?.elements.at(-1)?.file).toBe("z/new/SR-1d2e3f4a5b6c.md");
+  });
+
+  it("changes nothing when the store has the file as written already, so a write is applied once", async () => {
+    const { before, layout, write } = await opened();
+    const written = await write(REQUIREMENT_FILE, element(REQUIREMENT), only(before, REQUIREMENT).snapshot);
+    const after = await withWrittenFile(before, layout, written);
+    expect(after).toBeDefined();
+    if (after === undefined) {
+      throw new Error("expected a store");
+    }
+    expect(await withWrittenFile(after, layout, written)).toBeUndefined();
+    const created = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    const withNew = await withWrittenFile(after, layout, created);
+    expect(withNew && (await withWrittenFile(withNew, layout, created))).toBeUndefined();
+    // The watcher, reading the files again, finds nothing new either.
+    expect(
+      withNew &&
+        (await updateElements(
+          withNew,
+          layout,
+          new Map([["system", { paths: [REQUIREMENT_FILE, "a/SR-0c1d2e3f4a5b.md"] }]]),
+        )),
+    ).toBeUndefined();
+  });
+
+  it("rejects when the store holds the file in another state than the one the write replaced", async () => {
+    const { before, layout, write } = await opened();
+    const old = only(before, REQUIREMENT).snapshot;
+    const written = await write(REQUIREMENT_FILE, element(REQUIREMENT), old);
+    await expect(withWrittenFile(before, layout, { ...written, replaced: undefined })).rejects.toThrow(
+      "another state",
+    );
+    await expect(
+      withWrittenFile(before, layout, { ...written, replaced: { ...old, sha256: "0".repeat(64) } }),
+    ).rejects.toThrow("another state");
+  });
+
+  it("rejects a store without the contents of the repository", async () => {
+    const { before, layout, write } = await opened();
+    const written = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    const { repositories: _, ...bare } = before;
+    await expect(withWrittenFile(bare, layout, written)).rejects.toThrow("no files of repository system");
+    await expect(withWrittenFile(before, layout, { ...written, repository: "other" })).rejects.toThrow(
+      "no files of repository other",
+    );
+  });
+
+  it("rejects a new file that a full read would not list under the repository, or may not", async () => {
+    const { before, layout, write } = await opened({ "vendor/.git": "gitdir: x\n" });
+    const hidden = await write("vendor/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    await expect(withWrittenFile(before, layout, hidden)).rejects.toThrow("may not list");
+    const created = await write("a/SR-1d2e3f4a5b6c.md", element(ID_B), undefined);
+    const withListing = (severity: "error" | "warning"): ElementStore => ({
+      ...before,
+      repositories: (before.repositories ?? []).map((r) => ({
+        ...r,
+        listing: [{ code: "file.unreadable", severity, repository: "system", file: "locked", message: "x" }],
+      })),
+    });
+    await expect(withWrittenFile(withListing("error"), layout, created)).rejects.toThrow(StoreFallback);
+    const after = await withWrittenFile(withListing("warning"), layout, created);
+    expect(after?.byId.get(ID_B)?.map((e) => e.file)).toEqual(["a/SR-1d2e3f4a5b6c.md"]);
+  });
+  it("puts several written files into the store at once, equal to a full read", async () => {
+    const { before, layout, write } = await opened();
+    const changed = await write(REQUIREMENT_FILE, element(REQUIREMENT), only(before, REQUIREMENT).snapshot);
+    const first = await write("z/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    const second = await write("a/SR-1d2e3f4a5b6c.md", element(ID_B), undefined);
+    const { result: after, count } = await reads(() =>
+      withWrittenFiles(before, layout, [changed, first, second]),
+    );
+    expect(count).toBe(0);
+    expect(after).toEqual(await loadElements(layout));
+    expect(await withWrittenFiles(before, layout, [])).toBeUndefined();
+  });
+
+  it("cannot tell, and says so, when looking at a new file's folders fails", async () => {
+    const { before, layout, write } = await opened();
+    const created = await write("a/SR-0c1d2e3f4a5b.md", element(ID_A), undefined);
+    const spy = vi
+      .spyOn(fs, "lstat")
+      .mockRejectedValue(Object.assign(new Error("denied"), { code: "EACCES" }));
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    await expect(withWrittenFile(before, layout, created)).rejects.toThrow(StoreFallback);
+  });
+});
+
+describe("recordWrites (#166)", () => {
+  const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
+  const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
+
+  /** Opens the fixture, reads the store and changes the requirement on disk as LogReq writes it. */
+  const opened = async (): Promise<{
+    workspace: Workspace;
+    layout: WorkspaceLayout;
+    file: WrittenFile;
+  }> => {
+    const ws = await fixture({ fixture: "SR-007/external-changes" });
+    const workspace = open(ws.root);
+    const before = await workspace.get(elementStoreState);
+    const layout = await workspace.get(workspaceLayoutState);
+    const replaced = only(before, REQUIREMENT).snapshot;
+    const text = element(REQUIREMENT, "system-requirement", "x: 2\n");
+    const snapshot = await writeFileAtomic(ws.root, REQUIREMENT_FILE, text, replaced);
+    const parsed = writtenElement("system", new TextEncoder().encode(text), snapshot).file;
+    return { workspace, layout, file: { repository: "system", file: parsed, replaced } };
+  };
+
+  it("replaces the store, or resets it when the result could differ from a full read", async () => {
+    const { workspace, layout, file } = await opened();
+    await recordWrites(workspace, layout, [file]);
+    const after = await workspace.peek(elementStoreState);
+    expect(after && only(after, REQUIREMENT).data["x"]).toBe(2);
+    // Another state of the file than the one in the store, which this write did not replace: reset.
+    const other = { ...file.file, snapshot: { ...file.file.snapshot, sha256: "1".repeat(64) } };
+    await recordWrites(workspace, layout, [{ ...file, file: other, replaced: undefined }]);
+    expect(workspace.peek(elementStoreState)).toBeUndefined();
+  });
+
+  it("resets the store when the layout was read again since the write (the workspace file changed)", async () => {
+    const { workspace, layout, file } = await opened();
+    await workspace.reset(workspaceLayoutState);
+    await workspace.get(elementStoreState);
+    expect(await workspace.get(workspaceLayoutState)).not.toBe(layout);
+    await recordWrites(workspace, layout, [file]);
+    expect(workspace.peek(elementStoreState)).toBeUndefined();
+  });
+
+  it("passes on an error that is no fallback and keeps the store", async () => {
+    const { workspace, layout, file } = await opened();
+    const broken = { ...file, file: { ...file.file, warnings: null } } as unknown as WrittenFile;
+    await expect(recordWrites(workspace, layout, [broken])).rejects.toThrow(TypeError);
+    expect(workspace.peek(elementStoreState)).toBeDefined();
   });
 });

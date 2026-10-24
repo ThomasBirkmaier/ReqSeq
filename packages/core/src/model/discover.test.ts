@@ -5,7 +5,7 @@ import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
-import { listMarkdownFiles } from "./discover.js";
+import { listMarkdownFiles, listsFile } from "./discover.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 
@@ -163,5 +163,108 @@ describe("listMarkdownFiles", () => {
     expect(s.problems.map((p) => [p.code, p.severity, p.repository, p.file])).toEqual([
       ["file.skipped", "warning", "solo", "CLAUDE.md"],
     ]);
+  });
+});
+
+describe("listsFile (#166)", () => {
+  it("agrees with listMarkdownFiles for every rule of the walk, checking only the path", async () => {
+    const ws = await fixture({
+      "a.md": "",
+      "deep/er/b.md": "",
+      "docs/c.md": "",
+      "node_modules/d.md": "",
+      "nested/e.md": "",
+      "own/.git": "gitdir: elsewhere\n",
+      "own/f.md": "",
+      "c.md/inner.md": "",
+      "c.md/g.md/h.md": "",
+      "outside/i.md": "",
+      "skip.md": "",
+    });
+    await fs.symlink(ws.path("outside"), ws.path("linked"), "junction");
+    await fs.symlink(ws.path("outside/i.md"), ws.path("link.md"), "file");
+    const repo = repository(ws.root, [ws.path("nested")]);
+    const ignored = ignoreMatcher(["docs/**", "skip.md"]);
+    const listed = (await listMarkdownFiles(repo, ignored)).files;
+    const candidates = [
+      "a.md",
+      "deep/er/b.md",
+      "docs/c.md",
+      "node_modules/d.md",
+      "nested/e.md",
+      "own/f.md",
+      "c.md/inner.md",
+      "c.md/g.md",
+      "a.md/x.md",
+      "linked/i.md",
+      "link.md",
+      "skip.md",
+      "gone/x.md",
+      "deep/gone.md",
+      "outside/i.md",
+    ];
+    for (const file of candidates) {
+      expect([file, await listsFile(repo, ignored, file)]).toEqual([file, listed.includes(file)]);
+    }
+    expect(candidates.filter((file) => listed.includes(file))).toEqual([
+      "a.md",
+      "deep/er/b.md",
+      "c.md/inner.md",
+      "outside/i.md",
+    ]);
+  });
+
+  it("does not list a file below a folder the walk cannot open, or in a repository it cannot open", async () => {
+    const ws = await fixture({ "locked/a.md": "", "open/b.md": "" });
+    const opendir = fs.opendir.bind(fs);
+    let locked = ["locked"];
+    const spy = vi
+      .spyOn(fs, "opendir")
+      .mockImplementation(((folder: string) =>
+        locked.includes(path.basename(folder))
+          ? Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }))
+          : opendir(folder)) as typeof fs.opendir);
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    const repo = repository(ws.root);
+    expect(await listsFile(repo, nothing, "locked/a.md")).toBe(false);
+    expect(await listsFile(repo, nothing, "open/b.md")).toBe(true);
+    locked = [path.basename(ws.root)];
+    expect(await listsFile(repo, nothing, "open/b.md")).toBe(false);
+  });
+
+  it("rejects when a path cannot be looked at", async () => {
+    const ws = await fixture({ "a/b.md": "" });
+    const spy = vi
+      .spyOn(fs, "lstat")
+      .mockRejectedValue(Object.assign(new Error("denied"), { code: "EACCES" }));
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    await expect(listsFile(repository(ws.root), nothing, "a/b.md")).rejects.toThrow("denied");
+  });
+
+  it("does not list a path spelled in another case than its folder, as a file system that ignores case finds it", async () => {
+    const ws = await fixture({ "requirements/a.md": "" });
+    // Linux tells the case apart, so the answer of Windows and macOS is given here.
+    const realpath = fs.realpath.bind(fs);
+    const spy = vi
+      .spyOn(fs, "realpath")
+      .mockImplementation(((p: string) =>
+        realpath(
+          p.replace(`${path.sep}Requirements${path.sep}`, `${path.sep}requirements${path.sep}`),
+        )) as typeof fs.realpath);
+    const lstat = fs.lstat.bind(fs);
+    const lstatSpy = vi
+      .spyOn(fs, "lstat")
+      .mockImplementation(((p: string) =>
+        lstat(p.replace(`${path.sep}Requirements`, `${path.sep}requirements`))) as typeof fs.lstat);
+    onTestFinished(() => {
+      spy.mockRestore();
+      lstatSpy.mockRestore();
+    });
+    expect(await listsFile(repository(ws.root), nothing, "Requirements/a.md")).toBe(false);
+    expect(await listsFile(repository(ws.root), nothing, "requirements/a.md")).toBe(true);
   });
 });
