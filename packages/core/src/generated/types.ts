@@ -301,7 +301,7 @@ export interface DataExportRelation {
   readonly direction: "out" | "in";
   readonly id: Uuid;
   readonly shortId?: ShortId;
-  /** Only when the other end is available locally (SR-005 AK3, SR-006 AK1). */
+  /** Only when the other end is available locally, also across repositories, where the file stores no title (SR-005 AK2, SR-006 AK1). */
   readonly title?: string;
   readonly accessible: boolean;
   readonly storedVersion?: Version;

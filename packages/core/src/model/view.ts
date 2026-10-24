@@ -8,11 +8,11 @@ import { findType, propertyWithMeaning } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import { computeVersion } from "../version/version.js";
 import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
-import { resolveId } from "./duplicates.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
+import { resolveTarget } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { unknownFindings } from "./unknown.js";
@@ -33,10 +33,13 @@ export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
 /**
  * The element's own relations: the targets under the keys of relation kinds, in the order of the
  * relation kinds in the metamodel, then of the items. Items that are not a target with a UUID are
- * left out; the value-kind check reports them (SR-085). A target counts as accessible only when the
- * store has exactly one element with its UUID; then its title and short ID are given (SR-005 AK2,
- * SR-006). A UUID shared by several files (SR-088) is not accessible: which one is meant is unknown.
- * Repository-aware lookup (D-058) and a target state follow with `resolveTarget` (#162, #18).
+ * left out; the value-kind check reports them (SR-085). A target is looked up in the repository it
+ * names, or in the source's own when it names none (`resolveTarget`, D-058). It counts as
+ * accessible only when that repository has exactly one element with its UUID; then the title and
+ * short ID of that element are given, also across repositories, where the file stores no title
+ * (SR-005 AK2, SR-006). A UUID shared by several files there (SR-088) is not accessible: which one
+ * is meant is unknown. So is a target whose `repository` is not text. A target state that tells a
+ * missing target from one in a missing repository follows (#18).
  */
 const outgoingRelations = (
   record: ElementRecord,
@@ -49,12 +52,18 @@ const outgoingRelations = (
     const value = record.data[kind.key];
     const items: readonly unknown[] = Array.isArray(value) ? value : value === undefined ? [] : [value];
     return items.filter(isRecord).flatMap((item): DataExportRelation[] => {
-      const { id, version } = item;
+      const { id, version, repository } = item;
       if (!isUuid(id)) {
         return [];
       }
-      const match = resolveId(store.byId, id);
-      const target = match.kind === "found" ? match.element : undefined;
+      const match =
+        repository === undefined || typeof repository === "string"
+          ? resolveTarget(store, record.repository, {
+              id,
+              ...(repository === undefined ? {} : { repository }),
+            })
+          : undefined;
+      const target = match?.kind === "found" ? match.element : undefined;
       const title = target?.data[titleKey];
       return [
         {
