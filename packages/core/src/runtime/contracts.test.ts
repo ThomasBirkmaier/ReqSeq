@@ -5,6 +5,7 @@ import {
   SCHEMA_BASE,
   contractsBundle,
   describeViolations,
+  fileSchemaValidator,
   loadContracts,
   schemaViolations,
 } from "./contracts.js";
@@ -141,5 +142,27 @@ describe("schema violations", () => {
   it("handles missing error lists", () => {
     expect(schemaViolations(null)).toEqual([]);
     expect(schemaViolations(undefined)).toEqual([]);
+  });
+});
+
+describe("fileSchemaValidator", () => {
+  it("validates a file against its format schema, with refs into common.schema.json", () => {
+    const validate = fileSchemaValidator("workspace.schema.json");
+    expect(fileSchemaValidator("workspace.schema.json")).toBe(validate);
+    const file = {
+      "logreq-workspace": 1,
+      name: "W",
+      repositories: [{ name: "w", url: "u" }],
+      metamodel: { repository: "w", path: "model" },
+    };
+    expect(validate(file)).toBe(true);
+    // No defaults are filled in: the file stays as it was read.
+    expect(file.repositories[0]).toEqual({ name: "w", url: "u" });
+    expect(validate({ ...file, metamodel: { repository: "w", path: "../up" } })).toBe(false);
+    expect(schemaViolations(validate.errors)[0]?.path).toBe("/metamodel/path");
+  });
+
+  it("throws for a name that is not a schema", () => {
+    expect(() => fileSchemaValidator("nope.schema.json")).toThrow("no schema nope.schema.json in schemas/");
   });
 });

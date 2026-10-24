@@ -1,0 +1,4 @@
+logreq-local: 1
+repositories:
+  subsystem-sensor: { path: ../../checkouts/sensor }
+  metamodel: { path: /home/anna/work/ws-metamodel }

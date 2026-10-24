@@ -3,6 +3,7 @@ import { createFixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandContext } from "../catalog.js";
 import { CommandError, defineCommand } from "../catalog.js";
+import { commands as productCommands } from "../commands/index.js";
 import { loadContracts } from "./contracts.js";
 import type { CommandRuntimeOptions } from "./invoke.js";
 import { configureCommandRuntime, createCommandRuntime, getCommandRuntime, invoke } from "./invoke.js";
@@ -127,7 +128,7 @@ describe("createCommandRuntime", () => {
   it("uses the product commands and the repository catalog by default", () => {
     const rt = createCommandRuntime();
     expect(rt.contracts.entry("workspace.status")).toBeDefined();
-    expect(rt.commands.size).toBe(0);
+    expect([...rt.commands.keys()]).toEqual(productCommands.map((c) => c.name));
   });
 });
 
@@ -290,7 +291,7 @@ describe("invoke (product runtime)", () => {
       await expect(invoke("test.echo", { ref: "SR-825b7146fb54" }, ctx)).resolves.toMatchObject({
         limit: 10,
       });
-      expect(configureCommandRuntime().commands.size).toBe(0);
+      expect(configureCommandRuntime().commands.size).toBe(productCommands.length);
     } finally {
       configureCommandRuntime();
     }
@@ -304,13 +305,14 @@ describe("invoke (product runtime)", () => {
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
     expect(fs.existsSync(fixture.path("logreq-workspace.yaml"))).toBe(true);
-    const err = await rejection(invoke("workspace.status", {}, { workspace: ws }));
+    // baseline.list is a stage 5 command: in the catalog, not implemented yet.
+    const err = await rejection(invoke("baseline.list", {}, { workspace: ws }));
     expect(err.toJSON()).toEqual({
       code: "input.invalid",
-      message: "Command workspace.status is not implemented yet",
-      details: { command: "workspace.status" },
+      message: "Command baseline.list is not implemented yet",
+      details: { command: "baseline.list" },
     });
     // The default runtime is created once and reused.
-    expect((await rejection(invoke("workspace.status", {}, { workspace: ws }))).code).toBe("input.invalid");
+    expect((await rejection(invoke("baseline.list", {}, { workspace: ws }))).code).toBe("input.invalid");
   });
 });

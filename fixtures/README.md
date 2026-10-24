@@ -10,7 +10,7 @@ Small test data per system requirement (D-055), used by unit and CLI end-to-end 
   import { Workspace, invoke } from "@logreq/core"; // inside core: relative imports
 
   const fixture = await createFixtureWorkspace({
-    fixture: "SR-004/two-repositories", // copied from fixtures/SR-004/two-repositories/ (optional)
+    fixture: "SR-004/one-repository", // copied from fixtures/SR-004/one-repository/ (optional)
     files: { "product/SR-825b7146fb54.md": "---\n...\n---\n" }, // written on top (optional)
     git: ["product", "system"], // one repository with one commit per folder; `true` for the root (optional)
   });

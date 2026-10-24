@@ -73,6 +73,22 @@ await workspace.close(); // adapters, when the workspace is closed: disposes eve
 
 `new Workspace(root)` reads nothing; state is built when a command first asks for it. `reset` and `close` remove the values at once and then dispose them one by one, dependents first (independent states newest first). They wait for pending async builds and skip builds that rejected, so they never fail with a build's error. Every disposal runs even if one fails; then they reject with an `AggregateError`. A `get` during a reset may build new state while the old one is still being disposed. A rejected async build is dropped without resetting its dependents. After `close`, `get` throws.
 
+## Workspace block (`src/workspace/`)
+
+`workspaceLayoutState` (async Workspace state) reads `logreq-workspace.yaml` in `Workspace.root` (checked against `workspace.schema.json`) and the optional, untracked `.logreq/local.yaml` (`workspace-local.schema.json`), and locates every repository (SR-004):
+
+- Path: the local override, else `path` of the workspace file, else `../<name>`. The main repository (the entry with `main: true`; the only entry of a one-repository workspace) is always the root, `.`. Relative paths are relative to the root. Committed paths use `/` (a `\` is warned about and replaced); an absolute committed path is warned about and ignored, absolute paths belong in `.logreq/local.yaml`. There is no `~` expansion.
+- `available` means the folder exists; `folder` is then its real path. A missing repository is normal (N-041): `available: false` and an `info` problem `workspace.repository-missing`; nothing else changes (SR-004 AK3).
+- A repository in the same folder as another one is left out (`workspace.invalid` error; the main repository always stays). `excludes` lists the folders of other available repositories nested inside a repository (e.g. submodules); discovery skips them.
+- `availableRepositories(layout)` gives the roots in which elements are discovered (SR-003). `locate(layout, location)` resolves a `{ repository, path }` location; `settingLocation(layout, "baselines" | "filters" | "mappings")` gives the configured location or the default in the main repository.
+- `layout.metamodel` names the metamodel folder and whether it exists (`metamodel.invalid` error with the reason otherwise); loading it is the metamodel block (SR-011). `layout.file` is the checked workspace file for later blocks (evidence, ignore).
+- No workspace file: `CommandError workspace.not-found`. A faulty one (YAML, schema, a repository name listed twice): `file.faulty` with `details.problems`; it is never used in part. A location naming an unknown repository and a faulty local file are problems; the workspace still opens.
+- The layout, including availability, is kept until `workspace.reset(workspaceLayoutState)` (the watcher, SR-007). Finding the workspace root upwards from a folder is the CLI's job.
+
+## Git reader (`src/git/reader.ts`)
+
+The only module that spawns processes (ADR-0006). It exports only typed functions; each runs one fixed command line (now `rev-parse --show-toplevel --verify HEAD`; add commands from ADR-0006's list as SRs need them), so no other subcommand or argument can be passed. Every call runs with `--no-pager -c core.fsmonitor=false`, `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, without inherited repository variables (`GIT_DIR`, ...) and with a 10 s time limit. `headCommit(folder)` gives `{ known: true, commit }` for the top level of a repository, else `{ known: false, reason }` with `no-git`, `refused` (`safe.directory`), `timeout` or `not-a-repository`. `workspace.status` reports `refused` as an `info` problem `git.unavailable`.
+
 ## Schemas at runtime
 
 `loadContracts()` uses `src/generated/contracts.json`: all `schemas/*.schema.json`, the catalog meta schema and the catalog in one JSON module, written by `pnpm contracts:generate` and checked by `pnpm contracts:check`. So the package needs no `schemas/` folder at run time (ADR-0014) and works from `src/` without a build. After changing a schema or the catalog, run `pnpm contracts:generate`. Validation uses the Ajv options of `scripts/contracts/load.mjs` plus ajv-formats.

@@ -91,6 +91,24 @@ export const schemaViolations = (errors: readonly ErrorObject[] | null | undefin
 export const describeViolations = (violations: readonly SchemaViolation[]): string =>
   violations.map((v) => `${v.path === "" ? "(root)" : v.path} ${v.message}`).join("; ");
 
+// Validators of the file format schemas. Compiled schemas only, never workspace state, so one
+// instance per process is not a global in the sense of ADR-0002 rule 7 (like the command runtime).
+let fileSchemas: Ajv2020 | undefined;
+
+/**
+ * Validator of a file format schema of `schemas/`, e.g. `workspace.schema.json` (ADR-0003), with
+ * the Ajv options of `loadContracts`. Changes nothing (no defaults filled in). Throws a plain
+ * `Error` for a name that is not a schema (a programming error).
+ */
+export function fileSchemaValidator(file: string): ValidateFunction {
+  fileSchemas ??= createAjv(false, contractsBundle.schemas);
+  const validate = fileSchemas.getSchema(`${SCHEMA_BASE}${file}`);
+  if (validate === undefined) {
+    throw new Error(`no schema ${file} in schemas/`);
+  }
+  return validate;
+}
+
 /**
  * Prepare validation for all schemas and the catalog. Throws a plain `Error` when the catalog does not match
  * `catalog.meta.schema.json` or names a command twice: that is a programming error, not a user error.

@@ -1,0 +1,152 @@
+# Standard model (D-037, extended by D-059), shipped with LogReq and written by workspace.init (SR-014).
+# Keys never change (D-043); names are English (D-019). Every built-in meaning has exactly one key (SR-014 AK3).
+# Marked "assumption": not yet covered by a decision.
+logreq-metamodel: 1
+
+types:
+  - key: need
+    name: Need
+    prefix: N
+    meaning: need
+    properties: [title, rationale]
+    required: [title]
+  - key: use-case
+    name: Use Case
+    prefix: UC
+    properties: [title, rationale]
+    required: [title]
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties:
+      [
+        title,
+        rationale,
+        requirement-type,
+        acceptance-criteria,
+        validity,
+        packages,
+        emergent,
+        verification-method,
+        statement,
+        source,
+        source-identifier,
+        import-date,
+        delivery,
+      ]
+    required: [title, requirement-type, acceptance-criteria]
+  - key: decision
+    name: Decision
+    prefix: D
+    properties: [title, rationale]
+    required: [title]
+  - key: variant
+    name: Variant
+    prefix: VAR
+    meaning: variant
+    properties: [title]
+    required: [title]
+  - key: package
+    name: Package
+    prefix: PKG
+    meaning: package
+    properties: [title]
+    required: [title]
+
+properties:
+  - key: title
+    name: Title
+    kind: text
+    meaning: title
+  - key: rationale
+    name: Rationale
+    kind: text
+  - key: requirement-type
+    name: Requirement Type
+    kind: choice
+    content: true
+    choices:
+      - { key: functional, name: Functional }
+      - { key: quality, name: Quality }
+      - { key: performance, name: Performance }
+      - { key: interface, name: Interface }
+      - { key: constraint, name: Constraint }
+  - key: acceptance-criteria
+    name: Acceptance Criteria
+    kind: text
+    many: true
+    content: true
+  - key: validity
+    name: Validity
+    kind: relation
+    many: true
+    target-types: [variant]
+    content: true
+    meaning: validity
+  - key: packages
+    name: Packages
+    kind: relation
+    many: true
+    target-types: [package]
+    meaning: packages
+  - key: emergent
+    name: Emergent Behavior
+    kind: choice
+    content: true
+    meaning: emergent
+    choices:
+      - { key: "yes", name: "Yes" }
+      - { key: "no", name: "No" }
+  - key: verification-method
+    name: Verification Method
+    kind: choice
+    content: true
+    meaning: verification-method
+    choices:
+      - { key: test, name: Test }
+      - { key: analysis, name: Analysis }
+      - { key: inspection, name: Inspection }
+      - { key: demonstration, name: Demonstration }
+  - { key: statement, name: Statement, kind: text, meaning: statement }
+  - { key: source, name: Source, kind: text, meaning: source }
+  - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }
+  - { key: import-date, name: Import Date, kind: date, meaning: import-date }
+  - { key: delivery, name: Delivery, kind: text, meaning: delivery }
+
+relations:
+  - key: refines
+    name: Refines
+    inverse-name: Refined by
+    meaning: derivation
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [system-requirement]
+    target-types: [need, use-case, system-requirement]
+    meaning: derivation
+  - key: based-on
+    name: Based on
+    inverse-name: Basis for
+    target-types: [decision]
+  - key: supersedes # replacement by a successor, D-045 / SR-072
+    name: Supersedes
+    inverse-name: Superseded by
+    meaning: replacement
+  - key: replaces
+    name: Replaces
+    inverse-name: Replaced by
+    source-types: [system-requirement]
+    target-types: [system-requirement]
+    meaning: replacement
+  - key: excludes # D-059, SR-042
+    name: Excludes
+    inverse-name: Excluded by
+    source-types: [variant]
+    target-types: [system-requirement]
+    meaning: exclusion
+
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
+  - { key: obsolete, name: Obsolete, invalid: true }
