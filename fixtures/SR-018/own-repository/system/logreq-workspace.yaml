@@ -1,0 +1,6 @@
+logreq-workspace: 1
+name: Weather station
+repositories:
+  - { name: system, url: "git@git.example.com:ws/system.git", main: true }
+  - { name: models, url: "git@git.example.com:ws/models.git" }
+metamodel: { repository: models, path: model }

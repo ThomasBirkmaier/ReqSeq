@@ -1,0 +1,6 @@
+# Not the metamodel of this workspace: the workspace file names the folder model in repository models.
+logreq-metamodel: 1
+types:
+  - key: decoy
+    name: Decoy
+    prefix: DEC

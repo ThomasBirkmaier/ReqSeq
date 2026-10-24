@@ -193,7 +193,7 @@
             },
             "repository": {
               "type": "string",
-              "description": "Workspace name of the repository that `file` lies in; `file` is then relative to that repository (element files of several repositories)."
+              "description": "Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository."
             },
             "line": {
               "type": "integer",
@@ -1981,7 +1981,8 @@
                     "$ref": "../common.schema.json#/$defs/commit"
                   },
                   "readOnly": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "LogReq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
                   }
                 },
                 "additionalProperties": false,

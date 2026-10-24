@@ -26,6 +26,7 @@ const effective = (metamodel: Metamodel, key: string): EffectiveType | undefined
 const invalid = (message: string, file: string, line: number): Problem => ({
   code: "metamodel.invalid",
   severity: "error",
+  repository: "system",
   message,
   file,
   line,

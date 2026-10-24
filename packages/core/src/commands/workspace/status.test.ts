@@ -30,6 +30,12 @@ const open = (root: string): Workspace => {
 const status = async (workspace: Workspace): Promise<CommandOutput<"workspace.status">> =>
   (await invoke("workspace.status", {}, { workspace })) as CommandOutput<"workspace.status">;
 
+/**
+ * `readOnly: false` of a writable repository folder. Left out on Windows, where the operating
+ * system cannot tell (`isWritableFolder`), so the expectation follows the platform.
+ */
+const writable: { readonly readOnly?: false } = process.platform === "win32" ? {} : { readOnly: false };
+
 /** The three-repository fixture: `system` (main, holds the workspace file), `product`, `sensor` beside it. */
 const threeRepositories = async (
   git: readonly string[] = ["system", "product", "sensor"],
@@ -56,9 +62,21 @@ describe("workspace.status", () => {
     expect(out).toEqual({
       name: "Weather station",
       repositories: [
-        { name: "system", available: true, path: ".", commit: await ws.head("system") },
-        { name: "product", available: true, path: "../product", commit: await ws.head("product") },
-        { name: "sensor", available: true, path: "../sensor", commit: await ws.head("sensor") },
+        { name: "system", available: true, path: ".", commit: await ws.head("system"), ...writable },
+        {
+          name: "product",
+          available: true,
+          path: "../product",
+          commit: await ws.head("product"),
+          ...writable,
+        },
+        {
+          name: "sensor",
+          available: true,
+          path: "../sensor",
+          commit: await ws.head("sensor"),
+          ...writable,
+        },
       ],
       metamodel: { repository: "system", path: "metamodel", valid: true },
       readOnly: false,
@@ -72,7 +90,7 @@ describe("workspace.status", () => {
     const out = await status(workspace);
     expect(out).toEqual({
       name: "Weather station",
-      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head() }],
+      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
       metamodel: { repository: "system", path: "metamodel", valid: true },
       readOnly: false,
       problems: [],
@@ -105,7 +123,7 @@ describe("workspace.status", () => {
       },
     });
     const out = await status(open(ws.root));
-    expect(out.repositories).toEqual([{ name: "solo", available: true, path: "." }]);
+    expect(out.repositories).toEqual([{ name: "solo", available: true, path: ".", ...writable }]);
     expect(out.metamodel.valid).toBe(true);
     expect(out.problems).toEqual([]);
   });
@@ -116,9 +134,15 @@ describe("workspace.status", () => {
     const workspace = open(ws.path("system"));
     const out = await status(workspace);
     expect(out.repositories).toEqual([
-      { name: "system", available: true, path: ".", commit: await ws.head("system") },
+      { name: "system", available: true, path: ".", commit: await ws.head("system"), ...writable },
       { name: "product", available: false, path: "../product" },
-      { name: "sensor", available: true, path: "../sensor", commit: await ws.head("sensor") },
+      {
+        name: "sensor",
+        available: true,
+        path: "../sensor",
+        commit: await ws.head("sensor"),
+        ...writable,
+      },
     ]);
     expect(out.metamodel.valid).toBe(true);
     expect(out.readOnly).toBe(false);
@@ -188,6 +212,7 @@ describe("workspace.status", () => {
       {
         code: "git.unavailable",
         severity: "info",
+        repository: "system",
         message:
           "Git refuses to read repository system because another user owns it (see git config safe.directory); its commit is unknown",
       },
@@ -197,7 +222,12 @@ describe("workspace.status", () => {
   it("leaves the commit out for a repository folder that is not a Git repository", async () => {
     const ws = await threeRepositories(["system", "product"]);
     const out = await status(open(ws.path("system")));
-    expect(out.repositories[2]).toEqual({ name: "sensor", available: true, path: "../sensor" });
+    expect(out.repositories[2]).toEqual({
+      name: "sensor",
+      available: true,
+      path: "../sensor",
+      ...writable,
+    });
   });
 
   it("reads the commit on every call", async () => {
@@ -226,13 +256,14 @@ describe("workspace.status with the metamodel (SR-011)", () => {
     const out = await status(open(ws.root));
     expect(out).toEqual({
       name: "Weather station",
-      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head() }],
+      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head(), ...writable }],
       metamodel: { repository: "system", path: "model", valid: true },
       readOnly: false,
       problems: [
         {
           code: "metamodel.invalid",
           severity: "warning",
+          repository: "system",
           file: "model/legacy.yml",
           message: "model/legacy.yml is not read: metamodel files end in .yaml",
         },
@@ -263,6 +294,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
       {
         code: "file.invalid-yaml",
         severity: "error",
+        repository: "system",
         file: "model/statuses.yaml",
         line: 4,
         message: expect.stringMatching(/^Invalid YAML at line 4, column \d+: .+/) as unknown,

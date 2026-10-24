@@ -14,7 +14,8 @@ export const renderJson = (output: unknown): string => `${JSON.stringify(output 
 
 /**
  * `severity  code  repository:file:line  message  (element <uuid>)`, parts that are missing left
- * out; the repository only when the problem names one (element files of several repositories).
+ * out; the repository only when the problem names one and has a file (e.g. element files of
+ * several repositories, metamodel files).
  */
 export const renderProblem = (problem: unknown): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };

@@ -99,6 +99,7 @@ describe("read-only workspace", () => {
           {
             code: "file.invalid-yaml",
             severity: "error",
+            repository: "system",
             file: "model/statuses.yaml",
             line: 4,
             message: expect.stringMatching(/^Invalid YAML at line 4/) as unknown,

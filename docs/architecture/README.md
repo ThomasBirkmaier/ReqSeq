@@ -115,7 +115,7 @@ flowchart TB
 | Block | Responsibility | Stage |
 |---|---|---|
 | `catalog`, `commands` | Registry and implementations of all catalog commands | 1 onward |
-| `workspace` | Read `logreq-workspace.yaml`, locate repositories, report missing ones (SR-004, SR-006) | 1 |
+| `workspace` | Read `logreq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018) | 1 |
 | `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) | 1 |
 | `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) | 1 |
 | `version` | Normal form and hash (SR-021) | 1 |

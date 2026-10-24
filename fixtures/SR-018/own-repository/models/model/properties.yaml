@@ -1,0 +1,5 @@
+logreq-metamodel: 1
+properties:
+  - key: title
+    name: Title
+    kind: text

@@ -96,7 +96,7 @@ describe("metamodel.get", () => {
     expect(out.statuses).toEqual([]);
     expect(out.meanings["derivation"]).toEqual(["satisfies"]);
     expect(out.problems).toMatchObject([
-      { code: "file.invalid-yaml", severity: "error", file: "model/statuses.yaml" },
+      { code: "file.invalid-yaml", severity: "error", repository: "system", file: "model/statuses.yaml" },
     ]);
   });
 

@@ -57,8 +57,9 @@ export interface Metamodel {
    */
   readonly valid: boolean;
   /**
-   * Findings of the metamodel files; `file` is relative to the metamodel repository. A missing
-   * folder or repository is reported by the workspace layout, not again here.
+   * Findings of the metamodel files; each names the metamodel repository in `repository`, and
+   * `file` is relative to it. A missing folder or repository is reported by the workspace layout,
+   * not again here.
    */
   readonly problems: readonly Problem[];
 }
@@ -229,14 +230,8 @@ const empty = (layout: WorkspaceLayout, problems: readonly Problem[]): Metamodel
   problems,
 });
 
-/**
- * Reads the metamodel files of the working tree from the folder that `layout.metamodel` names.
- * Never throws for faulty files: they become problems and `valid: false`. Only the files directly
- * in the folder are read, not those in subfolders; hidden files (starting with `.`) are skipped.
- * When the folder is the root of the main repository, `logreq-workspace.yaml` is not a metamodel
- * file; every other `.yaml` file there is.
- */
-export const loadMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
+/** Reads the metamodel files; `loadMetamodel` names the repository in the problems. */
+const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   const { metamodel } = layout;
   const repository = layout.repositories.find((r) => r.name === metamodel.repository);
   if (!metamodel.exists || metamodel.folder === undefined || repository === undefined) {
@@ -311,4 +306,18 @@ export const loadMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel>
     valid: !problems.some((p) => p.severity === "error"),
     problems,
   };
+};
+
+/**
+ * Reads the metamodel files of the working tree from the folder that `layout.metamodel` names.
+ * Never throws for faulty files: they become problems and `valid: false`. Only the files directly
+ * in the folder are read, not those in subfolders; hidden files (starting with `.`) are skipped.
+ * When the folder is the root of the main repository, `logreq-workspace.yaml` is not a metamodel
+ * file; every other `.yaml` file there is. Every problem names the metamodel repository, since the
+ * metamodel may lie in its own repository (SR-018) and `file` is relative to it.
+ */
+export const loadMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
+  const metamodel = await readMetamodel(layout);
+  const { repository } = layout.metamodel;
+  return { ...metamodel, problems: metamodel.problems.map((p) => ({ ...p, repository })) };
 };

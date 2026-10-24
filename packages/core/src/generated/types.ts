@@ -98,7 +98,7 @@ export interface Problem {
   readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly file?: string;
-  /** Workspace name of the repository that `file` lies in; `file` is then relative to that repository (element files of several repositories). */
+  /** Workspace name of the repository the problem is about (element files of several repositories, the metamodel repository, a repository Git cannot read); `file`, when given, is relative to that repository. */
   readonly repository?: string;
   readonly line?: number;
   readonly elementId?: Uuid;
@@ -796,6 +796,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     readonly path?: string;
     readonly commit?: Commit;
+    /** LogReq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
     readonly readOnly?: boolean;
   }[];
   readonly metamodel: {

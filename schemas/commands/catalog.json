@@ -91,7 +91,8 @@
                   "$ref": "../common.schema.json#/$defs/commit"
                 },
                 "readOnly": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "LogReq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
                 }
               },
               "additionalProperties": false,

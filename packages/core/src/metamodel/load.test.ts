@@ -41,6 +41,7 @@ const SPLIT_FOLDER_KEYS = {
 const YML_WARNING = {
   code: "metamodel.invalid",
   severity: "warning",
+  repository: "system",
   file: "model/legacy.yml",
   message: "model/legacy.yml is not read: metamodel files end in .yaml",
 };
@@ -178,6 +179,7 @@ describe("loadMetamodel", () => {
       {
         code: "file.invalid-yaml",
         severity: "error",
+        repository: "system",
         file: "model/statuses.yaml",
         line: 4,
         message: expect.stringMatching(/^Invalid YAML at line 4, column \d+: .+/) as unknown,
@@ -200,6 +202,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/variant-types.yaml",
         line: 3,
         message: "Invalid model/variant-types.yaml: /types/0 must have required property 'prefix'",
@@ -207,6 +210,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/variant-types.yaml",
         line: 5,
         message: "Invalid model/variant-types.yaml: /types/0 must NOT have unevaluated properties: colour",
@@ -214,6 +218,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/variant-types.yaml",
         line: 6,
         message: "Invalid model/variant-types.yaml: /types/1 must have required property 'prefix'",
@@ -240,6 +245,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/statuses.yaml",
         message: "Invalid model/statuses.yaml: (root) must be object",
       },
@@ -260,6 +266,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/statuses.yaml",
         line: 5,
         message: "Status key draft is already defined in model/statuses.yaml; this definition is ignored",
@@ -267,6 +274,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model/z-more.yaml",
         line: 3,
         message: "Status key draft is already defined in model/statuses.yaml; this definition is ignored",
@@ -351,6 +359,7 @@ describe("loadMetamodel", () => {
         {
           code: "metamodel.invalid",
           severity: "error",
+          repository: "system",
           file: "model",
           message: "Metamodel folder model has no .yaml files",
         },
@@ -379,6 +388,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model",
         message: "Cannot read metamodel folder model: ENOENT",
       },
@@ -395,6 +405,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "system",
         file: "model",
         message: "Cannot read metamodel folder model: listing failed",
       },
@@ -442,6 +453,7 @@ describe("loadMetamodel", () => {
       {
         code: "metamodel.invalid",
         severity: "error",
+        repository: "solo",
         file: ".",
         message: "Metamodel folder . has no .yaml files",
       },

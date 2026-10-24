@@ -1,12 +1,12 @@
-// workspace.status (SR-004, SR-011; SR-006 and SR-018 extend it): the repositories of the
-// workspace, which are available, where the metamodel lies, whether it is valid and whether the
+// workspace.status (SR-004, SR-011, SR-018; SR-006 extends it): the repositories of the workspace,
+// which are available and writable, where the metamodel lies, whether it is valid and whether the
 // workspace is read-only.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { headCommit } from "../../git/reader.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
-import { workspaceLayoutState } from "../../workspace/index.js";
+import { isWritableFolder, workspaceLayoutState } from "../../workspace/index.js";
 
 type RepositoryStatus = CommandOutput<"workspace.status">["repositories"][number];
 
@@ -15,16 +15,26 @@ interface Checked {
   readonly problem?: Problem;
 }
 
-/** The commit is read on every call, not kept: it changes while the workspace is open. */
+/**
+ * The commit and whether the folder is writable are read on every call, not kept: both change while
+ * the workspace is open. A read-only repository (SR-018 AK2) is shown, nothing more: it does not
+ * make the workspace read-only, writes into it are refused by the files block (`file.read-only`).
+ * `readOnly` is left out where it is unknown (Windows, see `isWritableFolder`).
+ */
 const checkRepository = async (repository: RepositoryLocation): Promise<Checked> => {
-  const status = { name: repository.name, available: repository.available, path: repository.path };
   if (!repository.available) {
-    return { status };
+    return { status: { name: repository.name, available: false, path: repository.path } };
   }
-  const head = await headCommit(repository.folder);
+  const [head, writable] = await Promise.all([
+    headCommit(repository.folder),
+    isWritableFolder(repository.folder),
+  ]);
+  const located = { name: repository.name, available: true, path: repository.path };
+  const readOnly = writable === undefined ? {} : { readOnly: !writable };
   if (head.known) {
-    return { status: { ...status, commit: head.commit } };
+    return { status: { ...located, commit: head.commit, ...readOnly } };
   }
+  const status = { ...located, ...readOnly };
   // Only a refusal is worth telling: the person can fix it. Missing git or no repository is normal.
   return head.reason === "refused"
     ? {
@@ -32,6 +42,7 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
         problem: {
           code: "git.unavailable",
           severity: "info",
+          repository: repository.name,
           message: `Git refuses to read repository ${repository.name} because another user owns it (see git config safe.directory); its commit is unknown`,
         },
       }
@@ -49,7 +60,8 @@ export default defineCommand({
       name: layout.name,
       repositories: checked.map((c) => c.status),
       metamodel: { repository: metamodel.repository, path: metamodel.path, valid: metamodel.valid },
-      // A missing or faulty metamodel opens the workspace read-only (SR-011 AK3).
+      // A missing or faulty metamodel opens the workspace read-only (SR-011 AK3); a read-only
+      // repository, also the metamodel's, does not (SR-018 AK2).
       readOnly: access.readOnly,
       problems: [
         ...layout.problems,

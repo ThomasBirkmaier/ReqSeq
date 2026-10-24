@@ -42,7 +42,8 @@ const tempPathFor = (absolute: string): string =>
   );
 
 const NO_HARD_LINKS: readonly string[] = ["EPERM", "ENOTSUP", "ENOSYS"];
-const NOT_WRITABLE: readonly string[] = ["EACCES", "EPERM"];
+/** No write permission, or a read-only file system (e.g. a read-only metamodel repository, SR-018 AK2). */
+const NOT_WRITABLE: readonly string[] = ["EACCES", "EPERM", "EROFS"];
 
 const changedOnDisk = (file: string, reason: string): CommandError =>
   new CommandError("file.changed-on-disk", `Not written: ${file} ${reason}. Read it again first.`);

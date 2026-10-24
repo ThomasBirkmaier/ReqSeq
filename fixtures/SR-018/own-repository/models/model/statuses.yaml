@@ -1,0 +1,7 @@
+logreq-metamodel: 1
+statuses:
+  - key: draft
+    name: Draft
+    initial: true
+  - key: accepted
+    name: Accepted
