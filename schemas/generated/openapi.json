@@ -843,7 +843,7 @@
     "/v1/commands/element.create": {
       "post": {
         "operationId": "element_create",
-        "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).",
+        "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).",
         "tags": [
           "element"
         ],
@@ -1674,7 +1674,7 @@
     "/v1/commands/element.setStatus": {
       "post": {
         "operationId": "element_setStatus",
-        "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).",
+        "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
         "tags": [
           "element"
         ],

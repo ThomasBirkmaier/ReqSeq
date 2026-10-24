@@ -897,7 +897,7 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).
  * Schema: `schemas/commands/catalog.json element.create input`.
  */
 export interface ElementCreateInput {
@@ -911,7 +911,7 @@ export interface ElementCreateInput {
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).
+ * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).
  * Schema: `schemas/commands/catalog.json element.create output`.
  */
 export interface ElementCreateOutput {
@@ -1002,7 +1002,7 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus input`.
  */
 export interface ElementSetStatusInput {
@@ -1011,7 +1011,7 @@ export interface ElementSetStatusInput {
 }
 
 /**
- * Output of `element.setStatus`. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).
+ * Output of `element.setStatus`. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus output`.
  */
 export interface ElementSetStatusOutput {

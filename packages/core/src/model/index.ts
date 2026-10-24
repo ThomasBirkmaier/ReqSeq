@@ -50,6 +50,8 @@ export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export { elementVersion, elementView, titleKeyOf } from "./view.js";
 export type { ElementViewInput } from "./view.js";
+export { setElementStatus, statusValues } from "./status.js";
+export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";

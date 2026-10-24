@@ -399,6 +399,141 @@ export const assertElementWritable = (
   return type;
 };
 
+/** An element file read again for a write, with the repository it lies in. */
+export interface UnchangedElement {
+  readonly repository: RepositoryLocation;
+  readonly current: ReadElement;
+}
+
+/**
+ * The file of `record` as it is now, for a write. Throws `file.changed-on-disk` (and resets the
+ * element store, so the next call works on the new content) when the file is gone, faulty, no
+ * element, or its SHA-256 is not the one the store read.
+ */
+export const readUnchanged = async (
+  workspace: Workspace,
+  layout: WorkspaceLayout,
+  record: ElementRecord,
+): Promise<UnchangedElement> => {
+  // The store found the element there, so the repository is known and available.
+  const repository = targetRepository(layout, record.repository);
+  const current = await readElement(repository, record.file);
+  if (current?.file.snapshot.sha256 !== record.snapshot.sha256) {
+    await workspace.reset(elementStoreState);
+    throw new CommandError(
+      "file.changed-on-disk",
+      `Not written: ${record.file} changed on disk since it was read. Read it again first.`,
+      { file: record.file, repository: record.repository },
+    );
+  }
+  return { repository, current };
+};
+
+/** One planned change of an existing element file: the file as read with `readUnchanged`, and its new bytes. */
+export interface ElementFileWrite extends UnchangedElement {
+  readonly bytes: Uint8Array;
+}
+
+/** One written file: the element as written (with the snapshot of the write) and the snapshot it replaced. */
+export interface WrittenElementFile {
+  readonly written: ReadElement;
+  readonly replaced: FileSnapshot;
+  /** Relative to the workspace root, `/` as separator. */
+  readonly file: string;
+}
+
+/** A file this call has written: the planned write, the snapshot of the write and the path to report. */
+interface DoneWrite {
+  readonly write: ElementFileWrite;
+  readonly snapshot: FileSnapshot;
+  /** Relative to the workspace root, `/` as separator. */
+  readonly file: string;
+}
+
+/**
+ * Restores a file written by this call with its bytes as read; only while it still holds what this
+ * call wrote. Returns false when that is not possible.
+ */
+const restore = async ({ write, snapshot }: DoneWrite): Promise<boolean> => {
+  // The writer is lossless: no edit gives the bytes of the file as read (ADR-0007).
+  const original = editElementFile(write.current.file, {}).bytes;
+  try {
+    const restored = await writeFileAtomic(
+      write.repository.folder,
+      snapshot.path,
+      decode(original),
+      snapshot,
+    );
+    return restored.sha256 === write.current.file.snapshot.sha256;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Writes several existing element files, for commands that change more than one element
+ * (`element.setStatus`; later `element.supersede` and `element.bulkUpdate`). Every check must be
+ * done before. A write can still be refused (`file.read-only`, a file changed in the meantime, a
+ * disk error), or written bytes may not read back as an element (`internal`); then every file
+ * this call has written is written back with its bytes as read (best effort; nothing is deleted)
+ * and the error is thrown again with its code. `details.written` lists the files not restored
+ * (relative to the workspace root); it is absent when every file was restored. After the writes
+ * the element store gets all written files in place (`recordWrites`, #166); after a failure it is
+ * reset, so the next read finds the files as they are.
+ */
+export const writeElementFiles = async (
+  workspace: Workspace,
+  layout: WorkspaceLayout,
+  writes: readonly ElementFileWrite[],
+): Promise<WrittenElementFile[]> => {
+  const done: DoneWrite[] = [];
+  const results: WrittenElementFile[] = [];
+  try {
+    for (const write of writes) {
+      const { repository, current, bytes } = write;
+      const snapshot = await writeFileAtomic(
+        repository.folder,
+        current.record.file,
+        decode(bytes),
+        current.file.snapshot,
+      );
+      const file = workspacePath(layout, repository, current.record.file);
+      // Recorded before the bytes are checked, so a file that does not read back is restored too.
+      done.push({ write, snapshot, file });
+      results.push({
+        written: writtenElement(repository.name, bytes, snapshot),
+        replaced: current.file.snapshot,
+        file,
+      });
+    }
+  } catch (error) {
+    const kept: string[] = [];
+    for (const written of done.reverse()) {
+      if (!(await restore(written))) {
+        kept.unshift(written.file);
+      }
+    }
+    await workspace.reset(elementStoreState);
+    if (kept.length === 0 || !(error instanceof CommandError)) {
+      throw error;
+    }
+    throw new CommandError(error.code, error.message, { ...error.details, written: kept }, { cause: error });
+  }
+  // The store gets every written file at once, without reading a file again (#166).
+  if (results.length > 0) {
+    await recordWrites(
+      workspace,
+      layout,
+      results.map((result) => ({
+        repository: result.written.record.repository,
+        file: result.written.file,
+        replaced: result.replaced,
+      })),
+    );
+  }
+  return results;
+};
+
 /**
  * `element.update` (SR-001, SR-102): changes title, text and properties of one element. Only the
  * lines of changed keys and the text are rewritten; unknown keys, comments, quoting, key order,
@@ -424,17 +559,7 @@ export const updateElement = async (
   if (both !== undefined) {
     throw invalid(`${both} is in both set and unset`, { key: both, reason: "set-and-unset" });
   }
-  // The store found the element there, so the repository is known and available.
-  const repository = targetRepository(layout, record.repository);
-  const current = await readElement(repository, record.file);
-  if (current?.file.snapshot.sha256 !== record.snapshot.sha256) {
-    await workspace.reset(elementStoreState);
-    throw new CommandError(
-      "file.changed-on-disk",
-      `Not written: ${record.file} changed on disk since it was read. Read it again first.`,
-      { file: record.file, repository: record.repository },
-    );
-  }
+  const { repository, current } = await readUnchanged(workspace, layout, record);
   const set = await withTargets(
     context,
     record.repository,

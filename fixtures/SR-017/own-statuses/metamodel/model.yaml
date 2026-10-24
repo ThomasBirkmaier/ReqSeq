@@ -1,0 +1,26 @@
+# A metamodel with statuses of its own (SR-017): none of the standard model's draft, approved, obsolete.
+logreq-metamodel: 1
+
+types:
+  - key: requirement
+    name: Requirement
+    prefix: REQ
+    meaning: requirement
+    properties: [title, rationale]
+    required: [title]
+
+properties:
+  - key: title
+    name: Title
+    kind: text
+    meaning: title
+  - key: rationale
+    name: Rationale
+    kind: text
+
+statuses:
+  - { key: proposed, name: Proposed, initial: true }
+  - { key: in-review, name: In Review }
+  - { key: released, name: Released }
+  - { key: in-change, name: In Change }
+  - { key: withdrawn, name: Withdrawn, invalid: true }

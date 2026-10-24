@@ -59,6 +59,14 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
   ],
+  "element.setStatus": [
+    { name: "approve one element", input: { refs: ["SR-e88fb3"], status: "approved" }, expect: "output" },
+    {
+      name: "status not in the metamodel",
+      input: { refs: ["SR-e88fb3"], status: "released" },
+      expect: "error",
+    },
+  ],
   "element.update": [
     {
       name: "rename and set a property",

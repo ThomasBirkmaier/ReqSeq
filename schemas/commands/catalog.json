@@ -268,7 +268,7 @@
     },
     {
       "name": "element.create",
-      "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).",
+      "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).",
       "effect": "write-files",
       "stage": 1,
       "implements": [
@@ -552,7 +552,7 @@
     },
     {
       "name": "element.setStatus",
-      "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).",
+      "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
       "effect": "write-files",
       "stage": 1,
       "implements": ["SR-017", "SR-087"],
