@@ -36,6 +36,23 @@ const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: 
 
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
+  // take it relative to the root, so all four write into the same folder of their copy.
+  "workspace.init": [
+    {
+      name: "new folder",
+      fixture: { files: { "new/.keep": "" } },
+      input: { path: "new", name: "New" },
+      expect: "output",
+    },
+    {
+      name: "root of call",
+      fixture: { files: { ".keep": "" } },
+      input: { path: ".", name: "New" },
+      expect: "output",
+    },
+    { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
+  ],
   "workspace.status": [
     { name: "one repository", input: {}, expect: "output" },
     {

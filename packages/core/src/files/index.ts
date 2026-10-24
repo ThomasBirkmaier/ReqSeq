@@ -1,6 +1,7 @@
 // The `files` block (ADR-0007): reading and writing element and YAML files. The only module that
 // writes to disk. Core blocks import it relatively; it is not part of the package's public API.
 export { findConflictMarker } from "./conflict-markers.js";
+export { createFolder } from "./folder.js";
 export { splitFrontmatter } from "./frontmatter.js";
 export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";
 export { parseFileBytes, parseYamlFileBytes } from "./parse.js";

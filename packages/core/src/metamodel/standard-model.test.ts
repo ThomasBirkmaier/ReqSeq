@@ -1,0 +1,179 @@
+import fs from "node:fs/promises";
+import { createFixtureWorkspace } from "@logreq/testkit";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { Workspace } from "../runtime/workspace.js";
+import type { Metamodel } from "./load.js";
+import type { Meaning } from "./meanings.js";
+import { MEANINGS } from "./meanings.js";
+import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
+import { metamodelState } from "./state.js";
+
+const EXAMPLE = new URL("../../../../schemas/examples/metamodel/standard-model.yaml", import.meta.url);
+const FIXTURES = new URL("../../../../fixtures/", import.meta.url);
+/** Fixture cases whose metamodel is the standard model; other cases hold their own models. */
+const FIXTURE_COPIES = [
+  "SR-004/one-repository/metamodel/standard-model.yaml",
+  "SR-004/three-repositories/system/metamodel/standard-model.yaml",
+];
+
+/**
+ * The shipped standard model, checked like any metamodel: as the only file of a metamodel folder
+ * (#127 option 1: `workspace.check` comes later, so the check is the metamodel load of SR-011).
+ */
+const standardModel = async (): Promise<Metamodel> => {
+  const ws = await createFixtureWorkspace({
+    files: {
+      "logreq-workspace.yaml":
+        "logreq-workspace: 1\nname: Standard\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
+      [`metamodel/${STANDARD_MODEL_FILE}`]: STANDARD_MODEL_TEXT,
+    },
+  });
+  onTestFinished(() => ws.cleanup());
+  const workspace = new Workspace(ws.root);
+  onTestFinished(() => workspace.close());
+  const metamodel = await workspace.get(metamodelState);
+  expect(metamodel).toMatchObject({ valid: true, problems: [] });
+  return metamodel;
+};
+
+/** `[key, name]` pairs of a list. */
+const pairs = (list: readonly { readonly key: string; readonly name: string }[]): string[][] =>
+  list.map((d) => [d.key, d.name]);
+
+/** Keys are English words in lower case with dashes (D-019, D-043); names English words. */
+const KEY = /^[a-z]+(-[a-z]+)*$/;
+const NAME = /^[A-Z][a-z]*( [A-Za-z][a-z]*)*$/;
+
+describe("standard model", () => {
+  it("is the example of the metamodel format, byte for byte", async () => {
+    // pnpm contracts:check keeps generated/standard-model.json up to date; this checks the content.
+    expect(STANDARD_MODEL_FILE).toBe("standard-model.yaml");
+    expect(STANDARD_MODEL_TEXT).toBe((await fs.readFile(EXAMPLE, "utf8")).replaceAll("\r\n", "\n"));
+  });
+
+  it("has the same bytes in the fixture copies that tests use as the standard model", async () => {
+    const example = await fs.readFile(EXAMPLE);
+    for (const copy of FIXTURE_COPIES) {
+      expect((await fs.readFile(new URL(copy, FIXTURES))).equals(example), copy).toBe(true);
+    }
+  });
+
+  it("[SR-014/AK2] contains the types, properties, relation kinds and statuses of this spec with English names and keys", async () => {
+    const metamodel = await standardModel();
+    // D-037: "die Typen Need, Use Case, System Requirement, Decision, Variant und Package".
+    expect(pairs(metamodel.types)).toEqual([
+      ["need", "Need"],
+      ["use-case", "Use Case"],
+      ["system-requirement", "System Requirement"],
+      ["decision", "Decision"],
+      ["variant", "Variant"],
+      ["package", "Package"],
+    ]);
+    // D-037: "die Beziehungsarten Refines, Derives from, Based on, Supersedes und Replaces";
+    // D-059: "eine Variante nennt ihre Ausschlüsse in der Property Excludes" (a relation kind key
+    // in the variant's frontmatter, ADR-0004).
+    expect(pairs(metamodel.relations)).toEqual([
+      ["refines", "Refines"],
+      ["derives-from", "Derives from"],
+      ["based-on", "Based on"],
+      ["supersedes", "Supersedes"],
+      ["replaces", "Replaces"],
+      ["excludes", "Excludes"],
+    ]);
+    // D-037: "die Properties Title, Status, Rationale, Requirement Type, Acceptance Criteria und
+    // Validity"; D-059: "zusätzlich die Properties Package, Emergent, Verification Method und
+    // Statement sowie für die Herkunft Source, Source Identifier, Import Date und Delivery".
+    // Status is the structural key `status` of every element (D-012), its values are the statuses.
+    expect(pairs(metamodel.properties)).toEqual([
+      ["title", "Title"],
+      ["rationale", "Rationale"],
+      ["requirement-type", "Requirement Type"],
+      ["acceptance-criteria", "Acceptance Criteria"],
+      ["validity", "Validity"],
+      ["packages", "Package"],
+      ["emergent", "Emergent"],
+      ["verification-method", "Verification Method"],
+      ["statement", "Statement"],
+      ["source", "Source"],
+      ["source-identifier", "Source Identifier"],
+      ["import-date", "Import Date"],
+      ["delivery", "Delivery"],
+    ]);
+    // D-030: "Das Standardmodell bringt Draft, Approved und Obsolete mit."
+    expect(pairs(metamodel.statuses)).toEqual([
+      ["draft", "Draft"],
+      ["approved", "Approved"],
+      ["obsolete", "Obsolete"],
+    ]);
+    // The values this spec uses: requirement types and verification methods ("Inspektion" is Inspection).
+    const choices = (key: string): string[][] =>
+      pairs(metamodel.properties.find((p) => p.key === key)?.choices ?? []);
+    expect(choices("requirement-type")).toEqual([
+      ["functional", "Functional"],
+      ["quality", "Quality"],
+      ["performance", "Performance"],
+      ["interface", "Interface"],
+      ["constraint", "Constraint"],
+    ]);
+    expect(choices("verification-method")).toEqual([
+      ["test", "Test"],
+      ["analysis", "Analysis"],
+      ["inspection", "Inspection"],
+      ["demonstration", "Demonstration"],
+    ]);
+    // English names and keys throughout (D-019).
+    const all = [...metamodel.types, ...metamodel.properties, ...metamodel.relations, ...metamodel.statuses];
+    for (const definition of all) {
+      expect(definition.key, definition.key).toMatch(KEY);
+      expect(definition.name, definition.key).toMatch(NAME);
+    }
+    for (const relation of metamodel.relations) {
+      expect(relation["inverse-name"], relation.key).toMatch(NAME);
+    }
+  });
+
+  it("[SR-014/AK3] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
+    const metamodel = await standardModel();
+    // Open question #150, option 1 (assumption): a relation meaning may have several relation kinds
+    // (D-012: "Jede Beziehungsart ist entweder eine Parent-Child-Beziehung ..."); the standard
+    // model has two for derivation (Refines, Derives from) and replacement (Supersedes, Replaces).
+    const expected: Readonly<Record<Meaning, readonly string[]>> = {
+      requirement: ["system-requirement"],
+      need: ["need"],
+      variant: ["variant"],
+      package: ["package"],
+      title: ["title"],
+      validity: ["validity"],
+      packages: ["packages"],
+      emergent: ["emergent"],
+      "verification-method": ["verification-method"],
+      statement: ["statement"],
+      source: ["source"],
+      "source-identifier": ["source-identifier"],
+      "import-date": ["import-date"],
+      delivery: ["delivery"],
+      derivation: ["refines", "derives-from"],
+      replacement: ["supersedes", "replaces"],
+      exclusion: ["excludes"],
+    };
+    expect(metamodel.meanings).toEqual(expected);
+    // Every meaning the tool knows (MEANINGS follows metamodel.schema.json) has a key.
+    for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
+      if (MEANINGS[meaning as Meaning] === "relations") {
+        expect(keys.length, meaning).toBeGreaterThanOrEqual(1);
+      } else {
+        expect(keys, meaning).toHaveLength(1);
+      }
+    }
+    // Flags that D-012 also fixes: the content flag (D-013, D-057; #129 option 1) and the invalid status (D-044).
+    expect(metamodel.properties.filter((p) => p.content === true).map((p) => p.key)).toEqual([
+      "requirement-type",
+      "acceptance-criteria",
+      "validity",
+      "emergent",
+      "verification-method",
+    ]);
+    expect(metamodel.statuses.filter((s) => s.invalid === true).map((s) => s.key)).toEqual(["obsolete"]);
+    expect(metamodel.statuses.filter((s) => s.initial === true).map((s) => s.key)).toEqual(["draft"]);
+  });
+});

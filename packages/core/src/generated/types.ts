@@ -776,11 +776,11 @@ export interface CommandCatalog {
 }
 
 /**
- * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an empty folder.
+ * Input of `workspace.init` as `run` gets it: validated, properties with a `default` filled in. Create a workspace with the standard model in an existing folder.
  * Schema: `schemas/commands/catalog.json workspace.init input`.
  */
 export interface WorkspaceInitInput {
-  /** Empty folder. */
+  /** Existing folder; must not contain logreq-workspace.yaml or the metamodel file. */
   readonly path: LocalPath;
   readonly name: string;
   readonly metamodel?: {
@@ -790,7 +790,7 @@ export interface WorkspaceInitInput {
 }
 
 /**
- * Output of `workspace.init`. Create a workspace with the standard model in an empty folder.
+ * Output of `workspace.init`. Create a workspace with the standard model in an existing folder.
  * Schema: `schemas/commands/catalog.json workspace.init output`.
  */
 export interface WorkspaceInitOutput {

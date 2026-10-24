@@ -25,4 +25,5 @@ export type {
   RelationMeaning,
   TypeMeaning,
 } from "./meanings.js";
+export { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
 export { metamodelState } from "./state.js";

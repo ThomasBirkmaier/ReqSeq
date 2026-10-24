@@ -5,6 +5,7 @@ The `logreq` command line (ADR-0009). It is a generic adapter over the command c
 ```sh
 logreq --help                        # groups of the catalog
 logreq element --help                # commands of a group; not yet implemented ones are marked
+logreq workspace init my-ws "My workspace"   # new workspace with the standard model in the existing folder my-ws
 logreq workspace status              # the workspace of the current folder (or of a folder above it)
 logreq element get SR-46fb54         # required string fields are positional
 logreq workspace check --changed-since HEAD~1 --changed-files a.md --changed-files b.md --json

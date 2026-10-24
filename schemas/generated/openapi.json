@@ -136,7 +136,7 @@
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
-        "summary": "Create a workspace with the standard model in an empty folder.",
+        "summary": "Create a workspace with the standard model in an existing folder.",
         "tags": [
           "workspace"
         ],
@@ -154,7 +154,7 @@
                 "properties": {
                   "path": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "Empty folder."
+                    "description": "Existing folder; must not contain logreq-workspace.yaml or the metamodel file."
                   },
                   "name": {
                     "type": "string"

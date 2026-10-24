@@ -7,6 +7,7 @@
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
 import metamodelGet from "./metamodel/get.js";
+import workspaceInit from "./workspace/init.js";
 import workspaceStatus from "./workspace/status.js";
 
-export const commands: readonly AnyCommand[] = [metamodelGet, workspaceStatus];
+export const commands: readonly AnyCommand[] = [metamodelGet, workspaceInit, workspaceStatus];
