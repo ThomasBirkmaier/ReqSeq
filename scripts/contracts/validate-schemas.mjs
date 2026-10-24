@@ -3,6 +3,7 @@
 // in schemas/examples/<format>/ matches its schema (SR-009 AK2, AK3).
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE } from "./load.mjs";
 
@@ -51,10 +52,76 @@ function parseExample(f, text) {
   return YAML.parse(m[1], { version: "1.2", schema: "core" });
 }
 
+// Version test vectors (ADR-0005): schemas/examples/version/vectors.yaml lists element file, embedded files,
+// missing files, canonical bytes and version. Checks the element against its schema, that the files exist and
+// the missing ones do not, and that the version is "n1:" + the first 16 hex of SHA-256 over the canonical
+// bytes. The core test (packages/core/src/version/vectors.test.ts) recomputes the bytes.
+const vectorsWhere = "examples/version/vectors.yaml";
+const isPath = (p) => typeof p === "string" && p !== "";
+const existsIn = (dir, p) => isPath(p) && fs.existsSync(path.join(dir, p));
+
+function vectorList(v, key) {
+  if (Array.isArray(v[key])) {
+    return v[key];
+  }
+  errors.push(`${vectorsWhere}: ${v.element}: ${key} must be a list`);
+  return [];
+}
+
+function checkVector(dir, v, validate) {
+  for (const f of [v.element, v.canonical, ...vectorList(v, "files")]) {
+    if (!existsIn(dir, f)) {
+      errors.push(`${vectorsWhere}: ${f} not found`);
+    }
+  }
+  for (const f of vectorList(v, "missing")) {
+    if (!isPath(f) || existsIn(dir, f)) {
+      errors.push(`${vectorsWhere}: missing file ${f} must be a path that does not exist`);
+    }
+  }
+  if (!existsIn(dir, v.element) || !existsIn(dir, v.canonical)) {
+    return 0;
+  }
+  const data = parseExample(v.element, fs.readFileSync(path.join(dir, v.element), "utf8"));
+  if (!validate(data)) {
+    errors.push(`examples/version/${v.element}: ${ajv.errorsText(validate.errors)}`);
+  }
+  const hash = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(path.join(dir, v.canonical)))
+    .digest("hex");
+  if (v.version !== `n1:${hash.slice(0, 16)}`) {
+    errors.push(
+      `${vectorsWhere}: ${v.element}: version ${v.version}, canonical bytes give n1:${hash.slice(0, 16)}`,
+    );
+  }
+  return 1;
+}
+
+function checkVersionVectors(dir) {
+  const validate = ajv.getSchema(`${BASE}element.schema.json`);
+  const index = YAML.parse(fs.readFileSync(path.join(dir, "vectors.yaml"), "utf8"), {
+    version: "1.2",
+    schema: "core",
+  });
+  if (!existsIn(dir, index?.metamodel)) {
+    errors.push(`${vectorsWhere}: metamodel ${index?.metamodel} not found`);
+  }
+  let n = 0;
+  for (const v of Array.isArray(index?.vectors) ? index.vectors : []) {
+    n += checkVector(dir, v, validate);
+  }
+  return n;
+}
+
 // Examples: schemas/examples/<schema base name>/<file>.yaml|.md
 const examplesDir = path.join(schemasDir, "examples");
 let count = 0;
 for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
+  if (dir.name === "version") {
+    count += checkVersionVectors(path.join(examplesDir, dir.name));
+    continue;
+  }
   const validate = ajv.getSchema(`${BASE}${dir.name}.schema.json`);
   if (!validate) {
     errors.push(`examples/${dir.name}: no schema ${dir.name}.schema.json`);
