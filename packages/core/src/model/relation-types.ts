@@ -10,12 +10,13 @@
 import type { Problem } from "../catalog.js";
 import type { MetamodelKey, RelationTarget } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { allowsType, findType, keyDefinition, metamodelState } from "../metamodel/index.js";
+import { allowsType, findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
+import { relationItems, relationKey } from "./relation-keys.js";
 import { isRelationTarget, resolveTarget } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
@@ -75,20 +76,10 @@ const rule = (
 
 /** The rule of a key, undefined for a key whose relations are not restricted or that holds no relations. */
 const ruleOf = (metamodel: Metamodel, key: string): Rule | undefined => {
-  const found = keyDefinition(metamodel, key);
-  if (found === undefined) {
-    return undefined;
-  }
-  const { definition } = found;
-  if (found.kind === "relation") {
-    const label = `Relation ${definition.name} (${definition.key})`;
-    return rule(metamodel, label, true, found.definition["source-types"], found.definition["target-types"]);
-  }
-  if (found.definition.kind !== "relation") {
-    return undefined;
-  }
-  const label = `Property ${definition.name} (${definition.key})`;
-  return rule(metamodel, label, found.definition.many === true, undefined, found.definition["target-types"]);
+  const found = relationKey(metamodel, key);
+  return found === undefined
+    ? undefined
+    : rule(metamodel, found.label, found.many, found.sourceTypes, found.targetTypes);
 };
 
 type Rules = (key: string) => Rule | undefined;
@@ -111,14 +102,6 @@ const rulesOf = (metamodel: Metamodel): Rules => {
   };
   indexes.set(metamodel, rules);
   return rules;
-};
-
-/** The relation targets of a value with their paths; values of another shape are SR-085's. */
-const targetsOf = (key: string, many: boolean, value: unknown): (readonly [ValuePath, unknown])[] => {
-  if (many) {
-    return Array.isArray(value) ? value.map((item: unknown, i) => [[key, i], item] as const) : [];
-  }
-  return Array.isArray(value) ? [] : [[[key], value]];
 };
 
 /**
@@ -157,7 +140,7 @@ const collect = (
       continue;
     }
     const sourceAllowed = allowsType(keyRule.sources, sourceType.key, metamodel);
-    for (const [path, item] of targetsOf(key, keyRule.many, value)) {
+    for (const [path, item] of relationItems(key, keyRule, value)) {
       if (!isRelationTarget(item)) {
         continue;
       }

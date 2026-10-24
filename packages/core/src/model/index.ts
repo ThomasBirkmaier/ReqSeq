@@ -38,6 +38,12 @@ export {
   relationTypeProblemsState,
 } from "./relation-types.js";
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
+export {
+  allMissingTargetFindings,
+  missingTargetFindings,
+  missingTargetProblemsState,
+} from "./missing-targets.js";
+export type { MissingTargetContext, MissingTargetFinding } from "./missing-targets.js";
 export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 export type { UnknownFinding } from "./unknown.js";
 export {

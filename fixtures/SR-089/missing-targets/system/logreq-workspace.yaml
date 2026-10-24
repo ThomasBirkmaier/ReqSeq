@@ -1,0 +1,8 @@
+logreq-workspace: 1
+name: Weather station
+repositories:
+  - { name: system, url: "git@git.example.com:ws/system.git", main: true }
+  - { name: sensor, url: "git@git.example.com:ws/sensor.git" }
+  # Listed, but not on this machine (N-041, SR-006).
+  - { name: vault, url: "git@git.example.com:ws/vault.git" }
+metamodel: { repository: system, path: metamodel }

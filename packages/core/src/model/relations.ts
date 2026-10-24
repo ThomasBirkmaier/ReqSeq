@@ -57,9 +57,9 @@ export type TargetState =
  * the workspace file but not on this machine (N-041, SR-006); `missing` when the repository is
  * here and has no element with the UUID (N-065, SR-089); `ambiguous` when several files there
  * share the UUID (SR-088), in store order; `unknown-repository` when the workspace file lists no
- * repository of that name, or `repository` is not text. The element view uses it; checks that
- * follow relations (the missing-target check, SR-089, and later the relation-type check, SR-086,
- * which uses `resolveTarget` today) are to share it, so all accesses agree (SR-080).
+ * repository of that name, or `repository` is not text. The element view and the missing-target
+ * check (SR-089, `missing-targets.ts`) use it; the relation-type check (SR-086), which uses
+ * `resolveTarget` today, is to share it too, so all accesses agree (SR-080).
  */
 export const targetState = (
   layout: Pick<WorkspaceLayout, "repositories">,
