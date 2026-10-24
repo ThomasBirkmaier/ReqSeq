@@ -1,0 +1,11 @@
+{
+  "name": "logreq",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "trace-check": "node scripts/trace-check/trace-check.mjs",
+    "spec-export:convert": "node scripts/spec-export/convert.mjs scripts/spec-export/raw spec"
+  }
+}

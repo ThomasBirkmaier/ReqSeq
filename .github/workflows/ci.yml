@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  trace-check:
+    name: trace-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Write PR body
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > pr-body.txt
+      - name: Trace check
+        env:
+          IS_ENABLER: ${{ contains(github.event.pull_request.labels.*.name, 'enabler') || contains(github.event.pull_request.labels.*.name, 'spec-export') || contains(github.event.pull_request.labels.*.name, 'needs-human') }}
+        run: |
+          args=""
+          if [ -f pr-body.txt ]; then args="--pr-body pr-body.txt"; fi
+          if [ "$IS_ENABLER" = "true" ]; then args="$args --enabler"; fi
+          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
+      - name: Report
+        if: always()
+        run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+  # Stage 0 adds: typecheck, lint, unit tests, CLI e2e, Electron tests on
+  # ubuntu/macos/windows, offline test, cross-access test, license audit.
