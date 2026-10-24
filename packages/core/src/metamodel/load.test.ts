@@ -399,7 +399,7 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/z-more.yaml",
         line: 6,
-        message: "Property parent names type nede in target-types, which is not defined",
+        message: "Property parent names unknown type nede in target-types",
       },
       {
         code: "metamodel.invalid",
@@ -407,7 +407,7 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/z-more.yaml",
         line: 12,
-        message: "Relation kind refines names type requirement in source-types, which is not defined",
+        message: "Relation kind refines names unknown type requirement in source-types",
       },
       {
         code: "metamodel.invalid",
@@ -415,7 +415,7 @@ describe("loadMetamodel", () => {
         repository: "system",
         file: "model/z-more.yaml",
         line: 15,
-        message: "Relation kind refines names type feature in target-types, which is not defined",
+        message: "Relation kind refines names unknown type feature in target-types",
       },
     ]);
   });

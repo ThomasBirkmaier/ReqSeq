@@ -1,8 +1,9 @@
 // Inheritance of types (SR-012): a type that `extends` another one has all its properties and
 // required properties (Pflicht-Properties), over any number of levels. A parent that does not
 // exist, an inheritance cycle and a type naming an unknown property are metamodel errors with file
-// and line, so the workspace opens read-only (SR-011 AK3). Resolution never loops and resolves as
-// far as it can, so a read-only workspace still knows its types.
+// and line, so the workspace opens read-only (SR-011 AK3). An unknown parent or property is reported
+// only when every metamodel file was read, since a faulty file may define it. Resolution never loops
+// and resolves as far as it can, so a read-only workspace still knows its types.
 import type { Problem } from "../catalog.js";
 import type { MetamodelEffectiveType, MetamodelKey, MetamodelType } from "../generated/types.js";
 
@@ -61,16 +62,21 @@ const chainOf = (
   return { chain, cycle: parent === start };
 };
 
-/** The problem of `extends`, if any: a parent that does not exist, or a cycle back to the type. */
+/**
+ * The problem of `extends`, if any: a parent that does not exist (only when `complete`), or a cycle
+ * back to the type.
+ */
 const parentProblems = (
   type: LocatedType,
   chain: readonly LocatedType[],
   cycle: boolean,
   byKey: ReadonlyMap<MetamodelKey, LocatedType>,
+  complete: boolean,
 ): Problem[] => {
   const { key, extends: parent } = type.definition;
   if (parent !== undefined && !byKey.has(parent)) {
-    return [error(type, ["extends"], `Type ${key} extends unknown type ${parent}`)];
+    // The chain stops at the unknown parent, so there is no cycle to report either.
+    return complete ? [error(type, ["extends"], `Type ${key} extends unknown type ${parent}`)] : [];
   }
   if (cycle) {
     const path = [...chain, type].map((t) => t.definition.key).join(" -> ");
@@ -115,18 +121,23 @@ const effectiveType = (own: MetamodelType, chain: readonly LocatedType[]): Effec
 
 /**
  * Resolves the inheritance of all types. `types` have unique keys (the loader keeps only the first
- * definition of a key); `propertyKeys` are the keys of all defined properties.
+ * definition of a key); `propertyKeys` are the keys of all defined properties. `complete` is true
+ * when every metamodel file was read; otherwise an unknown parent or property is not reported.
  */
 export const resolveTypes = (
   types: readonly LocatedType[],
   propertyKeys: ReadonlySet<MetamodelKey>,
+  complete: boolean,
 ): ResolvedTypes => {
   const byKey = new Map(types.map((t) => [t.definition.key, t]));
   const problems: Problem[] = [];
   const resolved = types.map((type) => {
     const { chain, cycle } = chainOf(type, byKey);
     // The parent first, then the property lists, as most definitions are written.
-    problems.push(...parentProblems(type, chain, cycle, byKey), ...propertyProblems(type, propertyKeys));
+    problems.push(
+      ...parentProblems(type, chain, cycle, byKey, complete),
+      ...(complete ? propertyProblems(type, propertyKeys) : []),
+    );
     return effectiveType(type.definition, chain);
   });
   return { types: resolved, problems };

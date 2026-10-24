@@ -254,7 +254,7 @@ const unknownTypeProblems = (
               locatedProblem(
                 located,
                 [list, String(index)],
-                `${label} ${located.definition.key} names type ${key} in ${list}, which is not defined`,
+                `${label} ${located.definition.key} names unknown type ${key} in ${list}`,
               ),
             ],
       ),
@@ -391,13 +391,14 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   const statuses = merged.statuses.items as Located<MetamodelStatus>[];
   // After all files: a parent, property, type or meaning may be defined in any file, so these
   // problems come last.
-  const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()));
+  const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()), complete);
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
   problems.push(
     ...resolved.problems,
     ...assigned.problems,
     // A type or the initial status that seems missing may be in a faulty file, which is reported
-    // already; so these are checked only when every file was read.
+    // already; so these (like an unknown parent or property in `resolveTypes`) are checked only when
+    // every file was read.
     ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
     ...initialStatusProblems(statuses, folderName, complete),
   );

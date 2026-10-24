@@ -106,7 +106,7 @@ describe("type inheritance", () => {
       file: "model/hazard.yaml",
       lineOf: () => undefined,
     };
-    expect(resolveTypes([located], new Set(["severity"]))).toEqual({
+    expect(resolveTypes([located], new Set(["severity"]), true)).toEqual({
       types: [
         {
           key: "hazard",
@@ -130,7 +130,7 @@ describe("type inheritance", () => {
       file: "model/hazard.yaml",
       lineOf: () => undefined,
     };
-    expect(resolveTypes([located], new Set()).problems).toEqual([
+    expect(resolveTypes([located], new Set(), true).problems).toEqual([
       {
         code: "metamodel.invalid",
         severity: "error",
@@ -162,6 +162,36 @@ describe("type inheritance", () => {
       required: ["colour"],
     });
     expect(await workspaceAccess(workspace)).toEqual({ readOnly: true, reasons: metamodel.problems });
+  });
+
+  it("does not report an unknown parent or property while a file is faulty, which may define them", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
+        "model/z-hazard.yaml":
+          "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: risk\n    required: [colour]\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.code, p.file])).toEqual([
+      ["file.invalid-yaml", "model/z-faulty.yaml"],
+    ]);
+    expect(effective(metamodel, "hazard")).toMatchObject({ ancestors: [], required: ["colour"] });
+  });
+
+  it("reports an inheritance cycle also while a file is faulty", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
+        "model/z-cycle.yaml": "logreq-metamodel: 1\ntypes:\n  - { key: c, name: C, prefix: C, extends: c }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.message])).toEqual([
+      ["model/z-faulty.yaml", expect.any(String)],
+      ["model/z-cycle.yaml", "Type c is part of an inheritance cycle: c -> c"],
+    ]);
   });
 
   it("reports every type on an inheritance cycle, also across files, and still resolves", async () => {
