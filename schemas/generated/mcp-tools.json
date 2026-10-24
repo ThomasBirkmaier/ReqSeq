@@ -181,6 +181,29 @@
             ]
           }
         },
+        "relationTargetInput": {
+          "description": "Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).",
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/common/$defs/uuid"
+            },
+            "version": {
+              "$ref": "#/$defs/common/$defs/version"
+            },
+            "title": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string",
+              "description": "Workspace name of the target's repository; absent for the source's own repository."
+            }
+          },
+          "additionalProperties": false
+        },
         "date": {
           "type": "string",
           "format": "date"
@@ -684,6 +707,32 @@
             "string",
             "number",
             "boolean"
+          ]
+        },
+        "inputValue": {
+          "description": "Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/element/$defs/scalar"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/element/$defs/scalar"
+              }
+            },
+            {
+              "$ref": "#/$defs/common/$defs/relationTargetInput"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/common/$defs/relationTargetInput"
+              }
+            }
           ]
         },
         "value": {
@@ -2137,7 +2186,7 @@
           "properties": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "#/$defs/element/$defs/value"
+              "$ref": "#/$defs/element/$defs/inputValue"
             }
           },
           "repository": {
@@ -2344,7 +2393,7 @@
           "set": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "#/$defs/element/$defs/value"
+              "$ref": "#/$defs/element/$defs/inputValue"
             },
             "propertyNames": {
               "not": {

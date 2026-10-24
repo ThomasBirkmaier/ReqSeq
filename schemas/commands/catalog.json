@@ -271,7 +271,17 @@
       "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).",
       "effect": "write-files",
       "stage": 1,
-      "implements": ["SR-001", "SR-002", "SR-039", "SR-048", "SR-064", "SR-084", "SR-091", "SR-102"],
+      "implements": [
+        "SR-001",
+        "SR-002",
+        "SR-021",
+        "SR-039",
+        "SR-048",
+        "SR-064",
+        "SR-084",
+        "SR-091",
+        "SR-102"
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -287,7 +297,7 @@
           "properties": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "../element.schema.json#/$defs/value"
+              "$ref": "../element.schema.json#/$defs/inputValue"
             }
           },
           "repository": {
@@ -462,6 +472,7 @@
       "implements": [
         "SR-001",
         "SR-016",
+        "SR-021",
         "SR-035",
         "SR-040",
         "SR-049",
@@ -485,7 +496,7 @@
           "set": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "../element.schema.json#/$defs/value"
+              "$ref": "../element.schema.json#/$defs/inputValue"
             },
             "propertyNames": {
               "not": {

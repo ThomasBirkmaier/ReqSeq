@@ -30,6 +30,32 @@
     "scalar": {
       "type": ["string", "number", "boolean"]
     },
+    "inputValue": {
+      "description": "Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/scalar"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scalar"
+          }
+        },
+        {
+          "$ref": "common.schema.json#/$defs/relationTargetInput"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/relationTargetInput"
+          }
+        }
+      ]
+    },
     "value": {
       "description": "Property value (text, number, date as YYYY-MM-DD, choice key, list) or relation targets. Which one is expected comes from the metamodel; a mismatch is a hint, not a parse error (SR-012 AK3).",
       "anyOf": [

@@ -187,6 +187,29 @@
             ]
           }
         },
+        "relationTargetInput": {
+          "description": "Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).",
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/uuid"
+            },
+            "version": {
+              "$ref": "#/$defs/version"
+            },
+            "title": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string",
+              "description": "Workspace name of the target's repository; absent for the source's own repository."
+            }
+          },
+          "additionalProperties": false
+        },
         "date": {
           "type": "string",
           "format": "date"
@@ -694,6 +717,32 @@
             "string",
             "number",
             "boolean"
+          ]
+        },
+        "inputValue": {
+          "description": "Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/scalar"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/scalar"
+              }
+            },
+            {
+              "$ref": "common.schema.json#/$defs/relationTargetInput"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/relationTargetInput"
+              }
+            }
           ]
         },
         "value": {
@@ -2248,6 +2297,7 @@
         "implements": [
           "SR-001",
           "SR-002",
+          "SR-021",
           "SR-039",
           "SR-048",
           "SR-064",
@@ -2270,7 +2320,7 @@
             "properties": {
               "type": "object",
               "additionalProperties": {
-                "$ref": "../element.schema.json#/$defs/value"
+                "$ref": "../element.schema.json#/$defs/inputValue"
               }
             },
             "repository": {
@@ -2474,6 +2524,7 @@
         "implements": [
           "SR-001",
           "SR-016",
+          "SR-021",
           "SR-035",
           "SR-040",
           "SR-049",
@@ -2497,7 +2548,7 @@
             "set": {
               "type": "object",
               "additionalProperties": {
-                "$ref": "../element.schema.json#/$defs/value"
+                "$ref": "../element.schema.json#/$defs/inputValue"
               },
               "propertyNames": {
                 "not": {

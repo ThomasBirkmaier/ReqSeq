@@ -272,6 +272,8 @@ describe("element.create", () => {
       title: "Gusts",
       properties: { "acceptance-criteria": [], due: null, "parent-item": target, weight: 2 },
     });
+    // The target is new, so it is stored with its current version and title (SR-021).
+    const stored = { id: target.id, version: "n1:a5c9ba86e4be25d9", title: "Wind speed visible at a glance" };
     expect(await read(opened, out.files[0] ?? "")).toBe(
       [
         "---",
@@ -280,12 +282,12 @@ describe("element.create", () => {
         "status: draft",
         "title: Gusts",
         "weight: 2",
-        `parent-item: { id: ${target.id}, version: n1:9f86d081884c7d65, title: Wind }`,
+        `parent-item: { id: ${stored.id}, version: ${stored.version}, title: ${stored.title} }`,
         "---",
         "",
       ].join("\n"),
     );
-    expect(out.element.properties).toEqual({ weight: 2, "parent-item": target });
+    expect(out.element.properties).toEqual({ weight: 2, "parent-item": stored });
   });
 
   it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {

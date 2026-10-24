@@ -29,10 +29,14 @@ export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.
 export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 export type { UnknownFinding } from "./unknown.js";
 export { isRelationTarget, resolveTarget } from "./relations.js";
+export { markdownLinks } from "./markdown-links.js";
+export type { MarkdownLink } from "./markdown-links.js";
+export { currentTarget, inlineReferences, setInlineReferences, setRelationTargets } from "./targets.js";
+export type { InlineReference, TargetContext } from "./targets.js";
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
-export { elementView, titleKeyOf } from "./view.js";
+export { elementVersion, elementView, titleKeyOf } from "./view.js";
 export type { ElementViewInput } from "./view.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { FolderTree } from "./watch-tree.js";

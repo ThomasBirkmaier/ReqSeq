@@ -22,7 +22,12 @@ import {
   readElementFile,
   writeFileAtomic,
 } from "../files/index.js";
-import type { DataExportElement, ElementValue, MetamodelEffectiveType } from "../generated/types.js";
+import type {
+  DataExportElement,
+  ElementInputValue,
+  ElementValue,
+  MetamodelEffectiveType,
+} from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState, requireMeaning, typeForNewElement } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -36,6 +41,8 @@ import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
+import type { TargetContext } from "./targets.js";
+import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -50,7 +57,7 @@ export interface CreateElementInput {
   readonly type: string;
   readonly title: string;
   readonly text?: string;
-  readonly properties?: Readonly<Record<string, ElementValue>>;
+  readonly properties?: Readonly<Record<string, ElementInputValue>>;
   readonly repository?: string;
   readonly folder?: string;
 }
@@ -59,7 +66,7 @@ export interface UpdateElementInput {
   readonly ref: string;
   readonly title?: string;
   readonly text?: string;
-  readonly set?: Readonly<Record<string, ElementValue>>;
+  readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly string[];
 }
 
@@ -72,7 +79,7 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
  */
 const toPropertyValue = (value: ElementValue): PropertyValue => value as PropertyValue;
 
-const isEmpty = (value: ElementValue): boolean =>
+const isEmpty = (value: ElementInputValue): boolean =>
   value === null || (Array.isArray(value) && value.length === 0);
 
 /** The title key, which the type must have (D-059: the meaning `title`). */
@@ -231,6 +238,30 @@ const withRecord = (store: ElementStore, record: ElementRecord): ElementStore =>
   return { ...store, elements: [...store.elements, record], byId };
 };
 
+/** Whether `key` is a relation-valued property (validity, packages, ...), whose targets carry a version. */
+const isRelationProperty = (metamodel: Metamodel, key: string): boolean =>
+  metamodel.properties.some((p) => p.key === key && p.kind === "relation");
+
+/**
+ * The given property values with their relation targets as stored (SR-021 AK1, `setRelationTargets`),
+ * compared with the values `stored` in the source file now.
+ */
+const withTargets = async (
+  context: TargetContext,
+  sourceRepository: string,
+  values: readonly (readonly [string, ElementInputValue])[],
+  stored: Readonly<Record<string, unknown>>,
+): Promise<[string, ElementValue][]> =>
+  Promise.all(
+    values.map(async ([key, value]): Promise<[string, ElementValue]> => [
+      key,
+      isRelationProperty(context.metamodel, key)
+        ? await setRelationTargets(context, sourceRepository, value, stored[key])
+        : // Only relation-valued properties hold targets; any other value is stored as given.
+          (value as ElementValue),
+    ]),
+  );
+
 /** The result of a write; the element store is reset, so the next read finds the file as written. */
 const finish = async (
   workspace: Workspace,
@@ -278,8 +309,13 @@ export const createElement = async (
   const status = initialStatus(metamodel);
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
-  const properties = Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value));
   const repository = targetRepository(layout, input.repository);
+  const properties = await withTargets(
+    context,
+    repository.name,
+    Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
+    {},
+  );
   const folder = folderOf(input.folder ?? type.key);
   const id = randomUUID();
   const file =
@@ -298,7 +334,7 @@ export const createElement = async (
     })),
   ];
   // A new file has LF line endings and ends with a line break (ADR-0004 "Stable writing").
-  const text = (input.text ?? "").replace(/\r\n?/g, "\n");
+  const text = await setInlineReferences(context, (input.text ?? "").replace(/\r\n?/g, "\n"), "");
   const body = text === "" || text.endsWith("\n") ? text : `${text}\n`;
   const { bytes } = editElementFile(EMPTY_FILE, {
     edits,
@@ -321,9 +357,14 @@ export const createElement = async (
   ]);
 };
 
-const updateEdits = (input: UpdateElementInput, titleKey: string): FrontmatterEdit[] => [
+/** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
+const updateEdits = (
+  input: UpdateElementInput,
+  set: readonly (readonly [string, ElementValue])[],
+  titleKey: string,
+): FrontmatterEdit[] => [
   ...(input.title === undefined ? [] : [{ kind: "set", key: titleKey, value: input.title } as const]),
-  ...Object.entries(input.set ?? {}).map(([key, value]): FrontmatterEdit => ({
+  ...set.map(([key, value]): FrontmatterEdit => ({
     kind: "set",
     key,
     value: toPropertyValue(value),
@@ -388,9 +429,17 @@ export const updateElement = async (
       { file: record.file, repository: record.repository },
     );
   }
+  const set = await withTargets(
+    context,
+    record.repository,
+    Object.entries(input.set ?? {}),
+    current.record.data,
+  );
+  const text =
+    input.text === undefined ? undefined : await setInlineReferences(context, input.text, current.file.body);
   const { bytes, changed } = editElementFile(current.file, {
-    edits: updateEdits(input, titleKey),
-    ...(input.text === undefined ? {} : { body: input.text }),
+    edits: updateEdits(input, set, titleKey),
+    ...(text === undefined ? {} : { body: text }),
     keyOrder: type.properties,
   });
   if (!changed) {

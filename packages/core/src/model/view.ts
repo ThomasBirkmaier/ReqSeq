@@ -79,6 +79,18 @@ const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): Versio
     .map((p) => ({ key: p.key, kind: p.kind, ...(p.content === undefined ? {} : { content: p.content }) }));
 };
 
+/**
+ * The version of an element (ADR-0005) from its record and the text of its file; embedded images
+ * are not counted yet (#131). The one place model code computes it, for views and stored targets.
+ */
+export const elementVersion = (record: ElementRecord, body: string, metamodel: Metamodel): string =>
+  computeVersion({
+    text: body,
+    properties: record.data as Readonly<Record<string, VersionValue>>,
+    definitions: versionDefinitions(record, metamodel),
+    files: [],
+  });
+
 export interface ElementViewInput {
   /** The element as classified from `file`. */
   readonly record: ElementRecord;
@@ -125,12 +137,7 @@ export const elementView = (
     status: text(record.data["status"]),
     title: text(record.data[titleKey]),
     text: file.body,
-    version: computeVersion({
-      text: file.body,
-      properties: record.data as Readonly<Record<string, VersionValue>>,
-      definitions: versionDefinitions(record, metamodel),
-      files: [],
-    }),
+    version: elementVersion(record, file.body, metamodel),
     repository: record.repository,
     file: record.file,
     properties,

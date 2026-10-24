@@ -21,7 +21,7 @@ export const isRelationTarget = (value: unknown): value is RelationTarget =>
 export const resolveTarget = (
   store: ElementStore,
   sourceRepository: string,
-  target: RelationTarget,
+  target: Pick<RelationTarget, "id"> & Partial<RelationTarget>,
 ): ElementMatch => {
   const repository = target.repository ?? sourceRepository;
   const elements = (store.byId.get(target.id) ?? []).filter((r) => r.repository === repository);

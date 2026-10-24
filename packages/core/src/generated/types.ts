@@ -80,6 +80,18 @@ export interface RelationTarget {
   readonly repository?: string;
 }
 
+/**
+ * Target of a relation as a caller gives it to element.create or element.update (SR-021). Only `id` and, across repositories, `repository` name the target. A target the property already stores keeps its stored version and form; for every other target the tool writes its current version and the title (same repository) or repository (across repositories) itself. A given `version` or `title` is ignored (spec question #177).
+ * Schema: `schemas/common.schema.json#/$defs/relationTargetInput`.
+ */
+export interface RelationTargetInput {
+  readonly id: Uuid;
+  readonly version?: Version;
+  readonly title?: string;
+  /** Workspace name of the target's repository; absent for the source's own repository. */
+  readonly repository?: string;
+}
+
 /** Schema: `schemas/common.schema.json#/$defs/date`. */
 export type IsoDate = string;
 
@@ -314,6 +326,17 @@ export interface ElementFile {
 
 /** Schema: `schemas/element.schema.json#/$defs/scalar`. */
 export type ElementScalar = string | number | boolean;
+
+/**
+ * Property value as a caller gives it to element.create or element.update: like `value`, but relation targets need only `id` (and `repository` across repositories); the tool sets their version (SR-021).
+ * Schema: `schemas/element.schema.json#/$defs/inputValue`.
+ */
+export type ElementInputValue =
+  | ElementScalar
+  | null
+  | readonly ElementScalar[]
+  | RelationTargetInput
+  | readonly RelationTargetInput[];
 
 /**
  * Property value (text, number, date as YYYY-MM-DD, choice key, list) or relation targets. Which one is expected comes from the metamodel; a mismatch is a hint, not a parse error (SR-012 AK3).
@@ -881,7 +904,7 @@ export interface ElementCreateInput {
   readonly type: Key;
   readonly title: string;
   readonly text?: string;
-  readonly properties?: Readonly<Record<string, ElementValue>>;
+  readonly properties?: Readonly<Record<string, ElementInputValue>>;
   readonly repository?: string;
   /** Folder relative to the repository; default from the type. */
   readonly folder?: string;
@@ -963,7 +986,7 @@ export interface ElementUpdateInput {
   readonly ref: ElementRef;
   readonly title?: string;
   readonly text?: string;
-  readonly set?: Readonly<Record<string, ElementValue>>;
+  readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly Key[];
 }
 
