@@ -53,8 +53,9 @@ customer-id: WS-0815                          # external ID is an ordinary prope
 ### Relations
 
 - A relation is stored only in the file of its source. Adding a relation never changes the target file (D-040, N-039: two people adding children to the same parent change different files).
-- Direction by meaning (`schemas/metamodel.schema.json`): `derivation` source = child, target = parent; `replacement` source replaces target (D-020); `exclusion` source variant excludes target core requirement (SR-042: written into the variant file); `succession` source is superseded by target (D-045, SR-072).
-- `exclusion` is decided by D-059 (relation kind Excludes on the variant). `succession` is still an **assumption**: D-012 and D-059 do not list it, but D-045 and SR-072 need it; asked as spec question, marked in the standard model example.
+- Direction by meaning (`schemas/metamodel.schema.json`): `derivation` source = child, target = parent; `replacement` source (new) replaces target (old); `exclusion` source variant excludes target core requirement (SR-042: written into the variant file).
+- `exclusion` is decided by D-059 (relation kind Excludes on the variant).
+- Superseding (D-045, SR-072) uses the meaning `replacement` ("Ersetzt", D-059), answered by Thomas on 2026-10-24; there is no separate successor meaning. A replacement is read as a variant replacement (D-020) when the source has a validity, and as succession when the target has an invalid status (D-044). `element.supersede` with a successor therefore writes the status into the old file and the relation into the successor's file. The standard model offers `supersedes` (any types) and `replaces` (system requirements in variants) with this meaning; when more than one relation kind fits, the caller names it.
 - Confirming a hint (D-042) rewrites only the `version` (and the same-repository `title`) of that one relation target (SR-027 AK1).
 
 ### Stable writing

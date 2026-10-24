@@ -149,7 +149,7 @@
           "type": "object",
           "properties": {
             "kind": { "$ref": "common.schema.json#/$defs/key" },
-            "meaning": { "enum": ["derivation", "replacement", "exclusion", "succession"] },
+            "meaning": { "enum": ["derivation", "replacement", "exclusion"] },
             "direction": {
               "enum": ["up", "down", "evidence"],
               "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element."

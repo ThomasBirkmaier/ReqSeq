@@ -129,9 +129,10 @@ relations:
     name: Based on
     inverse-name: Basis for
     target-types: [decision]
-  - key: supersedes
+  - key: supersedes # replacement by a successor, D-045 / SR-072
     name: Supersedes
     inverse-name: Superseded by
+    meaning: replacement
   - key: replaces
     name: Replaces
     inverse-name: Replaced by
@@ -144,10 +145,6 @@ relations:
     source-types: [variant]
     target-types: [system-requirement]
     meaning: exclusion
-  - key: superseded-by # assumption, D-045 / SR-072
-    name: Superseded by
-    inverse-name: Successor of
-    meaning: succession
 
 statuses:
   - { key: draft, name: Draft, initial: true }

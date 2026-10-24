@@ -202,7 +202,6 @@ See [docs/adr](../adr/README.md).
 
 | Risk or open point | Handling |
 |---|---|
-| Built-in meaning `succession` (D-045, SR-072) is in no decision | Assumption in ADR-0004 and the standard model; spec question. |
 | Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Performance results are analysis records; thresholds checked nightly. |

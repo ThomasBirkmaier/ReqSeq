@@ -176,7 +176,7 @@
           "$ref": "common.schema.json#/$defs/key"
         },
         "meaning": {
-          "enum": ["derivation", "replacement", "exclusion", "succession", "reference", null],
+          "enum": ["derivation", "replacement", "exclusion", "reference", null],
           "description": "`reference` = inline link in the text (SR-066)."
         },
         "direction": {

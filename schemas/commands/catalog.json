@@ -533,7 +533,7 @@
     },
     {
       "name": "element.supersede",
-      "summary": "Supersede an element: set an invalid status and optionally relate it to its successor. There is no delete (D-045).",
+      "summary": "Supersede an element: set an invalid status and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-072"],
@@ -548,6 +548,10 @@
           },
           "successor": {
             "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "relation": {
+            "$ref": "../common.schema.json#/$defs/key",
+            "description": "Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types."
           }
         },
         "additionalProperties": false,
