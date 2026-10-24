@@ -6462,7 +6462,7 @@
               },
               "extends": {
                 "$ref": "#/components/schemas/metamodel/$defs/key",
-                "description": "Parent type; its properties are inherited (SR-012 AK2)."
+                "description": "Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error."
               },
               "abstract": {
                 "type": "boolean",
@@ -6483,14 +6483,14 @@
                 "items": {
                   "$ref": "#/components/schemas/metamodel/$defs/key"
                 },
-                "description": "Property keys this type has, in addition to inherited ones."
+                "description": "Property keys this type has, in addition to inherited ones, which come first. Each must be a defined property."
               },
               "required": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/metamodel/$defs/key"
                 },
-                "description": "Mandatory property keys (Pflichtfelder). Empty values are allowed but give a hint (SR-064)."
+                "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and must be a defined property. Empty values are allowed but give a hint (SR-064)."
               }
             },
             "unevaluatedProperties": false

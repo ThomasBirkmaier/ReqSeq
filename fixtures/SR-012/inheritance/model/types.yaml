@@ -1,0 +1,26 @@
+# Inheritance (SR-012 AK2): interface-requirement -> software-requirement -> requirement -> item.
+logreq-metamodel: 1
+types:
+  - key: item
+    name: Item
+    prefix: ITM
+    abstract: true
+    properties: [title]
+    required: [title]
+  - key: requirement
+    name: System Requirement
+    prefix: SR
+    extends: item
+    meaning: requirement
+    properties: [rationale]
+  - key: software-requirement
+    name: Software Requirement
+    prefix: SWR
+    extends: requirement
+    properties: [component, rationale]
+    required: [component]
+  - key: interface-requirement
+    name: Interface Requirement
+    prefix: IFR
+    extends: software-requirement
+    properties: [protocol]

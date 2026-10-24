@@ -344,6 +344,7 @@ describe("loadMetamodel", () => {
       properties: [],
       relations: [],
       statuses: [],
+      effectiveTypes: [],
       valid: false,
       problems: [
         {

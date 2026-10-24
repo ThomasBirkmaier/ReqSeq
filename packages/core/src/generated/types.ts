@@ -489,15 +489,15 @@ export interface MetamodelType {
   readonly description?: string;
   /** Prefix of the short ID, e.g. SR (D-017). */
   readonly prefix: string;
-  /** Parent type; its properties are inherited (SR-012 AK2). */
+  /** Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error. */
   readonly extends?: MetamodelKey;
   /** No elements of this type can be created; only for inheritance. */
   readonly abstract?: boolean;
   /** Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040). */
   readonly meaning?: "requirement" | "need" | "variant" | "package";
-  /** Property keys this type has, in addition to inherited ones. */
+  /** Property keys this type has, in addition to inherited ones, which come first. Each must be a defined property. */
   readonly properties?: readonly MetamodelKey[];
-  /** Mandatory property keys (Pflichtfelder). Empty values are allowed but give a hint (SR-064). */
+  /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and must be a defined property. Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
 }
 

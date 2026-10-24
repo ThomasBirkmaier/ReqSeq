@@ -1,0 +1,7 @@
+logreq-metamodel: 1
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: rationale, name: Rationale, kind: text }
+  - { key: component, name: Component, kind: text, content: true }
+  - { key: protocol, name: Protocol, kind: text, content: true }
+  - { key: severity, name: Severity, kind: number, content: true }
