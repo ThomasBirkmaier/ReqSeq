@@ -37,6 +37,7 @@ describe("loadContracts", () => {
     expect(contracts.commands.map((c) => c.name)).toEqual(file.commands.map((c) => c.name));
     expect(contracts.entry("workspace.status")?.stage).toBe(1);
     expect(contracts.entry("no.such")).toBeUndefined();
+    expect(contracts.schemas.map((s) => s["$id"])).toContain("https://logreq.dev/schemas/common.schema.json");
   });
 
   it("compiles the input and output schema of every catalog command", () => {

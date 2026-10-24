@@ -25,7 +25,9 @@ try {
 4. Maps failures: a thrown `CommandError` passes through unchanged; anything else becomes `internal` with the message `Internal error in X`. The original error, and its text, is only in `cause`, never in what adapters send. An abort (the signal fired, or an `AbortError`) is `internal` with `details.aborted: true` (ADR-0009).
 5. With output validation on (`LOGREQ_VALIDATE_OUTPUT=1`, always in tests via `vitest.config.ts`, and in debug builds) the output is checked against the entry's `output` schema; a mismatch is `internal`.
 
-Findings are never thrown: commands return them as `problems` (`common.schema.json#/$defs/problem`). How each adapter turns a `CommandError` code into an exit code, HTTP status or MCP tool error is ADR-0009.
+Findings are never thrown: commands return them as `problems` (`common.schema.json#/$defs/problem`). Adapters map a `CommandError` code with `errorClass(code)` (`input`, `not-found`, `conflict`, `unavailable`, `internal`; the table is `COMMAND_ERROR_CLASSES`); how each class becomes an exit code, HTTP status or MCP tool error is ADR-0009.
+
+`findWorkspaceRoot(start)` (workspace block, `src/workspace/root.ts`) returns the nearest folder from `start` upwards that holds `logreq-workspace.yaml` (`WORKSPACE_FILE`), or `undefined`; adapters use it when no workspace is given (ADR-0009). `PRODUCT_NAME` and `PRODUCT_VERSION` come from the root `package.json` (embedded by `pnpm contracts:generate`), so every access reports the same version. `contracts.schemas` are the schemas that `$ref`s of the catalog resolve against; adapters that read input schemas (CLI flags) use them.
 
 Adapters share one runtime per process: `getCommandRuntime()` returns it (created with the defaults on first use) with the catalog (`contracts.commands`, for CLI subcommands, API routes and MCP tools) and the implemented commands (`commands`). `configureCommandRuntime(options)` sets it, e.g. with `validateOutput`: adapters configure before the first call; replacing it later is for tests. `createCommandRuntime({ commands, contracts, validateOutput })` builds a separate one with other implementations or another catalog (`loadContracts({ catalog })`); tests use it for test-only commands.
 
@@ -49,7 +51,7 @@ Adapters share one runtime per process: `getCommandRuntime()` returns it (create
    The definition has only `name` and `run`. Summary, effect and schemas come from the catalog, so they cannot drift. `input` has already passed the schema, with defaults filled in.
 3. Import it in `src/commands/index.ts` and add it to `commands` (sorted by name). Every `.ts` file in a group folder is taken as a command, so helpers belong in the blocks (`src/model/`, `src/metamodel/`, ...), not next to the commands.
 4. `src/commands/registry.test.ts` checks that files, the list and the catalog agree: every file is registered under the name of its path, every implementation has a catalog entry, and every catalog command of a completed stage (`COMPLETED_STAGES`) has exactly one implementation. A stage is added to `COMPLETED_STAGES` when it is done, in a PR with green CI before its acceptance is prepared (stage-run skill, step 7).
-5. Errors: `throw new CommandError("element.not-found", "No element SR-46fb54", { ref })`. Codes are `COMMAND_ERROR_CODES`, the list of `common.schema.json#/$defs/error`; a new code goes into the schema and the list in the same PR (a test compares them).
+5. Errors: `throw new CommandError("element.not-found", "No element SR-46fb54", { ref })`. Codes are `COMMAND_ERROR_CODES`, the list of `common.schema.json#/$defs/error`; a new code goes into the schema, the list and `COMMAND_ERROR_CLASSES` in the same PR (tests compare them).
 
 ## Workspace state
 

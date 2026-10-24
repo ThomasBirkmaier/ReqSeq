@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { COMMAND_ERROR_CODES, CommandError, defineCommand } from "./catalog.js";
+import {
+  COMMAND_ERROR_CLASSES,
+  COMMAND_ERROR_CODES,
+  CommandError,
+  defineCommand,
+  errorClass,
+} from "./catalog.js";
 import { loadContracts } from "./runtime/contracts.js";
 
 const schemasDir = path.join(import.meta.dirname, "..", "..", "..", "schemas");
@@ -67,5 +73,41 @@ describe("CommandError", () => {
 
   it("knows exactly the codes of common.schema.json#/$defs/error", () => {
     expect([...COMMAND_ERROR_CODES]).toEqual(common.$defs.error.properties.code.enum);
+  });
+});
+
+describe("error classes", () => {
+  it("classify exactly the error codes, in schema order", () => {
+    expect(Object.keys(COMMAND_ERROR_CLASSES)).toEqual([...COMMAND_ERROR_CODES]);
+  });
+
+  it("map each code to the table of ADR-0009", () => {
+    const byClass = (cls: string): string[] => COMMAND_ERROR_CODES.filter((code) => errorClass(code) === cls);
+    expect(byClass("input")).toEqual([
+      "input.invalid",
+      "ref.ambiguous",
+      "relation.not-allowed",
+      "variant.nested",
+      "reqif.invalid",
+      "reqif.unmapped",
+    ]);
+    expect(byClass("not-found")).toEqual([
+      "ref.unknown",
+      "workspace.not-found",
+      "element.not-found",
+      "file.folder-missing",
+    ]);
+    expect(byClass("conflict")).toEqual([
+      "workspace.read-only",
+      "element.read-only",
+      "metamodel.meaning-unassigned",
+      "baseline.uncommitted-changes",
+      "file.changed-on-disk",
+      "file.faulty",
+      "file.read-only",
+      "file.not-regular",
+    ]);
+    expect(byClass("unavailable")).toEqual(["git.unavailable"]);
+    expect(byClass("internal")).toEqual(["internal"]);
   });
 });

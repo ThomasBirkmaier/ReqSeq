@@ -13,7 +13,7 @@
         "type": "object",
         "properties": {
           "path": {
-            "type": "string",
+            "$ref": "../common.schema.json#/$defs/localPath",
             "description": "Empty folder."
           },
           "name": {
@@ -701,7 +701,7 @@
             "$ref": "../common.schema.json#/$defs/elementRef"
           },
           "sourcePath": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -1386,7 +1386,7 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "item": {
             "type": "string"
@@ -1395,7 +1395,7 @@
             "$ref": "../common.schema.json#/$defs/dateTime"
           },
           "output": {
-            "type": "string",
+            "$ref": "../common.schema.json#/$defs/localPath",
             "description": "Default: overwrite the input file."
           }
         },
@@ -1606,7 +1606,7 @@
         "type": "object",
         "properties": {
           "folder": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "selection": {
             "$ref": "../common.schema.json#/$defs/selection"
@@ -1913,10 +1913,10 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -1980,10 +1980,10 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "delivery": {
             "type": "string"
@@ -2053,7 +2053,7 @@
             "$ref": "../reqif-mapping.schema.json"
           },
           "file": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -2090,7 +2090,7 @@
         "type": "object",
         "properties": {
           "output": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "selection": {
             "$ref": "../common.schema.json#/$defs/selection"
@@ -2099,7 +2099,7 @@
             "type": "string"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "../common.schema.json#/$defs/localPath"
           },
           "omitProperties": {
             "type": "array",

@@ -73,6 +73,45 @@ export const COMMAND_ERROR_CODES = [
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number];
 
+/**
+ * What kind of failure a code is, so every adapter maps codes with one table (ADR-0009 "Errors"):
+ * - `input`: the request itself is wrong (fix the input and retry).
+ * - `not-found`: something the request names does not exist (element, workspace, folder).
+ * - `conflict`: the request is fine, but the state of the workspace or a file refuses it.
+ * - `unavailable`: a tool LogReq needs is missing on this machine (Git).
+ * - `internal`: a bug in LogReq, or a call aborted by its caller (`details.aborted`).
+ *
+ * CLI: `internal` is exit code 3, every other class exit code 2 (#124). API and MCP: #125.
+ */
+export type CommandErrorClass = "input" | "not-found" | "conflict" | "unavailable" | "internal";
+
+/** The class of every code; the `Record` type makes a new code in COMMAND_ERROR_CODES fail until it is classified. */
+export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErrorClass>> = {
+  "input.invalid": "input",
+  "ref.unknown": "not-found",
+  "ref.ambiguous": "input",
+  "workspace.not-found": "not-found",
+  "workspace.read-only": "conflict",
+  "element.read-only": "conflict",
+  "element.not-found": "not-found",
+  "metamodel.meaning-unassigned": "conflict",
+  "relation.not-allowed": "input",
+  "variant.nested": "input",
+  "baseline.uncommitted-changes": "conflict",
+  "reqif.invalid": "input",
+  "reqif.unmapped": "input",
+  "git.unavailable": "unavailable",
+  "file.changed-on-disk": "conflict",
+  "file.faulty": "conflict",
+  "file.read-only": "conflict",
+  "file.not-regular": "conflict",
+  "file.folder-missing": "not-found",
+  internal: "internal",
+};
+
+/** The class of an error code (COMMAND_ERROR_CLASSES). */
+export const errorClass = (code: CommandErrorCode): CommandErrorClass => COMMAND_ERROR_CLASSES[code];
+
 /** Machine-readable details of an error, e.g. the failed schema checks of `input.invalid`. */
 export type CommandErrorDetails = Readonly<Record<string, unknown>>;
 

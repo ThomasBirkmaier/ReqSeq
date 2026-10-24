@@ -39,6 +39,8 @@ export interface SchemaViolation {
 export interface Contracts {
   /** All catalog entries in catalog order. */
   readonly commands: readonly CatalogEntry[];
+  /** The `schemas/*.schema.json` that `$ref`s of the catalog resolve against (by `$id`). */
+  readonly schemas: readonly JsonSchema[];
   entry(name: string): CatalogEntry | undefined;
   /**
    * Compiled validator of a command's input or output schema (compiled on first use).
@@ -133,6 +135,7 @@ export function loadContracts(options: LoadContractsOptions = {}): Contracts {
   const compiled = new Map<string, ValidateFunction>();
   return {
     commands,
+    schemas: contractsBundle.schemas,
     entry: (name) => byName.get(name),
     validator(name, part) {
       const key = `${name}.${part}`;

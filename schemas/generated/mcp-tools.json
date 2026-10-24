@@ -157,6 +157,11 @@
           "type": "string",
           "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
         },
+        "localPath": {
+          "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root (ADR-0009).",
+          "type": "string",
+          "minLength": 1
+        },
         "problem": {
           "description": "A finding or hint. Commands return problems as data so every access shows the same result (SR-080).",
           "type": "object",
@@ -1709,7 +1714,7 @@
         "type": "object",
         "properties": {
           "path": {
-            "type": "string",
+            "$ref": "#/$defs/common/$defs/localPath",
             "description": "Empty folder."
           },
           "name": {
@@ -2483,7 +2488,7 @@
             "$ref": "#/$defs/common/$defs/elementRef"
           },
           "sourcePath": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -3295,7 +3300,7 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "item": {
             "type": "string"
@@ -3304,7 +3309,7 @@
             "$ref": "#/$defs/common/$defs/dateTime"
           },
           "output": {
-            "type": "string",
+            "$ref": "#/$defs/common/$defs/localPath",
             "description": "Default: overwrite the input file."
           }
         },
@@ -3547,7 +3552,7 @@
         "type": "object",
         "properties": {
           "folder": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "selection": {
             "$ref": "#/$defs/common/$defs/selection"
@@ -3914,10 +3919,10 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -3997,10 +4002,10 @@
         "type": "object",
         "properties": {
           "file": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "delivery": {
             "type": "string"
@@ -4085,7 +4090,7 @@
             "$ref": "#/$defs/reqif-mapping"
           },
           "file": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           }
         },
         "additionalProperties": false,
@@ -4128,7 +4133,7 @@
         "type": "object",
         "properties": {
           "output": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "selection": {
             "$ref": "#/$defs/common/$defs/selection"
@@ -4137,7 +4142,7 @@
             "type": "string"
           },
           "mapping": {
-            "type": "string"
+            "$ref": "#/$defs/common/$defs/localPath"
           },
           "omitProperties": {
             "type": "array",

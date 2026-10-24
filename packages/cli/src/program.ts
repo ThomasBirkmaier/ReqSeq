@@ -1,0 +1,156 @@
+// The commander tree, generated from the command catalog (ADR-0002 rule 3, ADR-0009). No command is
+// named here: groups, actions, arguments and flags all come from the catalog entries.
+import type { CatalogEntry, CommandRuntime } from "@logreq/core";
+import { Command, Option } from "commander";
+import type { InputField } from "./fields.js";
+import { inputFields, kebab } from "./fields.js";
+
+/** What the command line asked for, before it becomes a command input. */
+export interface Invocation {
+  readonly entry: CatalogEntry;
+  /** All input fields of the command. */
+  readonly fields: readonly InputField[];
+  /** Positional fields with their values (`undefined` when not given). */
+  readonly positionals: readonly { readonly field: InputField; readonly value: string | undefined }[];
+  /** Flag fields with their raw values (`undefined` when not given). */
+  readonly flags: readonly { readonly field: InputField; readonly value: unknown }[];
+  /** `--json`. */
+  readonly json: boolean;
+  /** `--workspace`, as given. */
+  readonly workspace: string | undefined;
+  /** `--input`, as given. */
+  readonly input: string | undefined;
+}
+
+export interface ProgramOptions {
+  readonly runtime: CommandRuntime;
+  readonly version: string;
+  readonly writeOut: (text: string) => void;
+  readonly writeErr: (text: string) => void;
+  /** Usage errors as the error object of common.schema.json (`--json` on the line). */
+  readonly jsonErrors: boolean;
+  /** Runs the command the line asked for. */
+  readonly run: (invocation: Invocation) => Promise<void>;
+}
+
+const describeField = (field: InputField): string =>
+  [
+    field.description,
+    field.choices === undefined ? undefined : `one of: ${field.choices.join(", ")}`,
+    field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
+    field.array ? "repeatable" : undefined,
+  ]
+    .filter((part) => part !== undefined)
+    .join("; ");
+
+const collect = (value: string, previous: unknown): string[] => [
+  ...(Array.isArray(previous) ? (previous as string[]) : []),
+  value,
+];
+
+interface FieldOptions {
+  /** Carries the value; `--no-x` shares its attribute. */
+  readonly main: Option;
+  /** `--no-x` of a boolean field. */
+  readonly negation: Option | undefined;
+}
+
+/** The commander options of one flag field (two for a boolean: `--x` and `--no-x`). */
+const optionsOf = (field: InputField): FieldOptions => {
+  const description = describeField(field);
+  if (field.kind === "boolean" && !field.array) {
+    return {
+      main: new Option(`--${field.flag}`, description),
+      negation: new Option(`--no-${field.flag}`, `set ${field.flag} to false`),
+    };
+  }
+  const placeholder = field.kind === "number" ? "<number>" : "<value>";
+  const option = new Option(`--${field.flag} ${placeholder}`, description);
+  return { main: field.array ? option.argParser(collect) : option, negation: undefined };
+};
+
+const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions): void => {
+  const action = entry.name.slice(entry.name.indexOf(".") + 1);
+  const implemented = options.runtime.commands.has(entry.name);
+  const fields = inputFields(entry, options.runtime.contracts.schemas);
+  const positional = fields.filter((f) => f.use === "positional");
+  const flags = fields.filter((f) => f.use === "flag");
+  const inputOnly = fields.filter((f) => f.use === "input-only");
+
+  const command = group
+    .command(kebab(action))
+    .description(implemented ? entry.summary : `${entry.summary} (not implemented yet)`)
+    .usage([...positional.map((f) => `<${f.flag}>`), "[options]"].join(" "));
+  // Optional for commander, so the value may also come from --input; core reports a missing one.
+  for (const field of positional) {
+    command.argument(`[${field.flag}]`, describeField(field));
+  }
+  const flagOptions = flags.map((field) => ({ field, ...optionsOf(field) }));
+  for (const { main, negation } of flagOptions) {
+    command.addOption(main);
+    if (negation !== undefined) {
+      command.addOption(negation);
+    }
+  }
+  command
+    .option("--input <json|@file|->", "command input as JSON: inline, from a file, or from standard input")
+    .option(
+      "--workspace <path>",
+      "workspace root (default: nearest folder upwards with logreq-workspace.yaml)",
+    )
+    .option("--json", "print exactly the command output as JSON");
+  if (inputOnly.length > 0) {
+    command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
+  }
+  command.action(async (...args: unknown[]) => {
+    const opts = command.opts<Record<string, unknown>>();
+    const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+    await options.run({
+      entry,
+      fields,
+      positionals: positional.map((field, i) => ({ field, value: text(args[i]) })),
+      flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
+      json: opts["json"] === true,
+      workspace: text(opts["workspace"]),
+      input: text(opts["input"]),
+    });
+  });
+};
+
+/** Build `logreq` with one subcommand per catalog entry, `logreq <group> <action>`. */
+export function buildProgram(options: ProgramOptions): Command {
+  const program = new Command("logreq")
+    .description(
+      "LogReq: requirements as plain files in Git. Every command of the catalog, from the command line.",
+    )
+    .version(options.version, "-V, --version", "print the version")
+    .helpOption("-h, --help", "show help")
+    .enablePositionalOptions()
+    .exitOverride()
+    .configureOutput({
+      writeOut: options.writeOut,
+      writeErr: options.writeErr,
+      // commander's messages are "error: <text>\n"; with --json they become an input.invalid error object.
+      outputError: (text, write) => {
+        write(
+          options.jsonErrors
+            ? `${JSON.stringify({ code: "input.invalid", message: text.replace(/^error: /, "").trim() })}\n`
+            : text,
+        );
+      },
+    })
+    // List subcommands with their own usage (`get <ref> [options]`), as their help shows it.
+    .configureHelp({ subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}` })
+    .addHelpText("after", "\nOptions of a command follow it: logreq <group> <action> --help");
+  const groups = new Map<string, Command>();
+  for (const entry of options.runtime.contracts.commands) {
+    const name = entry.name.slice(0, entry.name.indexOf("."));
+    let group = groups.get(name);
+    if (group === undefined) {
+      group = program.command(name).description(`${name} commands`).usage("<action> [options]");
+      groups.set(name, group);
+    }
+    addCommand(group, entry, options);
+  }
+  return program;
+}

@@ -47,7 +47,7 @@ export default tseslint.config(
     extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ["vitest.config.ts"] },
+        projectService: { allowDefaultProject: ["vitest.config.ts", "vitest.e2e.config.ts"] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

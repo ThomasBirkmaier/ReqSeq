@@ -90,5 +90,45 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
 
-  # Added with the stage that needs them (ADR-0011): CLI e2e (stage 1), Electron/Playwright under xvfb
-  # (stage 3), cross-access consistency (stage 1), nightly performance with 50,000 elements (stage 1).
+  # ADR-0011: CLI end-to-end tests spawn the built `logreq` on fixture workspaces (packages/cli/test/e2e/).
+  # On Linux the suite runs inside a user and network namespace (`unshare -rn`): no network at all.
+  e2e:
+    name: e2e (${{ matrix.os }})
+    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: CLI e2e
+        if: runner.os != 'Linux'
+        run: pnpm test:e2e
+      - name: CLI e2e without network (unshare -rn)
+        if: runner.os == 'Linux'
+        run: |
+          # Ubuntu 24.04 lets AppArmor block unprivileged user namespaces; allow them for this job only.
+          # If unshare still fails, the step fails: the offline run is never skipped silently.
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (#125).
+          unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
+      - name: Upload JUnit results (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-e2e-${{ matrix.os }}
+          path: test-results/junit-e2e.xml
+          if-no-files-found: ignore
+
+  # Added with the stage that needs them (ADR-0011): Electron/Playwright under xvfb (stage 3),
+  # cross-access consistency (stage 1), nightly performance with 50,000 elements (stage 1).

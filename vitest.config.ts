@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
 // ADR-0016: 100 % coverage of product code is a required gate.
@@ -10,6 +10,8 @@ export default defineConfig({
   },
   test: {
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
+    // CLI end-to-end tests spawn the built binary: `pnpm test:e2e` after `pnpm build` (vitest.e2e.config.ts).
+    exclude: [...configDefaults.exclude, "packages/*/test/e2e/**"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { LOGREQ_VALIDATE_OUTPUT: "1" },

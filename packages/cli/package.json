@@ -2,7 +2,16 @@
   "name": "@logreq/cli",
   "version": "0.0.0",
   "private": true,
+  "description": "The logreq command line: every command of the catalog (ADR-0009).",
   "type": "module",
+  "bin": {
+    "logreq": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,6 +22,11 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@logreq/core": "workspace:*"
+    "@logreq/core": "workspace:*",
+    "commander": "15.0.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@logreq/testkit": "workspace:*"
   }
 }

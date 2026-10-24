@@ -41,7 +41,7 @@
                 "type": "object",
                 "properties": {
                   "path": {
-                    "type": "string",
+                    "$ref": "#/components/schemas/common/$defs/localPath",
                     "description": "Empty folder."
                   },
                   "name": {
@@ -1630,7 +1630,7 @@
                     "$ref": "#/components/schemas/common/$defs/elementRef"
                   },
                   "sourcePath": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   }
                 },
                 "additionalProperties": false,
@@ -3356,7 +3356,7 @@
                 "type": "object",
                 "properties": {
                   "file": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "item": {
                     "type": "string"
@@ -3365,7 +3365,7 @@
                     "$ref": "#/components/schemas/common/$defs/dateTime"
                   },
                   "output": {
-                    "type": "string",
+                    "$ref": "#/components/schemas/common/$defs/localPath",
                     "description": "Default: overwrite the input file."
                   }
                 },
@@ -3938,7 +3938,7 @@
                 "type": "object",
                 "properties": {
                   "folder": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection"
@@ -4759,10 +4759,10 @@
                 "type": "object",
                 "properties": {
                   "file": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "mapping": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   }
                 },
                 "additionalProperties": false,
@@ -4910,10 +4910,10 @@
                 "type": "object",
                 "properties": {
                   "file": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "mapping": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "delivery": {
                     "type": "string"
@@ -5063,7 +5063,7 @@
                     "$ref": "#/components/schemas/reqif-mapping"
                   },
                   "file": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   }
                 },
                 "additionalProperties": false,
@@ -5173,7 +5173,7 @@
                 "type": "object",
                 "properties": {
                   "output": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection"
@@ -5182,7 +5182,7 @@
                     "type": "string"
                   },
                   "mapping": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/common/$defs/localPath"
                   },
                   "omitProperties": {
                     "type": "array",
@@ -5448,6 +5448,11 @@
             "description": "Path relative to the repository or file it appears in, forward slashes, no `..` segments.",
             "type": "string",
             "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
+          },
+          "localPath": {
+            "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root (ADR-0009).",
+            "type": "string",
+            "minLength": 1
           },
           "problem": {
             "description": "A finding or hint. Commands return problems as data so every access shows the same result (SR-080).",

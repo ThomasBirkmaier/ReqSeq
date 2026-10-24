@@ -78,6 +78,11 @@
       "type": "string",
       "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
     },
+    "localPath": {
+      "description": "A file or folder on the local machine, relative or absolute. CLI: relative to the current folder (the CLI makes it absolute before the call); API and MCP: relative to the workspace root (ADR-0009).",
+      "type": "string",
+      "minLength": 1
+    },
     "problem": {
       "description": "A finding or hint. Commands return problems as data so every access shows the same result (SR-080).",
       "type": "object",
