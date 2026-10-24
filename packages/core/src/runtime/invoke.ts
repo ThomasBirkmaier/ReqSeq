@@ -1,0 +1,164 @@
+// The one entry point of the adapters (CLI, API, MCP, app): `invoke(name, input, { workspace })`.
+// Validates the input against the catalog, runs the command and maps every failure to a
+// CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4).
+import type { AnyCommand } from "../catalog.js";
+import { CommandError } from "../catalog.js";
+import { commands as productCommands } from "../commands/index.js";
+import type { Contracts } from "./contracts.js";
+import { describeViolations, loadContracts, schemaViolations } from "./contracts.js";
+import type { Workspace } from "./workspace.js";
+
+/** What an adapter passes per call. */
+export interface InvokeContext {
+  readonly workspace: Workspace;
+  /** Abort when the caller goes away. Default: a signal that never aborts. */
+  readonly signal?: AbortSignal;
+}
+
+export interface CommandRuntimeOptions {
+  /** Implementations to register. Default: all product commands (commands/index.ts). */
+  readonly commands?: readonly AnyCommand[];
+  /** Default: `loadContracts()` with the schemas of this repository. */
+  readonly contracts?: Contracts;
+  /**
+   * Check every output against the catalog output schema; a mismatch is an `internal` error.
+   * Default: on when the environment has `LOGREQ_VALIDATE_OUTPUT=1` (tests and debug builds).
+   */
+  readonly validateOutput?: boolean;
+}
+
+export interface CommandRuntime {
+  readonly contracts: Contracts;
+  /** Registered implementations by name. */
+  readonly commands: ReadonlyMap<string, AnyCommand>;
+  invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown>;
+}
+
+/**
+ * Any failure that is not a CommandError becomes `internal`. Its text stays only in `cause`
+ * (logs, debugging): it may contain paths or content that adapters must not send.
+ * An abort (the signal fired, or an `AbortError`) is `internal` too, with `details.aborted`;
+ * the caller has gone away, so nobody acts on the code (ADR-0009).
+ */
+const toCommandError = (name: string, error: unknown, signal: AbortSignal): CommandError => {
+  if (error instanceof CommandError) {
+    return error;
+  }
+  if (signal.aborted || (error instanceof Error && error.name === "AbortError")) {
+    return new CommandError(
+      "internal",
+      `${name} was aborted`,
+      { command: name, aborted: true },
+      { cause: error },
+    );
+  }
+  return new CommandError("internal", `Internal error in ${name}`, { command: name }, { cause: error });
+};
+
+/**
+ * Bind implementations to their catalog entries. Holds compiled schemas only, never workspace
+ * state, so one runtime serves any number of workspaces. Throws a plain `Error` when an
+ * implementation has no catalog entry or a name is registered twice (programming errors).
+ */
+export function createCommandRuntime(options: CommandRuntimeOptions = {}): CommandRuntime {
+  const contracts = options.contracts ?? loadContracts();
+  const validateOutput = options.validateOutput ?? process.env["LOGREQ_VALIDATE_OUTPUT"] === "1";
+  const registry = new Map<string, AnyCommand>();
+  for (const command of options.commands ?? productCommands) {
+    if (contracts.entry(command.name) === undefined) {
+      throw new Error(`command ${command.name} has no entry in schemas/commands/catalog.json`);
+    }
+    if (registry.has(command.name)) {
+      throw new Error(`command ${command.name} is registered twice`);
+    }
+    registry.set(command.name, command);
+  }
+
+  async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
+    const command = registry.get(name);
+    if (command === undefined) {
+      const message =
+        contracts.entry(name) === undefined
+          ? `Unknown command: ${name}`
+          : `Command ${name} is not implemented yet`;
+      throw new CommandError("input.invalid", message, { command: name });
+    }
+    let checked: unknown;
+    try {
+      // Defaults are filled into a copy; the caller's object stays as it was.
+      checked = structuredClone(input);
+    } catch (error) {
+      throw new CommandError(
+        "input.invalid",
+        `Input of ${name} is not plain JSON data`,
+        { command: name },
+        {
+          cause: error,
+        },
+      );
+    }
+    const validInput = contracts.validator(name, "input");
+    if (!validInput(checked)) {
+      const errors = schemaViolations(validInput.errors);
+      throw new CommandError("input.invalid", `Invalid input for ${name}: ${describeViolations(errors)}`, {
+        command: name,
+        errors,
+      });
+    }
+    const signal = ctx.signal ?? new AbortController().signal;
+    let output: unknown;
+    try {
+      output = await command.run({ workspace: ctx.workspace, signal }, checked as never);
+    } catch (error) {
+      throw toCommandError(name, error, signal);
+    }
+    if (validateOutput) {
+      const validOutput = contracts.validator(name, "output");
+      if (!validOutput(output)) {
+        const errors = schemaViolations(validOutput.errors);
+        throw new CommandError(
+          "internal",
+          `Output of ${name} does not match its schema: ${describeViolations(errors)}`,
+          {
+            command: name,
+            errors,
+          },
+        );
+      }
+    }
+    return output;
+  }
+
+  return { contracts, commands: registry, invoke };
+}
+
+// The runtime of this process. Immutable after creation (catalog, compiled schemas, implementations);
+// it holds no workspace state, so this is not a global in the sense of ADR-0002 rule 7.
+let processRuntime: CommandRuntime | undefined;
+
+/**
+ * Create the runtime of this process with these options and make `invoke` and `getCommandRuntime`
+ * use it. Adapters configure it once at start, before the first call; replacing it later is for
+ * tests only.
+ */
+export function configureCommandRuntime(options: CommandRuntimeOptions = {}): CommandRuntime {
+  processRuntime = createCommandRuntime(options);
+  return processRuntime;
+}
+
+/**
+ * The runtime of this process (created with the defaults on first use). Adapters use it for the
+ * catalog (`contracts.commands`, e.g. CLI subcommands, MCP tool list) and `commands` (implemented).
+ */
+export function getCommandRuntime(): CommandRuntime {
+  processRuntime ??= createCommandRuntime();
+  return processRuntime;
+}
+
+/**
+ * Run a catalog command with the runtime of this process. Resolves with the command output or
+ * rejects with a `CommandError` (never anything else once the catalog has loaded).
+ */
+export async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
+  return getCommandRuntime().invoke(name, input, ctx);
+}

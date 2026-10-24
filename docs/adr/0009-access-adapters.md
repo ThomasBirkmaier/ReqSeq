@@ -24,6 +24,8 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 
 **App** calls the same commands via IPC (ADR-0010).
 
+**Errors.** Every adapter maps `CommandError.code` (`common.schema.json#/$defs/error`) with one table; the CLI table is part of #124, the API and MCP table of #125. `internal` errors carry no original error text (it stays in `cause` for local logs). Messages of `CommandError`s thrown on purpose by commands and blocks are sent as they are; they may name file paths relative to the workspace, never absolute paths or element content. A call aborted by its caller (closed window, cancelled request, the abort signal) ends as `internal` with `details.aborted: true`; there is no separate code because nobody is left to act on it.
+
 **Same result everywhere (SR-080 AK2):** adapters only translate transport. Output objects are produced by `core`; adapters must not reshape them. The cross-access test (ADR-0011) enforces this.
 
 ## Rejected

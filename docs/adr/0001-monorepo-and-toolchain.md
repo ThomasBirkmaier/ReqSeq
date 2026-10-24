@@ -9,10 +9,10 @@ D-004 fixes TypeScript and Electron. D-046 asks for one repository with separate
 ## Decision
 
 - **pnpm workspaces**, version pinned in `package.json#packageManager`. Packages under `packages/`:
-  - `core`: program logic and the command catalog (ADR-0002). No dependency on any other package.
+  - `core`: program logic and the command catalog (ADR-0002). No runtime dependency on any other package; its tests use `testkit` as a dev dependency.
   - `cli`, `api`, `mcp`: thin adapters over `core` (ADR-0009).
   - `app`: Electron app (ADR-0010).
-  - Later, only if needed: `testkit` (fixture builders, data generator for N-036). No other packages without a new ADR.
+  - `testkit` (stage 1): fixture builders (`createFixtureWorkspace`), later the data generator for N-036. Test tooling, never shipped. No other packages without a new ADR.
 - Dependency direction: `cli`, `api`, `mcp`, `app` → `core`. Adapters never import each other, never import `core` internals (ESLint rule).
 - **TypeScript 6.0**, `strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`; ESM only (`"type": "module"`, `NodeNext`). Project references; `pnpm typecheck` runs `tsc -b`. TypeScript 7 (native compiler) is not used yet because `typescript-eslint` supports only `<6.1`; revisit when it does.
 - **Node 22 LTS** (`.nvmrc`). Electron's bundled Node must be the same major or newer.

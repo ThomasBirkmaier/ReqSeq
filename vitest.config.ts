@@ -1,11 +1,18 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
 // ADR-0016: 100 % coverage of product code is a required gate.
 export default defineConfig({
+  // Tests use the testkit sources directly, so they need no build of @logreq/testkit first.
+  resolve: {
+    alias: { "@logreq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
+  },
   test: {
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
+    // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
+    env: { LOGREQ_VALIDATE_OUTPUT: "1" },
     reporters: ["default", ["junit", { outputFile: "test-results/junit.xml", addFileAttribute: true }]],
     coverage: {
       provider: "v8",

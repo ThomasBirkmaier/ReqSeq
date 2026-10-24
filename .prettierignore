@@ -2,6 +2,7 @@ spec/
 pnpm-lock.yaml
 scripts/spec-export/raw/
 schemas/generated/
+packages/core/src/generated/
 **/*.md
 .claude/
 test-results/

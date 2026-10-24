@@ -45,7 +45,10 @@
           "required": ["type"],
           "properties": {
             "type": { "$ref": "#/$defs/keys" },
-            "subtypes": { "type": "boolean", "default": true }
+            "subtypes": {
+              "type": "boolean",
+              "description": "Include subtypes of the type. Absent means true (no `default` keyword: defaults inside `oneOf` are not applied)."
+            }
           },
           "additionalProperties": false
         },

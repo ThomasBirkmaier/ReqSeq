@@ -1,6 +1,19 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
+// ADR-0002: only core holds program logic; access packages must not reach into core internals.
+const coreInternals = {
+  group: ["@logreq/core/src/*", "**/core/src/**", "../../core/*"],
+  message: "Import from @logreq/core only.",
+};
+// Test tooling (git, temp folders) never ends up in product code (ADR-0001, ADR-0011).
+const testkitInProduct = {
+  group: ["@logreq/testkit", "@logreq/testkit/*", "**/testkit/src/**"],
+  message: "@logreq/testkit is for tests only.",
+};
+const productFiles = ["packages/**/*.ts", "packages/**/*.tsx"];
+const testFiles = ["**/*.test.ts", "**/*.test.tsx"];
+
 // ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(
   {
@@ -56,17 +69,27 @@ export default tseslint.config(
     rules: { "no-console": "off" },
   },
   {
-    files: ["packages/**/*.ts", "packages/**/*.tsx"],
+    // Adapters: only the public API of core, never the testkit.
+    files: productFiles,
+    ignores: [...testFiles, "packages/core/**", "packages/testkit/**"],
     rules: {
-      // ADR-0002: only core holds program logic; access packages must not reach into core internals.
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            { group: ["@logreq/core/src/*", "../../core/*"], message: "Import from @logreq/core only." },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: [coreInternals, testkitInProduct] }],
+    },
+  },
+  {
+    // Core product code: its own modules, never the testkit.
+    files: ["packages/core/**/*.ts", "packages/core/**/*.tsx"],
+    ignores: testFiles,
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [testkitInProduct] }],
+    },
+  },
+  {
+    // Tests outside core and the testkit itself: the testkit is fine, core internals are not.
+    files: [...testFiles, "packages/testkit/**/*.ts", "packages/testkit/**/*.tsx"],
+    ignores: ["packages/core/**"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [coreInternals] }],
     },
   },
 );

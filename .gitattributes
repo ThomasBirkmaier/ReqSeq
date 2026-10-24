@@ -1,5 +1,6 @@
 * text=auto eol=lf
 schemas/generated/** linguist-generated=true -diff
+packages/core/src/generated/** linguist-generated=true -diff
 pnpm-lock.yaml linguist-generated=true
 # Version test vectors (ADR-0005) are byte-exact: no line-ending conversion, no whitespace fixes.
 schemas/examples/version/** -text -whitespace

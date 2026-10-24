@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "tsc -b packages/core packages/cli packages/api packages/mcp packages/app",
+    "typecheck": "tsc -b packages/testkit packages/core packages/cli packages/api packages/mcp packages/app",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

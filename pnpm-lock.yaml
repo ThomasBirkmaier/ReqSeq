@@ -62,15 +62,27 @@ importers:
 
   packages/core:
     dependencies:
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: 3.0.1
+        version: 3.0.1(ajv@8.20.0)
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@logreq/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/mcp:
     dependencies:
       '@logreq/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/testkit: {}
 
 packages:
 

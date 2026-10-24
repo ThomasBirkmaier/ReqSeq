@@ -1,0 +1,166 @@
+// One Workspace object per workspace root holds all state of that workspace (ADR-0002 rule 7).
+// There are no globals: two copies of a workspace never share state or caches (SR-081).
+import path from "node:path";
+
+/**
+ * A kind of per-workspace state, owned by the module that defines it (metamodel, element store,
+ * search index, watcher, ...). Defining a key does not touch `Workspace`, so blocks add state
+ * without editing this file.
+ *
+ * Async state: let `create` return a Promise (`T = Promise<X>`). `get` then returns the same
+ * Promise to every caller, so the work runs once. A rejected Promise is dropped, so the next
+ * `get` tries again; dropping it this way does not reset dependent states.
+ */
+export interface WorkspaceState<T> {
+  /** For messages and debugging only; keys are compared by identity. */
+  readonly name: string;
+  /** Builds the state the first time a workspace asks for it. */
+  readonly create: (workspace: Workspace) => T;
+  /** States built from this one; resetting this one resets them too. */
+  readonly dependsOn: readonly WorkspaceState<unknown>[];
+  /**
+   * Releases the value on `reset` and `close` (e.g. stop a watcher). Default: nothing.
+   * For async state it runs only after the Promise fulfilled; a rejected build is not disposed.
+   */
+  dispose(value: T): void | Promise<void>;
+}
+
+export interface WorkspaceStateOptions<T> {
+  /** Reset this state whenever one of these is reset (e.g. hints depend on the metamodel). */
+  readonly dependsOn?: readonly WorkspaceState<unknown>[];
+  /** Release a value; for async state it gets the fulfilled Promise (`(await value).close()`). */
+  readonly dispose?: (value: T) => void | Promise<void>;
+}
+
+/** Define a kind of per-workspace state at module level: `const metamodelState = defineWorkspaceState(...)`. */
+export const defineWorkspaceState = <T>(
+  name: string,
+  create: (workspace: Workspace) => T,
+  options: WorkspaceStateOptions<T> = {},
+): WorkspaceState<T> => ({
+  name,
+  create,
+  dependsOn: [...(options.dependsOn ?? [])],
+  dispose: options.dispose ?? ((): void => undefined),
+});
+
+/** Whether `from` depends on `target`, directly or through other states. */
+const dependsOn = (
+  from: WorkspaceState<unknown>,
+  target: WorkspaceState<unknown>,
+  seen = new Set<WorkspaceState<unknown>>(),
+): boolean =>
+  from.dependsOn.some((d) => {
+    if (d === target) {
+      return true;
+    }
+    if (seen.has(d)) {
+      return false;
+    }
+    seen.add(d);
+    return dependsOn(d, target, seen);
+  });
+
+/**
+ * Order states so that every state comes before the states it depends on (dependents first);
+ * independent states keep reverse insertion order (newest first).
+ */
+const dependentsFirst = (keys: readonly WorkspaceState<unknown>[]): WorkspaceState<unknown>[] => {
+  const done = new Set<WorkspaceState<unknown>>();
+  const dependenciesFirst: WorkspaceState<unknown>[] = [];
+  const visit = (key: WorkspaceState<unknown>): void => {
+    done.add(key);
+    for (const other of keys) {
+      if (!done.has(other) && dependsOn(key, other)) {
+        visit(other);
+      }
+    }
+    dependenciesFirst.push(key);
+  };
+  for (const key of keys) {
+    if (!done.has(key)) {
+      visit(key);
+    }
+  }
+  return dependenciesFirst.reverse();
+};
+
+export class Workspace {
+  /** Absolute path of the folder with `logreq-workspace.yaml` (or the folder a command creates it in). */
+  readonly root: string;
+  readonly #state = new Map<WorkspaceState<unknown>, unknown>();
+  #closed = false;
+
+  /** Creates the object only; nothing is read until a command asks for state. */
+  constructor(root: string) {
+    this.root = path.resolve(root);
+  }
+
+  /** The state of this workspace for `key`, created on first use and kept until `reset` or `close`. */
+  get<T>(key: WorkspaceState<T>): T {
+    if (this.#closed) {
+      throw new Error(`workspace ${this.root} is closed`);
+    }
+    if (this.#state.has(key)) {
+      return this.#state.get(key) as T;
+    }
+    const value = key.create(this);
+    this.#state.set(key, value);
+    if (value instanceof Promise) {
+      // Drop a failed build so the next `get` retries; the caller still sees the rejection.
+      void value.catch(() => {
+        if (this.#state.get(key) === value) {
+          this.#state.delete(key);
+        }
+      });
+    }
+    return value;
+  }
+
+  /**
+   * Drop the state for `key` and every state that depends on it, directly or not (e.g. after files
+   * changed); the next `get` builds them again. The values are removed at once and then disposed,
+   * dependents first, so a `get` during the reset may build new state while the old is disposed.
+   */
+  async reset(key: WorkspaceState<unknown>): Promise<void> {
+    await this.#drop([...this.#state.keys()].filter((k) => k === key || dependsOn(k, key)));
+  }
+
+  /** Dispose all state, dependents first. The workspace cannot be used afterwards. */
+  async close(): Promise<void> {
+    this.#closed = true;
+    await this.#drop([...this.#state.keys()]);
+  }
+
+  /**
+   * Remove the states, then dispose them one after the other, dependents first. Pending async
+   * builds are awaited; a rejected one is skipped. Every disposal runs, also when one fails; the
+   * failures are reported together.
+   */
+  async #drop(keys: readonly WorkspaceState<unknown>[]): Promise<void> {
+    const dropped = dependentsFirst(keys).map((k) => ({ key: k, value: this.#state.get(k) }));
+    for (const { key } of dropped) {
+      this.#state.delete(key);
+    }
+    const errors: unknown[] = [];
+    for (const { key, value } of dropped) {
+      try {
+        if (value instanceof Promise) {
+          const built = await value.then(
+            () => true,
+            () => false,
+          );
+          if (!built) {
+            continue;
+          }
+        }
+        await key.dispose(value);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "disposing workspace state failed");
+    }
+  }
+}
