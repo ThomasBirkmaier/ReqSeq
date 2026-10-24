@@ -65,7 +65,11 @@ function frontmatter(obj, kind) {
   put("title", obj.title);
   for (const [name, value] of Object.entries(props).sort(([a], [b]) => a.localeCompare(b))) {
     if (name === "ID") continue;
-    const v = Array.isArray(value) ? value.map(refValue).map(resolveLinks) : resolveLinks(String(refValue(value)));
+    const v = Array.isArray(value)
+      ? value.map(refValue).map(resolveLinks)
+      : typeof value === "boolean" || typeof value === "number"
+        ? value
+        : resolveLinks(String(refValue(value)));
     put(key(name), v);
   }
   lines.push("---");

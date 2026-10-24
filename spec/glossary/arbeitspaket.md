@@ -1,0 +1,8 @@
+---
+uuid: "6ad4f981-4394-443c-a7ed-7910d2126a8d"
+type: "glossary-term"
+title: "Arbeitspaket"
+bereich: "Fachlich"
+---
+
+Arbeitsumfang einer Person, zum Beispiel eines Test Engineers. Wird außerhalb des Tools verwaltet.

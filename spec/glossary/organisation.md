@@ -1,0 +1,8 @@
+---
+uuid: "6ad4f970-3efd-4fcd-8b56-a3b79de1740c"
+type: "glossary-term"
+title: "Organisation"
+bereich: "Fachlich"
+---
+
+Eine Firma.
