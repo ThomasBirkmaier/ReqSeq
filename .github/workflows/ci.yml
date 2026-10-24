@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Label and text edits get their own group so they never cancel a full run.
+  group: ci-${{ github.ref }}-${{ contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
   cancel-in-progress: true
 
 jobs:

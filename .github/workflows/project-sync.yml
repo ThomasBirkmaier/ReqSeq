@@ -1,0 +1,33 @@
+name: Project sync
+
+# Mirrors issues into the GitHub project "LogReq". Labels stay the source of truth.
+# Needs the repository secret PROJECT_TOKEN (classic PAT, scopes repo + project);
+# without it the job skips.
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Sync
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: node scripts/project-sync/sync.mjs $ISSUE
