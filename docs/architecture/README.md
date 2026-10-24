@@ -106,7 +106,7 @@ flowchart TB
   cli & api & mcp & app --> catalog
   catalog --> commands
   commands --> ws & model & trace & hints & query & evidence & variants & baselines & reqif & data
-  model --> files & version & mm
+  model --> files & version & mm & ws
   ws --> git
   baselines --> git
   version -.-> git

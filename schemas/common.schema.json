@@ -100,6 +100,10 @@
         "file": {
           "type": "string"
         },
+        "repository": {
+          "type": "string",
+          "description": "Workspace name of the repository that `file` lies in; `file` is then relative to that repository (element files of several repositories)."
+        },
         "line": {
           "type": "integer",
           "minimum": 1
@@ -138,6 +142,8 @@
         "file.conflict-markers",
         "file.unreadable",
         "file.yaml-warning",
+        "file.skipped",
+        "element.invalid",
         "element.duplicate-id",
         "element.file-name-clash",
         "element.unknown-type",

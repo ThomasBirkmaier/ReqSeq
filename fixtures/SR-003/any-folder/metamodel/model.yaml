@@ -1,0 +1,26 @@
+# Minimal metamodel for the SR-003 fixtures.
+logreq-metamodel: 1
+
+types:
+  - { key: need, name: Need, prefix: N, meaning: need, properties: [title], required: [title] }
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, acceptance-criteria]
+    required: [title]
+
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: acceptance-criteria, name: Acceptance Criteria, kind: text, many: true, content: true }
+
+relations:
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [system-requirement]
+    target-types: [need, system-requirement]
+    meaning: derivation
+
+statuses:
+  - { key: draft, name: Draft, initial: true }

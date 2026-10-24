@@ -98,6 +98,8 @@ export interface Problem {
   readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly file?: string;
+  /** Workspace name of the repository that `file` lies in; `file` is then relative to that repository (element files of several repositories). */
+  readonly repository?: string;
   readonly line?: number;
   readonly elementId?: Uuid;
   readonly targetId?: Uuid;
@@ -118,6 +120,8 @@ export type ProblemCode =
   | "file.conflict-markers"
   | "file.unreadable"
   | "file.yaml-warning"
+  | "file.skipped"
+  | "element.invalid"
   | "element.duplicate-id"
   | "element.file-name-clash"
   | "element.unknown-type"
@@ -667,7 +671,7 @@ export interface WorkspaceFile {
   readonly filters?: WorkspaceLocation;
   /** Where ReqIF mapping files are written (SR-054). Default: folder `reqif` in the main repository. */
   readonly mappings?: WorkspaceLocation;
-  /** Glob patterns (relative to each repository) that are never read as elements. `.git` and `node_modules` are always ignored. */
+  /** Glob patterns of paths that are never read as elements, relative to each repository and anchored at its root, with `/` as separator (no `\`, no `//`). `*` matches any characters within one name, `?` one character, `**` as a whole name any number of names, including none; every other character is literal (no `[...]`, no `{a,b}`). Case-sensitive on every OS; wildcards match names starting with `.`. A leading `/` or `./` and a trailing `/` are dropped; `x/**` matches folder `x` itself, so it is skipped as a whole. Example: `website/**`, `**\/*.draft.md`. `.git` and `node_modules` are always ignored. */
   readonly ignore?: readonly string[];
 }
 

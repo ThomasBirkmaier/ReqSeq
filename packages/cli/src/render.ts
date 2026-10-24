@@ -12,10 +12,15 @@ const text = (value: unknown): string =>
 /** The command output as JSON, unchanged (`null` when a command returned nothing). */
 export const renderJson = (output: unknown): string => `${JSON.stringify(output ?? null, null, 2)}\n`;
 
-/** `severity  code  file:line  message  (element <uuid>)`, parts that are missing left out. */
+/**
+ * `severity  code  repository:file:line  message  (element <uuid>)`, parts that are missing left
+ * out; the repository only when the problem names one (element files of several repositories).
+ */
 export const renderProblem = (problem: unknown): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };
-  const file = text(p["file"]);
+  const repository = text(p["repository"]);
+  const file =
+    repository !== "" && text(p["file"]) !== "" ? `${repository}:${text(p["file"])}` : text(p["file"]);
   const line = text(p["line"]);
   const location = file !== "" && line !== "" ? `${file}:${line}` : file;
   const element = text(p["elementId"]);

@@ -30,6 +30,22 @@ describe("renderProblem", () => {
     ).toBe(`error  element.unknown-type  product/SR-1.md:3  Unknown type foo  (element ${uuid})\n`);
   });
 
+  it("names the repository of the file when the problem has one", () => {
+    expect(
+      renderProblem({
+        severity: "error",
+        code: "file.invalid-yaml",
+        repository: "sensor",
+        file: "anemometer/SR-1.md",
+        line: 2,
+        message: "m",
+      }),
+    ).toBe("error  file.invalid-yaml  sensor:anemometer/SR-1.md:2  m\n");
+    expect(renderProblem({ severity: "info", code: "x.y", repository: "sensor", message: "m" })).toBe(
+      "info  x.y  m\n",
+    );
+  });
+
   it("leaves out what a problem does not have", () => {
     expect(
       renderProblem({ severity: "warning", code: "file.yaml-warning", file: "a.md", message: "m" }),

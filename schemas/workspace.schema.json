@@ -42,8 +42,8 @@
     },
     "ignore": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Glob patterns (relative to each repository) that are never read as elements. `.git` and `node_modules` are always ignored."
+      "items": { "type": "string", "minLength": 1, "pattern": "^(?!.*//)[^\\\\]*$" },
+      "description": "Glob patterns of paths that are never read as elements, relative to each repository and anchored at its root, with `/` as separator (no `\\`, no `//`). `*` matches any characters within one name, `?` one character, `**` as a whole name any number of names, including none; every other character is literal (no `[...]`, no `{a,b}`). Case-sensitive on every OS; wildcards match names starting with `.`. A leading `/` or `./` and a trailing `/` are dropped; `x/**` matches folder `x` itself, so it is skipped as a whole. Example: `website/**`, `**/*.draft.md`. `.git` and `node_modules` are always ignored."
     }
   },
   "additionalProperties": false,

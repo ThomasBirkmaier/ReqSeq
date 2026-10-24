@@ -137,6 +137,8 @@ const DEFAULT_CONCURRENCY = 32;
 
 /**
  * Reads many files. A faulty file becomes one problem and never stops the others (SR-008 AK3).
+ * The element store reads and classifies file by file instead (model/store.ts, so no parsed
+ * documents pile up); this batch form is kept for the watcher's batch of changed files (SR-007).
  * Results keep the order of `relativePaths`; paths naming the same file are read once.
  */
 export const readElementFiles = async (
