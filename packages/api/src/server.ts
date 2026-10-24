@@ -27,6 +27,14 @@ export const ENDPOINT_FILE = "api.json";
 /** Tries with a new free port when port 0 was asked for and a later address has the first one taken. */
 export const PORT_ATTEMPTS = 5;
 
+/**
+ * Bounds for a slow sender (#200): a request whose headers do not arrive within HEADERS_TIMEOUT_MS, or
+ * whose body does not arrive within REQUEST_TIMEOUT_MS, gets 408 and the connection is closed. A 32 MiB
+ * body over loopback takes milliseconds.
+ */
+export const HEADERS_TIMEOUT_MS = 10_000;
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 export interface ApiServerOptions {
   /** The workspace every request runs on; the caller closes it after `close()`. */
   readonly workspace: Workspace;
@@ -114,7 +122,10 @@ const listenOnce = async (
   let actual = port;
   try {
     for (const [index, host] of hosts.entries()) {
-      const server = createServer(handler);
+      const server = createServer(
+        { headersTimeout: HEADERS_TIMEOUT_MS, requestTimeout: REQUEST_TIMEOUT_MS },
+        handler,
+      );
       try {
         actual = (await listen(server, host, actual)).port;
         servers.push(server);

@@ -14,12 +14,14 @@ import {
   isTempFile,
   loadContracts,
 } from "@logreq/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { DRAIN_BYTES, HTTP_STATUS_BY_CLASS, MAX_BODY_BYTES } from "./handler.js";
 import type { ApiServer } from "./server.js";
 import {
+  HEADERS_TIMEOUT_MS,
   LOOPBACK_HOSTS,
   PORT_ATTEMPTS,
+  REQUEST_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   listenOnAll,
   startApiServer,
@@ -241,6 +243,14 @@ describe("listening", () => {
     ]);
     expect(code.match(/\.listen\([^)]*\)/g)).toEqual([".listen({ host, port, exclusive: true }, ()"]);
     expect(code).not.toMatch(/process\.env|0\.0\.0\.0|"::"/);
+  });
+
+  it("bounds slow senders: headers and body each have a time limit (#200)", async () => {
+    const probe = await listenOnAll(["127.0.0.1"], 0, unused);
+    expect(probe.servers.map((s) => [s.headersTimeout, s.requestTimeout])).toEqual([
+      [HEADERS_TIMEOUT_MS, REQUEST_TIMEOUT_MS],
+    ]);
+    await closeAll(probe.servers);
   });
 
   it("uses a given port", async () => {
@@ -631,6 +641,179 @@ describe("refusals before a command runs", () => {
     expect([get.status, get.headers.allow]).toEqual([405, "POST"]);
     const post = await request({ path: "/v1/commands" });
     expect([post.status, post.headers.allow]).toEqual([405, "GET"]);
+  });
+});
+
+describe("keep-alive after an answer that needs no body (#200)", () => {
+  beforeEach(async () => {
+    await start();
+  });
+
+  /** Every answer that the server gives without running a command, as a request with a body. */
+  const early = (): { name: string; status: number; options: RequestOptions }[] => [
+    { name: "wrong Host", status: 403, options: { headers: { host: "evil.example" } } },
+    { name: "Origin", status: 403, options: { headers: { origin: "http://127.0.0.1" } } },
+    { name: "no token", status: 401, options: { headers: { authorization: "" } } },
+    { name: "unknown path", status: 404, options: { path: "/v1/other" } },
+    { name: "a target URL cannot read", status: 404, options: { path: "//[/" } },
+    { name: "GET on a command", status: 405, options: { method: "GET" } },
+    { name: "DELETE on a command", status: 405, options: { method: "DELETE" } },
+    { name: "POST on the catalog", status: 405, options: { path: "/v1/commands" } },
+    { name: "the catalog", status: 200, options: { method: "GET", path: "/v1/commands" } },
+  ];
+
+  /**
+   * Sends requests one after the other on one keep-alive agent with one socket: their statuses and
+   * `connection` headers, and how many sockets they took. A body is framed with `content-length`, or chunked
+   * when `chunked` is set: Node's client sends a GET or DELETE body without any framing otherwise, and no
+   * server can tell such bytes from the next request.
+   */
+  const onOneAgent = async (
+    requests: readonly (RequestOptions & { readonly chunked?: boolean })[],
+  ): Promise<{ answers: [number | undefined, string | undefined][]; sockets: number }> => {
+    const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+    const sockets = new Set<unknown>();
+    const answers: [number | undefined, string | undefined][] = [];
+    try {
+      for (const options of requests) {
+        const body = options.body ?? "";
+        answers.push(
+          await new Promise<[number | undefined, string | undefined]>((resolve, reject) => {
+            const req = http.request({
+              agent,
+              host: "127.0.0.1",
+              port: server?.port,
+              method: options.method ?? "POST",
+              path: options.path ?? "/v1/commands/test.echo",
+              headers: Object.fromEntries(
+                Object.entries({
+                  authorization: `Bearer ${token}`,
+                  ...(options.chunked === true
+                    ? { "transfer-encoding": "chunked" }
+                    : { "content-length": String(Buffer.byteLength(body)) }),
+                  ...options.headers,
+                }).filter(([, v]) => v !== ""),
+              ),
+            });
+            req.on("socket", (socket) => sockets.add(socket));
+            req.on("response", (res) => {
+              res.resume();
+              res.on("end", () => {
+                resolve([res.statusCode, res.headers.connection]);
+              });
+            });
+            req.on("error", reject);
+            if (options.chunked === true) {
+              // Two chunks, so the body really is chunked.
+              req.write(body.slice(0, 1));
+              req.end(body.slice(1));
+            } else {
+              req.end(body);
+            }
+          }),
+        );
+      }
+      return { answers, sockets: sockets.size };
+    } finally {
+      agent.destroy();
+    }
+  };
+
+  const bodies = {
+    small: { body: '{"ref":"SR-1"}' },
+    chunked: { body: '{"ref":"SR-1"}', chunked: true },
+    "4 MiB": { body: Buffer.alloc(4 * 1024 * 1024, 0x20) },
+  } as const;
+
+  for (const [kind, framing] of Object.entries(bodies)) {
+    it(`keeps the connection after every early answer to a request with a ${kind} body`, async () => {
+      for (const { name, status, options } of early()) {
+        const result = await onOneAgent([{ ...options, ...framing }, {}]);
+        expect({ name, ...result }).toEqual({
+          name,
+          answers: [
+            [status, "keep-alive"],
+            [200, "keep-alive"],
+          ],
+          sockets: 1,
+        });
+      }
+    });
+  }
+
+  it("answers a refused request after its body, also when the body comes in parts", async () => {
+    const socket = net.connect(server?.port ?? 0, "127.0.0.1");
+    const host = `Host: 127.0.0.1:${String(server?.port)}\r\n`;
+    let answer = "";
+    socket.on("data", (data: Buffer) => (answer += data.toString("utf8")));
+    const failed = new Promise<never>((_, reject) => socket.on("error", reject));
+    onTestFinished(() => {
+      socket.destroy();
+    });
+    socket.write(`POST /v1/commands/test.echo HTTP/1.1\r\n${host}Content-Length: 10\r\n\r\n{"a":`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Nothing yet: the server reads the whole body first.
+    expect(answer).toBe("");
+    // The rest of the body, then the next request in the same write (pipelined).
+    socket.write(
+      `"bc"}POST /v1/commands/test.echo HTTP/1.1\r\n${host}Authorization: Bearer ${token}\r\n` +
+        `Content-Length: 2\r\nConnection: close\r\n\r\n{}`,
+    );
+    await Promise.race([new Promise((resolve) => socket.on("close", resolve)), failed]);
+    expect(answer).toMatch(
+      /^HTTP\/1\.1 401 [^]*Missing or wrong token[^]*\r\nHTTP\/1\.1 200 [^]*"input":\{\}/,
+    );
+  });
+
+  it("closes the connection after an early answer to a body over the limit, with its own status", async () => {
+    const large = Buffer.alloc(MAX_BODY_BYTES + 1, 0x20);
+    const unauthorized = await onOneAgent([{ body: large, headers: { authorization: "" } }, {}]);
+    expect(unauthorized).toEqual({
+      answers: [
+        [401, "close"],
+        [200, "keep-alive"],
+      ],
+      sockets: 2,
+    });
+    const catalogListing = await onOneAgent([{ method: "GET", path: "/v1/commands", body: large }, {}]);
+    expect(catalogListing.answers).toEqual([
+      [200, "close"],
+      [200, "keep-alive"],
+    ]);
+  });
+
+  it("cuts the connection when a client sends on and on after an early answer", async () => {
+    const socket = net.connect(server?.port ?? 0, "127.0.0.1");
+    const limit = 10 * (MAX_BODY_BYTES + DRAIN_BYTES);
+    socket.write(
+      `POST /v1/other HTTP/1.1\r\nHost: 127.0.0.1:${String(server?.port)}\r\n` +
+        `Content-Length: ${String(limit)}\r\n\r\n`,
+    );
+    let answer = "";
+    socket.on("data", (data: Buffer) => (answer += data.toString("utf8")));
+    const chunk = Buffer.alloc(1024 * 1024, 0x20);
+    const sent = await new Promise<number>((resolve) => {
+      let total = 0;
+      socket.on("error", () => undefined);
+      socket.on("close", () => {
+        resolve(total);
+      });
+      const send = (): void => {
+        while (!socket.destroyed && total < limit) {
+          total += chunk.length;
+          if (!socket.write(chunk)) {
+            socket.once("drain", send);
+            return;
+          }
+        }
+        socket.end();
+      };
+      send();
+    });
+    expect(sent).toBeLessThan(limit);
+    // As for 413: the early answer says close, and the server still drains DRAIN_BYTES before it cuts.
+    expect(sent).toBeGreaterThan(MAX_BODY_BYTES + DRAIN_BYTES);
+    expect(answer).toMatch(/^HTTP\/1\.1 401 [^]*\r\nconnection: close\r\n/i);
   });
 });
 

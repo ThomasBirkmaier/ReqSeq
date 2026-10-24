@@ -15,7 +15,10 @@ export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> =
   internal: 500,
 };
 
-/** Largest request body; a larger one gets 413 as soon as it passes the limit (see DRAIN_BYTES). */
+/**
+ * Largest request body. A command run with a larger one gets 413 as soon as it passes the limit; a refusal
+ * or the catalog keeps its own status. Either way the answer says `Connection: close` (see DRAIN_BYTES).
+ */
 export const MAX_BODY_BYTES = 32 * 1024 * 1024;
 
 /** `GET` lists the catalog; `POST <COMMANDS_PATH>/<name>` runs a command. */
@@ -57,32 +60,38 @@ const send = (
   response.end(text);
 };
 
+/** An answer that needs no command: a refusal, or the catalog listing. */
+interface Answer {
+  readonly status: number;
+  readonly body: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
 /** A refusal before any command runs: always the error object of an `input.invalid`. */
-const refuse = (
-  response: ServerResponse,
+const refusal = (
   status: number,
   message: string,
   headers: Readonly<Record<string, string>> = {},
-): void => {
-  const body: CommandErrorObject = { code: "input.invalid", message };
-  send(response, status, body, headers);
-};
+): Answer => ({
+  status,
+  body: { code: "input.invalid", message } satisfies CommandErrorObject,
+  headers,
+});
+
+const TOO_LARGE = refusal(413, `The request body is larger than ${String(MAX_BODY_BYTES)} bytes`);
 
 /**
- * The 413 for a body over MAX_BODY_BYTES, with `connection: close`: the connection is cut after DRAIN_BYTES,
- * so a keep-alive client must not send its next request on it. The whole answer is written at once, but the
- * response ends only when the body has ended: Node closes the connection of a `connection: close` response
- * as soon as it ends, and closing it while the client still sends resets it (see DRAIN_BYTES). `ended`
- * settles when the body has ended; it never does when the connection is cut first.
+ * The answer to a request whose body is over MAX_BODY_BYTES, with `connection: close`: the connection is cut
+ * after DRAIN_BYTES, so a keep-alive client must not send its next request on it. The whole answer is
+ * written at once, but the response ends only when the body has ended: Node closes the connection of a
+ * `connection: close` response as soon as it ends, and closing it while the client still sends resets it
+ * (see DRAIN_BYTES). `ended` settles when the body has ended; it never does when the connection is cut first.
  */
-const refuseTooLarge = (response: ServerResponse, ended: Promise<void>): void => {
-  const body: CommandErrorObject = {
-    code: "input.invalid",
-    message: `The request body is larger than ${String(MAX_BODY_BYTES)} bytes`,
-  };
-  const text = `${JSON.stringify(body)}\n`;
-  response.writeHead(413, {
+const answerAndClose = (response: ServerResponse, answer: Answer, ended: Promise<void>): void => {
+  const text = `${JSON.stringify(answer.body)}\n`;
+  response.writeHead(answer.status, {
     ...HEADERS,
+    ...answer.headers,
     connection: "close",
     "content-length": String(Buffer.byteLength(text)),
   });
@@ -98,23 +107,26 @@ const sendError = (response: ServerResponse, error: unknown): void => {
 
 /**
  * After a body grows over MAX_BODY_BYTES, at most this many more bytes are read and dropped, then the
- * connection is cut. Reading on for a while lets the 413 reach the client: closing a connection with unread
- * data resets it, and the client may lose the answer.
+ * connection is cut. Reading on for a while lets the answer (413, or an earlier refusal) reach the client:
+ * closing a connection with unread data resets it, and the client may lose the answer.
  */
 export const DRAIN_BYTES = MAX_BODY_BYTES;
 
 /**
- * The body as text, or `undefined` as soon as it is larger than MAX_BODY_BYTES. Nothing beyond the limit is
- * kept; the rest is dropped until DRAIN_BYTES more have come, then the connection is cut.
+ * The body as text (empty when `keep` is false: the body is read and dropped), or `undefined` as soon as it is
+ * larger than MAX_BODY_BYTES. Nothing beyond the limit is kept; the rest is dropped until DRAIN_BYTES more
+ * have come, then the connection is cut.
  */
-const readBody = (request: IncomingMessage): Promise<string | undefined> =>
+const readBody = (request: IncomingMessage, keep: boolean): Promise<string | undefined> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
     request.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size <= MAX_BODY_BYTES) {
-        chunks.push(chunk);
+        if (keep) {
+          chunks.push(chunk);
+        }
         return;
       }
       resolve(undefined);
@@ -176,15 +188,7 @@ const commandName = (pathname: string): string | undefined => {
 export function createRequestHandler(options: HandlerOptions): RequestHandler {
   const token = Buffer.from(options.token, "utf8");
 
-  const run = async (name: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    // Listened for before the body is read, so that its end is never missed.
-    const ended = new Promise<void>((resolve) => request.once("end", resolve));
-    const text = await readBody(request);
-    if (text === undefined) {
-      // Answered at once; readBody drops the rest of the body, and cuts the connection after DRAIN_BYTES.
-      refuseTooLarge(response, ended);
-      return;
-    }
+  const run = async (name: string, text: string, response: ServerResponse): Promise<void> => {
     // Aborted when the client goes away before the response is sent, or when the server closes.
     const gone = new AbortController();
     response.once("close", () => {
@@ -202,44 +206,66 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
     }
   };
 
-  const route = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+  /** What a request asks for: an answer that needs no command, or the name of the command to run. */
+  const target = (request: IncomingMessage): Answer | string => {
     if (!loopbackHost(request)) {
-      refuse(response, 403, "The Host header must name the loopback address and port of this API");
-      return;
+      return refusal(403, "The Host header must name the loopback address and port of this API");
     }
     if (request.headers.origin !== undefined) {
-      refuse(response, 403, "Requests from browsers (with an Origin header) are refused");
-      return;
+      return refusal(403, "Requests from browsers (with an Origin header) are refused");
     }
     if (!sameSecret(bearerToken(request.headers.authorization), token)) {
-      refuse(response, 401, "Missing or wrong token; see api.json in the cache folder", {
+      return refusal(401, "Missing or wrong token; see api.json in the cache folder", {
         "www-authenticate": "Bearer",
       });
-      return;
     }
-    const pathname = new URL(String(request.url), "http://localhost").pathname;
+    // A request target that Node accepts but URL does not (e.g. `//[/`) names no endpoint: refused like any
+    // other path, after its body (#200).
+    const pathname = URL.parse(String(request.url), "http://localhost")?.pathname;
+    if (pathname === undefined) {
+      return refusal(404, `No endpoint ${String(request.url)}`);
+    }
     if (pathname === COMMANDS_PATH) {
       if (request.method !== "GET") {
-        refuse(response, 405, `Use GET ${COMMANDS_PATH}`, { allow: "GET" });
-        return;
+        return refusal(405, `Use GET ${COMMANDS_PATH}`, { allow: "GET" });
       }
       const commands = options.runtime.contracts.commands.map((entry) => ({
         ...entry,
         implemented: options.runtime.commands.has(entry.name),
       }));
-      send(response, 200, { commands });
-      return;
+      return { status: 200, body: { commands } };
     }
     const name = pathname.startsWith(`${COMMANDS_PATH}/`) ? commandName(pathname) : undefined;
     if (name === undefined) {
-      refuse(response, 404, `No endpoint ${pathname}`);
-      return;
+      return refusal(404, `No endpoint ${pathname}`);
     }
     if (request.method !== "POST") {
-      refuse(response, 405, `Use POST ${COMMANDS_PATH}/<name>`, { allow: "POST" });
+      return refusal(405, `Use POST ${COMMANDS_PATH}/<name>`, { allow: "POST" });
+    }
+    return name;
+  };
+
+  /**
+   * Every answer comes after the body is read, also one that does not need the body (#200). Node's docs ask
+   * for an unread body to be read or the socket destroyed; Node itself drops one after the response, but
+   * without any bound. So it is read here, with the bound of a command's body, and the connection stays
+   * usable for the next request of a keep-alive client.
+   */
+  const route = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    const goal = target(request);
+    // Listened for before the body is read, so that its end is never missed.
+    const ended = new Promise<void>((resolve) => request.once("end", resolve));
+    const text = await readBody(request, typeof goal === "string");
+    if (text === undefined) {
+      // Answered at once; readBody drops the rest of the body, and cuts the connection after DRAIN_BYTES.
+      answerAndClose(response, typeof goal === "string" ? TOO_LARGE : goal, ended);
       return;
     }
-    await run(name, request, response);
+    if (typeof goal === "string") {
+      await run(goal, text, response);
+      return;
+    }
+    send(response, goal.status, goal.body, goal.headers);
   };
 
   return (request, response) => {
