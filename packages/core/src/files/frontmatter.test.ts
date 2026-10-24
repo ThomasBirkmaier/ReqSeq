@@ -8,6 +8,7 @@ describe("splitFrontmatter", () => {
       yaml: "id: a\n",
       body: "# Text\n",
       eol: "\n",
+      closingEol: "\n",
     });
   });
 
@@ -17,6 +18,7 @@ describe("splitFrontmatter", () => {
       yaml: "id: a\r\n",
       body: "Text\r\n",
       eol: "\r\n",
+      closingEol: "\r\n",
     });
   });
 
@@ -26,6 +28,7 @@ describe("splitFrontmatter", () => {
       yaml: "id: a\n",
       body: "",
       eol: "\n",
+      closingEol: "",
     });
   });
 
@@ -35,7 +38,17 @@ describe("splitFrontmatter", () => {
       yaml: "",
       body: "body",
       eol: "\n",
+      closingEol: "\n",
     });
+  });
+
+  it("keeps the line ending of the closing line apart from the opening one", () => {
+    expect(splitFrontmatter("---\nid: a\r\n---\r\nText\n")).toMatchObject({
+      eol: "\n",
+      closingEol: "\r\n",
+      yaml: "id: a\r\n",
+    });
+    expect(splitFrontmatter("---\r\nid: a\n---\nText")).toMatchObject({ eol: "\r\n", closingEol: "\n" });
   });
 
   it("reports no frontmatter when the first line is not ---", () => {

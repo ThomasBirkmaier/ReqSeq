@@ -157,7 +157,7 @@ sequenceDiagram
 
 ### 6.2 Edit an element and confirm a hint
 
-1. The app calls `element.update` with a new text. `core` checks the file on disk is unchanged since read, edits the YAML document and body, writes atomically and recomputes the version.
+1. The app calls `element.update` with a new text. `core` checks the file on disk is unchanged since read, rewrites only the changed frontmatter lines and the text (ADR-0007), writes atomically and recomputes the version.
 2. The version changed, so every relation pointing at the element is now outdated. `core` returns `affected` (direct count, SR-024 AK2); the hints index gets one `relation.outdated` hint per relation.
 3. Later someone reviews a child and calls `hint.confirm`. `core` writes only the new `version` into that relation line of the child's file (D-042, SR-027). The person commits both files with their Git tool; the merge request shows exactly these lines.
 

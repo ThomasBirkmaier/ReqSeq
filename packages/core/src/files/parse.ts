@@ -10,11 +10,11 @@ import { splitFrontmatter } from "./frontmatter.js";
 
 /** The content of a file whose frontmatter parsed. */
 export interface ParsedContent {
-  /** Raw YAML text between the `---` lines, unchanged, for a lossless writer (#132). */
+  /** Raw YAML text between the `---` lines, unchanged; `editElementFile` splices it (ADR-0007). */
   readonly frontmatter: string;
   /**
-   * The parsed YAML document with source tokens (`keepSourceTokens`), for the write path only.
-   * Costs memory; the model may drop it and re-read the file before a write.
+   * The parsed YAML document (comments included, no source tokens). The writer does not need it;
+   * it parses the raw `frontmatter` itself.
    */
   readonly document: Document;
   /** The frontmatter as plain data. */
@@ -22,6 +22,8 @@ export interface ParsedContent {
   /** Markdown text after the frontmatter, unchanged. */
   readonly body: string;
   readonly eol: LineEnding;
+  /** Line ending of the closing `---` line, `""` when the file ends right after it; kept on write. */
+  readonly closingEol: LineEnding | "";
   /** The file started with a UTF-8 byte order mark (removed from the texts above, kept on write). */
   readonly bom: boolean;
   /** YAML warnings (for example an unknown tag), severity `warning`. */
@@ -97,7 +99,6 @@ const parseYaml = (file: string, yaml: string, place: YamlPlace): YamlOutcome =>
     version: "1.2",
     schema: "core",
     prettyErrors: false,
-    keepSourceTokens: true,
     lineCounter: lines,
   });
   // Errors found only at the end (an unclosed quote or bracket) are reported on the last line of
@@ -193,7 +194,16 @@ export const parseFileBytes = (file: string, bytes: Uint8Array): ParseOutcome =>
       const { document, data, warnings } = yaml;
       return {
         kind: "parsed",
-        content: { frontmatter: split.yaml, document, data, body: split.body, eol: split.eol, bom, warnings },
+        content: {
+          frontmatter: split.yaml,
+          document,
+          data,
+          body: split.body,
+          eol: split.eol,
+          closingEol: split.closingEol,
+          bom,
+          warnings,
+        },
       };
     }
   }

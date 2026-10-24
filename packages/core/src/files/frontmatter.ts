@@ -16,6 +16,8 @@ export type FrontmatterSplit =
       readonly body: string;
       /** Line ending of the opening line; kept on write (ADR-0004). */
       readonly eol: LineEnding;
+      /** Line ending of the closing `---` line, `""` when the file ends right after it. */
+      readonly closingEol: LineEnding | "";
     };
 
 const DELIMITER = "---";
@@ -40,13 +42,15 @@ export const splitFrontmatter = (text: string): FrontmatterSplit => {
   for (;;) {
     const nl = text.indexOf("\n", lineStart);
     const lineEnd = nl === -1 ? text.length : nl;
-    const line = text.slice(lineStart, lineEnd).replace(/\r$/, "");
-    if (line === DELIMITER) {
+    const line = text.slice(lineStart, lineEnd);
+    const crlf = line.endsWith("\r");
+    if ((crlf ? line.slice(0, -1) : line) === DELIMITER) {
       return {
         kind: "frontmatter",
         yaml: text.slice(yamlStart, lineStart),
         body: nl === -1 ? "" : text.slice(nl + 1),
         eol,
+        closingEol: nl === -1 ? "" : crlf ? "\r\n" : "\n",
       };
     }
     if (nl === -1) {
