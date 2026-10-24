@@ -30,6 +30,15 @@ export interface ElementRecord {
   readonly snapshot: FileSnapshot;
 }
 
+/**
+ * The elements a reference names: one, none, or several (files that share a UUID, SR-088). The
+ * function that returns it sets the order of `elements`.
+ */
+export type ElementMatch =
+  | { readonly kind: "found"; readonly element: ElementRecord }
+  | { readonly kind: "unknown" }
+  | { readonly kind: "ambiguous"; readonly elements: readonly ElementRecord[] };
+
 export type Classified =
   | { readonly kind: "element"; readonly element: ElementRecord }
   /** Not an element: no frontmatter mapping with `id` and `type` (SR-003 AK2). */

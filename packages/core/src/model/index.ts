@@ -3,7 +3,8 @@
 export { ELEMENT_FILE_EXTENSION, listMarkdownFiles } from "./discover.js";
 export type { DiscoveredFiles } from "./discover.js";
 export { classifyFile } from "./elements.js";
-export type { Classified, ElementRecord } from "./elements.js";
+export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
+export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./duplicates.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";

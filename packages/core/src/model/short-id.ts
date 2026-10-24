@@ -6,7 +6,7 @@
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
-import type { ElementRecord } from "./elements.js";
+import type { ElementMatch, ElementRecord } from "./elements.js";
 import { elementStoreState } from "./store.js";
 
 /** Digits of the UUID a short ID shows at least (D-017, D-056, SR-084 AK1). */
@@ -18,12 +18,11 @@ export const SHORT_ID_MIN_LENGTH = 6;
  */
 export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
 
-/** What a short ID names: one element, none, or several (SR-060 AK3: `ref.unknown`, `ref.ambiguous`). */
-export type ShortIdMatch =
-  | { readonly kind: "found"; readonly element: ElementRecord }
-  | { readonly kind: "unknown" }
-  /** Several elements, ordered by UUID digits from the end, then like the element store. */
-  | { readonly kind: "ambiguous"; readonly elements: readonly ElementRecord[] };
+/**
+ * What a short ID names: one element, none, or several (SR-060 AK3: `ref.unknown`, `ref.ambiguous`).
+ * Several elements are ordered by UUID digits from the end, then like the element store.
+ */
+export type ShortIdMatch = ElementMatch;
 
 export interface ShortIds {
   /** `SR-46fb54`: the prefix of the element's type, a dash and the tail of its UUID (SR-084 AK1, AK2). */
