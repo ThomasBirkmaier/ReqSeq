@@ -5,6 +5,10 @@ on:
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
     branches: [main]
+  # macOS runs only here, to save Actions minutes (Thomas, 2026-10-24).
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -63,14 +67,15 @@ jobs:
       - run: pnpm licenses:check
       - run: pnpm audit --prod --audit-level high
 
-  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
+  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems (macOS nightly).
   test:
     name: test (${{ matrix.os }})
     if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
+        # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
+        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -99,7 +104,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
+        # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
+        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
