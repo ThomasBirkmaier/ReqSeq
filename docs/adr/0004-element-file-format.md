@@ -62,7 +62,7 @@ customer-id: WS-0815                          # external ID is an ordinary prope
 
 - LogReq writes with the YAML Document API (ADR-0007): existing key order, comments and formatting of untouched keys are kept; new keys are appended in the order of the type's properties in the metamodel.
 - Lists of relation targets are written as one flow mapping per line, so a Git diff shows one changed line per changed relation (SR-102).
-- Line endings: LF on write; existing CRLF files keep CRLF. UTF-8 without BOM. A final newline.
+- Line endings: LF on write; existing CRLF files keep CRLF. UTF-8; new files without BOM, an existing BOM is kept like CRLF (so line 1 stays unchanged, SR-102). A final newline.
 - Nothing about display order is stored (D-031, SR-075 AK3).
 
 ## Consequences

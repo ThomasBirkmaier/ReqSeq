@@ -20,6 +20,7 @@ Targets at 50,000 elements and 200,000 relations on 4 cores and 16 GB: start ≤
 
 - Memory: roughly 1–2 KB per element without text, so well under 500 MB at 50,000 elements.
 - Several instances on separate copies never share state (SR-081 AK1).
+- The watcher and file listings ignore LogReq's own temporary files `.<file name>.<8 hex>.logreq-tmp` (`isTempFile` in `files`, ADR-0007). Parsed files carry plain, frozen snapshots (path, size, mtime, SHA-256), so they can be cached and sent to worker threads; the kept YAML `Document` is for the write path only and the model may drop it to save memory.
 
 ## Rejected
 

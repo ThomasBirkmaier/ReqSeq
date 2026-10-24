@@ -32,6 +32,8 @@ export interface Problem {
   readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly file?: string;
+  /** Line in `file`, from 1. */
+  readonly line?: number;
   readonly elementId?: string;
 }
 

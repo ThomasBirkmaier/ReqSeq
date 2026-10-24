@@ -132,6 +132,7 @@
         "file.invalid-yaml",
         "file.conflict-markers",
         "file.unreadable",
+        "file.yaml-warning",
         "element.duplicate-id",
         "element.file-name-clash",
         "element.unknown-type",
@@ -176,6 +177,11 @@
             "reqif.invalid",
             "reqif.unmapped",
             "git.unavailable",
+            "file.changed-on-disk",
+            "file.faulty",
+            "file.read-only",
+            "file.not-regular",
+            "file.folder-missing",
             "internal"
           ]
         },
