@@ -12,6 +12,7 @@ label spec-geändert e99695 "Spec changed after implementation"
 label spec-export   bfd4f2 "Export of the spec from Logseq"
 label blocked       b60205 "Waiting on another issue or an answer"
 label agent:working 1d76db "An agent is working on this"
+label querschnitt   0e8a16 "Cross-cutting SR, stays open across stages"
 label needs-human   6b3fa0 "The product owner must answer something"
 for t in ablage-und-repositories metamodell-und-typen traceability-und-ketten bearbeiten-und-finden \
          nachweis-und-abdeckung varianten pakete-und-baselines import-und-export \
