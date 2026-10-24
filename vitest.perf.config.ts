@@ -13,6 +13,14 @@ export default defineConfig({
   test: {
     include: ["packages/*/test/perf/**/*.test.ts"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
+    // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
+    // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types
+    // by default only from 22.18; the flag does it on every Node 22 that `engines` allows.
+    execArgv: [
+      "--experimental-strip-types",
+      "--import",
+      new URL("./scripts/test-support/worker-preload.mjs", import.meta.url).href,
+    ],
     env: { LOGREQ_PERF_RESULTS: "test-results/perf.jsonl" },
     // One file at a time, so that measurements do not compete for the cores.
     fileParallelism: false,

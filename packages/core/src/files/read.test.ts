@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Problem } from "../catalog.js";
 import { Alias, Document, parseDocument } from "yaml";
 import { findUnresolvedAlias } from "./parse.js";
-import { readElementFile, readElementFiles, readYamlFile } from "./read.js";
+import { readElementFile, readElementFileSync, readElementFiles, readYamlFile } from "./read.js";
 import type { FileReadResult, YamlReadResult } from "./read.js";
 
 let root: string;
@@ -396,5 +396,61 @@ describe("readYamlFile", () => {
       line: 2,
     });
     expect(yamlProblem(await readYamlFile(root, "missing.yaml"))).toMatchObject({ code: "file.unreadable" });
+  });
+});
+
+describe("readElementFileSync (worker threads of a cold load, ADR-0008)", () => {
+  it("gives what readElementFile gives for every kind of file", async () => {
+    await put("req/a.md", "---\n# comment\nid: a\ntags: [x, y]\n---\n# Heading\n\nText\n");
+    await put("bom.md", `\uFEFF${good("bom")}`);
+    await put("crlf.md", good("crlf").replaceAll("\n", "\r\n"));
+    await put("plain.md", "# Just Markdown\n");
+    await put("bad.md", "---\nid: a\n  title: x\n---\n");
+    await put("conflict.md", "---\nid: a\n<<<<<<< HEAD\nx: 1\n=======\nx: 2\n>>>>>>> b\n---\n");
+    await put("warning.md", "---\nid: a\nx: !unknown 1\n---\n");
+    await put("latin1.md", new Uint8Array([0x2d, 0x2d, 0x2d, 0x0a, 0xe4, 0x0a, 0x2d, 0x2d, 0x2d, 0x0a]));
+    await fs.mkdir(path.join(root, "folder.md"));
+    await fs.symlink(path.join(root, "req/a.md"), path.join(root, "link.md"), "file");
+    await put("real/b.md", good("b"));
+    await fs.symlink(path.join(root, "real"), path.join(root, "alias"), "junction");
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    try {
+      await fs.writeFile(path.join(outside, "c.md"), good("c"));
+      await fs.symlink(outside, path.join(root, "linked"), "junction");
+      const files = [
+        "req/a.md",
+        "./req/../req/a.md",
+        "bom.md",
+        "crlf.md",
+        "plain.md",
+        "bad.md",
+        "conflict.md",
+        "warning.md",
+        "latin1.md",
+        "folder.md",
+        "link.md",
+        "alias/b.md",
+        "linked/c.md",
+        "missing.md",
+      ];
+      // A YAML `Document` holds state of its parse; its text and data stand for it.
+      const comparable = (r: FileReadResult): unknown =>
+        r.kind === "parsed" ? { ...r, file: { ...r.file, document: r.file.document.toString() } } : r;
+      for (const file of files) {
+        expect(comparable(readElementFileSync(root, file)), file).toEqual(
+          comparable(await readElementFile(root, file)),
+        );
+      }
+      expect(problemOf(readElementFileSync(root, "linked/c.md")).message).toMatch(/outside the workspace/);
+      expect(problemOf(readElementFileSync(root, "missing.md")).message).toMatch(/ENOENT/);
+      const parsed = readElementFileSync(root, "req/a.md");
+      expect(parsed.kind === "parsed" && Object.isFrozen(parsed.file.snapshot)).toBe(true);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses paths outside the root like readElementFile", () => {
+    expect(() => readElementFileSync(root, "../x.md")).toThrow(/not inside the workspace/);
   });
 });

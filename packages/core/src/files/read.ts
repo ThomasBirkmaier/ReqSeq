@@ -1,11 +1,13 @@
 // Reading element files (ADR-0007, SR-008). A faulty file becomes a problem with file, line and
 // reason; it never stops the others.
+import type { Stats } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
 import { fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
-import { errorCode, folderInsideRoot, resolveInRoot } from "./paths.js";
+import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from "./paths.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
 
@@ -45,19 +47,30 @@ type RawFile =
   | { readonly kind: "bytes"; readonly file: string; readonly bytes: Uint8Array; readonly mtimeMs: number }
   | { readonly kind: "problem"; readonly problem: Problem };
 
+/** Why a file that `lstat` found is not read, or undefined when it is a regular file. */
+const statProblem = (file: string, stat: Stats): RawFile | undefined => {
+  if (stat.isSymbolicLink()) {
+    return unreadable(file, "it is a symbolic link; LogReq does not follow links to its files");
+  }
+  if (!stat.isFile()) {
+    return unreadable(file, "it is not a regular file");
+  }
+  return undefined;
+};
+
+const OUTSIDE = "its folder is linked to a place outside the workspace";
+
 /** The bytes of a regular file inside the root; links to files and folders linked out of it are refused. */
 const readBytes = async (root: string, relativePath: string): Promise<RawFile> => {
   const { absolute, file } = resolveInRoot(root, relativePath);
   try {
     const stat = await fs.lstat(absolute);
-    if (stat.isSymbolicLink()) {
-      return unreadable(file, "it is a symbolic link; LogReq does not follow links to its files");
-    }
-    if (!stat.isFile()) {
-      return unreadable(file, "it is not a regular file");
+    const problem = statProblem(file, stat);
+    if (problem !== undefined) {
+      return problem;
     }
     if (!(await folderInsideRoot(root, absolute))) {
-      return unreadable(file, "its folder is linked to a place outside the workspace");
+      return unreadable(file, OUTSIDE);
     }
     return { kind: "bytes", file, bytes: await fs.readFile(absolute), mtimeMs: stat.mtimeMs };
   } catch (e) {
@@ -65,13 +78,26 @@ const readBytes = async (root: string, relativePath: string): Promise<RawFile> =
   }
 };
 
-/**
- * Reads one element file below `root`. Never throws for a faulty, missing or linked file; returns
- * a problem with file, line and reason instead (SR-008 AK1, AK2). Throws only `input.invalid` for
- * a path outside `root`. Paths in the result are canonical (`./d/../d/a.md` is `d/a.md`).
- */
-export const readElementFile = async (root: string, relativePath: string): Promise<FileReadResult> => {
-  const raw = await readBytes(root, relativePath);
+/** `readBytes` with blocking calls, for a worker thread of the cold load (ADR-0008); the same checks and results. */
+const readBytesSync = (root: string, relativePath: string): RawFile => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  try {
+    const stat = lstatSync(absolute);
+    const problem = statProblem(file, stat);
+    if (problem !== undefined) {
+      return problem;
+    }
+    if (!folderInsideRootSync(root, absolute)) {
+      return unreadable(file, OUTSIDE);
+    }
+    return { kind: "bytes", file, bytes: readFileSync(absolute), mtimeMs: stat.mtimeMs };
+  } catch (e) {
+    return unreadable(file, String(errorCode(e)));
+  }
+};
+
+/** What the bytes of an element file give; `readElementFile` and `readElementFileSync` share it. */
+const elementResult = (raw: RawFile): FileReadResult => {
   if (raw.kind === "problem") {
     return raw;
   }
@@ -93,6 +119,22 @@ export const readElementFile = async (root: string, relativePath: string): Promi
       };
   }
 };
+
+/**
+ * Reads one element file below `root`. Never throws for a faulty, missing or linked file; returns
+ * a problem with file, line and reason instead (SR-008 AK1, AK2). Throws only `input.invalid` for
+ * a path outside `root`. Paths in the result are canonical (`./d/../d/a.md` is `d/a.md`).
+ */
+export const readElementFile = async (root: string, relativePath: string): Promise<FileReadResult> =>
+  elementResult(await readBytes(root, relativePath));
+
+/**
+ * `readElementFile` with blocking calls and the same result, for the worker threads that read the
+ * files of a cold load (ADR-0008, N-036): there, calls through the libuv thread pool of the process
+ * cost more than they save. The main thread keeps `readElementFile`.
+ */
+export const readElementFileSync = (root: string, relativePath: string): FileReadResult =>
+  elementResult(readBytesSync(root, relativePath));
 
 /** A whole-file YAML document (metamodel, workspace, baseline, filter, mapping file). */
 export interface YamlFile extends ParsedYaml {

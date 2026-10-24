@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
@@ -26,12 +27,21 @@ export const resolveInRoot = (root: string, relativePath: string): RootPath => {
   return { absolute, file: toPosix(rel) };
 };
 
-/** True when the real folder of `absolute` (after following links) is inside the real `root`. */
-export const folderInsideRoot = async (root: string, absolute: string): Promise<boolean> => {
-  const [realRoot, realFolder] = await Promise.all([fs.realpath(root), fs.realpath(path.dirname(absolute))]);
+/** Whether the real folder `realFolder` is the real root `realRoot` or below it. */
+const insideReal = (realRoot: string, realFolder: string): boolean => {
   const rel = path.relative(realRoot, realFolder);
   return !path.isAbsolute(rel) && rel.split(path.sep)[0] !== "..";
 };
+
+/** True when the real folder of `absolute` (after following links) is inside the real `root`. */
+export const folderInsideRoot = async (root: string, absolute: string): Promise<boolean> => {
+  const [realRoot, realFolder] = await Promise.all([fs.realpath(root), fs.realpath(path.dirname(absolute))]);
+  return insideReal(realRoot, realFolder);
+};
+
+/** `folderInsideRoot` with blocking calls; `realpathSync.native` is the call `fs.promises.realpath` makes. */
+export const folderInsideRootSync = (root: string, absolute: string): boolean =>
+  insideReal(realpathSync.native(root), realpathSync.native(path.dirname(absolute)));
 
 /** The `code` of a Node file system error (they always carry one), else undefined. */
 export const errorCode = (error: unknown): string | undefined => (error as NodeJS.ErrnoException).code;

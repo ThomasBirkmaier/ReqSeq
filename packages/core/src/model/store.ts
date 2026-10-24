@@ -7,15 +7,20 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, ParsedFile } from "../files/index.js";
-import { readElementFile } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
+import type { Contribution } from "./contribution.js";
+import { contribution, parsedContribution } from "./contribution.js";
+import type { DiscoveredFiles } from "./discover.js";
 import { listMarkdownFiles, listsFile } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
-import { classifyFile } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
+import type { ReadRequest } from "./read-pool.js";
+import { openReadPool, readWorkers } from "./read-pool.js";
+
+export type { Contribution } from "./contribution.js";
 
 /** A file of a repository of the workspace. */
 export interface RepositoryFile {
@@ -24,19 +29,6 @@ export interface RepositoryFile {
   /** Relative to the repository, `/` as separator. */
   readonly file: string;
 }
-
-/** What one Markdown file contributes to the store; small, so no parsed `Document` is held (ADR-0008). */
-export type Contribution = (
-  | { readonly kind: "element"; readonly element: ElementRecord }
-  | { readonly kind: "not-element"; readonly file: string }
-  /** A faulty file, or one that parsed but has an invalid `id` or `type`. */
-  | { readonly kind: "problem"; readonly problem: Problem }
-) & {
-  /** YAML warnings of a file that parsed; they come before its problem. */
-  readonly warnings: readonly Problem[];
-  /** The bytes read, when the file parsed; the watcher compares their hash (SR-007). */
-  readonly snapshot?: FileSnapshot;
-};
 
 /** What one available repository contributes; the watcher updates it file by file (SR-007). */
 export interface RepositoryContents {
@@ -77,35 +69,6 @@ export interface ElementStore {
 /** Files read at the same time; bounded so 50,000 files do not exhaust file handles (N-036). */
 const READ_CONCURRENCY = 32;
 
-const withRepository = (problem: Problem, repository: string): Problem => ({ ...problem, repository });
-
-/** Reads and classifies one file at once, so that its YAML `Document` is dropped right after. */
-const contribution = async (repository: RepositoryLocation, file: string): Promise<Contribution> => {
-  const read = await readElementFile(repository.folder, file);
-  if (read.kind === "problem") {
-    return { kind: "problem", problem: withRepository(read.problem, repository.name), warnings: [] };
-  }
-  if (read.kind === "no-frontmatter") {
-    return { kind: "not-element", file: read.path, warnings: [] };
-  }
-  return parsedContribution(repository.name, read.file);
-};
-
-/** What a file that parsed contributes; the full read and a write (`withWrittenFiles`) use it. */
-const parsedContribution = (repository: string, file: ParsedFile): Contribution => {
-  const { snapshot } = file;
-  const warnings = file.warnings.map((w) => withRepository(w, repository));
-  const classified = classifyFile(repository, file);
-  switch (classified.kind) {
-    case "element":
-      return { kind: "element", element: classified.element, warnings, snapshot };
-    case "not-element":
-      return { kind: "not-element", file: file.path, warnings, snapshot };
-    case "problem":
-      return { kind: "problem", problem: classified.problem, warnings, snapshot };
-  }
-};
-
 /**
  * Reads `files` of a repository with bounded parallelism, by path. With `signal` aborted no
  * further file is read and the call rejects with its reason.
@@ -126,6 +89,51 @@ const readRepository = async (
   };
   await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, worker));
   return results;
+};
+
+/** How the files are read; tests set them, the store uses the defaults. */
+export interface ReadOptions {
+  /** Worker threads of a read with many files. Default: one per core minus one, at least one (ADR-0008). */
+  readonly workers?: number;
+  /** A read of at least this many files runs in worker threads, a smaller one in this thread. Default 1,000. */
+  readonly workerThreshold?: number;
+}
+
+/**
+ * From this many files a read goes to worker threads (ADR-0008, N-036). Measured in a fresh process
+ * on 4 cores (3 workers): the pool breaks even with this thread at about 1,000 files (both about
+ * 1.0 s; starting the workers, which load the YAML parser and compile the schemas, costs about
+ * 0.5 s) and is ahead from 2,000 files (4,000 files: 2.3 s against 3.2 s; 50,000: 10 s against 41 s).
+ */
+const WORKER_THRESHOLD = 1_000;
+
+/**
+ * What each file of each request contributes, with its request, in the order of `requests`: from
+ * `workerThreshold` files in all, in one pool of worker threads that takes the files of every
+ * request from one queue (the cold load, a large watcher batch; ADR-0008, N-036), else in this
+ * thread. Both give the same contributions. The pool is stopped when the read ends, also on an
+ * abort or a failure.
+ */
+const readAll = async <R extends ReadRequest & { readonly repository: RepositoryLocation }>(
+  requests: readonly R[],
+  signal: AbortSignal | undefined,
+  options: ReadOptions,
+): Promise<(readonly [R, ReadonlyMap<string, Contribution>])[]> => {
+  const count = requests.reduce((sum, { files }) => sum + files.length, 0);
+  if (count < (options.workerThreshold ?? WORKER_THRESHOLD)) {
+    const read: (readonly [R, ReadonlyMap<string, Contribution>])[] = [];
+    for (const request of requests) {
+      read.push([request, await readRepository(request.repository, request.files, signal)]);
+    }
+    return read;
+  }
+  signal?.throwIfAborted();
+  const pool = openReadPool(options.workers ?? readWorkers());
+  try {
+    return await pool.read(requests, signal);
+  } finally {
+    await pool.close();
+  }
 };
 
 /** The store fields from the contents of the repositories, in their order. */
@@ -173,38 +181,40 @@ const inListOrder = (
   return new Map(entries);
 };
 
-/** Reads every listed Markdown file of one repository. */
-const readContents = async (
-  repository: RepositoryLocation,
-  ignored: (relativePath: string) => boolean,
-  signal: AbortSignal | undefined,
-): Promise<RepositoryContents> => {
-  const listed = await listMarkdownFiles(repository, ignored);
-  const read = await readRepository(repository, listed.files, signal);
-  return {
-    repository: repository.name,
-    location: repository,
-    listing: listed.problems,
-    files: inListOrder(listed.files, read),
-  };
-};
-
 /** The `ignore` globs of the workspace file as a test (the element walk and the watcher). */
 export const ignoredBy = (layout: WorkspaceLayout): ((relativePath: string) => boolean) =>
   ignoreMatcher(layout.file.ignore ?? []);
 
 /**
  * Reads the element files of every available repository of `layout` (a missing one is skipped,
- * SR-004 AK3). One folder walk per repository and bounded parallel reads, each file classified as
- * soon as it is read; no call of the version control program (N-036).
+ * SR-004 AK3). One folder walk per repository, then the files are read, each classified as soon as
+ * it is read: with bounded parallelism in this thread, or, from `workerThreshold` files of all
+ * repositories together, in one pool of worker threads (ADR-0008); no call of the version control
+ * program (N-036).
  */
-export const loadElements = async (layout: WorkspaceLayout, signal?: AbortSignal): Promise<ElementStore> => {
+export const loadElements = async (
+  layout: WorkspaceLayout,
+  signal?: AbortSignal,
+  options: ReadOptions = {},
+): Promise<ElementStore> => {
   const ignored = ignoredBy(layout);
-  const repositories: RepositoryContents[] = [];
+  const walks: { readonly repository: RepositoryLocation; readonly listed: DiscoveredFiles }[] = [];
   for (const repository of availableRepositories(layout)) {
-    repositories.push(await readContents(repository, ignored, signal));
+    walks.push({ repository, listed: await listMarkdownFiles(repository, ignored) });
   }
-  return assemble(repositories);
+  const read = await readAll(
+    walks.map((walk) => ({ ...walk, files: walk.listed.files })),
+    signal,
+    options,
+  );
+  return assemble(
+    read.map(([{ repository, listed }, files]) => ({
+      repository: repository.name,
+      location: repository,
+      listing: listed.problems,
+      files: inListOrder(listed.files, files),
+    })),
+  );
 };
 
 /** What changed in one repository, as the watcher saw it (SR-007). */
@@ -286,7 +296,9 @@ const updateContents = async (
       check.push(file);
     }
   }
-  const read = await readRepository(repository, check, signal);
+  const read = new Map(
+    (await readAll([{ repository, files: check }], signal, {})).flatMap(([, files]) => [...files]),
+  );
   // A file deleted between the walk and its read is gone, not unreadable.
   const gone = new Set<string>();
   for (const [file, now] of read) {
