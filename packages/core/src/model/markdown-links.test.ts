@@ -158,6 +158,49 @@ describe("Markdown links", () => {
     expect(performance.now() - started).toBeLessThan(10_000);
   });
 
+  it("allows quotes and parentheses in a title only when escaped (CommonMark)", () => {
+    expect(
+      found(
+        [
+          "[a](b \"c \\\" d\") [e](f 'g \\' h') [i](j (k \\( \\) l))",
+          "[m](n (o (p)) [q](r)",
+          "[](]( ((\\\\[a](s)) >]",
+        ].join("\n"),
+      ),
+    ).toEqual(["b", "f", "j", "r", "s"]);
+  });
+
+  it("lets a backslash escape ASCII punctuation only, so it does not escape a space (CommonMark)", () => {
+    expect(markdownLinks("[](\\ ) [a](b\\ c)")).toEqual([
+      { image: false, label: "", destination: "\\", start: 3, end: 4 },
+    ]);
+    expect(found("[a](b\\(c) [d](e\\\\(f)) [g](h\\a)")).toEqual(["b\\(c", "e\\\\(f)", "h\\a"]);
+  });
+
+  it("finds no destination that ends with parentheses still open (CommonMark)", () => {
+    expect(found('[](( ) [a](b( "t") [c](d(e) "t") [f](g(')).toEqual(["d(e)"]);
+  });
+
+  it("finds 200,000 links on one line", () => {
+    const links = markdownLinks("[](x)".repeat(200_000));
+    expect(links).toHaveLength(200_000);
+    expect(links.at(-1)).toEqual({ image: false, label: "", destination: "x", start: 999_998, end: 999_999 });
+  });
+
+  it("reads 1 MB lines of failing titles and open parentheses in linear time (N-036)", () => {
+    // A title that read past further `(` made the first line take 121 s before; the other lines guard
+    // results and stay linear. Linear, all take milliseconds; the budget is generous for a loaded machine
+    // and below the test timeout (30 s, vitest.config.ts).
+    const started = performance.now();
+    expect(found(`${"[a](x (".repeat(150_000)})`)).toEqual([]);
+    expect(found(`${'[a](x "\\"'.repeat(100_000)}"`)).toEqual([]);
+    expect(found(`${"[a](x '\\'".repeat(100_000)}'`)).toEqual([]);
+    expect(found(`${"[a](x( ".repeat(150_000)})`)).toEqual([]);
+    // Only the last one closes; a backslash before a space is text.
+    expect(found(`${"[a](x\\ ".repeat(150_000)})`)).toEqual(["x\\"]);
+    expect(performance.now() - started).toBeLessThan(10_000);
+  });
+
   it("limits nested parentheses in a destination to 32 and ends a `<…>` destination at the next `<`", () => {
     const nested = (n: number): string => `[a](${"(".repeat(n)}x${")".repeat(n)})`;
     expect(found(nested(32))).toEqual([`${"(".repeat(32)}x${")".repeat(32)}`]);

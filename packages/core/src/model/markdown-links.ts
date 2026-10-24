@@ -3,7 +3,9 @@
 // version (ADR-0005, #178) use. Pure; no file access.
 //
 // Handled: inline links `[label](destination "title")` and images `![alt](destination)` on one
-// line, labels with nested and escaped brackets, destinations in `<…>`, backslash escapes. A line
+// line, labels with nested and escaped brackets, destinations in `<…>`, backslash escapes (of
+// ASCII punctuation only, so `[](\ )` has the destination `\`), titles with escaped quotes or
+// parentheses. A destination with a parenthesis still open where it ends is none (`[](( )`). A line
 // is read from left to right with a stack of open brackets, as CommonMark does: a code span binds
 // more tightly than the brackets around it (`` [a `]` b](x) `` is a link), while a destination is
 // read as written, also with backticks. Links do not nest: a link in the label of another one is
@@ -15,7 +17,9 @@
 //
 // Cost: one pass per line without recursion, so nesting depth costs no stack. Brackets cost linear
 // time, destinations about linear time (parentheses nest at most 32 deep in a destination, a `<…>`
-// destination ends at the next `<`), code spans at most O(n·√n).
+// destination ends at the next `<`), titles linear time (at most one destination without `<…>` and
+// one in `<…>` end at the same place, and a title that does not close ends at the next unescaped
+// quote or parenthesis of its kind), code spans at most O(n·√n).
 //
 // Not handled: reference-style links, links that span lines, HTML. Known limitation: list
 // indentation is not tracked, so a fence indented by 4 or more spaces in a nested list item is not
@@ -79,8 +83,15 @@ interface Destination {
   readonly after: number;
 }
 
-/** An optional title in quotes, then `)`. */
-const TITLE_AND_CLOSE = /(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?[ \t]*\)/y;
+/**
+ * An optional title in `"…"`, `'…'` or `(…)`, then `)`. In a title, its own quote or a parenthesis
+ * appears only escaped (CommonMark), so a title that does not close ends at the next one of them.
+ */
+const TITLE_AND_CLOSE =
+  /(?:[ \t]+(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\((?:\\[\s\S]|[^()\\])*\)))?[ \t]*\)/y;
+
+/** What a backslash escapes (CommonMark): ASCII punctuation; before anything else it is text. */
+const ESCAPABLE = /[!-/:-@[-`{-~]/;
 
 /**
  * The offset of the `>` that ends a `<…>` destination whose text starts at `start`, or -1: an
@@ -101,15 +112,18 @@ const angleEnd = (text: string, start: number): number => {
 };
 
 /**
- * The end of a destination without `<…>` that starts at `start`: the first space or tab, or `)`
- * outside parentheses, or the end of the line; -1 when parentheses nest too deeply.
+ * The end of a destination without `<…>` that starts at `start`: `)` outside parentheses, or the
+ * first space or tab when no parenthesis is open; -1 when one is still open there, at the end of
+ * the line, or when parentheses nest too deeply (CommonMark).
  */
 const plainEnd = (text: string, start: number): number => {
   let depth = 0;
   for (let i = start; i < text.length; i++) {
     const c = text[i];
     if (c === "\\") {
-      i++;
+      if (ESCAPABLE.test(text.charAt(i + 1))) {
+        i++;
+      }
     } else if (c === "(") {
       depth++;
       if (depth > MAX_PARENTHESES) {
@@ -121,10 +135,11 @@ const plainEnd = (text: string, start: number): number => {
       }
       depth--;
     } else if (c === " " || c === "\t") {
-      return i;
+      return depth === 0 ? i : -1;
     }
   }
-  return text.length;
+  // No `)` follows, so there is no link.
+  return -1;
 };
 
 /** The destination of a link whose `(` is at `open`, or undefined when there is no valid one. */
@@ -290,7 +305,10 @@ export const markdownLinks = (text: string): MarkdownLink[] => {
     const line = raw.replace(/\r?\n$/, "");
     const content = line.replace(BLOCK_QUOTE, "");
     if (isInline(content, blocks)) {
-      links.push(...lineLinks(content, offset + line.length - content.length));
+      // One by one: spreading the links of a long line into `push` exceeds the argument limit.
+      for (const link of lineLinks(content, offset + line.length - content.length)) {
+        links.push(link);
+      }
     }
     offset += raw.length;
   }
