@@ -32,6 +32,7 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 ## Workflow
 
 - Implement an issue with the `github-issue-workflow` skill: plan (Opus), plan review (second Opus agent), tests from acceptance criteria first, implementation (Sonnet), quality gates, code review (Opus), PR.
+- Effort of helper agents (Thomas, 2026-10-24): agents for planning, plan review, architecture questions and code review run with effort `high`; routine implementation (writing tests and code from an approved plan, fixing gate failures) runs with normal effort.
 - The GitHub project "LogReq" mirrors the issues; the workflow `project-sync` derives its fields from labels. Change labels, never project fields (see `stage-run`).
 - Merge with `github-pr-review-merge`. Agents commit and merge on their own everywhere, including `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` are allowed for trivial fixes; everything else goes through a PR so CI and the SR trail run.
 - Merge only when CI is green and the code review found nothing blocking. Never merge red.

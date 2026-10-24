@@ -3,7 +3,16 @@ import tseslint from "typescript-eslint";
 
 // ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/out/**", "**/coverage/**", "spec/**", "scripts/spec-export/raw/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/out/**",
+      "**/coverage/**",
+      "spec/**",
+      "scripts/spec-export/raw/**",
+      ".claude/worktrees/**",
+    ],
+  },
   js.configs.recommended,
   {
     rules: {

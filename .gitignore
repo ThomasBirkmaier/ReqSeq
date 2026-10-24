@@ -8,3 +8,4 @@ scripts/spec-export/raw/
 issue-backup-*.json
 trace-*.md
 test-results/
+.claude/worktrees/

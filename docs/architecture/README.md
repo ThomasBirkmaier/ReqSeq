@@ -206,7 +206,6 @@ See [docs/adr](../adr/README.md).
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Performance results are analysis records; thresholds checked nightly. |
 | Spec export still writes the preliminary format | Follow-up: export in the element format with the SR ID as property. |
-| New SRs from the granularity review (SR-084..SR-103) | Map them to catalog commands in a follow-up PR; the catalog structure does not change. File naming (D-056), version flag (D-057), cross-repository relations (D-058) and standard model (D-059) are already reflected. |
 
 ## 11. Glossary
 

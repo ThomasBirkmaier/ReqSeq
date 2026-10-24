@@ -40,7 +40,9 @@ async function gql(query, variables = {}) {
     body: JSON.stringify({ query, variables }),
   });
   const json = await res.json();
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
+  if (json.errors) {
+    throw new Error(JSON.stringify(json.errors));
+  }
   return json.data;
 }
 
@@ -48,7 +50,9 @@ async function rest(path) {
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/${path}`, {
     headers: { authorization: `bearer ${token}`, accept: "application/vnd.github+json" },
   });
-  if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  }
   return res.json();
 }
 
@@ -90,10 +94,11 @@ async function ensureFields(projectId) {
     const f = fields.find((x) => x.name === name);
     if (f) {
       const missing = (options ?? []).filter((o) => !f.options?.some((x) => x.name === o));
-      if (missing.length)
+      if (missing.length) {
         console.log(
           `::warning::field ${name} lacks options ${missing.join(", ")}; add them in the project settings.`,
         );
+      }
       continue;
     }
     await gql(
@@ -112,34 +117,45 @@ async function ensureFields(projectId) {
   return Object.fromEntries(fields.map((f) => [f.name, f]));
 }
 
+function kindOf(issue, has) {
+  if ((issue.body ?? "").includes("<!-- epic:")) {
+    return "Epic";
+  }
+  const kinds = [
+    ["sr", "SR"],
+    ["enabler", "Enabler"],
+    ["bug", "Bug"],
+    ["spec-frage", "Spec question"],
+  ];
+  return kinds.find(([label]) => has(label))?.[1] ?? "Other";
+}
+
+function agentStateOf(issue, has) {
+  if (issue.state === "closed") {
+    return "Done";
+  }
+  if (has("needs-human")) {
+    return "Needs human";
+  }
+  if (has("blocked") || has("spec-frage")) {
+    return "Blocked";
+  }
+  return has("agent:working") ? "Working" : "Ready";
+}
+
 function derive(issue) {
   const labels = issue.labels.map((l) => (typeof l === "string" ? l : l.name));
   const has = (l) => labels.includes(l);
   const stage = has("querschnitt") ? "Querschnitt" : labels.find((l) => l.startsWith("stage:"))?.slice(6);
-  const kind = (issue.body ?? "").includes("<!-- epic:")
-    ? "Epic"
-    : has("sr")
-      ? "SR"
-      : has("enabler")
-        ? "Enabler"
-        : has("bug")
-          ? "Bug"
-          : has("spec-frage")
-            ? "Spec question"
-            : "Other";
-  const state =
-    issue.state === "closed"
-      ? "Done"
-      : has("needs-human")
-        ? "Needs human"
-        : has("blocked") || has("spec-frage")
-          ? "Blocked"
-          : has("agent:working")
-            ? "Working"
-            : "Ready";
   const topic = TOPICS[labels.find((l) => l.startsWith("thema:"))?.slice(6)];
   const sr = issue.title.match(/^SR-\d{3}/)?.[0];
-  return { Stage: stage, Kind: kind, "Agent state": state, Thema: topic, SR: sr };
+  return {
+    Stage: stage,
+    Kind: kindOf(issue, has),
+    "Agent state": agentStateOf(issue, has),
+    Thema: topic,
+    SR: sr,
+  };
 }
 
 async function syncIssue(project, fields, issue) {
@@ -151,7 +167,9 @@ async function syncIssue(project, fields, issue) {
   ).addProjectV2ItemById.item.id;
   for (const [name, value] of Object.entries(derive(issue))) {
     const f = fields[name];
-    if (!f) continue;
+    if (!f) {
+      continue;
+    }
     if (value === undefined) {
       await gql(
         `mutation($p:ID!,$i:ID!,$f:ID!){ clearProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f}){ clientMutationId } }`,
@@ -162,7 +180,9 @@ async function syncIssue(project, fields, issue) {
     const v = f.options
       ? { singleSelectOptionId: f.options.find((o) => o.name === value)?.id }
       : { text: value };
-    if (f.options && !v.singleSelectOptionId) continue;
+    if (f.options && !v.singleSelectOptionId) {
+      continue;
+    }
     await gql(
       `mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
         updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }`,
@@ -175,12 +195,18 @@ const project = await ensureProject();
 const fields = await ensureFields(project.id);
 const one = process.argv[2];
 let issues = [];
-if (one) issues = [await rest(`issues/${one}`)];
-else
+if (one) {
+  issues = [await rest(`issues/${one}`)];
+} else {
   for (let page = 1; ; page++) {
     const batch = await rest(`issues?state=all&per_page=100&page=${page}`);
     issues.push(...batch.filter((i) => !i.pull_request));
-    if (batch.length < 100) break;
+    if (batch.length < 100) {
+      break;
+    }
   }
-for (const issue of issues) await syncIssue(project, fields, issue);
+}
+for (const issue of issues) {
+  await syncIssue(project, fields, issue);
+}
 console.log(`synced ${issues.length} issue(s) into project #${project.number}`);

@@ -133,7 +133,20 @@
       "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. CLI exits 1 on findings.",
       "effect": "read",
       "stage": 1,
-      "implements": ["SR-019", "SR-020", "SR-025", "SR-008", "SR-016", "SR-015"],
+      "implements": [
+        "SR-008",
+        "SR-015",
+        "SR-016",
+        "SR-019",
+        "SR-020",
+        "SR-025",
+        "SR-085",
+        "SR-086",
+        "SR-088",
+        "SR-089",
+        "SR-090",
+        "SR-092"
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -240,7 +253,7 @@
       "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).",
       "effect": "write-files",
       "stage": 1,
-      "implements": ["SR-001", "SR-002", "SR-064", "SR-039", "SR-048"],
+      "implements": ["SR-001", "SR-002", "SR-039", "SR-048", "SR-064", "SR-084", "SR-091", "SR-102"],
       "input": {
         "type": "object",
         "properties": {
@@ -298,7 +311,17 @@
       "summary": "One element with text, properties, relations, version and its date, hints, and which variants replace or exclude it.",
       "effect": "read",
       "stage": 1,
-      "implements": ["SR-005", "SR-006", "SR-016", "SR-046"],
+      "implements": [
+        "SR-005",
+        "SR-006",
+        "SR-016",
+        "SR-046",
+        "SR-084",
+        "SR-085",
+        "SR-086",
+        "SR-088",
+        "SR-091"
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -362,7 +385,7 @@
       "summary": "Elements of a selection, sorted; optionally as derivation tree.",
       "effect": "read",
       "stage": 3,
-      "implements": ["SR-069", "SR-075", "SR-043", "SR-048"],
+      "implements": ["SR-043", "SR-048", "SR-069", "SR-075", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -418,7 +441,17 @@
       "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
       "effect": "write-files",
       "stage": 1,
-      "implements": ["SR-001", "SR-016", "SR-064", "SR-065", "SR-035", "SR-040", "SR-049"],
+      "implements": [
+        "SR-001",
+        "SR-016",
+        "SR-035",
+        "SR-040",
+        "SR-049",
+        "SR-064",
+        "SR-065",
+        "SR-087",
+        "SR-102"
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -493,7 +526,7 @@
       "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).",
       "effect": "write-files",
       "stage": 1,
-      "implements": ["SR-017"],
+      "implements": ["SR-017", "SR-087"],
       "input": {
         "type": "object",
         "properties": {
@@ -535,8 +568,8 @@
       "name": "element.supersede",
       "summary": "Supersede an element: set an invalid status and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
       "effect": "write-files",
-      "stage": 2,
-      "implements": ["SR-072"],
+      "stage": 1,
+      "implements": ["SR-072", "SR-087", "SR-099"],
       "input": {
         "type": "object",
         "properties": {
@@ -583,7 +616,7 @@
       "summary": "Set, add to or remove a property for all elements of a selection. Without `confirm` only previews.",
       "effect": "write-files",
       "stage": 3,
-      "implements": ["SR-071"],
+      "implements": ["SR-071", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -660,7 +693,7 @@
       "summary": "Copy an image next to the element file and return the Markdown to insert; the image counts to the version (SR-065 AK2).",
       "effect": "write-files",
       "stage": 3,
-      "implements": ["SR-065"],
+      "implements": ["SR-065", "SR-097"],
       "input": {
         "type": "object",
         "properties": {
@@ -693,7 +726,7 @@
       "summary": "Relation kinds and target types the metamodel allows for an element (SR-067).",
       "effect": "read",
       "stage": 2,
-      "implements": ["SR-067", "SR-012"],
+      "implements": ["SR-012", "SR-067"],
       "input": {
         "type": "object",
         "properties": {
@@ -742,7 +775,7 @@
       "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
       "effect": "write-files",
       "stage": 2,
-      "implements": ["SR-021", "SR-005", "SR-067", "SR-041"],
+      "implements": ["SR-005", "SR-021", "SR-041", "SR-067"],
       "input": {
         "type": "object",
         "properties": {
@@ -827,7 +860,7 @@
       "summary": "Chain up to the top parents and down to evidence, with depth, gaps and cycles.",
       "effect": "read",
       "stage": 2,
-      "implements": ["SR-022", "SR-033", "SR-006"],
+      "implements": ["SR-006", "SR-022", "SR-033"],
       "input": {
         "type": "object",
         "properties": {
@@ -992,7 +1025,7 @@
       "summary": "Open hints of the workspace, filterable by kind, type, package or variant.",
       "effect": "read",
       "stage": 2,
-      "implements": ["SR-026", "SR-045", "SR-040", "SR-072"],
+      "implements": ["SR-026", "SR-040", "SR-045", "SR-072", "SR-103"],
       "input": {
         "type": "object",
         "properties": {
@@ -1039,7 +1072,7 @@
       "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042).",
       "effect": "write-files",
       "stage": 2,
-      "implements": ["SR-027"],
+      "implements": ["SR-027", "SR-087", "SR-102"],
       "input": {
         "type": "object",
         "properties": {
@@ -1084,7 +1117,7 @@
       "summary": "Full-text search over title, text, properties and IDs, typo tolerant, within a view or filter.",
       "effect": "read",
       "stage": 3,
-      "implements": ["SR-068", "SR-066"],
+      "implements": ["SR-066", "SR-068", "SR-098"],
       "input": {
         "type": "object",
         "properties": {
@@ -1239,7 +1272,7 @@
       "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
       "effect": "read",
       "stage": 4,
-      "implements": ["SR-028", "SR-032", "SR-033"],
+      "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
       "input": {
         "type": "object",
         "properties": {
@@ -1408,7 +1441,7 @@
       "summary": "Verification and validation status of a selection per view, including indirect verification and missing children.",
       "effect": "read",
       "stage": 4,
-      "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047"],
+      "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047", "SR-093"],
       "input": {
         "type": "object",
         "properties": {
@@ -1444,7 +1477,7 @@
       "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
       "effect": "read",
       "stage": 4,
-      "implements": ["SR-036", "SR-042"],
+      "implements": ["SR-036", "SR-042", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -1507,7 +1540,7 @@
       "summary": "Verification degree of a selection: share verified and count per status.",
       "effect": "read",
       "stage": 4,
-      "implements": ["SR-037", "SR-042"],
+      "implements": ["SR-037", "SR-042", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -1549,7 +1582,7 @@
       "summary": "Data of the current state as JSON for external evaluation.",
       "effect": "read",
       "stage": 4,
-      "implements": ["SR-061"],
+      "implements": ["SR-061", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -1608,7 +1641,7 @@
       "summary": "What a variant adds, replaces and excludes compared to the core.",
       "effect": "read",
       "stage": 5,
-      "implements": ["SR-044"],
+      "implements": ["SR-044", "SR-103"],
       "input": {
         "type": "object",
         "properties": {
@@ -1707,7 +1740,7 @@
       "summary": "Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.",
       "effect": "write-files",
       "stage": 5,
-      "implements": ["SR-050"],
+      "implements": ["SR-050", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -1785,7 +1818,7 @@
       "summary": "Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.",
       "effect": "read",
       "stage": 5,
-      "implements": ["SR-051", "SR-032"],
+      "implements": ["SR-032", "SR-051", "SR-094"],
       "input": {
         "type": "object",
         "properties": {
@@ -1942,7 +1975,7 @@
       "summary": "Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.",
       "effect": "write-files",
       "stage": 6,
-      "implements": ["SR-053", "SR-056", "SR-057"],
+      "implements": ["SR-053", "SR-056", "SR-057", "SR-087", "SR-095"],
       "input": {
         "type": "object",
         "properties": {
@@ -2052,7 +2085,7 @@
       "summary": "Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.",
       "effect": "write-files",
       "stage": 6,
-      "implements": ["SR-052", "SR-058", "SR-059"],
+      "implements": ["SR-052", "SR-058", "SR-059", "SR-101"],
       "input": {
         "type": "object",
         "properties": {

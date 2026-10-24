@@ -308,12 +308,18 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 1,
         "x-logreq-implements": [
+          "SR-008",
+          "SR-015",
+          "SR-016",
           "SR-019",
           "SR-020",
           "SR-025",
-          "SR-008",
-          "SR-016",
-          "SR-015"
+          "SR-085",
+          "SR-086",
+          "SR-088",
+          "SR-089",
+          "SR-090",
+          "SR-092"
         ],
         "requestBody": {
           "required": true,
@@ -571,9 +577,12 @@
         "x-logreq-implements": [
           "SR-001",
           "SR-002",
-          "SR-064",
           "SR-039",
-          "SR-048"
+          "SR-048",
+          "SR-064",
+          "SR-084",
+          "SR-091",
+          "SR-102"
         ],
         "requestBody": {
           "required": true,
@@ -706,7 +715,12 @@
           "SR-005",
           "SR-006",
           "SR-016",
-          "SR-046"
+          "SR-046",
+          "SR-084",
+          "SR-085",
+          "SR-086",
+          "SR-088",
+          "SR-091"
         ],
         "requestBody": {
           "required": true,
@@ -914,10 +928,11 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 3,
         "x-logreq-implements": [
+          "SR-043",
+          "SR-048",
           "SR-069",
           "SR-075",
-          "SR-043",
-          "SR-048"
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -1044,11 +1059,13 @@
         "x-logreq-implements": [
           "SR-001",
           "SR-016",
-          "SR-064",
-          "SR-065",
           "SR-035",
           "SR-040",
-          "SR-049"
+          "SR-049",
+          "SR-064",
+          "SR-065",
+          "SR-087",
+          "SR-102"
         ],
         "requestBody": {
           "required": true,
@@ -1202,7 +1219,8 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 1,
         "x-logreq-implements": [
-          "SR-017"
+          "SR-017",
+          "SR-087"
         ],
         "requestBody": {
           "required": true,
@@ -1314,9 +1332,11 @@
           "element"
         ],
         "x-logreq-effect": "write-files",
-        "x-logreq-stage": 2,
+        "x-logreq-stage": 1,
         "x-logreq-implements": [
-          "SR-072"
+          "SR-072",
+          "SR-087",
+          "SR-099"
         ],
         "requestBody": {
           "required": true,
@@ -1434,7 +1454,8 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 3,
         "x-logreq-implements": [
-          "SR-071"
+          "SR-071",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -1595,7 +1616,8 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 3,
         "x-logreq-implements": [
-          "SR-065"
+          "SR-065",
+          "SR-097"
         ],
         "requestBody": {
           "required": true,
@@ -1700,8 +1722,8 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 2,
         "x-logreq-implements": [
-          "SR-067",
-          "SR-012"
+          "SR-012",
+          "SR-067"
         ],
         "requestBody": {
           "required": true,
@@ -1823,10 +1845,10 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 2,
         "x-logreq-implements": [
-          "SR-021",
           "SR-005",
-          "SR-067",
-          "SR-041"
+          "SR-021",
+          "SR-041",
+          "SR-067"
         ],
         "requestBody": {
           "required": true,
@@ -2055,9 +2077,9 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 2,
         "x-logreq-implements": [
+          "SR-006",
           "SR-022",
-          "SR-033",
-          "SR-006"
+          "SR-033"
         ],
         "requestBody": {
           "required": true,
@@ -2448,9 +2470,10 @@
         "x-logreq-stage": 2,
         "x-logreq-implements": [
           "SR-026",
-          "SR-045",
           "SR-040",
-          "SR-072"
+          "SR-045",
+          "SR-072",
+          "SR-103"
         ],
         "requestBody": {
           "required": true,
@@ -2565,7 +2588,9 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 2,
         "x-logreq-implements": [
-          "SR-027"
+          "SR-027",
+          "SR-087",
+          "SR-102"
         ],
         "requestBody": {
           "required": true,
@@ -2681,8 +2706,9 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 3,
         "x-logreq-implements": [
+          "SR-066",
           "SR-068",
-          "SR-066"
+          "SR-098"
         ],
         "requestBody": {
           "required": true,
@@ -3056,7 +3082,8 @@
         "x-logreq-implements": [
           "SR-028",
           "SR-032",
-          "SR-033"
+          "SR-033",
+          "SR-093"
         ],
         "requestBody": {
           "required": true,
@@ -3458,7 +3485,8 @@
           "SR-034",
           "SR-035",
           "SR-038",
-          "SR-047"
+          "SR-047",
+          "SR-093"
         ],
         "requestBody": {
           "required": true,
@@ -3564,7 +3592,8 @@
         "x-logreq-stage": 4,
         "x-logreq-implements": [
           "SR-036",
-          "SR-042"
+          "SR-042",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -3701,7 +3730,8 @@
         "x-logreq-stage": 4,
         "x-logreq-implements": [
           "SR-037",
-          "SR-042"
+          "SR-042",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -3812,7 +3842,8 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 4,
         "x-logreq-implements": [
-          "SR-061"
+          "SR-061",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -4007,7 +4038,8 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 5,
         "x-logreq-implements": [
-          "SR-044"
+          "SR-044",
+          "SR-103"
         ],
         "requestBody": {
           "required": true,
@@ -4252,7 +4284,8 @@
         "x-logreq-effect": "write-files",
         "x-logreq-stage": 5,
         "x-logreq-implements": [
-          "SR-050"
+          "SR-050",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
@@ -4473,8 +4506,9 @@
         "x-logreq-effect": "read",
         "x-logreq-stage": 5,
         "x-logreq-implements": [
+          "SR-032",
           "SR-051",
-          "SR-032"
+          "SR-094"
         ],
         "requestBody": {
           "required": true,
@@ -4864,7 +4898,9 @@
         "x-logreq-implements": [
           "SR-053",
           "SR-056",
-          "SR-057"
+          "SR-057",
+          "SR-087",
+          "SR-095"
         ],
         "requestBody": {
           "required": true,
@@ -5126,7 +5162,8 @@
         "x-logreq-implements": [
           "SR-052",
           "SR-058",
-          "SR-059"
+          "SR-059",
+          "SR-101"
         ],
         "requestBody": {
           "required": true,
