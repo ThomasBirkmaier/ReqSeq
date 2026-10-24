@@ -28,6 +28,8 @@ export type {
   RepositoryFile,
   WrittenFile,
 } from "./store.js";
+export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";
+export type { RequiredFinding } from "./required.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";
 export {

@@ -15,6 +15,7 @@ import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
 import { locateFindings } from "./locate.js";
 import { isRelationTarget } from "./relations.js";
+import { isEmptyValue } from "./required.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
@@ -164,7 +165,10 @@ const finding = (element: ElementRecord, path: ValuePath, message: string): Valu
   },
 });
 
-/** The findings of one key. An empty value (`key:` without value) is no wrong kind (SR-064). */
+/**
+ * The findings of one key. An empty value (`key:` without value, a blank string, an empty list) is
+ * no wrong kind: a required property gives `element.missing-required` for it (`required.ts`).
+ */
 const keyFindings = (
   element: ElementRecord,
   key: string,
@@ -172,7 +176,7 @@ const keyFindings = (
   value: unknown,
   out: ValueFinding[],
 ): void => {
-  if (value === null) {
+  if (isEmptyValue(value)) {
     return;
   }
   const { label, expected } = definition;

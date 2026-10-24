@@ -296,7 +296,7 @@ describe("element.create", () => {
     const out = await create(opened, {
       type: "system-requirement",
       title: "Wrong",
-      properties: { "requirement-type": "sometimes" },
+      properties: { "requirement-type": "sometimes", "acceptance-criteria": ["Shows it"] },
     });
     expect(out.problems).toEqual([
       expect.objectContaining({

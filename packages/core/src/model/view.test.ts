@@ -155,7 +155,7 @@ describe("elementView", () => {
     const file = parsedFile(`---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\n---\n`);
     const record: ElementRecord = {
       ...recordOf(file),
-      data: { ...recordOf(file).data, "requirement-type": "odd" },
+      data: { ...recordOf(file).data, "requirement-type": "odd", "acceptance-criteria": ["Shows it"] },
     };
     const view = elementView({
       record,

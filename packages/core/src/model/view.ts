@@ -13,6 +13,7 @@ import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
 import { resolveTarget } from "./relations.js";
+import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { unknownFindings } from "./unknown.js";
@@ -118,8 +119,8 @@ export interface ElementViewInput {
  * The element with its text, its version (ADR-0005; embedded images are not counted yet, #131),
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
  * keys included), its own relations and the hints with their lines: unknown type and properties
- * (SR-016), then values of the wrong kind (SR-085). Relations
- * pointing at it and the version date are left out.
+ * (SR-016), required properties without a value (SR-015, SR-064), then values of the wrong kind
+ * (SR-085). Relations pointing at it and the version date are left out.
  */
 export const elementView = (
   input: ElementViewInput,
@@ -133,6 +134,7 @@ export const elementView = (
   );
   const findings: readonly LocatableFinding[] = [
     ...unknownFindings(record, metamodel),
+    ...requiredFindings(record, metamodel),
     ...valueFindings(record, metamodel),
   ];
   const problems: Problem[] = findings.map((f) => {
