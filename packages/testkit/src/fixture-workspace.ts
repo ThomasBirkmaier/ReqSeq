@@ -141,3 +141,24 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
   }
   return workspace;
 }
+
+/**
+ * Clone a Git repository of a fixture (default its root) into a new temporary workspace: a separate
+ * working copy of the same repository, as one more person or agent would have it (SR-081). The clone
+ * gets its own empty global Git config (`GIT_CONFIG_GLOBAL`), like every fixture workspace, so its
+ * `git` and `commit` work as in any fixture workspace.
+ */
+export async function cloneFixtureWorkspace(
+  origin: FixtureWorkspace,
+  repository = ".",
+  options: Pick<FixtureOptions, "tempDir"> = {},
+): Promise<FixtureWorkspace> {
+  const clone = await createFixtureWorkspace(options);
+  try {
+    await clone.git(["clone", "--quiet", "--no-hardlinks", origin.path(repository), "."]);
+  } catch (error) {
+    await clone.cleanup();
+    throw error;
+  }
+  return clone;
+}

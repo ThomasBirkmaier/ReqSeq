@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FixtureOptions, FixtureWorkspace } from "./index.js";
-import { createFixtureWorkspace, defaultFixturesDir } from "./index.js";
+import { cloneFixtureWorkspace, createFixtureWorkspace, defaultFixturesDir } from "./index.js";
 
 const created: FixtureWorkspace[] = [];
 const make = async (options?: FixtureOptions): Promise<FixtureWorkspace> => {
@@ -147,5 +147,52 @@ describe("createFixtureWorkspace", () => {
     await ws.cleanup();
     expect(fs.existsSync(ws.root)).toBe(false);
     expect(fs.existsSync(path.dirname(ws.root))).toBe(false);
+  });
+});
+
+describe("cloneFixtureWorkspace", () => {
+  const clone = async (...args: Parameters<typeof cloneFixtureWorkspace>): Promise<FixtureWorkspace> => {
+    const ws = await cloneFixtureWorkspace(...args);
+    created.push(ws);
+    return ws;
+  };
+
+  it("clones the root repository into a separate working copy with the same commit", async () => {
+    const origin = await make({ files: { "a.md": "a" }, git: true });
+    const copy = await clone(origin);
+    expect(copy.root).not.toBe(origin.root);
+    expect(fs.realpathSync.native(copy.root)).toBe(copy.root);
+    expect(read(copy.path("a.md"))).toBe("a");
+    expect(await copy.head()).toBe(await origin.head());
+    expect(await copy.git(["status", "--porcelain"])).toBe("");
+    // A change in the copy stays there until someone merges it.
+    await copy.write("b.md", "b");
+    expect(await copy.commit()).toMatch(COMMIT);
+    expect(fs.existsSync(origin.path("b.md"))).toBe(false);
+  });
+
+  it("clones another repository of the fixture, into a given parent folder", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-parent-"));
+    try {
+      const origin = await make({ files: { "product/p.md": "p" }, git: ["product"] });
+      const copy = await clone(origin, "product", { tempDir });
+      expect(read(copy.path("p.md"))).toBe("p");
+      expect(copy.root.startsWith(fs.realpathSync.native(tempDir))).toBe(true);
+    } finally {
+      await Promise.all(created.splice(0).map((ws) => ws.cleanup()));
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("removes the temporary folder when the clone fails", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-parent-"));
+    try {
+      // No Git repository to clone.
+      const origin = await make({ files: { "a.md": "a" } });
+      await expect(cloneFixtureWorkspace(origin, ".", { tempDir })).rejects.toThrow(/git/);
+      expect(fs.readdirSync(tempDir)).toEqual([]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

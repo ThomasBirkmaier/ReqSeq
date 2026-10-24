@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { FixtureWorkspace } from "@logreq/testkit";
+import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   cacheFolder,
@@ -79,6 +81,102 @@ describe("cacheFolder", () => {
 
   it("defaults to the environment of this process and resolves the root", () => {
     expect(cacheFolder(".")).toBe(cacheFolder(process.cwd()));
+  });
+});
+
+/**
+ * Where two working copies could share a cache folder by mistake, or one copy could get two (SR-081 AK2).
+ * These tests run on every OS and check what its file system does: case and Unicode normalisation are
+ * ignored by NTFS and APFS (as formatted by default), not by ext4.
+ */
+describe("cache folders of separate working copies (SR-081)", () => {
+  const made: FixtureWorkspace[] = [];
+  afterEach(async () => {
+    await Promise.all(made.splice(0).map((ws) => ws.cleanup()));
+  });
+  const make = async <T extends FixtureWorkspace>(ws: Promise<T>): Promise<T> => {
+    made.push(await ws);
+    return ws;
+  };
+
+  /** Whether two paths name one existing folder (same device and inode, or file index on Windows). */
+  const sameFolder = async (a: string, b: string): Promise<boolean> => {
+    try {
+      const [one, two] = await Promise.all([fs.stat(a, { bigint: true }), fs.stat(b, { bigint: true })]);
+      return one.dev === two.dev && one.ino === two.ino;
+    } catch {
+      return false;
+    }
+  };
+
+  it("[SR-081/AK2] gives two clones of one repository their own cache folders, outside both copies", async () => {
+    const origin = await make(createFixtureWorkspace({ files: { "a.md": "a" }, git: true }));
+    const one = await make(cloneFixtureWorkspace(origin));
+    const two = await make(cloneFixtureWorkspace(origin));
+    expect(cacheFolder(one.root)).not.toBe(cacheFolder(two.root));
+    for (const copy of [one, two]) {
+      for (const folder of [cacheFolder(one.root), cacheFolder(two.root)]) {
+        // Outside: a relative path that leaves the copy, or an absolute one (another drive on Windows).
+        const relative = path.relative(copy.root, folder);
+        expect(relative.startsWith("..") || path.isAbsolute(relative)).toBe(true);
+      }
+    }
+  });
+
+  it("[SR-081/AK2] follows a copy that was moved, and gives a new copy at the old path the old path's folder", async () => {
+    const origin = await make(createFixtureWorkspace({ files: { "a.md": "a" }, git: true }));
+    const copy = await make(cloneFixtureWorkspace(origin));
+    const before = cacheFolder(copy.root);
+    // Next to the root, inside the fixture's temporary folder: cleanup removes it.
+    const moved = `${copy.root}-moved`;
+    await fs.rename(copy.root, moved);
+    // The cache belongs to the path: the moved copy gets a new folder, and a new copy at the old path
+    // takes over the old one (ADR-0008). So every cache content is checked against the files.
+    expect(cacheFolder(moved)).not.toBe(before);
+    await fs.mkdir(copy.root);
+    await copy.git(["clone", "--quiet", origin.root, "."]);
+    expect(cacheFolder(copy.root)).toBe(before);
+  });
+
+  it("[SR-081/AK2] gives a copy named in another case one cache folder where the file system ignores case", async () => {
+    const ws = await make(createFixtureWorkspace({ files: { "Working-Copy/a.md": "a" } }));
+    const real = ws.path("Working-Copy");
+    const other = ws.path("wORKING-cOPY");
+    // The file system decides; on CI (NTFS, APFS as formatted by default, ext4) the platform is known,
+    // so CI proves that the branch for one folder runs on Windows and macOS.
+    const same = await sameFolder(real, other);
+    if (process.env["CI"] !== undefined) {
+      expect(same).toBe(process.platform === "win32" || process.platform === "darwin");
+    }
+    if (same) {
+      expect(canonicalRoot(other)).toBe(canonicalRoot(real));
+      expect(cacheFolder(other)).toBe(cacheFolder(real));
+    } else {
+      // Two names, two folders (or none): never one cache folder.
+      expect(cacheFolder(other)).not.toBe(cacheFolder(real));
+    }
+  });
+
+  it("[SR-081/AK2] gives a copy named in another Unicode normal form one cache folder where the file system ignores it", async () => {
+    const nfc = `Kopie-${String.fromCodePoint(0xe9)}`;
+    const nfd = `Kopie-e${String.fromCodePoint(0x301)}`;
+    expect(nfc).not.toBe(nfd);
+    expect(nfc.normalize("NFD")).toBe(nfd);
+    const ws = await make(createFixtureWorkspace({ files: { [`${nfc}/a.md`]: "a" } }));
+    const real = ws.path(nfc);
+    const other = ws.path(nfd);
+    // APFS ignores the normal form of names; NTFS and ext4 keep NFC and NFD apart. The file system
+    // decides; CI, where the platform's file system is known, also checks that.
+    const same = await sameFolder(real, other);
+    if (process.env["CI"] !== undefined) {
+      expect(same).toBe(process.platform === "darwin");
+    }
+    if (same) {
+      expect(canonicalRoot(other)).toBe(canonicalRoot(real));
+      expect(cacheFolder(other)).toBe(cacheFolder(real));
+    } else {
+      expect(cacheFolder(other)).not.toBe(cacheFolder(real));
+    }
   });
 });
 
