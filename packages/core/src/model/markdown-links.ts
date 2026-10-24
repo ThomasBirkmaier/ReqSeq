@@ -3,9 +3,23 @@
 // version (ADR-0005, #178) use. Pure; no file access.
 //
 // Handled: inline links `[label](destination "title")` and images `![alt](destination)` on one
-// line, labels with nested and escaped brackets, destinations in `<…>`, backslash escapes. Not
-// links: anything in fenced code blocks (also inside block quotes), indented code blocks, and code
-// spans on one line. Not handled: reference-style links, links that span lines, HTML.
+// line, labels with nested and escaped brackets, destinations in `<…>`, backslash escapes. A line
+// is read from left to right with a stack of open brackets, as CommonMark does: a code span binds
+// more tightly than the brackets around it (`` [a `]` b](x) `` is a link), while a destination is
+// read as written, also with backticks. Links do not nest: a link in the label of another one is
+// the link, the outer one is not (`[a [b](x) c](y)` has the link `x`); an image in a link label is
+// found as well, before the link; links and images in the alt text of an image are not. Not
+// links: anything in fenced code blocks (also inside block quotes), indented code blocks (also an
+// indented line right after an ATX heading, a setext heading or a thematic break), and code spans
+// on one line.
+//
+// Cost: one pass per line without recursion, so nesting depth costs no stack. Brackets cost linear
+// time, destinations about linear time (parentheses nest at most 32 deep in a destination, a `<…>`
+// destination ends at the next `<`), code spans at most O(n·√n).
+//
+// Not handled: reference-style links, links that span lines, HTML. Known limitation: list
+// indentation is not tracked, so a fence indented by 4 or more spaces in a nested list item is not
+// recognised and links in it are found.
 
 /** One inline link or image. */
 export interface MarkdownLink {
@@ -23,25 +37,40 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const BLOCK_QUOTE = /^(?: {0,3}> ?)*/;
 const LIST_ITEM = /^ {0,3}(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
 const INDENTED = /^(?: {4}|\t)/;
+const HEADING = /^ {0,3}#{1,6}(?:[ \t]|$)/;
+const SETEXT_UNDERLINE = /^ {0,3}(?:=+|-+)[ \t]*$/;
+const THEMATIC_BREAK = /^ {0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
 
-/** The offset after the bracket that closes the label opened at `open`, or -1. */
-const labelEnd = (line: string, open: number): number => {
-  let depth = 0;
-  for (let i = open; i < line.length; i++) {
-    const c = line[i];
-    if (c === "\\") {
-      i++;
-    } else if (c === "[") {
-      depth++;
-    } else if (c === "]") {
-      depth--;
-      if (depth === 0) {
-        return i + 1;
-      }
-    }
+/**
+ * The offset after the code span whose backtick run starts at `start`; after the run alone when no
+ * run of the same length closes it (the backticks are then literal). Runs that stay unclosed have
+ * different lengths, so a line costs at most O(n·√n) here.
+ */
+const codeSpanEnd = (line: string, start: number): number => {
+  let length = 1;
+  while (line[start + length] === "`") {
+    length++;
   }
-  return -1;
+  const close = new RegExp(`(?<!\`)${"`".repeat(length)}(?!\`)`, "g");
+  close.lastIndex = start + length;
+  const found = close.exec(line);
+  return found === null ? start + length : found.index + length;
 };
+
+/** One line of inline content, with what makes hopeless destinations cheap to refuse. */
+interface Line {
+  readonly text: string;
+  /** The last `)`, or -1: a destination needs one after its `(`. */
+  readonly lastParen: number;
+}
+
+/**
+ * How deeply parentheses may nest in a destination (CommonMark lets implementations limit it, as
+ * commonmark.js does with 32). Each `(` that starts a destination counts for the destinations
+ * before it, so with the limit a failing destination is read past at most this many others, and a
+ * line costs about linear time.
+ */
+const MAX_PARENTHESES = 32;
 
 interface Destination {
   readonly start: number;
@@ -50,82 +79,144 @@ interface Destination {
   readonly after: number;
 }
 
-/** The destination of a link whose `(` is at `open`, or undefined when there is no valid one. */
-const destinationAt = (line: string, open: number): Destination | undefined => {
-  let i = open + 1;
-  while (line[i] === " " || line[i] === "\t") {
-    i++;
-  }
-  let start: number;
-  let end: number;
-  if (line[i] === "<") {
-    start = i + 1;
-    const close = line.indexOf(">", start);
-    if (close < 0) {
-      return undefined;
-    }
-    end = close;
-    i = close + 1;
-  } else {
-    start = i;
-    let depth = 0;
-    for (; i < line.length; i++) {
-      const c = line.charAt(i);
-      if (c === "\\") {
-        i++;
-      } else if (c === "(") {
-        depth++;
-      } else if (c === ")") {
-        if (depth === 0) {
-          break;
-        }
-        depth--;
-      } else if (c === " " || c === "\t") {
-        break;
-      }
-    }
-    end = Math.min(i, line.length);
-  }
-  // An optional title in quotes, then `)`.
-  const rest = /^(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?[ \t]*\)/.exec(line.slice(i));
-  return rest === null ? undefined : { start, end, after: i + rest[0].length };
-};
+/** An optional title in quotes, then `)`. */
+const TITLE_AND_CLOSE = /(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?[ \t]*\)/y;
 
-/** The links and images of one line of inline content; `offset` is where the line starts. */
-const lineLinks = (line: string, offset: number): MarkdownLink[] => {
-  const links: MarkdownLink[] = [];
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
+/**
+ * The offset of the `>` that ends a `<…>` destination whose text starts at `start`, or -1: an
+ * unescaped `<` before it means there is none (CommonMark).
+ */
+const angleEnd = (text: string, start: number): number => {
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
     if (c === "\\") {
       i++;
-      continue;
+    } else if (c === ">") {
+      return i;
+    } else if (c === "<") {
+      return -1;
     }
-    if (c === "`") {
-      let length = 1;
-      while (line[i + length] === "`") {
-        length++;
+  }
+  return -1;
+};
+
+/**
+ * The end of a destination without `<…>` that starts at `start`: the first space or tab, or `)`
+ * outside parentheses, or the end of the line; -1 when parentheses nest too deeply.
+ */
+const plainEnd = (text: string, start: number): number => {
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\\") {
+      i++;
+    } else if (c === "(") {
+      depth++;
+      if (depth > MAX_PARENTHESES) {
+        return -1;
       }
-      const run = "`".repeat(length);
-      const close = new RegExp(`(?<!\`)${run}(?!\`)`).exec(line.slice(i + run.length));
-      i += run.length - 1 + (close === null ? 0 : close.index + run.length);
-      continue;
+    } else if (c === ")") {
+      if (depth === 0) {
+        return i;
+      }
+      depth--;
+    } else if (c === " " || c === "\t") {
+      return i;
     }
-    if (c !== "[") {
-      continue;
+  }
+  return text.length;
+};
+
+/** The destination of a link whose `(` is at `open`, or undefined when there is no valid one. */
+const destinationAt = (line: Line, open: number): Destination | undefined => {
+  const { text } = line;
+  if (open >= line.lastParen) {
+    return undefined;
+  }
+  let i = open + 1;
+  while (text[i] === " " || text[i] === "\t") {
+    i++;
+  }
+  const angle = text[i] === "<";
+  const start = angle ? i + 1 : i;
+  const end = angle ? angleEnd(text, start) : plainEnd(text, start);
+  if (end < 0) {
+    return undefined;
+  }
+  TITLE_AND_CLOSE.lastIndex = angle ? end + 1 : end;
+  const rest = TITLE_AND_CLOSE.exec(text);
+  return rest === null ? undefined : { start, end, after: rest.index + rest[0].length };
+};
+
+/** The destination after the `]` at `at` that closes `opener`, or undefined when it closes no link or image. */
+const destinationAfter = (
+  line: Line,
+  opener: Opener | undefined,
+  at: number,
+  inactiveBelow: number,
+): Destination | undefined =>
+  opener === undefined || (!opener.image && opener.at < inactiveBelow) || line.text[at + 1] !== "("
+    ? undefined
+    : destinationAt(line, at + 1);
+
+/** An open `[` (or `![`) that no `]` has closed yet. */
+interface Opener {
+  readonly at: number;
+  readonly image: boolean;
+}
+
+/**
+ * The links and images of one line of inline content; `offset` is where the line starts in the
+ * text. One pass from left to right with a stack of open brackets, as CommonMark does: a `]` closes
+ * the nearest open bracket, and when a destination follows it, that is a link or image. A link makes
+ * the open link brackets before it text (links do not nest); an image drops what was found in its
+ * alt text. No recursion, so nesting depth costs neither time nor stack.
+ */
+const lineLinks = (text: string, offset: number): MarkdownLink[] => {
+  const line: Line = { text, lastParen: text.lastIndexOf(")") };
+  const links: MarkdownLink[] = [];
+  /** Where each link of `links` opens. */
+  const opens: number[] = [];
+  const openers: Opener[] = [];
+  /** Open link brackets before this offset are text: a link follows them. */
+  let inactiveBelow = -1;
+  /** The last `!` that is not escaped (-2: none, so no `[` follows it). */
+  let bang = -2;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\\") {
+      i++;
+    } else if (c === "`") {
+      i = codeSpanEnd(text, i) - 1;
+    } else if (c === "!") {
+      bang = i;
+    } else if (c === "[") {
+      openers.push({ at: i, image: bang === i - 1 });
+    } else if (c === "]") {
+      const opener = openers.pop();
+      const destination = destinationAfter(line, opener, i, inactiveBelow);
+      if (opener === undefined || destination === undefined) {
+        continue;
+      }
+      if (opener.image) {
+        // What was found since the image opened is in its alt text.
+        while ((opens.at(-1) ?? -1) > opener.at) {
+          opens.pop();
+          links.pop();
+        }
+      } else {
+        inactiveBelow = opener.at;
+      }
+      links.push({
+        image: opener.image,
+        label: text.slice(opener.at + 1, i),
+        destination: text.slice(destination.start, destination.end),
+        start: offset + destination.start,
+        end: offset + destination.end,
+      });
+      opens.push(opener.at);
+      i = destination.after - 1;
     }
-    const close = labelEnd(line, i);
-    const destination = close < 0 || line[close] !== "(" ? undefined : destinationAt(line, close);
-    if (destination === undefined) {
-      continue;
-    }
-    links.push({
-      image: i > 0 && line[i - 1] === "!" && (i < 2 || line[i - 2] !== "\\"),
-      label: line.slice(i + 1, close - 1),
-      destination: line.slice(destination.start, destination.end),
-      start: offset + destination.start,
-      end: offset + destination.end,
-    });
-    i = destination.after - 1;
   }
   return links;
 };
@@ -139,6 +230,26 @@ interface Blocks {
   /** Inside a list: indented lines are list content, not code. */
   list: boolean;
 }
+
+/** Whether an unindented line is the underline of a setext heading or a thematic break: no text. */
+const isRule = (content: string, paragraph: boolean): boolean =>
+  (paragraph && SETEXT_UNDERLINE.test(content)) || THEMATIC_BREAK.test(content);
+
+/**
+ * Whether a line that is neither blank nor a fence holds no inline text: a line of an indented code
+ * block, the underline of a setext heading or a thematic break. Updates `blocks`.
+ */
+const isNoText = (content: string, indented: boolean, blocks: Blocks): boolean => {
+  if (indented) {
+    return !blocks.paragraph && !blocks.list;
+  }
+  if (isRule(content, blocks.paragraph)) {
+    // No paragraph goes on after it.
+    blocks.paragraph = false;
+    return true;
+  }
+  return false;
+};
 
 /** Whether `content` (a line without its block quote markers) is inline text; updates `blocks`. */
 const isInline = (content: string, blocks: Blocks): boolean => {
@@ -157,8 +268,7 @@ const isInline = (content: string, blocks: Blocks): boolean => {
     return false;
   }
   const indented = INDENTED.test(content);
-  if (indented && !blocks.paragraph && !blocks.list) {
-    // An indented code block.
+  if (isNoText(content, indented, blocks)) {
     return false;
   }
   if (LIST_ITEM.test(content)) {
@@ -166,7 +276,8 @@ const isInline = (content: string, blocks: Blocks): boolean => {
   } else if (!indented && !blocks.paragraph) {
     blocks.list = false;
   }
-  blocks.paragraph = true;
+  // A heading is a block of its own: an indented line after it starts an indented code block.
+  blocks.paragraph = !HEADING.test(content);
   return true;
 };
 

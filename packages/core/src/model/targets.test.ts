@@ -206,9 +206,17 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(await setRelationTargets(ctx, "system", { id: NEED.id }, stored)).toBe(stored);
     expect(await setRelationTargets(ctx, "system", { id: NEED.id, version: OTHER }, [stored])).toBe(stored);
     expect(await setRelationTargets(ctx, "system", ["text"], [stored, "x"])).toEqual(["text"]);
-    // A malformed stored entry with the UUID is kept as it is; the value-kind check reports it.
+    // A stored entry without a valid version gets the current one; a valid entry of the target wins.
+    const current = { id: NEED.id, version: versionOf(NEED), title: NEED.title };
     const malformed = { id: NEED.id, version: "old" };
-    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, malformed)).toBe(malformed);
+    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, malformed)).toEqual(current);
+    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, [{ id: NEED.id }])).toEqual(current);
+    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, [malformed, stored])).toBe(stored);
+    // A stored entry with a valid version stays as it is, also with keys the format does not allow.
+    const extra = { id: NEED.id, version: STORED_NEED, title: NEED.title, note: "x" };
+    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, extra)).toBe(extra);
+    const both = { id: NEED.id, version: STORED_NEED, title: NEED.title, repository: "system" };
+    expect(await setRelationTargets(ctx, "system", { id: NEED.id }, both)).toBe(both);
     // The same UUID, but stored for another repository: a new target.
     expect(
       await setRelationTargets(
@@ -218,6 +226,51 @@ describe("relation targets with ID and version (SR-021)", () => {
         { id: NEED.id, version: STORED_NEED },
       ),
     ).toEqual({ id: NEED.id, version: versionOf(NEED), repository: "system" });
+  });
+
+  it("[SR-021/AK1] keeps a stored entry without valid version whose target cannot be found, and passes other errors on", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    const malformed = { id: UNKNOWN, version: "old" };
+    expect(await setRelationTargets(ctx, "system", { id: UNKNOWN }, malformed)).toBe(malformed);
+    expect(await setRelationTargets(ctx, "system", [{ id: UNKNOWN }], [{ id: UNKNOWN }])).toEqual([
+      { id: UNKNOWN },
+    ]);
+    const broken = { ...ctx, layout: { ...ctx.layout, repositories: [] } };
+    const error = await setRelationTargets(broken, "system", { id: NEED.id }, { id: NEED.id }).catch(
+      (e: unknown) => e,
+    );
+    expect((error as CommandError).code).toBe("internal");
+  });
+
+  it("[SR-021/AK1] writes a target given twice in one list once, items that are no targets as given", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    const pkg = { id: PKG.id, version: versionOf(PKG), title: PKG.title };
+    expect(
+      await setRelationTargets(
+        ctx,
+        "system",
+        [{ id: PKG.id }, { id: PKG.id }, { id: PKG.id, repository: "system" }],
+        [],
+      ),
+    ).toEqual([pkg]);
+    expect(await setRelationTargets(ctx, "system", ["x", "x"], [])).toEqual(["x", "x"]);
+    const stored = { id: NEED.id, version: STORED_NEED, title: NEED.title };
+    expect(
+      await setRelationTargets(ctx, "system", [{ id: NEED.id }, { id: NEED.id, version: OTHER }], [stored]),
+    ).toEqual([stored]);
+    expect(
+      await setRelationTargets(
+        ctx,
+        "sensor",
+        [
+          { id: NEED.id, repository: "system" },
+          { id: NEED.id, repository: "system" },
+        ],
+        [],
+      ),
+    ).toEqual([{ id: NEED.id, version: versionOf(NEED), repository: "system" }]);
   });
 
   it("[SR-021/AK1] stores the version of a target changed by another editor, as the watcher reports it", async () => {
@@ -449,6 +502,15 @@ describe("relation targets with ID and version (SR-021)", () => {
     }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(CommandError);
     expect((error as CommandError).code).toBe("internal");
+  });
+
+  it("sets the version of a reference with an empty query without an empty parameter", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    const v = versionOf(NEED);
+    expect(
+      await setInlineReferences(ctx, `[a](logreq:${NEED.id}?) [b](logreq:${NEED.id}?x=1&&version=old&)`, ""),
+    ).toBe(`[a](logreq:${NEED.id}?version=${v}) [b](logreq:${NEED.id}?x=1&version=${v})`);
   });
 
   it("gives every reference to the same target the same version", async () => {

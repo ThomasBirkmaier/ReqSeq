@@ -9,6 +9,7 @@ import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
 import type { ElementInputValue, ElementValue, RelationTarget } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
+import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveId } from "./duplicates.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
@@ -126,16 +127,29 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 const isTargetInput = (value: unknown): value is { readonly id: string; readonly repository?: string } =>
   isRecord(value) && typeof value["id"] === "string";
 
-/** The repository a stored or given target names, the source's own when it names none. */
-const repositoryOf = (item: Readonly<Record<string, unknown>>, sourceRepository: string): unknown =>
-  item["repository"] ?? sourceRepository;
+/** The target a stored or given item names: its UUID and repository, the source's own when it names none. */
+const targetKey = (
+  item: { readonly id: string; readonly repository?: unknown },
+  sourceRepository: string,
+): string => JSON.stringify([item.id, item.repository ?? sourceRepository]);
+
+const isVersion = (value: unknown): boolean =>
+  fileSchemaValidator("common.schema.json#/$defs/version")(value);
+
+/** Whether a stored entry has a valid version; then it is kept unchanged, whatever else it holds. */
+const hasVersion = (item: Readonly<Record<string, unknown>>): boolean => isVersion(item["version"]);
+
+const isLookupError = (error: unknown): boolean =>
+  error instanceof CommandError && (error.code === "ref.unknown" || error.code === "ref.ambiguous");
 
 /**
  * The value of a relation-valued property as it is stored (SR-021 AK1). A target is the pair of
- * UUID and repository: one the property already stores in `stored` keeps its stored entry
- * unchanged, whatever version the caller sends (also a malformed one; the value-kind check reports
- * it). Every other target gets its current version (`currentTarget`). Items that are no target are
- * kept; the value-kind check reports them (SR-085).
+ * UUID and repository, and a list names each target once (the first time it is given). A target
+ * the property already stores in `stored` with a valid version keeps its stored entry unchanged
+ * (also other keys in it; the value-kind check reports them), whatever version the caller sends. Every other target gets its current version
+ * (`currentTarget`); a stored entry without a valid version whose target cannot be found
+ * (`ref.unknown`, `ref.ambiguous`) is kept as it is, so it never blocks other changes. Items that
+ * are no target are kept; the value-kind check reports them (SR-085).
  */
 export const setRelationTargets = async (
   context: TargetContext,
@@ -148,15 +162,36 @@ export const setRelationTargets = async (
     if (!isTargetInput(item)) {
       return item;
     }
-    const kept = storedItems.find(
-      (s) => s.id === item.id && repositoryOf(s, sourceRepository) === repositoryOf(item, sourceRepository),
-    );
-    return kept ?? currentTarget(context, sourceRepository, item);
+    const key = targetKey(item, sourceRepository);
+    const same = storedItems.filter((s) => targetKey(s, sourceRepository) === key);
+    const kept = same.find(hasVersion);
+    if (kept !== undefined) {
+      return kept;
+    }
+    try {
+      return await currentTarget(context, sourceRepository, item);
+    } catch (error) {
+      const [unversioned] = same;
+      if (unversioned !== undefined && isLookupError(error)) {
+        return unversioned;
+      }
+      throw error;
+    }
   };
-  if (Array.isArray(value)) {
-    return (await Promise.all(value.map(set))) as ElementValue;
+  if (!Array.isArray(value)) {
+    return (await set(value)) as ElementValue;
   }
-  return (await set(value)) as ElementValue;
+  const given = new Set<string>();
+  const once = (value as unknown[]).filter((item) => {
+    if (!isTargetInput(item)) {
+      return true;
+    }
+    const key = targetKey(item, sourceRepository);
+    const first = !given.has(key);
+    given.add(key);
+    return first;
+  });
+  return (await Promise.all(once.map(set))) as ElementValue;
 };
 
 /** An inline reference `[label](logreq:<uuid>?version=<version>)` in a text (ADR-0004). */
@@ -173,10 +208,15 @@ export interface InlineReference {
 
 const SCHEME = "logreq:";
 
-/** The query parameters of a destination, in order, as written. */
+/** The query parameters of a destination, in order, as written; empty ones (`?`, `&&`) are none. */
 const queryOf = (destination: string): string[] => {
   const query = destination.indexOf("?");
-  return query < 0 ? [] : destination.slice(query + 1).split("&");
+  return query < 0
+    ? []
+    : destination
+        .slice(query + 1)
+        .split("&")
+        .filter((p) => p !== "");
 };
 
 /**
@@ -208,9 +248,6 @@ const withVersion = (reference: InlineReference, version: string): string => {
   const next = at < 0 ? [...params, `version=${version}`] : params.with(at, `version=${version}`);
   return `${SCHEME}${reference.id}?${next.join("&")}`;
 };
-
-const isLookupError = (error: unknown): boolean =>
-  error instanceof CommandError && (error.code === "ref.unknown" || error.code === "ref.ambiguous");
 
 /**
  * The text as it is stored (SR-021 AK2): every inline reference carries the UUID and version of its

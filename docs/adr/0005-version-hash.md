@@ -37,7 +37,7 @@ file <path>\n<sha256 hex | missing>\n         (paths sorted by code point)
 - Path normalisation: drop an optional `<…>` wrapper and the link title; percent-decode; resolve against the folder of the element file, removing `./` and resolving `..`. A path that ends outside the repository does not count.
 - In the canonical form the path is relative to the folder of the element file, with `/`, after normalisation (it may start with `../` when it stays inside the repository). Each path is written once, however often the text embeds it; the implementation rejects a duplicate path, so the caller dedupes.
 - A linked file that does not exist counts with the marker `missing` instead of a hash, so adding the file later changes the version. `<sha256 hex>` is lower case.
-- The extraction is implemented later by the model module (it reads the files); `version.ts` takes the normalised paths and hashes. The rule is open as spec question #131; this is option 1. Until enabler #178 is done, the model passes no files (`elementVersion` in `model/view.ts`), so images do not count yet.
+- The extraction is implemented later by the model module (it reads the files); `version.ts` takes the normalised paths and hashes. The rule is option 1 of spec question #131, decided on 2026-10-24. Until enabler #178 is done, the model passes no files (`elementVersion` in `model/view.ts`), so images do not count yet.
 
 **Changing the normal form** means a new prefix `n2`. Stored `n1` versions are then compared by recomputing `n1` for the current content, so nothing becomes outdated silently (D-027).
 
