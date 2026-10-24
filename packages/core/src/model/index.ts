@@ -52,6 +52,15 @@ export { elementVersion, elementView, titleKeyOf } from "./view.js";
 export type { ElementViewInput } from "./view.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";
+export { supersedeElement } from "./supersede.js";
+export type { SupersedeInput, SupersedeResult } from "./supersede.js";
+export {
+  invalidStatuses,
+  supersededTargetFindings,
+  supersededTargetProblems,
+  supersededTargetProblemsState,
+} from "./superseded.js";
+export type { SupersededContext } from "./superseded.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";

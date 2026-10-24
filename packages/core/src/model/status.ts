@@ -14,6 +14,7 @@ import { STRUCTURAL_KEYS } from "./elements.js";
 import { resolveRef } from "./resolve.js";
 import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
+import { invalidStatuses, supersededTargetProblems } from "./superseded.js";
 import type { ElementFileWrite } from "./write.js";
 import { assertElementWritable, readUnchanged, writeElementFiles } from "./write.js";
 
@@ -26,6 +27,7 @@ export interface SetStatusInput {
 export interface SetStatusResult {
   /** Written files relative to the workspace root, `/` as separator; an element that has the status already is not written. */
   readonly files: readonly string[];
+  /** With a status the metamodel marks invalid: the hints on relations to these elements (SR-072 AK2). */
   readonly problems: readonly Problem[];
 }
 
@@ -53,7 +55,9 @@ const checkStatus = (metamodel: Metamodel, status: string): void => {
  * that each element may be written (SR-016 AK3) and that no file changed on disk since the element
  * store read it (`file.changed-on-disk`; the store is then read again on the next call). A write
  * that is still refused (a read-only file, a change in the meantime) rolls back the files already
- * written as far as possible (`writeElementFiles`). A reference given twice is written once.
+ * written as far as possible (`writeElementFiles`). A reference given twice is written once. With a
+ * status the metamodel marks invalid, the result has the hints on relations to the elements, the
+ * same as `element.supersede` gives (SR-072 AK2).
  */
 export const setElementStatus = async (
   workspace: Workspace,
@@ -82,5 +86,9 @@ export const setElementStatus = async (
     }
   }
   const files = (await writeElementFiles(workspace, layout, writes)).map((w) => w.file);
-  return { files, problems: [] };
+  // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, #84).
+  const problems = invalidStatuses(metamodel).has(input.status)
+    ? await supersededTargetProblems(workspace, [...records.values()])
+    : [];
+  return { files, problems };
 };

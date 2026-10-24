@@ -67,6 +67,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "element.supersede": [
+    {
+      name: "supersede with a successor and hints",
+      fixture: { fixture: "SR-072/supersede", git: true },
+      input: { ref: "N-d4e5f6", status: "obsolete", successor: "N-e5f6a7" },
+      expect: "output",
+    },
+    {
+      name: "status not marked invalid",
+      fixture: { fixture: "SR-072/supersede", git: true },
+      input: { ref: "N-d4e5f6", status: "approved" },
+      expect: "error",
+    },
+  ],
   "element.update": [
     {
       name: "rename and set a property",
