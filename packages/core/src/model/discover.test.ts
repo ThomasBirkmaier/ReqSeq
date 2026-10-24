@@ -5,7 +5,8 @@ import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
-import { listMarkdownFiles, listsFile, newFileProblem } from "./discover.js";
+import type { NewFileProblem } from "./discover.js";
+import { listMarkdownFiles, listsFile, newFileTarget } from "./discover.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 
@@ -26,6 +27,20 @@ const repository = (folder: string, excludes: readonly string[] = []): Repositor
 });
 
 const nothing = (): boolean => false;
+
+/** The problem `newFileTarget` gives, or undefined when the file would be listed under the path as given. */
+const newFileProblem = async (
+  repo: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  file: string,
+): Promise<NewFileProblem | undefined> => {
+  const target = await newFileTarget(repo, ignored, file);
+  if (target.kind === "listed") {
+    expect(target.file).toBe(file);
+    return undefined;
+  }
+  return target.problem;
+};
 
 const skippedWarning = (file: string, reason: string): unknown => ({
   code: "file.skipped",
@@ -214,7 +229,7 @@ describe("listsFile (#166)", () => {
     ]);
   });
 
-  it("newFileProblem (#183): the rules of the walk on folders that exist, only names and globs on folders still to create", async () => {
+  it("newFileTarget (#183): the rules of the walk on folders that exist, only names and globs on folders still to create", async () => {
     const ws = await fixture({
       "deep/a.md": "",
       "own/.git": "gitdir: elsewhere\n",
@@ -260,7 +275,7 @@ describe("listsFile (#166)", () => {
     });
   });
 
-  it("newFileProblem (#183): refuses what a file system that ignores case or drops trailing dots and spaces takes for another name", async () => {
+  it("newFileTarget (#183): refuses what a file system that ignores case or drops trailing dots and spaces takes for another name", async () => {
     const ws = await fixture({ ".git/HEAD": "ref: refs/heads/main\n", "requirements/a.md": "" });
     // Linux keeps case, dots and spaces, so the answers of Windows and macOS are given here.
     const fold = (p: string): string =>
@@ -354,5 +369,206 @@ describe("listsFile (#166)", () => {
     });
     expect(await listsFile(repository(ws.root), nothing, "Requirements/a.md")).toBe(false);
     expect(await listsFile(repository(ws.root), nothing, "requirements/a.md")).toBe(true);
+  });
+});
+
+/** `Übersicht` in both Unicode normal forms: one precomposed `Ü`, or `U` and a combining diaeresis. */
+const NFC = `${String.fromCodePoint(0xdc)}bersicht`;
+const NFD = `U${String.fromCodePoint(0x308)}bersicht`;
+
+/** Whether two paths name one existing folder (same device and inode, or file index on Windows). */
+const sameFolder = async (a: string, b: string): Promise<boolean> => {
+  try {
+    const [one, two] = await Promise.all([fs.stat(a, { bigint: true }), fs.stat(b, { bigint: true })]);
+    return one.dev === two.dev && one.ino === two.ino;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Makes `lstat`, `opendir` and `realpath` see the names of `onDisk` as a file system that ignores
+ * the Unicode normal form (APFS) does: a name that equals one of them after NFC (and with
+ * `ignoreCase` after lower case, too) names that one. So Linux and Windows run the branches of
+ * macOS; on macOS the real file system does the same.
+ */
+const foldNormalForm = (onDisk: readonly string[], ignoreCase = false): void => {
+  const key = (name: string): string =>
+    ignoreCase ? name.normalize("NFC").toLowerCase() : name.normalize("NFC");
+  const fold = (p: string): string =>
+    p
+      .split(path.sep)
+      .map((name) => onDisk.find((stored) => key(stored) === key(name)) ?? name)
+      .join(path.sep);
+  const real = { lstat: fs.lstat.bind(fs), opendir: fs.opendir.bind(fs), realpath: fs.realpath.bind(fs) };
+  const spies = [
+    vi.spyOn(fs, "lstat").mockImplementation(((p: string) => real.lstat(fold(p))) as typeof fs.lstat),
+    vi.spyOn(fs, "opendir").mockImplementation(((p: string) => real.opendir(fold(p))) as typeof fs.opendir),
+    vi
+      .spyOn(fs, "realpath")
+      .mockImplementation(((p: string) => real.realpath(fold(p))) as typeof fs.realpath),
+  ];
+  onTestFinished(() => {
+    for (const spy of spies) {
+      spy.mockRestore();
+    }
+  });
+};
+
+describe("newFileTarget: spellings that differ only in the Unicode normal form (#194)", () => {
+  it("writes into an NFD folder named in NFC (or the other way), under the spelling on disk, where the file system ignores the normal form", async () => {
+    expect(NFC).not.toBe(NFD);
+    expect(NFC.normalize("NFD")).toBe(NFD);
+    const ws = await fixture({ [`${NFD}/a.md`]: "", "requirements/b.md": "" });
+    foldNormalForm([NFD]);
+    const repo = repository(ws.root);
+    const answers = await Promise.all(
+      [`${NFC}/x.md`, `${NFD}/x.md`, `${NFC}/neu/x.md`, `requirements/${NFC}/x.md`].map(async (file) => [
+        file,
+        await newFileTarget(repo, nothing, file),
+      ]),
+    );
+    expect(Object.fromEntries(answers)).toEqual({
+      [`${NFC}/x.md`]: { kind: "listed", file: `${NFD}/x.md` },
+      [`${NFD}/x.md`]: { kind: "listed", file: `${NFD}/x.md` },
+      [`${NFC}/neu/x.md`]: { kind: "listed", file: `${NFD}/neu/x.md` },
+      // A folder that does not exist is created as given.
+      [`requirements/${NFC}/x.md`]: { kind: "listed", file: `requirements/${NFC}/x.md` },
+    });
+  });
+
+  it("still refuses a spelling that differs in case as well, and names the spelling on disk", async () => {
+    const ws = await fixture({ [`${NFD}/a.md`]: "" });
+    foldNormalForm([NFD], true);
+    const lower = NFC.toLowerCase();
+    expect(await newFileTarget(repository(ws.root), nothing, `${lower}/x.md`)).toEqual({
+      kind: "refused",
+      problem: { rule: "spelling", path: lower, existing: NFD },
+    });
+  });
+
+  it("judges the path again as spelled on disk, so ignore globs and nested repositories see the names the walk sees", async () => {
+    const ws = await fixture({ [`${NFD}/drafts/a.md`]: "", [`${NFD}/sub/b.md`]: "" });
+    foldNormalForm([NFD]);
+    const repo = repository(ws.root, [path.join(ws.root, NFD, "sub")]);
+    const ignored = (relative: string): boolean => relative === `${NFD}/drafts`;
+    expect(await newFileTarget(repo, ignored, `${NFC}/drafts/x.md`)).toEqual({
+      kind: "refused",
+      problem: { rule: "ignored", path: `${NFD}/drafts` },
+    });
+    expect(await newFileTarget(repo, nothing, `${NFC}/sub/x.md`)).toEqual({
+      kind: "refused",
+      problem: { rule: "nested-repository", path: `${NFD}/sub` },
+    });
+  });
+
+  it("refuses when the spelling on disk changes again on the second look", async () => {
+    const ws = await fixture({ [`${NFD}/a.md`]: "" });
+    foldNormalForm([NFD]);
+    // A file system that answers with the other normal form each time never settles on one.
+    const folded = vi.mocked(fs.realpath).getMockImplementation();
+    vi.mocked(fs.realpath).mockImplementation((async (p: string) => {
+      const real = String(await folded?.(p));
+      return p.includes(NFD) ? real.replace(NFD, NFC) : real;
+    }) as typeof fs.realpath);
+    expect(await newFileTarget(repository(ws.root), nothing, `${NFC}/x.md`)).toEqual({
+      kind: "refused",
+      problem: { rule: "spelling", path: NFD, existing: NFC },
+    });
+  });
+
+  it("on this machine's file system: writes under the spelling on disk exactly where the file system takes NFC and NFD for one folder", async () => {
+    const ws = await fixture({ [`${NFD}/a.md`]: "", [`Kapitel-${NFC}/b.md`]: "" });
+    const repo = repository(ws.root);
+    // APFS ignores the normal form of names; NTFS and ext4 keep NFC and NFD apart. The file system
+    // decides; CI, where the platform's file system is known, also checks that.
+    const same = await sameFolder(ws.path(NFD), ws.path(NFC));
+    if (process.env["CI"] !== undefined) {
+      expect(same).toBe(process.platform === "darwin");
+    }
+    expect(await sameFolder(ws.path(`Kapitel-${NFC}`), ws.path(`Kapitel-${NFD}`))).toBe(same);
+    expect(await newFileTarget(repo, nothing, `${NFC}/x.md`)).toEqual({
+      kind: "listed",
+      file: same ? `${NFD}/x.md` : `${NFC}/x.md`,
+    });
+    expect(await newFileTarget(repo, nothing, `Kapitel-${NFD}/x.md`)).toEqual({
+      kind: "listed",
+      file: same ? `Kapitel-${NFC}/x.md` : `Kapitel-${NFD}/x.md`,
+    });
+    // Spelled as on disk, a path is always taken as given.
+    expect(await newFileTarget(repo, nothing, `${NFD}/x.md`)).toEqual({
+      kind: "listed",
+      file: `${NFD}/x.md`,
+    });
+    // A file written under the path the check gives is listed by the walk under that path.
+    const target = await newFileTarget(repo, nothing, `${NFC}/y.md`);
+    const file = target.kind === "listed" ? target.file : "";
+    expect(file).not.toBe("");
+    await fs.mkdir(path.dirname(ws.path(file)), { recursive: true });
+    await fs.writeFile(ws.path(file), "");
+    expect(await listsFile(repo, nothing, file)).toBe(true);
+    expect((await listMarkdownFiles(repo, nothing)).files).toContain(file);
+  });
+});
+
+describe("newFileTarget: invisible format characters in the names of new folders (#194)", () => {
+  it("refuses a folder to create whose name holds a zero-width or direction mark, a byte order mark or a soft hyphen", async () => {
+    const ws = await fixture({ "deep/a.md": "" });
+    const repo = repository(ws.root);
+    const answers = await Promise.all(
+      [
+        "a\u200bb/x.md",
+        "deep/new\u200c/x.md",
+        "gone/in\u200fner/x.md",
+        "\ufeffbom/x.md",
+        "Ab\u00adschnitt/x.md",
+        "word\u2060joiner/deeper/x.md",
+        "rtl\u202e/x.md",
+      ].map(async (file) => [file, await newFileProblem(repo, nothing, file)]),
+    );
+    expect(Object.fromEntries(answers)).toEqual({
+      "a\u200bb/x.md": { rule: "invisible", path: "a\u200bb", character: "U+200B" },
+      "deep/new\u200c/x.md": { rule: "invisible", path: "deep/new\u200c", character: "U+200C" },
+      "gone/in\u200fner/x.md": { rule: "invisible", path: "gone/in\u200fner", character: "U+200F" },
+      "\ufeffbom/x.md": { rule: "invisible", path: "\ufeffbom", character: "U+FEFF" },
+      "Ab\u00adschnitt/x.md": { rule: "invisible", path: "Ab\u00adschnitt", character: "U+00AD" },
+      "word\u2060joiner/deeper/x.md": { rule: "invisible", path: "word\u2060joiner", character: "U+2060" },
+      "rtl\u202e/x.md": { rule: "invisible", path: "rtl\u202e", character: "U+202E" },
+    });
+  });
+
+  it("keeps an existing folder with such a name, and judges the other rules first, name by name", async () => {
+    const ws = await fixture({ "alt\u200b/a.md": "", "deep/a.md": "" });
+    await fs.symlink(ws.path("deep"), ws.path("linked"), "junction");
+    const repo = repository(ws.root);
+    expect(await newFileProblem(repo, nothing, "alt\u200b/x.md")).toBeUndefined();
+    expect(await newFileProblem(repo, nothing, "alt\u200b/neu/x.md")).toBeUndefined();
+    expect(await newFileProblem(repo, nothing, "linked/a\u200bb/x.md")).toEqual({
+      rule: "link",
+      path: "linked",
+    });
+    expect(await newFileProblem(repo, nothing, "a\u200bb./x.md")).toEqual({
+      rule: "not-portable",
+      path: "a\u200bb.",
+    });
+    expect(await newFileProblem(repo, nothing, "node_modules/a\u200bb/x.md")).toEqual({
+      rule: "skipped-name",
+      path: "node_modules",
+    });
+  });
+
+  it("on this machine's file system: refuses .git with a zero-width non-joiner inside as an alias of .git where the file system drops the mark (HFS+), else as invisible", async () => {
+    const ws = await fixture({ ".git/HEAD": "ref: refs/heads/main\n" });
+    const alias = ".g\u200cit";
+    const same = await sameFolder(ws.path(".git"), ws.path(alias));
+    if (process.env["CI"] !== undefined) {
+      // NTFS, ext4 and APFS keep the mark.
+      expect(same).toBe(false);
+    }
+    expect(await newFileProblem(repository(ws.root), nothing, `${alias}/objects/x.md`)).toEqual(
+      same
+        ? { rule: "spelling", path: alias, existing: ".git" }
+        : { rule: "invisible", path: alias, character: "U+200C" },
+    );
   });
 });

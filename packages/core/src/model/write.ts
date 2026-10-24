@@ -35,7 +35,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { NewFileRule } from "./discover.js";
-import { newFileProblem } from "./discover.js";
+import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, classifyFile } from "./elements.js";
 import { fileNameFor } from "./file-name.js";
@@ -309,35 +309,44 @@ const NOT_LISTED: Readonly<Record<NewFileRule, string>> = {
   spelling: "is spelled differently on disk",
   "not-portable":
     'is a name Windows changes or refuses (a trailing dot or space, <>:"|?*, a control character, a device name such as CON or NUL, or a short name such as GIT~1)',
+  invisible:
+    "holds an invisible format character (such as a zero-width or direction mark), which LogReq does not put into the name of a new folder",
 };
+
+/** Rules for a name that is refused wherever the repository is checked out (`reason: "not-portable"`). */
+const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisible"]);
 
 /**
  * Refuses `file` (relative to `repository`) with `input.invalid` when the element walk would not
  * list it once created (`reason: "not-listed"`) or a name is not portable (`"not-portable"`), so
  * LogReq never writes below `.git` (D-036, #183) and never creates an element nobody sees.
  * `details.rule` says which rule, `details.path` which part of the path, and with `rule: "spelling"`
- * `details.existing` the folder as it is spelled on disk.
+ * `details.existing` the folder as it is spelled on disk. Returns the path to write: `file`, or
+ * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
+ * (`newFileTarget`, #194).
  */
 const refuseUnlisted = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   file: string,
-): Promise<void> => {
-  const problem = await newFileProblem(repository, ignoredBy(layout), file);
-  if (problem === undefined) {
-    return;
+): Promise<string> => {
+  const target = await newFileTarget(repository, ignoredBy(layout), file);
+  if (target.kind === "listed") {
+    return target.file;
   }
-  const { rule, path: part, existing } = problem;
+  const { rule, path: part, existing, character } = target.problem;
   const spelled = existing === undefined ? "" : ` (on disk: ${existing})`;
+  const shown = character === undefined ? "" : ` (${character})`;
   throw invalid(
-    `Not created: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}`,
+    `Not created: ${file} in repository ${repository.name}: ${part} ${NOT_LISTED[rule]}${spelled}${shown}`,
     {
       repository: repository.name,
       file,
-      reason: rule === "not-portable" ? "not-portable" : "not-listed",
+      reason: NOT_PORTABLE.has(rule) ? "not-portable" : "not-listed",
       rule,
       path: part,
       ...(existing === undefined ? {} : { existing }),
+      ...(character === undefined ? {} : { character }),
     },
   );
 };
@@ -374,19 +383,17 @@ export const createElement = async (
     Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
     {},
   );
-  const folder = folderOf(input.folder ?? type.key);
+  const given = folderOf(input.folder ?? type.key);
   const id = randomUUID();
-  const file =
-    folder === ""
-      ? fileNameFor({ prefix: type.prefix, id })
-      : `${folder}/${fileNameFor({ prefix: type.prefix, id })}`;
+  const name = fileNameFor({ prefix: type.prefix, id });
   // A folder that leaves the repository (`..`, `/x`) is refused with the error `createFolder` gives.
   // Any other folder is judged by its names first, so `a:b` (on Windows a path relative to drive
-  // A:) is refused as not portable on every OS.
-  const leaves = folder === ".." || folder.startsWith("../") || folder.startsWith("/");
-  if (!leaves) {
-    await refuseUnlisted(layout, repository, file);
-  }
+  // A:) is refused as not portable on every OS. The check gives the folder as spelled on disk where
+  // only the Unicode normal form differs (#194).
+  const leaves = given === ".." || given.startsWith("../") || given.startsWith("/");
+  const asGiven = given === "" ? name : `${given}/${name}`;
+  let file = leaves ? asGiven : await refuseUnlisted(layout, repository, asGiven);
+  const folder = given === "" ? "" : file.slice(0, -name.length - 1);
   if (folder !== "") {
     resolveInRoot(repository.folder, folder);
   }
@@ -413,9 +420,11 @@ export const createElement = async (
   // write itself (a clash with an existing file, a disk error) or a folder changed by someone else
   // meanwhile can leave a new, empty folder. With every folder there now, the rules of the walk are
   // checked on all of them again, so a link or `.git` entry put there meanwhile is not written into.
+  // The file goes under the spelling this check finds on disk: a file system may store a new name
+  // in another normal form (HFS+ stores NFD), and the walk lists the file under that spelling.
   if (folder !== "") {
     await createFolder(repository.folder, folder);
-    await refuseUnlisted(layout, repository, file);
+    file = await refuseUnlisted(layout, repository, file);
   }
   const written = writtenElement(
     repository.name,

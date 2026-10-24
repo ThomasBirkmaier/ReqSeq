@@ -62,6 +62,57 @@ const read = (opened: Opened, file: string): Promise<string> =>
 
 const tail12 = (id: string): string => id.replaceAll("-", "").slice(-12);
 
+/** `Übersicht` in both Unicode normal forms: one precomposed `Ü`, or `U` and a combining diaeresis. */
+const NFC = `${String.fromCodePoint(0xdc)}bersicht`;
+const NFD = `U${String.fromCodePoint(0x308)}bersicht`;
+
+/** Whether two paths name one existing folder (same device and inode, or file index on Windows). */
+const sameFolder = async (a: string, b: string): Promise<boolean> => {
+  try {
+    const [one, two] = await Promise.all([fs.stat(a, { bigint: true }), fs.stat(b, { bigint: true })]);
+    return one.dev === two.dev && one.ino === two.ino;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Makes `lstat`, `opendir`, `realpath` and `mkdir` see the names of `onDisk` as a file system that
+ * ignores the Unicode normal form (APFS) does: a name that equals one of them after NFC (and with
+ * `ignoreCase` after lower case, too) names that one. So Linux and Windows run the branches of
+ * macOS; on macOS the real file system does the same.
+ */
+const foldNormalForm = (onDisk: readonly string[], ignoreCase = false): void => {
+  const key = (name: string): string =>
+    ignoreCase ? name.normalize("NFC").toLowerCase() : name.normalize("NFC");
+  const fold = (p: string): string =>
+    p
+      .split(path.sep)
+      .map((name) => onDisk.find((stored) => key(stored) === key(name)) ?? name)
+      .join(path.sep);
+  const real = {
+    lstat: fs.lstat.bind(fs),
+    opendir: fs.opendir.bind(fs),
+    realpath: fs.realpath.bind(fs),
+    mkdir: fs.mkdir.bind(fs),
+  };
+  const spies = [
+    vi.spyOn(fs, "lstat").mockImplementation(((p: string) => real.lstat(fold(p))) as typeof fs.lstat),
+    vi.spyOn(fs, "opendir").mockImplementation(((p: string) => real.opendir(fold(p))) as typeof fs.opendir),
+    vi
+      .spyOn(fs, "realpath")
+      .mockImplementation(((p: string) => real.realpath(fold(p))) as typeof fs.realpath),
+    vi
+      .spyOn(fs, "mkdir")
+      .mockImplementation(((p: string, options: object) => real.mkdir(fold(p), options)) as typeof fs.mkdir),
+  ];
+  onTestFinished(() => {
+    for (const spy of spies) {
+      spy.mockRestore();
+    }
+  });
+};
+
 describe("element.create", () => {
   it("[SR-001/AK1] writes exactly one file named by prefix and UUID, properties as frontmatter, text below", async () => {
     const opened = await standard();
@@ -419,7 +470,11 @@ describe("element.create", () => {
         expect([input, error.code, error.details]).toMatchObject([
           input,
           "input.invalid",
-          { reason: rule === "not-portable" ? "not-portable" : "not-listed", rule, path: part },
+          {
+            reason: rule === "not-portable" || rule === "invisible" ? "not-portable" : "not-listed",
+            rule,
+            path: part,
+          },
         ]);
       }
       expect(await treeBelow(opened.root)).toEqual(before);
@@ -504,6 +559,109 @@ describe("element.create", () => {
       expect(error.message).toContain("(on disk: requirements)");
       const out = await create(opened, { type: "need", title: "Fine", folder: "requirements" });
       expect(out.element.file).toBe(`requirements/N-${tail12(out.element.id)}.md`);
+    });
+
+    it("refuses a new folder whose name holds an invisible format character, but keeps an existing one (#194)", async () => {
+      const opened = await standard({ "alt\u200b/README.md": "# Alt\n" });
+      await refused(opened, [
+        ...inFolder(
+          "invisible",
+          "a\u200bb",
+          "\ufeffbom",
+          "Ab\u00adschnitt",
+          "rtl\u202e",
+          "requirements/x\u200fy",
+        ),
+        [{ folder: "new\u2060/deeper" }, "invisible", "new\u2060"],
+      ]);
+      const error = await createError(opened, { type: "need", title: "x", folder: "a\u200bb" });
+      expect(error.message).toContain("a\u200bb holds an invisible format character");
+      expect(error.message).toMatch(/\(U\+200B\)$/);
+      expect(error.details).toMatchObject({ character: "U+200B" });
+      const astral = await createError(opened, { type: "need", title: "x", folder: "tag\u{e0041}" });
+      expect(astral.details).toMatchObject({ rule: "invisible", character: "U+E0041" });
+      const out = await create(opened, { type: "need", title: "Fine", folder: "alt\u200b" });
+      expect(out.element.file).toBe(`alt\u200b/N-${tail12(out.element.id)}.md`);
+    });
+
+    it("refuses .git with a zero-width non-joiner inside, a .git where the file system drops the mark (HFS+), and else as invisible (#194, D-036)", async () => {
+      const opened = await open({ fixture: "SR-001/two-elements", git: true });
+      const alias = ".g\u200cit";
+      const same = await sameFolder(opened.fixture.path(".git"), opened.fixture.path(alias));
+      if (process.env["CI"] !== undefined) {
+        // NTFS, ext4 and APFS keep the mark.
+        expect(same).toBe(false);
+      }
+      await refused(opened, [[{ folder: `${alias}/objects` }, same ? "spelling" : "invisible", alias]]);
+      expect(await opened.fixture.git(["status", "--porcelain"])).toBe("");
+    });
+
+    it("writes into an NFD folder named in NFC, under the spelling on disk, where the file system ignores the normal form (#194)", async () => {
+      const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
+      await opened.workspace.get(elementStoreState);
+      // Linux and Windows keep the normal forms apart, so the answers of macOS (APFS) are given here.
+      foldNormalForm([NFD]);
+      const out = await create(opened, { type: "need", title: "Umlaut", folder: NFC });
+      const file = `${NFD}/N-${tail12(out.element.id)}.md`;
+      expect([out.element.file, out.files]).toEqual([file, [file]]);
+      expect(await read(opened, file)).toContain("title: Umlaut");
+      expect(await filesBelow(opened.fixture.path(NFD))).toEqual([
+        "N-" + tail12(out.element.id) + ".md",
+        "README.md",
+      ]);
+      // The element store has it under the same path as a full read.
+      const store = await opened.workspace.get(elementStoreState);
+      expect(store.byId.get(out.element.id)?.map((r) => r.file)).toEqual([file]);
+      const fresh = await loadElements(await opened.workspace.get(workspaceLayoutState));
+      expect(fresh.byId.get(out.element.id)?.map((r) => r.file)).toEqual([file]);
+      // A new folder below it keeps the given name.
+      const deeper = await create(opened, { type: "need", title: "Deeper", folder: `${NFC}/neu` });
+      expect(deeper.element.file).toBe(`${NFD}/neu/N-${tail12(deeper.element.id)}.md`);
+    });
+
+    it("still refuses a spelling that differs in case as well as in the normal form (#194)", async () => {
+      const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
+      await opened.workspace.get(elementStoreState);
+      foldNormalForm([NFD], true);
+      const lower = NFC.toLowerCase();
+      await refused(opened, [[{ folder: lower }, "spelling", lower]]);
+      const error = await createError(opened, { type: "need", title: "x", folder: lower });
+      expect(error.details).toMatchObject({ existing: NFD });
+    });
+
+    it("writes under the spelling on disk where the file system stores a new folder in another normal form (HFS+ stores NFD, #194)", async () => {
+      const opened = await standard();
+      await opened.workspace.get(elementStoreState);
+      foldNormalForm([NFD]);
+      // HFS+ stores every new name in NFD; the folder LogReq creates as NFC is NFD on disk.
+      const mkdir = vi.mocked(fs.mkdir).getMockImplementation();
+      vi.mocked(fs.mkdir).mockImplementation(((p: string, options: object) =>
+        mkdir?.(p.replace(NFC, NFD), options)) as typeof fs.mkdir);
+      const out = await create(opened, { type: "need", title: "Umlaut", folder: `${NFC}/neu` });
+      const file = `${NFD}/neu/N-${tail12(out.element.id)}.md`;
+      expect([out.element.file, out.files]).toEqual([file, [file]]);
+      expect(await read(opened, file)).toContain("title: Umlaut");
+    });
+
+    it("on this machine's file system: writes into the existing folder exactly where NFC and NFD name one folder (#194)", async () => {
+      const opened = await standard({ [`${NFD}/README.md`]: "# Overview\n" });
+      await opened.workspace.get(elementStoreState);
+      // APFS ignores the normal form of names; NTFS and ext4 keep NFC and NFD apart. The file system
+      // decides; CI, where the platform's file system is known, also checks that.
+      const same = await sameFolder(opened.fixture.path(NFD), opened.fixture.path(NFC));
+      if (process.env["CI"] !== undefined) {
+        expect(same).toBe(process.platform === "darwin");
+      }
+      const out = await create(opened, { type: "need", title: "Umlaut", folder: NFC });
+      const name = `N-${tail12(out.element.id)}.md`;
+      const file = same ? `${NFD}/${name}` : `${NFC}/${name}`;
+      expect([out.element.file, out.files]).toEqual([file, [file]]);
+      expect(await read(opened, file)).toContain("title: Umlaut");
+      // One folder where the file system takes both for one; two where it tells them apart.
+      const top = (await fs.readdir(opened.root)).filter((n) => n.normalize("NFC") === NFC);
+      expect(top.sort()).toEqual(same ? [NFD] : [NFC, NFD].sort());
+      const fresh = await loadElements(await opened.workspace.get(workspaceLayoutState));
+      expect(fresh.byId.get(out.element.id)?.map((r) => r.file)).toEqual([file]);
     });
 
     it("never writes into node_modules", async () => {

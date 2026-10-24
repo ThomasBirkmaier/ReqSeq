@@ -145,7 +145,8 @@ export type NewFileRule =
   | "unreadable"
   | "not-a-folder"
   | "spelling"
-  | "not-portable";
+  | "not-portable"
+  | "invisible";
 
 /** A rule of the walk that leaves out `path` (relative to the repository, `/`; `.` for its folder). */
 export interface NewFileProblem {
@@ -153,7 +154,17 @@ export interface NewFileProblem {
   readonly path: string;
   /** With `spelling`: the folder as it is spelled on disk. */
   readonly existing?: string;
+  /** With `invisible`: the first such character as a code point, `U+200B`. */
+  readonly character?: string;
 }
+
+/**
+ * What `newFileTarget` says about a file LogReq is to create: refused with the problem, or listed
+ * once created under `file` (the path as given, or with its existing folders spelled as on disk).
+ */
+export type NewFileTarget =
+  | { readonly kind: "refused"; readonly problem: NewFileProblem }
+  | { readonly kind: "listed"; readonly file: string };
 
 /** The rule of the walk that leaves out `relative` by its name, an `ignore` glob or a nested repository. */
 const nameRule = (
@@ -269,25 +280,32 @@ const portableRule = (name: string): NewFileRule | undefined => {
 };
 
 /**
- * Why `listMarkdownFiles` would not list `file` (relative to the repository, `/` as separator,
- * inside it) once LogReq has created it and the folders above it that are missing (#183), or
- * undefined when it would. Every name of the path must be portable (`portableRule`) and pass the
- * name rules of the walk (`.git`, `node_modules`, `ignore` globs, nested repositories); every
- * folder above the file that exists must be one the walk goes into (a real folder, not a link,
- * without a `.git` entry, one it can open), and so must the repository folder; below the first
- * missing folder only the names count. The existing folders must be spelled as on disk
- * (`spelling`, with `existing`): on a file system that ignores case, `.GIT` or `Requirements` would
- * name `.git` or `requirements`. LogReq checks this before it writes anything, so it never writes
- * below `.git` (D-036) and never creates an element that the walk cannot see. Errors other than
- * "not there" reject.
+ * Invisible format characters (zero-width and direction marks, the byte order mark, the soft
+ * hyphen): a name with one looks like another name, and HFS+ drops some of them (Git's protectHFS
+ * list), so `.g\u200cit` names `.git` there.
  */
-export const newFileProblem = async (
+const INVISIBLE = /\p{Cf}/u;
+
+/** The first invisible format character of `name` as a code point (`U+200B`), or undefined. */
+const invisibleIn = (name: string): string | undefined => {
+  const match = INVISIBLE.exec(name);
+  // `Number` gives a number type for the code point of a match, which always has one.
+  return match === null
+    ? undefined
+    : `U+${Number(match[0].codePointAt(0)).toString(16).toUpperCase().padStart(4, "0")}`;
+};
+
+const refused = (problem: NewFileProblem): NewFileTarget => ({ kind: "refused", problem });
+
+/** `newFileTarget`; `respell` is false on the second judgement of a path respelled as on disk. */
+const judgeNewFile = async (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
   file: string,
-): Promise<NewFileProblem | undefined> => {
+  respell: boolean,
+): Promise<NewFileTarget> => {
   if (!(await canList(repository.folder))) {
-    return { rule: "unreadable", path: "." };
+    return refused({ rule: "unreadable", path: "." });
   }
   const names = file.split("/");
   let relative = "";
@@ -297,28 +315,64 @@ export const newFileProblem = async (
     relative = relative === "" ? name : `${relative}/${name}`;
     const rule = portableRule(name) ?? nameRule(repository, ignored, relative);
     if (rule !== undefined) {
-      return { rule, path: relative };
+      return refused({ rule, path: relative });
     }
-    if (!existing || index === names.length - 1) {
+    // The file name is LogReq's own (`fileNameFor`); only the folders above it are looked at.
+    if (index === names.length - 1) {
       continue;
     }
-    const absolute = path.join(repository.folder, relative);
-    const stat = await lstatIfThere(absolute);
-    if (stat === undefined) {
+    if (existing) {
+      const absolute = path.join(repository.folder, relative);
+      const stat = await lstatIfThere(absolute);
+      if (stat !== undefined) {
+        const problem = await folderRule(absolute, stat);
+        if (problem !== undefined) {
+          return refused({ rule: problem, path: relative });
+        }
+        deepest = relative;
+        continue;
+      }
       existing = false;
-      continue;
     }
-    const problem = await folderRule(absolute, stat);
-    if (problem !== undefined) {
-      return { rule: problem, path: relative };
+    // A folder LogReq is to create; one that exists may keep such a name.
+    const character = invisibleIn(name);
+    if (character !== undefined) {
+      return refused({ rule: "invisible", path: relative, character });
     }
-    deepest = relative;
   }
   if (deepest !== undefined) {
     const spelled = await spelledOnDisk(repository, deepest);
     if (spelled !== deepest) {
-      return { rule: "spelling", path: deepest, existing: spelled };
+      // Only the normal form differs (an NFD folder on macOS, NFC input): the same folder, so the
+      // file goes there under the spelling on disk, judged again by the names the walk sees.
+      return respell && spelled.normalize("NFC") === deepest.normalize("NFC")
+        ? judgeNewFile(repository, ignored, `${spelled}${file.slice(deepest.length)}`, false)
+        : refused({ rule: "spelling", path: deepest, existing: spelled });
     }
   }
-  return undefined;
+  return { kind: "listed", file };
 };
+
+/**
+ * Whether `listMarkdownFiles` would list `file` (relative to the repository, `/` as separator,
+ * inside it, its last name one LogReq gives) once LogReq has created it and the folders above it
+ * that are missing (#183), and under which path. Every name of the path must be portable
+ * (`portableRule`) and pass the name rules of the walk (`.git`, `node_modules`, `ignore` globs,
+ * nested repositories); every folder above the file that exists must be one the walk goes into (a
+ * real folder, not a link, without a `.git` entry, one it can open), and so must the repository
+ * folder; below the first missing folder only the names count, and a folder to create must not
+ * hold an invisible format character (`invisible`, #194). The existing folders must be spelled as
+ * on disk (`spelling`, with `existing`): on a file system that ignores case, `.GIT` or
+ * `Requirements` would name `.git` or `requirements`. A spelling that differs from the one on disk
+ * only in its Unicode normal form (NFC, NFD) names the same folder where the file system ignores
+ * the normal form (macOS): the path is then judged again as spelled on disk, and `file` of the
+ * result is that spelling (#194). LogReq checks this before it writes anything, so it never writes
+ * below `.git` (D-036) and never creates an element that the walk cannot see. The order is the
+ * walk's, name by name: the name rules first, then the folder on disk. Errors other than "not
+ * there" reject.
+ */
+export const newFileTarget = (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  file: string,
+): Promise<NewFileTarget> => judgeNewFile(repository, ignored, file, true);
