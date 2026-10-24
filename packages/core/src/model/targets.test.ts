@@ -392,6 +392,9 @@ describe("relation targets with ID and version (SR-021)", () => {
       "ref.unknown",
       { ref: SENSOR_NEED.id, repository: "sensor", reason: "repository-not-available" },
     ]);
+    expect(missing.message).toBe(
+      `Repository sensor is not on this machine, so the version of ${SENSOR_NEED.id} cannot be read and stored`,
+    );
   });
 
   it("stores the version of a target file as it is now, and refuses one that is gone or no longer the target", async () => {

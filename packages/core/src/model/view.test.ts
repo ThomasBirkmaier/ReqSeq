@@ -5,6 +5,8 @@ import { parseFileBytes } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
+import { workspaceLayoutState } from "../workspace/index.js";
 import { computeVersion } from "../version/version.js";
 import { classifyFile } from "./elements.js";
 import type { ElementRecord } from "./elements.js";
@@ -36,7 +38,7 @@ const recordOf = (file: ParsedFile): ElementRecord => {
   return classified.element;
 };
 
-const context = async (): Promise<{ metamodel: Metamodel; store: ElementStore }> => {
+const context = async (): Promise<{ metamodel: Metamodel; store: ElementStore; layout: WorkspaceLayout }> => {
   const fixture = await createFixtureWorkspace({
     fixture: "SR-001/two-elements",
     files: { "copy/SR-1d2e3f4a5b6c.md": `---\nid: ${GUSTS}\ntype: need\nstatus: draft\ntitle: Copy\n---\n` },
@@ -44,12 +46,16 @@ const context = async (): Promise<{ metamodel: Metamodel; store: ElementStore }>
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.root);
   onTestFinished(() => workspace.close());
-  return { metamodel: await workspace.get(metamodelState), store: await workspace.get(elementStoreState) };
+  return {
+    metamodel: await workspace.get(metamodelState),
+    store: await workspace.get(elementStoreState),
+    layout: await workspace.get(workspaceLayoutState),
+  };
 };
 
 describe("elementView", () => {
   it("gives relations to targets in the store, missing and duplicated ones, and skips malformed items", async () => {
-    const { metamodel, store } = await context();
+    const { metamodel, store, layout } = await context();
     const file = parsedFile(
       [
         "---",
@@ -75,6 +81,7 @@ describe("elementView", () => {
       store,
       shortIds: buildShortIds(store.byId, metamodel),
       titleKey: "title",
+      layout,
     });
     expect(view.relations).toEqual([
       {
@@ -83,6 +90,7 @@ describe("elementView", () => {
         direction: "out",
         id: "9a9a9a9a-1111-4222-8333-444455556666",
         accessible: false,
+        targetState: "missing",
         storedVersion: "n1:1111111111111111",
       },
       {
@@ -93,15 +101,23 @@ describe("elementView", () => {
         shortId: "SR-e88fb3",
         title: "Show wind speed",
         accessible: true,
+        targetState: "available",
         storedVersion: "n1:0000000000000000",
       },
       // Two files share this UUID (SR-088): which one is meant is unknown, so it is not accessible.
-      { kind: "derives-from", meaning: "derivation", direction: "out", id: GUSTS, accessible: false },
+      {
+        kind: "derives-from",
+        meaning: "derivation",
+        direction: "out",
+        id: GUSTS,
+        accessible: false,
+        targetState: "ambiguous",
+      },
     ]);
   });
 
   it("names a relation kind without meaning without one, and a target title only when it is text", async () => {
-    const { metamodel, store } = await context();
+    const { metamodel, store, layout } = await context();
     const decision = recordOf(
       parsedFile(`---\nid: ${OTHER}\ntype: decision\nstatus: draft\ntitle: 7\n---\n`),
     );
@@ -116,6 +132,7 @@ describe("elementView", () => {
       store: { ...store, byId },
       shortIds: buildShortIds(byId, metamodel),
       titleKey: "title",
+      layout,
     });
     expect(view.relations).toEqual([
       {
@@ -124,13 +141,14 @@ describe("elementView", () => {
         id: OTHER,
         shortId: "D-556666",
         accessible: true,
+        targetState: "available",
         storedVersion: "n1:0000000000000000",
       },
     ]);
   });
 
   it("shows a status and title that are not text as empty and counts no property of an unknown type", async () => {
-    const { metamodel, store } = await context();
+    const { metamodel, store, layout } = await context();
     const file = parsedFile(`---\nid: ${OTHER}\ntype: gadget\nstatus: 3\ntitle: [a]\nweight: 2\n---\nBody\n`);
     const record = recordOf(file);
     const view = elementView({
@@ -140,6 +158,7 @@ describe("elementView", () => {
       store,
       shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),
       titleKey: "title",
+      layout,
     });
     expect(view).toMatchObject({
       status: "",
@@ -151,7 +170,7 @@ describe("elementView", () => {
   });
 
   it("gives a value-kind hint without a line when the file at hand does not hold the value", async () => {
-    const { metamodel, store } = await context();
+    const { metamodel, store, layout } = await context();
     const file = parsedFile(`---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\n---\n`);
     const record: ElementRecord = {
       ...recordOf(file),
@@ -164,6 +183,7 @@ describe("elementView", () => {
       store,
       shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),
       titleKey: "title",
+      layout,
     });
     expect(view.problems).toEqual([expect.objectContaining({ code: "element.wrong-value-kind" })]);
     expect(view.problems[0]).not.toHaveProperty("line");

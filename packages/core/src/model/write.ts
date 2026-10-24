@@ -284,6 +284,7 @@ const finish = async (
     store: context.store,
     shortIds,
     titleKey,
+    layout: context.layout,
   });
   if (files.length > 0) {
     await recordWrites(workspace, context.layout, [

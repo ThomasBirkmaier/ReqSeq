@@ -14,7 +14,7 @@ import { resolveId } from "./duplicates.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { classifyFile, isUuid } from "./elements.js";
 import { markdownLinks } from "./markdown-links.js";
-import { resolveTarget } from "./relations.js";
+import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { elementVersion, titleKeyOf } from "./view.js";
 
@@ -24,12 +24,6 @@ export interface TargetContext {
   readonly metamodel: Metamodel;
   readonly store: ElementStore;
 }
-
-/** Why no element of a repository can be found: it is listed but not on this machine (SR-006). */
-const notAvailable = (context: TargetContext, repository: string | undefined): Record<string, string> =>
-  context.layout.repositories.some((r) => r.name === repository && !r.available)
-    ? { reason: "repository-not-available" }
-    : {};
 
 /** The one record a match names; `ref.unknown` or `ref.ambiguous` otherwise (like `resolveRef`). */
 const single = (
@@ -43,10 +37,18 @@ const single = (
     case "found":
       return match.element;
     case "unknown":
+      // A repository listed in the workspace file but not on this machine (SR-006): say so.
+      if (isUnavailableRepository(context.layout, repository)) {
+        throw new CommandError(
+          "ref.unknown",
+          `Repository ${String(repository)} is not on this machine, so the version of ${id} cannot be read and stored`,
+          { ref: id, ...where, reason: "repository-not-available" },
+        );
+      }
       throw new CommandError(
         "ref.unknown",
         `No element ${repository === undefined ? "" : `of repository ${repository} `}has the UUID ${id}, so its version cannot be stored`,
-        { ref: id, ...where, ...notAvailable(context, repository) },
+        { ref: id, ...where },
       );
     case "ambiguous":
       throw new CommandError("ref.ambiguous", `${id} names more than one element; give one file a new UUID`, {

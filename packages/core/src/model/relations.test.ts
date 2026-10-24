@@ -1,8 +1,9 @@
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
+import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
-import { isRelationTarget, resolveTarget } from "./relations.js";
+import { isRelationTarget, isUnavailableRepository, resolveTarget, targetState } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
@@ -63,5 +64,51 @@ describe("relation targets", () => {
     expect(resolveTarget(shared, "system", target)).toEqual({ kind: "ambiguous", elements: [element, copy] });
     const once: ElementStore = { ...s, byId: new Map([[NEED, [element, elsewhere]]]) };
     expect(resolveTarget(once, "system", target)).toEqual({ kind: "found", element });
+  });
+});
+
+describe("target states (D-058, SR-006)", () => {
+  const repository = (name: string, available: boolean): RepositoryLocation => ({
+    name,
+    url: `git@git.example.com:ws/${name}.git`,
+    main: name === "system",
+    path: `../${name}`,
+    folder: `/ws/${name}`,
+    available,
+    excludes: [],
+  });
+  const layout: Pick<WorkspaceLayout, "repositories"> = {
+    repositories: [repository("system", true), repository("sensor", false)],
+  };
+  const OTHER = "587fff4b-4dce-4f06-8434-acfd25c193f6";
+
+  it("tells an available, inaccessible, missing, ambiguous target and an unknown repository apart", async () => {
+    const s = await store();
+    const element = need(s);
+    const copy = { ...element, file: "needs/copy.md" };
+    const shared: ElementStore = { ...s, byId: new Map([[NEED, [element, copy]]]) };
+    expect(targetState(layout, s, "system", { id: NEED })).toEqual({ kind: "available", element });
+    expect(targetState(layout, s, "system", { id: NEED, repository: "sensor" })).toEqual({
+      kind: "inaccessible",
+      repository: "sensor",
+    });
+    expect(targetState(layout, s, "system", { id: OTHER })).toEqual({
+      kind: "missing",
+      repository: "system",
+    });
+    expect(targetState(layout, shared, "system", { id: NEED })).toEqual({
+      kind: "ambiguous",
+      repository: "system",
+      elements: [element, copy],
+    });
+    for (const named of ["elsewhere", null, 7]) {
+      expect(targetState(layout, s, "system", { id: NEED, repository: named })).toEqual({
+        kind: "unknown-repository",
+        repository: named,
+      });
+    }
+    expect(isUnavailableRepository(layout, "sensor")).toBe(true);
+    expect(isUnavailableRepository(layout, "system")).toBe(false);
+    expect(isUnavailableRepository(layout, "elsewhere")).toBe(false);
   });
 });

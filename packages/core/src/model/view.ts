@@ -8,13 +8,15 @@ import { findType, propertyWithMeaning } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import { computeVersion } from "../version/version.js";
 import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
-import { resolveTarget } from "./relations.js";
+import { targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
+import { UNKNOWN_TYPE_PREFIX } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
@@ -34,22 +36,18 @@ export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
 /**
  * The element's own relations: the targets under the keys of relation kinds, in the order of the
  * relation kinds in the metamodel, then of the items. Items that are not a target with a UUID are
- * left out; the value-kind check reports them (SR-085). A target is looked up in the repository it
- * names, or in the source's own when it names none (`resolveTarget`, D-058). It counts as
- * accessible only when that repository has exactly one element with its UUID; then the title and
- * short ID of that element are given, also across repositories, where the file stores no title
- * (SR-005 AK2, SR-006). A UUID shared by several files there (SR-088) is not accessible: which one
- * is meant is unknown. So is a target whose `repository` is not text. A target state that tells a
- * missing target from one in a missing repository follows (#18).
+ * left out; the value-kind check reports them (SR-085). Each target has its `targetState` (D-058):
+ * it is looked up in the repository it names, or in the source's own when it names none. It counts
+ * as accessible only when it is `available`, that is that repository has exactly one element with
+ * its UUID; then the title and short ID of that element are given, also across repositories, where
+ * the file stores no title (SR-005 AK2). A target in a repository that is not on this machine shows
+ * only its short ID (SR-006 AK1): the tail of its UUID with the prefix `UNKNOWN`, since its type is
+ * not known (assumption until spec questions #154 and #193 are answered). Targets of properties of
+ * kind `relation` stay under `properties` as stored and get no target state yet.
  */
-const outgoingRelations = (
-  record: ElementRecord,
-  metamodel: Metamodel,
-  store: ElementStore,
-  shortIds: ShortIds,
-  titleKey: string,
-): DataExportRelation[] =>
-  metamodel.relations.flatMap((kind) => {
+const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
+  const { record, metamodel, store, shortIds, titleKey, layout } = input;
+  return metamodel.relations.flatMap((kind) => {
     const value = record.data[kind.key];
     const items: readonly unknown[] = Array.isArray(value) ? value : value === undefined ? [] : [value];
     return items.filter(isRecord).flatMap((item): DataExportRelation[] => {
@@ -57,29 +55,31 @@ const outgoingRelations = (
       if (!isUuid(id)) {
         return [];
       }
-      const match =
-        repository === undefined || typeof repository === "string"
-          ? resolveTarget(store, record.repository, {
-              id,
-              ...(repository === undefined ? {} : { repository }),
-            })
-          : undefined;
-      const target = match?.kind === "found" ? match.element : undefined;
+      const state = targetState(layout, store, record.repository, { id, repository });
+      const target = state.kind === "available" ? state.element : undefined;
       const title = target?.data[titleKey];
+      const shortId =
+        target !== undefined
+          ? shortIds.of(target)
+          : state.kind === "inaccessible"
+            ? `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(id)}`
+            : undefined;
       return [
         {
           kind: kind.key,
           ...(kind.meaning === undefined ? {} : { meaning: kind.meaning }),
           direction: "out",
           id,
-          ...(target === undefined ? {} : { shortId: shortIds.of(target) }),
+          ...(shortId === undefined ? {} : { shortId }),
           ...(typeof title === "string" ? { title } : {}),
           accessible: target !== undefined,
+          targetState: state.kind,
           ...(isVersion(version) ? { storedVersion: version } : {}),
         },
       ];
     });
   });
+};
 
 /** The definitions of the properties the element's type has; none for an unknown type. */
 const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): VersionPropertyDefinition[] => {
@@ -113,6 +113,8 @@ export interface ElementViewInput {
   readonly shortIds: ShortIds;
   /** Key of the property with the meaning `title` (`titleKeyOf`). */
   readonly titleKey: string;
+  /** Which repositories of the workspace are on this machine (`targetState`, SR-006). */
+  readonly layout: Pick<WorkspaceLayout, "repositories">;
 }
 
 /**
@@ -125,7 +127,7 @@ export interface ElementViewInput {
 export const elementView = (
   input: ElementViewInput,
 ): DataExportElement & { readonly problems: readonly Problem[] } => {
-  const { record, file, metamodel, store, shortIds, titleKey } = input;
+  const { record, file, metamodel, shortIds, titleKey } = input;
   const relationKeys = new Set(metamodel.relations.map((r) => r.key));
   const properties = Object.fromEntries(
     Object.entries(record.data).filter(
@@ -152,7 +154,7 @@ export const elementView = (
     repository: record.repository,
     file: record.file,
     properties,
-    relations: outgoingRelations(record, metamodel, store, shortIds, titleKey),
+    relations: outgoingRelations(input),
     problems,
   };
 };

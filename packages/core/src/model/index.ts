@@ -40,7 +40,14 @@ export {
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
 export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 export type { UnknownFinding } from "./unknown.js";
-export { isRelationTarget, resolveTarget } from "./relations.js";
+export {
+  followTargets,
+  isRelationTarget,
+  isUnavailableRepository,
+  resolveTarget,
+  targetState,
+} from "./relations.js";
+export type { FollowedTargets, TargetState } from "./relations.js";
 export { markdownLinks } from "./markdown-links.js";
 export type { MarkdownLink } from "./markdown-links.js";
 export { currentTarget, inlineReferences, setInlineReferences, setRelationTargets } from "./targets.js";

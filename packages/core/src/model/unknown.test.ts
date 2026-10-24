@@ -267,6 +267,7 @@ describe("unknown properties and types (SR-016)", () => {
       store,
       shortIds: await workspace.get(shortIdState),
       titleKey: "title",
+      layout: await workspace.get(workspaceLayoutState),
     });
     // Prefix of an unknown type: assumption until spec question #154 is answered (option 1).
     expect(view).toMatchObject({ id: GADGET, shortId: "UNKNOWN-8c9d0e", type: "gadget", title: "Wind vane" });

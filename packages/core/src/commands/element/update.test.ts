@@ -195,6 +195,7 @@ describe("element.update", () => {
         shortId: "SR-e88fb3",
         title: "Show wind speed",
         accessible: true,
+        targetState: "available",
         storedVersion: "n1:0000000000000000",
       },
     ]);

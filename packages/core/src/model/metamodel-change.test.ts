@@ -12,6 +12,7 @@ import { readElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
+import { workspaceLayoutState } from "../workspace/index.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
 import { relationTypeProblemsState } from "./relation-types.js";
 import { requiredProblemsState } from "./required.js";
@@ -138,6 +139,7 @@ const views = async ({ fixture, workspace }: Opened): Promise<Record<string, unk
   const store = await workspace.get(elementStoreState);
   const metamodel = await workspace.get(metamodelState);
   const shortIds = await workspace.get(shortIdState);
+  const layout = await workspace.get(workspaceLayoutState);
   const titleKey = titleKeyOf(metamodel) ?? "title";
   const out: Record<string, unknown> = {};
   for (const record of store.elements) {
@@ -145,7 +147,7 @@ const views = async ({ fixture, workspace }: Opened): Promise<Record<string, unk
     if (read.kind !== "parsed") {
       throw new Error(`cannot read ${record.file}`);
     }
-    out[record.id] = elementView({ record, file: read.file, metamodel, store, shortIds, titleKey });
+    out[record.id] = elementView({ record, file: read.file, metamodel, store, shortIds, titleKey, layout });
   }
   return out;
 };

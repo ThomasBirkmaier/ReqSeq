@@ -300,10 +300,14 @@ export interface DataExportRelation {
   readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
+  /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154). */
   readonly shortId?: ShortId;
   /** Only when the other end is available locally, also across repositories, where the file stores no title (SR-005 AK2, SR-006 AK1). */
   readonly title?: string;
+  /** `targetState` is `available`. */
   readonly accessible: boolean;
+  /** Where the other end is (D-058): `available` = exactly one element with the UUID in the repository the relation names (the source's own when it names none); `inaccessible` = that repository is in the workspace file but not on this machine (N-041, SR-006); `missing` = the repository is here, the UUID is not in it (N-065, SR-089); `ambiguous` = several files there share the UUID (SR-088); `unknown-repository` = the workspace file lists no repository of that name, or `repository` is not text. */
+  readonly targetState: "available" | "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
   readonly outdated?: boolean;
