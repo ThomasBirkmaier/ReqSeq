@@ -1,0 +1,6 @@
+# Not read: the workspace file names the folder model.
+logreq-metamodel: 1
+types:
+  - { key: decoy-type, name: Decoy, prefix: DEC }
+statuses:
+  - { key: decoy-status, name: Decoy, initial: true }

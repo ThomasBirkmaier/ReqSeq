@@ -4,6 +4,7 @@
 import type { AnyCommand } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
+import { assertWritable } from "../metamodel/index.js";
 import type { Contracts } from "./contracts.js";
 import { describeViolations, loadContracts, schemaViolations } from "./contracts.js";
 import type { Workspace } from "./workspace.js";
@@ -56,6 +57,13 @@ const toCommandError = (name: string, error: unknown, signal: AbortSignal): Comm
 };
 
 /**
+ * Write commands that run without an open workspace: `workspace.init` creates one, so there is no
+ * metamodel yet that could make it read-only. Interim list: the exemption belongs to the catalog
+ * entry (ADR-0002 rule 5), and #142 replaces this list with a catalog field.
+ */
+const CREATES_WORKSPACE: ReadonlySet<string> = new Set(["workspace.init"]);
+
+/**
  * Bind implementations to their catalog entries. Holds compiled schemas only, never workspace
  * state, so one runtime serves any number of workspaces. Throws a plain `Error` when an
  * implementation has no catalog entry or a name is registered twice (programming errors).
@@ -64,14 +72,20 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const contracts = options.contracts ?? loadContracts();
   const validateOutput = options.validateOutput ?? process.env["LOGREQ_VALIDATE_OUTPUT"] === "1";
   const registry = new Map<string, AnyCommand>();
+  // Write commands that are refused while the workspace is read-only (SR-011 AK3).
+  const guarded = new Set<string>();
   for (const command of options.commands ?? productCommands) {
-    if (contracts.entry(command.name) === undefined) {
+    const entry = contracts.entry(command.name);
+    if (entry === undefined) {
       throw new Error(`command ${command.name} has no entry in schemas/commands/catalog.json`);
     }
     if (registry.has(command.name)) {
       throw new Error(`command ${command.name} is registered twice`);
     }
     registry.set(command.name, command);
+    if (entry.effect === "write-files" && !CREATES_WORKSPACE.has(command.name)) {
+      guarded.add(command.name);
+    }
   }
 
   async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
@@ -108,6 +122,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     const signal = ctx.signal ?? new AbortController().signal;
     let output: unknown;
     try {
+      if (guarded.has(name)) {
+        await assertWritable(ctx.workspace, name);
+      }
       output = await command.run({ workspace: ctx.workspace, signal }, checked as never);
     } catch (error) {
       throw toCommandError(name, error, signal);

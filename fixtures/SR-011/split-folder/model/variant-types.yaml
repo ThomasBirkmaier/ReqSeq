@@ -1,0 +1,8 @@
+logreq-metamodel: 1
+types:
+  - key: variant
+    name: Variant
+    prefix: VAR
+    meaning: variant
+    properties: [title]
+    required: [title]

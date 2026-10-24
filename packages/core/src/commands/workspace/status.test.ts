@@ -5,6 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { headCommit } from "../../git/reader.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+import { metamodelState } from "../../metamodel/index.js";
 import { availableRepositories, workspaceLayoutState } from "../../workspace/index.js";
 import type { CommandOutput } from "../../catalog.js";
 
@@ -212,5 +213,70 @@ describe("workspace.status", () => {
   it("fails with workspace.not-found without a workspace file", async () => {
     const ws = await fixture({ files: { "README.md": "no workspace\n" } });
     await expect(status(open(ws.root))).rejects.toMatchObject({ code: "workspace.not-found" });
+  });
+});
+
+describe("workspace.status with the metamodel (SR-011)", () => {
+  const splitFolder = async (
+    options: Parameters<typeof createFixtureWorkspace>[0] = {},
+  ): Promise<FixtureWorkspace> => fixture({ fixture: "SR-011/split-folder", ...options });
+
+  it("[SR-011/AK1] opens with the metamodel of the folder named in the workspace file", async () => {
+    const ws = await splitFolder({ git: true });
+    const out = await status(open(ws.root));
+    expect(out).toEqual({
+      name: "Weather station",
+      repositories: [{ name: "system", available: true, path: ".", commit: await ws.head() }],
+      metamodel: { repository: "system", path: "model", valid: true },
+      readOnly: false,
+      problems: [
+        {
+          code: "metamodel.invalid",
+          severity: "warning",
+          file: "model/legacy.yml",
+          message: "model/legacy.yml is not read: metamodel files end in .yaml",
+        },
+      ],
+    });
+  });
+
+  it("[SR-011/AK2] is read-only only while the checked-out state has a faulty metamodel", async () => {
+    const ws = await splitFolder({ git: true });
+    await ws.git(["checkout", "--quiet", "-b", "broken"]);
+    await ws.write("model/statuses.yaml", "statuses: [draft\n");
+    await ws.commit(".", "break the metamodel");
+    const workspace = open(ws.root);
+    expect(await status(workspace)).toMatchObject({ metamodel: { valid: false }, readOnly: true });
+    await ws.git(["checkout", "--quiet", "main"]);
+    await workspace.reset(metamodelState);
+    expect(await status(workspace)).toMatchObject({ metamodel: { valid: true }, readOnly: false });
+  });
+
+  it("[SR-011/AK3] opens the workspace read-only and reports file, line and reason of faulty YAML", async () => {
+    const ws = await splitFolder({
+      files: { "model/statuses.yaml": "logreq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
+    });
+    const out = await status(open(ws.root));
+    expect(out.metamodel).toEqual({ repository: "system", path: "model", valid: false });
+    expect(out.readOnly).toBe(true);
+    expect(out.problems?.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "file.invalid-yaml",
+        severity: "error",
+        file: "model/statuses.yaml",
+        line: 4,
+        message: expect.stringMatching(/^Invalid YAML at line 4, column \d+: .+/) as unknown,
+      },
+    ]);
+  });
+
+  it("is read-only when the metamodel folder is missing", async () => {
+    const ws = await splitFolder();
+    await fs.rm(ws.path("model"), { recursive: true });
+    const out = await status(open(ws.root));
+    expect(out).toMatchObject({ metamodel: { valid: false }, readOnly: true });
+    expect(out.problems?.map((p) => p.message)).toEqual([
+      "Metamodel folder model is missing in repository system",
+    ]);
   });
 });

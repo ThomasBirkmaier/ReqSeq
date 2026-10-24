@@ -21,9 +21,10 @@ try {
 
 1. Looks up the implementation. A catalog command without implementation gives `input.invalid` ("Command X is not implemented yet"), a name outside the catalog `input.invalid` ("Unknown command: X").
 2. Copies the input, fills in `default` values from the catalog schema and validates it with Ajv against the entry's `input` schema in `schemas/commands/catalog.json`. `$ref`s like `../common.schema.json#/$defs/uuid` resolve against `schemas/*.schema.json`. A mismatch gives `input.invalid` with `details.errors` (`path`, `keyword`, `message`, `params` per check). `run` is not called.
-3. Calls `run(ctx, input)` with `ctx = { workspace, signal }`.
-4. Maps failures: a thrown `CommandError` passes through unchanged; anything else becomes `internal` with the message `Internal error in X`. The original error, and its text, is only in `cause`, never in what adapters send. An abort (the signal fired, or an `AbortError`) is `internal` with `details.aborted: true` (ADR-0009).
-5. With output validation on (`LOGREQ_VALIDATE_OUTPUT=1`, always in tests via `vitest.config.ts`, and in debug builds) the output is checked against the entry's `output` schema; a mismatch is `internal`.
+3. A `write-files` command (except `workspace.init`, which creates the workspace) is refused with `workspace.read-only` while the workspace is read-only (`src/metamodel/access.ts`, SR-011 AK3); `details.problems` gives the reasons. The exemption is an interim list in `runtime/invoke.ts` until the catalog entry carries it (#142). `run` is not called.
+4. Calls `run(ctx, input)` with `ctx = { workspace, signal }`.
+5. Maps failures: a thrown `CommandError` passes through unchanged; anything else becomes `internal` with the message `Internal error in X`. The original error, and its text, is only in `cause`, never in what adapters send. An abort (the signal fired, or an `AbortError`) is `internal` with `details.aborted: true` (ADR-0009).
+6. With output validation on (`LOGREQ_VALIDATE_OUTPUT=1`, always in tests via `vitest.config.ts`, and in debug builds) the output is checked against the entry's `output` schema; a mismatch is `internal`.
 
 Findings are never thrown: commands return them as `problems` (`common.schema.json#/$defs/problem`). Adapters map a `CommandError` code with `errorClass(code)` (`input`, `not-found`, `conflict`, `unavailable`, `internal`; the table is `COMMAND_ERROR_CLASSES`); how each class becomes an exit code, HTTP status or MCP tool error is ADR-0009.
 
@@ -94,9 +95,20 @@ await workspace.close(); // adapters, when the workspace is closed: disposes eve
 - `available` means the folder exists; `folder` is then its real path. A missing repository is normal (N-041): `available: false` and an `info` problem `workspace.repository-missing`; nothing else changes (SR-004 AK3).
 - A repository in the same folder as another one is left out (`workspace.invalid` error; the main repository always stays). `excludes` lists the folders of other available repositories nested inside a repository (e.g. submodules); discovery skips them.
 - `availableRepositories(layout)` gives the roots in which elements are discovered (SR-003). `locate(layout, location)` resolves a `{ repository, path }` location; `settingLocation(layout, "baselines" | "filters" | "mappings")` gives the configured location or the default in the main repository.
-- `layout.metamodel` names the metamodel folder and whether it exists (`metamodel.invalid` error with the reason otherwise); loading it is the metamodel block (SR-011). `layout.file` is the checked workspace file for later blocks (evidence, ignore).
+- `layout.metamodel` names the metamodel folder and whether it exists (`metamodel.invalid` error with the reason otherwise); loading it is the metamodel block (SR-011, below). `layout.file` is the checked workspace file for later blocks (evidence, ignore).
 - No workspace file: `CommandError workspace.not-found`. A faulty one (YAML, schema, a repository name listed twice): `file.faulty` with `details.problems`; it is never used in part. A location naming an unknown repository and a faulty local file are problems; the workspace still opens.
 - The layout, including availability, is kept until `workspace.reset(workspaceLayoutState)` (the watcher, SR-007). Finding the workspace root upwards from a folder is the CLI's job.
+
+## Metamodel block (`src/metamodel/`)
+
+`metamodelState` (async Workspace state, depends on `workspaceLayoutState`) reads the metamodel of the checked-out state (SR-011, D-021) with `loadMetamodel(layout)`:
+
+- Every `*.yaml` file directly in the folder that `layout.metamodel` names, from the working tree, sorted by name (code-unit order). Subfolders and hidden files (`.` first) are not read; a `*.yml` file gives a `metamodel.invalid` warning. Nothing else is read: no built-in model, no other folder, nothing from Git. When the folder is the root of the main repository (`path: .`), `logreq-workspace.yaml` is not a metamodel file, but every other `.yaml` file there is, including unrelated ones; give the metamodel its own folder.
+- Each file is read with `readYamlFile` and checked against `metamodel.schema.json`. `types`, `properties`, `relations` and `statuses` of all valid files are merged in file order, as written (inheritance and meanings are SR-012, SR-013). A key defined a second time in the same list is a `metamodel.invalid` error on its line; the first definition is kept. Problems come in file order, and within a file in line order.
+- Faulty YAML is the problem of the files block (`file.invalid-yaml` with file, line and reason); a schema violation is `metamodel.invalid` with file and line. A faulty file contributes nothing; the valid files are still used (open question #141). `file` is relative to the metamodel repository; a problem of the whole folder names the folder (`.` for the repository root).
+- `valid` is false when the folder is missing (the layout reports that), unreadable or has no `.yaml` file, or any file has an error. The workspace is then read-only (`workspaceAccess`, `assertWritable` in `src/metamodel/access.ts`): reads work, write commands are refused by `invoke` (SR-011 AK3; a missing metamodel repository counts too, open question #141). `workspace.status` shows `metamodel.valid`, `readOnly` and the problems.
+- Kept until `workspace.reset(metamodelState)` (the watcher, SR-007, SR-015) or a reset of the layout; a new `Workspace` reads it again. Nothing is cached elsewhere, so after a checkout the tool works with the metamodel of the checked-out state (SR-011 AK2).
+- The definitions have the generated types of `metamodel.schema.json` (`MetamodelFile`, `MetamodelType`, `MetamodelProperty`, `MetamodelRelationKind`, `MetamodelStatus`).
 
 ## Git reader (`src/git/reader.ts`)
 

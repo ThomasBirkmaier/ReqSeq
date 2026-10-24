@@ -1,0 +1,13 @@
+logreq-metamodel: 1
+properties:
+  - key: title
+    name: Title
+    kind: text
+    meaning: title
+  - key: wind-class
+    name: Wind class
+    kind: choice
+    content: true
+    choices:
+      - { key: low, name: Low }
+      - { key: high, name: High }

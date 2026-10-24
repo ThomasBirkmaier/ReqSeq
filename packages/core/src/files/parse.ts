@@ -90,7 +90,13 @@ export const findUnresolvedAlias = (document: Document): { offset: number; sourc
 };
 
 type YamlOutcome =
-  | { readonly kind: "ok"; readonly document: Document; readonly data: unknown; readonly warnings: Problem[] }
+  | {
+      readonly kind: "ok";
+      readonly document: Document;
+      readonly data: unknown;
+      readonly warnings: Problem[];
+      readonly lines: LineCounter;
+    }
   | Failed;
 
 const parseYaml = (file: string, yaml: string, place: YamlPlace): YamlOutcome => {
@@ -131,7 +137,7 @@ const parseYaml = (file: string, yaml: string, place: YamlPlace): YamlOutcome =>
     };
   });
   try {
-    return { kind: "ok", document, data: document.toJS(), warnings };
+    return { kind: "ok", document, data: document.toJS(), warnings, lines };
   } catch (e) {
     // For example more aliases than allowed (protection against alias bombs).
     return invalidYaml(file, place, place.firstLine, 1, (e as Error).message);
@@ -216,6 +222,11 @@ export interface ParsedYaml {
   readonly data: unknown;
   readonly bom: boolean;
   readonly warnings: readonly Problem[];
+  /**
+   * Line starts of the text: `lines.linePos(node.range[0]).line` is the line (from 1) of a node,
+   * e.g. for a schema violation in a metamodel file.
+   */
+  readonly lines: LineCounter;
 }
 
 export type YamlParseOutcome = { readonly kind: "parsed"; readonly content: ParsedYaml } | Failed;
@@ -230,6 +241,6 @@ export const parseYamlFileBytes = (file: string, bytes: Uint8Array): YamlParseOu
   if (yaml.kind === "problem") {
     return yaml;
   }
-  const { document, data, warnings } = yaml;
-  return { kind: "parsed", content: { document, data, bom: decoded.bom, warnings } };
+  const { document, data, warnings, lines } = yaml;
+  return { kind: "parsed", content: { document, data, bom: decoded.bom, warnings, lines } };
 };

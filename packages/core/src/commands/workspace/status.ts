@@ -1,8 +1,10 @@
-// workspace.status (SR-004; SR-006, SR-011 and SR-018 extend it): the repositories of the
-// workspace, which are available, where the metamodel lies.
+// workspace.status (SR-004, SR-011; SR-006 and SR-018 extend it): the repositories of the
+// workspace, which are available, where the metamodel lies, whether it is valid and whether the
+// workspace is read-only.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { headCommit } from "../../git/reader.js";
+import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -38,21 +40,22 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
 
 export default defineCommand({
   name: "workspace.status",
-  run: async (ctx) => {
+  run: async (ctx): Promise<CommandOutput<"workspace.status">> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
+    const metamodel = await ctx.workspace.get(metamodelState);
+    const access = await workspaceAccess(ctx.workspace);
     const checked = await Promise.all(layout.repositories.map(checkRepository));
     return {
       name: layout.name,
       repositories: checked.map((c) => c.status),
-      // Until the metamodel block loads the files (SR-011), valid means: the folder exists.
-      metamodel: {
-        repository: layout.metamodel.repository,
-        path: layout.metamodel.path,
-        valid: layout.metamodel.exists,
-      },
-      // Read-only states come with SR-011 AK3 (faulty metamodel) and SR-018 AK2.
-      readOnly: false,
-      problems: [...layout.problems, ...checked.flatMap((c) => (c.problem === undefined ? [] : [c.problem]))],
+      metamodel: { repository: metamodel.repository, path: metamodel.path, valid: metamodel.valid },
+      // A missing or faulty metamodel opens the workspace read-only (SR-011 AK3).
+      readOnly: access.readOnly,
+      problems: [
+        ...layout.problems,
+        ...metamodel.problems,
+        ...checked.flatMap((c) => (c.problem === undefined ? [] : [c.problem])),
+      ],
     };
   },
 });
