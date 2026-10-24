@@ -5,6 +5,8 @@ description: Creates and updates one GitHub issue per system requirement from sp
 
 # SR issues (spec/ -> GitHub issues)
 
+Steps 2 and 4 are scripted: `python3 scripts/sr-issues/sr_issues.py spec` (`--dry` prints only). It is idempotent and finds issues by their body markers.
+
 > GitHub: use the GitHub MCP tools or `gh api` (REST). `gh issue`/`gh pr` need GraphQL, which cloud sessions cannot reach (see CLAUDE.md).
 
 1. **Labels** exist (create once with `scripts/labels.sh`): `sr`, `enabler`, `bug`, `stage:0` to `stage:6`, `thema:<slug>` for the ten topics, `spec-frage`, `spec-geändert`, `blocked`, `agent:working`, `needs-human`, `spec-export`.
