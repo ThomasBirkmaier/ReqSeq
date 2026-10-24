@@ -46,9 +46,9 @@ const YML_WARNING = {
   message: "model/legacy.yml is not read: metamodel files end in .yaml",
 };
 
-/** A metamodel file with one status; `extra` is added to the file. */
+/** A metamodel file with one status, the initial one; `extra` is added to the file. */
 const statusFile = (key: string, extra = ""): string =>
-  `logreq-metamodel: 1\nstatuses:\n  - key: ${key}\n    name: ${key}\n${extra}`;
+  `logreq-metamodel: 1\nstatuses:\n  - key: ${key}\n    name: ${key}\n    initial: true\n${extra}`;
 
 describe("loadMetamodel", () => {
   it("[SR-011/AK1] reads types, properties, relation kinds and statuses only from the YAML files of the named folder", async () => {
@@ -261,14 +261,14 @@ describe("loadMetamodel", () => {
     });
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(false);
-    expect(metamodel.statuses).toEqual([{ key: "draft", name: "draft" }]);
+    expect(metamodel.statuses).toEqual([{ key: "draft", name: "draft", initial: true }]);
     expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
       {
         code: "metamodel.invalid",
         severity: "error",
         repository: "system",
         file: "model/statuses.yaml",
-        line: 5,
+        line: 6,
         message: "Status key draft is already defined in model/statuses.yaml; this definition is ignored",
       },
       {
@@ -315,6 +315,200 @@ describe("loadMetamodel", () => {
     // The first definitions, in core-types.yaml and statuses.yaml, are kept.
     expect(metamodel.types.find((t) => t.key === "need")?.name).toBe("Need");
     expect(metamodel.statuses.find((t) => t.key === "draft")?.name).toBe("Draft");
+  });
+
+  it("reports a relation kind key that a property already uses and ignores the relation kind", async () => {
+    const ws = await fixture({
+      files: { "model/z-more.yaml": "logreq-metamodel: 1\nrelations:\n  - { key: title, name: Title of }\n" },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(keys(metamodel).relations).toEqual(["derives-from"]);
+    expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/z-more.yaml",
+        line: 3,
+        message:
+          "Relation kind key title is already used by a property in model/properties.yaml; this definition is ignored",
+      },
+    ]);
+  });
+
+  it("reports a property key that a relation kind already uses, in the order of the file", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml":
+          "logreq-metamodel: 1\nrelations:\n  - { key: parent, name: Parent }\nproperties:\n  - { key: parent, name: Parent, kind: text }\n  - { key: derives-from, name: D, kind: text }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(keys(metamodel)).toMatchObject({
+      properties: ["title", "wind-class"],
+      relations: ["derives-from", "parent"],
+    });
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.line, p.message])).toEqual([
+      [
+        5,
+        "Property key parent is already used by a relation kind in model/z-more.yaml; this definition is ignored",
+      ],
+      [
+        6,
+        "Property key derives-from is already used by a relation kind in model/relations.yaml; this definition is ignored",
+      ],
+    ]);
+  });
+
+  it("reports types in source-types and target-types that are not defined, on the line of each", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml": [
+          "logreq-metamodel: 1",
+          "properties:",
+          "  - key: parent",
+          "    name: Parent",
+          "    kind: relation",
+          "    target-types: [need, nede]",
+          "relations:",
+          "  - key: refines",
+          "    name: Refines",
+          "    source-types:",
+          "      - system-requirement",
+          "      - requirement",
+          "    target-types:",
+          "      - variant",
+          "      - feature",
+          "",
+        ].join("\n"),
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    // The definitions are kept as written.
+    expect(metamodel.relations.find((r) => r.key === "refines")?.["source-types"]).toEqual([
+      "system-requirement",
+      "requirement",
+    ]);
+    expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/z-more.yaml",
+        line: 6,
+        message: "Property parent names type nede in target-types, which is not defined",
+      },
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/z-more.yaml",
+        line: 12,
+        message: "Relation kind refines names type requirement in source-types, which is not defined",
+      },
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/z-more.yaml",
+        line: 15,
+        message: "Relation kind refines names type feature in target-types, which is not defined",
+      },
+    ]);
+  });
+
+  it("reports a metamodel without an initial status on the first status", async () => {
+    const ws = await fixture({
+      files: {
+        "model/statuses.yaml":
+          "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft }\n  - { key: done, name: Done, initial: false }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/statuses.yaml",
+        line: 3,
+        message: "No status is initial; exactly one status must have initial: true",
+      },
+    ]);
+  });
+
+  it("reports every further initial status on its line", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml":
+          "logreq-metamodel: 1\nstatuses:\n  - { key: open, name: Open, initial: true }\n  - key: new\n    name: New\n    initial: true\n  - { key: closed, name: Closed, initial: false }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(
+      metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.line, p.message]),
+    ).toEqual([
+      [
+        "model/z-more.yaml",
+        3,
+        "Status open is initial, but status draft in model/statuses.yaml is already initial; exactly one status must have initial: true",
+      ],
+      [
+        "model/z-more.yaml",
+        6,
+        "Status new is initial, but status draft in model/statuses.yaml is already initial; exactly one status must have initial: true",
+      ],
+    ]);
+  });
+
+  it("reports a metamodel without statuses on the folder", async () => {
+    const ws = await fixture();
+    await fs.rm(ws.path("model/statuses.yaml"));
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model",
+        message: "No status is initial; exactly one status must have initial: true",
+      },
+    ]);
+  });
+
+  it("does not report a missing initial status or type while a file is faulty, which may define them", async () => {
+    const ws = await fixture({
+      files: {
+        "model/statuses.yaml": "logreq-metamodel: 1\nstatuses: [\n",
+        "model/z-more.yaml":
+          "logreq-metamodel: 1\nrelations:\n  - { key: refines, name: Refines, target-types: [feature] }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.code, p.file])).toEqual([
+      ["file.invalid-yaml", "model/statuses.yaml"],
+    ]);
+  });
+
+  it("reports a further initial status also while a file is faulty", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml": statusFile("open"),
+        "model/z-faulty.yaml": "logreq-metamodel: 1\nstatuses: [\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.line])).toEqual([
+      ["model/z-faulty.yaml", 2],
+      ["model/z-more.yaml", 5],
+    ]);
   });
 
   it("passes YAML warnings on without making the metamodel invalid", async () => {

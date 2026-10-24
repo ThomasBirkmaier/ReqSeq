@@ -3,7 +3,10 @@
 // is checked against metamodel.schema.json; the lists of all files are merged. A faulty file is
 // reported with file, line and reason and makes the metamodel invalid, which opens the workspace
 // read-only (SR-011 AK3, access.ts). Then the inheritance of the types is resolved (SR-012,
-// inheritance.ts) and the built-in meanings are assigned (SR-013, meanings.ts).
+// inheritance.ts) and the built-in meanings are assigned (SR-013, meanings.ts). Checks across the
+// lists (enabler #157): a key is either a property or a relation kind (ADR-0004, while merging);
+// after all files, every type in `source-types`/`target-types` is defined and exactly one status is
+// initial.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -50,9 +53,10 @@ export interface Metamodel {
    */
   readonly meanings: MeaningAssignment;
   /**
-   * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice),
-   * every type has known parents without a cycle and names only known properties, and no type or
-   * property meaning is declared by two keys.
+   * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice,
+   * key used by a property and a relation kind), every type has known parents without a cycle and
+   * names only known properties, no type or property meaning is declared by two keys, every type in
+   * `source-types`/`target-types` is defined, and exactly one status is initial.
    * When false the workspace is read-only (SR-011 AK3).
    */
   readonly valid: boolean;
@@ -152,6 +156,18 @@ const LABELS: Readonly<Record<ListName, string>> = {
 
 const isListName = (key: string): key is ListName => Object.hasOwn(LABELS, key);
 
+/**
+ * Keys are unique across properties and relation kinds (ADR-0004): the value under a key in an
+ * element file is either a property value or a relation.
+ */
+const SHARED_KEYS: Readonly<Partial<Record<ListName, ListName>>> = {
+  properties: "relations",
+  relations: "properties",
+};
+
+/** `a property`, `a relation kind`. */
+const withArticle = (list: ListName): string => `a ${LABELS[list].toLowerCase()}`;
+
 /** A definition of any of the four lists. */
 interface Keyed {
   readonly key: MetamodelKey;
@@ -165,9 +181,23 @@ type Merged = Readonly<
   Record<ListName, { readonly items: Located<Keyed>[]; readonly firstFile: Map<MetamodelKey, string> }>
 >;
 
+/** Why `key` cannot be added to `list`, or undefined when it can. */
+const takenBy = (merged: Merged, list: ListName, key: MetamodelKey): string | undefined => {
+  const first = merged[list].firstFile.get(key);
+  if (first !== undefined) {
+    return `is already defined in ${first}`;
+  }
+  const other = SHARED_KEYS[list];
+  const otherFile = other === undefined ? undefined : merged[other].firstFile.get(key);
+  return other === undefined || otherFile === undefined
+    ? undefined
+    : `is already used by ${withArticle(other)} in ${otherFile}`;
+};
+
 /**
- * Adds the lists of one file, in the order of the file. A key defined a second time in a list is
- * reported on its line and left out; the first definition is kept.
+ * Adds the lists of one file, in the order of the file. A key defined a second time in a list, or a
+ * property key a relation kind already uses (and the other way round), is reported on its line and
+ * left out; the first definition is kept.
  */
 const mergeFile = ({ file, yaml, data }: ValidFile, merged: Merged, problems: Problem[]): void => {
   for (const [list, items] of Object.entries(data)) {
@@ -177,8 +207,8 @@ const mergeFile = ({ file, yaml, data }: ValidFile, merged: Merged, problems: Pr
     const { items: kept, firstFile } = merged[list];
     // The schema checked that each list is an array of definitions with a key.
     (items as readonly Keyed[]).forEach((item, index) => {
-      const first = firstFile.get(item.key);
-      if (first === undefined) {
+      const reason = takenBy(merged, list, item.key);
+      if (reason === undefined) {
         firstFile.set(item.key, file);
         kept.push({
           definition: item,
@@ -190,13 +220,80 @@ const mergeFile = ({ file, yaml, data }: ValidFile, merged: Merged, problems: Pr
       problems.push(
         problem(
           "error",
-          `${LABELS[list]} key ${item.key} is already defined in ${first}; this definition is ignored`,
+          `${LABELS[list]} key ${item.key} ${reason}; this definition is ignored`,
           file,
           lineAt(yaml, [list, String(index), "key"]),
         ),
       );
     });
   }
+};
+
+/** An error at a node of a located definition. */
+const locatedProblem = <T>(located: Located<T>, segments: readonly string[], message: string): Problem =>
+  problem("error", message, located.file, located.lineOf(segments));
+
+type TypeList = "source-types" | "target-types";
+
+/** Every entry of `source-types`/`target-types` that names no defined type, on its line. */
+const unknownTypeProblems = (
+  typeKeys: ReadonlySet<MetamodelKey>,
+  properties: readonly Located<MetamodelProperty>[],
+  relations: readonly Located<MetamodelRelationKind>[],
+): Problem[] => {
+  const check = (
+    located: Located<Partial<Record<TypeList, readonly MetamodelKey[]>> & Keyed>,
+    label: string,
+    lists: readonly TypeList[],
+  ): Problem[] =>
+    lists.flatMap((list) =>
+      (located.definition[list] ?? []).flatMap((key, index) =>
+        typeKeys.has(key)
+          ? []
+          : [
+              locatedProblem(
+                located,
+                [list, String(index)],
+                `${label} ${located.definition.key} names type ${key} in ${list}, which is not defined`,
+              ),
+            ],
+      ),
+    );
+  return [
+    ...properties.flatMap((p) => check(p, LABELS.properties, ["target-types"])),
+    ...relations.flatMap((r) => check(r, LABELS.relations, ["source-types", "target-types"])),
+  ];
+};
+
+const ONE_INITIAL = "exactly one status must have initial: true";
+
+/**
+ * Exactly one status is initial (metamodel.schema.json): new elements get it, the tool never picks
+ * one itself (D-030). Every further one is reported on its `initial`. None is reported, when every
+ * file was read (`complete`), on the first status, or on the folder when there is no status.
+ */
+const initialStatusProblems = (
+  statuses: readonly Located<MetamodelStatus>[],
+  folder: string,
+  complete: boolean,
+): Problem[] => {
+  const initial = statuses.filter((s) => s.definition.initial === true);
+  const [first, ...further] = initial;
+  if (first === undefined) {
+    if (!complete) {
+      return [];
+    }
+    const message = `No status is initial; ${ONE_INITIAL}`;
+    const [any] = statuses;
+    return [any === undefined ? problem("error", message, folder) : locatedProblem(any, ["key"], message)];
+  }
+  return further.map((s) =>
+    locatedProblem(
+      s,
+      ["initial"],
+      `Status ${s.definition.key} is initial, but status ${first.definition.key} in ${first.file} is already initial; ${ONE_INITIAL}`,
+    ),
+  );
 };
 
 type Listing =
@@ -277,21 +374,33 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     statuses: { items: [], firstFile: new Map() },
   };
   // One file after the other, so the problems come in file order, each file's in line order.
+  let complete = true;
   for (const file of files) {
     const checked = await checkFile(repository.folder, file);
     problems.push(...checked.problems);
     if (checked.kind === "valid") {
       mergeFile(checked.valid, merged, problems);
+    } else {
+      complete = false;
     }
   }
   // Each list holds only definitions of its own kind: the schema checked every file.
   const types = merged.types.items as Located<MetamodelType>[];
   const properties = merged.properties.items as Located<MetamodelProperty>[];
   const relations = merged.relations.items as Located<MetamodelRelationKind>[];
-  // After all files: a parent, property or meaning may be defined in any file. Their problems come last.
+  const statuses = merged.statuses.items as Located<MetamodelStatus>[];
+  // After all files: a parent, property, type or meaning may be defined in any file, so these
+  // problems come last.
   const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()));
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
-  problems.push(...resolved.problems, ...assigned.problems);
+  problems.push(
+    ...resolved.problems,
+    ...assigned.problems,
+    // A type or the initial status that seems missing may be in a faulty file, which is reported
+    // already; so these are checked only when every file was read.
+    ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
+    ...initialStatusProblems(statuses, folderName, complete),
+  );
   const definitions = <T>(located: readonly Located<T>[]): T[] => located.map((l) => l.definition);
   return {
     repository: metamodel.repository,
@@ -300,7 +409,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     types: definitions(types),
     properties: definitions(properties),
     relations: definitions(relations),
-    statuses: definitions(merged.statuses.items as Located<MetamodelStatus>[]),
+    statuses: definitions(statuses),
     effectiveTypes: resolved.types,
     meanings: assigned.meanings,
     valid: !problems.some((p) => p.severity === "error"),

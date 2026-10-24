@@ -5,7 +5,7 @@ import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import { elementStoreState } from "../../model/index.js";
+import { createElement, elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { computeVersion } from "../../version/version.js";
@@ -157,9 +157,15 @@ describe("element.create", () => {
         files: { "model/statuses.yaml": `logreq-metamodel: 1\nstatuses:\n${statuses}` },
       });
       const before = await filesBelow(opened.root);
+      // Such a metamodel is invalid, so the command refuses before element.create runs.
       const error = await createError(opened, { type: "wish", title: "x" });
-      expect(error.code).toBe("input.invalid");
-      expect(error.details).toMatchObject({ reason: "initial-status" });
+      expect(error.code).toBe("workspace.read-only");
+      // createElement does not check writability; it still refuses on its own.
+      const direct = await createElement(opened.workspace, { type: "wish", title: "x" }).catch(
+        (thrown: unknown) => thrown,
+      );
+      expect(direct).toBeInstanceOf(CommandError);
+      expect(direct).toMatchObject({ code: "input.invalid", details: { reason: "initial-status" } });
       expect(await filesBelow(opened.root)).toEqual(before);
     }
   });

@@ -120,7 +120,7 @@ describe("read-only workspace", () => {
     });
     await ws.write(
       "model/statuses.yaml",
-      "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft }\n",
+      "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n",
     );
     // Still read-only until the metamodel is read again (watcher or reopening).
     await expect(runtime.invoke("test.write", {}, { workspace })).rejects.toMatchObject({
