@@ -6,9 +6,9 @@ import path from "node:path";
 
 // Logseq tag -> [folder in spec/, type in frontmatter]
 const KINDS = {
-  "Need": ["needs", "need"],
+  Need: ["needs", "need"],
   "System Requirement": ["system-requirements", "system-requirement"],
-  "Decision": ["decisions", "decision"],
+  Decision: ["decisions", "decision"],
   "Glossary Term": ["glossary", "glossary-term"],
 };
 
@@ -42,8 +42,12 @@ const resolveLinks = (text) =>
     .replace(/\[([^\]]+)\]\(\[\[[0-9a-f-]{36}\]\]\)/g, "$1")
     .replace(/\[\[([0-9a-f-]{36})\]\]/g, (m, uuid) => pageTitles.get(uuid) ?? m);
 
-const key = (title) => title.toLowerCase().replace(/[^a-z0-9äöüß]+/g, "_").replace(/^_|_$/g, "");
-const refValue = (v) => (v && typeof v === "object" ? v.id ?? v.title : v);
+const key = (title) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/g, "_")
+    .replace(/^_|_$/g, "");
+const refValue = (v) => (v && typeof v === "object" ? (v.id ?? v.title) : v);
 const yamlScalar = (v) =>
   typeof v === "number" || typeof v === "boolean" ? String(v) : JSON.stringify(String(v));
 
@@ -79,7 +83,9 @@ function frontmatter(obj, kind) {
 function body(pageUuid) {
   const blocks = blocksByPage.get(pageUuid) ?? [];
   const children = (parent) =>
-    blocks.filter((b) => b.parent === parent).sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
+    blocks
+      .filter((b) => b.parent === parent)
+      .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
   const out = [];
   const walk = (parent, depth) => {
     for (const b of children(parent)) {
@@ -95,16 +101,24 @@ function body(pageUuid) {
 }
 
 const fileName = (obj) =>
-  obj.properties?.ID ?? obj.title.toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "");
+  obj.properties?.ID ??
+  obj.title
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß]+/g, "-")
+    .replace(/^-|-$/g, "");
 
 let count = 0;
-for (const [folder] of Object.values(KINDS)) fs.rmSync(path.join(specDir, folder), { recursive: true, force: true });
+for (const [folder] of Object.values(KINDS))
+  fs.rmSync(path.join(specDir, folder), { recursive: true, force: true });
 for (const obj of objects) {
   const kind = obj.tags.map((t) => t.title).find((t) => KINDS[t]);
   if (!kind) continue;
   const dir = path.join(specDir, KINDS[kind][0]);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${fileName(obj)}.md`), `${frontmatter(obj, kind)}\n${body(obj.uuid).trim() ? "\n" + body(obj.uuid) : ""}`);
+  fs.writeFileSync(
+    path.join(dir, `${fileName(obj)}.md`),
+    `${frontmatter(obj, kind)}\n${body(obj.uuid).trim() ? "\n" + body(obj.uuid) : ""}`,
+  );
   count++;
 }
 console.log(`wrote ${count} files to ${specDir}`);

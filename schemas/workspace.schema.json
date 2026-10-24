@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/workspace.schema.json",
+  "title": "Workspace file",
+  "description": "`logreq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
+  "type": "object",
+  "required": ["logreq-workspace", "name", "repositories", "metamodel"],
+  "properties": {
+    "logreq-workspace": { "const": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repository" },
+      "description": "The first entry with `main: true` is the repository that holds this file. Names are unique."
+    },
+    "metamodel": {
+      "description": "Where the metamodel lies: a folder in one of the repositories, the main one or its own (D-021, SR-011, SR-018).",
+      "$ref": "#/$defs/location"
+    },
+    "evidence": {
+      "description": "Folders with evidence records (Markdown) and JUnit XML files (SR-028 AK1). They may be in repositories of other tools.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/location" }
+    },
+    "baselines": {
+      "$ref": "#/$defs/location",
+      "description": "Where new baseline files are written. Default: folder `baselines` in the main repository."
+    },
+    "filters": {
+      "$ref": "#/$defs/location",
+      "description": "Where saved filters are written (SR-070). Default: folder `filters` in the main repository."
+    },
+    "mappings": {
+      "$ref": "#/$defs/location",
+      "description": "Where ReqIF mapping files are written (SR-054). Default: folder `reqif` in the main repository."
+    },
+    "ignore": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns (relative to each repository) that are never read as elements. `.git` and `node_modules` are always ignored."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "url": {
+          "type": "string",
+          "description": "Address of the repository on the Git server. Informational: LogReq never clones or fetches (D-036)."
+        },
+        "path": {
+          "type": "string",
+          "description": "Expected local location relative to the main repository. Default `../<name>`; `.` for the main repository. A person can override it in the untracked file `.logreq/local.yaml`."
+        },
+        "main": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "location": {
+      "type": "object",
+      "required": ["repository", "path"],
+      "properties": {
+        "repository": { "type": "string" },
+        "path": { "$ref": "common.schema.json#/$defs/relativePath" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

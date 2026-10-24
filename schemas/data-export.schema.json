@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/data-export.schema.json",
+  "title": "Data of a state (Stand) as JSON",
+  "description": "Output of `data.export` and the file written by `data.store` (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
+  "type": "object",
+  "required": ["logreq-data", "workspace", "generated", "repositories", "elements"],
+  "properties": {
+    "logreq-data": {
+      "const": 1
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "generated": {
+      "$ref": "common.schema.json#/$defs/dateTime"
+    },
+    "selection": {
+      "$ref": "common.schema.json#/$defs/selection"
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "available"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "commit": {
+            "$ref": "common.schema.json#/$defs/commit"
+          },
+          "dirty": {
+            "type": "boolean",
+            "description": "Uncommitted changes to LogReq files."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "incomplete": {
+      "$ref": "common.schema.json#/$defs/incomplete"
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/element"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "element": {
+      "type": "object",
+      "required": [
+        "id",
+        "shortId",
+        "type",
+        "status",
+        "title",
+        "version",
+        "repository",
+        "file",
+        "properties",
+        "relations"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "shortId": {
+          "$ref": "common.schema.json#/$defs/shortId"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/key"
+        },
+        "status": {
+          "$ref": "common.schema.json#/$defs/key"
+        },
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "description": "Markdown body. Left out by list commands unless asked for."
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "versionDate": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Date of the version from Git; null when not committed yet (D-013: shown instead of the hash)."
+        },
+        "repository": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path relative to the repository."
+        },
+        "readOnly": {
+          "type": "boolean",
+          "description": "Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2)."
+        },
+        "validity": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/uuid"
+          }
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/uuid"
+          }
+        },
+        "emergent": {
+          "type": "boolean"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "All other properties by key, unknown ones included."
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relation"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "description": "Verification status per view: core and each variant the element is valid for (SR-047 AK3).",
+          "items": {
+            "type": "object",
+            "required": ["view", "status"],
+            "properties": {
+              "view": {
+                "$ref": "common.schema.json#/$defs/view"
+              },
+              "status": {
+                "$ref": "common.schema.json#/$defs/verificationStatus"
+              },
+              "missingChildren": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/uuid"
+                },
+                "description": "SR-034 AK2."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "validation": {
+          "$ref": "common.schema.json#/$defs/validationStatus"
+        },
+        "problems": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/problem"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": ["kind", "direction", "id", "accessible"],
+      "properties": {
+        "kind": {
+          "$ref": "common.schema.json#/$defs/key"
+        },
+        "meaning": {
+          "enum": ["derivation", "replacement", "exclusion", "succession", "reference", null],
+          "description": "`reference` = inline link in the text (SR-066)."
+        },
+        "direction": {
+          "enum": ["out", "in"]
+        },
+        "id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "shortId": {
+          "$ref": "common.schema.json#/$defs/shortId"
+        },
+        "title": {
+          "type": "string",
+          "description": "Only when the other end is available locally (SR-005 AK3, SR-006 AK1)."
+        },
+        "accessible": {
+          "type": "boolean"
+        },
+        "storedVersion": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "currentVersion": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "outdated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,12 @@
+logreq-baseline: 1
+name: Release 1.0
+date: 2026-10-24T09:30:00Z
+selection: { package: 19fd3f5e-9caf-4c94-9e30-c4eb8a40324a }
+repositories:
+  - { name: system, commit: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad }
+  - { name: metamodel, commit: 9c1185a5c5e9fc54612808977ee8f548b2258d31 }
+  - { name: subsystem-sensor, commit: 1f2a6c3b9e8d7f6a5b4c3d2e1f0a9b8c7d6e5f4a }
+elements:
+  - { id: 102ee39b-773f-4cd0-b414-825b7146fb54, version: n1:fcde2b2edba56bf4 }
+  - { id: 878e339e-1f73-4746-abab-42cdd0f51ca7, version: n1:7d865e959b2466f0 }
+  - { id: fe5fce30-087e-4bbd-82e4-0f03900e5af3, version: n1:e3b0c44298fc1c14, repository: subsystem-sensor }

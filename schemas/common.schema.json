@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/common.schema.json",
+  "title": "Shared definitions",
+  "description": "Building blocks used by all LogReq file formats and commands. See docs/adr/0004 and 0005.",
+  "$defs": {
+    "uuid": {
+      "description": "Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "shortId": {
+      "description": "Display ID: type prefix, dash, the trailing hex characters of the UUID with dashes removed, at least 6, more until unique in the workspace (D-017, SR-002 AK3). The file name uses 12 (D-056).",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
+    },
+    "elementRef": {
+      "description": "A reference to an element as given by a person or an external tool: UUID or short ID (SR-060).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/uuid"
+        },
+        {
+          "$ref": "#/$defs/shortId"
+        }
+      ]
+    },
+    "version": {
+      "description": "Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.",
+      "type": "string",
+      "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$"
+    },
+    "key": {
+      "description": "Fixed metamodel key of a type, property, relation kind or status value. Readable English, lower case, dashes (D-043, SR-010 AK2).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "maxLength": 64
+    },
+    "relationTarget": {
+      "description": "Target of a relation as stored in the source file (D-013, D-058, SR-005, SR-021). Within the same repository: `id`, `version`, `title`. Across repositories: `id`, `version`, `repository` (workspace name of the target's repository), never title or text (D-058). Written as one flow mapping per line (SR-102, ADR-0004).",
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "title": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string",
+          "description": "Workspace name of the target's repository; required across repositories (D-058), absent within one."
+        }
+      },
+      "additionalProperties": false,
+      "not": {
+        "required": ["title", "repository"]
+      }
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "description": "Full Git object ID (SHA-1 or SHA-256)."
+    },
+    "relativePath": {
+      "description": "Path relative to the repository or file it appears in, forward slashes, no `..` segments.",
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]*$"
+    },
+    "problem": {
+      "description": "A finding or hint. Commands return problems as data so every access shows the same result (SR-080).",
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/problemCode"
+        },
+        "severity": {
+          "enum": ["error", "warning", "info"]
+        },
+        "message": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "elementId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "targetId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "storedVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "currentVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "storedDate": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "currentDate": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "hintId": {
+          "type": "string",
+          "description": "Stable ID of a confirmable hint (D-042)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "problemCode": {
+      "description": "Stable codes. New codes are added here first, in the PR that needs them.",
+      "enum": [
+        "file.invalid-yaml",
+        "file.conflict-markers",
+        "file.unreadable",
+        "element.duplicate-id",
+        "element.file-name-clash",
+        "element.unknown-type",
+        "element.unknown-property",
+        "element.missing-required",
+        "element.wrong-value-kind",
+        "relation.missing-target",
+        "relation.inaccessible-target",
+        "relation.not-allowed",
+        "relation.outdated",
+        "relation.target-superseded",
+        "trace.cycle",
+        "variant.core-changed",
+        "variant.superseded-in-validity",
+        "variant.nested",
+        "evidence.unknown-element",
+        "evidence.invalid-record",
+        "metamodel.invalid",
+        "metamodel.meaning-unassigned",
+        "workspace.repository-missing",
+        "workspace.invalid"
+      ]
+    },
+    "error": {
+      "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).",
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "input.invalid",
+            "ref.unknown",
+            "ref.ambiguous",
+            "workspace.not-found",
+            "workspace.read-only",
+            "element.read-only",
+            "element.not-found",
+            "metamodel.meaning-unassigned",
+            "relation.not-allowed",
+            "variant.nested",
+            "baseline.uncommitted-changes",
+            "reqif.invalid",
+            "reqif.unmapped",
+            "git.unavailable",
+            "internal"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "incomplete": {
+      "description": "True when a result is incomplete because targets are in repositories that are not available locally (SR-006 AK2, SR-036 AK3).",
+      "type": "boolean"
+    },
+    "selection": {
+      "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view (SR-036 AK1, SR-043, SR-061 AK2).",
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/elementRef"
+          }
+        },
+        "filter": {
+          "type": "string",
+          "description": "Name of a saved filter (SR-070)."
+        },
+        "where": {
+          "$ref": "filter.schema.json#/$defs/condition"
+        },
+        "package": {
+          "$ref": "#/$defs/elementRef"
+        },
+        "baseline": {
+          "type": "string",
+          "description": "Path or name of a baseline file."
+        },
+        "view": {
+          "$ref": "#/$defs/view"
+        }
+      },
+      "additionalProperties": false
+    },
+    "view": {
+      "description": "`core`, a variant ID, or absent for all elements (SR-043).",
+      "anyOf": [
+        {
+          "const": "core"
+        },
+        {
+          "$ref": "#/$defs/elementRef"
+        }
+      ]
+    },
+    "verificationStatus": {
+      "description": "SR-031, SR-034. `indirect` = indirectly verified via children.",
+      "enum": ["open", "verified", "indirect", "failed", "outdated"]
+    },
+    "validationStatus": {
+      "enum": ["open", "validated", "failed", "outdated"]
+    }
+  }
+}

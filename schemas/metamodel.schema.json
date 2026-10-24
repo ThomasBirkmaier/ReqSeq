@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/metamodel.schema.json",
+  "title": "Metamodel file",
+  "description": "One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.",
+  "type": "object",
+  "required": ["logreq-metamodel"],
+  "properties": {
+    "logreq-metamodel": {
+      "const": 1,
+      "description": "Format version of this file."
+    },
+    "types": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/type"
+      }
+    },
+    "properties": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/property"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relationKind"
+      }
+    },
+    "statuses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/status"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "key": {
+      "$ref": "common.schema.json#/$defs/key"
+    },
+    "named": {
+      "type": "object",
+      "required": ["key", "name"],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display name. English in the standard model (D-019)."
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "type": {
+      "description": "Element type (SR-012 AK1, AK2).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/named"
+        }
+      ],
+      "required": ["prefix"],
+      "properties": {
+        "key": true,
+        "name": true,
+        "description": true,
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*$",
+          "description": "Prefix of the short ID, e.g. SR (D-017)."
+        },
+        "extends": {
+          "$ref": "#/$defs/key",
+          "description": "Parent type; its properties are inherited (SR-012 AK2)."
+        },
+        "abstract": {
+          "type": "boolean",
+          "default": false,
+          "description": "No elements of this type can be created; only for inheritance."
+        },
+        "meaning": {
+          "description": "Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).",
+          "enum": ["requirement", "need", "variant", "package"]
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "description": "Property keys this type has, in addition to inherited ones."
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "description": "Mandatory property keys (Pflichtfelder). Empty values are allowed but give a hint (SR-064)."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "property": {
+      "description": "Property definition (SR-012 AK3).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/named"
+        }
+      ],
+      "required": ["kind"],
+      "properties": {
+        "key": true,
+        "name": true,
+        "description": true,
+        "kind": {
+          "enum": ["text", "number", "date", "choice", "relation"],
+          "description": "Value kind (Wertart)."
+        },
+        "many": {
+          "type": "boolean",
+          "default": false,
+          "description": "List of values."
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/named"
+          },
+          "description": "Allowed choice keys, for kind `choice`."
+        },
+        "target-types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "description": "Allowed target types, for kind `relation`."
+        },
+        "content": {
+          "type": "boolean",
+          "default": false,
+          "description": "Part of the content and therefore of the version (D-013). Title and status are never content."
+        },
+        "meaning": {
+          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).",
+          "enum": [
+            "title",
+            "validity",
+            "packages",
+            "emergent",
+            "verification-method",
+            "statement",
+            "source",
+            "source-identifier",
+            "import-date",
+            "delivery"
+          ]
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "relationKind": {
+      "description": "Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/named"
+        }
+      ],
+      "properties": {
+        "key": true,
+        "name": true,
+        "description": true,
+        "inverse-name": {
+          "type": "string",
+          "description": "Name shown at the target, e.g. Derived by."
+        },
+        "source-types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          }
+        },
+        "target-types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          }
+        },
+        "meaning": {
+          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target in a variant (D-020). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). `succession`: source is superseded by target (D-045, SR-072; assumption, not yet decided). Without meaning a relation has no traceability semantics.",
+          "enum": ["derivation", "replacement", "exclusion", "succession"]
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "status": {
+      "description": "Status value (D-030).",
+      "allOf": [
+        {
+          "$ref": "#/$defs/named"
+        }
+      ],
+      "properties": {
+        "key": true,
+        "name": true,
+        "description": true,
+        "invalid": {
+          "type": "boolean",
+          "default": false,
+          "description": "Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains (D-044)."
+        },
+        "initial": {
+          "type": "boolean",
+          "default": false,
+          "description": "Status of new elements. Exactly one status is initial."
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  }
+}

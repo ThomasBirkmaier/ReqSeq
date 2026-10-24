@@ -1,0 +1,14 @@
+logreq-filter: 1
+name: Unverified requirements of Pro
+description: Valid requirements of the Pro variant without passed evidence.
+view: ca0dd4a9-1365-45ce-8110-d62071160b58
+where:
+  all:
+    - type: [system-requirement]
+    - invalid: false
+    - not: { verification: [verified, indirect], variant: ca0dd4a9-1365-45ce-8110-d62071160b58 }
+    - any:
+        - { relation: { meaning: derivation, direction: down }, exists: false }
+        - { property: emergent, op: eq, value: "yes" }
+sort:
+  - { by: hierarchy }

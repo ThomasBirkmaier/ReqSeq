@@ -22,7 +22,7 @@ function readFrontmatter(file) {
   if (!m) return data;
   let listKey = null;
   for (const line of m[1].split("\n")) {
-    const item = line.match(/^  - (.*)$/);
+    const item = line.match(/^ {2}- (.*)$/);
     if (item && listKey) {
       data[listKey].push(JSON.parse(item[1]));
       continue;
@@ -59,13 +59,15 @@ function walk(dir) {
     const p = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(p);
     else if (TEST_FILE.test(entry.name)) {
-      fs.readFileSync(p, "utf8").split("\n").forEach((line, i) => {
-        for (const m of line.matchAll(/\[(SR-\d{3})\/AK(\d+)\]/g)) {
-          const k = `${m[1]}/${m[2]}`;
-          if (!testRefs.has(k)) testRefs.set(k, []);
-          testRefs.get(k).push(`${path.relative(root, p)}:${i + 1}`);
-        }
-      });
+      fs.readFileSync(p, "utf8")
+        .split("\n")
+        .forEach((line, i) => {
+          for (const m of line.matchAll(/\[(SR-\d{3})\/AK(\d+)\]/g)) {
+            const k = `${m[1]}/${m[2]}`;
+            if (!testRefs.has(k)) testRefs.set(k, []);
+            testRefs.get(k).push(`${path.relative(root, p)}:${i + 1}`);
+          }
+        });
     }
   }
 }
@@ -100,7 +102,9 @@ for (const id of required) {
     aks.forEach((_, i) => {
       const covered = testRefs.has(`${id}/${i + 1}`);
       if (!covered) errors.push(`${id} AK${i + 1} has no test`);
-      rows.push(`| ${id} | AK${i + 1} | Test | ${covered ? testRefs.get(`${id}/${i + 1}`).join("<br>") : "missing"} |`);
+      rows.push(
+        `| ${id} | AK${i + 1} | Test | ${covered ? testRefs.get(`${id}/${i + 1}`).join("<br>") : "missing"} |`,
+      );
     });
   } else {
     const rec = path.join(root, "verification", `${id}.md`);

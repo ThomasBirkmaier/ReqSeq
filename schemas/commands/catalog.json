@@ -1,0 +1,2106 @@
+{
+  "$schema": "./catalog.meta.schema.json",
+  "logreq-catalog": 1,
+  "description": "The command catalog (D-052, ADR-0002). Every function of LogReq is one command here. CLI, API, MCP server and app are generated from this file; schemas/generated/ is derived and checked in CI. Changing this file is a needs-human change.",
+  "commands": [
+    {
+      "name": "workspace.init",
+      "summary": "Create a workspace with the standard model in an empty folder.",
+      "effect": "write-files",
+      "stage": 1,
+      "implements": ["SR-014"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Empty folder."
+          },
+          "name": {
+            "type": "string"
+          },
+          "metamodel": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": ["path", "name"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "workspace.status",
+      "summary": "Repositories of the workspace, which are available, where the metamodel comes from, read-only state.",
+      "effect": "read",
+      "stage": 1,
+      "implements": ["SR-004", "SR-006", "SR-011", "SR-018"],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "available": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "commit": {
+                  "$ref": "../common.schema.json#/$defs/commit"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["name", "available"]
+            }
+          },
+          "metamodel": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "valid": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "required": ["repository", "path", "valid"]
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name", "repositories", "metamodel", "readOnly"]
+      }
+    },
+    {
+      "name": "workspace.check",
+      "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. CLI exits 1 on findings.",
+      "effect": "read",
+      "stage": 1,
+      "implements": ["SR-019", "SR-020", "SR-025", "SR-008", "SR-016", "SR-015"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "changedFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "changedSince": {
+            "type": "string",
+            "description": "Git revision; only files changed since then and their targets (SR-025 AK4)."
+          },
+          "severity": {
+            "enum": ["error", "warning", "info"],
+            "default": "info"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          },
+          "checkedElements": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ok", "problems"]
+      }
+    },
+    {
+      "name": "metamodel.get",
+      "summary": "The effective metamodel: types with inherited properties, properties, relation kinds, statuses, meanings.",
+      "effect": "read",
+      "stage": 1,
+      "implements": ["SR-012", "SR-013"],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "meanings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "null"]
+            },
+            "description": "Built-in meaning -> assigned key, null if unassigned (SR-013 AK3)."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["types", "properties", "relations", "statuses", "meanings"]
+      }
+    },
+    {
+      "name": "element.create",
+      "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (SR-017).",
+      "effect": "write-files",
+      "stage": 1,
+      "implements": ["SR-001", "SR-002", "SR-064", "SR-039", "SR-048"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "../common.schema.json#/$defs/key"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "../element.schema.json#/$defs/value"
+            }
+          },
+          "repository": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string",
+            "description": "Folder relative to the repository; default from the type."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["type", "title"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "$ref": "../data-export.schema.json#/$defs/element"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["element", "files"]
+      }
+    },
+    {
+      "name": "element.get",
+      "summary": "One element with text, properties, relations, version and its date, hints, and which variants replace or exclude it.",
+      "effect": "read",
+      "stage": 1,
+      "implements": ["SR-005", "SR-006", "SR-016", "SR-046"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "view": {
+            "$ref": "../common.schema.json#/$defs/view"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "$ref": "../data-export.schema.json#/$defs/element"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["element"]
+      }
+    },
+    {
+      "name": "element.resolve",
+      "summary": "Resolve a reference from another tool (UUID or short ID, optional version) and tell whether the version is current.",
+      "effect": "read",
+      "stage": 1,
+      "implements": ["SR-060"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "version": {
+            "$ref": "../common.schema.json#/$defs/version"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "$ref": "../data-export.schema.json#/$defs/element"
+          },
+          "current": {
+            "type": ["boolean", "null"],
+            "description": "null when no version was given."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["element", "current"]
+      }
+    },
+    {
+      "name": "element.list",
+      "summary": "Elements of a selection, sorted; optionally as derivation tree.",
+      "effect": "read",
+      "stage": 3,
+      "implements": ["SR-069", "SR-075", "SR-043", "SR-048"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          },
+          "sort": {
+            "type": "array",
+            "items": {
+              "$ref": "../filter.schema.json#/$defs/sortKey"
+            }
+          },
+          "withText": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "../data-export.schema.json#/$defs/element"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["elements", "total"]
+      }
+    },
+    {
+      "name": "element.update",
+      "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
+      "effect": "write-files",
+      "stage": 1,
+      "implements": ["SR-001", "SR-016", "SR-064", "SR-065", "SR-035", "SR-040", "SR-049"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "set": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "../element.schema.json#/$defs/value"
+            },
+            "propertyNames": {
+              "not": {
+                "enum": ["id", "type", "status"]
+              }
+            }
+          },
+          "unset": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "../common.schema.json#/$defs/key"
+                },
+                {
+                  "not": {
+                    "enum": ["id", "type", "status"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "$ref": "../data-export.schema.json#/$defs/element"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "affected": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["element", "files"]
+      }
+    },
+    {
+      "name": "element.setStatus",
+      "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-017).",
+      "effect": "write-files",
+      "stage": 1,
+      "implements": ["SR-017"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            }
+          },
+          "status": {
+            "$ref": "../common.schema.json#/$defs/key"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["refs", "status"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "element.supersede",
+      "summary": "Supersede an element: set an invalid status and optionally relate it to its successor. There is no delete (D-045).",
+      "effect": "write-files",
+      "stage": 2,
+      "implements": ["SR-072"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "status": {
+            "$ref": "../common.schema.json#/$defs/key"
+          },
+          "successor": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref", "status"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "element.bulkUpdate",
+      "summary": "Set, add to or remove a property for all elements of a selection. Without `confirm` only previews.",
+      "effect": "write-files",
+      "stage": 3,
+      "implements": ["SR-071"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          },
+          "property": {
+            "allOf": [
+              {
+                "$ref": "../common.schema.json#/$defs/key"
+              },
+              {
+                "not": {
+                  "enum": ["id", "type", "status"]
+                }
+              }
+            ]
+          },
+          "operation": {
+            "enum": ["set", "add", "remove"]
+          },
+          "value": {
+            "$ref": "../element.schema.json#/$defs/value"
+          },
+          "confirm": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "required": ["selection", "property", "operation"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "affected": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["id", "reason"]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "applied": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["affected", "skipped"]
+      }
+    },
+    {
+      "name": "element.addAttachment",
+      "summary": "Copy an image next to the element file and return the Markdown to insert; the image counts to the version (SR-065 AK2).",
+      "effect": "write-files",
+      "stage": 3,
+      "implements": ["SR-065"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "sourcePath": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref", "sourcePath"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["file", "markdown"]
+      }
+    },
+    {
+      "name": "relation.options",
+      "summary": "Relation kinds and target types the metamodel allows for an element (SR-067).",
+      "effect": "read",
+      "stage": 2,
+      "implements": ["SR-067", "SR-012"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "kind": {
+            "$ref": "../common.schema.json#/$defs/key"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "$ref": "../common.schema.json#/$defs/key"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "targetTypes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/key"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": ["kind", "targetTypes"]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["kinds"]
+      }
+    },
+    {
+      "name": "relation.add",
+      "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
+      "effect": "write-files",
+      "stage": 2,
+      "implements": ["SR-021", "SR-005", "SR-067", "SR-041"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "kind": {
+            "$ref": "../common.schema.json#/$defs/key"
+          },
+          "target": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["source", "kind", "target"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "relation.remove",
+      "summary": "Remove a relation from the source file.",
+      "effect": "write-files",
+      "stage": 2,
+      "implements": ["SR-067"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "kind": {
+            "$ref": "../common.schema.json#/$defs/key"
+          },
+          "target": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["source", "kind", "target"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "trace.chain",
+      "summary": "Chain up to the top parents and down to evidence, with depth, gaps and cycles.",
+      "effect": "read",
+      "stage": 2,
+      "implements": ["SR-022", "SR-033", "SR-006"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "direction": {
+            "enum": ["up", "down", "both"],
+            "default": "both"
+          },
+          "view": {
+            "$ref": "../common.schema.json#/$defs/view"
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "$ref": "../common.schema.json#/$defs/uuid"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["root", "nodes", "edges"]
+      }
+    },
+    {
+      "name": "trace.related",
+      "summary": "All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth.",
+      "effect": "read",
+      "stage": 2,
+      "implements": ["SR-023"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            }
+          },
+          "direction": {
+            "enum": ["children", "parents"]
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "view": {
+            "$ref": "../common.schema.json#/$defs/view"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["refs", "direction"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "../data-export.schema.json#/$defs/element"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["elements", "total"]
+      }
+    },
+    {
+      "name": "trace.affected",
+      "summary": "Elements affected by a change of one element, with path and distance.",
+      "effect": "read",
+      "stage": 2,
+      "implements": ["SR-024"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "affected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "distance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": ["id", "distance", "path"]
+            }
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["affected"]
+      }
+    },
+    {
+      "name": "hint.list",
+      "summary": "Open hints of the workspace, filterable by kind, type, package or variant.",
+      "effect": "read",
+      "stage": 2,
+      "implements": ["SR-026", "SR-045", "SR-040", "SR-072"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problemCode"
+            }
+          },
+          "type": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/key"
+            }
+          },
+          "package": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "variant": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "hints": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["hints"]
+      }
+    },
+    {
+      "name": "hint.confirm",
+      "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042).",
+      "effect": "write-files",
+      "stage": 2,
+      "implements": ["SR-027"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "hintIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["hintIds"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["confirmed", "files"]
+      }
+    },
+    {
+      "name": "element.search",
+      "summary": "Full-text search over title, text, properties and IDs, typo tolerant, within a view or filter.",
+      "effect": "read",
+      "stage": 3,
+      "implements": ["SR-068", "SR-066"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 50
+          }
+        },
+        "additionalProperties": false,
+        "required": ["query"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "hits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "shortId": {
+                  "$ref": "../common.schema.json#/$defs/shortId"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "type": {
+                  "$ref": "../common.schema.json#/$defs/key"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "match": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["id", "shortId", "title", "score"]
+            }
+          },
+          "tookMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": ["hits"]
+      }
+    },
+    {
+      "name": "filter.list",
+      "summary": "Saved filters of the workspace.",
+      "effect": "read",
+      "stage": 3,
+      "implements": ["SR-070"],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["name", "file"]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["filters"]
+      }
+    },
+    {
+      "name": "filter.save",
+      "summary": "Save a named filter as YAML in the repository.",
+      "effect": "write-files",
+      "stage": 3,
+      "implements": ["SR-070"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "view": {
+            "$ref": "../common.schema.json#/$defs/view"
+          },
+          "where": {
+            "$ref": "../filter.schema.json#/$defs/condition"
+          },
+          "sort": {
+            "type": "array",
+            "items": {
+              "$ref": "../filter.schema.json#/$defs/sortKey"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name", "where"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "evidence.list",
+      "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
+      "effect": "read",
+      "stage": 4,
+      "implements": ["SR-028", "SR-032", "SR-033"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "view": {
+            "$ref": "../common.schema.json#/$defs/view"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "testCases": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["records"]
+      }
+    },
+    {
+      "name": "evidence.record",
+      "summary": "Write a manual verification or validation record; ID and current version are filled in.",
+      "effect": "write-files",
+      "stage": 4,
+      "implements": ["SR-030"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "kind": {
+            "enum": ["verification", "validation"]
+          },
+          "method": {
+            "enum": ["test", "analysis", "inspection", "demonstration"]
+          },
+          "result": {
+            "enum": ["passed", "failed"]
+          },
+          "item": {
+            "type": "string"
+          },
+          "variant": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "date": {
+            "$ref": "../common.schema.json#/$defs/dateTime"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "testCase": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["ref", "kind", "result"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "evidence.enrichJunit",
+      "summary": "Add UUID, version, item and date to every test case of a JUnit XML file that names a short ID. CLI exits 1 on unknown IDs.",
+      "effect": "write-files",
+      "stage": 4,
+      "implements": ["SR-029", "SR-063"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "item": {
+            "type": "string"
+          },
+          "date": {
+            "$ref": "../common.schema.json#/$defs/dateTime"
+          },
+          "output": {
+            "type": "string",
+            "description": "Default: overwrite the input file."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["file", "item"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "testCases": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "testCase": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["testCase", "ref"]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["testCases", "unknown"]
+      }
+    },
+    {
+      "name": "evidence.status",
+      "summary": "Verification and validation status of a selection per view, including indirect verification and missing children.",
+      "effect": "read",
+      "stage": 4,
+      "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "../data-export.schema.json#/$defs/element"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["elements", "total"]
+      }
+    },
+    {
+      "name": "evidence.coverage",
+      "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
+      "effect": "read",
+      "stage": 4,
+      "implements": ["SR-036", "SR-042"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "$ref": "../common.schema.json#/$defs/key"
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "withChildren": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "withEvidence": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "withoutChildren": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  }
+                },
+                "withoutEvidence": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": ["type", "total", "withChildren", "withEvidence"]
+            }
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["levels"]
+      }
+    },
+    {
+      "name": "evidence.degree",
+      "summary": "Verification degree of a selection: share verified and count per status.",
+      "effect": "read",
+      "stage": 4,
+      "implements": ["SR-037", "SR-042"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "degree": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "indirect": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["degree", "counts"]
+      }
+    },
+    {
+      "name": "data.export",
+      "summary": "Data of the current state as JSON for external evaluation.",
+      "effect": "read",
+      "stage": 4,
+      "implements": ["SR-061"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "$ref": "../data-export.schema.json"
+      }
+    },
+    {
+      "name": "data.store",
+      "summary": "Write the data of the current state to a folder, file name contains the commit.",
+      "effect": "write-files",
+      "stage": 4,
+      "implements": ["SR-062"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["folder"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "variant.diff",
+      "summary": "What a variant adds, replaces and excludes compared to the core.",
+      "effect": "read",
+      "stage": 5,
+      "implements": ["SR-044"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "variant": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["variant"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          },
+          "replaced": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "core": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "replacement": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["core", "replacement"]
+            }
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["added", "replaced", "excluded"]
+      }
+    },
+    {
+      "name": "variant.exclude",
+      "summary": "Exclude core requirements for a variant; written into the variant file only.",
+      "effect": "write-files",
+      "stage": 5,
+      "implements": ["SR-042"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "variant": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementRef"
+            }
+          },
+          "undo": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "required": ["variant", "refs"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "baseline.create",
+      "summary": "Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.",
+      "effect": "write-files",
+      "stage": 5,
+      "implements": ["SR-050"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name", "selection"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "baseline.list",
+      "summary": "Baseline files of the workspace.",
+      "effect": "read",
+      "stage": 5,
+      "implements": ["SR-051"],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "baselines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string"
+                },
+                "date": {
+                  "$ref": "../common.schema.json#/$defs/dateTime"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["name", "file", "date"]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["baselines"]
+      }
+    },
+    {
+      "name": "baseline.get",
+      "summary": "Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.",
+      "effect": "read",
+      "stage": 5,
+      "implements": ["SR-051", "SR-032"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "type": "string"
+          },
+          "withEvidence": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["baseline"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "date": {
+            "$ref": "../common.schema.json#/$defs/dateTime"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name", "elements"]
+      }
+    },
+    {
+      "name": "baseline.compare",
+      "summary": "The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.",
+      "effect": "read",
+      "stage": 5,
+      "implements": ["SR-051", "SR-083"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "type": "string"
+          },
+          "ref": {
+            "$ref": "../common.schema.json#/$defs/elementRef"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["baseline", "ref"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "from": {
+            "$ref": "../common.schema.json#/$defs/commit"
+          },
+          "to": {
+            "type": ["string", "null"]
+          },
+          "file": {
+            "type": "string"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["repository", "from", "to", "file", "command"]
+      }
+    },
+    {
+      "name": "reqif.analyze",
+      "summary": "Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.",
+      "effect": "read",
+      "stage": 6,
+      "implements": ["SR-055", "SR-056"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["file"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "unmapped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "enum": ["type", "attribute", "relation"]
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["kind", "source"]
+            }
+          },
+          "new": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dropped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["unmapped", "new", "changed", "dropped"]
+      }
+    },
+    {
+      "name": "reqif.import",
+      "summary": "Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.",
+      "effect": "write-files",
+      "stage": 6,
+      "implements": ["SR-053", "SR-056", "SR-057"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "string"
+          },
+          "delivery": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["file", "mapping", "delivery"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          },
+          "updated": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/uuid"
+            }
+          },
+          "dropped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "losses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": ["id", "reason"]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["created", "updated", "dropped", "losses", "files"]
+      }
+    },
+    {
+      "name": "reqif.saveMapping",
+      "summary": "Save or change the mapping of a source to the own metamodel.",
+      "effect": "write-files",
+      "stage": 6,
+      "implements": ["SR-054", "SR-059"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "mapping": {
+            "$ref": "../reqif-mapping.schema.json"
+          },
+          "file": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["mapping"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Written file, relative to the workspace root."
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["files"]
+      }
+    },
+    {
+      "name": "reqif.export",
+      "summary": "Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.",
+      "effect": "write-files",
+      "stage": 6,
+      "implements": ["SR-052", "SR-058", "SR-059"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "string"
+          },
+          "selection": {
+            "$ref": "../common.schema.json#/$defs/selection"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "string"
+          },
+          "omitProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/key"
+            }
+          },
+          "statements": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": ["output"]
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "elements": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "relations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["file", "elements", "relations"]
+      }
+    }
+  ]
+}

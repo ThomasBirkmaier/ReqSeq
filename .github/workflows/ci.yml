@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   trace-check:
     name: trace-check
@@ -36,5 +40,54 @@ jobs:
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
-  # Stage 0 adds: typecheck, lint, unit tests, CLI e2e, Electron tests on
-  # ubuntu/macos/windows, offline test, cross-access test, license audit.
+  # Static checks run once; they do not depend on the operating system.
+  static:
+    name: static (typecheck, lint, format, contracts, licenses)
+    # Title, body and label edits only matter to trace-check.
+    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm schemas:check
+      - run: pnpm contracts:check
+      - run: pnpm licenses:check
+      - run: pnpm audit --prod --audit-level high
+
+  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
+  test:
+    name: test (${{ matrix.os }})
+    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+      - name: Upload JUnit results (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.os }}
+          path: test-results/
+          if-no-files-found: ignore
+
+  # Added with the stage that needs them (ADR-0011): CLI e2e (stage 1), Electron/Playwright under xvfb
+  # (stage 3), cross-access consistency (stage 1), nightly performance with 50,000 elements (stage 1).

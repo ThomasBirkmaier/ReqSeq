@@ -36,7 +36,9 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 - Merge only when CI is green and the code review found nothing blocking. Never merge red.
 - Tell Thomas (in the stage epic) about PRs that change schemas, ADRs, agent rules, skills or CI, but do not wait for him. Label `needs-human` means "Thomas must answer something", not a merge gate.
 - Small PRs. One SR per PR unless SRs are inseparable; then name all of them.
-- Before starting a plan, read the relevant ADRs and schemas.
+- Before starting a plan, read `docs/architecture/README.md`, the ADRs it names for your area and the schemas you touch. Plans that contradict an ADR are rejected in plan review.
+- New functions start as an entry in `schemas/commands/catalog.json` and one implementation in `packages/core/src/commands/`; never add logic to `cli`, `api`, `mcp` or `app` (ADR-0002).
+- Local checks before a PR: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm contracts:check && pnpm test && pnpm trace-check`.
 
 ## Product rules that are easy to break
 

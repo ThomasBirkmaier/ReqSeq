@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/baseline.schema.json",
+  "title": "Baseline file",
+  "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
+  "type": "object",
+  "required": ["logreq-baseline", "name", "date", "repositories", "elements"],
+  "properties": {
+    "logreq-baseline": { "const": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "date": { "$ref": "common.schema.json#/$defs/dateTime" },
+    "selection": {
+      "description": "How the elements were selected, for information. The element list is authoritative.",
+      "$ref": "common.schema.json#/$defs/selection"
+    },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "commit"],
+        "properties": {
+          "name": { "type": "string" },
+          "commit": { "$ref": "common.schema.json#/$defs/commit" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/uuid" },
+          "version": { "$ref": "common.schema.json#/$defs/version" },
+          "repository": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "description": "Sorted by id; one flow mapping per line."
+    }
+  },
+  "additionalProperties": false
+}
