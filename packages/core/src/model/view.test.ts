@@ -77,6 +77,7 @@ describe("elementView", () => {
     const view = elementView({
       record,
       file,
+      images: [],
       metamodel,
       store,
       shortIds: buildShortIds(store.byId, metamodel),
@@ -120,6 +121,7 @@ describe("elementView", () => {
     const view = elementView({
       record: recordOf(file),
       file,
+      images: [],
       metamodel,
       store: { ...store, byId },
       shortIds: buildShortIds(byId, metamodel),
@@ -168,6 +170,7 @@ describe("elementView", () => {
         shortIds: buildShortIds(store.byId, withParent),
         titleKey: "title",
         layout,
+        images: [],
       }).relations;
     };
     expect(
@@ -219,6 +222,7 @@ describe("elementView", () => {
     const view = elementView({
       record,
       file,
+      images: [],
       metamodel,
       store,
       shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),
@@ -244,6 +248,7 @@ describe("elementView", () => {
     const view = elementView({
       record,
       file,
+      images: [],
       metamodel,
       store,
       shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),

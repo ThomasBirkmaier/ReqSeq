@@ -1,7 +1,8 @@
 // Reading element files (ADR-0007, SR-008). A faulty file becomes a problem with file, line and
 // reason; it never stops the others.
 import type { Stats } from "node:fs";
-import { lstatSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, lstatSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -135,6 +136,71 @@ export const readElementFile = async (root: string, relativePath: string): Promi
  */
 export const readElementFileSync = (root: string, relativePath: string): FileReadResult =>
   elementResult(readBytesSync(root, relativePath));
+
+/**
+ * What an embedded image (ADR-0005 "Files") hashes to, with the `lstat` it was read after (for the
+ * cache, ADR-0008).
+ */
+export interface FileHash {
+  /** SHA-256, lower-case hex: of the bytes, or of a symbolic link's text (its Git blob). */
+  readonly sha256: string;
+  readonly size: number;
+  readonly mtimeMs: number;
+}
+
+/** "Not there": the path or a folder above it does not exist, or a name above it is a file. */
+const isAbsent = (error: unknown): boolean => {
+  const code = errorCode(error);
+  return code === "ENOENT" || code === "ENOTDIR";
+};
+
+const unreadableImage = (file: string, error: unknown): CommandError =>
+  new CommandError("file.faulty", `Cannot read ${file}: ${String(errorCode(error))}`, {
+    file,
+    reason: String(errorCode(error)),
+  });
+
+/**
+ * The text of a symbolic link as Git stores it: with `/` as separator. Windows gives a link text
+ * with `\\` (it writes `/` in a link text as `\\`), so there every `\\` becomes `/`.
+ */
+export const linkText = (target: Buffer, platform: NodeJS.Platform = process.platform): Buffer =>
+  platform === "win32" ? Buffer.from(target.toString("latin1").replaceAll("\\", "/"), "latin1") : target;
+
+/** SHA-256 of a file's bytes, read as a stream so a large image never sits in memory as a whole. */
+const streamSha256 = async (absolute: string): Promise<string> => {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(absolute)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest("hex");
+};
+
+/**
+ * The hash of the file at `relativePath` below `root`, for an image an element embeds (ADR-0005):
+ * of its bytes for a regular file, of its link text for a symbolic link (not followed; the link
+ * text is the Git blob and what a checkout without links holds); `null` when it is not there or
+ * is neither (a folder, a device). The caller has checked the folders above it. Any other error is
+ * `file.faulty`.
+ */
+export const readFileSha256 = async (root: string, relativePath: string): Promise<FileHash | null> => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  try {
+    const stat = await fs.lstat(absolute);
+    if (stat.isSymbolicLink()) {
+      const target = linkText(await fs.readlink(absolute, { encoding: "buffer" }));
+      return { sha256: sha256(target), size: target.byteLength, mtimeMs: stat.mtimeMs };
+    }
+    return stat.isFile()
+      ? { sha256: await streamSha256(absolute), size: stat.size, mtimeMs: stat.mtimeMs }
+      : null;
+  } catch (error) {
+    if (isAbsent(error)) {
+      return null;
+    }
+    throw unreadableImage(file, error);
+  }
+};
 
 /** A whole-file YAML document (metamodel, workspace, baseline, filter, mapping file). */
 export interface YamlFile extends ParsedYaml {

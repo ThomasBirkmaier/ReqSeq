@@ -7,7 +7,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType, propertyWithMeaning } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import { computeVersion } from "../version/version.js";
-import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
+import type { VersionFile, VersionPropertyDefinition, VersionValue } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
@@ -119,15 +119,21 @@ const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): Versio
 };
 
 /**
- * The version of an element (ADR-0005) from its record and the text of its file; embedded images
- * are not counted yet (#131). The one place model code computes it, for views and stored targets.
+ * The version of an element (ADR-0005) from its record, the text of its file and the images the
+ * text embeds (`embeddedImages`). The one place model code computes it, for views and stored
+ * targets.
  */
-export const elementVersion = (record: ElementRecord, body: string, metamodel: Metamodel): string =>
+export const elementVersion = (
+  record: ElementRecord,
+  body: string,
+  metamodel: Metamodel,
+  images: readonly VersionFile[],
+): string =>
   computeVersion({
     text: body,
     properties: record.data as Readonly<Record<string, VersionValue>>,
     definitions: versionDefinitions(record, metamodel),
-    files: [],
+    files: images,
   });
 
 export interface ElementViewInput {
@@ -135,6 +141,8 @@ export interface ElementViewInput {
   readonly record: ElementRecord;
   /** The file as just read: its text and the lines of findings. */
   readonly file: ParsedFile;
+  /** The images its text embeds, read with `embeddedImages`; they count to the version. */
+  readonly images: readonly VersionFile[];
   readonly metamodel: Metamodel;
   /** Targets of relations are looked up here. */
   readonly store: ElementStore;
@@ -147,7 +155,7 @@ export interface ElementViewInput {
 }
 
 /**
- * The element with its text, its version (ADR-0005; embedded images are not counted yet, #131),
+ * The element with its text, its version (ADR-0005, with the embedded images of `input.images`),
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
  * keys included), its own relations and the hints with their lines: unknown type and properties
  * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
@@ -181,7 +189,7 @@ export const elementView = (
     status: text(record.data["status"]),
     title: text(record.data[titleKey]),
     text: file.body,
-    version: elementVersion(record, file.body, metamodel),
+    version: elementVersion(record, file.body, metamodel, input.images),
     repository: record.repository,
     file: record.file,
     properties,

@@ -56,7 +56,9 @@ export {
   targetState,
 } from "./relations.js";
 export type { FollowedTargets, TargetState } from "./relations.js";
-export { markdownLinks } from "./markdown-links.js";
+export { embeddedImages, imageLinks, imageMemo } from "./images.js";
+export type { EmbeddedImage, ImageLink, ImageMemo, ImageSource } from "./images.js";
+export { markdownImages, markdownLinks } from "./markdown-links.js";
 export type { MarkdownLink } from "./markdown-links.js";
 export { currentTarget, inlineReferences, setInlineReferences, setRelationTargets } from "./targets.js";
 export type { InlineReference, TargetContext } from "./targets.js";

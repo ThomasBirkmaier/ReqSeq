@@ -58,7 +58,42 @@ function parseExample(f, text) {
 // bytes. The core test (packages/core/src/version/vectors.test.ts) recomputes the bytes.
 const vectorsWhere = "examples/version/vectors.yaml";
 const isPath = (p) => typeof p === "string" && p !== "";
-const existsIn = (dir, p) => isPath(p) && fs.existsSync(path.join(dir, p));
+// A path exists only when every name is spelled as on disk (ADR-0005 "Files": case and normal form
+// are never ignored), so a file system that ignores case (Windows, macOS) does not find `Photo.png`
+// for `photo.png`.
+const existsIn = (dir, p) => {
+  if (!isPath(p)) {
+    return false;
+  }
+  let folder = dir;
+  for (const name of p.split("/")) {
+    if (name === "." || name === "..") {
+      folder = path.join(folder, name);
+      continue;
+    }
+    let names;
+    try {
+      names = fs.readdirSync(folder);
+    } catch {
+      return false;
+    }
+    if (!names.includes(name)) {
+      return false;
+    }
+    folder = path.join(folder, name);
+  }
+  return true;
+};
+// Mirrors `windowsChanges` in packages/core/src/model/discover.ts (this script runs before the
+// build, so it cannot import core): a name that Windows changes or refuses.
+const DEVICE_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])(?:\..*)?$/iu;
+const windowsChanges = (name) =>
+  /\p{Cc}/u.test(name) || /[. ]$/.test(name) || /[<>:"|?*]/.test(name) || DEVICE_NAME.test(name);
+// A path the ADR-0005 rules count as missing by its spelling alone (a trailing `/`, a `\`, a name
+// that Windows changes) may name a file the operating system finds anyway (Windows), so only the
+// other missing paths must not exist.
+const missingBySpelling = (p) =>
+  isPath(p) && (p.endsWith("/") || p.includes("\\") || p.split("/").some(windowsChanges));
 
 function vectorList(v, key) {
   if (Array.isArray(v[key])) {
@@ -75,7 +110,7 @@ function checkVector(dir, v, validate) {
     }
   }
   for (const f of vectorList(v, "missing")) {
-    if (!isPath(f) || existsIn(dir, f)) {
+    if (!isPath(f) || (!missingBySpelling(f) && existsIn(dir, f))) {
       errors.push(`${vectorsWhere}: missing file ${f} must be a path that does not exist`);
     }
   }

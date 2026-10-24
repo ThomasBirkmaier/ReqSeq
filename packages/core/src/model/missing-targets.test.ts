@@ -337,6 +337,7 @@ describe("missing relation targets (SR-089)", () => {
       const view = elementView({
         record,
         file: read.file,
+        images: [],
         metamodel: context.metamodel,
         store: context.store,
         shortIds: context.shortIds,

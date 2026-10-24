@@ -1,11 +1,19 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Problem } from "../catalog.js";
 import { Alias, Document, parseDocument } from "yaml";
 import { findUnresolvedAlias } from "./parse.js";
-import { readElementFile, readElementFileSync, readElementFiles, readYamlFile } from "./read.js";
+import {
+  linkText,
+  readElementFile,
+  readElementFileSync,
+  readElementFiles,
+  readFileSha256,
+  readYamlFile,
+} from "./read.js";
 import type { FileReadResult, YamlReadResult } from "./read.js";
 
 let root: string;
@@ -452,5 +460,62 @@ describe("readElementFileSync (worker threads of a cold load, ADR-0008)", () => 
 
   it("refuses paths outside the root like readElementFile", () => {
     expect(() => readElementFileSync(root, "../x.md")).toThrow(/not inside the workspace/);
+  });
+});
+
+describe("readFileSha256", () => {
+  it("gives the SHA-256 of a regular file as lower-case hex, with size and mtime", async () => {
+    await put("img/a.png", new Uint8Array([1, 2, 3]));
+    const stat = await fs.lstat(path.join(root, "img", "a.png"));
+    expect(await readFileSha256(root, "img/a.png")).toEqual({
+      sha256: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+      size: 3,
+      mtimeMs: stat.mtimeMs,
+    });
+  });
+
+  it("hashes a large file as a stream", async () => {
+    const bytes = new Uint8Array(3 * 1024 * 1024).map((_, i) => i % 251);
+    await put("big.png", bytes);
+    expect((await readFileSha256(root, "big.png"))?.sha256).toBe(
+      createHash("sha256").update(bytes).digest("hex"),
+    );
+  });
+
+  it("hashes a symbolic link as its link text, without following it", async () => {
+    await put("a.png", "A");
+    await fs.symlink("a.png", path.join(root, "link.png"), "file");
+    await fs.symlink("gone.png", path.join(root, "dangling.png"), "file");
+    const hash = createHash("sha256").update("a.png").digest("hex");
+    expect((await readFileSha256(root, "link.png"))?.sha256).toBe(hash);
+    expect(await readFileSha256(root, "dangling.png")).toMatchObject({ size: "gone.png".length });
+  });
+
+  it("reads a link text with `/` as separator, also on Windows, where it holds `\\`", () => {
+    const windows = Buffer.from("img\\a b\\é.png", "utf8");
+    expect(linkText(windows, "win32").toString("utf8")).toBe("img/a b/é.png");
+    expect(linkText(windows, "linux")).toBe(windows);
+    expect(linkText(Buffer.from("a/b.png"))).toEqual(Buffer.from("a/b.png"));
+  });
+
+  it("gives null for a missing file, a name below a file and a folder", async () => {
+    await put("img/a.png", "A");
+    expect(await readFileSha256(root, "img/gone.png")).toBeNull();
+    expect(await readFileSha256(root, "img/a.png/x.png")).toBeNull();
+    expect(await readFileSha256(root, "img")).toBeNull();
+  });
+
+  it("refuses a path outside the root, and other read errors with file.faulty", async () => {
+    await expect(readFileSha256(root, "../outside.png")).rejects.toMatchObject({ code: "input.invalid" });
+    await put("a.png", "A");
+    const denied = Object.assign(new Error("denied"), { code: "EACCES" });
+    vi.spyOn(fs, "lstat").mockRejectedValueOnce(denied);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await expect(readFileSha256(root, "a.png")).rejects.toMatchObject({
+      code: "file.faulty",
+      details: { file: "a.png", reason: "EACCES" },
+    });
   });
 });

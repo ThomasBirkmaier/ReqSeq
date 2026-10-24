@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownLinks } from "./markdown-links.js";
+import { markdownImages, markdownLinks } from "./markdown-links.js";
 
 /** The destinations found, `!` in front of images. */
 const found = (text: string): string[] =>
@@ -206,5 +206,148 @@ describe("Markdown links", () => {
     expect(found(nested(32))).toEqual([`${"(".repeat(32)}x${")".repeat(32)}`]);
     expect(found(nested(33))).toEqual([]);
     expect(found("[a](<b<c>) [d](<e\\>f>)")).toEqual(["e\\>f"]);
+  });
+});
+
+describe("Markdown images", () => {
+  it("reads lines that end with CR, CRLF or LF", () => {
+    expect(markdownImages("![a][r]\r```\r![b](b.png)\r```\r\r[r]: r.png\r\n![c](c.png)\n")).toEqual([
+      "c.png",
+      "r.png",
+    ]);
+    const text = "x\r[a](1)";
+    expect(markdownLinks(text)).toEqual([{ image: false, label: "a", destination: "1", start: 6, end: 7 }]);
+  });
+
+  it("finds inline images, then reference-style images whose label is defined", () => {
+    const text = [
+      "![a](inline.png) [link](not.png) ![full][Logo] ![collapsed][] ![shortcut] ![undefined][nope]",
+      "",
+      '[logo]: <logo file.svg> "Title"',
+      "[collapsed]: c.png 'T'",
+      " [SHORTCUT]: s.png (T)",
+      "[link]: l.png",
+    ].join("\n");
+    expect(markdownImages(text)).toEqual(["inline.png", "logo file.svg", "c.png", "s.png"]);
+  });
+
+  it("matches labels ignoring case and white space; the first definition of a label wins", () => {
+    const text = [
+      "![x][ My   Label ] ![y][my label]",
+      "",
+      "[MY LABEL]: first.png",
+      "[my label]: second.png",
+    ].join("\n");
+    expect(markdownImages(text)).toEqual(["first.png", "first.png"]);
+  });
+
+  it("reads a definition only on its own line, outside code and not inside a paragraph", () => {
+    const text = [
+      "![a] ![b] ![c] ![d] ![e] ![f]",
+      "",
+      "Paragraph text",
+      "[a]: in-paragraph.png",
+      "",
+      "```",
+      "[b]: in-code.png",
+      "```",
+      "",
+      "    [c]: indented.png",
+      "",
+      "[d]: two words.png",
+      "",
+      '[e]: e.png "open title',
+      "",
+      "[]: empty-label.png",
+      "",
+      "[ ]: blank-label.png",
+      "",
+      "> [f]: quoted.png",
+    ].join("\n");
+    expect(markdownImages(text)).toEqual(["quoted.png"]);
+  });
+
+  it("finds no links on a definition line, and the links elsewhere as before", () => {
+    const text = '[ref]: <a.png> "[b](c)"\n\n[d](e) ![f][ref]';
+    expect(markdownLinks(text).map((l) => l.destination)).toEqual(["e"]);
+    expect(markdownImages(text)).toEqual(["a.png"]);
+  });
+
+  it("drops reference images in the alt text of an inline image, and reads a label with escapes", () => {
+    const text = [
+      "![outer ![inner][r]](o.png) ![x][a\\]b] ![y][open [r]",
+      "",
+      "[r]: r.png",
+      "[a\\]b]: ab.png",
+    ].join("\n");
+    // `[open` is not closed before the next `[`, so `![y]` is a shortcut, and `[r]` is no image.
+    expect(markdownImages(text)).toEqual(["o.png", "ab.png"]);
+  });
+
+  it("reads a definition after a list item marker, also indented in a list, with balanced parentheses only", () => {
+    const text = [
+      "![a] ![b] ![c] ![d] ![e]",
+      "",
+      "- [a]: a(1).png",
+      "1. [b]: b.png",
+      "",
+      "    [c]: c.png",
+      "",
+      "[d]: d(.png",
+      "",
+      "[e]: e).png",
+      "",
+      "[f]: f\\(.png",
+      "",
+      "![f]",
+    ].join("\n");
+    expect(markdownImages(text)).toEqual(["a(1).png", "b.png", "c.png", "f\\(.png"]);
+  });
+
+  it("reads the line after a definition as paragraph text, also when indented, so no definition follows it", () => {
+    const text = ["[a]: a.png", "    ![b](b.png)", "[c]: c.png", "", "![a] ![c]"].join("\n");
+    expect(markdownImages(text)).toEqual(["b.png", "a.png"]);
+    expect(markdownImages(["[a]: a.png", "[c]: c.png", "", "![a] ![c]"].join("\n"))).toEqual([
+      "a.png",
+      "c.png",
+    ]);
+  });
+
+  it("starts a new block at a list item marker or a new block quote marker, so a definition may follow text", () => {
+    expect(markdownImages(["- foo", "- [x]: a.png", "", "![x]"].join("\n"))).toEqual(["a.png"]);
+    expect(markdownImages(["foo", "> [x]: a.png", "", "![x]"].join("\n"))).toEqual(["a.png"]);
+    // A lazy continuation keeps the quote: the next quoted line still continues the paragraph.
+    expect(markdownImages(["> foo", "bar", "> [x]: a.png", "", "![x]"].join("\n"))).toEqual([]);
+    expect(markdownImages(["> foo", "> [x]: a.png", "", "![x]"].join("\n"))).toEqual([]);
+    // A list item after a quoted paragraph is no lazy continuation: the quote starts anew.
+    expect(markdownImages(["> foo", "- bar", "> [x]: a.png", "", "![x]"].join("\n"))).toEqual(["a.png"]);
+  });
+
+  it("ends a list at an unindented line that does not continue paragraph text, so an indented line after it is code", () => {
+    expect(markdownImages(["- a", "", "---", "    ![d](d.png)"].join("\n"))).toEqual([]);
+    expect(markdownImages(["- a", "```", "```", "    ![e](e.png)"].join("\n"))).toEqual([]);
+    expect(markdownImages(["- a", "", "[x]: x.png", "", "    ![f](f.png)"].join("\n"))).toEqual([]);
+    expect(markdownImages(["- a", "# h", "    ![g](g.png)"].join("\n"))).toEqual([]);
+    // Lazy paragraph text keeps the list open.
+    expect(markdownImages(["- a", "b", "    ![h](h.png)"].join("\n"))).toEqual(["h.png"]);
+  });
+
+  it("reads a fence after a list item marker as code, and no backtick fence with a backtick in its info string", () => {
+    expect(markdownImages(["- ```", "  ![a](a.png)", "  ```", "![b](b.png)"].join("\n"))).toEqual(["b.png"]);
+    expect(markdownImages(["``` a`b", "![c](c.png)", "~~~ a`b", "![d](d.png)", "~~~"].join("\n"))).toEqual([
+      "c.png",
+    ]);
+  });
+
+  it("takes only `[]` as collapsed: `[ ]` and a label over 999 characters leave the image a shortcut", () => {
+    const long = "y".repeat(1000);
+    const text = [`![x][ ] ![x][${long}] ![z][]`, "", "[x]: x.png", "[z]: z.png", `[${long}]: long.png`].join(
+      "\n",
+    );
+    expect(markdownImages(text)).toEqual(["x.png", "x.png", "z.png"]);
+  });
+
+  it("finds no reference image in code spans or code blocks", () => {
+    expect(markdownImages("`![a][r]`\n\n    ![b][r]\n\n[r]: r.png")).toEqual([]);
   });
 });

@@ -269,18 +269,25 @@ const WINDOWS_REFUSED = /[<>:"|?*]/;
  * `GIT~1`) is `not-portable`.
  */
 const portableRule = (name: string): NewFileRule | undefined => {
-  if (SKIPPED_NAMES.has(name.toLowerCase().replace(/[. ]+$/, ""))) {
+  if (isSkippedOnSomeSystem(name)) {
     return "skipped-name";
   }
-  const control = /\p{Cc}/u.test(name);
-  return control ||
-    /[. ]$/.test(name) ||
-    WINDOWS_REFUSED.test(name) ||
-    DEVICE_NAME.test(name) ||
-    SHORT_NAME.test(name)
-    ? "not-portable"
-    : undefined;
+  return windowsChanges(name) || SHORT_NAME.test(name) ? "not-portable" : undefined;
 };
+
+/**
+ * Whether Windows or macOS take `name` for `.git` or `node_modules` (any case, trailing dots and
+ * spaces dropped).
+ */
+export const isSkippedOnSomeSystem = (name: string): boolean =>
+  SKIPPED_NAMES.has(name.toLowerCase().replace(/[. ]+$/, ""));
+
+/**
+ * Whether Windows changes or refuses `name`: a trailing dot or space, one of `<>:"|?*`, a control
+ * character or a device name (`NUL`, `com1.png`).
+ */
+export const windowsChanges = (name: string): boolean =>
+  /\p{Cc}/u.test(name) || /[. ]$/.test(name) || WINDOWS_REFUSED.test(name) || DEVICE_NAME.test(name);
 
 /**
  * Invisible format characters (zero-width and direction marks, the byte order mark, the soft

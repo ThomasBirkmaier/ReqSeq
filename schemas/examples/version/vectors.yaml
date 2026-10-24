@@ -4,7 +4,8 @@
 # For each vector:
 #   element    element file (input), byte for byte; .gitattributes keeps line endings and trailing spaces.
 #   files      images the text embeds that exist, as normalised paths relative to the element file's folder
-#              (here: this folder), each path once; their SHA-256 counts (ADR-0005 "Files").
+#              (here: this folder, which is also the repository), each path once; their SHA-256 counts
+#              (ADR-0005 "Files").
 #   missing    images the text embeds that do not exist; they count with the marker `missing`.
 #   canonical  the exact canonical bytes (UTF-8) of normal form n1.
 #   version    "n1:" + the first 16 hex characters of SHA-256 over the canonical bytes.
@@ -38,3 +39,23 @@ vectors:
     missing: [SR-9f0a1b2c3d4e/sketch.png]
     canonical: SR-9f0a1b2c3d4e.canonical.txt
     version: n1:76cf1790dd173dec
+  # The Markdown subset (ADR-0005 "Files"): an image in an HTML comment counts; a definition line inside a
+  # paragraph is none, so its reference image does not count; a definition after a list item marker with
+  # balanced parentheses, and one in a list item right after another item; a line indented by a tab after a
+  # blank line is code; query and fragment dropped; an escape removed; invalid percent-encoding, a `\`, a
+  # trailing dot and a trailing `/` are missing on every OS; a control character, the element's own file and
+  # `.git` do not count.
+  - element: SR-7a8b9c0d1e2f.md
+    files:
+      - SR-7a8b9c0d1e2f/comment.png
+      - SR-7a8b9c0d1e2f/item.png
+      - SR-7a8b9c0d1e2f/list(1).png
+      - SR-7a8b9c0d1e2f/photo.png
+      - SR-7a8b9c0d1e2f/under_score.png
+    missing:
+      - SR-7a8b9c0d1e2f/bad%zz.png
+      - SR-7a8b9c0d1e2f\none.png
+      - SR-7a8b9c0d1e2f/dot.
+      - SR-7a8b9c0d1e2f/photo.png/
+    canonical: SR-7a8b9c0d1e2f.canonical.txt
+    version: n1:828d4b89bcf3e6f8

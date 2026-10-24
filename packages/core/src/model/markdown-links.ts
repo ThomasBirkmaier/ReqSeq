@@ -1,27 +1,38 @@
 // Inline links and images of a Markdown text (CommonMark subset, ADR-0004): the one scanner that
 // inline references (SR-021, SR-066), outdated checks (SR-025) and the embedded images of the
-// version (ADR-0005, #178) use. Pure; no file access.
+// version (ADR-0005 "Files", #178) use. Pure; no file access. ADR-0005 states the subset the
+// version depends on normatively; this comment describes the implementation.
 //
-// Handled: inline links `[label](destination "title")` and images `![alt](destination)` on one
-// line, labels with nested and escaped brackets, destinations in `<…>`, backslash escapes (of
-// ASCII punctuation only, so `[](\ )` has the destination `\`), titles with escaped quotes or
-// parentheses. A destination with a parenthesis still open where it ends is none (`[](( )`). A line
-// is read from left to right with a stack of open brackets, as CommonMark does: a code span binds
-// more tightly than the brackets around it (`` [a `]` b](x) `` is a link), while a destination is
-// read as written, also with backticks. Links do not nest: a link in the label of another one is
-// the link, the outer one is not (`[a [b](x) c](y)` has the link `x`); an image in a link label is
-// found as well, before the link; links and images in the alt text of an image are not. Not
-// links: anything in fenced code blocks (also inside block quotes), indented code blocks (also an
-// indented line right after an ATX heading, a setext heading or a thematic break), and code spans
-// on one line.
+// Handled: lines ending with LF, CRLF or CR; inline links `[label](destination "title")` and
+// images `![alt](destination)` on one line, labels with nested and escaped brackets, destinations
+// in `<…>`, backslash escapes (of ASCII punctuation only, so `[](\ )` has the destination `\`),
+// titles with escaped quotes or parentheses. A destination with a parenthesis still open where it
+// ends is none (`[](( )`). A line is read from left to right with a stack of open brackets, as
+// CommonMark does: a code span binds more tightly than the brackets around it (`` [a `]` b](x) ``
+// is a link), while a destination is read as written, also with backticks. Links do not nest: a
+// link in the label of another one is the link, the outer one is not (`[a [b](x) c](y)` has the
+// link `x`); an image in a link label is found as well, before the link; links and images in the
+// alt text of an inline image are not. Not links: anything in fenced code blocks (also inside
+// block quotes), indented code blocks (also an indented line right after an ATX heading, a setext
+// heading or a thematic break), and code spans on one line.
+//
+// `markdownImages` also finds reference-style images (`![alt][ref]`, `![alt][]`, `![alt]`) whose
+// label a link reference definition defines. A definition is one line `[ref]: destination` with an
+// optional title (the destination in `<…>`, or without spaces and with balanced parentheses),
+// outside code and not inside a paragraph, also after a list item marker (also after paragraph
+// text); the line after it is
+// paragraph text, also when indented. The first definition of a label wins; labels match after
+// `normalizeLabel`. Definition lines hold no links.
 //
 // Cost: one pass per line without recursion, so nesting depth costs no stack. Brackets cost linear
 // time, destinations about linear time (parentheses nest at most 32 deep in a destination, a `<…>`
-// destination ends at the next `<`), titles linear time (at most one destination without `<…>` and
-// one in `<…>` end at the same place, and a title that does not close ends at the next unescaped
-// quote or parenthesis of its kind), code spans at most O(n·√n).
+// destination ends at the next `<`), titles linear time (at most one destination without `<…>`
+// and one in `<…>` end at the same place, and a title that does not close ends at the next
+// unescaped quote or parenthesis of its kind), code spans at most O(n·√n).
 //
-// Not handled: reference-style links, links that span lines, HTML. Known limitation: list
+// Not handled: reference-style links (only images), links and definitions that span lines, HTML
+// (links in HTML blocks and comments are found), entity references (`&amp;` stays as written).
+// Known limitations: links and images in the alt text of a reference image are found; list
 // indentation is not tracked, so a fence indented by 4 or more spaces in a nested list item is not
 // recognised and links in it are found.
 
@@ -60,6 +71,14 @@ const codeSpanEnd = (line: string, start: number): number => {
   const found = close.exec(line);
   return found === null ? start + length : found.index + length;
 };
+
+/** A reference-style image as written; whether its label is defined is known after the text. */
+interface ReferenceImage {
+  /** The label, normalised (`normalizeLabel`). */
+  readonly label: string;
+  /** Where the `[` after its `!` is in the text. */
+  readonly at: number;
+}
 
 /** One line of inline content, with what makes hopeless destinations cheap to refuse. */
 interface Line {
@@ -163,7 +182,7 @@ const destinationAt = (line: Line, open: number): Destination | undefined => {
   return rest === null ? undefined : { start, end, after: rest.index + rest[0].length };
 };
 
-/** The destination after the `]` at `at` that closes `opener`, or undefined when it closes no link or image. */
+/** The destination after the `]` at `at` that closes `opener`; undefined when it closes none. */
 const destinationAfter = (
   line: Line,
   opener: Opener | undefined,
@@ -174,20 +193,81 @@ const destinationAfter = (
     ? undefined
     : destinationAt(line, at + 1);
 
+/**
+ * A label as definitions and references match it (CommonMark, ADR-0005): what ECMAScript `trim`
+ * removes at both ends removed, runs of spaces and tabs as one space, then `toLowerCase` and
+ * `toUpperCase` (locale independent), as commonmark.js folds case.
+ */
+const normalizeLabel = (label: string): string =>
+  label
+    .trim()
+    .replace(/[ \t]+/g, " ")
+    .toLowerCase()
+    .toUpperCase();
+
+/** The most characters (UTF-16 code units, as written) a link label may have (CommonMark: 999). */
+const MAX_LABEL = 999;
+
+/**
+ * The reference label of an image whose alt text closes with the `]` at `at`, and where it ends:
+ * `[ref]` (full), `[]` (collapsed, the alt text is the label) or nothing (shortcut). A `[` after
+ * the alt text that is no label (no `]` before another `[`, only white space, or longer than
+ * `MAX_LABEL`) leaves the image a shortcut, and the brackets after it are text (CommonMark).
+ */
+const referenceAfter = (text: string, opener: number, at: number): { label: string; end: number } => {
+  const alt = text.slice(opener + 1, at);
+  if (text[at + 1] === "[") {
+    for (let i = at + 2; i < text.length; i++) {
+      const c = text[i];
+      if (c === "\\") {
+        i++;
+      } else if (c === "[") {
+        break;
+      } else if (c === "]") {
+        const label = text.slice(at + 2, i);
+        if (label === "") {
+          return { label: alt, end: i };
+        }
+        return label.trim() === "" || label.length > MAX_LABEL ? { label: alt, end: at } : { label, end: i };
+      }
+    }
+  }
+  return { label: alt, end: at };
+};
+
 /** An open `[` (or `![`) that no `]` has closed yet. */
 interface Opener {
   readonly at: number;
   readonly image: boolean;
 }
 
+/** What one line has given so far: links with where each opens, and reference images. */
+interface LineFound {
+  readonly links: MarkdownLink[];
+  readonly opens: number[];
+  readonly references: ReferenceImage[] | undefined;
+}
+
+/** Drops what was found since an image opened at `at` (line at `offset`): it is alt text. */
+const dropAltText = (found: LineFound, at: number, offset: number): void => {
+  while ((found.opens.at(-1) ?? -1) > at) {
+    found.opens.pop();
+    found.links.pop();
+  }
+  const { references } = found;
+  while (references !== undefined && (references.at(-1)?.at ?? -1) > offset + at) {
+    references.pop();
+  }
+};
+
 /**
  * The links and images of one line of inline content; `offset` is where the line starts in the
  * text. One pass from left to right with a stack of open brackets, as CommonMark does: a `]` closes
- * the nearest open bracket, and when a destination follows it, that is a link or image. A link makes
- * the open link brackets before it text (links do not nest); an image drops what was found in its
- * alt text. No recursion, so nesting depth costs neither time nor stack.
+ * the nearest open bracket, and when a destination follows it, that is a link or image. A link
+ * makes the open link brackets before it text (links do not nest); an image drops what was found
+ * in its alt text. No recursion, so nesting depth costs neither time nor stack.
  */
-const lineLinks = (text: string, offset: number): MarkdownLink[] => {
+const lineLinks = (text: string, offset: number, references?: ReferenceImage[]): MarkdownLink[] => {
   const line: Line = { text, lastParen: text.lastIndexOf(")") };
   const links: MarkdownLink[] = [];
   /** Where each link of `links` opens. */
@@ -210,15 +290,17 @@ const lineLinks = (text: string, offset: number): MarkdownLink[] => {
     } else if (c === "]") {
       const opener = openers.pop();
       const destination = destinationAfter(line, opener, i, inactiveBelow);
+      if (opener?.image === true && destination === undefined && references !== undefined) {
+        const reference = referenceAfter(text, opener.at, i);
+        references.push({ label: normalizeLabel(reference.label), at: offset + opener.at });
+        i = reference.end;
+        continue;
+      }
       if (opener === undefined || destination === undefined) {
         continue;
       }
       if (opener.image) {
-        // What was found since the image opened is in its alt text.
-        while ((opens.at(-1) ?? -1) > opener.at) {
-          opens.pop();
-          links.pop();
-        }
+        dropAltText({ links, opens, references }, opener.at, offset);
       } else {
         inactiveBelow = opener.at;
       }
@@ -244,6 +326,10 @@ interface Blocks {
   paragraph: boolean;
   /** Inside a list: indented lines are list content, not code. */
   list: boolean;
+  /** The previous line was a definition, so an indented line is paragraph text, not code. */
+  definition: boolean;
+  /** Block quote markers of the last line that was not a lazy paragraph continuation. */
+  quote: number;
 }
 
 /** Whether an unindented line is the underline of a setext heading or a thematic break: no text. */
@@ -254,9 +340,9 @@ const isRule = (content: string, paragraph: boolean): boolean =>
  * Whether a line that is neither blank nor a fence holds no inline text: a line of an indented code
  * block, the underline of a setext heading or a thematic break. Updates `blocks`.
  */
-const isNoText = (content: string, indented: boolean, blocks: Blocks): boolean => {
+const isNoText = (content: string, indented: boolean, blocks: Blocks, afterDefinition: boolean): boolean => {
   if (indented) {
-    return !blocks.paragraph && !blocks.list;
+    return !blocks.paragraph && !blocks.list && !afterDefinition;
   }
   if (isRule(content, blocks.paragraph)) {
     // No paragraph goes on after it.
@@ -266,24 +352,170 @@ const isNoText = (content: string, indented: boolean, blocks: Blocks): boolean =
   return false;
 };
 
-/** Whether `content` (a line without its block quote markers) is inline text; updates `blocks`. */
-const isInline = (content: string, blocks: Blocks): boolean => {
-  const marker = FENCE.exec(content)?.[1];
+/**
+ * A link reference definition on one line (CommonMark): `[label]: destination` with an optional
+ * title, the destination in `<…>` or without spaces. Group 1 is the label, 2 or 3 the
+ * destination.
+ */
+const DEFINITION =
+  /^ {0,3}\[((?:\\[\s\S]|[^\\[\]])+)\]:[ \t]*(?:<((?:\\[\s\S]|[^\\<>])*)>|([^\s<]\S*))(?:[ \t]+(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\((?:\\[\s\S]|[^()\\])*\)))?[ \t]*$/;
+
+/** A link reference definition: its normalised label and its destination as written. */
+interface Definition {
+  readonly label: string;
+  readonly destination: string;
+}
+
+/**
+ * Whether the parentheses of a destination without `<…>` are balanced (CommonMark): every
+ * unescaped `(` closed by a `)`, nested at most `MAX_PARENTHESES` deep.
+ */
+const balanced = (destination: string): boolean => {
+  let depth = 0;
+  for (let i = 0; i < destination.length; i++) {
+    const c = destination[i];
+    if (c === "\\") {
+      i++;
+    } else if (c === "(") {
+      depth++;
+    } else if (c === ")") {
+      depth--;
+    }
+    if (depth < 0 || depth > MAX_PARENTHESES) {
+      return false;
+    }
+  }
+  return depth === 0;
+};
+
+/**
+ * Where a definition may start in `content`: after a list item marker; else not in a paragraph,
+ * and in a list also after any indentation. Undefined when no definition can start there.
+ */
+const definitionText = (content: string, indented: boolean, blocks: Blocks): string | undefined => {
+  // A list item marker starts a new block, also after paragraph text.
+  if (LIST_ITEM.test(content)) {
+    return content.replace(LIST_ITEM, "");
+  }
+  if (blocks.paragraph) {
+    return undefined;
+  }
+  if (indented) {
+    return blocks.list ? content.trimStart() : undefined;
+  }
+  return content;
+};
+
+/** The definition `content` is (`definitionText`, `DEFINITION`, `balanced`), or undefined. */
+const definitionOf = (content: string, indented: boolean, blocks: Blocks): Definition | undefined => {
+  const text = definitionText(content, indented, blocks);
+  const match = text === undefined ? null : DEFINITION.exec(text);
+  if (match === null) {
+    return undefined;
+  }
+  // Group 1 always matches, and group 3 whenever group 2 does not.
+  const label = String(match[1]);
+  const destination = match[2] ?? String(match[3]);
+  return label.trim() === "" || label.length > MAX_LABEL || (match[2] === undefined && !balanced(destination))
+    ? undefined
+    : { label: normalizeLabel(label), destination };
+};
+
+/** Whether a line is a definition; records it in `definitions` when given. */
+const isDefinition = (
+  content: string,
+  indented: boolean,
+  blocks: Blocks,
+  definitions: Map<string, string> | undefined,
+): boolean => {
+  const definition = definitionOf(content, indented, blocks);
+  if (definition === undefined) {
+    return false;
+  }
+  if (LIST_ITEM.test(content)) {
+    blocks.list = true;
+  }
+  blocks.definition = true;
+  // The first definition of a label wins (CommonMark).
+  if (definitions !== undefined && !definitions.has(definition.label)) {
+    definitions.set(definition.label, definition.destination);
+  }
+  return true;
+};
+
+/**
+ * The marker of a fence that `content` opens, also after a list item marker; none for a backtick
+ * fence whose info string holds a backtick (CommonMark).
+ */
+const openingFence = (content: string): string | undefined => {
+  const inner = content.replace(LIST_ITEM, "");
+  const marker = FENCE.exec(inner)?.[1];
+  return marker?.startsWith("`") === true && inner.slice(inner.indexOf(marker) + marker.length).includes("`")
+    ? undefined
+    : marker;
+};
+
+/** Whether `content` is a fence line, inside a fenced code block, or blank; updates `blocks`. */
+const isFenceOrBlank = (content: string, blocks: Blocks): boolean => {
   if (blocks.fence !== undefined) {
+    const marker = FENCE.exec(content)?.[1];
     if (marker?.startsWith(blocks.fence) === true && content.trim() === marker) {
       delete blocks.fence;
     }
+    return true;
+  }
+  const marker = openingFence(content);
+  if (marker === undefined && content.trim() !== "") {
     return false;
   }
-  if (marker !== undefined || content.trim() === "") {
-    if (marker !== undefined) {
-      blocks.fence = marker;
-    }
-    blocks.paragraph = false;
+  if (marker !== undefined) {
+    blocks.fence = marker;
+  }
+  blocks.paragraph = false;
+  return true;
+};
+
+/**
+ * Ends a list at an unindented, non-blank line outside a fence that is no list item and does not
+ * continue paragraph text lazily: a fence, a thematic break or a heading interrupts the paragraph,
+ * and any line ends the list when no paragraph is open (a definition or a thematic break after a
+ * blank line, CommonMark).
+ */
+const endList = (content: string, blocks: Blocks): void => {
+  if (
+    blocks.fence !== undefined ||
+    content.trim() === "" ||
+    INDENTED.test(content) ||
+    LIST_ITEM.test(content)
+  ) {
+    return;
+  }
+  const lazy =
+    blocks.paragraph &&
+    openingFence(content) === undefined &&
+    !THEMATIC_BREAK.test(content) &&
+    !HEADING.test(content);
+  if (!lazy) {
+    blocks.list = false;
+  }
+};
+
+/**
+ * Whether `content` (a line without its block quote markers) is inline text; updates `blocks`. A
+ * definition line is none; it goes to `definitions` when given.
+ */
+const isInline = (content: string, blocks: Blocks, definitions?: Map<string, string>): boolean => {
+  const afterDefinition = blocks.definition;
+  blocks.definition = false;
+  endList(content, blocks);
+  if (isFenceOrBlank(content, blocks)) {
     return false;
   }
   const indented = INDENTED.test(content);
-  if (isNoText(content, indented, blocks)) {
+  if (isNoText(content, indented, blocks, afterDefinition)) {
+    return false;
+  }
+  if (isDefinition(content, indented, blocks, definitions)) {
     return false;
   }
   if (LIST_ITEM.test(content)) {
@@ -296,21 +528,67 @@ const isInline = (content: string, blocks: Blocks): boolean => {
   return true;
 };
 
-/** The inline links and images of a Markdown text, in order, outside code (see the file comment). */
-export const markdownLinks = (text: string): MarkdownLink[] => {
-  const links: MarkdownLink[] = [];
-  const blocks: Blocks = { paragraph: false, list: false };
+/** The block quote markers in front of `content` on `line`. */
+const countQuotes = (line: string, content: string): number =>
+  line.slice(0, line.length - content.length).split(">").length - 1;
+
+/**
+ * Follows the block quote depth (`quote` markers on this line): a new marker starts a new block,
+ * so paragraph text ends; a line with fewer markers that continues paragraph text keeps the depth
+ * (a lazy continuation, CommonMark).
+ */
+const enterQuote = (blocks: Blocks, quote: number, content: string): void => {
+  if (quote > blocks.quote) {
+    blocks.paragraph = false;
+  }
+  if (quote >= blocks.quote || !blocks.paragraph || content.trim() === "" || LIST_ITEM.test(content)) {
+    blocks.quote = quote;
+  }
+};
+
+/** What one pass over a text finds; references and definitions only when asked for. */
+interface Scan {
+  readonly links: MarkdownLink[];
+  readonly references?: ReferenceImage[];
+  readonly definitions?: Map<string, string>;
+}
+
+const scan = (text: string, found: Scan): Scan => {
+  const blocks: Blocks = { paragraph: false, list: false, definition: false, quote: 0 };
   let offset = 0;
-  for (const raw of text.split(/(?<=\n)/)) {
-    const line = raw.replace(/\r?\n$/, "");
+  // Lines end with LF, CRLF or CR (CommonMark).
+  for (const raw of text.split(/(?<=\n|\r(?!\n))/)) {
+    const line = raw.replace(/\r?\n$|\r$/, "");
     const content = line.replace(BLOCK_QUOTE, "");
-    if (isInline(content, blocks)) {
+    enterQuote(blocks, countQuotes(line, content), content);
+    if (isInline(content, blocks, found.definitions)) {
       // One by one: spreading the links of a long line into `push` exceeds the argument limit.
-      for (const link of lineLinks(content, offset + line.length - content.length)) {
-        links.push(link);
+      for (const link of lineLinks(content, offset + line.length - content.length, found.references)) {
+        found.links.push(link);
       }
     }
     offset += raw.length;
   }
-  return links;
+  return found;
+};
+
+/** The inline links and images of a Markdown text, in order, outside code (see file comment). */
+export const markdownLinks = (text: string): MarkdownLink[] => scan(text, { links: [] }).links;
+
+/**
+ * The destinations of the images of a Markdown text as written (without `<…>`), outside code:
+ * inline images in order, then reference-style images whose label is defined, in order (see the
+ * file comment). An image embedded twice is given twice.
+ */
+export const markdownImages = (text: string): string[] => {
+  const references: ReferenceImage[] = [];
+  const definitions = new Map<string, string>();
+  const { links } = scan(text, { links: [], references, definitions });
+  return [
+    ...links.filter((l) => l.image).map((l) => l.destination),
+    ...references.flatMap((r) => {
+      const destination = definitions.get(r.label);
+      return destination === undefined ? [] : [destination];
+    }),
+  ];
 };

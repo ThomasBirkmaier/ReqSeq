@@ -263,6 +263,7 @@ describe("unknown properties and types (SR-016)", () => {
     const view = elementView({
       record,
       file: read.file,
+      images: [],
       metamodel,
       store,
       shortIds: await workspace.get(shortIdState),

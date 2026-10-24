@@ -1,0 +1,23 @@
+logreq-version n1
+text
+"The images of this text pin the Markdown subset of normal form n1 (ADR-0005 \"Files\").\n\n<!-- HTML is not recognised, so this image counts: ![Hidden](SR-7a8b9c0d1e2f/comment.png) -->\n\nA paragraph line, so the next line is paragraph text and no definition:\n[para]: SR-7a8b9c0d1e2f/para.png\n\n![Para][para] ![Listed][list]\n\n- [list]: SR-7a8b9c0d1e2f/list(1).png\n\n- An item, so the next list item marker starts a new block:\n- [item]: SR-7a8b9c0d1e2f/item.png\n\n![Item][item]\n\n\t![Tab-indented code](SR-7a8b9c0d1e2f/tab.png)\n\n![Query and fragment](SR-7a8b9c0d1e2f/photo.png?size=2#top)\n![Escape](SR-7a8b9c0d1e2f/under\\_score.png)\n![Invalid percent-encoding](SR-7a8b9c0d1e2f/bad%zz.png)\n![Backslash](SR-7a8b9c0d1e2f\\none.png)\n![Trailing dot](SR-7a8b9c0d1e2f/dot.)\n![Trailing slash](SR-7a8b9c0d1e2f/photo.png/)\n![Control character](SR-7a8b9c0d1e2f/%01.png)\n![Own file](SR-7a8b9c0d1e2f.md)\n![Git](.git/config)"
+prop requirement-type
+"functional"
+file SR-7a8b9c0d1e2f/bad%zz.png
+missing
+file SR-7a8b9c0d1e2f/comment.png
+6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d399c655b87940d
+file SR-7a8b9c0d1e2f/dot.
+missing
+file SR-7a8b9c0d1e2f/item.png
+a83dd0ccbffe39d071cc317ddf6e97f5c6b1c87af91919271f9fa140b0508c6c
+file SR-7a8b9c0d1e2f/list(1).png
+72dfcfb0c470ac255cde83fb8fe38de8a128188e03ea5ba5b2a93adbea1062fa
+file SR-7a8b9c0d1e2f/photo.png
+5c62e091b8c0565f1bafad0dad5934276143ae2ccef7a5381e8ada5b1a8d26d2
+file SR-7a8b9c0d1e2f/photo.png/
+missing
+file SR-7a8b9c0d1e2f/under_score.png
+a25513c7e0f6eaa80a3337ee18081b9e2ed09e00af8531c8f7bb2542764027e7
+file SR-7a8b9c0d1e2f\none.png
+missing

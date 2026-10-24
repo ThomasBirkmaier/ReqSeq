@@ -39,6 +39,8 @@ import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, classifyFile } from "./elements.js";
 import { fileNameFor } from "./file-name.js";
+import type { ImageMemo } from "./images.js";
+import { embeddedImages, imageMemo } from "./images.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
@@ -225,13 +227,15 @@ interface Context {
   readonly layout: WorkspaceLayout;
   readonly metamodel: Metamodel;
   readonly store: ElementStore;
+  /** One memo of image lookups for the whole command (ADR-0005 "Files"). */
+  readonly images: ImageMemo;
 }
 
 const contextOf = async (workspace: Workspace): Promise<Context> => {
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
-  return { layout, metamodel, store };
+  return { layout, metamodel, store, images: imageMemo() };
 };
 
 /** The store with `record` added, for the short IDs of a new element without reading every file again. */
@@ -278,8 +282,15 @@ const finish = async (
   files: readonly string[],
   replaced?: FileSnapshot,
 ): Promise<ElementWriteResult> => {
+  const repository = targetRepository(context.layout, written.record.repository);
   const element = elementView({
     ...written,
+    images: await embeddedImages(
+      { repository, ignored: ignoredBy(context.layout) },
+      written.record.file,
+      written.file.body,
+      context.images,
+    ),
     metamodel: context.metamodel,
     store: context.store,
     shortIds,

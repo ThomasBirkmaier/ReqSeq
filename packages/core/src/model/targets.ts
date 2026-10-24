@@ -14,9 +14,12 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { resolveId } from "./duplicates.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { classifyFile, isUuid } from "./elements.js";
+import type { ImageMemo } from "./images.js";
+import { embeddedImages } from "./images.js";
 import { markdownLinks } from "./markdown-links.js";
 import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
+import { ignoredBy } from "./store.js";
 import { elementVersion, titleKeyOf } from "./view.js";
 
 /** What setting a target needs: the workspace state as read. */
@@ -24,6 +27,8 @@ export interface TargetContext {
   readonly layout: WorkspaceLayout;
   readonly metamodel: Metamodel;
   readonly store: ElementStore;
+  /** Folder listings and image hashes shared by the targets of one command (`imageMemo`). */
+  readonly images?: ImageMemo;
 }
 
 /** The one record a match names; `ref.unknown` or `ref.ambiguous` otherwise (like `resolveRef`). */
@@ -61,9 +66,9 @@ const single = (
 };
 
 /**
- * The current version and title of `record`, from its file as it is now (the store keeps no text):
- * a file changed since the store read it counts as it is now. `ref.unknown` when the file is gone
- * or no longer this element.
+ * The current version and title of `record`, from its file and the images it embeds as they are
+ * now (the store keeps no text): a file changed since the store read it counts as it is now.
+ * `ref.unknown` when the file is gone or no longer this element.
  */
 const current = async (
   context: TargetContext,
@@ -90,7 +95,17 @@ const current = async (
   const titleKey = titleKeyOf(context.metamodel);
   const title = titleKey === undefined ? undefined : element.data[titleKey];
   return {
-    version: elementVersion(element, read.file.body, context.metamodel),
+    version: elementVersion(
+      element,
+      read.file.body,
+      context.metamodel,
+      await embeddedImages(
+        { repository, ignored: ignoredBy(context.layout) },
+        record.file,
+        read.file.body,
+        context.images,
+      ),
+    ),
     ...(typeof title === "string" ? { title } : {}),
   };
 };

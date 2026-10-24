@@ -147,7 +147,16 @@ const views = async ({ fixture, workspace }: Opened): Promise<Record<string, unk
     if (read.kind !== "parsed") {
       throw new Error(`cannot read ${record.file}`);
     }
-    out[record.id] = elementView({ record, file: read.file, metamodel, store, shortIds, titleKey, layout });
+    out[record.id] = elementView({
+      record,
+      file: read.file,
+      images: [],
+      metamodel,
+      store,
+      shortIds,
+      titleKey,
+      layout,
+    });
   }
   return out;
 };
