@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readYamlFile } from "../files/index.js";
+import type { WorkspaceFile, WorkspaceLocalFile, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 
 /** In the root of the main repository; the folder that holds it is `Workspace.root`. */
@@ -13,41 +14,13 @@ export const WORKSPACE_FILE = "logreq-workspace.yaml";
 /** Local overrides of one person, next to the workspace file; never committed. */
 export const LOCAL_FILE = ".logreq/local.yaml";
 
-// Hand-written until the types are generated from the schemas (ADR-0003, #134).
-
-/** `workspace.schema.json#/$defs/repository`. */
-export interface RepositoryEntry {
-  readonly name: string;
-  readonly url: string;
-  readonly path?: string;
-  readonly main?: boolean;
-}
-
-/** `workspace.schema.json#/$defs/location`. */
-export interface LocationEntry {
-  readonly repository: string;
-  readonly path: string;
-}
-
-/** `workspace.schema.json`. */
-export interface WorkspaceFile {
-  readonly "logreq-workspace": 1;
-  readonly name: string;
-  /** At least one (`minItems: 1`). */
-  readonly repositories: readonly [RepositoryEntry, ...RepositoryEntry[]];
-  readonly metamodel: LocationEntry;
-  readonly evidence?: readonly LocationEntry[];
-  readonly baselines?: LocationEntry;
-  readonly filters?: LocationEntry;
-  readonly mappings?: LocationEntry;
-  readonly ignore?: readonly string[];
-}
-
-/** `workspace-local.schema.json`. */
-export interface LocalFile {
-  readonly "logreq-local": 1;
-  readonly repositories?: Readonly<Record<string, { readonly path: string }>>;
-}
+/**
+ * `logreq-workspace.yaml` after the schema check. `minItems: 1` is not part of the generated
+ * `WorkspaceFile`; a file that passed the check has a first repository, so it is typed here.
+ */
+export type CheckedWorkspaceFile = WorkspaceFile & {
+  readonly repositories: readonly [WorkspaceRepository, ...WorkspaceRepository[]];
+};
 
 export interface Read<T> {
   readonly data: T;
@@ -99,7 +72,7 @@ const workspaceFileProblems = (data: unknown): readonly Problem[] => {
  * none and `file.faulty` (with `details.problems`) when it is not valid YAML, does not match
  * `workspace.schema.json` or names a repository twice: a faulty workspace file is never used in part.
  */
-export const readWorkspaceFile = async (root: string): Promise<Read<WorkspaceFile>> => {
+export const readWorkspaceFile = async (root: string): Promise<Read<CheckedWorkspaceFile>> => {
   if (!(await exists(path.join(root, WORKSPACE_FILE)))) {
     throw new CommandError("workspace.not-found", `No ${WORKSPACE_FILE} in the workspace folder`, {
       file: WORKSPACE_FILE,
@@ -114,7 +87,7 @@ export const readWorkspaceFile = async (root: string): Promise<Read<WorkspaceFil
       { file: WORKSPACE_FILE, problems },
     );
   }
-  return { data: read.file.data as WorkspaceFile, problems: read.file.warnings };
+  return { data: read.file.data as CheckedWorkspaceFile, problems: read.file.warnings };
 };
 
 /** A problem of the local file, downgraded to a warning: the local file never stops a workspace. */
@@ -128,7 +101,7 @@ const localProblem = (problem: Problem): Problem => ({
  * Reads `.logreq/local.yaml` in `root` if there is one. A faulty file is reported as warnings and
  * ignored (`data` is undefined), so the workspace opens with the paths of the workspace file.
  */
-export const readLocalFile = async (root: string): Promise<Read<LocalFile | undefined>> => {
+export const readLocalFile = async (root: string): Promise<Read<WorkspaceLocalFile | undefined>> => {
   if (!(await exists(path.join(root, LOCAL_FILE)))) {
     return { data: undefined, problems: [] };
   }
@@ -140,5 +113,5 @@ export const readLocalFile = async (root: string): Promise<Read<LocalFile | unde
   if (invalid.length > 0) {
     return { data: undefined, problems: [...read.file.warnings, ...invalid.map(localProblem)] };
   }
-  return { data: read.file.data as LocalFile, problems: read.file.warnings };
+  return { data: read.file.data as WorkspaceLocalFile, problems: read.file.warnings };
 };

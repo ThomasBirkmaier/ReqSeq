@@ -1,26 +1,12 @@
 // workspace.status (SR-004; SR-006, SR-011 and SR-018 extend it): the repositories of the
 // workspace, which are available, where the metamodel lies.
-import type { Problem } from "../../catalog.js";
+import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { headCommit } from "../../git/reader.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
-export interface RepositoryStatus {
-  readonly name: string;
-  readonly available: boolean;
-  readonly path: string;
-  /** HEAD commit; absent when unknown (not a Git repository, no commit yet, no git program). */
-  readonly commit?: string;
-}
-
-export interface WorkspaceStatusOutput {
-  readonly name: string;
-  readonly repositories: readonly RepositoryStatus[];
-  readonly metamodel: { readonly repository: string; readonly path: string; readonly valid: boolean };
-  readonly readOnly: boolean;
-  readonly problems: readonly Problem[];
-}
+type RepositoryStatus = CommandOutput<"workspace.status">["repositories"][number];
 
 interface Checked {
   readonly status: RepositoryStatus;
@@ -52,7 +38,7 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
 
 export default defineCommand({
   name: "workspace.status",
-  run: async (ctx): Promise<WorkspaceStatusOutput> => {
+  run: async (ctx) => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const checked = await Promise.all(layout.repositories.map(checkRepository));
     return {

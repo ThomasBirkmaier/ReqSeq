@@ -4,8 +4,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
+import type { WorkspaceLocalFile, WorkspaceLocation, WorkspaceRepository } from "../generated/types.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
-import type { LocalFile, LocationEntry, RepositoryEntry, WorkspaceFile } from "./config.js";
+import type { CheckedWorkspaceFile } from "./config.js";
 import { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
 
 export interface RepositoryLocation {
@@ -49,7 +50,7 @@ export interface WorkspaceLayout {
   /** Name of the main repository. */
   readonly main: string;
   /** The checked workspace file, for blocks that need other settings (evidence, baselines, ignore). */
-  readonly file: WorkspaceFile;
+  readonly file: CheckedWorkspaceFile;
   /** In the order of the workspace file, without entries that share a folder with an earlier one. */
   readonly repositories: readonly RepositoryLocation[];
   readonly metamodel: MetamodelLocation;
@@ -71,7 +72,7 @@ export interface LocatedFolder {
  */
 export const locate = (
   layout: Pick<WorkspaceLayout, "repositories">,
-  location: LocationEntry,
+  location: WorkspaceLocation,
 ): LocatedFolder => {
   const repository = layout.repositories.find((r) => r.name === location.repository);
   return repository?.available === true
@@ -86,7 +87,7 @@ export const DEFAULT_FOLDERS = { baselines: "baselines", filters: "filters", map
 export const settingLocation = (
   layout: Pick<WorkspaceLayout, "file" | "main">,
   setting: keyof typeof DEFAULT_FOLDERS,
-): LocationEntry => layout.file[setting] ?? { repository: layout.main, path: DEFAULT_FOLDERS[setting] };
+): WorkspaceLocation => layout.file[setting] ?? { repository: layout.main, path: DEFAULT_FOLDERS[setting] };
 
 /** The real path of an existing folder, else undefined. */
 const realFolder = async (folder: string): Promise<string | undefined> =>
@@ -105,7 +106,7 @@ const invalid = (severity: Problem["severity"], file: string, message: string): 
 });
 
 /** The path of the committed workspace file: `/` as separator, never absolute (not the same on every machine). */
-const committedPath = (entry: RepositoryEntry, problems: Problem[]): string | undefined => {
+const committedPath = (entry: WorkspaceRepository, problems: Problem[]): string | undefined => {
   if (entry.path === undefined) {
     return undefined;
   }
@@ -130,9 +131,9 @@ const committedPath = (entry: RepositoryEntry, problems: Problem[]): string | un
 
 /** The configured path of a repository, with the local override applied. */
 const configuredPath = (
-  entry: RepositoryEntry,
+  entry: WorkspaceRepository,
   isMain: boolean,
-  local: LocalFile | undefined,
+  local: WorkspaceLocalFile | undefined,
   problems: Problem[],
 ): string => {
   const committed = committedPath(entry, problems);
@@ -154,8 +155,8 @@ const configuredPath = (
 };
 
 const unknownOverrides = (
-  entries: readonly RepositoryEntry[],
-  local: LocalFile | undefined,
+  entries: readonly WorkspaceRepository[],
+  local: WorkspaceLocalFile | undefined,
 ): readonly Problem[] => {
   const names = new Set(entries.map((e) => e.name));
   return Object.keys(local?.repositories ?? {})
@@ -167,9 +168,9 @@ const unknownOverrides = (
 
 const locateRepository = async (
   root: string,
-  entry: RepositoryEntry,
+  entry: WorkspaceRepository,
   isMain: boolean,
-  local: LocalFile | undefined,
+  local: WorkspaceLocalFile | undefined,
   problems: Problem[],
 ): Promise<RepositoryLocation> => {
   const configured = configuredPath(entry, isMain, local, problems);
@@ -226,7 +227,7 @@ const resolveOverlaps = (
 };
 
 /** The locations of the workspace file besides the metamodel, with the setting they belong to. */
-const settingLocations = (file: WorkspaceFile): readonly (readonly [string, LocationEntry])[] => [
+const settingLocations = (file: CheckedWorkspaceFile): readonly (readonly [string, WorkspaceLocation])[] => [
   ...(file.evidence ?? []).map((e) => ["evidence", e] as const),
   ...(file.baselines === undefined ? [] : [["baselines", file.baselines] as const]),
   ...(file.filters === undefined ? [] : [["filters", file.filters] as const]),
@@ -234,8 +235,8 @@ const settingLocations = (file: WorkspaceFile): readonly (readonly [string, Loca
 ];
 
 const unknownLocationRepositories = (
-  file: WorkspaceFile,
-  entries: readonly RepositoryEntry[],
+  file: CheckedWorkspaceFile,
+  entries: readonly WorkspaceRepository[],
 ): readonly Problem[] => {
   const names = new Set(entries.map((r) => r.name));
   return settingLocations(file)
@@ -264,7 +265,7 @@ const metamodelProblem = (message: string): Problem => ({
 });
 
 const locateMetamodel = async (
-  location: LocationEntry,
+  location: WorkspaceLocation,
   repositories: readonly RepositoryLocation[],
   problems: Problem[],
 ): Promise<MetamodelLocation> => {

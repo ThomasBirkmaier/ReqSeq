@@ -42,7 +42,7 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 
 **App** calls the same commands via IPC (ADR-0010).
 
-**Errors.** Every adapter maps `CommandError.code` (`common.schema.json#/$defs/error`) with one table: `errorClass(code)` and `COMMAND_ERROR_CLASSES` in `packages/core/src/catalog.ts`, which a test keeps complete. Each adapter maps the class; the API and MCP mapping is part of #125.
+**Errors.** Every adapter maps `CommandError.code` (`common.schema.json#/$defs/error`) with one table: `errorClass(code)` and `COMMAND_ERROR_CLASSES` in `packages/core/src/catalog.ts`, which the compiler (its `Record<CommandErrorCode, ...>` type) and a test keep complete. Each adapter maps the class; the API and MCP mapping is part of #125.
 
 | Class | Codes | CLI exit code |
 |---|---|---|
@@ -52,7 +52,7 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 | `unavailable` | `git.unavailable` | 2 |
 | `internal` | `internal` | 3 |
 
-A new code is added to the schema, `COMMAND_ERROR_CODES` and `COMMAND_ERROR_CLASSES` in the same PR. `internal` errors carry no original error text (it stays in `cause` for local logs). Messages of `CommandError`s thrown on purpose by commands and blocks are sent as they are; they may name file paths relative to the workspace, never absolute paths or element content. A call aborted by its caller (closed window, cancelled request, the abort signal) ends as `internal` with `details.aborted: true`; there is no separate code because nobody is left to act on it.
+A new code is added to the schema and to `COMMAND_ERROR_CLASSES` in the same PR; its type `Record<CommandErrorCode, ...>`, with `CommandErrorCode` generated from the schema (ADR-0003), does not compile until the new code is classified. `internal` errors carry no original error text (it stays in `cause` for local logs). Messages of `CommandError`s thrown on purpose by commands and blocks are sent as they are; they may name file paths relative to the workspace, never absolute paths or element content. A call aborted by its caller (closed window, cancelled request, the abort signal) ends as `internal` with `details.aborted: true`; there is no separate code because nobody is left to act on it.
 
 **Same result everywhere (SR-080 AK2):** adapters only translate transport. Output objects are produced by `core`; adapters must not reshape them. The cross-access test (ADR-0011) enforces this.
 

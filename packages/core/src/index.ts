@@ -1,4 +1,5 @@
 export * from "./catalog.js";
+export type * from "./generated/types.js";
 export * from "./product.js";
 export * from "./runtime/contracts.js";
 export * from "./runtime/invoke.js";

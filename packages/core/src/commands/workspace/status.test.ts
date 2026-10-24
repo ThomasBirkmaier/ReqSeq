@@ -6,7 +6,7 @@ import { headCommit } from "../../git/reader.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { availableRepositories, workspaceLayoutState } from "../../workspace/index.js";
-import type { WorkspaceStatusOutput } from "./status.js";
+import type { CommandOutput } from "../../catalog.js";
 
 // The real reader, wrapped so that one test can make git refuse a repository.
 vi.mock("../../git/reader.js", async (importOriginal) => {
@@ -26,8 +26,8 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-const status = async (workspace: Workspace): Promise<WorkspaceStatusOutput> =>
-  (await invoke("workspace.status", {}, { workspace })) as WorkspaceStatusOutput;
+const status = async (workspace: Workspace): Promise<CommandOutput<"workspace.status">> =>
+  (await invoke("workspace.status", {}, { workspace })) as CommandOutput<"workspace.status">;
 
 /** The three-repository fixture: `system` (main, holds the workspace file), `product`, `sensor` beside it. */
 const threeRepositories = async (
@@ -85,7 +85,7 @@ describe("workspace.status", () => {
     const three = await threeRepositories();
     const single = await status(open(one.root));
     const multi = await status(open(three.path("system")));
-    const shape = (out: WorkspaceStatusOutput): unknown => ({
+    const shape = (out: CommandOutput<"workspace.status">): unknown => ({
       keys: Object.keys(out).sort(),
       repository: Object.keys(out.repositories[0] ?? {}).sort(),
       metamodel: out.metamodel,
@@ -144,7 +144,7 @@ describe("workspace.status", () => {
       ["product", true, "../product"],
       ["sensor", false, "../checkouts/sensor"],
     ]);
-    expect(out.problems.map((p) => p.code)).toEqual(["workspace.repository-missing"]);
+    expect(out.problems?.map((p) => p.code)).toEqual(["workspace.repository-missing"]);
   });
 
   it("[SR-004/AK3] treats a path that is a file as a missing repository", async () => {
@@ -164,7 +164,7 @@ describe("workspace.status", () => {
     const out = await status(open(ws.path("system")));
     expect(out.metamodel).toEqual({ repository: "models", path: "model", valid: false });
     expect(out.repositories[0]?.available).toBe(true);
-    expect(out.problems.map((p) => [p.code, p.severity, p.message])).toEqual([
+    expect(out.problems?.map((p) => [p.code, p.severity, p.message])).toEqual([
       ["workspace.repository-missing", "info", "Repository models is not available locally"],
       ["metamodel.invalid", "error", "Metamodel repository models is not available"],
     ]);

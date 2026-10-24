@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandContext } from "../catalog.js";
-import { CommandError, defineCommand } from "../catalog.js";
+import { CommandError, defineTestCommand } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import { loadContracts } from "./contracts.js";
 import type { CommandRuntimeOptions } from "./invoke.js";
@@ -63,9 +63,10 @@ interface EchoInput {
 
 const nonError: unknown = "plain string";
 const seen: { ctx?: CommandContext; input?: EchoInput } = {};
-const echo = defineCommand({
+// Test-only commands are not in the generated CommandTypes: defineTestCommand takes their types.
+const echo = defineTestCommand<EchoInput, unknown>({
   name: "test.echo",
-  run: (ctx: CommandContext, input: EchoInput) => {
+  run: (ctx, input) => {
     seen.ctx = ctx;
     seen.input = input;
     if (input.fail === "command-error") {
@@ -115,7 +116,7 @@ describe("createCommandRuntime", () => {
   });
 
   it("refuses an implementation without catalog entry", () => {
-    const stray = defineCommand({ name: "test.stray", run: () => Promise.resolve({}) });
+    const stray = defineTestCommand({ name: "test.stray", run: () => Promise.resolve({}) });
     expect(() => runtime({ commands: [stray] })).toThrow(
       "command test.stray has no entry in schemas/commands/catalog.json",
     );

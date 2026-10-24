@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Generates the OpenAPI description and the MCP tool list from the command catalog (ADR-0002, ADR-0009),
-// and the contracts bundle that @logreq/core validates with at run time (ADR-0003, ADR-0014).
+// the contracts bundle that @logreq/core validates with at run time (ADR-0003, ADR-0014) and the
+// TypeScript types of all schemas and catalog commands (ADR-0003, types.mjs).
 // Usage: generate.mjs [--check]   --check fails when a generated file is out of date.
 import fs from "node:fs";
 import path from "node:path";
 import { loadContracts, root } from "./load.mjs";
+import { generateTypes } from "./types.mjs";
 
 const { catalog, schemas, meta } = loadContracts();
 // The product version (root package.json), embedded so every access reports the same one (`logreq --version`).
@@ -133,6 +135,7 @@ const files = {
     name: "LogReq",
     version,
   }),
+  "packages/core/src/generated/types.ts": generateTypes({ schemas, meta, catalog }),
 };
 if (process.argv.includes("--check")) {
   let stale = false;

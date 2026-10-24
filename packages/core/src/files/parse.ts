@@ -3,7 +3,7 @@
 // current bytes on disk, by writing, so a faulty file is never written.
 import { LineCounter, parseDocument, visit } from "yaml";
 import type { Document } from "yaml";
-import type { Problem } from "../catalog.js";
+import type { Problem, ProblemCode } from "../generated/types.js";
 import { findConflictMarker } from "./conflict-markers.js";
 import type { LineEnding } from "./frontmatter.js";
 import { splitFrontmatter } from "./frontmatter.js";
@@ -40,7 +40,7 @@ export type ParseOutcome =
 const FRONTMATTER_FIRST_LINE = 2;
 const BOM = "\uFEFF";
 
-export const fileProblem = (code: string, file: string, message: string, line?: number): Problem =>
+export const fileProblem = (code: ProblemCode, file: string, message: string, line?: number): Problem =>
   line === undefined
     ? { code, severity: "error", file, message }
     : { code, severity: "error", file, message, line };

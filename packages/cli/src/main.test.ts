@@ -4,7 +4,7 @@ import type { CommandRuntime } from "@logreq/core";
 import {
   CommandError,
   createCommandRuntime,
-  defineCommand,
+  defineTestCommand,
   defineWorkspaceState,
   loadContracts,
 } from "@logreq/core";
@@ -74,15 +74,15 @@ const findings: Record<string, unknown> = {
 };
 
 const testCommands = [
-  defineCommand({
+  defineTestCommand({
     name: "test.echo",
     run: (_ctx, input: Record<string, unknown>) => Promise.resolve({ input }),
   }),
-  defineCommand({
+  defineTestCommand({
     name: "test.findings",
     run: (_ctx, input: { mode?: string }) => Promise.resolve(findings[input.mode ?? "clean"]),
   }),
-  defineCommand({
+  defineTestCommand({
     name: "test.fail",
     run: (_ctx, input: { code: string }) => {
       if (input.code === "crash") {
@@ -93,8 +93,8 @@ const testCommands = [
       });
     },
   }),
-  defineCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
-  defineCommand({
+  defineTestCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
+  defineTestCommand({
     name: "test.closeFails",
     run: (ctx, input: { fail?: boolean }) => {
       const state = ctx.workspace.get(failingState);
@@ -103,7 +103,7 @@ const testCommands = [
         : Promise.resolve({ state });
     },
   }),
-  defineCommand({
+  defineTestCommand({
     name: "test.wait",
     // Called with an aborted signal only: stops at once, like a command checking its signal.
     run: (ctx) => {
@@ -111,7 +111,7 @@ const testCommands = [
       return Promise.resolve({});
     },
   }),
-  defineCommand({ name: "other.ping", run: () => Promise.resolve({}) }),
+  defineTestCommand({ name: "other.ping", run: () => Promise.resolve({}) }),
 ];
 
 const runtime = createCommandRuntime({

@@ -11,7 +11,7 @@ describe("contracts", () => {
     expect(() => execFileSync("node", ["scripts/contracts/validate-schemas.mjs"])).not.toThrow();
   });
 
-  it("generated OpenAPI and MCP tool list are up to date", () => {
+  it("generated OpenAPI, MCP tool list, contracts bundle and TypeScript types are up to date", () => {
     expect(() => execFileSync("node", ["scripts/contracts/generate.mjs", "--check"])).not.toThrow();
   });
 

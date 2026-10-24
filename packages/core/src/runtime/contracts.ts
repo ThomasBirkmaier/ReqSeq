@@ -5,25 +5,15 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ErrorObject, ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import type { CommandEffect, JsonSchema } from "../catalog.js";
+import type { JsonSchema } from "../catalog.js";
 import bundle from "../generated/contracts.json" with { type: "json" };
+import type { CommandCatalog } from "../generated/types.js";
 
 /** `$id` prefix of every schema; an identifier only, never fetched (no network, N-047). */
 export const SCHEMA_BASE = "https://logreq.dev/schemas/";
 
-/**
- * One entry of `schemas/commands/catalog.json` (shape checked by `catalog.meta.schema.json`).
- * Hand-written until the types are generated from the schemas (ADR-0003, #134).
- */
-export interface CatalogEntry {
-  readonly name: string;
-  readonly summary: string;
-  readonly effect: CommandEffect;
-  readonly stage: number;
-  readonly implements: readonly string[];
-  readonly input: JsonSchema;
-  readonly output: JsonSchema;
-}
+/** One entry of `schemas/commands/catalog.json` (shape checked by `catalog.meta.schema.json`). */
+export type CatalogEntry = CommandCatalog["commands"][number];
 
 export type SchemaPart = "input" | "output";
 
@@ -123,7 +113,7 @@ export function loadContracts(options: LoadContractsOptions = {}): Contracts {
   if (!checkCatalog(catalog)) {
     throw new Error(`invalid command catalog: ${describeViolations(schemaViolations(checkCatalog.errors))}`);
   }
-  const commands = (catalog as { readonly commands: readonly CatalogEntry[] }).commands;
+  const commands = (catalog as CommandCatalog).commands;
   const byName = new Map<string, CatalogEntry>();
   for (const entry of commands) {
     if (byName.has(entry.name)) {

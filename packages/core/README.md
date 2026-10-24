@@ -41,17 +41,18 @@ Adapters share one runtime per process: `getCommandRuntime()` returns it (create
 
    export default defineCommand({
      name: "element.get",
-     run: async (ctx, input: ElementGetInput): Promise<ElementGetOutput> => {
+     run: async (ctx, input) => {
+       // input: ElementGetInput, the result must be ElementGetOutput; both come from the catalog.
        const store = ctx.workspace.get(elementStore); // per-workspace state, see below
        // ...
      },
    });
    ```
 
-   The definition has only `name` and `run`. Summary, effect and schemas come from the catalog, so they cannot drift. `input` has already passed the schema, with defaults filled in.
+   The definition has only `name` and `run`. Summary, effect and schemas come from the catalog, so they cannot drift. The name picks the catalog entry, and `input` and the result of `run` get its generated types (`CommandInput<"element.get">`, `CommandOutput<"element.get">`; see "Generated types"), so a command never writes its own interfaces for them. `input` has already passed the schema, with defaults filled in. The compiler reports extra properties in the result only where it checks object literals against a declared type: write the return type (`Promise<CommandOutput<"element.get">>`) to get that; otherwise the output check in tests catches them. Tests with a test-only catalog use `defineTestCommand<In, Out>({ name, run })`, which takes the types instead of a catalog name.
 3. Import it in `src/commands/index.ts` and add it to `commands` (sorted by name). Every `.ts` file in a group folder is taken as a command, so helpers belong in the blocks (`src/model/`, `src/metamodel/`, ...), not next to the commands.
 4. `src/commands/registry.test.ts` checks that files, the list and the catalog agree: every file is registered under the name of its path, every implementation has a catalog entry, and every catalog command of a completed stage (`COMPLETED_STAGES`) has exactly one implementation. A stage is added to `COMPLETED_STAGES` when it is done, in a PR with green CI before its acceptance is prepared (stage-run skill, step 7).
-5. Errors: `throw new CommandError("element.not-found", "No element SR-46fb54", { ref })`. Codes are `COMMAND_ERROR_CODES`, the list of `common.schema.json#/$defs/error`; a new code goes into the schema, the list and `COMMAND_ERROR_CLASSES` in the same PR (tests compare them).
+5. Errors: `throw new CommandError("element.not-found", "No element SR-46fb54", { ref })`. Codes are `CommandErrorCode`, the generated union of `common.schema.json#/$defs/error`; a new code goes into the schema (then `pnpm contracts:generate`) and into `COMMAND_ERROR_CLASSES` in the same PR (its `Record<CommandErrorCode, ...>` type does not compile until the code is classified). Problems use `ProblemCode` from `#/$defs/problemCode` the same way.
 
 ## Workspace state
 
@@ -74,6 +75,16 @@ await workspace.close(); // adapters, when the workspace is closed: disposes eve
 ```
 
 `new Workspace(root)` reads nothing; state is built when a command first asks for it. `reset` and `close` remove the values at once and then dispose them one by one, dependents first (independent states newest first). They wait for pending async builds and skip builds that rejected, so they never fail with a build's error. Every disposal runs even if one fails; then they reject with an `AggregateError`. A `get` during a reset may build new state while the old one is still being disposed. A rejected async build is dropped without resetting its dependents. After `close`, `get` throws.
+
+## Generated types
+
+`src/generated/types.ts` holds the TypeScript types of all schemas and catalog commands, written by `pnpm contracts:generate` (`scripts/contracts/types.mjs`) and checked by `pnpm contracts:check`; never edit it, never write a type by hand that mirrors a schema (ADR-0003). `@logreq/core` exports all of them.
+
+- File formats: `WorkspaceFile`, `MetamodelFile`, `ElementFile`, `BaselineFile`, `DataExportFile`, ... (root of `schemas/<name>.schema.json`).
+- `$defs`: shared ones of `common.schema.json` by their name (`Uuid`, `ShortId`, `ElementRef`, `Version`, `Key`, `Problem`, `ProblemCode`, ...; renamed where a name would shadow a global: `error` is `CommandErrorObject`, `date`/`dateTime` are `IsoDate`/`IsoDateTime`, `selection` is `ElementSelection`), others prefixed with their file (`FilterCondition`, `MetamodelType`, `WorkspaceRepository`, `DataExportElement`).
+- Commands: `<Group><Action>Input` and `...Output` (`ElementGetInput`), and `CommandTypes` from name to both. `catalog.ts` builds on it: `CommandName`, `CommandInput<N>`, `CommandOutput<N>`, `CatalogCommand<N>`, `CommandErrorCode`, `CatalogEntry` (`runtime/contracts.ts`, from `catalog.meta.schema.json`).
+- An input type is what `run` gets: a property with a `default` is required (`ElementListInput.limit` is `number`), because the input validator fills it in, also through `$ref` and `allOf`. A referenced `$defs` entry that reaches a default is used in inputs as `<Name>WithDefaults` (`FilterSortKeyWithDefaults`, `order` required); the plain type stays for outputs and files. Below `anyOf`/`oneOf` Ajv does not fill, so such properties stay optional there.
+- Formats, patterns and lengths are not types: a `Uuid` is a `string`. Values come from validated input or from the command itself; the output check in tests catches the rest.
 
 ## Workspace block (`src/workspace/`)
 
