@@ -6,7 +6,14 @@ import { CommandError } from "../catalog.js";
 import { editElementFile, readElementFile, writeFileAtomic } from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { Metamodel } from "./index.js";
-import { findType, metamodelState, typeForNewElement, workspaceAccess } from "./index.js";
+import {
+  allowsType,
+  findType,
+  keyDefinition,
+  metamodelState,
+  typeForNewElement,
+  workspaceAccess,
+} from "./index.js";
 
 const ELEMENT = "requirements/SR-6328cee88fb3.md";
 
@@ -121,5 +128,37 @@ describe("findType", () => {
     expect(findType(metamodel, "System Requirement")).toBeUndefined();
     expect(findType(metamodel, "Product Requirement")).toBeUndefined();
     expect(await fs.readFile(ws.path(ELEMENT))).toEqual(before);
+  });
+});
+
+describe("allowsType", () => {
+  it("[SR-086/AK1] allows the types of the list and every type that extends one of them", async () => {
+    const metamodel = await open((await fixture()).root).get(metamodelState);
+    expect(allowsType(undefined, "item", metamodel)).toBe(true);
+    expect(allowsType([], "item", metamodel)).toBe(false);
+    expect(allowsType(["requirement"], "requirement", metamodel)).toBe(true);
+    // interface-requirement extends software-requirement extends requirement.
+    expect(allowsType(["requirement"], "interface-requirement", metamodel)).toBe(true);
+    expect(allowsType(["software-requirement"], "requirement", metamodel)).toBe(false);
+    // A type the metamodel does not know is allowed only by its own key.
+    expect(allowsType(["goal"], "goal", metamodel)).toBe(true);
+    expect(allowsType(["requirement"], "goal", metamodel)).toBe(false);
+  });
+});
+
+describe("keyDefinition", () => {
+  it("finds a property or a relation kind by key, the property first", async () => {
+    const base = await open((await fixture()).root).get(metamodelState);
+    const relation = { key: "derives-from", name: "Derives from" };
+    const property = { key: "derives-from", name: "Origin", kind: "text" as const };
+    const metamodel: Metamodel = { ...base, relations: [relation] };
+    expect(keyDefinition(metamodel, "derives-from")).toEqual({ kind: "relation", definition: relation });
+    expect(keyDefinition(metamodel, "title")).toMatchObject({
+      kind: "property",
+      definition: { key: "title" },
+    });
+    expect(keyDefinition(metamodel, "customer-id")).toBeUndefined();
+    const both: Metamodel = { ...metamodel, properties: [...base.properties, property] };
+    expect(keyDefinition(both, "derives-from")).toEqual({ kind: "property", definition: property });
   });
 });

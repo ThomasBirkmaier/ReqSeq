@@ -9,7 +9,8 @@ export { resolveTypes } from "./inheritance.js";
 export type { EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
 export { METAMODEL_FILE_EXTENSION, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
-export { findType, typeForNewElement } from "./lookup.js";
+export { allowsType, findType, keyDefinition, typeForNewElement } from "./lookup.js";
+export type { KeyDefinition } from "./lookup.js";
 export {
   MEANINGS,
   propertyWithMeaning,

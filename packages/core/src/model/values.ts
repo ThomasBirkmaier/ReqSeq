@@ -6,13 +6,14 @@
 // only whether a value is a relation target at all.
 import type { Problem } from "../catalog.js";
 import type { MetamodelNamed, MetamodelProperty } from "../generated/types.js";
-import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState } from "../metamodel/index.js";
+import type { KeyDefinition, Metamodel } from "../metamodel/index.js";
+import { keyDefinition, metamodelState } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { locateFindings } from "./locate.js";
+import { isRelationTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
@@ -48,10 +49,6 @@ interface ValueDefinition {
 
 const isDate = (value: unknown): boolean => fileSchemaValidator("common.schema.json#/$defs/date")(value);
 
-/** Only the format of a target; its type against `target-types` is SR-086. */
-const isRelationTarget = (value: unknown): boolean =>
-  fileSchemaValidator("common.schema.json#/$defs/relationTarget")(value);
-
 /** Choice values listed in a message; a longer list is cut. */
 const LISTED_CHOICES = 20;
 
@@ -81,30 +78,40 @@ const propertyDefinition = (property: MetamodelProperty): ValueDefinition => {
   };
 };
 
-/** One index per metamodel object; a reset of the metamodel state makes a new object. */
-const indexes = new WeakMap<Metamodel, ReadonlyMap<string, ValueDefinition>>();
+/** A relation kind holds a list of relation targets (ADR-0004). */
+const valueDefinition = ({ kind, definition }: KeyDefinition): ValueDefinition =>
+  kind === "property"
+    ? propertyDefinition(definition)
+    : {
+        label: `Relation ${definition.name} (${definition.key})`,
+        kind: "relation",
+        many: true,
+        choices: new Set(),
+        expected: EXPECTED.relation,
+      };
 
-/** The definitions by key. A relation kind holds a list of relation targets (ADR-0004). */
-const definitionsOf = (metamodel: Metamodel): ReadonlyMap<string, ValueDefinition> => {
+/** What the metamodel says a key's value must be, undefined for a key it does not know. */
+type Definitions = (key: string) => ValueDefinition | undefined;
+
+/** One cache per metamodel object; a reset of the metamodel state makes a new object. */
+const indexes = new WeakMap<Metamodel, Definitions>();
+
+/** The definitions by key (`keyDefinition`: a property wins over a relation kind), built on first use. */
+const definitionsOf = (metamodel: Metamodel): Definitions => {
   const known = indexes.get(metamodel);
   if (known !== undefined) {
     return known;
   }
-  const index = new Map<string, ValueDefinition>();
-  for (const relation of metamodel.relations) {
-    index.set(relation.key, {
-      label: `Relation ${relation.name} (${relation.key})`,
-      kind: "relation",
-      many: true,
-      choices: new Set(),
-      expected: EXPECTED.relation,
-    });
-  }
-  for (const property of metamodel.properties) {
-    index.set(property.key, propertyDefinition(property));
-  }
-  indexes.set(metamodel, index);
-  return index;
+  const cache = new Map<string, ValueDefinition | undefined>();
+  const definitions: Definitions = (key) => {
+    if (!cache.has(key)) {
+      const found = keyDefinition(metamodel, key);
+      cache.set(key, found === undefined ? undefined : valueDefinition(found));
+    }
+    return cache.get(key);
+  };
+  indexes.set(metamodel, definitions);
+  return definitions;
 };
 
 /** Whether one value (a single value or one item of a list) has the kind of `definition`. */
@@ -208,13 +215,9 @@ const keyFindings = (
   });
 };
 
-const collect = (
-  element: ElementRecord,
-  definitions: ReadonlyMap<string, ValueDefinition>,
-  out: ValueFinding[],
-): void => {
+const collect = (element: ElementRecord, definitions: Definitions, out: ValueFinding[]): void => {
   for (const [key, value] of Object.entries(element.data)) {
-    const definition = definitions.get(key);
+    const definition = definitions(key);
     if (definition !== undefined && !STRUCTURAL_KEYS.has(key)) {
       keyFindings(element, key, definition, value, out);
     }

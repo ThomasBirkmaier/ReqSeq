@@ -194,7 +194,7 @@
           "items": {
             "$ref": "#/$defs/key"
           },
-          "description": "Allowed target types, for kind `relation`."
+          "description": "Allowed target types, for kind `relation`: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086)."
         },
         "content": {
           "type": "boolean",
@@ -241,13 +241,15 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
-          }
+          },
+          "description": "Allowed source types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086)."
         },
         "target-types": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/key"
-          }
+          },
+          "description": "Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086)."
         },
         "meaning": {
           "$ref": "#/$defs/relationMeaning"

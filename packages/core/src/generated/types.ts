@@ -562,7 +562,7 @@ export interface MetamodelProperty {
   readonly many?: boolean;
   /** Allowed choice keys, for kind `choice`. */
   readonly choices?: readonly MetamodelNamed[];
-  /** Allowed target types, for kind `relation`. */
+  /** Allowed target types, for kind `relation`: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
   readonly "target-types"?: readonly MetamodelKey[];
   /** Part of the content and therefore of the version (D-013). Title and status are never content. */
   readonly content?: boolean;
@@ -596,7 +596,9 @@ export interface MetamodelRelationKind {
   readonly description?: string;
   /** Name shown at the target, e.g. Derived by. */
   readonly "inverse-name"?: string;
+  /** Allowed source types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
   readonly "source-types"?: readonly MetamodelKey[];
+  /** Allowed target types: absent: every type; empty: none; a type also allows its subtypes (types that extend it, SR-086). */
   readonly "target-types"?: readonly MetamodelKey[];
   readonly meaning?: MetamodelRelationMeaning;
 }

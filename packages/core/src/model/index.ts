@@ -12,5 +12,12 @@ export { elementStoreState, loadElements } from "./store.js";
 export type { ElementStore, RepositoryFile } from "./store.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";
+export {
+  allRelationTypeFindings,
+  relationTypeFindings,
+  relationTypeProblemsState,
+} from "./relation-types.js";
+export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
+export { isRelationTarget, resolveTarget } from "./relations.js";
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";

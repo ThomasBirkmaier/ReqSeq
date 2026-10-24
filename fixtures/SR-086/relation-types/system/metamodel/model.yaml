@@ -1,0 +1,37 @@
+# Relation types (SR-086): derives-from only from System Requirement to Need, a relation kind
+# restricted by target only, one without restriction, and relation-valued properties.
+logreq-metamodel: 1
+
+types:
+  - { key: need, name: Need, prefix: N, meaning: need, properties: [title], required: [title] }
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, parent-item, see-also]
+    required: [title]
+  - { key: safety-requirement, name: Safety Requirement, prefix: SSR, extends: system-requirement }
+  - { key: decision, name: Decision, prefix: D, properties: [title] }
+
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: parent-item, name: Parent item, kind: relation, target-types: [need] }
+  - { key: see-also, name: See also, kind: relation, many: true }
+
+relations:
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [system-requirement]
+    target-types: [need]
+    meaning: derivation
+  - key: based-on
+    name: Based on
+    inverse-name: Basis for
+    target-types: [decision]
+  - key: refers-to
+    name: Refers to
+    inverse-name: Referred to by
+
+statuses:
+  - { key: draft, name: Draft, initial: true }
