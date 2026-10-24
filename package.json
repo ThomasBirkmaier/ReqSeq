@@ -18,11 +18,13 @@
     "contracts:check": "node scripts/contracts/generate.mjs --check",
     "licenses:check": "node scripts/licenses/check.mjs",
     "trace-check": "node scripts/trace-check/trace-check.mjs",
-    "spec-export:convert": "node scripts/spec-export/convert.mjs scripts/spec-export/raw spec"
+    "spec-export:convert": "node scripts/spec-export/convert.mjs scripts/spec-export/raw spec",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.5",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "eslint": "10.13.0",

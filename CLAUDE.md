@@ -39,7 +39,7 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 - Small PRs. One SR per PR unless SRs are inseparable; then name all of them.
 - Before starting a plan, read `docs/architecture/README.md`, the ADRs it names for your area and the schemas you touch. Plans that contradict an ADR are rejected in plan review.
 - New functions start as an entry in `schemas/commands/catalog.json` and one implementation in `packages/core/src/commands/`; never add logic to `cli`, `api`, `mcp` or `app` (ADR-0002).
-- Local checks before a PR: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm contracts:check && pnpm test && pnpm trace-check`.
+- Local checks before a PR: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm contracts:check && pnpm test:coverage && pnpm trace-check`.
 
 ## Product rules that are easy to break
 
@@ -52,4 +52,6 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 
 ## Quality gates (required checks)
 
-Typecheck (strict), lint, format, unit tests, CLI end-to-end tests, Electron tests (Playwright, xvfb on Linux), trace-check, offline test, cross-access consistency test, dependency license and security audit. Nightly: performance with generated data.
+Typecheck (strictest settings), lint (strictTypeChecked, zero warnings), format, unit tests with 100 % coverage of product code (ADR-0016), CLI end-to-end tests, Electron tests (Playwright, xvfb on Linux), trace-check, offline test, cross-access consistency test, dependency license and security audit. Nightly: performance with generated data.
+
+Never lower a coverage threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason; the code review rejects them otherwise (ADR-0016).

@@ -24,7 +24,7 @@ Status: Proposed · Based on: D-026, D-050, D-051, D-054, D-055 · SRs: SR-019, 
 - *Performance:* generated 50,000-element workspace; thresholds from SR-007, SR-015, SR-020, SR-068, SR-082. Runs nightly and on PRs labelled `perf`. GitHub runners are not the reference machine (4 cores, 16 GB): results are recorded in `verification/` as analysis; failing thresholds on CI open an issue, not a red PR.
 
 **Quality gates (required checks)**
-`static` (typecheck, lint, format, schemas, generated contracts, licenses, audit), `test (ubuntu-24.04 | macos-14 | windows-2025)`, `trace-check`. Electron tests and the e2e job join the matrix in the stage that brings them (CI comment marks the place).
+`static` (typecheck, lint, format, schemas, generated contracts, licenses, audit), `test (ubuntu-24.04 | macos-14 | windows-2025)` with 100 % coverage (ADR-0016), `trace-check`. Electron tests and the e2e job join the matrix in the stage that brings them (CI comment marks the place).
 
 **Verification records** for Analyse, Inspektion, Demonstration in `verification/SR-xxx.md` (D-050), confirmed by a person at stage acceptance.
 

@@ -22,7 +22,9 @@ export function loadContracts() {
   const schemas = {};
   for (const f of fs.readdirSync(schemasDir).filter((f) => f.endsWith(".schema.json"))) {
     const s = readJson(path.join(schemasDir, f));
-    if (s.$id !== BASE + f) throw new Error(`${f}: $id must be ${BASE + f}`);
+    if (s.$id !== BASE + f) {
+      throw new Error(`${f}: $id must be ${BASE + f}`);
+    }
     schemas[f] = s;
     ajv.addSchema(s);
   }

@@ -11,7 +11,9 @@ const outDir = path.join(schemasDir, "generated");
 // Relative refs in the catalog point to ../<file>#/...; OpenAPI and MCP clients want self-contained
 // documents, so shared schemas go into components and refs are rewritten.
 const rewrite = (node, toRef) => {
-  if (Array.isArray(node)) return node.map((n) => rewrite(n, toRef));
+  if (Array.isArray(node)) {
+    return node.map((n) => rewrite(n, toRef));
+  }
   if (node && typeof node === "object") {
     const out = {};
     for (const [k, v] of Object.entries(node)) {
@@ -25,7 +27,9 @@ const component = (file) => file.replace(".schema.json", "");
 // "../common.schema.json#/$defs/uuid" or "common.schema.json#/$defs/uuid" or "#/$defs/x" (inside file)
 const refTo = (prefix, currentFile) => (ref) => {
   const m = ref.match(/^(?:\.\.\/)?([a-z-]+\.schema\.json)?(?:#(.*))?$/);
-  if (!m) throw new Error(`unsupported $ref ${ref}`);
+  if (!m) {
+    throw new Error(`unsupported $ref ${ref}`);
+  }
   const file = m[1] ?? currentFile;
   return `${prefix}${component(file)}${m[2] ?? ""}`;
 };
@@ -122,5 +126,7 @@ if (process.argv.includes("--check")) {
   process.exit(stale ? 1 : 0);
 }
 fs.mkdirSync(outDir, { recursive: true });
-for (const [f, content] of Object.entries(files)) fs.writeFileSync(path.join(outDir, f), content);
+for (const [f, content] of Object.entries(files)) {
+  fs.writeFileSync(path.join(outDir, f), content);
+}
 console.log(`generated ${Object.keys(files).join(", ")} for ${catalog.commands.length} commands`);

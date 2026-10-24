@@ -1,14 +1,50 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
+// ADR-0016: strictest rule sets with type information; any warning fails the run (--max-warnings 0).
 export default tseslint.config(
   { ignores: ["**/dist/**", "**/out/**", "**/coverage/**", "spec/**", "scripts/spec-export/raw/**"] },
   js.configs.recommended,
-  ...tseslint.configs.strict,
-  { rules: { "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }] } },
+  {
+    rules: {
+      "no-unused-vars": ["error", { ignoreRestSiblings: true }],
+      eqeqeq: ["error", "always"],
+      curly: ["error", "all"],
+      "no-console": "error",
+      "no-param-reassign": "error",
+      "prefer-const": "error",
+      "no-var": "error",
+      "object-shorthand": "error",
+      complexity: ["error", 15],
+      "max-depth": ["error", 4],
+      "no-warning-comments": ["error", { terms: ["todo", "fixme", "xxx"] }],
+    },
+  },
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        projectService: { allowDefaultProject: ["vitest.config.ts"] },
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-import-type-side-effects": "error",
+      "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/ban-ts-comment": ["error", { minimumDescriptionLength: 10 }],
+    },
+  },
   {
     files: ["**/*.mjs", "**/*.js"],
     languageOptions: { globals: { process: "readonly", console: "readonly", fetch: "readonly" } },
+    // Repository scripts report on the console.
+    rules: { "no-console": "off" },
   },
   {
     files: ["packages/**/*.ts", "packages/**/*.tsx"],

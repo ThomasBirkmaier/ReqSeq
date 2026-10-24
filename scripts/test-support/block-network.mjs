@@ -13,16 +13,21 @@ const fail = (target) => {
 // or by net.connect/http/fetch with Node's normalized argument array as first argument.
 const target = (args) => {
   const first = Array.isArray(args[0]) ? args[0][0] : args[0];
-  if (typeof first === "string") return { path: first };
-  if (typeof first === "number" || (typeof first === "string" && /^\d+$/.test(first)))
+  if (typeof first === "string") {
+    return { path: first };
+  }
+  if (typeof first === "number" || (typeof first === "string" && /^\d+$/.test(first))) {
     return { port: first, host: typeof args[1] === "string" ? args[1] : undefined };
+  }
   return first ?? {};
 };
 
 const connect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function (...args) {
   const t = target(args);
-  if (!t.path && !isLoopback(t.host ?? "localhost")) fail(`${t.host}:${t.port}`);
+  if (!t.path && !isLoopback(t.host ?? "localhost")) {
+    fail(`${t.host}:${t.port}`);
+  }
   return connect.apply(this, args);
 };
 
@@ -30,7 +35,9 @@ for (const api of [dns, dns.promises]) {
   for (const fn of ["lookup", "resolve", "resolve4", "resolve6"]) {
     const orig = api[fn];
     api[fn] = function (host, ...rest) {
-      if (!isLoopback(host)) fail(`dns ${host}`);
+      if (!isLoopback(host)) {
+        fail(`dns ${host}`);
+      }
       return orig.call(this, host, ...rest);
     };
   }

@@ -29,11 +29,14 @@ const bad = [];
 for (const [license, pkgs] of Object.entries(byLicense)) {
   // SPDX expressions like "(MIT OR Apache-2.0)": ok when one alternative is allowed.
   const options = license.replace(/[()]/g, "").split(/\s+OR\s+/);
-  if (!options.some((l) => ALLOWED.has(l.trim())))
+  if (!options.some((l) => ALLOWED.has(l.trim()))) {
     bad.push(...pkgs.map((p) => `${p.name}@${p.versions.join(",")}: ${license}`));
+  }
 }
 if (bad.length) {
-  for (const b of bad) console.error(`error: license not allowed (ADR-0015): ${b}`);
+  for (const b of bad) {
+    console.error(`error: license not allowed (ADR-0015): ${b}`);
+  }
   process.exit(1);
 }
 console.log(`licenses ok: ${Object.values(byLicense).flat().length} production packages`);

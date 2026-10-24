@@ -36,12 +36,12 @@ export interface Problem {
 }
 
 export class CommandError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
     super(message);
     this.name = "CommandError";
+    this.code = code;
   }
 }
 

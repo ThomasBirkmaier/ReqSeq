@@ -31,7 +31,9 @@ for (const f of files.filter((f) => f.startsWith("objects-") && f.endsWith(".jso
 const blocksByPage = new Map();
 for (const f of files.filter((f) => f.startsWith("blocks-") && f.endsWith(".json"))) {
   for (const [pageUuid, uuid, parent, order, title] of readJson(f).rows) {
-    if (!blocksByPage.has(pageUuid)) blocksByPage.set(pageUuid, []);
+    if (!blocksByPage.has(pageUuid)) {
+      blocksByPage.set(pageUuid, []);
+    }
     blocksByPage.get(pageUuid).push({ uuid, parent, order, title });
   }
 }
@@ -55,9 +57,13 @@ function frontmatter(obj, kind) {
   const lines = ["---"];
   const put = (k, v) => {
     if (Array.isArray(v)) {
-      if (v.length === 0) return;
+      if (v.length === 0) {
+        return;
+      }
       lines.push(`${k}:`);
-      for (const item of v) lines.push(`  - ${yamlScalar(item)}`);
+      for (const item of v) {
+        lines.push(`  - ${yamlScalar(item)}`);
+      }
     } else if (v !== undefined && v !== null && v !== "") {
       lines.push(`${k}: ${yamlScalar(v)}`);
     }
@@ -68,7 +74,9 @@ function frontmatter(obj, kind) {
   put("type", KINDS[kind][1]);
   put("title", obj.title);
   for (const [name, value] of Object.entries(props).sort(([a], [b]) => a.localeCompare(b))) {
-    if (name === "ID") continue;
+    if (name === "ID") {
+      continue;
+    }
     const v = Array.isArray(value)
       ? value.map(refValue).map(resolveLinks)
       : typeof value === "boolean" || typeof value === "number"
@@ -90,10 +98,15 @@ function body(pageUuid) {
   const walk = (parent, depth) => {
     for (const b of children(parent)) {
       const text = resolveLinks(b.title).trim();
-      if (depth === 0) out.push(text, "");
-      else out.push(`${"  ".repeat(depth - 1)}- ${text}`);
+      if (depth === 0) {
+        out.push(text, "");
+      } else {
+        out.push(`${"  ".repeat(depth - 1)}- ${text}`);
+      }
       walk(b.uuid, depth + 1);
-      if (depth === 0 && out.at(-1) !== "") out.push("");
+      if (depth === 0 && out.at(-1) !== "") {
+        out.push("");
+      }
     }
   };
   walk(pageUuid, 0);
@@ -108,11 +121,14 @@ const fileName = (obj) =>
     .replace(/^-|-$/g, "");
 
 let count = 0;
-for (const [folder] of Object.values(KINDS))
+for (const [folder] of Object.values(KINDS)) {
   fs.rmSync(path.join(specDir, folder), { recursive: true, force: true });
+}
 for (const obj of objects) {
   const kind = obj.tags.map((t) => t.title).find((t) => KINDS[t]);
-  if (!kind) continue;
+  if (!kind) {
+    continue;
+  }
   const dir = path.join(specDir, KINDS[kind][0]);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
