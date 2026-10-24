@@ -2,7 +2,7 @@
 // addresses are the constant LOOPBACK_HOSTS; there is no option or setting to listen anywhere else.
 import { randomBytes } from "node:crypto";
 import type { Server } from "node:http";
-import { createServer } from "node:http";
+import { createServer, get } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { ApiEndpointFile, CommandRuntime, Workspace } from "@logreq/core";
 import {
@@ -14,7 +14,7 @@ import {
   writeCacheFile,
 } from "@logreq/core";
 import type { RequestHandler } from "./handler.js";
-import { createRequestHandler } from "./handler.js";
+import { COMMANDS_PATH, createRequestHandler } from "./handler.js";
 
 /** The only addresses the API listens on (SR-079 AK1, AK3). `::1` only where the machine has IPv6. */
 export const LOOPBACK_HOSTS = ["127.0.0.1", "::1"] as const;
@@ -176,8 +176,63 @@ export const urlOf = (address: AddressInfo): string =>
     ? `http://[${address.address}]:${String(address.port)}`
     : `http://${address.address}:${String(address.port)}`;
 
-/** Whether a process with this ID runs; one of another user (EPERM) runs too. */
-const isRunning = (pid: number): boolean => {
+/** The fields of `text` (api.json, untrusted), or `undefined` when it is no JSON object. */
+const endpointOf = (text: string): Readonly<Record<string, unknown>> | undefined => {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** How long a URL of `api.json` may take to answer before the API there counts as stopped. */
+export const PROBE_TIMEOUT_MS = 1000;
+
+/**
+ * A URL as urlOf writes it: loopback only, so the check below never connects to another machine, whatever
+ * the file says.
+ */
+const LOOPBACK_URL = /^http:\/\/(?:127\.0\.0\.1|\[::1\]):\d{1,5}$/;
+
+/**
+ * Whether the API at `url` runs: it answers `GET /v1/commands` with 200 for `token`, or it accepts the
+ * connection and does not answer within PROBE_TIMEOUT_MS (an API that is busy). Any other answer or failure
+ * is false.
+ */
+const answers = (url: string, token: string): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
+    let accepted = false;
+    const request = get(
+      `${url}${COMMANDS_PATH}`,
+      {
+        // A fresh agent, never one that HTTP_PROXY or NODE_USE_ENV_PROXY set up: the request goes straight
+        // to the loopback URL and never through a proxy on another machine (SR-078).
+        agent: false,
+        headers: { authorization: `Bearer ${token}` },
+        signal,
+      },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      },
+    );
+    request.on("socket", (socket) => {
+      socket.once("connect", () => {
+        accepted = true;
+      });
+    });
+    request.on("error", () => {
+      resolve(accepted && signal.aborted);
+    });
+  }).catch(() => false);
+
+/** Whether a process with this ID runs; one of another user (EPERM) runs too. Not an ID: false. */
+const isRunning = (pid: unknown): boolean => {
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid < 1) {
+    return false;
+  }
   try {
     process.kill(pid, 0);
     return true;
@@ -186,29 +241,31 @@ const isRunning = (pid: number): boolean => {
   }
 };
 
-/** The endpoint of `text` (api.json), or `undefined` when it is not one. */
-const endpointOf = (text: string): Partial<ApiEndpointFile> | undefined => {
-  try {
-    const value: unknown = JSON.parse(text);
-    return typeof value === "object" && value !== null ? value : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 /**
- * Refuse to start while `api.json` in `folder` names a process that runs: that API serves this working copy
- * already, and a second one would replace its token. A file of a stopped API is replaced.
+ * Refuse to start while the API of `api.json` in `folder` runs. When the process of the file does not run,
+ * the file is stale and replaced at once. When it runs (it may be another process with a reused ID), the
+ * loopback URLs of the file are asked (`answers`): that API serves this working copy already, and a second
+ * one would replace its token. Otherwise the file is replaced.
  */
 const refuseWhileRunning = async (folder: string): Promise<void> => {
   const text = await readCacheFile(folder, ENDPOINT_FILE);
-  const pid = text === undefined ? undefined : endpointOf(text)?.pid;
-  if (typeof pid === "number" && Number.isInteger(pid) && pid > 0 && isRunning(pid)) {
+  const endpoint = text === undefined ? undefined : endpointOf(text);
+  const token = endpoint?.["token"];
+  const stored = endpoint?.["urls"];
+  const urls = Array.isArray(stored)
+    ? stored.filter((url): url is string => typeof url === "string" && LOOPBACK_URL.test(url))
+    : [];
+  if (typeof token !== "string" || urls.length === 0 || !isRunning(endpoint?.["pid"])) {
+    return;
+  }
+  const answered = await Promise.all(urls.map((url) => answers(url, token)));
+  const url = urls.find((_, index) => answered[index] === true);
+  if (url !== undefined) {
     throw new CommandError(
       "input.invalid",
-      `A LogReq API for this working copy runs already (process ${String(pid)}). Stop it first, ` +
-        `or remove ${ENDPOINT_FILE} in ${folder} if no such API runs.`,
-      { pid },
+      `A LogReq API for this working copy runs already at ${url}. Stop it first. ` +
+        `If it does not answer, remove ${ENDPOINT_FILE} in ${folder}.`,
+      { url, folder },
     );
   }
 };
@@ -251,7 +308,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     await stop();
     // Only our own file: never one that another API wrote after this one was started.
     const text = await readCacheFile(folder, ENDPOINT_FILE);
-    if (text !== undefined && endpointOf(text)?.token === token) {
+    if (text !== undefined && endpointOf(text)?.["token"] === token) {
       await removeCacheFile(folder, ENDPOINT_FILE);
     }
   };

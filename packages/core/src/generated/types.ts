@@ -12,7 +12,7 @@ export interface ApiEndpointFile {
   readonly token: string;
   /** Base URLs, one per loopback address the API listens on (`::1` only where the machine has IPv6). */
   readonly urls: readonly string[];
-  /** Process ID of the API. */
+  /** Process ID of the API. While it runs, a second API for the same working copy asks the URLs before it starts; when it does not run, the file is stale and is replaced. */
   readonly pid: number;
 }
 

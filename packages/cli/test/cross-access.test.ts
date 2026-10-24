@@ -325,6 +325,8 @@ interface Result {
 const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<string, Result>> => {
   const unchanging = entry.effect === "read" || !runtime.commands.has(entry.name);
   const shared = unchanging ? await copy(scenario) : undefined;
+  // The files of the untouched template: a read changes none of them, not even the same way on every access.
+  const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
   for (const access of ACCESSES) {
     const { top, root } = shared ?? (await copy(scenario));
@@ -338,6 +340,9 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
             ? await viaApi(root, entry, input, cache)
             : await viaMcp(root, entry, input);
     const result = normalized({ outcome, files: await filesOf(top) }, top) as Result;
+    if (untouched !== undefined) {
+      expect([access, result.files]).toEqual([access, untouched]);
+    }
     results[access] = scenario.newElement === true ? maskNewElement(result) : result;
   }
   return results;

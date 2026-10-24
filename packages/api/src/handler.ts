@@ -68,6 +68,28 @@ const refuse = (
   send(response, status, body, headers);
 };
 
+/**
+ * The 413 for a body over MAX_BODY_BYTES, with `connection: close`: the connection is cut after DRAIN_BYTES,
+ * so a keep-alive client must not send its next request on it. The whole answer is written at once, but the
+ * response ends only when the body has ended: Node closes the connection of a `connection: close` response
+ * as soon as it ends, and closing it while the client still sends resets it (see DRAIN_BYTES). `ended`
+ * settles when the body has ended; it never does when the connection is cut first.
+ */
+const refuseTooLarge = (response: ServerResponse, ended: Promise<void>): void => {
+  const body: CommandErrorObject = {
+    code: "input.invalid",
+    message: `The request body is larger than ${String(MAX_BODY_BYTES)} bytes`,
+  };
+  const text = `${JSON.stringify(body)}\n`;
+  response.writeHead(413, {
+    ...HEADERS,
+    connection: "close",
+    "content-length": String(Buffer.byteLength(text)),
+  });
+  response.write(text);
+  void ended.then(() => response.end());
+};
+
 const sendError = (response: ServerResponse, error: unknown): void => {
   const commandError =
     error instanceof CommandError ? error : new CommandError("internal", "Internal error in the local API");
@@ -155,10 +177,12 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
   const token = Buffer.from(options.token, "utf8");
 
   const run = async (name: string, request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    // Listened for before the body is read, so that its end is never missed.
+    const ended = new Promise<void>((resolve) => request.once("end", resolve));
     const text = await readBody(request);
     if (text === undefined) {
       // Answered at once; readBody drops the rest of the body, and cuts the connection after DRAIN_BYTES.
-      refuse(response, 413, `The request body is larger than ${String(MAX_BODY_BYTES)} bytes`);
+      refuseTooLarge(response, ended);
       return;
     }
     // Aborted when the client goes away before the response is sent, or when the server closes.

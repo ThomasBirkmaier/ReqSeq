@@ -19,7 +19,11 @@
       "items": { "type": "string", "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[0-9]+$" },
       "description": "Base URLs, one per loopback address the API listens on (`::1` only where the machine has IPv6)."
     },
-    "pid": { "type": "integer", "minimum": 1, "description": "Process ID of the API." }
+    "pid": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Process ID of the API. While it runs, a second API for the same working copy asks the URLs before it starts; when it does not run, the file is stale and is replaced."
+    }
   },
   "additionalProperties": false
 }

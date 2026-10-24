@@ -16,7 +16,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DRAIN_BYTES, HTTP_STATUS_BY_CLASS, MAX_BODY_BYTES } from "./handler.js";
 import type { ApiServer } from "./server.js";
-import { LOOPBACK_HOSTS, PORT_ATTEMPTS, listenOnAll, startApiServer, urlOf } from "./server.js";
+import {
+  LOOPBACK_HOSTS,
+  PORT_ATTEMPTS,
+  PROBE_TIMEOUT_MS,
+  listenOnAll,
+  startApiServer,
+  urlOf,
+} from "./server.js";
 
 /** A handler for servers of listenOnAll that no test sends a request to. */
 const unused = (): void => undefined;
@@ -122,6 +129,27 @@ const failListen = (host: string, code: string, times = Infinity): number[] => {
 
 const closeAll = (servers: readonly http.Server[]): Promise<unknown[]> =>
   Promise.all(servers.map((s) => new Promise((resolve) => s.close(resolve))));
+
+/** An api.json with the process ID of this process, which runs. */
+const endpointText = (fields: Record<string, unknown>): string =>
+  JSON.stringify({ "logreq-api": 1, port: 1, token: "t", urls: [], pid: process.pid, ...fields });
+
+/** A TCP server on 127.0.0.1 that is no API: its URL, and close. */
+const loopbackServer = async (
+  onConnection: (socket: net.Socket) => void,
+): Promise<{ url: string; close: () => Promise<void> }> => {
+  const tcp = net.createServer(onConnection);
+  await new Promise<void>((resolve) => tcp.listen(0, "127.0.0.1", resolve));
+  return {
+    url: `http://127.0.0.1:${String((tcp.address() as net.AddressInfo).port)}`,
+    close: () =>
+      new Promise((resolve) => {
+        tcp.close(() => {
+          resolve();
+        });
+      }),
+  };
+};
 
 let dir: string;
 let server: ApiServer | undefined;
@@ -340,42 +368,117 @@ describe("listening", () => {
     server = undefined;
   });
 
-  it("refuses to start while api.json names a running process, and replaces the file of a stopped one", async () => {
-    const file = path.join(dir, "api.json");
-    await fs.writeFile(file, JSON.stringify({ pid: process.pid }));
+  it("refuses to start while the API of api.json answers there with its token", async () => {
+    const first = await start();
+    const before = await fs.readFile(first.endpointFile, "utf8");
     await expect(
       startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
     ).rejects.toMatchObject({
       code: "input.invalid",
-      message: expect.stringContaining(`runs already (process ${String(process.pid)})`) as unknown,
-      details: { pid: process.pid },
+      message:
+        `A LogReq API for this working copy runs already at ${String(first.urls[0])}. Stop it first. ` +
+        `If it does not answer, remove api.json in ${dir}.`,
+      details: { url: first.urls[0], folder: dir },
     });
-    // Not a process (any more), or not an endpoint at all: the file is replaced.
-    for (const text of [
-      JSON.stringify({ pid: 2147483646 }),
-      JSON.stringify({ pid: 0 }),
-      JSON.stringify({ pid: 1.5 }),
-      JSON.stringify({ pid: "1" }),
-      "null",
-      "1",
-      "{",
-    ]) {
-      await fs.writeFile(file, text);
-      const api = await start();
-      await api.close();
-      server = undefined;
-    }
+    // The running API keeps its file, its token and its connections.
+    expect(await fs.readFile(first.endpointFile, "utf8")).toBe(before);
+    expect((await request()).status).toBe(200);
   });
 
-  it("counts a process of another user as running", async () => {
-    vi.spyOn(process, "kill").mockImplementation(() => {
-      throw Object.assign(new Error("EPERM"), { code: "EPERM" });
-    });
-    await fs.writeFile(path.join(dir, "api.json"), JSON.stringify({ pid: 1 }));
-    await expect(
-      startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
-    ).rejects.toMatchObject({ details: { pid: 1 } });
-  });
+  it(
+    "counts an API that accepts but does not answer in time, and a process of another user, as running",
+    { timeout: 15_000 },
+    async () => {
+      const file = path.join(dir, "api.json");
+      const silent = await loopbackServer((socket) => {
+        // Accepts and never answers, like an API whose event loop is busy.
+        socket.on("error", () => undefined).resume();
+      });
+      try {
+        await fs.writeFile(file, endpointText({ urls: [silent.url] }));
+        const started = performance.now();
+        await expect(
+          startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
+        ).rejects.toMatchObject({ code: "input.invalid", details: { url: silent.url } });
+        expect(performance.now() - started).toBeGreaterThanOrEqual(PROBE_TIMEOUT_MS - 50);
+      } finally {
+        await silent.close();
+      }
+      const first = await start();
+      const endpoint = JSON.parse(await fs.readFile(first.endpointFile, "utf8")) as object;
+      await fs.writeFile(file, JSON.stringify({ ...endpoint, pid: 1 }));
+      vi.spyOn(process, "kill").mockImplementation(() => {
+        throw Object.assign(new Error("EPERM"), { code: "EPERM" });
+      });
+      await expect(
+        startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
+      ).rejects.toMatchObject({ details: { url: first.urls[0] } });
+    },
+  );
+
+  it(
+    "replaces api.json when its process does not run, or no API answers there with its token",
+    { timeout: 15_000 },
+    async () => {
+      const file = path.join(dir, "api.json");
+      const other = await start();
+      let hangUp: { url: string; close: () => Promise<void> } | undefined;
+      const hosts: unknown[] = [];
+      try {
+        const otherEndpoint = JSON.parse(await fs.readFile(other.endpointFile, "utf8")) as object;
+        await fs.rm(other.endpointFile);
+        const stopped = await start();
+        const stoppedUrls = stopped.urls;
+        await stopped.close();
+        // Accepts and hangs up at once.
+        hangUp = await loopbackServer((socket) => socket.destroy());
+        const connect = Reflect.get(net.Socket.prototype, "connect") as (
+          this: net.Socket,
+          ...args: unknown[]
+        ) => net.Socket;
+        vi.spyOn(net.Socket.prototype, "connect").mockImplementation(function (this: net.Socket, ...args) {
+          // http passes Node's normalized argument array: [options, callback].
+          const options: unknown = Array.isArray(args[0]) ? (args[0] as unknown[])[0] : args[0];
+          hosts.push((options as { host?: unknown } | undefined)?.host);
+          return connect.apply(this, args);
+        });
+        const replace = async (text: string): Promise<void> => {
+          await fs.writeFile(file, text);
+          const api = await start();
+          await api.close();
+          server = undefined;
+        };
+        // The process of the file does not run (or the file has no process ID): replaced without asking,
+        // even when the URLs and the token are those of a running API.
+        for (const pid of [2147483646, 0, 1.5, "1", undefined]) {
+          await replace(JSON.stringify({ ...otherEndpoint, pid }));
+        }
+        expect(hosts).toEqual([]);
+        for (const text of [
+          // The process ID runs (this process, as when an ID is reused), but no API answers at the URLs.
+          endpointText({ urls: stoppedUrls }),
+          endpointText({ urls: [hangUp.url] }),
+          // The URLs of a running API, but not its token: 401.
+          JSON.stringify({ ...otherEndpoint, pid: process.pid, token: "wrong" }),
+          // Never asked: not loopback, or not in the form that api.json has.
+          endpointText({ urls: ["http://192.0.2.1:80", "http://localhost:80", "https://127.0.0.1:80", 8] }),
+          endpointText({ urls: ["http://127.0.0.1:99999"] }),
+          endpointText({ urls: "http://127.0.0.1:80" }),
+          endpointText({ token: 1, urls: stoppedUrls }),
+          "null",
+          "1",
+          "{",
+        ]) {
+          await replace(text);
+        }
+      } finally {
+        await hangUp?.close();
+        await other.close();
+      }
+      expect(hosts.length).toBeGreaterThan(0);
+      expect(hosts.filter((host) => host !== "127.0.0.1" && host !== "::1")).toEqual([]);
+    },
+  );
 
   it("stops listening when api.json cannot be written", async () => {
     await fs.writeFile(path.join(dir, "file"), "");
@@ -500,12 +603,52 @@ describe("commands", () => {
     ]);
     // Just over the limit: the server reads it to the end and answers 413.
     const large = await request({ body: Buffer.alloc(MAX_BODY_BYTES + 1, 0x20) });
-    expect(large.status).toBe(413);
+    expect([large.status, large.headers.connection, large.body]).toEqual([
+      413,
+      "close",
+      { code: "input.invalid", message: `The request body is larger than ${String(MAX_BODY_BYTES)} bytes` },
+    ]);
+  });
+
+  it("closes the connection after a 413, so that a keep-alive client sends on a new one", async () => {
+    const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
+    const sockets = new Set<unknown>();
+    const send = (body: Buffer): Promise<number | undefined> =>
+      new Promise((resolve, reject) => {
+        const req = http.request({
+          agent,
+          host: "127.0.0.1",
+          port: server?.port,
+          method: "POST",
+          path: "/v1/commands/test.echo",
+          headers: { authorization: `Bearer ${token}` },
+        });
+        req.on("socket", (socket) => sockets.add(socket));
+        req.on("response", (res) => {
+          res.resume();
+          res.on("end", () => {
+            resolve(res.statusCode);
+          });
+        });
+        req.on("error", reject);
+        req.end(body);
+      });
+    try {
+      expect(await send(Buffer.alloc(MAX_BODY_BYTES + 1, 0x20))).toBe(413);
+      expect(await send(Buffer.from("{}"))).toBe(200);
+      expect(sockets.size).toBe(2);
+    } finally {
+      agent.destroy();
+    }
   });
 
   it("answers 413 as soon as a body passes the limit, before the client has sent it all", async () => {
     const chunk = Buffer.alloc(1024 * 1024, 0x20);
-    const reply = await new Promise<{ status: number | undefined; sent: number }>((resolve) => {
+    const reply = await new Promise<{
+      status: number | undefined;
+      connection: string | undefined;
+      sent: number;
+    }>((resolve) => {
       const req = http.request({
         host: "127.0.0.1",
         port: server?.port,
@@ -517,7 +660,7 @@ describe("commands", () => {
       let answered = false;
       req.on("response", (res) => {
         answered = true;
-        resolve({ status: res.statusCode, sent });
+        resolve({ status: res.statusCode, connection: res.headers.connection, sent });
         res.resume();
         req.destroy();
       });
@@ -535,7 +678,7 @@ describe("commands", () => {
       };
       send();
     });
-    expect(reply.status).toBe(413);
+    expect([reply.status, reply.connection]).toEqual([413, "close"]);
     expect(reply.sent).toBeLessThan(3 * MAX_BODY_BYTES);
     // The server keeps serving.
     expect((await request()).status).toBe(200);
@@ -548,7 +691,8 @@ describe("commands", () => {
       `POST /v1/commands/test.echo HTTP/1.1\r\nHost: 127.0.0.1:${String(server?.port)}\r\n` +
         `Authorization: Bearer ${token}\r\nContent-Length: ${String(limit)}\r\n\r\n`,
     );
-    socket.on("data", () => undefined);
+    let answer = "";
+    socket.on("data", (data: Buffer) => (answer += data.toString("utf8")));
     const chunk = Buffer.alloc(1024 * 1024, 0x20);
     const sent = await new Promise<number>((resolve) => {
       let total = 0;
@@ -569,6 +713,9 @@ describe("commands", () => {
       send();
     });
     expect(sent).toBeLessThan(limit);
+    // The 413 says that the connection closes, and still the server drains DRAIN_BYTES before it cuts.
+    expect(sent).toBeGreaterThan(MAX_BODY_BYTES + DRAIN_BYTES);
+    expect(answer).toMatch(/^HTTP\/1\.1 413 [^]*\r\nconnection: close\r\n/i);
   });
 
   it("maps every error class to its HTTP status, with the error object as body", async () => {

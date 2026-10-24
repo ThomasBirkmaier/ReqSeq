@@ -38,7 +38,7 @@
         "pid": {
           "type": "integer",
           "minimum": 1,
-          "description": "Process ID of the API."
+          "description": "Process ID of the API. While it runs, a second API for the same working copy asks the URLs before it starts; when it does not run, the file is stale and is replaced."
         }
       },
       "additionalProperties": false
