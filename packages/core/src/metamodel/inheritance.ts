@@ -4,36 +4,25 @@
 // and line, so the workspace opens read-only (SR-011 AK3). Resolution never loops and resolves as
 // far as it can, so a read-only workspace still knows its types.
 import type { Problem } from "../catalog.js";
-import type { MetamodelKey, MetamodelType } from "../generated/types.js";
+import type { MetamodelEffectiveType, MetamodelKey, MetamodelType } from "../generated/types.js";
 
-/** A type with inheritance resolved; everything else as written in its file. */
-export interface EffectiveType extends Omit<
-  MetamodelType,
-  "abstract" | "meaning" | "properties" | "required"
-> {
-  /** Not inherited: a type is abstract only when its own definition says so. */
-  readonly abstract: boolean;
-  /** The parent, its parent and so on, up to the root type. */
-  readonly ancestors: readonly MetamodelKey[];
-  /**
-   * All property keys of the type, each once: those of the root type first, then down to the type
-   * itself (the key order of new keys in element files, ADR-0004). Required keys count as properties.
-   */
-  readonly properties: readonly MetamodelKey[];
-  /** All required property keys, own and inherited, in the same order. */
-  readonly required: readonly MetamodelKey[];
-  /** Own meaning, else the meaning of the closest ancestor that has one (metamodel.schema.json). */
-  readonly meaning?: NonNullable<MetamodelType["meaning"]>;
-}
+/**
+ * A type with inheritance resolved; everything else as written in its file. Its schema is
+ * `metamodel.schema.json#/$defs/effectiveType`, which `metamodel.get` returns.
+ */
+export type EffectiveType = MetamodelEffectiveType;
 
-/** A type definition and where it is written. */
-export interface LocatedType {
-  readonly definition: MetamodelType;
+/** A definition of the metamodel and where it is written. */
+export interface Located<T> {
+  readonly definition: T;
   /** Relative to the metamodel repository. */
   readonly file: string;
   /** Line of a node of the definition, e.g. `["extends"]` or `["required", "0"]`. */
   readonly lineOf: (segments: readonly string[]) => number | undefined;
 }
+
+/** A type definition and where it is written. */
+export type LocatedType = Located<MetamodelType>;
 
 export interface ResolvedTypes {
   /** In the order of the given types. */

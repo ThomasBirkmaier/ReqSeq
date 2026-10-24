@@ -1,0 +1,12 @@
+logreq-metamodel: 1
+properties:
+  - { key: label, name: Label, kind: text, meaning: title }
+  # The validity of SR-013 AK2: an own key. The property keyed `validity` has no meaning.
+  - key: applies-to
+    name: Applies to
+    kind: relation
+    many: true
+    target-types: [edition]
+    content: true
+    meaning: validity
+  - { key: validity, name: Validity note, kind: text }

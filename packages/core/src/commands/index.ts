@@ -6,6 +6,7 @@
 // the list (keep both sorted by name).
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
+import metamodelGet from "./metamodel/get.js";
 import workspaceStatus from "./workspace/status.js";
 
-export const commands: readonly AnyCommand[] = [workspaceStatus];
+export const commands: readonly AnyCommand[] = [metamodelGet, workspaceStatus];

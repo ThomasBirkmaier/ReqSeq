@@ -209,33 +209,50 @@
           "types": {
             "type": "array",
             "items": {
-              "type": "object"
-            }
+              "$ref": "../metamodel.schema.json#/$defs/effectiveType"
+            },
+            "description": "The types with inheritance resolved (SR-012), in metamodel order."
           },
           "properties": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "../metamodel.schema.json#/$defs/property"
             }
           },
           "relations": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "../metamodel.schema.json#/$defs/relationKind"
             }
           },
           "statuses": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "../metamodel.schema.json#/$defs/status"
             }
           },
           "meanings": {
             "type": "object",
-            "additionalProperties": {
-              "type": ["string", "null"]
+            "propertyNames": {
+              "anyOf": [
+                {
+                  "$ref": "../metamodel.schema.json#/$defs/typeMeaning"
+                },
+                {
+                  "$ref": "../metamodel.schema.json#/$defs/propertyMeaning"
+                },
+                {
+                  "$ref": "../metamodel.schema.json#/$defs/relationMeaning"
+                }
+              ]
             },
-            "description": "Built-in meaning -> assigned key, null if unassigned (SR-013 AK3)."
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/key"
+              }
+            },
+            "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
           },
           "problems": {
             "type": "array",

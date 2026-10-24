@@ -1,0 +1,8 @@
+logreq-metamodel: 1
+relations:
+  # The derivation of SR-013 AK1: an own key. `traces-to` has no meaning.
+  - key: satisfies
+    name: Satisfies
+    inverse-name: Satisfied by
+    meaning: derivation
+  - { key: traces-to, name: Traces to, inverse-name: Traced by }

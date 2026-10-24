@@ -1,0 +1,18 @@
+# Own keys with built-in meanings (SR-013): none of them is a key of the standard model.
+logreq-metamodel: 1
+types:
+  - key: wish
+    name: Stakeholder Wish
+    prefix: W
+    meaning: need
+    properties: [label]
+  - key: spec-item
+    name: Specification Item
+    prefix: SPI
+    meaning: requirement
+    properties: [label, applies-to, validity]
+  - key: edition
+    name: Edition
+    prefix: ED
+    meaning: variant
+    properties: [label]

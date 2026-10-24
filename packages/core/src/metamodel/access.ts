@@ -14,15 +14,23 @@ export interface WorkspaceAccess {
   readonly reasons: readonly Problem[];
 }
 
+/**
+ * All problems of the metamodel: the layout reports a missing metamodel folder or repository, the
+ * metamodel block the files (`metamodel.get`; `workspaceAccess` takes the errors).
+ */
+export const metamodelProblems = async (workspace: Workspace): Promise<readonly Problem[]> => {
+  const layout = await workspace.get(workspaceLayoutState);
+  const metamodel = await workspace.get(metamodelState);
+  return [...layout.problems.filter((p) => p.code === "metamodel.invalid"), ...metamodel.problems];
+};
+
 /** Read-only while the metamodel is not valid: no change could be checked against it. */
 export const workspaceAccess = async (workspace: Workspace): Promise<WorkspaceAccess> => {
-  const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   if (metamodel.valid) {
     return { readOnly: false, reasons: [] };
   }
-  // The layout reports a missing metamodel folder or repository; the metamodel block the files.
-  const reasons = [...layout.problems.filter((p) => p.code === "metamodel.invalid"), ...metamodel.problems];
+  const reasons = await metamodelProblems(workspace);
   return { readOnly: true, reasons: reasons.filter((p) => p.severity === "error") };
 };
 

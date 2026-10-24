@@ -5,7 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Metamodel } from "./index.js";
-import { loadMetamodel, metamodelState } from "./index.js";
+import { MEANINGS, loadMetamodel, metamodelState } from "./index.js";
 
 const fixture = async (options: FixtureOptions = {}): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-011/split-folder", ...options });
@@ -345,6 +345,7 @@ describe("loadMetamodel", () => {
       relations: [],
       statuses: [],
       effectiveTypes: [],
+      meanings: Object.fromEntries(Object.keys(MEANINGS).map((m) => [m, []])),
       valid: false,
       problems: [
         {

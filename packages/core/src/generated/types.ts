@@ -458,7 +458,7 @@ export interface FilterSortKeyWithDefaults {
 }
 
 /**
- * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
+ * One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.
  * Schema: `schemas/metamodel.schema.json#`.
  */
 export interface MetamodelFile {
@@ -497,12 +497,39 @@ export interface MetamodelType {
   readonly extends?: MetamodelKey;
   /** No elements of this type can be created; only for inheritance. */
   readonly abstract?: boolean;
-  /** Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040). */
-  readonly meaning?: "requirement" | "need" | "variant" | "package";
+  readonly meaning?: MetamodelTypeMeaning;
   /** Property keys this type has, in addition to inherited ones, which come first. Each must be a defined property. */
   readonly properties?: readonly MetamodelKey[];
   /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and must be a defined property. Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
+}
+
+/**
+ * Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).
+ * Schema: `schemas/metamodel.schema.json#/$defs/typeMeaning`.
+ */
+export type MetamodelTypeMeaning = "requirement" | "need" | "variant" | "package";
+
+/**
+ * A type with its inheritance resolved (SR-012), as metamodel.get returns it; never written in a file. Key, name, description, prefix and extends are as written in the type's definition.
+ * Schema: `schemas/metamodel.schema.json#/$defs/effectiveType`.
+ */
+export interface MetamodelEffectiveType {
+  readonly key: MetamodelKey;
+  readonly name: string;
+  readonly description?: string;
+  readonly prefix: string;
+  readonly extends?: MetamodelKey;
+  /** Not inherited: a type is abstract only when its own definition says so. */
+  readonly abstract: boolean;
+  /** The parent, its parent and so on, up to the root type. */
+  readonly ancestors: readonly MetamodelKey[];
+  /** All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. */
+  readonly properties: readonly MetamodelKey[];
+  /** All required property keys, own and inherited, in the same order. */
+  readonly required: readonly MetamodelKey[];
+  /** Own meaning, else the meaning of the closest ancestor that has one. */
+  readonly meaning?: MetamodelTypeMeaning;
 }
 
 /**
@@ -524,19 +551,24 @@ export interface MetamodelProperty {
   readonly "target-types"?: readonly MetamodelKey[];
   /** Part of the content and therefore of the version (D-013). Title and status are never content. */
   readonly content?: boolean;
-  /** Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057). */
-  readonly meaning?:
-    | "title"
-    | "validity"
-    | "packages"
-    | "emergent"
-    | "verification-method"
-    | "statement"
-    | "source"
-    | "source-identifier"
-    | "import-date"
-    | "delivery";
+  readonly meaning?: MetamodelPropertyMeaning;
 }
+
+/**
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).
+ * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
+ */
+export type MetamodelPropertyMeaning =
+  | "title"
+  | "validity"
+  | "packages"
+  | "emergent"
+  | "verification-method"
+  | "statement"
+  | "source"
+  | "source-identifier"
+  | "import-date"
+  | "delivery";
 
 /**
  * Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
@@ -551,9 +583,14 @@ export interface MetamodelRelationKind {
   readonly "inverse-name"?: string;
   readonly "source-types"?: readonly MetamodelKey[];
   readonly "target-types"?: readonly MetamodelKey[];
-  /** Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics. */
-  readonly meaning?: "derivation" | "replacement" | "exclusion";
+  readonly meaning?: MetamodelRelationMeaning;
 }
+
+/**
+ * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
+ * Schema: `schemas/metamodel.schema.json#/$defs/relationMeaning`.
+ */
+export type MetamodelRelationMeaning = "derivation" | "replacement" | "exclusion";
 
 /**
  * Status value (D-030).
@@ -803,12 +840,13 @@ export type MetamodelGetInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/catalog.json metamodel.get output`.
  */
 export interface MetamodelGetOutput {
-  readonly types: readonly Readonly<Record<string, unknown>>[];
-  readonly properties: readonly Readonly<Record<string, unknown>>[];
-  readonly relations: readonly Readonly<Record<string, unknown>>[];
-  readonly statuses: readonly Readonly<Record<string, unknown>>[];
-  /** Built-in meaning -> assigned key, null if unassigned (SR-013 AK3). */
-  readonly meanings: Readonly<Record<string, string | null>>;
+  /** The types with inheritance resolved (SR-012), in metamodel order. */
+  readonly types: readonly MetamodelEffectiveType[];
+  readonly properties: readonly MetamodelProperty[];
+  readonly relations: readonly MetamodelRelationKind[];
+  readonly statuses: readonly MetamodelStatus[];
+  /** Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`. */
+  readonly meanings: Readonly<Record<string, readonly Key[]>>;
   readonly problems?: readonly Problem[];
 }
 

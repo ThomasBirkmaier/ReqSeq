@@ -1095,7 +1095,7 @@
     },
     "metamodel": {
       "title": "Metamodel file",
-      "description": "One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.",
+      "description": "One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.",
       "type": "object",
       "required": [
         "logreq-metamodel"
@@ -1184,13 +1184,7 @@
               "description": "No elements of this type can be created; only for inheritance."
             },
             "meaning": {
-              "description": "Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).",
-              "enum": [
-                "requirement",
-                "need",
-                "variant",
-                "package"
-              ]
+              "$ref": "#/$defs/metamodel/$defs/typeMeaning"
             },
             "properties": {
               "type": "array",
@@ -1208,6 +1202,77 @@
             }
           },
           "unevaluatedProperties": false
+        },
+        "typeMeaning": {
+          "description": "Built-in meaning of the type (D-012): `requirement` (target of verification), `need` (may be validated), `variant` (D-020), `package` (D-040).",
+          "enum": [
+            "requirement",
+            "need",
+            "variant",
+            "package"
+          ]
+        },
+        "effectiveType": {
+          "description": "A type with its inheritance resolved (SR-012), as metamodel.get returns it; never written in a file. Key, name, description, prefix and extends are as written in the type's definition.",
+          "type": "object",
+          "required": [
+            "key",
+            "name",
+            "prefix",
+            "abstract",
+            "ancestors",
+            "properties",
+            "required"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/metamodel/$defs/key"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "prefix": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9]*$"
+            },
+            "extends": {
+              "$ref": "#/$defs/metamodel/$defs/key"
+            },
+            "abstract": {
+              "type": "boolean",
+              "description": "Not inherited: a type is abstract only when its own definition says so."
+            },
+            "ancestors": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/metamodel/$defs/key"
+              },
+              "description": "The parent, its parent and so on, up to the root type."
+            },
+            "properties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/metamodel/$defs/key"
+              },
+              "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties."
+            },
+            "required": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/metamodel/$defs/key"
+              },
+              "description": "All required property keys, own and inherited, in the same order."
+            },
+            "meaning": {
+              "$ref": "#/$defs/metamodel/$defs/typeMeaning",
+              "description": "Own meaning, else the meaning of the closest ancestor that has one."
+            }
+          },
+          "additionalProperties": false
         },
         "property": {
           "description": "Property definition (SR-012 AK3).",
@@ -1258,22 +1323,25 @@
               "description": "Part of the content and therefore of the version (D-013). Title and status are never content."
             },
             "meaning": {
-              "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).",
-              "enum": [
-                "title",
-                "validity",
-                "packages",
-                "emergent",
-                "verification-method",
-                "statement",
-                "source",
-                "source-identifier",
-                "import-date",
-                "delivery"
-              ]
+              "$ref": "#/$defs/metamodel/$defs/propertyMeaning"
             }
           },
           "unevaluatedProperties": false
+        },
+        "propertyMeaning": {
+          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).",
+          "enum": [
+            "title",
+            "validity",
+            "packages",
+            "emergent",
+            "verification-method",
+            "statement",
+            "source",
+            "source-identifier",
+            "import-date",
+            "delivery"
+          ]
         },
         "relationKind": {
           "description": "Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).",
@@ -1303,15 +1371,18 @@
               }
             },
             "meaning": {
-              "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
-              "enum": [
-                "derivation",
-                "replacement",
-                "exclusion"
-              ]
+              "$ref": "#/$defs/metamodel/$defs/relationMeaning"
             }
           },
           "unevaluatedProperties": false
+        },
+        "relationMeaning": {
+          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
+          "enum": [
+            "derivation",
+            "replacement",
+            "exclusion"
+          ]
         },
         "status": {
           "description": "Status value (D-030).",
@@ -1935,36 +2006,50 @@
           "types": {
             "type": "array",
             "items": {
-              "type": "object"
-            }
+              "$ref": "#/$defs/metamodel/$defs/effectiveType"
+            },
+            "description": "The types with inheritance resolved (SR-012), in metamodel order."
           },
           "properties": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/$defs/metamodel/$defs/property"
             }
           },
           "relations": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/$defs/metamodel/$defs/relationKind"
             }
           },
           "statuses": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/$defs/metamodel/$defs/status"
             }
           },
           "meanings": {
             "type": "object",
-            "additionalProperties": {
-              "type": [
-                "string",
-                "null"
+            "propertyNames": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/metamodel/$defs/typeMeaning"
+                },
+                {
+                  "$ref": "#/$defs/metamodel/$defs/propertyMeaning"
+                },
+                {
+                  "$ref": "#/$defs/metamodel/$defs/relationMeaning"
+                }
               ]
             },
-            "description": "Built-in meaning -> assigned key, null if unassigned (SR-013 AK3)."
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/common/$defs/key"
+              }
+            },
+            "description": "Every built-in meaning of metamodel.schema.json (`meaning` of types, properties and relation kinds) -> the keys whose own definition declares it, in metamodel order; empty if unassigned (SR-013 AK3). In a valid metamodel a type or property meaning has at most one key, a relation meaning any number. Types that inherit a meaning, or repeat the one they inherit, are not listed; `types` shows their effective `meaning`."
           },
           "problems": {
             "type": "array",

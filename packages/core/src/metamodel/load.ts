@@ -3,7 +3,7 @@
 // is checked against metamodel.schema.json; the lists of all files are merged. A faulty file is
 // reported with file, line and reason and makes the metamodel invalid, which opens the workspace
 // read-only (SR-011 AK3, access.ts). Then the inheritance of the types is resolved (SR-012,
-// inheritance.ts).
+// inheritance.ts) and the built-in meanings are assigned (SR-013, meanings.ts).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -22,8 +22,10 @@ import type {
   MetamodelStatus,
   MetamodelType,
 } from "../generated/types.js";
-import type { EffectiveType, LocatedType } from "./inheritance.js";
+import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
+import type { MeaningAssignment } from "./meanings.js";
+import { assignMeanings } from "./meanings.js";
 
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
@@ -43,8 +45,14 @@ export interface Metamodel {
   /** The types with inheritance resolved (SR-012), in the order of `types`; see `findType`. */
   readonly effectiveTypes: readonly EffectiveType[];
   /**
+   * For every built-in meaning, the keys whose own definition declares it (SR-013); see
+   * `requireMeaning` and the lookups in meanings.ts.
+   */
+  readonly meanings: MeaningAssignment;
+  /**
    * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice),
-   * and every type has known parents without a cycle and names only known properties.
+   * every type has known parents without a cycle and names only known properties, and no type or
+   * property meaning is declared by two keys.
    * When false the workspace is read-only (SR-011 AK3).
    */
   readonly valid: boolean;
@@ -148,22 +156,19 @@ interface Keyed {
   readonly key: MetamodelKey;
 }
 
-/** The lists of all files so far, and the file that first defined each key. */
+/**
+ * The lists of all files so far: the kept definitions with their place in the file (for the
+ * problems of inheritance and meanings), and the file that first defined each key.
+ */
 type Merged = Readonly<
-  Record<ListName, { readonly items: Keyed[]; readonly firstFile: Map<MetamodelKey, string> }>
+  Record<ListName, { readonly items: Located<Keyed>[]; readonly firstFile: Map<MetamodelKey, string> }>
 >;
 
 /**
  * Adds the lists of one file, in the order of the file. A key defined a second time in a list is
- * reported on its line and left out; the first definition is kept. Each kept type is also added to
- * `types` with its place in the file, for the problems of inheritance.
+ * reported on its line and left out; the first definition is kept.
  */
-const mergeFile = (
-  { file, yaml, data }: ValidFile,
-  merged: Merged,
-  types: LocatedType[],
-  problems: Problem[],
-): void => {
+const mergeFile = ({ file, yaml, data }: ValidFile, merged: Merged, problems: Problem[]): void => {
   for (const [list, items] of Object.entries(data)) {
     if (!isListName(list)) {
       continue;
@@ -174,14 +179,11 @@ const mergeFile = (
       const first = firstFile.get(item.key);
       if (first === undefined) {
         firstFile.set(item.key, file);
-        kept.push(item);
-        if (list === "types") {
-          types.push({
-            definition: item as MetamodelType,
-            file,
-            lineOf: (segments) => lineAt(yaml, [list, String(index), ...segments]),
-          });
-        }
+        kept.push({
+          definition: item,
+          file,
+          lineOf: (segments) => lineAt(yaml, [list, String(index), ...segments]),
+        });
         return;
       }
       problems.push(
@@ -222,6 +224,7 @@ const empty = (layout: WorkspaceLayout, problems: readonly Problem[]): Metamodel
   relations: [],
   statuses: [],
   effectiveTypes: [],
+  meanings: assignMeanings({ types: [], effectiveTypes: [], properties: [], relations: [] }).meanings,
   valid: false,
   problems,
 });
@@ -278,28 +281,33 @@ export const loadMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel>
     relations: { items: [], firstFile: new Map() },
     statuses: { items: [], firstFile: new Map() },
   };
-  const located: LocatedType[] = [];
   // One file after the other, so the problems come in file order, each file's in line order.
   for (const file of files) {
     const checked = await checkFile(repository.folder, file);
     problems.push(...checked.problems);
     if (checked.kind === "valid") {
-      mergeFile(checked.valid, merged, located, problems);
+      mergeFile(checked.valid, merged, problems);
     }
   }
-  // After all files: a parent or property may be defined in any file. Its problems come last.
-  const resolved = resolveTypes(located, new Set(merged.properties.firstFile.keys()));
-  problems.push(...resolved.problems);
+  // Each list holds only definitions of its own kind: the schema checked every file.
+  const types = merged.types.items as Located<MetamodelType>[];
+  const properties = merged.properties.items as Located<MetamodelProperty>[];
+  const relations = merged.relations.items as Located<MetamodelRelationKind>[];
+  // After all files: a parent, property or meaning may be defined in any file. Their problems come last.
+  const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()));
+  const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
+  problems.push(...resolved.problems, ...assigned.problems);
+  const definitions = <T>(located: readonly Located<T>[]): T[] => located.map((l) => l.definition);
   return {
     repository: metamodel.repository,
     path: metamodel.path,
     files,
-    // Each list holds only definitions of its own kind: the schema checked every file.
-    types: merged.types.items as MetamodelType[],
-    properties: merged.properties.items as MetamodelProperty[],
-    relations: merged.relations.items as MetamodelRelationKind[],
-    statuses: merged.statuses.items as MetamodelStatus[],
+    types: definitions(types),
+    properties: definitions(properties),
+    relations: definitions(relations),
+    statuses: definitions(merged.statuses.items as Located<MetamodelStatus>[]),
     effectiveTypes: resolved.types,
+    meanings: assigned.meanings,
     valid: !problems.some((p) => p.severity === "error"),
     problems,
   };
