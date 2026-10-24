@@ -26,7 +26,7 @@ jobs:
         run: printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > pr-body.txt
       - name: Trace check
         env:
-          IS_ENABLER: ${{ contains(github.event.pull_request.labels.*.name, 'enabler') || contains(github.event.pull_request.labels.*.name, 'spec-export') || contains(github.event.pull_request.labels.*.name, 'needs-human') }}
+          IS_ENABLER: ${{ contains(github.event.pull_request.labels.*.name, 'enabler') || contains(github.event.pull_request.labels.*.name, 'spec-export') }}
         run: |
           args=""
           if [ -f pr-body.txt ]; then args="--pr-body pr-body.txt"; fi

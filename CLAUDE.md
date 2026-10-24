@@ -32,8 +32,9 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 ## Workflow
 
 - Implement an issue with the `github-issue-workflow` skill: plan (Opus), plan review (second Opus agent), tests from acceptance criteria first, implementation (Sonnet), quality gates, code review (Opus), PR.
-- Merge with `github-pr-review-merge`. You may merge your own PR when all required checks are green and the review found nothing blocking (D-051).
-- **Exception:** PRs that change `schemas/`, `docs/adr/`, `docs/architecture/`, `CLAUDE.md`, `.claude/`, `.github/` or add a dependency with a non-permissive license get label `needs-human`. Only Thomas merges those.
+- Merge with `github-pr-review-merge`. Agents commit and merge on their own everywhere, including `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` are allowed for trivial fixes; everything else goes through a PR so CI and the SR trail run.
+- Merge only when CI is green and the code review found nothing blocking. Never merge red.
+- Tell Thomas (in the stage epic) about PRs that change schemas, ADRs, agent rules, skills or CI, but do not wait for him. Label `needs-human` means "Thomas must answer something", not a merge gate.
 - Small PRs. One SR per PR unless SRs are inseparable; then name all of them.
 - Before starting a plan, read the relevant ADRs and schemas.
 
