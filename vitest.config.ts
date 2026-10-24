@@ -11,7 +11,8 @@ export default defineConfig({
   test: {
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
     // CLI end-to-end tests spawn the built binary: `pnpm test:e2e` after `pnpm build` (vitest.e2e.config.ts).
-    exclude: [...configDefaults.exclude, "packages/*/test/e2e/**"],
+    // The performance suite runs apart, nightly and with label `perf`: `pnpm test:perf` (vitest.perf.config.ts).
+    exclude: [...configDefaults.exclude, "packages/*/test/e2e/**", "packages/*/test/perf/**"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { LOGREQ_VALIDATE_OUTPUT: "1" },

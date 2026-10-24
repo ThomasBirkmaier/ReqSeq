@@ -14,6 +14,7 @@ label blocked       b60205 "Waiting on another issue or an answer"
 label agent:working 1d76db "An agent is working on this"
 label querschnitt   0e8a16 "Cross-cutting SR, stays open across stages"
 label needs-human   6b3fa0 "The product owner must answer something"
+label perf          d4c5f9 "Run the performance suite (PR) or a threshold exceeded (issue), ADR-0011"
 for t in ablage-und-repositories metamodell-und-typen traceability-und-ketten bearbeiten-und-finden \
          nachweis-und-abdeckung varianten pakete-und-baselines import-und-export \
          anbindung-und-auswertung betrieb-und-leistung; do

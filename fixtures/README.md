@@ -20,5 +20,5 @@ Small test data per system requirement (D-055), used by unit and CLI end-to-end 
 
   Commits use an empty Git config, a fixed author and fixed dates, so commit IDs are the same on every run and machine. `fixture.write`, `fixture.commit`, `fixture.head` and `fixture.git` change and inspect the repositories afterwards.
 - Keep cases minimal: only the files the acceptance criterion needs.
-- Large workspaces (50,000 elements) are generated, never committed: `packages/testkit` generator with a fixed seed (N-036).
+- Large workspaces (50,000 elements, 200,000 relations) are generated, never committed: `generateLargeWorkspace` and `writeLargeWorkspace` of `packages/testkit` with a fixed seed (N-036, D-055). The caller passes the version function (core tests use `computeVersion`, see `packages/core/src/model/generated-workspace.test.ts`). Performance tests live in `packages/*/test/perf/` and run with `pnpm test:perf`, nightly and on PRs labelled `perf` (`.github/workflows/perf.yml`); they record times with `measure`, and `scripts/perf/report.mjs` writes `verification/performance.md`.
 - Realistic multi-repository scenarios live in `ThomasBirkmaier/logreq-testdata`.

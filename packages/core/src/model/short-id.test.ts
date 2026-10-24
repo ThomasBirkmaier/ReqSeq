@@ -256,7 +256,10 @@ describe("short IDs", () => {
       // One digit less would not be unique: the tail is no longer than it must be.
       expect(hex.filter((h) => h.endsWith(tail.slice(1))).length).toBeGreaterThan(1);
     }
-  });
+    // The test checks uniqueness and minimality, not time (the perf suite measures, ADR-0011). It
+    // takes about 2 s alone on 4 cores and went over the 5 s default under the full suite with coverage
+    // (#199), so it gets a bound that only a hang reaches.
+  }, 30_000);
 
   it("[SR-084/AK3] changes no file name and no file when a short ID is lengthened in the display", async () => {
     const ws = await moved([PAIR_1]);

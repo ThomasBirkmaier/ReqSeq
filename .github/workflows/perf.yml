@@ -1,0 +1,127 @@
+name: Performance
+
+# ADR-0011, #126: the performance suite on the generated workspace with 50,000 elements and 200,000
+# relations (packages/testkit, D-055; tests in packages/*/test/perf/). Nightly and on pull requests
+# labelled `perf`, never in the required test run. GitHub runners are not the reference machine
+# (4 cores, 16 GB), so results are an analysis record in verification/performance.md, and a time
+# over its threshold opens or updates an issue labelled `perf` instead of failing the run. Failing
+# assertions (wrong counts, findings, versions) still fail it.
+#
+# Two jobs: `perf` runs the suite read-only (also for pull requests); `record` runs only on the
+# schedule or a manual run, with write rights, and commits the record and files the issue.
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+  pull_request:
+    types: [opened, labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Adding a label other than `perf` gets a group of its own, so that it never cancels a running suite.
+  group: perf-${{ github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    name: perf (ubuntu-24.04)
+    # On pull requests only with label `perf`; adding another label does not restart the run.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'perf') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'perf'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      exceeded: ${{ steps.report.outputs.exceeded }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Performance suite
+        run: pnpm test:perf
+      - name: Report
+        id: report
+        if: always() && hashFiles('test-results/perf.jsonl') != ''
+        run: >-
+          node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
+          --commit "$GITHUB_SHA" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          --summary "$GITHUB_STEP_SUMMARY" --github-output "$GITHUB_OUTPUT"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: |
+            test-results/
+            verification/performance.md
+          if-no-files-found: ignore
+
+  record:
+    name: record and report
+    needs: perf
+    if: always() && needs.perf.result != 'skipped' && github.event_name != 'pull_request' && needs.perf.outputs.exceeded != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # the nightly run commits verification/performance.md to main
+      issues: write # an exceeded threshold opens or updates an issue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: perf-results
+          path: perf-results
+      - name: Commit the record (nightly on main)
+        # Only a suite that passed writes its record to main.
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main' && needs.perf.result == 'success'
+        run: |
+          cp perf-results/verification/performance.md verification/performance.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verification/performance.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore(perf): nightly performance record [skip ci]" -m "Refs #126"
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Open or update the issue for exceeded thresholds
+        # Runs from other branches stay out of the issue.
+        if: needs.perf.outputs.exceeded != '0' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXCEEDED: ${{ needs.perf.outputs.exceeded }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          record=perf-results/verification/performance.md
+          # The names of the exceeded measurements; a comment is added only when they change.
+          names="$(grep -F '| **exceeded** |' "$record" | cut -d'|' -f2 | sed 's/^ *//; s/ *$//' | sort | paste -sd ';' -)"
+          marker="<!-- perf-exceeded: $names -->"
+          body="$(printf '%s\n%s threshold(s) exceeded in %s (%s, commit %s).\n\nSee the table below and verification/performance.md (ADR-0011). Runners are not the reference machine; check on 4 cores and 16 GB before changing code.\n\n%s\n\n---\n_Written by the performance workflow_' \
+            "$marker" "$EXCEEDED" "$RUN_URL" "$GITHUB_EVENT_NAME" "$GITHUB_SHA" "$(cat "$record")")"
+          # Any open issue labelled `perf` is the one to update (for example #148), never a second one.
+          number="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=perf&sort=created&direction=asc&per_page=100" \
+            --jq '[.[] | select(.pull_request == null)][0].number // empty')"
+          if [ -z "$number" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="perf: thresholds exceeded with 50,000 elements" \
+              -f body="$body" -f "labels[]=perf" > /dev/null
+            echo "opened an issue"
+            exit 0
+          fi
+          # All pages: the latest marker may be past the first 100 comments.
+          last="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$number/comments?per_page=100" \
+            | jq -r 'add | [.[] | select(.body | startswith("<!-- perf-exceeded: "))] | (last // {}) | (.body // "") | split("\n") | (.[0] // "")')"
+          if [ "$last" = "$marker" ]; then
+            echo "#$number already reports these measurements"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$number/comments" -f body="$body" > /dev/null
+            echo "commented on #$number"
+          fi

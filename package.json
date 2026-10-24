@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "tsc -b packages/testkit packages/core packages/cli packages/cli/test packages/api packages/mcp packages/app",
+    "typecheck": "tsc -b packages/testkit packages/core packages/core/test packages/cli packages/cli/test packages/api packages/mcp packages/app",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,7 +21,9 @@
     "trace-check": "node scripts/trace-check/trace-check.mjs",
     "spec-export:convert": "node scripts/spec-export/convert.mjs scripts/spec-export/raw spec",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:perf": "node -e \"require('node:fs').rmSync('test-results/perf.jsonl', { force: true })\" && vitest run --config vitest.perf.config.ts",
+    "perf:report": "node scripts/perf/report.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

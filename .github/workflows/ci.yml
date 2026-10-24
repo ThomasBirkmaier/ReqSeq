@@ -139,5 +139,5 @@ jobs:
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `test` on all
   # three systems; `e2e` also runs `logreq serve api` and `logreq mcp` as processes (servers.test.ts).
-  # Added with the stage that needs them (ADR-0011): Electron/Playwright under xvfb (stage 3),
-  # nightly performance with 50,000 elements (stage 1).
+  # Added with the stage that needs it (ADR-0011): Electron/Playwright under xvfb (stage 3).
+  # The performance suite with 50,000 elements runs apart, nightly and on PRs labelled `perf`: perf.yml.
