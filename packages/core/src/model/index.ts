@@ -7,3 +7,5 @@ export type { Classified, ElementRecord } from "./elements.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { elementStoreState, loadElements } from "./store.js";
 export type { ElementStore, RepositoryFile } from "./store.js";
+export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
+export type { ShortIdMatch, ShortIds } from "./short-id.js";
