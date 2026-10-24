@@ -72,6 +72,7 @@ export type { SupersedeInput, SupersedeResult } from "./supersede.js";
 export {
   elementLabel,
   invalidStatuses,
+  supersededFindingsOf,
   supersededTargetFindings,
   supersededTargetProblems,
   supersededTargetProblemsState,

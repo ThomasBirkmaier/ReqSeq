@@ -8,7 +8,6 @@
 // Relations to the superseded element then get hints (`superseded.ts`, SR-072 AK2).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
-import type { ItemValue } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { MetamodelEffectiveType, MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -65,13 +64,16 @@ const checkInvalidStatus = (metamodel: Metamodel, status: string): void => {
 /**
  * The relation kind with the meaning `replacement` that goes from the successor's type to the
  * element's type (`source-types`, `target-types`, subtypes included, SR-086). `wanted` names it;
- * without it exactly one kind must fit (ADR-0004: the caller names it when several do).
+ * without it exactly one kind must fit (ADR-0004: the caller names it when several do), or, when
+ * several fit, the successor must already have the relation under exactly one of them (`present`),
+ * so a repeat needs no `relation`.
  */
 const replacementKind = (
   metamodel: Metamodel,
   successorType: MetamodelEffectiveType,
   type: MetamodelEffectiveType,
   wanted: string | undefined,
+  present: (kind: MetamodelRelationKind) => boolean,
 ): MetamodelRelationKind => {
   requireMeaning(metamodel, "replacement", "element.supersede");
   const kinds = relationKindsWithMeaning(metamodel, "replacement");
@@ -105,13 +107,15 @@ const replacementKind = (
       { ...types, candidates: [] },
     );
   }
-  if (others.length > 0) {
+  const [existing, ...more] = fitting.filter(present);
+  if (others.length > 0 && (existing === undefined || more.length > 0)) {
     throw invalid(
       `More than one relation kind with the meaning replacement fits from ${successorType.name} to ${type.name}: ${fitting.map((k) => k.key).join(", ")}; name one as relation`,
       { ...types, reason: "relation-ambiguous", candidates: fitting.map((k) => k.key) },
     );
   }
-  return first;
+  // With one kind that fits, `existing` is that kind or absent.
+  return existing ?? first;
 };
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -163,7 +167,11 @@ export const supersedeElement = async (
   }
   const successorType = successor === undefined ? undefined : assertElementWritable(metamodel, successor);
   const kind =
-    successorType === undefined ? undefined : replacementKind(metamodel, successorType, type, input.relation);
+    successor === undefined || successorType === undefined
+      ? undefined
+      : replacementKind(metamodel, successorType, type, input.relation, (k) =>
+          hasRelation(successor, k.key, record),
+        );
 
   const writes: ElementFileWrite[] = [];
   const old = await readUnchanged(workspace, layout, record);
@@ -183,7 +191,7 @@ export const supersedeElement = async (
       });
       const { bytes } = editElementFile(next.current.file, {
         // A relation target is a flow mapping of strings (ADR-0004).
-        edits: [{ kind: "append-item", key: kind.key, value: target as unknown as ItemValue }],
+        edits: [{ kind: "append-item", key: kind.key, value: { ...target } }],
         keyOrder: successorType.properties,
       });
       writes.push({ ...next, bytes });

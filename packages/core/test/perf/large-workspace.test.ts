@@ -16,7 +16,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
+import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState } from "../../src/model/store.js";
+import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
@@ -137,6 +139,23 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         thresholdMs: 60_000,
       },
     );
+    expect(findings).toEqual([]);
+  }, 600_000);
+
+  it("finds the hints on the relations to one element (ADR-0008: 200 ms)", async () => {
+    const context = {
+      store: await workspace.get(elementStoreState),
+      metamodel: await workspace.get(metamodelState),
+      shortIds: await workspace.get(shortIdState),
+    };
+    const [target] = context.store.elements;
+    expect(target).toBeDefined();
+    const { result: findings } = await measure(
+      "hints on the relations to one element (as element.supersede and element.setStatus ask)",
+      () => Promise.resolve(supersededTargetFindings(context, target === undefined ? [] : [target])),
+      { basis: "SR-072 AK2, ADR-0008 (open an element: 200 ms)", thresholdMs: 200 },
+    );
+    // No generated element has an invalid status.
     expect(findings).toEqual([]);
   }, 600_000);
 

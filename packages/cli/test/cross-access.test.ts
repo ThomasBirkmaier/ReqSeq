@@ -80,8 +80,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "N-d4e5f6", status: "approved" },
       expect: "error",
     },
+    {
+      name: "several replacement kinds fit (relation-ambiguous)",
+      fixture: { fixture: "SR-072/supersede", git: true },
+      input: { ref: "SR-f6a7b8", status: "obsolete", successor: "SR-a7b8c9" },
+      expect: "error",
+    },
   ],
   "element.update": [
+    {
+      name: "update an element with a relation to a superseded element (SR-072 AK2 hint)",
+      fixture: { fixture: "SR-019/findings", git: true },
+      input: { ref: "2b2b2b2b-2222-4222-8222-b00000000008", text: "Changed.\n" },
+      expect: "output",
+    },
     {
       name: "rename and set a property",
       input: {

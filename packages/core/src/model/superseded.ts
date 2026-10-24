@@ -47,14 +47,32 @@ interface Hit {
 /** An element's place in the store; the same element is the same file of the same repository. */
 const placeOf = (record: ElementRecord): string => `${record.repository}\0${record.file}`;
 
+/** Only relations to these elements: their UUIDs (a cheap first test) and their places. */
+interface TargetFilter {
+  readonly ids: ReadonlySet<string>;
+  readonly places: ReadonlySet<string>;
+}
+
+const filterOf = (targets: readonly ElementRecord[]): TargetFilter => ({
+  ids: new Set(targets.map((t) => t.id)),
+  places: new Set(targets.map(placeOf)),
+});
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
- * Every relation of a relation kind whose target resolves to one element (`resolveTarget`) with an
- * invalid status, in store order of the sources, then in the order of the keys in the file, then of
- * the items. With `targets`, only relations to these elements. A target that is missing,
- * lies in a missing repository or is ambiguous is another check (SR-089, SR-006, SR-088), as is an
- * item that is no relation target (SR-085).
+ * Every relation of a relation kind from one of `sources` whose target resolves to one element
+ * (`resolveTarget`) with an invalid status, in the order of the sources, then of the keys in the
+ * file, then of the items. With `filter`, only relations to these elements. A target that is
+ * missing, lies in a missing repository or is ambiguous is another check (SR-089, SR-006, SR-088),
+ * as is an item that is no relation target (SR-085).
  */
-const hitsOf = (context: SupersededContext, targets: ReadonlySet<string> | undefined): Hit[] => {
+const hitsOf = (
+  context: SupersededContext,
+  sources: readonly ElementRecord[],
+  filter: TargetFilter | undefined,
+): Hit[] => {
   const { store, metamodel } = context;
   const invalid = invalidStatuses(metamodel);
   const hits: Hit[] = [];
@@ -62,18 +80,24 @@ const hitsOf = (context: SupersededContext, targets: ReadonlySet<string> | undef
     return hits;
   }
   const kinds = new Map(metamodel.relations.map((k) => [k.key, k]));
-  for (const source of store.elements) {
+  for (const source of sources) {
     for (const [key, value] of Object.entries(source.data)) {
       const kind = kinds.get(key);
       if (kind === undefined || !Array.isArray(value)) {
         continue;
       }
       value.forEach((item: unknown, index) => {
+        // The UUID first: the schema check and the lookup cost too much for each of 200,000
+        // relations when a command asks about a few elements (ADR-0008: 200 ms). Switch to the
+        // incoming relation index of ADR-0008 once it exists.
+        if (filter !== undefined && !(isRecord(item) && filter.ids.has(String(item["id"])))) {
+          return;
+        }
         if (!isRelationTarget(item)) {
           return;
         }
         const match = resolveTarget(store, source.repository, item);
-        if (match.kind !== "found" || (targets !== undefined && !targets.has(placeOf(match.element)))) {
+        if (match.kind !== "found" || (filter !== undefined && !filter.places.has(placeOf(match.element)))) {
           return;
         }
         const status = invalid.get(String(match.element.data["status"]));
@@ -97,32 +121,36 @@ export const elementLabel = (
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
- * The hints `relation.target-superseded` (SR-072 AK2), one per relation to a superseded element,
- * before their lines are known (`locateFindings` adds them): source repository, file and element,
- * the target's ID, and a message with the relation kind, both elements, the target's status and
- * its successors. With `targets`, only relations to these elements (for a command that has just
- * set their status).
+ * The successors of each superseded target, by its place: the sources of the `replacement` hits
+ * among `hits`, each element (place) once, in the order of the hits.
  */
-export const supersededTargetFindings = (
-  context: SupersededContext,
-  targets?: readonly ElementRecord[],
-): readonly LocatableFinding[] => {
-  const hits = hitsOf(context, targets === undefined ? undefined : new Set(targets.map(placeOf)));
+const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly ElementRecord[]> => {
   const successors = new Map<string, ElementRecord[]>();
   for (const hit of hits) {
     if (hit.kind.meaning === "replacement") {
       const place = placeOf(hit.target);
       const known = successors.get(place) ?? [];
-      if (!known.includes(hit.source)) {
+      if (!known.some((s) => placeOf(s) === placeOf(hit.source))) {
         known.push(hit.source);
       }
       successors.set(place, known);
     }
   }
-  return hits.map(({ source, kind, index, target, status }): LocatableFinding => {
-    const others = (successors.get(placeOf(target)) ?? []).filter((s) => s !== source);
+  return successors;
+};
+
+/** The hint of each hit; it names the target's successors other than the hit's source. */
+const findingsOf = (
+  context: SupersededContext,
+  hits: readonly Hit[],
+  successors: ReadonlyMap<string, readonly ElementRecord[]>,
+): LocatableFinding[] =>
+  hits.map(({ source, kind, index, target, status }): LocatableFinding => {
+    const others = (successors.get(placeOf(target)) ?? []).filter((s) => placeOf(s) !== placeOf(source));
     const successorText =
-      others.length === 0 ? "" : `; successor: ${others.map((s) => elementLabel(context, s)).join(", ")}`;
+      others.length === 0
+        ? ""
+        : `; ${others.length === 1 ? "successor" : "successors"}: ${others.map((s) => elementLabel(context, s)).join(", ")}`;
     const problem: Problem = {
       code: "relation.target-superseded",
       severity: "warning",
@@ -134,6 +162,41 @@ export const supersededTargetFindings = (
     };
     return { element: source, path: [kind.key, index], problem };
   });
+
+/**
+ * The hints `relation.target-superseded` (SR-072 AK2), one per relation to a superseded element,
+ * before their lines are known (`locateFindings` adds them): source repository, file and element,
+ * the target's ID, and a message with the relation kind, both elements, the target's status and
+ * its successors. With `targets`, only relations to these elements (for a command that has just
+ * set their status).
+ */
+export const supersededTargetFindings = (
+  context: SupersededContext,
+  targets?: readonly ElementRecord[],
+): readonly LocatableFinding[] => {
+  const hits = hitsOf(context, context.store.elements, targets === undefined ? undefined : filterOf(targets));
+  return findingsOf(context, hits, successorsOf(hits));
+};
+
+/**
+ * The hints on the relations of one element (SR-072 AK2), in the order of its keys and items, for
+ * a command about one element (`elementView`: `element.create`, `element.update`, later
+ * `element.get`), like `unknownFindings`. `source` need not be in the store as it is (a new or
+ * just written element): the successors are the sources of `replacement` relations in the store
+ * to the same targets, with `source` in place of the store's copy of it.
+ */
+export const supersededFindingsOf = (
+  context: SupersededContext,
+  source: ElementRecord,
+): readonly LocatableFinding[] => {
+  const own = hitsOf(context, [source], undefined);
+  if (own.length === 0) {
+    return [];
+  }
+  const stored = hitsOf(context, context.store.elements, filterOf(own.map((h) => h.target))).filter(
+    (h) => placeOf(h.source) !== placeOf(source),
+  );
+  return findingsOf(context, own, successorsOf([...stored, ...own]));
 };
 
 /**

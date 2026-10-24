@@ -1035,7 +1035,7 @@ export interface ElementSupersedeInput {
   readonly ref: ElementRef;
   readonly status: Key;
   readonly successor?: ElementRef;
-  /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types. */
+  /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
   readonly relation?: Key;
 }
 

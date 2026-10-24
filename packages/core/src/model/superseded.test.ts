@@ -75,4 +75,19 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
       "Relation Supersedes (supersedes) from Need N-e5f6a7 points to gadget UNKNOWN-c9d0e1, which is superseded (status Obsolete)",
     ]);
   });
+
+  it("[SR-072/AK2] says successors when there are several", async () => {
+    const supersedes = `supersedes:\n  - { id: ${N_OLD}, version: n1:1111111111111111 }\n`;
+    const out = await hints({
+      "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "needs/N-b2c3d4e5f6a7.md": element(N_NEW, "need", "draft", supersedes),
+      "needs/N-0a0a0a0a0a0a.md": element("7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a", "need", "draft", supersedes),
+    });
+    expect(out.map((p) => (p as { message: string }).message)).toEqual([
+      "Relation Supersedes (supersedes) from Need N-0a0a0a points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-e5f6a7",
+      "Relation Supersedes (supersedes) from Need N-e5f6a7 points to Need N-d4e5f6, which is superseded (status Obsolete); successor: Need N-0a0a0a",
+      "Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to Need N-d4e5f6, which is superseded (status Obsolete); successors: Need N-0a0a0a, Need N-e5f6a7",
+      "Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to Need N-d4e5f6, which is superseded (status Obsolete); successors: Need N-0a0a0a, Need N-e5f6a7",
+    ]);
+  });
 });

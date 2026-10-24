@@ -18,6 +18,7 @@ import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
 import { UNKNOWN_TYPE_PREFIX } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+import { supersededFindingsOf } from "./superseded.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
 
@@ -121,8 +122,9 @@ export interface ElementViewInput {
  * The element with its text, its version (ADR-0005; embedded images are not counted yet, #131),
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
  * keys included), its own relations and the hints with their lines: unknown type and properties
- * (SR-016), required properties without a value (SR-015, SR-064), then values of the wrong kind
- * (SR-085). Relations pointing at it and the version date are left out.
+ * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
+ * (SR-085), then relations to superseded elements (SR-072 AK2). Relations pointing at it and the
+ * version date are left out.
  */
 export const elementView = (
   input: ElementViewInput,
@@ -138,6 +140,7 @@ export const elementView = (
     ...unknownFindings(record, metamodel),
     ...requiredFindings(record, metamodel),
     ...valueFindings(record, metamodel),
+    ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record),
   ];
   const problems: Problem[] = findings.map((f) => {
     const line = findingLine(file, f);

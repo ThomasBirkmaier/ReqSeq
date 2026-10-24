@@ -255,6 +255,43 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(again.problems).toEqual(out.problems);
   });
 
+  it("[SR-072/AK1] repeats without relation when the successor already has the relation under one of the kinds that fit", async () => {
+    const stored = (key: string): string =>
+      `${key}:\n  - { id: ${SR_OLD.id}, version: n1:3333333333333333, title: Old title }\n`;
+    const successor = (keys: readonly string[]): string =>
+      `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: New\n${keys.map(stored).join("")}---\n`;
+    // Both `supersedes` and `replaces` fit from a system requirement to one; the successor has `replaces`.
+    const opened = await open({ files: { [SR_NEW.file]: successor(["replaces"]) } });
+    const out = await supersede(opened, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
+    expect(out.files).toEqual([SR_OLD.file]);
+    expect(await read(opened, SR_NEW.file)).toBe(successor(["replaces"]));
+    expect((out.problems ?? []).map((p) => [p.file, p.line])).toContainEqual([SR_NEW.file, 7]);
+
+    // Under both kinds, the caller still has to name one.
+    const both = await open({ files: { [SR_NEW.file]: successor(["supersedes", "replaces"]) } });
+    const before = await readAll(both);
+    const error = await supersedeError(both, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
+    expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "relation-ambiguous"]);
+    expect(await readAll(both)).toEqual(before);
+  });
+
+  it("[SR-072/AK1] writes the element's file back when the successor's file is refused at write time (read-only)", async () => {
+    const opened = await open();
+    const before = await readAll(opened);
+    await fs.chmod(opened.fixture.path(N_NEW.file), 0o444);
+    onTestFinished(() => fs.chmod(opened.fixture.path(N_NEW.file), 0o644));
+    const error = await supersedeError(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
+    // The element's file could be restored, so the error is the writer's as it is, without `written`.
+    expect(error.code).toBe("file.read-only");
+    expect(error.details).toBeUndefined();
+    expect(await readAll(opened)).toEqual(before);
+    const store = await opened.workspace.get(elementStoreState);
+    expect(store.byId.get(N_OLD.id)?.map((r) => r.data["status"])).toEqual(["approved"]);
+    await fs.chmod(opened.fixture.path(N_NEW.file), 0o644);
+    const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
+    expect(out.files).toEqual([N_OLD.file, N_NEW.file]);
+  });
+
   it("[SR-072/AK1] writes a relation to an element of another repository with the repository name and no title (D-058)", async () => {
     const platformNeed = "4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e";
     const file = "needs/N-0a1b2c3d4e5f.md";
@@ -432,6 +469,33 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
       { workspace: opened.workspace },
     )) as CommandOutput<"element.setStatus">;
     expect(back).toEqual({ files: [N_OLD.file], problems: [] });
+  });
+
+  it("[SR-072/AK2] element.update gives the hints on the relations of the element it writes", async () => {
+    const opened = await open();
+    await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
+    const update = async (ref: string): Promise<readonly Problem[]> =>
+      (
+        (await invoke(
+          "element.update",
+          { ref, text: "Changed.\n" },
+          { workspace: opened.workspace },
+        )) as CommandOutput<"element.update">
+      ).problems ?? [];
+    expect(await update(SR_OLD.id)).toEqual([
+      hint(
+        SR_OLD,
+        N_OLD,
+        10,
+        `Relation Derives from (derives-from) from System Requirement SR-f6a7b8 points to ${SEE_THE_WIND}; successor: Need N-e5f6a7`,
+      ),
+    ]);
+    // The successor's own relation names no successor: the store's copy of it is not another one.
+    expect(await update(N_NEW.id)).toEqual([
+      hint(N_NEW, N_OLD, 7, `Relation Supersedes (supersedes) from Need N-e5f6a7 points to ${SEE_THE_WIND}`),
+    ]);
+    // An element without relations to a superseded element gets none.
+    expect(await update(N_OLD.id)).toEqual([]);
   });
 
   it("[SR-072/AK2] gives the same hints for a status set by hand in the file, for the whole workspace", async () => {
