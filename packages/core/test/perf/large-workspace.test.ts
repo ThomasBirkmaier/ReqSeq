@@ -13,16 +13,12 @@ import {
   writeLargeWorkspace,
 } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
-import { duplicateIdProblemsState } from "../../src/model/duplicates.js";
-import { relationTypeProblemsState } from "../../src/model/relation-types.js";
-import { requiredProblemsState } from "../../src/model/required.js";
-import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState } from "../../src/model/store.js";
 import { currentTarget } from "../../src/model/targets.js";
-import { unknownProblemsState } from "../../src/model/unknown.js";
-import { valueKindProblemsState } from "../../src/model/values.js";
+import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import type { VersionValue } from "../../src/version/version.js";
 import { computeVersion } from "../../src/version/version.js";
@@ -127,23 +123,17 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     expect(store.problems).toEqual([]);
   }, 600_000);
 
-  it("runs the element checks that exist so far, finding nothing (SR-020: 60 s)", async () => {
+  it("runs workspace.check, finding nothing (SR-020: 60 s)", async () => {
     await workspace.get(elementStoreState);
     const { result: findings } = await measure(
-      "element checks (required, value kinds, unknown, relation types, duplicate UUIDs, short IDs)",
-      async () =>
-        (
-          await Promise.all([
-            workspace.get(requiredProblemsState),
-            workspace.get(valueKindProblemsState),
-            workspace.get(unknownProblemsState),
-            workspace.get(relationTypeProblemsState),
-            workspace.get(duplicateIdProblemsState),
-            workspace.get(shortIdState).then(() => []),
-          ])
-        ).flat(),
+      "workspace.check (every finding state of stage 1)",
+      async () => {
+        const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+        expect(out.ok).toBe(true);
+        return out.problems;
+      },
       {
-        basis: "SR-020 (preliminary: the parts of workspace.check that exist; the store is loaded)",
+        basis: "SR-020 (workspace.check; the store is loaded)",
         thresholdMs: 60_000,
       },
     );

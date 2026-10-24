@@ -862,9 +862,11 @@ export interface WorkspaceStatusOutput {
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
+  /** Only these files and their targets (not implemented yet, SR-092). */
   readonly changedFiles?: readonly string[];
-  /** Git revision; only files changed since then and their targets (SR-025 AK4). */
+  /** Git revision; only files changed since then and their targets (SR-025 AK4) (not implemented yet, SR-092). */
   readonly changedSince?: string;
+  /** Lowest severity of the problems shown; does not change ok or the exit code. */
   readonly severity: "error" | "warning" | "info";
 }
 
@@ -873,9 +875,11 @@ export interface WorkspaceCheckInput {
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
+  /** False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). */
   readonly ok: boolean;
   readonly problems: readonly Problem[];
   readonly checkedElements?: number;
+  /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
   readonly durationMs?: number;
 }
 

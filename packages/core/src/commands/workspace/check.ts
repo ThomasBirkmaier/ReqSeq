@@ -1,0 +1,88 @@
+// workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-040, SR-072, SR-085, SR-086,
+// SR-088 and SR-089): every finding of the whole workspace against the metamodel, as `problems`, and `ok`, from
+// which the CLI takes its exit code (ADR-0009). Each finding comes from the whole-workspace state of
+// its block, which is kept until the element store or the metamodel is reset, so a second check of
+// an unchanged workspace reads no file again.
+//
+// - `ok` is false when the workspace has a finding of severity `warning` or `error`: SR-019 AK2
+//   ends the check with exit code 1 for findings of SR-015, SR-016, SR-085 and SR-086, which are
+//   warnings ("Hinweis" blocks nothing, so they stay warnings in every access, SR-080). Info, such
+//   as a repository that is not on this machine (SR-006), keeps `ok` true (AK1).
+// - `severity` is the lowest severity shown. It only filters `problems`; `ok` is about all findings,
+//   so the exit code never depends on it (the spec has no such option).
+// - Findings are appended one by one: spreading a state into `push` passes every problem as an
+//   argument and overflows the stack at some 100,000 problems (N-036: 50,000 elements).
+// - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, stage 2). Until
+//   then they are refused, so a pipeline never takes a full check for a restricted one.
+// - Outdated relations (SR-025) and cycles (SR-090) come in stage 2 (#127 option 1).
+// - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
+//   they are about the running process, not about the files.
+// - `durationMs` is left out: it differs between calls, and the same call gives the same output in
+//   every access (SR-080 AK2).
+import type { CommandInput, CommandOutput, Problem } from "../../catalog.js";
+import { CommandError, defineCommand } from "../../catalog.js";
+import { metamodelState } from "../../metamodel/index.js";
+import {
+  duplicateIdProblemsState,
+  elementStoreState,
+  missingTargetProblemsState,
+  relationTypeProblemsState,
+  requiredProblemsState,
+  supersededTargetProblemsState,
+  unknownProblemsState,
+  valueKindProblemsState,
+} from "../../model/index.js";
+import { supersededValidityProblemsState } from "../../variants/index.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
+
+type Severity = Problem["severity"];
+
+const RANK: Readonly<Record<Severity, number>> = { info: 0, warning: 1, error: 2 };
+
+/**
+ * The whole-workspace findings after the files themselves, in the order of their SRs. The one list
+ * of them: tests that need every finding state take it from here.
+ */
+export const FINDING_STATES = [
+  requiredProblemsState, // SR-015
+  unknownProblemsState, // SR-016
+  supersededTargetProblemsState, // SR-072
+  supersededValidityProblemsState, // SR-040
+  valueKindProblemsState, // SR-085
+  relationTypeProblemsState, // SR-086
+  duplicateIdProblemsState, // SR-088
+  missingTargetProblemsState, // SR-089
+] as const;
+
+const refuseRestriction = (input: CommandInput<"workspace.check">): void => {
+  const given = (["changedFiles", "changedSince"] as const).filter((key) => input[key] !== undefined);
+  if (given.length > 0) {
+    throw new CommandError(
+      "input.invalid",
+      `workspace.check cannot be restricted to changed files yet (SR-092): leave out ${given.join(" and ")}`,
+      { command: "workspace.check", fields: given },
+    );
+  }
+};
+
+export default defineCommand({
+  name: "workspace.check",
+  run: async (ctx, input): Promise<CommandOutput<"workspace.check">> => {
+    refuseRestriction(input);
+    const layout = await ctx.workspace.get(workspaceLayoutState);
+    const metamodel = await ctx.workspace.get(metamodelState);
+    const store = await ctx.workspace.get(elementStoreState);
+    const findings: Problem[] = [...layout.problems, ...metamodel.problems, ...store.problems];
+    for (const state of FINDING_STATES) {
+      for (const problem of await ctx.workspace.get(state)) {
+        findings.push(problem);
+      }
+    }
+    const lowest = RANK[input.severity];
+    return {
+      ok: !findings.some((p) => RANK[p.severity] >= RANK.warning),
+      problems: findings.filter((p) => RANK[p.severity] >= lowest),
+      checkedElements: store.elements.length,
+    };
+  },
+});

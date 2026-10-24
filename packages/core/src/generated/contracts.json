@@ -2175,11 +2175,12 @@
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "description": "Only these files and their targets (not implemented yet, SR-092)."
             },
             "changedSince": {
               "type": "string",
-              "description": "Git revision; only files changed since then and their targets (SR-025 AK4)."
+              "description": "Git revision; only files changed since then and their targets (SR-025 AK4) (not implemented yet, SR-092)."
             },
             "severity": {
               "enum": [
@@ -2187,7 +2188,8 @@
                 "warning",
                 "info"
               ],
-              "default": "info"
+              "default": "info",
+              "description": "Lowest severity of the problems shown; does not change ok or the exit code."
             }
           },
           "additionalProperties": false
@@ -2196,7 +2198,8 @@
           "type": "object",
           "properties": {
             "ok": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009)."
             },
             "problems": {
               "type": "array",
@@ -2210,7 +2213,8 @@
             },
             "durationMs": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "description": "Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2)."
             }
           },
           "additionalProperties": false,

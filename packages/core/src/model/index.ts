@@ -7,7 +7,6 @@ export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
 export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./duplicates.js";
-export { CHECK_PROBLEM_STATES } from "./check-states.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";

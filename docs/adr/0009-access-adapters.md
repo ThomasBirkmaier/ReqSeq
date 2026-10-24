@@ -17,14 +17,14 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 
   | Code | Meaning |
   |---|---|
-  | 0 | Success without error findings (warnings and info do not count) |
+  | 0 | Success without error findings and with `ok` not false (warnings and info do not count by themselves) |
   | 1 | The output has a problem of severity `error`, or `ok: false` (SR-019, SR-025, SR-029 AK2) |
   | 2 | Usage error (unknown command or option, missing action) or a `CommandError` of any class but `internal` |
   | 3 | `internal`, any failure outside a command, or a failed write to stdout or stderr |
   | 4 | Reserved: a given commit is not available locally (SR-092 AK2); the error code comes with SR-092 |
   | 130 | Aborted (Ctrl-C, SIGTERM) |
 
-  The exit code of an error comes from `EXIT_BY_CODE[code]` when a code has its own (only for cases like 4), else from its class (table under "Errors"). An SR that asks for exit code 1 is met by returning problems with severity `error` or `ok: false`, never by throwing: a thrown `CommandError` is a failed call, not a finding.
+  The exit code of an error comes from `EXIT_BY_CODE[code]` when a code has its own (only for cases like 4), else from its class (table under "Errors"). An SR that asks for exit code 1 is met by returning problems with severity `error` or `ok: false`, never by throwing: a thrown `CommandError` is a failed call, not a finding. `workspace.check` sets `ok: false` when the workspace has a finding of severity `warning` or `error`, because SR-019 AK2 ends the check with exit code 1 also for the hints of SR-015, SR-016, SR-085 and SR-086, which stay warnings in every access; info (a repository that is not here) keeps `ok` true. Its `severity` input only filters the problems shown; `ok`, and so the exit code, is about all findings, shown or not (SR-019 AK2 knows no such option).
 - Workspace discovery: `--workspace <path>` (relative to the current folder), else the nearest folder upwards with `logreq-workspace.yaml` (`findWorkspaceRoot` in core's `workspace` block), else the current folder, so `logreq workspace init` works in an empty folder. One `Workspace` per call, closed at the end; an error while closing never hides the command's own error.
 - `argvFor(entry, input)` (exported by `@logreq/cli`) gives the arguments for a command input, positional and flags where they carry the value exactly and the rest in one inline `--input`, for the cross-access test.
 - Parser: `commander` (MIT, pinned exactly). The CLI runs headless, without Electron (SR-080 AK3).

@@ -7,7 +7,6 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import { CHECK_PROBLEM_STATES } from "./check-states.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
 import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -22,10 +21,6 @@ const FIXTURE_ELEMENTS = 1;
 
 /** Bound of SR-007 AK2 for a pull: the watcher shows it within 10 s. */
 const PULL_LIMIT_MS = 10_000;
-
-// The check is every problem state of the element check; once workspace.check exists (SR-019), the
-// test runs that command instead.
-const CHECK = CHECK_PROBLEM_STATES;
 
 /** A Git repository with the fixture and one clone of it per copy, removed after the test. */
 const copies = async (
@@ -79,11 +74,9 @@ const merge = async (into: FixtureWorkspace, from: FixtureWorkspace): Promise<vo
 const elementsOf = (store: ElementStore): readonly (readonly [string, string, string])[] =>
   store.elements.map((e) => [e.id, `${e.repository}/${e.file}`, e.snapshot.sha256] as const);
 
-/** The findings of every check state, by name. */
-const findings = async (workspace: Workspace): Promise<Record<string, readonly Problem[]>> =>
-  Object.fromEntries(
-    await Promise.all(CHECK.map(async ([name, state]) => [name, await workspace.get(state)] as const)),
-  );
+/** The findings of the whole workspace: what `workspace.check` reports (SR-019). */
+const findings = async (workspace: Workspace): Promise<readonly Problem[]> =>
+  ((await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">).problems;
 
 /** Polls `condition` every 10 ms until it holds; fails after `limitMs`. */
 const within = async (limitMs: number, condition: () => Promise<boolean>): Promise<void> => {

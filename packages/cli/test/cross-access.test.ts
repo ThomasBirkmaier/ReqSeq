@@ -111,6 +111,28 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
+  "workspace.check": [
+    {
+      name: "one finding of each kind",
+      fixture: { fixture: "SR-019/findings", git: true },
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "errors only",
+      fixture: { fixture: "SR-019/findings", git: true },
+      input: { severity: "error" },
+      expect: "output",
+    },
+    {
+      name: "info only, a repository missing",
+      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      root: "system",
+      input: {},
+      expect: "output",
+    },
+    { name: "restricted to changed files (SR-092)", input: { changedSince: "main" }, expect: "error" },
+  ],
   "workspace.status": [
     { name: "one repository", input: {}, expect: "output" },
     {
