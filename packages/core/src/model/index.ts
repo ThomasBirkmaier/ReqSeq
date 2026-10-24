@@ -43,6 +43,8 @@ export {
   missingTargetFindings,
   missingTargetProblemsState,
 } from "./missing-targets.js";
+export { hasId, relationItems, relationKey } from "./relation-keys.js";
+export type { RelationKey, TargetItem } from "./relation-keys.js";
 export type { MissingTargetContext, MissingTargetFinding } from "./missing-targets.js";
 export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 export type { UnknownFinding } from "./unknown.js";
@@ -68,6 +70,7 @@ export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";
 export type { SupersedeInput, SupersedeResult } from "./supersede.js";
 export {
+  elementLabel,
   invalidStatuses,
   supersededTargetFindings,
   supersededTargetProblems,

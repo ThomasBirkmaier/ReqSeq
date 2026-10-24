@@ -6,7 +6,8 @@
 // successor's own relation with the meaning `replacement` (assumption, spec question #192). The
 // hint names the successors: the sources of `replacement` relations to the same element.
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
-// superseded variant in a validity is `variant.superseded-in-validity` (SR-045).
+// superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
+// variants/superseded-validity.ts).
 import type { Problem } from "../catalog.js";
 import type { MetamodelRelationKind, MetamodelStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -85,8 +86,14 @@ const hitsOf = (context: SupersededContext, targets: ReadonlySet<string> | undef
   return hits;
 };
 
-/** How a message names an element: type name and short ID. */
-const nameOf = (context: SupersededContext, record: ElementRecord): string =>
+/**
+ * How a message names an element: the name of its type (its key when the metamodel does not know
+ * it) and its short ID (SR-084).
+ */
+export const elementLabel = (
+  context: Pick<SupersededContext, "metamodel" | "shortIds">,
+  record: ElementRecord,
+): string =>
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
@@ -115,11 +122,11 @@ export const supersededTargetFindings = (
   return hits.map(({ source, kind, index, target, status }): LocatableFinding => {
     const others = (successors.get(placeOf(target)) ?? []).filter((s) => s !== source);
     const successorText =
-      others.length === 0 ? "" : `; successor: ${others.map((s) => nameOf(context, s)).join(", ")}`;
+      others.length === 0 ? "" : `; successor: ${others.map((s) => elementLabel(context, s)).join(", ")}`;
     const problem: Problem = {
       code: "relation.target-superseded",
       severity: "warning",
-      message: `Relation ${kind.name} (${kind.key}) from ${nameOf(context, source)} points to ${nameOf(context, target)}, which is superseded (status ${status.name})${successorText}`,
+      message: `Relation ${kind.name} (${kind.key}) from ${elementLabel(context, source)} points to ${elementLabel(context, target)}, which is superseded (status ${status.name})${successorText}`,
       repository: source.repository,
       file: source.file,
       elementId: source.id,

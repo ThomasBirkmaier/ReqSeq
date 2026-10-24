@@ -34,7 +34,7 @@ import { isUuid } from "./elements.js";
 import { FILE_NAME_DIGITS } from "./file-name.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
-import { relationItems, relationKey } from "./relation-keys.js";
+import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import { targetState } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
@@ -63,16 +63,6 @@ export type MissingTargetFinding = LocatableFinding & {
    */
   readonly target: Readonly<Record<string, unknown>> & { readonly id: string };
 };
-
-/** A relation item that names a target: a mapping with a UUID as `id` (as the element view reads it). */
-type TargetItem = Readonly<Record<string, unknown>> & { readonly id: string };
-
-/** The cheap test before `targetState`: a mapping with a text `id`. */
-const hasId = (value: unknown): value is TargetItem =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  typeof (value as { readonly id?: unknown }).id === "string";
 
 /** The last 12 hex digits of a UUID, as element file names carry them (D-056). */
 const fileDigits = (id: string): string => id.replaceAll("-", "").slice(-FILE_NAME_DIGITS).toLowerCase();

@@ -74,3 +74,17 @@ export const relationItems = (
   }
   return Array.isArray(value) ? [] : [[[key], value]];
 };
+
+/** A relation item that names a target: a mapping with a UUID as `id` (as the element view reads it). */
+export type TargetItem = Readonly<Record<string, unknown>> & { readonly id: string };
+
+/**
+ * The cheap test before a target is looked up: a mapping (not a list) with a text `id`. Its other
+ * keys are not checked (ADR-0004 keeps such entries; their shape is SR-085's). The missing-target
+ * check (SR-089) and the validity (SR-040) read targets with it.
+ */
+export const hasId = (value: unknown): value is TargetItem =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as { readonly id?: unknown }).id === "string";
