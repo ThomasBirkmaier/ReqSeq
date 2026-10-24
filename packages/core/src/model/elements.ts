@@ -44,11 +44,12 @@ const isUuid = (value: unknown): value is string =>
   fileSchemaValidator("common.schema.json#/$defs/uuid")(value);
 
 /**
- * The line in the file of the value of a top-level key (line 1 is the opening `---`); undefined
- * when the document cannot find it by name, for example a key written as an alias (`*k : ...`).
+ * The line in the file of the value at `path` (a top-level key, then list indexes or keys; line 1
+ * is the opening `---`): the first line of a block value. Undefined when the document cannot find
+ * it by name, for example a key written as an alias (`*k : ...`).
  */
-const lineOf = (file: ParsedFile, key: string): number | undefined => {
-  const node: unknown = file.document.get(key, true);
+export const lineOf = (file: ParsedFile, path: readonly (string | number)[]): number | undefined => {
+  const node: unknown = file.document.getIn(path, true);
   const range = isNode(node) ? node.range : undefined;
   if (!range) {
     return undefined;
@@ -57,7 +58,7 @@ const lineOf = (file: ParsedFile, key: string): number | undefined => {
 };
 
 const invalid = (repository: string, file: ParsedFile, key: string, message: string): Classified => {
-  const line = lineOf(file, key);
+  const line = lineOf(file, [key]);
   return {
     kind: "problem",
     problem: {
