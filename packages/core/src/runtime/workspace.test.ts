@@ -260,3 +260,78 @@ describe("Workspace", () => {
     expect(disposed).toEqual(["good"]);
   });
 });
+
+describe("Workspace.peek and Workspace.replace (SR-007)", () => {
+  it("peeks without building", () => {
+    const create = vi.fn(() => 1);
+    const key = defineWorkspaceState("peeked", create);
+    const ws = new Workspace("/w");
+    expect(ws.peek(key)).toBeUndefined();
+    expect(create).not.toHaveBeenCalled();
+    expect(ws.get(key)).toBe(1);
+    expect(ws.peek(key)).toBe(1);
+  });
+
+  it("replaces a value, resets its dependents and disposes the old value after them", async () => {
+    const order: string[] = [];
+    const base = defineWorkspaceState("base", () => ({ n: 1 }), {
+      dispose: (v) => {
+        order.push(`base ${String(v.n)}`);
+      },
+    });
+    let built = 0;
+    const derived = defineWorkspaceState("derived", (ws) => ({ n: ws.get(base).n, build: ++built }), {
+      dependsOn: [base],
+      dispose: () => {
+        order.push("derived");
+      },
+    });
+    const other = defineWorkspaceState("other", () => "kept");
+    const ws = new Workspace("/w");
+    const first = ws.get(base);
+    expect(ws.get(derived)).toEqual({ n: 1, build: 1 });
+    expect(ws.get(other)).toBe("kept");
+    expect(await ws.replace(base, first, { n: 2 })).toBe(true);
+    expect(order).toEqual(["derived", "base 1"]);
+    expect(ws.get(base)).toEqual({ n: 2 });
+    expect(ws.get(derived)).toEqual({ n: 2, build: 2 });
+    expect(ws.peek(other)).toBe("kept");
+  });
+
+  it("does not replace when the value changed in between, was never built or the workspace is closed", async () => {
+    const key = defineWorkspaceState("cas", () => ({ v: 1 }));
+    const ws = new Workspace("/w");
+    expect(await ws.replace(key, { v: 1 }, { v: 2 })).toBe(false);
+    expect(ws.peek(key)).toBeUndefined();
+    const first = ws.get(key);
+    expect(await ws.replace(key, { v: 1 }, { v: 2 })).toBe(false);
+    expect(ws.get(key)).toBe(first);
+    await ws.close();
+    expect(await ws.replace(key, first, { v: 3 })).toBe(false);
+  });
+
+  it("changes nothing when the new value is the old one", async () => {
+    const dispose = vi.fn();
+    const key = defineWorkspaceState("same", () => ({ v: 1 }), { dispose });
+    const derived = defineWorkspaceState("derived-same", (ws) => ws.get(key).v, { dependsOn: [key] });
+    const ws = new Workspace("/w");
+    const value = ws.get(key);
+    ws.get(derived);
+    expect(await ws.replace(key, value, value)).toBe(true);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(ws.peek(derived)).toBe(1);
+  });
+
+  it("drops a replacement Promise that rejects, so the next get builds again", async () => {
+    let n = 0;
+    const key = defineWorkspaceState("async", () => Promise.resolve(++n));
+    const ws = new Workspace("/w");
+    const first = ws.get(key);
+    const failing = Promise.reject(new Error("no"));
+    expect(await ws.replace(key, first, failing)).toBe(true);
+    await expect(failing).rejects.toThrow("no");
+    await Promise.resolve();
+    expect(ws.peek(key)).toBeUndefined();
+    expect(await ws.get(key)).toBe(2);
+  });
+});

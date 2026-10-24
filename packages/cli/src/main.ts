@@ -9,6 +9,7 @@ import {
   errorClass,
   findWorkspaceRoot,
   getCommandRuntime,
+  watchWorkspace,
 } from "@logreq/core";
 import { startApiServer } from "@logreq/api";
 import { serveMcp } from "@logreq/mcp";
@@ -155,6 +156,8 @@ async function serveUntilStopped(
   const workspace = new Workspace(await workspaceRoot(request.workspace, options.cwd));
   const served = await settle(
     (async () => {
+      // A server keeps its workspace open: files changed outside the tool show without a restart (SR-007).
+      await watchWorkspace(workspace).ready;
       if (request.server === "mcp") {
         // Standard output carries the protocol: nothing else is written there.
         await serveMcp({ runtime, workspace, input: options.stdin, output: options.stdout, signal });

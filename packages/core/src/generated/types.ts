@@ -158,6 +158,7 @@ export type ProblemCode =
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"
   | "workspace.invalid"
+  | "workspace.not-watched"
   | "git.unavailable";
 
 /**

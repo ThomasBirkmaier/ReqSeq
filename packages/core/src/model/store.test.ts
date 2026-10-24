@@ -1,16 +1,17 @@
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { readElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { computeVersion } from "../version/version.js";
 import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
-import type { ElementStore } from "./store.js";
-import { elementStoreState, loadElements } from "./store.js";
+import type { ElementStore, RepositoryChanges } from "./store.js";
+import { applyStoreChange, elementStoreState, loadElements, updateElements } from "./store.js";
 
 const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace(options);
@@ -463,5 +464,240 @@ describe("element store", () => {
     const second = await workspace.get(elementStoreState);
     expect(second).not.toBe(first);
     expect(located(second)).toEqual(located(first));
+  });
+});
+
+describe("updating the element store file by file (SR-007)", () => {
+  const NEED = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
+  const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
+  const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
+
+  /** The SR-007 fixture with an extra element that no test touches, its store and layout. */
+  const opened = async (
+    files: Readonly<Record<string, string>> = {},
+  ): Promise<{ ws: FixtureWorkspace; layout: WorkspaceLayout; before: ElementStore }> => {
+    const ws = await fixture({
+      fixture: "SR-007/external-changes",
+      files: { "other/SR-0c1d2e3f4a5b.md": element(ID_A), ...files },
+    });
+    const workspace = open(ws.root);
+    return {
+      ws,
+      layout: await workspace.get(workspaceLayoutState),
+      before: await workspace.get(elementStoreState),
+    };
+  };
+
+  const changes = (paths: readonly string[], all = false): Map<string, RepositoryChanges> =>
+    new Map([["system", all ? { paths, all } : { paths }]]);
+
+  const updated = async (
+    before: ElementStore,
+    layout: WorkspaceLayout,
+    change: Map<string, RepositoryChanges>,
+  ): Promise<ElementStore> => {
+    const next = await updateElements(before, layout, change);
+    if (next === undefined) {
+      throw new Error("expected a new store");
+    }
+    return next;
+  };
+
+  it("equals a full read after files were changed, added, deleted and a folder renamed", async () => {
+    const { ws, layout, before } = await opened();
+    const untouched = only(before, ID_A);
+    await ws.write(
+      REQUIREMENT_FILE,
+      (await fs.readFile(ws.path(REQUIREMENT_FILE), "utf8")).replace("Show wind speed", "Show gusts"),
+    );
+    await fs.rm(ws.path("needs/N-8beffcbd8c26.md"));
+    await ws.write("extra/deep/SR-1d2e3f4a5b6c.md", element(ID_B));
+    await fs.rename(ws.path("requirements"), ws.path("reqs"));
+    const next = await updated(
+      before,
+      layout,
+      changes([
+        "requirements/SR-88cc6ebc472a.md",
+        "needs/N-8beffcbd8c26.md",
+        "extra",
+        "requirements",
+        "reqs",
+      ]),
+    );
+    expect(next).toEqual(await loadElements(layout));
+    expect(only(next, REQUIREMENT).data["title"]).toBe("Show gusts");
+    expect(only(next, REQUIREMENT).file).toBe("reqs/SR-88cc6ebc472a.md");
+    expect(next.byId.has(NEED)).toBe(false);
+    expect(only(next, ID_A)).toBe(untouched);
+  });
+
+  it("keeps the store when a named file did not change or a path holds no element file", async () => {
+    const { layout, before } = await opened();
+    expect(await updateElements(before, layout, changes([REQUIREMENT_FILE, "nothing/here"]))).toBeUndefined();
+    expect(await updateElements(before, layout, new Map())).toBeUndefined();
+  });
+
+  it("takes the new modification time of a file saved with the same bytes, as a full read does", async () => {
+    const { ws, layout, before } = await opened();
+    const text = await fs.readFile(ws.path(REQUIREMENT_FILE), "utf8");
+    // Whole seconds, so every file system stores the time exactly.
+    const later = new Date((Math.floor(only(before, REQUIREMENT).snapshot.mtimeMs / 1000) + 5) * 1000);
+    await ws.write(REQUIREMENT_FILE, text);
+    await fs.utimes(ws.path(REQUIREMENT_FILE), later, later);
+    const next = await updated(before, layout, changes([REQUIREMENT_FILE]));
+    expect(next).toEqual(await loadElements(layout));
+    expect(only(next, REQUIREMENT).snapshot.mtimeMs).toBe(later.getTime());
+    expect(only(next, REQUIREMENT).snapshot.sha256).toBe(only(before, REQUIREMENT).snapshot.sha256);
+  });
+
+  it("counts a file deleted while it is read as gone, and keeps one it cannot read", async () => {
+    const { ws, layout, before } = await opened();
+    await ws.write(REQUIREMENT_FILE, element(REQUIREMENT, "system-requirement", "extra: longer now\n"));
+    const lstat = fs.lstat.bind(fs);
+    // Both files are listed by the walk; then one is gone and the other refuses to be read.
+    let refused = false;
+    const spy = vi.spyOn(fs, "lstat").mockImplementation((file, ...rest) => {
+      const name = String(file);
+      if (name.endsWith("N-8beffcbd8c26.md")) {
+        return Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+      }
+      if (name.endsWith("SR-88cc6ebc472a.md") && !refused) {
+        // The read is refused once; the file is still there when the update looks again.
+        refused = true;
+        return Promise.reject(Object.assign(new Error("EACCES"), { code: "EACCES" }));
+      }
+      return lstat(file, ...rest);
+    });
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    const next = await updated(before, layout, changes(["needs", REQUIREMENT_FILE]));
+    expect(next.byId.has(NEED)).toBe(false);
+    expect(next.byId.has(REQUIREMENT)).toBe(false);
+    expect(next.problems.map((p) => [p.code, p.file])).toEqual([["file.unreadable", REQUIREMENT_FILE]]);
+  });
+
+  it("checks the files below a changed folder, and every file with `all`, by size and time first", async () => {
+    const { ws, layout, before } = await opened();
+    await ws.write(REQUIREMENT_FILE, element(REQUIREMENT, "system-requirement", "extra: a longer file\n"));
+    for (const change of [changes(["requirements"]), changes([], true)]) {
+      const next = await updated(before, layout, change);
+      expect(next).toEqual(await loadElements(layout));
+      expect(only(next, REQUIREMENT).data["extra"]).toBe("a longer file");
+      expect(only(next, NEED)).toBe(only(before, NEED));
+    }
+    expect(await updateElements(before, layout, changes(["other"]))).toBeUndefined();
+  });
+
+  it("follows files that are not elements, faulty files and files that are not read", async () => {
+    const { ws, layout, before } = await opened({ "notes/plain.md": "# Notes\n" });
+    await ws.write("notes/plain.md", "# Notes\n");
+    expect(await updateElements(before, layout, changes(["notes/plain.md"]))).toBeUndefined();
+    await ws.write("notes/plain.md", element(ID_B));
+    await ws.write("notes/faulty.md", "---\nid: [\n---\n");
+    await ws.write("notes/README.MD", "# Upper case\n");
+    const next = await updated(before, layout, changes(["notes"]));
+    expect(next).toEqual(await loadElements(layout));
+    expect(only(next, ID_B).file).toBe("notes/plain.md");
+    expect(next.problems.map((p) => [p.code, p.file])).toEqual([
+      ["file.skipped", "notes/README.MD"],
+      ["file.invalid-yaml", "notes/faulty.md"],
+    ]);
+    await fs.rm(ws.path("notes/README.MD"));
+    const again = await updated(next, layout, changes(["notes/README.MD"]));
+    expect(again.problems.map((p) => p.code)).toEqual(["file.invalid-yaml"]);
+  });
+
+  it("reads the store in full when it has no per-file contents or other repositories are available", async () => {
+    const { layout, before } = await opened();
+    const { repositories: _ignored, ...plain } = before;
+    expect(await updateElements(plain, layout, changes([]))).toEqual(await loadElements(layout));
+    const three = await fixture({ fixture: "SR-004/three-repositories" });
+    await fs.rename(three.path("sensor"), three.path("sensor-away"));
+    const without = open(three.path("system"));
+    const partial = await without.get(elementStoreState);
+    await fs.rename(three.path("sensor-away"), three.path("sensor"));
+    const full = await open(three.path("system")).get(workspaceLayoutState);
+    expect(await updateElements(partial, full, new Map())).toEqual(await loadElements(full));
+  });
+
+  it("keeps the contents of repositories without changes", async () => {
+    const three = await fixture({ fixture: "SR-004/three-repositories" });
+    const workspace = open(three.path("system"));
+    const layout = await workspace.get(workspaceLayoutState);
+    const before = await workspace.get(elementStoreState);
+    await three.write("product/SR-0c1d2e3f4a5b.md", element(ID_A));
+    const next = await updated(before, layout, new Map([["product", { paths: ["SR-0c1d2e3f4a5b.md"] }]]));
+    expect(next).toEqual(await loadElements(layout));
+    expect(next.repositories?.[0]).toBe(before.repositories?.[0]);
+    expect(next.repositories?.[1]).not.toBe(before.repositories?.[1]);
+  });
+
+  it("stops reading when the signal is aborted", async () => {
+    const { ws, layout, before } = await opened();
+    await ws.write("extra/SR-1d2e3f4a5b6c.md", element(ID_B));
+    const aborted = new AbortController();
+    aborted.abort(new Error("stopped"));
+    await expect(updateElements(before, layout, changes(["extra"]), aborted.signal)).rejects.toThrow(
+      "stopped",
+    );
+  });
+});
+
+describe("applyStoreChange (SR-007)", () => {
+  const withTitle = (store: ElementStore, title: string): ElementStore => ({
+    ...store,
+    problems: [],
+    elements: store.elements.map((e) => ({ ...e, data: { ...e.data, title } })),
+  });
+
+  it("does nothing while the store is not read", async () => {
+    const ws = await fixture({ fixture: "SR-007/external-changes" });
+    const workspace = open(ws.root);
+    const change = vi.fn(() => Promise.resolve(undefined));
+    expect(await applyStoreChange(workspace, change)).toBeUndefined();
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  it("runs changes one after the other, each on the store the one before set", async () => {
+    const ws = await fixture({ fixture: "SR-007/external-changes" });
+    const workspace = open(ws.root);
+    const first = await workspace.get(elementStoreState);
+    const seen: ElementStore[] = [];
+    const one = applyStoreChange(workspace, async (store) => {
+      seen.push(store);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return withTitle(store, "one");
+    });
+    const two = applyStoreChange(workspace, (store) => {
+      seen.push(store);
+      return Promise.resolve(withTitle(store, "two"));
+    });
+    const failing = applyStoreChange(workspace, () => Promise.reject(new Error("broken")));
+    const none = applyStoreChange(workspace, () => Promise.resolve(undefined));
+    const [afterOne, afterTwo] = await Promise.all([one, two]);
+    await expect(failing).rejects.toThrow("broken");
+    expect(await none).toBeUndefined();
+    expect(seen).toEqual([first, afterOne]);
+    expect(await workspace.get(elementStoreState)).toBe(afterTwo);
+  });
+
+  it("runs a change again on the newer store when the store was replaced while it ran", async () => {
+    const ws = await fixture({ fixture: "SR-007/external-changes" });
+    const workspace = open(ws.root);
+    const first = workspace.get(elementStoreState);
+    const loaded = await first;
+    const newer = withTitle(loaded, "newer");
+    const seen: ElementStore[] = [];
+    const result = await applyStoreChange(workspace, async (store) => {
+      seen.push(store);
+      if (seen.length === 1) {
+        // Someone else (not through the queue) replaces the store meanwhile.
+        expect(await workspace.replace(elementStoreState, first, Promise.resolve(newer))).toBe(true);
+      }
+      return withTitle(store, "mine");
+    });
+    expect(seen).toEqual([loaded, newer]);
+    expect(await workspace.get(elementStoreState)).toBe(result);
   });
 });

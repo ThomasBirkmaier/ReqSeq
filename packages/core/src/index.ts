@@ -14,3 +14,5 @@ export {
 } from "./workspace/cache.js";
 export type { CacheEnvironment } from "./workspace/cache.js";
 export * from "./version/version.js";
+export { watchWorkspace } from "./model/watch.js";
+export type { WorkspaceWatcher } from "./model/watch.js";

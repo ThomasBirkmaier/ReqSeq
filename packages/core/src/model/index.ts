@@ -10,8 +10,14 @@ export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./dupl
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";
-export { elementStoreState, loadElements } from "./store.js";
-export type { ElementStore, RepositoryFile } from "./store.js";
+export { applyStoreChange, elementStoreState, ignoredBy, loadElements, updateElements } from "./store.js";
+export type {
+  Contribution,
+  ElementStore,
+  RepositoryChanges,
+  RepositoryContents,
+  RepositoryFile,
+} from "./store.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";
 export {
@@ -26,5 +32,9 @@ export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export { elementView, titleKeyOf } from "./view.js";
 export type { ElementViewInput } from "./view.js";
+export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
+export { FolderTree } from "./watch-tree.js";
+export type { FolderTreeOptions } from "./watch-tree.js";
+export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
 export { createElement, updateElement, writtenElement } from "./write.js";
 export type { CreateElementInput, ElementWriteResult, ReadElement, UpdateElementInput } from "./write.js";

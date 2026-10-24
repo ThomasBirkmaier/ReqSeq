@@ -19,7 +19,7 @@ export interface WorkspaceState<T> {
   /** States built from this one; resetting this one resets them too. */
   readonly dependsOn: readonly WorkspaceState<unknown>[];
   /**
-   * Releases the value on `reset` and `close` (e.g. stop a watcher). Default: nothing.
+   * Releases the value on `reset`, `replace` and `close` (e.g. stop a watcher). Default: nothing.
    * For async state it runs only after the Promise fulfilled; a rejected build is not disposed.
    */
   dispose(value: T): void | Promise<void>;
@@ -105,16 +105,47 @@ export class Workspace {
       return this.#state.get(key) as T;
     }
     const value = key.create(this);
+    this.#keep(key, value);
+    return value;
+  }
+
+  /** The state for `key` if it was built (or is being built), else undefined; never builds it. */
+  peek<T>(key: WorkspaceState<T>): T | undefined {
+    return this.#state.get(key) as T | undefined;
+  }
+
+  /**
+   * Replace the state for `key` with `to`, but only while it is still `from` (compare and set, so
+   * a reset or another replace in between wins). Every state that depends on `key` is reset,
+   * dependents first, and then `from` is disposed. Used by the watcher to update the element
+   * store file by file instead of reading it again (SR-007; through `applyStoreChange`). Resolves
+   * with whether the value is now `to` (`to` equal to `from` changes nothing). The value is
+   * replaced even when a disposal fails; the call then rejects with an `AggregateError` of the
+   * failures, as `reset` does.
+   */
+  async replace<T>(key: WorkspaceState<T>, from: T, to: T): Promise<boolean> {
+    if (this.#closed || !this.#state.has(key) || this.#state.get(key) !== from) {
+      return false;
+    }
+    if (to === from) {
+      return true;
+    }
+    this.#keep(key, to);
+    const dependents = [...this.#state.keys()].filter((k) => k !== key && dependsOn(k, key));
+    await this.#drop(dependents, [{ key, value: from }]);
+    return true;
+  }
+
+  /** Store a value; a failed async build is dropped so the next `get` retries (the caller still sees the rejection). */
+  #keep(key: WorkspaceState<unknown>, value: unknown): void {
     this.#state.set(key, value);
     if (value instanceof Promise) {
-      // Drop a failed build so the next `get` retries; the caller still sees the rejection.
       void value.catch(() => {
         if (this.#state.get(key) === value) {
           this.#state.delete(key);
         }
       });
     }
-    return value;
   }
 
   /**
@@ -137,13 +168,17 @@ export class Workspace {
    * builds are awaited; a rejected one is skipped. Every disposal runs, also when one fails; the
    * failures are reported together.
    */
-  async #drop(keys: readonly WorkspaceState<unknown>[]): Promise<void> {
+  async #drop(
+    keys: readonly WorkspaceState<unknown>[],
+    replaced: readonly { readonly key: WorkspaceState<unknown>; readonly value: unknown }[] = [],
+  ): Promise<void> {
     const dropped = dependentsFirst(keys).map((k) => ({ key: k, value: this.#state.get(k) }));
     for (const { key } of dropped) {
       this.#state.delete(key);
     }
     const errors: unknown[] = [];
-    for (const { key, value } of dropped) {
+    // `replaced` values were taken out already; they are disposed after their dependents.
+    for (const { key, value } of [...dropped, ...replaced]) {
       try {
         if (value instanceof Promise) {
           const built = await value.then(

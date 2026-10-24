@@ -5,6 +5,7 @@ import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { headCommit } from "../../git/reader.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
+import { watcherProblems } from "../../model/index.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../../workspace/index.js";
 
@@ -67,6 +68,8 @@ export default defineCommand({
         ...layout.problems,
         ...metamodel.problems,
         ...checked.flatMap((c) => (c.problem === undefined ? [] : [c.problem])),
+        // Folders a running watcher cannot watch (SR-007): their changes need a restart.
+        ...watcherProblems(ctx.workspace),
       ],
     };
   },

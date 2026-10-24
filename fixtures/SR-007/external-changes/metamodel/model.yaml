@@ -1,0 +1,26 @@
+# Minimal metamodel for the SR-007 fixtures: a need, a requirement that derives from it, two statuses.
+logreq-metamodel: 1
+
+types:
+  - { key: need, name: Need, prefix: N, meaning: need, properties: [title], required: [title] }
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title]
+    required: [title]
+
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+
+relations:
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [system-requirement]
+    target-types: [need, system-requirement]
+    meaning: derivation
+
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }

@@ -9,11 +9,12 @@ import {
   createCommandRuntime,
   defineTestCommand,
   defineWorkspaceState,
+  getCommandRuntime,
   loadContracts,
 } from "@logreq/core";
 import { LineTransport } from "@logreq/mcp";
 import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
@@ -156,6 +157,54 @@ describe("logreq serve api", () => {
     });
     expect(await runCli(opts)).toBe(EXIT.ok);
     expect(opts.out.text).toContain(cacheFolder(fixture.path("other")));
+  });
+
+  it("keeps its workspace current with files changed outside the tool (SR-007)", async () => {
+    const changed = await createFixtureWorkspace({ fixture: "SR-007/external-changes" });
+    try {
+      const controller = new AbortController();
+      const opts = options(["serve", "api"], {
+        cwd: changed.root,
+        signal: controller.signal,
+        runtime: getCommandRuntime(),
+      });
+      const exit = runCli(opts);
+      await started(opts.out);
+      const endpoint = JSON.parse(
+        await fs.readFile(path.join(cacheFolder(changed.root), "api.json"), "utf8"),
+      ) as {
+        port: number;
+        token: string;
+      };
+      const statuses = async (): Promise<readonly string[]> =>
+        (
+          (await post(endpoint.port, endpoint.token, "metamodel.get")).body as { statuses: { key: string }[] }
+        ).statuses.map((s) => s.key);
+      expect(await statuses()).toEqual(["draft", "approved"]);
+      const model = changed.path("metamodel/model.yaml");
+      const original = await fs.readFile(model, "utf8");
+      const withStatus = (key: string): string =>
+        original.replace(
+          "  - { key: approved, name: Approved }\n",
+          `  - { key: approved, name: Approved }\n  - { key: ${key}, name: ${key} }\n`,
+        );
+      // A probe first: FSEvents (macOS) starts asynchronously and may miss the first change.
+      await untilWatching({
+        probe: () => fs.writeFile(model, withStatus("probe")),
+        seen: async () => (await statuses()).includes("probe"),
+      });
+      await fs.writeFile(model, withStatus("rejected"));
+      // Poll until the server shows the new file; how soon events arrive differs between systems.
+      const start = performance.now();
+      while (!(await statuses()).includes("rejected") && performance.now() - start < 10_000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(await statuses()).toEqual(["draft", "approved", "rejected"]);
+      controller.abort();
+      expect(await exit).toBe(EXIT.ok);
+    } finally {
+      await changed.cleanup();
+    }
   });
 
   it("refuses a port that is not a number from 0 to 65535 (exit 2)", async () => {
