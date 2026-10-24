@@ -331,8 +331,16 @@ const updateEdits = (input: UpdateElementInput, titleKey: string): FrontmatterEd
   ...(input.unset ?? []).map((key): FrontmatterEdit => ({ kind: "remove", key })),
 ];
 
-/** The type of an element that may be changed; an unknown type makes it read-only (SR-016 AK3). */
-const writableType = (metamodel: Metamodel, record: ElementRecord): MetamodelEffectiveType => {
+/**
+ * The type of an element that may be changed. An element whose type the metamodel does not know is
+ * only read (SR-016 AK3): throws `element.read-only` with `reason: unknown-type`. Every command that
+ * writes an existing element file (update, status, supersede, bulk update, attachments, relation
+ * writes) must call this before it writes.
+ */
+export const assertElementWritable = (
+  metamodel: Metamodel,
+  record: ElementRecord,
+): MetamodelEffectiveType => {
   const type = findType(metamodel, record.type);
   if (type === undefined) {
     throw new CommandError(
@@ -359,7 +367,7 @@ export const updateElement = async (
   const { layout, metamodel, store } = context;
   const shortIds = await workspace.get(shortIdState);
   const record = resolveRef(store, shortIds, input.ref);
-  const type = writableType(metamodel, record);
+  const type = assertElementWritable(metamodel, record);
   const titleKey = titleKeyFor(metamodel, type, "element.update");
   const setKeys = Object.keys(input.set ?? {});
   const unsetKeys = input.unset ?? [];

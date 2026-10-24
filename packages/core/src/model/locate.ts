@@ -8,15 +8,24 @@ import { readElementFiles } from "../files/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
-import { lineOf } from "./elements.js";
+import { keyLineOf, lineOf } from "./elements.js";
 
 /** A problem of an element that a key path in its frontmatter points at (`[key]` or `[key, item]`). */
 export interface LocatableFinding {
   readonly element: ElementRecord;
   readonly path: readonly (string | number)[];
+  /**
+   * `"key"`: the line is the one of the top-level key `path[0]` itself, also for a block value
+   * (a finding about the key, SR-016). Otherwise the first line of the value at `path`.
+   */
+  readonly at?: "key";
   /** Gets `line` when the path is found in the unchanged file. */
   readonly problem: Problem;
 }
+
+/** The line of a finding in `file` (see `LocatableFinding.at`), undefined when it is not found. */
+export const findingLine = (file: ParsedFile, finding: LocatableFinding): number | undefined =>
+  finding.at === "key" ? keyLineOf(file, String(finding.path[0])) : lineOf(file, finding.path);
 
 export interface LocateOptions {
   /** Stops reading further files; the call then rejects with the signal's reason. */
@@ -63,7 +72,7 @@ export const locateFindings = async (
   }
   return findings.map((f) => {
     const file = files.get(f.element.repository)?.get(f.element.file);
-    const line = file === undefined ? undefined : lineOf(file, f.path);
+    const line = file === undefined ? undefined : findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
 };

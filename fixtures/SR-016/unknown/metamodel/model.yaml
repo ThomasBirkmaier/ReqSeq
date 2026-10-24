@@ -1,0 +1,34 @@
+# Unknown properties and types (SR-016): one type with a title, two more properties and a relation kind.
+logreq-metamodel: 1
+
+types:
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties: [title, priority]
+    required: [title]
+  - key: safety-requirement
+    name: Safety Requirement
+    prefix: SAF
+    extends: system-requirement
+    properties: [weight]
+
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: weight, name: Weight, kind: number }
+  - key: priority
+    name: Priority
+    kind: choice
+    choices:
+      - { key: low, name: Low }
+      - { key: high, name: High }
+
+relations:
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    meaning: derivation
+
+statuses:
+  - { key: draft, name: Draft, initial: true }

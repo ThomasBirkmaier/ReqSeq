@@ -1,7 +1,7 @@
 // Which parsed Markdown files are elements (ADR-0004, SR-003 AK2, spec question #145 option 1):
 // those whose frontmatter is a mapping with `id` and `type`. Every other file is not an element; it
 // is never written. A type the metamodel does not know still makes an element (SR-016 AK3).
-import { isNode } from "yaml";
+import { isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedFile } from "../files/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
@@ -63,6 +63,22 @@ export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
  */
 export const lineOf = (file: ParsedFile, path: readonly (string | number)[]): number | undefined => {
   const node: unknown = file.document.getIn(path, true);
+  const range = isNode(node) ? node.range : undefined;
+  if (!range) {
+    return undefined;
+  }
+  return file.frontmatter.slice(0, range[0]).split("\n").length + 1;
+};
+
+/**
+ * The line of the top-level key `key` itself (line 1 is the opening `---`): for a block value the
+ * line above its first line. Undefined when no plain key has that name, for example a key written
+ * as an alias (`*k : ...`), or when the frontmatter is no mapping.
+ */
+export const keyLineOf = (file: ParsedFile, key: string): number | undefined => {
+  const { contents } = file.document;
+  const items = isMap(contents) ? contents.items : [];
+  const node = items.find((pair) => isScalar(pair.key) && pair.key.value === key)?.key;
   const range = isNode(node) ? node.range : undefined;
   if (!range) {
     return undefined;

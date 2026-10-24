@@ -10,9 +10,12 @@ import { computeVersion } from "../version/version.js";
 import type { VersionPropertyDefinition, VersionValue } from "../version/version.js";
 import { resolveId } from "./duplicates.js";
 import type { ElementRecord } from "./elements.js";
-import { STRUCTURAL_KEYS, isUuid, lineOf } from "./elements.js";
+import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
+import type { LocatableFinding } from "./locate.js";
+import { findingLine } from "./locate.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
 
 const isVersion = (value: unknown): value is string =>
@@ -93,7 +96,8 @@ export interface ElementViewInput {
 /**
  * The element with its text, its version (ADR-0005; embedded images are not counted yet, #131),
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
- * keys included), its own relations and the value-kind hints with their lines (SR-085). Relations
+ * keys included), its own relations and the hints with their lines: unknown type and properties
+ * (SR-016), then values of the wrong kind (SR-085). Relations
  * pointing at it and the version date are left out.
  */
 export const elementView = (
@@ -106,8 +110,12 @@ export const elementView = (
       ([key]) => !STRUCTURAL_KEYS.includes(key) && key !== titleKey && !relationKeys.has(key),
     ),
   );
-  const problems: Problem[] = valueFindings(record, metamodel).map((f) => {
-    const line = lineOf(file, f.path);
+  const findings: readonly LocatableFinding[] = [
+    ...unknownFindings(record, metamodel),
+    ...valueFindings(record, metamodel),
+  ];
+  const problems: Problem[] = findings.map((f) => {
+    const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
   return {

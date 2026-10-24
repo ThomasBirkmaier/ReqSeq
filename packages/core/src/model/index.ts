@@ -8,7 +8,7 @@ export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
 export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./duplicates.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
-export { locateFindings } from "./locate.js";
+export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";
 export { applyStoreChange, elementStoreState, ignoredBy, loadElements, updateElements } from "./store.js";
 export type {
@@ -26,6 +26,8 @@ export {
   relationTypeProblemsState,
 } from "./relation-types.js";
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
+export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
+export type { UnknownFinding } from "./unknown.js";
 export { isRelationTarget, resolveTarget } from "./relations.js";
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
@@ -36,5 +38,5 @@ export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";
 export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
-export { createElement, updateElement, writtenElement } from "./write.js";
+export { assertElementWritable, createElement, updateElement, writtenElement } from "./write.js";
 export type { CreateElementInput, ElementWriteResult, ReadElement, UpdateElementInput } from "./write.js";
