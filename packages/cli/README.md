@@ -20,6 +20,12 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 - `--input -` reads standard input to its end and does not watch the abort signal: Ctrl-C while the CLI waits for input ends the process through the second-signal path (exit code 130).
 - Output is UTF-8 without colors. Problems go to stdout, errors to stderr. A closed pipe (`logreq ... | head`) ends quietly.
 
+### Servers
+
+- `logreq serve api [--port <n>] [--workspace <path>]`: the local API on `127.0.0.1` and `::1` (`@logreq/api`); prints the URLs and the path of `api.json` (port and token) in the cache folder of the workspace. Runs until Ctrl-C or SIGTERM, then exits 0.
+- `logreq mcp [--workspace <path>]`: the MCP server on standard input and output (`@logreq/mcp`). Runs until standard input ends or Ctrl-C, then exits 0.
+- These are the only commands outside the catalog; no catalog group may be named `serve` or `mcp`. There is no option for the address (SR-079 AK3).
+
 ### Windows shells
 
 - `cmd.exe` treats `^` as escape character: write `HEAD~1` instead of `HEAD^`, or `HEAD^^`.
@@ -33,8 +39,10 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 - `src/fields.ts`: positional, flag or `--input` only, from the JSON Schema of each input field.
 - `src/input.ts`, `src/render.ts`: command input from the arguments; output, errors and the exit code of the output.
 - `src/argv.ts`: `argvFor(entry, input)`, the arguments for a command input (cross-access test).
+- `src/main.ts` also starts the servers (`serve api`, `mcp`) for the subcommands of `src/program.ts`.
 
 ## Tests
 
 - Unit tests next to the code (`src/*.test.ts`, 100 % coverage) use a test-only catalog with `createCommandRuntime`.
+- `test/cross-access.test.ts` runs every catalog command through core, the CLI, the API and MCP and compares the results (SR-080 AK2); add scenarios there when you implement a command.
 - End-to-end tests in `test/e2e/` spawn the built binary: `pnpm build && pnpm test:e2e`. `test/e2e/support/test-bin.mjs` runs the same `runCli` from `dist/` with test implementations of real catalog commands where the product command does not exist yet. On Linux CI the suite runs inside `unshare -rn` with only loopback up.

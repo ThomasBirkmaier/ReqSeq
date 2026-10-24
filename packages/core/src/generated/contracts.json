@@ -3,6 +3,50 @@
   "schemas": [
     {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://logreq.dev/schemas/api-endpoint.schema.json",
+      "title": "API endpoint file",
+      "description": "`api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
+      "type": "object",
+      "required": [
+        "logreq-api",
+        "port",
+        "token",
+        "urls",
+        "pid"
+      ],
+      "properties": {
+        "logreq-api": {
+          "const": 1
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{43}$",
+          "description": "256 random bits, base64url without padding; new at every start."
+        },
+        "urls": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[0-9]+$"
+          },
+          "description": "Base URLs, one per loopback address the API listens on (`::1` only where the machine has IPv6)."
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Process ID of the API."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "$id": "https://logreq.dev/schemas/baseline.schema.json",
       "title": "Baseline file",
       "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
@@ -1867,7 +1911,16 @@
               "type": "object"
             },
             "output": {
-              "type": "object"
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "const": "object"
+                }
+              },
+              "description": "Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009)."
             }
           },
           "additionalProperties": false
@@ -3806,6 +3859,7 @@
           "additionalProperties": false
         },
         "output": {
+          "type": "object",
           "$ref": "../data-export.schema.json"
         }
       },

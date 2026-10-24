@@ -5,4 +5,12 @@ export * from "./runtime/contracts.js";
 export * from "./runtime/invoke.js";
 export * from "./runtime/workspace.js";
 export { WORKSPACE_FILE, findWorkspaceRoot } from "./workspace/root.js";
+export {
+  cacheFolder,
+  osCacheFolder,
+  readCacheFile,
+  removeCacheFile,
+  writeCacheFile,
+} from "./workspace/cache.js";
+export type { CacheEnvironment } from "./workspace/cache.js";
 export * from "./version/version.js";

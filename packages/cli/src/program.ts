@@ -22,6 +22,14 @@ export interface Invocation {
   readonly input: string | undefined;
 }
 
+/** `logreq serve api` or `logreq mcp`: a server over the whole catalog instead of one command. */
+export type ServeRequest =
+  | { readonly server: "api"; readonly port: string | undefined; readonly workspace: string | undefined }
+  | { readonly server: "mcp"; readonly workspace: string | undefined };
+
+/** Top-level commands of the CLI itself; no catalog group may take these names. */
+export const SERVER_COMMANDS: readonly string[] = ["serve", "mcp"];
+
 export interface ProgramOptions {
   readonly runtime: CommandRuntime;
   readonly version: string;
@@ -31,7 +39,45 @@ export interface ProgramOptions {
   readonly jsonErrors: boolean;
   /** Runs the command the line asked for. */
   readonly run: (invocation: Invocation) => Promise<void>;
+  /** Runs a server until it is stopped. */
+  readonly serve: (request: ServeRequest) => Promise<void>;
 }
+
+const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+
+const WORKSPACE_OPTION = [
+  "--workspace <path>",
+  "workspace root (default: nearest folder upwards with logreq-workspace.yaml)",
+] as const;
+
+/** `logreq serve api` and `logreq mcp` (ADR-0009). There is no option for the address (SR-079 AK3). */
+const addServers = (program: Command, options: ProgramOptions): void => {
+  const serve = program
+    .command("serve")
+    .description("the local API on loopback: logreq serve api --help")
+    .usage("api [options]");
+  const api = serve
+    .command("api")
+    .description(
+      "Local API on 127.0.0.1 and ::1 only: POST /v1/commands/<name>, GET /v1/commands. " +
+        "Port and token are in api.json in the cache folder of the workspace. Runs until Ctrl-C.",
+    )
+    .option("--port <number>", "TCP port (default: 0, any free port)")
+    .option(...WORKSPACE_OPTION);
+  api.action(async () => {
+    const opts = api.opts<Record<string, unknown>>();
+    await options.serve({ server: "api", port: text(opts["port"]), workspace: text(opts["workspace"]) });
+  });
+  const mcp = program
+    .command("mcp")
+    .description(
+      "MCP server over standard input and output, one tool per command. Runs until the input ends or Ctrl-C.",
+    )
+    .option(...WORKSPACE_OPTION);
+  mcp.action(async () => {
+    await options.serve({ server: "mcp", workspace: text(mcp.opts<Record<string, unknown>>()["workspace"]) });
+  });
+};
 
 const describeField = (field: InputField): string =>
   [
@@ -94,17 +140,13 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   }
   command
     .option("--input <json|@file|->", "command input as JSON: inline, from a file, or from standard input")
-    .option(
-      "--workspace <path>",
-      "workspace root (default: nearest folder upwards with logreq-workspace.yaml)",
-    )
+    .option(...WORKSPACE_OPTION)
     .option("--json", "print exactly the command output as JSON");
   if (inputOnly.length > 0) {
     command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
   }
   command.action(async (...args: unknown[]) => {
     const opts = command.opts<Record<string, unknown>>();
-    const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
     await options.run({
       entry,
       fields,
@@ -152,5 +194,10 @@ export function buildProgram(options: ProgramOptions): Command {
     }
     addCommand(group, entry, options);
   }
+  const clash = SERVER_COMMANDS.filter((name) => groups.has(name));
+  if (clash.length > 0) {
+    throw new Error(`catalog group ${clash.join(", ")} clashes with a command of the CLI`);
+  }
+  addServers(program, options);
   return program;
 }

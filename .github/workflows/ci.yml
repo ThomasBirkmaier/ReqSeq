@@ -90,7 +90,8 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
 
-  # ADR-0011: CLI end-to-end tests spawn the built `logreq` on fixture workspaces (packages/cli/test/e2e/).
+  # ADR-0011: CLI end-to-end tests spawn the built `logreq` on fixture workspaces (packages/cli/test/e2e/),
+  # including the local API and the MCP server.
   # On Linux the suite runs inside a user and network namespace (`unshare -rn`): no network at all.
   e2e:
     name: e2e (${{ matrix.os }})
@@ -130,5 +131,7 @@ jobs:
           path: test-results/junit-e2e.xml
           if-no-files-found: ignore
 
+  # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `test` on all
+  # three systems; `e2e` also runs `logreq serve api` and `logreq mcp` as processes (servers.test.ts).
   # Added with the stage that needs them (ADR-0011): Electron/Playwright under xvfb (stage 3),
-  # cross-access consistency (stage 1), nightly performance with 50,000 elements (stage 1).
+  # nightly performance with 50,000 elements (stage 1).

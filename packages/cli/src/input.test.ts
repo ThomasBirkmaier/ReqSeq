@@ -126,7 +126,7 @@ const invocation = (parts: Partial<Invocation>): Invocation => ({
     stage: 1,
     implements: ["SR-080"],
     input: {},
-    output: {},
+    output: { type: "object" },
   },
   fields: [],
   positionals: [],

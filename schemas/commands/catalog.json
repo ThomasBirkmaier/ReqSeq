@@ -1611,6 +1611,7 @@
         "additionalProperties": false
       },
       "output": {
+        "type": "object",
         "$ref": "../data-export.schema.json"
       }
     },

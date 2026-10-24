@@ -2,5 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "dist", "tsBuildInfoFile": "dist/.tsbuildinfo" },
   "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../testkit" }]
+  "references": [{ "path": "../core" }, { "path": "../api" }, { "path": "../mcp" }, { "path": "../testkit" }]
 }

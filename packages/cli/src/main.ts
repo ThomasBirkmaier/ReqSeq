@@ -10,10 +10,12 @@ import {
   findWorkspaceRoot,
   getCommandRuntime,
 } from "@logreq/core";
+import { startApiServer } from "@logreq/api";
+import { serveMcp } from "@logreq/mcp";
 import { CommanderError } from "commander";
 import type { InputStream } from "./input.js";
 import { buildInput } from "./input.js";
-import type { Invocation } from "./program.js";
+import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { outcomeExitCode, renderError, renderHuman, renderJson } from "./render.js";
 
@@ -69,7 +71,7 @@ export interface RunCliOptions {
   readonly stderr: TextSink;
   /** Default: the runtime of this process (`getCommandRuntime()`). Tests pass their own. */
   readonly runtime?: CommandRuntime;
-  /** Aborts the running command (bin.ts: Ctrl-C and SIGTERM). */
+  /** Aborts the running command and stops `serve api` and `mcp` (bin.ts: Ctrl-C and SIGTERM). */
   readonly signal?: AbortSignal;
 }
 
@@ -128,6 +130,70 @@ async function execute(
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }
 
+/** Resolves when `signal` aborts. */
+const stopped = (signal: AbortSignal): Promise<void> =>
+  new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve();
+    }
+    signal.addEventListener("abort", () => {
+      resolve();
+    });
+  });
+
+/** `--port` as a number when it is one; anything else is refused by the API (`input.invalid`). */
+const portNumber = (value: string | undefined): number =>
+  value === undefined ? 0 : /^\d+$/.test(value) ? Number(value) : Number.NaN;
+
+/** Run a server on the workspace until it is stopped; the workspace is closed afterwards. */
+async function serveUntilStopped(
+  request: ServeRequest,
+  options: RunCliOptions,
+  runtime: CommandRuntime,
+  signal: AbortSignal,
+): Promise<void> {
+  const workspace = new Workspace(await workspaceRoot(request.workspace, options.cwd));
+  const served = await settle(
+    (async () => {
+      if (request.server === "mcp") {
+        // Standard output carries the protocol: nothing else is written there.
+        await serveMcp({ runtime, workspace, input: options.stdin, output: options.stdout, signal });
+        return;
+      }
+      const server = await startApiServer({ runtime, workspace, port: portNumber(request.port) });
+      options.stdout.write(
+        `LogReq API on ${server.urls.join(" and ")}\nPort and token: ${server.endpointFile}\nStop with Ctrl-C.\n`,
+      );
+      await stopped(signal);
+      await server.close();
+    })(),
+  );
+  const closed = await settle(workspace.close());
+  if (!served.ok) {
+    throw served.error;
+  }
+  if (!closed.ok) {
+    throw closed.error;
+  }
+}
+
+/** A server ends with 0 when it is stopped (a signal, or the end of the MCP input); errors as for commands. */
+async function serve(
+  request: ServeRequest,
+  options: RunCliOptions,
+  runtime: CommandRuntime,
+  signal: AbortSignal,
+): Promise<ExitCode> {
+  try {
+    await serveUntilStopped(request, options, runtime, signal);
+  } catch (caught) {
+    const error = asCommandError(caught);
+    options.stderr.write(renderError(error, false));
+    return exitCodeFor(error);
+  }
+  return EXIT.ok;
+}
+
 /** Run `logreq` with these arguments and return the exit code. Never rejects. */
 export async function runCli(options: RunCliOptions): Promise<ExitCode> {
   let exitCode: ExitCode = EXIT.ok;
@@ -141,6 +207,10 @@ export async function runCli(options: RunCliOptions): Promise<ExitCode> {
       jsonErrors: options.argv.includes("--json"),
       run: async (invocation) => {
         exitCode = await execute(invocation, options, runtime);
+      },
+      serve: async (request) => {
+        // Without a signal (in-process callers that never stop it) a server runs until the process ends.
+        exitCode = await serve(request, options, runtime, options.signal ?? new AbortController().signal);
       },
     });
     await program.parseAsync([...options.argv], { from: "user" });

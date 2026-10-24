@@ -2,6 +2,8 @@
 // the repositories lie, which are available and which are writable. Core blocks and commands import
 // it relatively.
 export { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
+export { cacheFolder, osCacheFolder, readCacheFile, removeCacheFile, writeCacheFile } from "./cache.js";
+export type { CacheEnvironment } from "./cache.js";
 export { findWorkspaceRoot } from "./root.js";
 export type { CheckedWorkspaceFile } from "./config.js";
 export {

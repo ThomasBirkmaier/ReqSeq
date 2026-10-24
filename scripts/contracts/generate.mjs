@@ -50,7 +50,7 @@ const openapi = {
     title: "LogReq local API",
     version,
     description:
-      "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 only (SR-079). Every request needs `Authorization: Bearer <token>` from the token file of the running instance (ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080).",
+      "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080).",
   },
   servers: [{ url: "http://127.0.0.1:{port}", variables: { port: { default: "0" } } }],
   security: [{ token: [] }],
@@ -60,9 +60,58 @@ const openapi = {
     schemas: components,
   },
 };
-const errorResponse = {
-  description: "Command error",
+const errorResponse = (description) => ({
+  description,
   content: { "application/json": { schema: { $ref: "#/components/schemas/common/$defs/error" } } },
+});
+// Refusals before any command runs (ADR-0009): Host or Origin header, token.
+const refusals = {
+  401: errorResponse("Missing or wrong token"),
+  403: errorResponse(
+    "Host header not a loopback name with the port, or an Origin header (no browser access)",
+  ),
+};
+// HTTP status of each error class (ADR-0009 "Errors"; `HTTP_STATUS_BY_CLASS` in packages/api).
+const commandErrors = {
+  400: errorResponse("Command error of class input (e.g. input.invalid), or a body that is not JSON"),
+  404: errorResponse("Command error of class not-found"),
+  409: errorResponse("Command error of class conflict"),
+  413: errorResponse("Request body larger than 32 MiB (input.invalid)"),
+  500: errorResponse("Command error of class internal"),
+  503: errorResponse("Command error of class unavailable (e.g. git.unavailable)"),
+};
+const catalogEntry = rewrite(
+  {
+    ...meta.properties.commands.items,
+    required: [...meta.properties.commands.items.required, "implemented"],
+    properties: {
+      ...meta.properties.commands.items.properties,
+      implemented: { type: "boolean", description: "False for catalog commands of a later stage." },
+    },
+  },
+  refTo("#/components/schemas/", "common.schema.json"),
+);
+openapi.paths["/v1/commands"] = {
+  get: {
+    operationId: "commands_list",
+    summary: "The command catalog, each entry with whether this version implements it.",
+    responses: {
+      200: {
+        description: "Catalog",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["commands"],
+              properties: { commands: { type: "array", items: catalogEntry } },
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+      ...refusals,
+    },
+  },
 };
 for (const cmd of catalog.commands) {
   const toRef = refTo("#/components/schemas/", "common.schema.json");
@@ -80,11 +129,8 @@ for (const cmd of catalog.commands) {
           description: "Result",
           content: { "application/json": { schema: rewrite(cmd.output, toRef) } },
         },
-        400: errorResponse,
-        401: { description: "Missing or wrong token" },
-        404: errorResponse,
-        409: errorResponse,
-        500: errorResponse,
+        ...refusals,
+        ...commandErrors,
       },
     },
   };

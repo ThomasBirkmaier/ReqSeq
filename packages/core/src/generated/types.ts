@@ -2,6 +2,21 @@
 // change the schema or the catalog and run `pnpm contracts:generate`.
 
 /**
+ * `api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.
+ * Schema: `schemas/api-endpoint.schema.json#`.
+ */
+export interface ApiEndpointFile {
+  readonly "logreq-api": 1;
+  readonly port: number;
+  /** 256 random bits, base64url without padding; new at every start. */
+  readonly token: string;
+  /** Base URLs, one per loopback address the API listens on (`::1` only where the machine has IPv6). */
+  readonly urls: readonly string[];
+  /** Process ID of the API. */
+  readonly pid: number;
+}
+
+/**
  * A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).
  * Schema: `schemas/baseline.schema.json#`.
  */
@@ -752,7 +767,11 @@ export interface CommandCatalog {
     readonly stage: number;
     readonly implements: readonly string[];
     readonly input: Readonly<Record<string, unknown>>;
-    readonly output: Readonly<Record<string, unknown>>;
+    /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
+    readonly output: {
+      readonly type: "object";
+      readonly [key: string]: unknown;
+    };
   }[];
 }
 
@@ -1410,7 +1429,7 @@ export interface DataExportInput {
  * Output of `data.export`. Data of the current state as JSON for external evaluation.
  * Schema: `schemas/commands/catalog.json data.export output`.
  */
-export type DataExportOutput = DataExportFile;
+export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
  * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state to a folder, file name contains the commit.

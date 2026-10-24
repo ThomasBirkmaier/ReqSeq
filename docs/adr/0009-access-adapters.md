@@ -30,31 +30,38 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 - Parser: `commander` (MIT, pinned exactly). The CLI runs headless, without Electron (SR-080 AK3).
 
 **API (`packages/api`)** — `logreq serve api`.
-- `node:http`, bound to `127.0.0.1` and `::1` only. There is no option to bind elsewhere (SR-079 AK1, AK3); the bind address is a constant and a test greps for it.
-- `POST /v1/commands/<name>` with the command input as JSON body; `GET /v1/commands` returns the catalog.
-- Authentication: a random 256-bit token generated at start and written with mode 0600 to `<cache>/api.json` together with the port; clients send `Authorization: Bearer <token>`. Requests with a `Host` header other than `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` are rejected (DNS rebinding), and so are requests with an `Origin` header (no browser access).
-- Port: `--port`, default 0 (any free port, SR-081).
+- `node:http`, bound to `127.0.0.1` and `::1` only (`LOOPBACK_HOSTS`), one server per address on the same port; `::1` is skipped where the machine has no IPv6. There is no option to bind elsewhere (SR-079 AK1, AK3); the bind address is a constant and a test greps for it.
+- `POST /v1/commands/<name>` with the command input as JSON body (an empty body is `{}`; at most 32 MiB, else 413 as soon as the body passes the limit; the rest is read and dropped for at most another 32 MiB, so the client gets the answer, then the connection is cut); the answer is exactly the command output (200, also with error findings or `ok: false`). `GET /v1/commands` returns the catalog entries, each with `implemented` (false for commands of a later stage, as "(not implemented yet)" in the CLI help). Other paths are 404, other methods 405 with `Allow`; such refusals carry an `input.invalid` error object.
+- Authentication: a random 256-bit token generated at start and written with mode 0600 to `<cache>/api.json` together with the port, the URLs and the process ID (`schemas/api-endpoint.schema.json`; `<cache>` is the cache folder of the working copy, ADR-0008). On Windows the mode bits do not apply; the file is private because `%LOCALAPPDATA%` in the user profile is readable only by the user, SYSTEM and administrators (its default ACL). Clients send `Authorization: Bearer <token>` (the scheme in any case), else 401. Requests with a `Host` header other than `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>` (the port of the connection) are rejected with 403 (DNS rebinding), and so are requests with an `Origin` header (no browser access). The checks run before any command.
+- One API per working copy: while `api.json` names a process that runs, a second `serve api` for the same copy refuses to start (`input.invalid`); a file left by a stopped API is replaced. The API removes its own `api.json` when it stops.
+- A request whose client goes away, and every running request when the server stops, is aborted through the command's abort signal.
+- Port: `--port`, default 0 (any free port, SR-081). With 0, when `::1` has the port taken that `127.0.0.1` got, the server tries again with a new free port (at most 5 times). A port in use or reserved is `input.invalid` (exit code 2).
+- One workspace per server process, found as for CLI commands (`--workspace`, else upwards, else the current folder) and kept open until the server stops. The server runs until Ctrl-C or SIGTERM and then ends with exit code 0.
 
 **MCP server (`packages/mcp`)** — `logreq mcp`.
-- Official `@modelcontextprotocol/sdk`, **stdio** transport only. No network listener at all (SR-079).
-- One tool per command (`group_action`), input and output schemas from `schemas/generated/mcp-tools.json`; read commands carry `readOnlyHint`. Results as structured content plus a short text rendering.
+- The official MCP TypeScript SDK, v2 package `@modelcontextprotocol/server` (Apache-2.0; its runtime dependencies are only `@modelcontextprotocol/core` and `zod`; the v1 package `@modelcontextprotocol/sdk` brings `express`, `hono` and other HTTP server code). **stdio** transport only, as newline-delimited JSON-RPC over the CLI's standard input and output (`LineTransport`, framing by the SDK); the SDK's `serveStdio` serves both protocol eras. No network listener at all (SR-079). Nothing else is written to standard output.
+- One tool per command (`group_action`), also for commands not implemented yet (their description ends with "(not implemented yet)"; a call gives core's `input.invalid`). Input and output schemas are those of `schemas/generated/mcp-tools.json`, derived from the runtime catalog with the same `$ref` rewriting (a test checks equality for the product catalog); each tool schema carries the `$defs` it uses, so it is self-contained. Every output schema has `type: "object"` at its root, also next to a `$ref` (`data.export`); `catalog.meta.schema.json` requires it, because 2025-era clients would otherwise get the result wrapped as `{ result }`. Read commands carry `readOnlyHint`. Input validation is core's alone (the SDK's check accepts everything), so a wrong input is the same `input.invalid` as on every access.
+- Results: the command output as `structuredContent` and the same JSON as text content (MCP recommends both). A `CommandError` of any class is a tool error (`isError: true`) with the error object as JSON text only. There is no `structuredContent`, because MCP requires it to match the tool's output schema, and the error object does not.
+- One workspace per session, found as for CLI commands. The server runs until its standard input ends, Ctrl-C or SIGTERM, and then ends with exit code 0.
 - LogReq never starts or controls agents (D-029).
+
+The CLI starts both servers (`logreq serve api`, `logreq mcp`); they are its only commands outside the catalog, and no catalog group may be named `serve` or `mcp`. Start failures are printed and mapped like command errors.
 
 **App** calls the same commands via IPC (ADR-0010).
 
-**Errors.** Every adapter maps `CommandError.code` (`common.schema.json#/$defs/error`) with one table: `errorClass(code)` and `COMMAND_ERROR_CLASSES` in `packages/core/src/catalog.ts`, which the compiler (its `Record<CommandErrorCode, ...>` type) and a test keep complete. Each adapter maps the class; the API and MCP mapping is part of #125.
+**Errors.** Every adapter maps `CommandError.code` (`common.schema.json#/$defs/error`) with one table: `errorClass(code)` and `COMMAND_ERROR_CLASSES` in `packages/core/src/catalog.ts`, which the compiler (its `Record<CommandErrorCode, ...>` type) and a test keep complete. Each adapter maps the class: the CLI to an exit code (`EXIT_BY_CLASS`), the API to an HTTP status with the error object as body (`HTTP_STATUS_BY_CLASS`, documented in `openapi.json`), the MCP server to a tool error with the error object (every class).
 
-| Class | Codes | CLI exit code |
-|---|---|---|
-| `input` | `input.invalid`, `ref.ambiguous`, `relation.not-allowed`, `variant.nested`, `reqif.invalid`, `reqif.unmapped` | 2 |
-| `not-found` | `ref.unknown`, `element.not-found`, `workspace.not-found`, `file.folder-missing` | 2 |
-| `conflict` | `workspace.read-only`, `element.read-only`, `file.read-only`, `file.changed-on-disk`, `file.faulty`, `file.not-regular`, `baseline.uncommitted-changes`, `metamodel.meaning-unassigned` | 2 |
-| `unavailable` | `git.unavailable` | 2 |
-| `internal` | `internal` | 3 |
+| Class | Codes | CLI exit code | HTTP status |
+|---|---|---|---|
+| `input` | `input.invalid`, `ref.ambiguous`, `relation.not-allowed`, `variant.nested`, `reqif.invalid`, `reqif.unmapped` | 2 | 400 |
+| `not-found` | `ref.unknown`, `element.not-found`, `workspace.not-found`, `file.folder-missing` | 2 | 404 |
+| `conflict` | `workspace.read-only`, `element.read-only`, `file.read-only`, `file.changed-on-disk`, `file.faulty`, `file.not-regular`, `baseline.uncommitted-changes`, `metamodel.meaning-unassigned` | 2 | 409 |
+| `unavailable` | `git.unavailable` | 2 | 503 |
+| `internal` | `internal` | 3 | 500 |
 
 A new code is added to the schema and to `COMMAND_ERROR_CLASSES` in the same PR; its type `Record<CommandErrorCode, ...>`, with `CommandErrorCode` generated from the schema (ADR-0003), does not compile until the new code is classified. `internal` errors carry no original error text (it stays in `cause` for local logs). Messages of `CommandError`s thrown on purpose by commands and blocks are sent as they are; they may name file paths relative to the workspace, never absolute paths or element content. A call aborted by its caller (closed window, cancelled request, the abort signal) ends as `internal` with `details.aborted: true`; there is no separate code because nobody is left to act on it.
 
-**Same result everywhere (SR-080 AK2):** adapters only translate transport. Output objects are produced by `core`; adapters must not reshape them. The cross-access test (ADR-0011) enforces this.
+**Same result everywhere (SR-080 AK2):** adapters only translate transport. Output objects are produced by `core`; adapters must not reshape them. The cross-access test (ADR-0011, `packages/cli/test/cross-access.test.ts`) enforces this: every catalog command runs through core `invoke`, `runCli` (with `argvFor`), the API and the MCP server on the same fixture workspace, with a default scenario (input `{}`) and the explicit scenarios listed there, and the outputs or error objects must be equal. Read commands share one copy of the fixture; write commands get a fresh copy per access; absolute fixture paths are compared as `<root>`. A new catalog command joins with the default scenario; whoever implements it adds explicit scenarios.
 
 **Open for stage 6:** the `mapping` fields of the `reqif.*` commands and `reqif.saveMapping.file` are typed `common.schema.json#/$defs/localPath`, but SR-054 AK1 stores the mapping "als YAML-Datei im Repository". Before stage 6 they become repository-relative, or the commands check that an absolute path lies inside a repository.
 

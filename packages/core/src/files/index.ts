@@ -15,6 +15,7 @@ export type {
   YamlReadResult,
 } from "./read.js";
 export type { FileSnapshot } from "./snapshot.js";
+export { removePrivateFile, writePrivateFile } from "./private.js";
 export { isTempFile, TEMP_FILE_PATTERN, writeFileAtomic } from "./write.js";
 export type { FileKind, WriteOptions } from "./write.js";
 export { editElementFile } from "./edit.js";

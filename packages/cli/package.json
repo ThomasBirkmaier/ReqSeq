@@ -22,11 +22,14 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@logreq/api": "workspace:*",
     "@logreq/core": "workspace:*",
+    "@logreq/mcp": "workspace:*",
     "commander": "15.0.0",
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@logreq/testkit": "workspace:*"
+    "@logreq/testkit": "workspace:*",
+    "@modelcontextprotocol/client": "2.3.1"
   }
 }

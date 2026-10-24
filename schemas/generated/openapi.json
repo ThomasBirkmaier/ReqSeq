@@ -3,7 +3,7 @@
   "info": {
     "title": "LogReq local API",
     "version": "0.0.0",
-    "description": "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 only (SR-079). Every request needs `Authorization: Bearer <token>` from the token file of the running instance (ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080)."
+    "description": "Generated from schemas/commands/catalog.json. Listens on 127.0.0.1 and ::1 only (SR-079). Every request needs `Authorization: Bearer <token>` from api.json in the cache folder of the working copy (schemas/api-endpoint.schema.json, ADR-0009). One endpoint per command; same input, output and errors as CLI and MCP (SR-080)."
   },
   "servers": [
     {
@@ -21,6 +21,118 @@
     }
   ],
   "paths": {
+    "/v1/commands": {
+      "get": {
+        "operationId": "commands_list",
+        "summary": "The command catalog, each entry with whether this version implements it.",
+        "responses": {
+          "200": {
+            "description": "Catalog",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "commands"
+                  ],
+                  "properties": {
+                    "commands": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "name",
+                          "summary",
+                          "effect",
+                          "stage",
+                          "implements",
+                          "input",
+                          "output",
+                          "implemented"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[a-z]+\\.[a-z][A-Za-z]*$",
+                            "description": "group.action; CLI `logreq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`."
+                          },
+                          "summary": {
+                            "type": "string",
+                            "minLength": 10
+                          },
+                          "effect": {
+                            "enum": [
+                              "read",
+                              "write-files"
+                            ],
+                            "description": "No command writes to Git (D-036). No command deletes elements (D-045)."
+                          },
+                          "stage": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 6,
+                            "description": "Stage of D-035 in which the command is built."
+                          },
+                          "implements": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^SR-\\d{3}$"
+                            }
+                          },
+                          "input": {
+                            "type": "object"
+                          },
+                          "output": {
+                            "type": "object",
+                            "required": [
+                              "type"
+                            ],
+                            "properties": {
+                              "type": {
+                                "const": "object"
+                              }
+                            },
+                            "description": "Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009)."
+                          },
+                          "implemented": {
+                            "type": "boolean",
+                            "description": "False for catalog commands of a later stage."
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/commands/workspace.init": {
       "post": {
         "operationId": "workspace_init",
@@ -100,7 +212,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -110,10 +222,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -123,7 +252,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -133,7 +272,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -254,7 +403,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -264,10 +413,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -277,7 +443,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -287,7 +463,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -389,7 +575,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -399,10 +585,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -412,7 +615,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -422,7 +635,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -535,7 +758,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -545,10 +768,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -558,7 +798,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -568,7 +818,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -672,7 +932,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -682,10 +942,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -695,7 +972,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -705,7 +992,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -780,7 +1077,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -790,10 +1087,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -803,7 +1117,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -813,7 +1137,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -888,7 +1222,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -898,10 +1232,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -911,7 +1262,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -921,7 +1282,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1017,7 +1388,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1027,10 +1398,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1040,7 +1428,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1050,7 +1448,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1179,7 +1587,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1189,10 +1597,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1202,7 +1627,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1212,7 +1647,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1294,7 +1739,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1304,10 +1749,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1317,7 +1779,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1327,7 +1799,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1414,7 +1896,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1424,10 +1906,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1437,7 +1936,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1447,7 +1956,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1576,7 +2095,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1586,10 +2105,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1599,7 +2135,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1609,7 +2155,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1682,7 +2238,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1692,10 +2248,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1705,7 +2278,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1715,7 +2298,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1805,7 +2398,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1815,10 +2408,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1828,7 +2438,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1838,7 +2458,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1922,7 +2552,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -1932,10 +2562,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1945,7 +2592,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1955,7 +2612,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2037,7 +2704,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2047,10 +2714,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2060,7 +2744,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2070,7 +2764,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2180,7 +2884,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2190,10 +2894,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2203,7 +2924,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2213,7 +2944,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2305,7 +3046,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2315,10 +3056,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2328,7 +3086,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2338,7 +3106,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2429,7 +3207,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2439,10 +3217,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2452,7 +3247,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2462,7 +3267,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2548,7 +3363,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2558,10 +3373,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2571,7 +3403,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2581,7 +3423,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2666,7 +3518,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2676,10 +3528,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2689,7 +3558,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2699,7 +3578,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2808,7 +3697,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2818,10 +3707,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2831,7 +3737,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2841,7 +3757,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2917,7 +3843,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -2927,10 +3853,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2940,7 +3883,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2950,7 +3903,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3040,7 +4003,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3050,10 +4013,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3063,7 +4043,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3073,7 +4063,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3158,7 +4158,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3168,10 +4168,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3181,7 +4198,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3191,7 +4218,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3305,7 +4342,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3315,10 +4352,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3328,7 +4382,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3338,7 +4402,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3441,7 +4515,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3451,10 +4525,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3464,7 +4555,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3474,7 +4575,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3551,7 +4662,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3561,10 +4672,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3574,7 +4702,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3584,7 +4722,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3689,7 +4837,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3699,10 +4847,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3712,7 +4877,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3722,7 +4897,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3802,7 +4987,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3812,10 +4997,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3825,7 +5027,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3835,7 +5047,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3882,13 +5104,14 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "object",
                   "$ref": "#/components/schemas/data-export"
                 }
               }
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -3898,10 +5121,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3911,7 +5151,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3921,7 +5171,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3998,7 +5258,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4008,10 +5268,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4021,7 +5298,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4031,7 +5318,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4126,7 +5423,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4136,10 +5433,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4149,7 +5463,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4159,7 +5483,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4244,7 +5578,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4254,10 +5588,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4267,7 +5618,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4277,7 +5638,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4356,7 +5727,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4366,10 +5737,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4379,7 +5767,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4389,7 +5787,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4466,7 +5874,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4476,10 +5884,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4489,7 +5914,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4499,7 +5934,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4584,7 +6029,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4594,10 +6039,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4607,7 +6069,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4617,7 +6089,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4708,7 +6190,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4718,10 +6200,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4731,7 +6230,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4741,7 +6250,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4856,7 +6375,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -4866,10 +6385,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -4879,7 +6415,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4889,7 +6435,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5009,7 +6565,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -5019,10 +6575,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -5032,7 +6605,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5042,7 +6625,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5120,7 +6713,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -5130,10 +6723,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -5143,7 +6753,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5153,7 +6773,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5254,7 +6884,7 @@
             }
           },
           "400": {
-            "description": "Command error",
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
             "content": {
               "application/json": {
                 "schema": {
@@ -5264,10 +6894,27 @@
             }
           },
           "401": {
-            "description": "Missing or wrong token"
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Command error",
+            "description": "Command error of class not-found",
             "content": {
               "application/json": {
                 "schema": {
@@ -5277,7 +6924,17 @@
             }
           },
           "409": {
-            "description": "Command error",
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5287,7 +6944,17 @@
             }
           },
           "500": {
-            "description": "Command error",
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5308,6 +6975,48 @@
       }
     },
     "schemas": {
+      "api-endpoint": {
+        "title": "API endpoint file",
+        "description": "`api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
+        "type": "object",
+        "required": [
+          "logreq-api",
+          "port",
+          "token",
+          "urls",
+          "pid"
+        ],
+        "properties": {
+          "logreq-api": {
+            "const": 1
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "256 random bits, base64url without padding; new at every start."
+          },
+          "urls": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[0-9]+$"
+            },
+            "description": "Base URLs, one per loopback address the API listens on (`::1` only where the machine has IPv6)."
+          },
+          "pid": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Process ID of the API."
+          }
+        },
+        "additionalProperties": false
+      },
       "baseline": {
         "title": "Baseline file",
         "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",

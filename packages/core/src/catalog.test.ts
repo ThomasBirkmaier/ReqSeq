@@ -121,7 +121,7 @@ describe("CommandError", () => {
             stage: 1,
             implements: ["SR-080"],
             input: { type: "object" },
-            output: { $ref: "../common.schema.json#/$defs/error" },
+            output: { type: "object", $ref: "../common.schema.json#/$defs/error" },
           },
         ],
       },

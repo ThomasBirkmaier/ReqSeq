@@ -36,7 +36,12 @@
             "items": { "type": "string", "pattern": "^SR-\\d{3}$" }
           },
           "input": { "type": "object" },
-          "output": { "type": "object" }
+          "output": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "object" } },
+            "description": "Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009)."
+          }
         },
         "additionalProperties": false
       }
