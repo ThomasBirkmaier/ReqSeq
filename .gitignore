@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+coverage/
+*.log
+.DS_Store
+scripts/spec-export/raw/
+issue-backup-*.json
+trace-*.md
+test-results/
