@@ -14,6 +14,14 @@ export default defineConfig({
     // The performance suite runs apart, nightly and with label `perf`: `pnpm test:perf` (vitest.perf.config.ts).
     exclude: [...configDefaults.exclude, "packages/*/test/e2e/**", "packages/*/test/perf/**"],
     setupFiles: ["./scripts/test-support/block-network.mjs"],
+    // Most unit tests build Git fixtures and so spawn git many times (core, cli, testkit). On a
+    // loaded windows-2025 runner a process start takes 0.1 s to more than 1 s, and such tests went over
+    // the default 5 s although nothing hung (#206: tests of SR-004, SR-011, SR-018 and SR-084).
+    // 30 s, as in vitest.e2e.config.ts, is several times the slowest passing run seen (about 4.3 s)
+    // and still ends a real hang. Hooks build fixtures too, so they get the same bound (default 10 s).
+    // Tests with their own timeout keep it.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { LOGREQ_VALIDATE_OUTPUT: "1" },
     reporters: ["default", ["junit", { outputFile: "test-results/junit.xml", addFileAttribute: true }]],
