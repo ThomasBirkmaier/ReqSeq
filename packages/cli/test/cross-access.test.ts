@@ -30,12 +30,48 @@ interface Scenario {
   readonly input: Readonly<Record<string, unknown>>;
   /** What core gives; guards against a scenario that only ever compares the same error. */
   readonly expect: "output" | "error";
+  /**
+   * The output names a new element with a random UUID: its UUID, the 12 and 6 digit tails (file name,
+   * short ID) and its version are replaced by placeholders in the outcome and the files before comparing.
+   */
+  readonly newElement?: boolean;
 }
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
 
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  "element.create": [
+    {
+      name: "new element in a new folder",
+      input: {
+        type: "system-requirement",
+        title: "Show gusts",
+        text: "The station shows gusts.\n",
+        folder: "requirements/new",
+        properties: {
+          "requirement-type": "functional",
+          "acceptance-criteria": ["Given a gust, then it is shown."],
+        },
+      },
+      expect: "output",
+      newElement: true,
+    },
+    { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
+  ],
+  "element.update": [
+    {
+      name: "rename and set a property",
+      input: {
+        ref: "SR-e88fb3",
+        title: "Show the wind speed",
+        text: "New text.\n",
+        set: { rationale: "Pilots" },
+      },
+      expect: "output",
+    },
+    { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [
@@ -301,9 +337,31 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
           : access === "api"
             ? await viaApi(root, entry, input, cache)
             : await viaMcp(root, entry, input);
-    results[access] = normalized({ outcome, files: await filesOf(top) }, top) as Result;
+    const result = normalized({ outcome, files: await filesOf(top) }, top) as Result;
+    results[access] = scenario.newElement === true ? maskNewElement(result) : result;
   }
   return results;
+};
+
+/** The id of the new element in `result` replaced everywhere by placeholders (see `Scenario.newElement`). */
+const maskNewElement = (result: Result): Result => {
+  const element = (result.outcome as { output?: { element?: { id?: string; version?: string } } }).output
+    ?.element;
+  if (element?.id === undefined || element.version === undefined) {
+    return result;
+  }
+  const digits = element.id.replaceAll("-", "");
+  return JSON.parse(
+    JSON.stringify(result)
+      .split(element.id)
+      .join("<id>")
+      .split(element.version)
+      .join("<version>")
+      .split(digits.slice(-12))
+      .join("<tail12>")
+      .split(digits.slice(-6))
+      .join("<tail6>"),
+  ) as Result;
 };
 
 const DEFAULT: Scenario = { name: "default input {}", input: {}, expect: "output" };

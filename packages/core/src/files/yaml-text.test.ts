@@ -181,4 +181,10 @@ describe("renderItem and renderValue", () => {
     expect(renderValue([], "  ", "\n")).toBe(" []");
     expect(renderValue(["a", { id: "b" }], "  ", "\r\n")).toBe("\r\n  - a\r\n  - { id: b }");
   });
+
+  it("renders one relation target as one flow mapping on the key line", () => {
+    expect(renderValue({ id: "b", version: "n1:7d865e959b2466f0" }, "  ", "\n")).toBe(
+      " { id: b, version: n1:7d865e959b2466f0 }",
+    );
+  });
 });

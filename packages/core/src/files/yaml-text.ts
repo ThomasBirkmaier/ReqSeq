@@ -13,8 +13,11 @@ export type ScalarValue = string | number | boolean | null;
 /** A mapping in a list, for example a relation target `{ id, version, title }`. */
 export type FlowMappingValue = Readonly<Record<string, ScalarValue>>;
 export type ItemValue = ScalarValue | FlowMappingValue;
-/** What a command may write under a top-level key: a scalar or a list (ADR-0004). */
-export type PropertyValue = ScalarValue | readonly ItemValue[];
+/**
+ * What a command may write under a top-level key: a scalar, one relation target (a property with
+ * one target, `element.schema.json#/$defs/value`) or a list (ADR-0004).
+ */
+export type PropertyValue = ScalarValue | FlowMappingValue | readonly ItemValue[];
 
 /** Where a scalar stands; plain style is checked in exactly that place. */
 type Context = "key" | "value" | "item" | "flow-key" | "flow-value";
@@ -121,7 +124,7 @@ export const renderScalar = (value: ScalarValue, context: Context): string => {
 
 export const renderKey = (key: string): string => renderScalar(key, "key");
 
-const isFlowMapping = (value: ItemValue): value is FlowMappingValue =>
+const isFlowMapping = (value: PropertyValue): value is FlowMappingValue =>
   typeof value === "object" && value !== null;
 
 /**
@@ -143,12 +146,14 @@ export const renderItemLines = (items: readonly ItemValue[], indent: string, eol
   items.map((item) => `${indent}- ${renderItem(item)}`).join(eol);
 
 /**
- * Text of a value after `key:`. A scalar or an empty list is ` value` on the key line; a list
- * starts on the next line, its items at `itemIndent`. No final line ending.
+ * Text of a value after `key:`. A scalar, one relation target (one flow mapping) or an empty list
+ * is ` value` on the key line; a list starts on the next line, its items at `itemIndent`. No final
+ * line ending.
  */
 export const renderValue = (value: PropertyValue, itemIndent: string, eol: LineEnding): string => {
   if (!Array.isArray(value)) {
-    return ` ${renderScalar(value as ScalarValue, "value")}`;
+    const single = value as ScalarValue | FlowMappingValue;
+    return ` ${isFlowMapping(single) ? renderItem(single) : renderScalar(single, "value")}`;
   }
   return value.length === 0 ? " []" : `${eol}${renderItemLines(value, itemIndent, eol)}`;
 };

@@ -248,6 +248,16 @@ describe("SR-102 AK2: a hand-written key order is kept", () => {
 });
 
 describe("editElementFile: values", () => {
+  it("writes one relation target as a flow mapping on the key line and replaces it", () => {
+    const target = { id: U1, version: "n1:7d865e959b2466f0", title: "Wind" };
+    const once = edit("---\nid: x\n---\n", { edits: [set("parent", target)] });
+    expect(once).toBe(`---\nid: x\nparent: { id: ${U1}, version: n1:7d865e959b2466f0, title: Wind }\n---\n`);
+    expect(edit(once, { edits: [set("parent", { ...target, version: "n1:0000000000000000" })] })).toBe(
+      `---\nid: x\nparent: { id: ${U1}, version: n1:0000000000000000, title: Wind }\n---\n`,
+    );
+    expect(edit(once, { edits: [set("parent", target)] })).toBe(once);
+  });
+
   it("turns a scalar into a list and a list into a scalar", () => {
     expect(edit("---\na: x # c\nb: 1\n---\n", { edits: [set("a", ["p", "q"])] })).toBe(
       "---\na:\n  - p\n  - q # c\nb: 1\n---\n",

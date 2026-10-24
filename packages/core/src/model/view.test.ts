@@ -1,0 +1,188 @@
+import { createFixtureWorkspace } from "@logreq/testkit";
+import { describe, expect, it, onTestFinished } from "vitest";
+import type { FileSnapshot, ParsedFile } from "../files/index.js";
+import { parseFileBytes } from "../files/index.js";
+import type { Metamodel } from "../metamodel/index.js";
+import { metamodelState } from "../metamodel/index.js";
+import { Workspace } from "../runtime/workspace.js";
+import { computeVersion } from "../version/version.js";
+import { classifyFile } from "./elements.js";
+import type { ElementRecord } from "./elements.js";
+import { buildShortIds } from "./short-id.js";
+import type { ElementStore } from "./store.js";
+import { elementStoreState } from "./store.js";
+import { elementView } from "./view.js";
+import { writtenElement } from "./write.js";
+
+const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
+const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
+const OTHER = "0b7c6e1a-1111-4222-8333-444455556666";
+
+const snapshotOf = (path: string): FileSnapshot => ({ path, size: 0, mtimeMs: 0, sha256: "0".repeat(64) });
+
+const parsedFile = (text: string, path = "x.md"): ParsedFile => {
+  const outcome = parseFileBytes(path, new TextEncoder().encode(text));
+  if (outcome.kind !== "parsed") {
+    throw new Error("does not parse");
+  }
+  return { ...outcome.content, path, snapshot: snapshotOf(path) };
+};
+
+const recordOf = (file: ParsedFile): ElementRecord => {
+  const classified = classifyFile("system", file);
+  if (classified.kind !== "element") {
+    throw new Error("not an element");
+  }
+  return classified.element;
+};
+
+const context = async (): Promise<{ metamodel: Metamodel; store: ElementStore }> => {
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-001/two-elements",
+    files: { "copy/SR-1d2e3f4a5b6c.md": `---\nid: ${GUSTS}\ntype: need\nstatus: draft\ntitle: Copy\n---\n` },
+  });
+  onTestFinished(() => fixture.cleanup());
+  const workspace = new Workspace(fixture.root);
+  onTestFinished(() => workspace.close());
+  return { metamodel: await workspace.get(metamodelState), store: await workspace.get(elementStoreState) };
+};
+
+describe("elementView", () => {
+  it("gives relations to targets in the store, missing and duplicated ones, and skips malformed items", async () => {
+    const { metamodel, store } = await context();
+    const file = parsedFile(
+      [
+        "---",
+        `id: ${OTHER}`,
+        "type: system-requirement",
+        "status: draft",
+        "title: Many relations",
+        "derives-from:",
+        `  - { id: ${WIND}, version: n1:0000000000000000 }`,
+        `  - { id: ${GUSTS}, version: not-a-version }`,
+        "  - { id: not-a-uuid, version: n1:0000000000000000 }",
+        "  - plain text",
+        `refines: { id: 9a9a9a9a-1111-4222-8333-444455556666, version: n1:1111111111111111 }`,
+        "---",
+        "",
+      ].join("\n"),
+    );
+    const record = recordOf(file);
+    const view = elementView({
+      record,
+      file,
+      metamodel,
+      store,
+      shortIds: buildShortIds(store.byId, metamodel),
+      titleKey: "title",
+    });
+    expect(view.relations).toEqual([
+      {
+        kind: "refines",
+        meaning: "derivation",
+        direction: "out",
+        id: "9a9a9a9a-1111-4222-8333-444455556666",
+        accessible: false,
+        storedVersion: "n1:1111111111111111",
+      },
+      {
+        kind: "derives-from",
+        meaning: "derivation",
+        direction: "out",
+        id: WIND,
+        shortId: "SR-e88fb3",
+        title: "Show wind speed",
+        accessible: true,
+        storedVersion: "n1:0000000000000000",
+      },
+      // Two files share this UUID (SR-088): which one is meant is unknown, so it is not accessible.
+      { kind: "derives-from", meaning: "derivation", direction: "out", id: GUSTS, accessible: false },
+    ]);
+  });
+
+  it("names a relation kind without meaning without one, and a target title only when it is text", async () => {
+    const { metamodel, store } = await context();
+    const decision = recordOf(
+      parsedFile(`---\nid: ${OTHER}\ntype: decision\nstatus: draft\ntitle: 7\n---\n`),
+    );
+    const byId = new Map([...store.byId, [OTHER, [decision]]]);
+    const file = parsedFile(
+      `---\nid: ${GUSTS}\ntype: system-requirement\nstatus: draft\ntitle: x\nbased-on:\n  - { id: ${OTHER}, version: n1:0000000000000000 }\n---\n`,
+    );
+    const view = elementView({
+      record: recordOf(file),
+      file,
+      metamodel,
+      store: { ...store, byId },
+      shortIds: buildShortIds(byId, metamodel),
+      titleKey: "title",
+    });
+    expect(view.relations).toEqual([
+      {
+        kind: "based-on",
+        direction: "out",
+        id: OTHER,
+        shortId: "D-556666",
+        accessible: true,
+        storedVersion: "n1:0000000000000000",
+      },
+    ]);
+  });
+
+  it("shows a status and title that are not text as empty and counts no property of an unknown type", async () => {
+    const { metamodel, store } = await context();
+    const file = parsedFile(`---\nid: ${OTHER}\ntype: gadget\nstatus: 3\ntitle: [a]\nweight: 2\n---\nBody\n`);
+    const record = recordOf(file);
+    const view = elementView({
+      record,
+      file,
+      metamodel,
+      store,
+      shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),
+      titleKey: "title",
+    });
+    expect(view).toMatchObject({
+      status: "",
+      title: "",
+      text: "Body\n",
+      properties: { weight: 2 },
+      version: computeVersion({ text: "Body\n", properties: {}, definitions: [], files: [] }),
+    });
+  });
+
+  it("gives a value-kind hint without a line when the file at hand does not hold the value", async () => {
+    const { metamodel, store } = await context();
+    const file = parsedFile(`---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\n---\n`);
+    const record: ElementRecord = {
+      ...recordOf(file),
+      data: { ...recordOf(file).data, "requirement-type": "odd" },
+    };
+    const view = elementView({
+      record,
+      file,
+      metamodel,
+      store,
+      shortIds: buildShortIds(new Map([[OTHER, [record]]]), metamodel),
+      titleKey: "title",
+    });
+    expect(view.problems).toEqual([expect.objectContaining({ code: "element.wrong-value-kind" })]);
+    expect(view.problems[0]).not.toHaveProperty("line");
+  });
+});
+
+describe("writtenElement", () => {
+  it("reads written bytes back as an element", () => {
+    const bytes = new TextEncoder().encode(`---\nid: ${OTHER}\ntype: need\nstatus: draft\n---\n`);
+    const written = writtenElement("system", bytes, snapshotOf("n/N-444455556666.md"));
+    expect(written.record).toMatchObject({ id: OTHER, file: "n/N-444455556666.md", repository: "system" });
+    expect(written.file.snapshot).toEqual(snapshotOf("n/N-444455556666.md"));
+  });
+
+  it("is an internal error when the bytes are no element", () => {
+    for (const text of ["no frontmatter\n", "---\ntitle: x\n---\n"]) {
+      expect(() => writtenElement("system", new TextEncoder().encode(text), snapshotOf("a.md"))).toThrow(
+        expect.objectContaining({ code: "internal" }),
+      );
+    }
+  });
+});

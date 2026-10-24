@@ -3,6 +3,8 @@
 export { ELEMENT_FILE_EXTENSION, listMarkdownFiles } from "./discover.js";
 export type { DiscoveredFiles } from "./discover.js";
 export { classifyFile } from "./elements.js";
+export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
+export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
 export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./duplicates.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
@@ -21,3 +23,8 @@ export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.
 export { isRelationTarget, resolveTarget } from "./relations.js";
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
+export { resolveRef } from "./resolve.js";
+export { elementView, titleKeyOf } from "./view.js";
+export type { ElementViewInput } from "./view.js";
+export { createElement, updateElement, writtenElement } from "./write.js";
+export type { CreateElementInput, ElementWriteResult, ReadElement, UpdateElementInput } from "./write.js";

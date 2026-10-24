@@ -12,6 +12,7 @@ import { fileSchemaValidator } from "../runtime/contracts.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
+import { STRUCTURAL_KEYS } from "./elements.js";
 import { locateFindings } from "./locate.js";
 import { isRelationTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
@@ -19,9 +20,6 @@ import { elementStoreState } from "./store.js";
 
 /** Value kind (Wertart) of a property; a relation kind holds relation targets. */
 export type ValueKind = MetamodelProperty["kind"];
-
-/** The keys every element has (D-012); they are no properties, so their values are not checked here. */
-const STRUCTURAL_KEYS: ReadonlySet<string> = new Set(["id", "type", "status"]);
 
 /** Where a wrong value sits in the frontmatter: its key, and the index of the item in a list. */
 export type ValuePath = readonly [key: string] | readonly [key: string, item: number];
@@ -218,7 +216,7 @@ const keyFindings = (
 const collect = (element: ElementRecord, definitions: Definitions, out: ValueFinding[]): void => {
   for (const [key, value] of Object.entries(element.data)) {
     const definition = definitions(key);
-    if (definition !== undefined && !STRUCTURAL_KEYS.has(key)) {
+    if (definition !== undefined && !STRUCTURAL_KEYS.includes(key)) {
       keyFindings(element, key, definition, value, out);
     }
   }

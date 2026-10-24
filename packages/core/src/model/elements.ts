@@ -49,8 +49,12 @@ export type Classified =
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isUuid = (value: unknown): value is string =>
+/** A UUID as LogReq writes it: version 4, lower case (`common.schema.json#/$defs/uuid`, D-017). */
+export const isUuid = (value: unknown): value is string =>
   fileSchemaValidator("common.schema.json#/$defs/uuid")(value);
+
+/** The keys every element has (D-012): fields of their own, never properties. */
+export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
 
 /**
  * The line in the file of the value at `path` (a top-level key, then list indexes or keys; line 1
