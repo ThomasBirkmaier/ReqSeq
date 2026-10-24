@@ -122,10 +122,10 @@ async function execute(
   } catch (caught) {
     const error = asCommandError(caught);
     options.stderr.write(renderError(error, invocation.json));
-    return exitCodeFor(error);
+    return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
   options.stdout.write(invocation.json ? renderJson(output) : renderHuman(output));
-  return outcomeExitCode(output);
+  return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }
 
 /** Run `logreq` with these arguments and return the exit code. Never rejects. */

@@ -24,6 +24,7 @@ beforeEach(async () => {
       "utf16le.json": utf16('{"title":"Größe 測試"}', false),
       "utf16be.json": utf16('{"title":"Größe 測試"}', true),
       "odd.json": Buffer.from([0xfe, 0xff, 0x00, 0x7b, 0x00]),
+      "odd-le.json": Buffer.from([0xff, 0xfe, 0x7b, 0x00, 0x7d]),
       "sub/list.json": "[1]",
     },
   });
@@ -62,6 +63,8 @@ describe("readInputOption", () => {
     expect(await readInputOption("@utf16be.json", fixture.root, noStdin)).toEqual({ title: "Größe 測試" });
     const odd = await rejection(readInputOption("@odd.json", fixture.root, noStdin));
     expect(odd.message).toBe("Input from odd.json is not valid UTF-16");
+    const oddLe = await rejection(readInputOption("@odd-le.json", fixture.root, noStdin));
+    expect(oddLe.message).toBe("Input from odd-le.json is not valid UTF-16");
     const stdin = Readable.from([utf16('{"a":1}', false)]);
     expect(await readInputOption("-", fixture.root, stdin)).toEqual({ a: 1 });
   });

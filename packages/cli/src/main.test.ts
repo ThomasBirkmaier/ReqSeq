@@ -437,6 +437,19 @@ describe("logreq <group> <action>", () => {
     });
   });
 
+  it("exits 130 whenever the signal is aborted when the command finishes", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const failed = await run(["test", "close-fails", "--fail"], { signal: controller.signal });
+    expect(failed).toEqual({
+      code: EXIT.aborted,
+      stdout: "",
+      stderr: "error element.read-only: The command's own error\n",
+    });
+    const finished = await run(["other", "ping"], { signal: controller.signal });
+    expect(finished.code).toBe(EXIT.aborted);
+  });
+
   it("prints usage errors as an error object with --json", async () => {
     const result = await run(["test", "nope", "--json"]);
     expect(result.code).toBe(EXIT.usage);

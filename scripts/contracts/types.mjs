@@ -316,7 +316,8 @@ export function generateTypes({ schemas, meta, catalog }, { renames = RENAMES } 
    * ctx.file: the schema file refs are relative to. ctx.fill (command input): `default` makes a
    * property required, because the input validator fills it in (Ajv useDefaults), also through
    * allOf and $ref: a referenced schema that reaches a default is used as `<name>WithDefaults`.
-   * Off below anyOf and oneOf, where Ajv does not apply defaults.
+   * Off below anyOf, oneOf and in if/then/else: there the type keeps such properties optional; Ajv may
+   * still fill them, which optional covers.
    */
   function toNode(s, ctx) {
     if (s === true) {

@@ -12,7 +12,7 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 - Catalog commands without implementation are listed in the help with "(not implemented yet)"; calling one gives core's `input.invalid` (exit code 2). So the help always shows the whole catalog.
 - Default output is human-readable English: the output object without `problems` as YAML, then one line per problem (`severity  code  file:line  message  (element <uuid>)`, or `No problems.`). `--json` prints exactly the command output (SR-019 AK3). Problems go to stdout in both modes; errors go to stderr, as `error <code>: <message>` or, with `--json`, as the error object; with `--json` usage errors (unknown command or option) are the error object `{ "code": "input.invalid", "message": ... }` too. Output is UTF-8 and never colored.
 - Closed pipe: when the reader of stdout or stderr goes away (`EPIPE`, e.g. `logreq ... | head`), the rest of that output is dropped quietly and the exit code stays the command's. Any other write error ends with exit code 3.
-- Ctrl-C and SIGTERM abort the running command through its abort signal; the workspace is still closed, and the call ends with exit code 130. A second signal ends the process at once with 130.
+- Ctrl-C and SIGTERM abort the running command through its abort signal; the workspace is still closed, and the call ends with exit code 130 whenever the signal is aborted when the command finishes, whatever the command returned or failed with. A second signal ends the process at once with 130.
 - Exit codes:
 
   | Code | Meaning |
@@ -55,6 +55,8 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
 A new code is added to the schema and to `COMMAND_ERROR_CLASSES` in the same PR; its type `Record<CommandErrorCode, ...>`, with `CommandErrorCode` generated from the schema (ADR-0003), does not compile until the new code is classified. `internal` errors carry no original error text (it stays in `cause` for local logs). Messages of `CommandError`s thrown on purpose by commands and blocks are sent as they are; they may name file paths relative to the workspace, never absolute paths or element content. A call aborted by its caller (closed window, cancelled request, the abort signal) ends as `internal` with `details.aborted: true`; there is no separate code because nobody is left to act on it.
 
 **Same result everywhere (SR-080 AK2):** adapters only translate transport. Output objects are produced by `core`; adapters must not reshape them. The cross-access test (ADR-0011) enforces this.
+
+**Open for stage 6:** the `mapping` fields of the `reqif.*` commands and `reqif.saveMapping.file` are typed `common.schema.json#/$defs/localPath`, but SR-054 AK1 stores the mapping "als YAML-Datei im Repository". Before stage 6 they become repository-relative, or the commands check that an absolute path lies inside a repository.
 
 ## Rejected
 

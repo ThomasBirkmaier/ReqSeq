@@ -43,18 +43,16 @@ const readInputFile = async (file: string, cwd: string): Promise<Buffer> => {
  * byte order mark, as Windows PowerShell writes files (`>` and `Out-File`).
  */
 const decode = (bytes: Buffer, source: string): string => {
-  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return bytes.subarray(2).toString("utf16le");
-  }
-  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+  const littleEndian = bytes[0] === 0xff && bytes[1] === 0xfe;
+  if (littleEndian || (bytes[0] === 0xfe && bytes[1] === 0xff)) {
     const body = Buffer.from(bytes.subarray(2));
     if (body.length % 2 !== 0) {
       throw new CommandError("input.invalid", `Input from ${source} is not valid UTF-16`);
     }
-    return body.swap16().toString("utf16le");
+    return (littleEndian ? body : body.swap16()).toString("utf16le");
   }
   const text = bytes.toString("utf8");
-  return text.startsWith("﻿") ? text.slice(1) : text;
+  return text.startsWith("\uFEFF") ? text.slice(1) : text;
 };
 
 /** Shells that drop quotes inside arguments turn inline JSON into something else. */
