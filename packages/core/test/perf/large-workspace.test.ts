@@ -1,10 +1,11 @@
 // Performance suite (ADR-0011, #126): the generated workspace of N-036 with 50,000 elements and
 // 200,000 relations. Runs with `pnpm test:perf`, nightly and on pull requests labelled `perf`
 // (.github/workflows/perf.yml), never in the required test run. Times are recorded with `measure`
-// and reported in verification/performance.md; a time over its threshold does not fail a test, the
-// nightly job opens an issue (CI runners are not the reference machine: 4 cores, 16 GB).
-// Correctness is asserted as usual. Test names carry no `[SR-xxx/AKn]` tag: the SRs named in a
-// basis get their own tests when they are implemented (SR-020 #32, SR-082 #94).
+// and reported in verification/performance.md. Test names carry no `[SR-xxx/AKn]` tag: these are
+// component times inside one process, so a time over its threshold only records (the nightly job
+// opens an issue) and does not fail a test. Correctness is asserted as usual. The SRs named in a basis
+// have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
+// the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
 import {
   createFixtureWorkspace,
@@ -135,7 +136,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
         return out.problems;
       },
       {
-        basis: "SR-020 (workspace.check; the store is loaded)",
+        basis: "SR-020, in process (the store is loaded; AK1 is the CLI measurement)",
         thresholdMs: 60_000,
       },
     );

@@ -2,45 +2,14 @@
 // fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-085, SR-086,
 // SR-088 and SR-089 handed over to this command (#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import type { Run } from "../support/logreq.js";
+import { logreq as run, requireBuiltCli } from "../support/logreq.js";
 
-const cliDir = fileURLToPath(new URL("../../", import.meta.url));
-const bin = path.join(cliDir, "dist", "bin.js");
-// The spawned CLI fails any connection that leaves the machine, like the test process (SR-077).
-const blockNetwork = pathToFileURL(
-  path.join(cliDir, "..", "..", "scripts", "test-support", "block-network.mjs"),
-).href;
-
-interface Run {
-  readonly code: number | null;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-const logreq = (args: readonly string[], cwd: string): Promise<Run> =>
-  new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], { cwd, stdio: "pipe" });
-    const out: Buffer[] = [];
-    const err: Buffer[] = [];
-    child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
-    child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      resolve({
-        code,
-        stdout: Buffer.concat(out).toString("utf8"),
-        stderr: Buffer.concat(err).toString("utf8"),
-      });
-    });
-    child.stdin.end();
-  });
+const logreq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
 interface Problem {
   readonly code: string;
@@ -80,9 +49,7 @@ const kinds = (output: Output): (readonly [string, string | undefined, string | 
   output.problems.map((p) => [p.code, p.file, p.elementId] as const);
 
 beforeAll(() => {
-  if (!existsSync(bin)) {
-    throw new Error(`${bin} is missing: run pnpm build before pnpm test:e2e`);
-  }
+  requireBuiltCli("pnpm test:e2e");
 });
 
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";

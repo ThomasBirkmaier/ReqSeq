@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PERF_RESULTS_ENV, measure } from "./index.js";
+import { PERF_RESULTS_ENV, THRESHOLD_FAILURE, measure, thresholdMessage } from "./index.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -35,5 +35,11 @@ describe("measure", () => {
       { name: "second", basis: "N-036", ms: expect.any(Number) as number },
     ]);
     fs.rmSync(folder, { recursive: true, force: true });
+  });
+
+  it("names the measurement in the message of a threshold assertion, after the marker", () => {
+    expect(thresholdMessage({ name: "check", basis: "SR-020 AK1", ms: 61_000, thresholdMs: 60_000 })).toBe(
+      `${THRESHOLD_FAILURE} check`,
+    );
   });
 });

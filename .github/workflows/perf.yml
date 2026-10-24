@@ -2,10 +2,12 @@ name: Performance
 
 # ADR-0011, #126: the performance suite on the generated workspace with 50,000 elements and 200,000
 # relations (packages/testkit, D-055; tests in packages/*/test/perf/). Nightly and on pull requests
-# labelled `perf`, never in the required test run. GitHub runners are not the reference machine
-# (4 cores, 16 GB), so results are an analysis record in verification/performance.md, and a time
-# over its threshold opens or updates an issue labelled `perf` instead of failing the run. Failing
-# assertions (wrong counts, findings, versions) still fail it.
+# labelled `perf`; it is not a required check. Every time goes into the record
+# verification/performance.md, and a time over its threshold opens or updates an issue labelled `perf`.
+# A test tagged `[SR-xxx/AKn]` asserts its threshold and fails the run (ADR-0011: a pass on a runner at
+# or below the reference machine of 4 cores and 16 GB is evidence); untagged measurements only record. Failing
+# correctness assertions (wrong counts, findings, versions) fail it too. On Linux the suite runs inside
+# `unshare -rn`, without network, like the CLI e2e suite (ci.yml).
 #
 # Two jobs: `perf` runs the suite read-only (also for pull requests); `record` runs only on the
 # schedule or a manual run, with write rights, and commits the record and files the issue.
@@ -37,6 +39,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
+      complete: ${{ steps.report.outputs.complete }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,15 +51,25 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Performance suite
-        run: pnpm test:perf
+      - name: Performance suite without network (unshare -rn)
+        run: |
+          # As in ci.yml (CLI e2e): Ubuntu 24.04 lets AppArmor block unprivileged user namespaces; allow
+          # them for this job only. If unshare still fails, the step fails: never a run with network.
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          echo "Runner: $(nproc) cores, $(free -g | awk '/^Mem:/ {print $2}') GB memory"
+          # `pnpm test:perf` without pnpm inside the namespace: remove old results, then run Vitest.
+          # Keep in step with the `test:perf` script in package.json.
+          rm -f test-results/perf.jsonl test-results/junit-perf.xml
+          unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.perf.config.ts'
       - name: Report
         id: report
         if: always() && hashFiles('test-results/perf.jsonl') != ''
         run: >-
           node scripts/perf/report.mjs --results test-results/perf.jsonl --out verification/performance.md
           --commit "$GITHUB_SHA" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          --summary "$GITHUB_STEP_SUMMARY" --github-output "$GITHUB_OUTPUT"
+          --summary "$GITHUB_STEP_SUMMARY" --github-output "$GITHUB_OUTPUT" --junit test-results/junit-perf.xml
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,8 +95,10 @@ jobs:
           name: perf-results
           path: perf-results
       - name: Commit the record (nightly on main)
-        # Only a suite that passed writes its record to main.
-        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main' && needs.perf.result == 'success'
+        # Only a complete record goes to main (#202): the suite ran and its only failures, if any, are
+        # threshold assertions of tagged tests, which fail after their time was recorded. A crash, a
+        # failed correctness assertion or a skipped test may leave rows out, so its record stays out.
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main' && needs.perf.outputs.complete == 'true'
         run: |
           cp perf-results/verification/performance.md verification/performance.md
           git config user.name "github-actions[bot]"
@@ -105,7 +120,7 @@ jobs:
           # The names of the exceeded measurements; a comment is added only when they change.
           names="$(grep -F '| **exceeded** |' "$record" | cut -d'|' -f2 | sed 's/^ *//; s/ *$//' | sort | paste -sd ';' -)"
           marker="<!-- perf-exceeded: $names -->"
-          body="$(printf '%s\n%s threshold(s) exceeded in %s (%s, commit %s).\n\nSee the table below and verification/performance.md (ADR-0011). Runners are not the reference machine; check on 4 cores and 16 GB before changing code.\n\n%s\n\n---\n_Written by the performance workflow_' \
+          body="$(printf '%s\n%s threshold(s) exceeded in %s (%s, commit %s).\n\nSee the table below and verification/performance.md (ADR-0011). If the runner has fewer than 4 cores or 16 GB (see the machine in the record), measure again on such a machine before changing code.\n\n%s\n\n---\n_Written by the performance workflow_' \
             "$marker" "$EXCEEDED" "$RUN_URL" "$GITHUB_EVENT_NAME" "$GITHUB_SHA" "$(cat "$record")")"
           # Any open issue labelled `perf` is the one to update (for example #148), never a second one.
           number="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=perf&sort=created&direction=asc&per_page=100" \
