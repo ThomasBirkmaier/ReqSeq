@@ -11,6 +11,7 @@ import {
   createCommandRuntime,
   defineTestCommand,
   fileSchemaValidator,
+  isTempFile,
   loadContracts,
 } from "@logreq/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -385,6 +386,53 @@ describe("listening", () => {
     expect((await request()).status).toBe(200);
   });
 
+  it("of two starts at the same time for one working copy, exactly one starts", async () => {
+    const lockFile = path.join(dir, "api.json.lock");
+    for (let round = 0; round < 20; round++) {
+      const results = await Promise.allSettled(
+        [0, 1].map(() => startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir })),
+      );
+      const started = results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+      const refused = results.flatMap((result): unknown[] =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      expect(started).toHaveLength(1);
+      expect(refused).toHaveLength(1);
+      expect(refused[0]).toBeInstanceOf(CommandError);
+      expect(refused[0]).toMatchObject({
+        code: "input.invalid",
+        message: expect.stringContaining("A LogReq API for this working copy runs already") as unknown,
+      });
+      // The one that started owns api.json, and no lock is left.
+      const [winner] = started;
+      const endpoint = JSON.parse(await fs.readFile(path.join(dir, "api.json"), "utf8")) as object;
+      expect(endpoint).toMatchObject({ urls: winner?.urls });
+      await expect(fs.stat(lockFile)).rejects.toMatchObject({ code: "ENOENT" });
+      await winner?.close();
+    }
+  });
+
+  it("refuses to start while another start holds the lock, and leaves its lock alone", async () => {
+    const lockFile = path.join(dir, "api.json.lock");
+    const held = JSON.stringify({ pid: process.pid, nonce: "another start" });
+    await fs.writeFile(lockFile, held);
+    await expect(
+      startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
+    ).rejects.toMatchObject({
+      code: "input.invalid",
+      message:
+        "A LogReq API for this working copy runs already or is starting. Stop it first. " +
+        `If none runs, remove api.json.lock in ${dir}.`,
+      details: { folder: dir },
+    });
+    expect(await fs.readFile(lockFile, "utf8")).toBe(held);
+    await expect(fs.stat(path.join(dir, "api.json"))).rejects.toMatchObject({ code: "ENOENT" });
+    // The lock of a start that crashed is stale: the next start breaks it.
+    await fs.writeFile(lockFile, JSON.stringify({ pid: 2147483646, nonce: "crashed" }));
+    await start();
+    await expect(fs.stat(lockFile)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it(
     "counts an API that accepts but does not answer in time, and a process of another user, as running",
     { timeout: 15_000 },
@@ -480,7 +528,7 @@ describe("listening", () => {
     },
   );
 
-  it("stops listening when api.json cannot be written", async () => {
+  it("rejects with the Node error when the lock of api.json cannot be taken", async () => {
     await fs.writeFile(path.join(dir, "file"), "");
     const failing = startApiServer({
       workspace: new Workspace(dir),
@@ -490,6 +538,26 @@ describe("listening", () => {
     await expect(failing).rejects.toMatchObject({
       code: expect.stringMatching(/^(EEXIST|ENOTDIR)$/) as unknown,
     });
+  });
+
+  it("stops listening and gives the lock back when api.json cannot be written", async () => {
+    const opened: http.Server[] = [];
+    const listen = Reflect.get(http.Server.prototype, "listen") as (
+      this: http.Server,
+      ...args: unknown[]
+    ) => http.Server;
+    vi.spyOn(http.Server.prototype, "listen").mockImplementation(function (this: http.Server, ...args) {
+      opened.push(this);
+      return listen.apply(this, args);
+    });
+    vi.spyOn(fs, "rename").mockRejectedValue(Object.assign(new Error("EIO"), { code: "EIO" }));
+    await expect(
+      startApiServer({ workspace: new Workspace(dir), runtime, cacheFolder: dir }),
+    ).rejects.toThrow("EIO");
+    expect(opened.length).toBeGreaterThan(0);
+    expect(opened.every((s) => !s.listening)).toBe(true);
+    vi.restoreAllMocks();
+    expect((await fs.readdir(dir)).filter((name) => !isTempFile(name))).toEqual([]);
   });
 
   it("runs on the runtime of the process by default", async () => {

@@ -9,6 +9,8 @@ import {
   CommandError,
   cacheFolder,
   getCommandRuntime,
+  lockCacheFile,
+  processRuns,
   readCacheFile,
   removeCacheFile,
   writeCacheFile,
@@ -228,19 +230,6 @@ const answers = (url: string, token: string): Promise<boolean> =>
     });
   }).catch(() => false);
 
-/** Whether a process with this ID runs; one of another user (EPERM) runs too. Not an ID: false. */
-const isRunning = (pid: unknown): boolean => {
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid < 1) {
-    return false;
-  }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return errorCode(error) === "EPERM";
-  }
-};
-
 /**
  * Refuse to start while the API of `api.json` in `folder` runs. When the process of the file does not run,
  * the file is stale and replaced at once. When it runs (it may be another process with a reused ID), the
@@ -255,7 +244,7 @@ const refuseWhileRunning = async (folder: string): Promise<void> => {
   const urls = Array.isArray(stored)
     ? stored.filter((url): url is string => typeof url === "string" && LOOPBACK_URL.test(url))
     : [];
-  if (typeof token !== "string" || urls.length === 0 || !isRunning(endpoint?.["pid"])) {
+  if (typeof token !== "string" || urls.length === 0 || !processRuns(endpoint?.["pid"])) {
     return;
   }
   const answered = await Promise.all(urls.map((url) => answers(url, token)));
@@ -271,15 +260,39 @@ const refuseWhileRunning = async (folder: string): Promise<void> => {
 };
 
 /**
- * Start the local API: refuse while `api.json` names a running API, listen on LOOPBACK_HOSTS, then write
- * `api.json` (port, a new 256-bit token) with mode 0600 into the cache folder. Rejects with a CommandError
- * when another API runs or it cannot listen, and with the Node error when the file cannot be read or written
- * (nothing is left listening then).
+ * Start the local API: take the lock of `api.json` (`lockCacheFile`), so that of two starts at the same time
+ * only one goes on; refuse while `api.json` names a running API; listen on LOOPBACK_HOSTS; write `api.json`
+ * (port, a new 256-bit token) with mode 0600 into the cache folder; give the lock back. Rejects with a
+ * CommandError when another API runs or starts, or it cannot listen, and with the Node error when the file
+ * or its lock cannot be read or written (nothing is left listening then).
  */
 export async function startApiServer(options: ApiServerOptions): Promise<ApiServer> {
   const runtime = options.runtime ?? getCommandRuntime();
   const requested = checkPort(options.port ?? 0);
   const folder = options.cacheFolder ?? cacheFolder(options.workspace.root);
+  const lock = await lockCacheFile(folder, ENDPOINT_FILE);
+  if (lock === undefined) {
+    throw new CommandError(
+      "input.invalid",
+      `A LogReq API for this working copy runs already or is starting. Stop it first. ` +
+        `If none runs, remove ${ENDPOINT_FILE}.lock in ${folder}.`,
+      { folder },
+    );
+  }
+  try {
+    return await startLocked(options, runtime, requested, folder);
+  } finally {
+    await lock.release();
+  }
+}
+
+/** startApiServer while it holds the lock of `api.json`. */
+const startLocked = async (
+  options: ApiServerOptions,
+  runtime: CommandRuntime,
+  requested: number,
+  folder: string,
+): Promise<ApiServer> => {
   await refuseWhileRunning(folder);
   const token = randomBytes(32).toString("base64url");
   const closing = new AbortController();
@@ -313,4 +326,4 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     }
   };
   return { port, addresses, urls, endpointFile, close };
-}
+};

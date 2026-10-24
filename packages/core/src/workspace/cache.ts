@@ -6,7 +6,11 @@ import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { removePrivateFile, writePrivateFile } from "../files/index.js";
+import type { PrivateLock } from "../files/index.js";
+import { lockPrivateFile, removePrivateFile, writePrivateFile } from "../files/index.js";
+
+export { LOCK_STALE_MS, processRuns } from "../files/index.js";
+export type { PrivateLock } from "../files/index.js";
 
 /** Where the OS keeps caches; tests pass their own values. */
 export interface CacheEnvironment {
@@ -110,4 +114,12 @@ export async function readCacheFile(folder: string, name: string): Promise<strin
 /** Remove a cache file if it is there. Rejects with the Node error when it cannot be removed. */
 export async function removeCacheFile(folder: string, name: string): Promise<void> {
   await removePrivateFile(cacheFile(folder, name));
+}
+
+/**
+ * Take the lock `<name>.lock` of a cache file (`lockPrivateFile`), e.g. around the check and the write of
+ * `api.json` (ADR-0009). Resolves `undefined` while another process holds it.
+ */
+export async function lockCacheFile(folder: string, name: string): Promise<PrivateLock | undefined> {
+  return lockPrivateFile(`${cacheFile(folder, name)}.lock`);
 }

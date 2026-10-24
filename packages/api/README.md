@@ -17,12 +17,12 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/v1/commands   #
 - Listens on `127.0.0.1` and `::1` (where the machine has IPv6), never elsewhere; there is no option for the address (SR-079).
 - `POST /v1/commands/<name>`: body = command input as JSON (empty = `{}`, at most 32 MiB, else 413 at once, with `connection: close`). 200 with exactly the command output, also with error findings. Errors: the error object of `common.schema.json#/$defs/error` with 400 (`input`), 404 (`not-found`), 409 (`conflict`), 503 (`unavailable`), 500 (`internal`).
 - Refused before any command: a `Host` header other than `127.0.0.1:<port>`, `localhost:<port>`, `[::1]:<port>`, and any `Origin` header (403); a missing or wrong token (401; the `Bearer` scheme in any case).
-- One API per working copy: it does not start while the process of `api.json` runs and the API at one of its loopback URLs answers `GET /v1/commands` with 200 for its token (or accepts and does not answer within 1 s). A file whose process ID no longer runs, or was reused by a process without that API, is replaced. The API removes its own `api.json` when it stops.
+- One API per working copy: it does not start while the process of `api.json` runs and the API at one of its loopback URLs answers `GET /v1/commands` with 200 for its token (or accepts and does not answer within 1 s). A file whose process ID no longer runs, or was reused by a process without that API, is replaced. The API removes its own `api.json` when it stops. Of two starts at the same moment exactly one goes on: each holds the lock `api.json.lock` from the check until `api.json` is written, and a start that finds it held refuses too.
 - `schemas/generated/openapi.json` describes every endpoint.
 
 ## Code
 
-- `src/server.ts`: `startApiServer({ workspace, runtime?, port?, cacheFolder? })` checks that no other API serves the copy, listens, writes `api.json` (mode 0600, through core's `writeCacheFile`) and returns `{ port, addresses, urls, endpointFile, close }`; `close()` removes `api.json` (`removeCacheFile`). `LOOPBACK_HOSTS` is the only bind address list.
+- `src/server.ts`: `startApiServer({ workspace, runtime?, port?, cacheFolder? })` takes the lock of `api.json` (core's `lockCacheFile`), checks that no other API serves the copy, listens, writes `api.json` (mode 0600, through core's `writeCacheFile`) and returns `{ port, addresses, urls, endpointFile, close }`; `close()` removes `api.json` (`removeCacheFile`). `LOOPBACK_HOSTS` is the only bind address list.
 - `src/handler.ts`: `createRequestHandler`: Host, Origin and token checks, routes, `HTTP_STATUS_BY_CLASS`.
 
 ## Tests

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   cacheFolder,
   canonicalRoot,
+  lockCacheFile,
   osCacheFolder,
   readCacheFile,
   removeCacheFile,
@@ -102,6 +103,7 @@ describe("writeCacheFile", () => {
       await expect(writeCacheFile("/nowhere", name, "")).rejects.toThrow(/not a cache file name/);
       await expect(readCacheFile("/nowhere", name)).rejects.toThrow(/not a cache file name/);
       await expect(removeCacheFile("/nowhere", name)).rejects.toThrow(/not a cache file name/);
+      await expect(lockCacheFile("/nowhere", name)).rejects.toThrow(/not a cache file name/);
     }
   });
 
@@ -113,6 +115,15 @@ describe("writeCacheFile", () => {
     await removeCacheFile(folder, "api.json");
     expect(await readCacheFile(folder, "api.json")).toBeUndefined();
     await expect(removeCacheFile(folder, "api.json")).resolves.toBeUndefined();
+  });
+
+  it("locks a cache file with <name>.lock next to it, once at a time", async () => {
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    const lock = await lockCacheFile(folder, "api.json");
+    expect(lock?.file).toBe(path.join(folder, "api.json.lock"));
+    expect(await lockCacheFile(folder, "api.json")).toBeUndefined();
+    await lock?.release();
+    await expect(fs.stat(path.join(folder, "api.json.lock"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("gives undefined when a folder on the path is a file", async () => {
