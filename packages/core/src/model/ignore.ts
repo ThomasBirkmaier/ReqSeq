@@ -9,6 +9,13 @@
 // and a trailing `/` are dropped. `x/**` also matches `x` itself, so the folder is skipped as a
 // whole. A run of `*` within a name is one `*`, and `**/**` is one `**`, so no pattern can make the
 // RegExp backtrack exponentially. workspace.schema.json refuses `\` and `//` in a pattern.
+//
+// Patterns and paths are compared in Unicode NFC (#218): a glob typed as `Übersicht/**` (NFC, as
+// keyboards give it) names a folder stored as `U` plus a combining diaeresis (NFD, as HFS+ and some
+// macOS tools store names, and as `readdir` then gives them), and the other way round, so the walk,
+// the watcher and the check before a new file agree whatever spelling each one sees. `?` is then one
+// code point in NFC: it matches `é` composed or decomposed. `ignoreMatcher` does this; `compileGlob`
+// alone compares code points as given.
 
 /** Characters that mean something in a RegExp, plus the glob wildcards `*` and `?`. */
 const SPECIAL = /[.+^${}()|[\]\\*?]/g;
@@ -18,7 +25,7 @@ const nameSource = (name: string): string =>
     .replace(/\*+/g, "*")
     .replace(SPECIAL, (ch) => (ch === "*" ? "[^/]*" : ch === "?" ? "[^/]" : `\\${ch}`));
 
-/** The RegExp of one glob of the dialect above. */
+/** The RegExp of one glob of the dialect above, matching code points as given (no normalization). */
 export const compileGlob = (pattern: string): RegExp => {
   const names = pattern
     .replace(/^\.?\//, "")
@@ -44,8 +51,14 @@ export const compileGlob = (pattern: string): RegExp => {
   return new RegExp(`^${source}$`, "u");
 };
 
-/** A test for repository-relative paths (`/` separators) that is true when any of `patterns` matches. */
+/**
+ * A test for repository-relative paths (`/` separators) that is true when any of `patterns`
+ * matches, both compared in NFC: the path may be given in any normal form (as `readdir` spells it).
+ */
 export const ignoreMatcher = (patterns: readonly string[]): ((relativePath: string) => boolean) => {
-  const compiled = patterns.map(compileGlob);
-  return (relativePath) => compiled.some((glob) => glob.test(relativePath));
+  const compiled = patterns.map((pattern) => compileGlob(pattern.normalize("NFC")));
+  return (relativePath) => {
+    const nfc = relativePath.normalize("NFC");
+    return compiled.some((glob) => glob.test(nfc));
+  };
 };

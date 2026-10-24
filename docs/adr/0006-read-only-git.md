@@ -1,10 +1,10 @@
 # ADR-0006: Read Git through the git program, read-only
 
-Status: Proposed · Based on: D-014, D-024, D-036, D-039 · SRs: SR-050, SR-051, SR-062, SR-083
+Status: Proposed · Based on: D-014, D-024, D-036, D-039 · SRs: SR-050, SR-051, SR-062, SR-083, SR-092
 
 ## Context
 
-LogReq reads Git for the state (commit per repository), the date of a version, uncommitted changes before a baseline (SR-050 AK2), files changed in a merge request (SR-025 AK4) and old file contents (SR-051, ADR-0005). It never commits, pushes, pulls, merges or switches branches (D-036, SR-083).
+LogReq reads Git for the state (commit per repository), the date of a version, uncommitted changes before a baseline (SR-050 AK2), files changed in a merge request (SR-092 AK1) and old file contents (SR-051, ADR-0005). It never commits, pushes, pulls, merges or switches branches (D-036, SR-083).
 
 ## Decision
 
@@ -19,6 +19,7 @@ LogReq reads Git for the state (commit per repository), the date of a version, u
 
 - Works with every Git feature (worktrees, SHA-256 repositories, partial clones) because Git itself reads them.
 - `git` (2.30 or newer) becomes a runtime requirement for Git-based information; documented in the installation guide.
+- Paths from Git and paths of element files may differ in their Unicode normal form. The element walk reports a file under the name `readdir` gives (NFD on HFS+, or as a macOS tool stored it), while `git` on macOS with `core.precomposeUnicode=true` (the default there) reports NFC. Wherever the reader joins its paths to element files (uncommitted changes, SR-050 AK2; files changed in a merge request, SR-092 AK1; old contents, SR-051), it compares both in NFC, as the `ignore` globs do (#218).
 
 ## Rejected
 

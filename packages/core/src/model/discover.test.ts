@@ -511,6 +511,41 @@ describe("newFileTarget: spellings that differ only in the Unicode normal form (
   });
 });
 
+describe("ignore globs and walk paths in one Unicode normal form (#218)", () => {
+  it("the walk leaves out what a glob names in the other normal form than the names on disk", async () => {
+    const ws = await fixture({
+      [`${NFD}/drafts/a.md`]: "",
+      [`${NFD}/b.md`]: "",
+      [`Kapitel-${NFC}/c.md`]: "",
+      [`Kapitel-${NFC}/d.md`]: "",
+    });
+    const repo = repository(ws.root);
+    const ignored = ignoreMatcher([`${NFC}/drafts/**`, `Kapitel-${NFD}/c.md`]);
+    const listed = (await listMarkdownFiles(repo, ignored)).files;
+    // The names as `readdir` gives them (a file system such as HFS+ may store another normal form).
+    expect(listed.map((file) => file.normalize("NFC"))).toEqual([`Kapitel-${NFC}/d.md`, `${NFC}/b.md`]);
+    for (const file of listed) {
+      expect(await listsFile(repo, ignored, file)).toBe(true);
+    }
+    expect(await listsFile(repo, ignored, `${NFD}/drafts/a.md`)).toBe(false);
+  });
+
+  it("newFileTarget refuses a path that a glob names in either normal form, as the walk leaves it out", async () => {
+    const ws = await fixture({ [`${NFD}/drafts/a.md`]: "" });
+    const repo = repository(ws.root);
+    for (const glob of [`${NFC}/drafts/**`, `${NFD}/drafts/**`]) {
+      const ignored = ignoreMatcher([glob]);
+      expect((await listMarkdownFiles(repo, ignored)).files).toEqual([]);
+      for (const folder of [NFC, NFD]) {
+        expect([glob, await newFileTarget(repo, ignored, `${folder}/drafts/x.md`)]).toEqual([
+          glob,
+          { kind: "refused", problem: { rule: "ignored", path: `${folder}/drafts` } },
+        ]);
+      }
+    }
+  });
+});
+
 describe("newFileTarget: invisible format characters in the names of new folders (#194)", () => {
   it("refuses a folder to create whose name holds a zero-width or direction mark, a byte order mark or a soft hyphen", async () => {
     const ws = await fixture({ "deep/a.md": "" });

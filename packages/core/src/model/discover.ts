@@ -58,10 +58,11 @@ const skipReason = (entry: Dirent): string | undefined => {
  * `.git` and `node_modules`; the folders of other repositories of the workspace nested in this one
  * (`repository.excludes`, read under their own name); folders below the root that hold a `.git`
  * entry (a nested repository that is not in the workspace is not part of this one); paths for which
- * `ignored` is true (the `ignore` globs of the workspace file, `ignoreMatcher`; a matching folder is
- * skipped as a whole). Links are never followed: a linked folder is skipped, a linked `*.md` file and
- * a Markdown file with an extension such as `.MD` are reported as `file.skipped` warnings. A folder
- * that cannot be listed becomes a problem; the walk goes on.
+ * `ignored` is true (the `ignore` globs of the workspace file, `ignoreMatcher`, which compares in
+ * NFC; it gets each path as `readdir` spells it; a matching folder is skipped as a whole). Links
+ * are never followed: a linked folder is skipped, a linked `*.md` file and a Markdown file with an
+ * extension such as `.MD` are reported as `file.skipped` warnings. A folder that cannot be listed
+ * becomes a problem; the walk goes on.
  */
 export const listMarkdownFiles = async (
   repository: RepositoryLocation,
@@ -90,6 +91,8 @@ export const listMarkdownFiles = async (
         continue;
       }
       if (entry.isDirectory()) {
+        // `excludes` and `repository.folder` come from the native realpath (layout.ts), which gives
+        // the names as `readdir` does, so plain strings compare like with like.
         if (!excludes.has(path.join(repository.folder, relative))) {
           pending.push(relative);
         }
@@ -366,10 +369,11 @@ const judgeNewFile = async (
  * `Requirements` would name `.git` or `requirements`. A spelling that differs from the one on disk
  * only in its Unicode normal form (NFC, NFD) names the same folder where the file system ignores
  * the normal form (macOS): the path is then judged again as spelled on disk, and `file` of the
- * result is that spelling (#194). LogReq checks this before it writes anything, so it never writes
- * below `.git` (D-036) and never creates an element that the walk cannot see. The order is the
- * walk's, name by name: the name rules first, then the folder on disk. Errors other than "not
- * there" reject.
+ * result is that spelling (#194). `ignored` gets each path as given and then as spelled on disk;
+ * `ignoreMatcher` compares both in NFC, so a glob names a folder in either normal form (#218).
+ * LogReq checks this before it writes anything, so it never writes below `.git` (D-036) and never
+ * creates an element that the walk cannot see. The order is the walk's, name by name: the name
+ * rules first, then the folder on disk. Errors other than "not there" reject.
  */
 export const newFileTarget = (
   repository: RepositoryLocation,

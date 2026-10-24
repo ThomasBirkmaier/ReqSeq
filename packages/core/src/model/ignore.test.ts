@@ -62,4 +62,18 @@ describe("ignore globs", () => {
     expect(["docs/a.md", "x.tmp.md", "req/a.md"].filter(ignored)).toEqual(["docs/a.md", "x.tmp.md"]);
     expect(ignoreMatcher([])("docs")).toBe(false);
   });
+
+  it("compares patterns and paths in Unicode NFC, whatever normal form each is spelled in (#218)", () => {
+    const nfc = `${String.fromCodePoint(0xdc)}bersicht`;
+    const nfd = `U${String.fromCodePoint(0x308)}bersicht`;
+    expect(nfc.normalize("NFD")).toBe(nfd);
+    const paths = [`${nfc}/a.md`, `${nfd}/a.md`, "Ubersicht/a.md"];
+    expect(paths.filter(ignoreMatcher([`${nfc}/**`]))).toEqual([`${nfc}/a.md`, `${nfd}/a.md`]);
+    expect(paths.filter(ignoreMatcher([`${nfd}/**`]))).toEqual([`${nfc}/a.md`, `${nfd}/a.md`]);
+    // `?` is one character in NFC, so it matches a composed and a decomposed é alike.
+    const cafe = ["caf\u00e9.md", "cafe\u0301.md", "caf.md"];
+    expect(cafe.filter(ignoreMatcher(["caf?.md"]))).toEqual(["caf\u00e9.md", "cafe\u0301.md"]);
+    // `compileGlob` alone compares code points as given; `ignoreMatcher` is the one to use.
+    expect(compileGlob(nfc).test(nfd)).toBe(false);
+  });
 });
