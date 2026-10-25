@@ -89,6 +89,7 @@ export type { InlineReference, ReferenceTargetState, TextReference } from "./ref
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
+export type { ElementCopy } from "./resolve.js";
 export { elementVersion, elementView, listedElement, titleKeyOf } from "./view.js";
 export type { ElementViewInput, ExtraFindings, ListedElementInput } from "./view.js";
 export { listElements } from "./list.js";

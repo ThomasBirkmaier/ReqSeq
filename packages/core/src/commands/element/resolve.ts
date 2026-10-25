@@ -13,6 +13,7 @@
 // candidate (prefix changed since, #275).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import type { ElementCopy } from "../../model/index.js";
 import { getElement, shortIdState } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { supersededValidityFindingsOf } from "../../variants/index.js";
@@ -24,15 +25,23 @@ import { NORMAL_FORM } from "../../version/version.js";
  * `ref.unknown` when the file changed on disk since the store read it (it reads the files again):
  * then `find` on the fresh short IDs finds the element, or the tail fits none, and the error stays
  * as it is. When `find` gives unknown, a single element with the tail has another prefix than `ref`
- * (with the same prefix `find` would have found it).
+ * (with the same prefix `find` would have found it). With `copy` (#255), only an element in its
+ * repository and/or file is named.
  */
 const withOutdatedPrefix = async (
   workspace: Workspace,
   ref: string,
+  copy: ElementCopy,
   error: CommandError,
 ): Promise<CommandError> => {
   const shortIds = await workspace.get(shortIdState);
-  const [only, ...others] = shortIds.withTail(ref);
+  const [only, ...others] = shortIds
+    .withTail(ref)
+    .filter(
+      (e) =>
+        (copy.repository === undefined || e.repository === copy.repository) &&
+        (copy.file === undefined || e.file === copy.file),
+    );
   if (only === undefined || others.length > 0 || shortIds.find(ref).kind !== "unknown") {
     return error;
   }
@@ -55,17 +64,19 @@ export default defineCommand({
         { command: "element.resolve", fields: ["version"] },
       );
     }
+    const copy = { repository: input.repository, file: input.file };
     try {
       const element = await getElement(
         ctx.workspace,
         input.ref,
         supersededValidityFindingsOf,
         input.versionDate,
+        copy,
       );
       return { element, current: version === undefined ? null : version === element.version };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {
-        throw await withOutdatedPrefix(ctx.workspace, input.ref, error);
+        throw await withOutdatedPrefix(ctx.workspace, input.ref, copy, error);
       }
       throw error;
     }

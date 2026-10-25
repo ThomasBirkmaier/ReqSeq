@@ -151,6 +151,130 @@ describe("element.get", () => {
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 
+  describe("one copy of a duplicate (#255)", () => {
+    const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
+    const ORIGINAL = "requirements/N-00606ccf2661.md";
+    const COPY = "copies/N-00606ccf2661.md";
+
+    it("opens each copy of a UUID two files share by its file, and with its repository", async () => {
+      const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+      const before = await snapshot(opened.fixture.root);
+      const original = await get(opened, { ref: COPIED, file: ORIGINAL });
+      const copy = await get(opened, { ref: "N-cf2661", file: COPY });
+      expect([original.id, original.file, original.repository]).toEqual([COPIED, ORIGINAL, "system"]);
+      expect([copy.id, copy.file, copy.repository]).toEqual([COPIED, COPY, "system"]);
+      // Opening a copy changes neither file (SR-088): a person gives one of them a new UUID.
+      expect(await get(opened, { ref: COPIED, repository: "system", file: COPY })).toEqual(copy);
+      expect(await snapshot(opened.fixture.root)).toEqual(before);
+    });
+
+    it("stays ambiguous when the repository alone leaves both copies", async () => {
+      const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+      const error = await getError(opened, { ref: COPIED, repository: "system" });
+      expect(error.code).toBe("ref.ambiguous");
+      expect(error.details).toEqual({
+        ref: COPIED,
+        repository: "system",
+        candidates: expect.arrayContaining([
+          { id: COPIED, repository: "system", file: ORIGINAL },
+          { id: COPIED, repository: "system", file: COPY },
+        ]) as unknown,
+      });
+      expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
+      expect(error.message).toContain("give the repository and file of one of the candidates");
+    });
+
+    it("is ref.unknown with the elements ref names when the file or repository fits none", async () => {
+      const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+      const elsewhere = await getError(opened, { ref: COPIED, file: "needs/N-00606ccf2661.md" });
+      expect(elsewhere.code).toBe("ref.unknown");
+      expect(elsewhere.details).toEqual({
+        ref: COPIED,
+        file: "needs/N-00606ccf2661.md",
+        candidates: expect.arrayContaining([
+          { id: COPIED, repository: "system", file: ORIGINAL },
+          { id: COPIED, repository: "system", file: COPY },
+        ]) as unknown,
+      });
+      expect(elsewhere.message).toContain("names no element in needs/N-00606ccf2661.md");
+      const other = await getError(opened, { ref: COPIED, repository: "sensor", file: COPY });
+      expect([other.code, other.message]).toEqual([
+        "ref.unknown",
+        expect.stringContaining(`in ${COPY} of repository sensor`) as unknown,
+      ]);
+      const repository = await getError(opened, { ref: COPIED, repository: "sensor" });
+      expect([repository.code, repository.message]).toEqual([
+        "ref.unknown",
+        expect.stringContaining("names no element in repository sensor;") as unknown,
+      ]);
+      expect(repository.details).toMatchObject({ ref: COPIED, repository: "sensor" });
+      expect(repository.details).not.toHaveProperty("file");
+      // A reference that names nothing stays as before, whatever the copy.
+      const none = await getError(opened, { ref: "N-ffffff", file: COPY });
+      expect([none.code, none.details]).toEqual(["ref.unknown", { ref: "N-ffffff" }]);
+    });
+
+    it("checks the file of an element its reference names alone, and never finds another by file", async () => {
+      const opened = await open(TWO);
+      expect(await get(opened, { ref: "SR-e88fb3", file: WIND.file })).toEqual(
+        await get(opened, { ref: WIND.id }),
+      );
+      for (const empty of [{ file: "" }, { repository: "" }]) {
+        expect((await getError(opened, { ref: "SR-e88fb3", ...empty })).code).toBe("input.invalid");
+      }
+      const error = await getError(opened, { ref: "SR-e88fb3", file: GUSTS.file });
+      expect([error.code, error.details]).toEqual([
+        "ref.unknown",
+        {
+          ref: "SR-e88fb3",
+          file: GUSTS.file,
+          candidates: [{ id: WIND.id, repository: expect.any(String) as string, file: WIND.file }],
+        },
+      ]);
+    });
+
+    it("picks one of the elements a short short ID names by its file", async () => {
+      const a = "a1b2c3d4-0000-4000-8000-000001abc123";
+      const b = "b1b2c3d4-0000-4000-9000-000002abc123";
+      const element = (id: string, title: string): string =>
+        `---\nid: ${id}\ntype: system-requirement\nstatus: draft\ntitle: ${title}\n---\n`;
+      const opened = await open({
+        fixture: "SR-001/two-elements",
+        files: {
+          "requirements/SR-000001abc123.md": element(a, "First"),
+          "requirements/SR-000002abc123.md": element(b, "Second"),
+        },
+      });
+      expect((await getError(opened, { ref: "SR-abc123" })).code).toBe("ref.ambiguous");
+      expect(await get(opened, { ref: "SR-abc123", file: "requirements/SR-000002abc123.md" })).toMatchObject({
+        id: b,
+        title: "Second",
+      });
+    });
+
+    it("picks a copy in another repository by its repository", async () => {
+      const id = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+      const file = "anemometer/SR-1e0f9a8b7c6d.md";
+      const fixture = await createFixtureWorkspace({ fixture: "SR-089/missing-targets" });
+      onTestFinished(() => fixture.cleanup());
+      await fs.mkdir(fixture.path("system/anemometer"), { recursive: true });
+      await fs.copyFile(fixture.path(`sensor/${file}`), fixture.path(`system/${file}`));
+      const workspace = new Workspace(fixture.path("system"));
+      onTestFinished(() => workspace.close());
+      const opened = { fixture, workspace };
+      const both = await getError(opened, { ref: id, file });
+      expect(both.details).toMatchObject({ ref: id, file });
+      expect([both.code, (both.details as { candidates: unknown[] }).candidates.length]).toEqual([
+        "ref.ambiguous",
+        2,
+      ]);
+      for (const repository of ["system", "sensor"]) {
+        expect(await get(opened, { ref: id, repository })).toMatchObject({ id, repository, file });
+        expect(await get(opened, { ref: id, repository, file })).toMatchObject({ id, repository, file });
+      }
+    });
+  });
+
   it("[SR-016/AK3] shows an element of an unknown type with a hint and only for reading", async () => {
     const opened = await open({ fixture: "SR-016/unknown" });
     const element = await get(opened, { ref: "2c9e4b71-6d58-4f03-a1e7-0f6a7b8c9d0e" });

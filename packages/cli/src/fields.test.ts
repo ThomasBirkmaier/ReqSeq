@@ -249,7 +249,9 @@ describe("inputFields", () => {
         .flatMap((e) => inputFields(e).map((f) => [`${e.name}:${f.name}`, shape(f)])),
     );
     expect(byName).toEqual({
+      "element.get:file": "string:flag",
       "element.get:ref": "string:positional",
+      "element.get:repository": "string:flag",
       "element.get:versionDate": "boolean:flag",
       "element.get:view": "string:flag",
       "workspace.check:changedFiles": "string[]:flag",

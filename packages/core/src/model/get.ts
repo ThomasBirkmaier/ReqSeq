@@ -15,7 +15,9 @@
 // - a hint `metamodel.meaning-unassigned` when no property has the meaning `title` (SR-013 AK3);
 // - `versionDate` when the caller asks for it (`withDate`): the date of the version shown (D-013,
 //   ADR-0005 "Version date", `versionDates`), `null` for content no commit has and when Git cannot
-//   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast).
+//   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast);
+// - one copy of an element whose UUID several files share (SR-088), picked by the inputs `repository`
+//   and `file` among the candidates of `ref.ambiguous` (#255, `ElementCopy`).
 // Left out until later stages: the other incoming relations, `verification` and `validation`, and
 // the variants that replace or exclude the element (SR-046; the schema has no field for them yet).
 import type { Problem } from "../catalog.js";
@@ -29,6 +31,7 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../workspace/index.js";
 import { classifyFile } from "./elements.js";
 import { embeddedImages } from "./images.js";
+import type { ElementCopy } from "./resolve.js";
 import { resolveRef } from "./resolve.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
@@ -70,7 +73,8 @@ export interface ShowContext {
 }
 
 /**
- * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), read from its file now.
+ * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), in the repository and file
+ * of `copy` when given (#255), read from its file now.
  * A file that changed since the store read it is shown as it is now, like a relation target is
  * stored (`currentTarget`). A file that is gone or no longer holds this element is `ref.unknown`,
  * and the element store is read again so the next call works on the files as they are; a file
@@ -82,9 +86,11 @@ export const showElement = async (
   extra: ExtraFindings,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
+  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
+  copy: ElementCopy = {},
 ): Promise<DataExportElement> => {
   const { workspace, layout, metamodel, store, shortIds } = context;
-  const stored = resolveRef(store, shortIds, ref);
+  const stored = resolveRef(store, shortIds, ref, copy);
   const repository = layout.repositories.find((r) => r.name === stored.repository);
   if (repository === undefined) {
     // The store reads only repositories of the layout, so this is a bug.
@@ -163,6 +169,8 @@ export const getElement = async (
   extra: ExtraFindings,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
+  /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
+  copy: ElementCopy = {},
 ): Promise<DataExportElement> =>
   showElement(
     {
@@ -175,4 +183,5 @@ export const getElement = async (
     ref,
     extra,
     withDate,
+    copy,
   );

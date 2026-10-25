@@ -102,6 +102,24 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "unknown reference", input: { ref: "SR-ffffff" }, expect: "error" },
     { name: "view of a variant (stage 5)", input: { ref: "SR-e88fb3", view: "core" }, expect: "error" },
+    {
+      name: "one copy of a UUID two files share, by repository and file (SR-088, #255)",
+      fixture: { fixture: "SR-088/copied-file", git: true },
+      root: "system",
+      input: {
+        ref: "948a10f1-05c3-4212-bd19-00606ccf2661",
+        repository: "system",
+        file: "copies/N-00606ccf2661.md",
+      },
+      expect: "output",
+    },
+    {
+      name: "a file that holds none of the elements ref names (#255)",
+      fixture: { fixture: "SR-088/copied-file", git: true },
+      root: "system",
+      input: { ref: "948a10f1-05c3-4212-bd19-00606ccf2661", file: "needs/N-00606ccf2661.md" },
+      expect: "error",
+    },
   ],
   "element.resolve": [
     {
@@ -115,6 +133,13 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
+    {
+      name: "one copy of a UUID two files share, by file (SR-088, #255)",
+      fixture: { fixture: "SR-088/copied-file", git: true },
+      root: "system",
+      input: { ref: "N-cf2661", file: "requirements/N-00606ccf2661.md" },
+      expect: "output",
+    },
     {
       name: "outdated prefix names the candidate (SR-060 AK3, #275)",
       fixture: {

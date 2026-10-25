@@ -125,6 +125,26 @@ describe("element.resolve", () => {
     expect(await snapshot(opened.fixture.root)).toEqual(before);
   });
 
+  it("[SR-060/AK3] names the element of an outdated prefix only when it lies in the given repository and file (#255)", async () => {
+    const id = "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f";
+    const file = "requirements/SR-7a8b9c0d1e2f.md";
+    const opened = await open({
+      fixture: "SR-001/two-elements",
+      files: { [file]: element(id, "need", "Formerly a requirement") },
+    });
+    const { repository } = (await resolve(opened, { ref: "N-0d1e2f" })).element;
+    const named = await resolveError(opened, { ref: "SR-0d1e2f", repository, file });
+    expect([named.code, named.details]).toEqual([
+      "ref.unknown",
+      { ref: "SR-0d1e2f", candidates: [{ id, repository, file }] },
+    ]);
+    for (const copy of [{ file: WIND.file }, { repository: "elsewhere" }]) {
+      const error = await resolveError(opened, { ref: "SR-0d1e2f", ...copy });
+      expect([error.code, error.details]).toEqual(["ref.unknown", { ref: "SR-0d1e2f" }]);
+      expect(error.message).not.toContain("did you mean");
+    }
+  });
+
   it("[SR-060/AK3] keeps ref.unknown with repository and file, without candidates, when the file moved after the store read it", async () => {
     const opened = await open(TWO);
     await resolve(opened, { ref: "SR-e88fb3" });
@@ -254,6 +274,24 @@ describe("element.resolve", () => {
     const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
     const error = await resolveError(opened, { ref });
     expect(error.code).toBe("ref.ambiguous");
+    expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
+  });
+
+  it("[SR-060/AK1] resolves one copy of a UUID two files share by its file, as element.get opens it (#255)", async () => {
+    const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+    const ref = "948a10f1-05c3-4212-bd19-00606ccf2661";
+    const input = { ref, repository: "system", file: "copies/N-00606ccf2661.md" };
+    const resolved = await resolve(opened, input);
+    expect(resolved.element).toMatchObject({ id: ref, file: "copies/N-00606ccf2661.md" });
+    const shown = (await invoke("element.get", input, { workspace: opened.workspace })) as {
+      element: unknown;
+    };
+    expect(resolved.element).toEqual(shown.element);
+    expect((await resolve(opened, { ...input, version: resolved.element.version })).current).toBe(true);
+    // A file that holds none of them keeps its own ref.unknown, without a guessed short ID.
+    const error = await resolveError(opened, { ref, file: "needs/N-00606ccf2661.md" });
+    expect(error.code).toBe("ref.unknown");
+    expect(error.message).not.toContain("did you mean");
     expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
   });
 });

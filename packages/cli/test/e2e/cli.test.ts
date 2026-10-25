@@ -179,6 +179,33 @@ describe("logreq binary", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
+  it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, #255)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });
+    fixtures.push(ws);
+    const cwd = ws.path("system");
+    const both = await logreq(["element", "get", "N-cf2661", "--json"], { cwd });
+    expect(both.code).toBe(2);
+    expect(JSON.parse(both.stderr)).toMatchObject({ code: "ref.ambiguous" });
+    const copy = await logreq(
+      [
+        "element",
+        "get",
+        "N-cf2661",
+        "--repository",
+        "system",
+        "--file",
+        "copies/N-00606ccf2661.md",
+        "--json",
+      ],
+      { cwd },
+    );
+    expect(copy.stderr).toBe("");
+    expect(copy.code).toBe(0);
+    expect(JSON.parse(copy.stdout)).toMatchObject({
+      element: { id: "948a10f1-05c3-4212-bd19-00606ccf2661", file: "copies/N-00606ccf2661.md" },
+    });
+  });
+
   it("adds and removes a relation with relation add and relation remove, with a hint on a cycle (#264, SR-067 AK3)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-090/cycle", git: true });
     fixtures.push(ws);

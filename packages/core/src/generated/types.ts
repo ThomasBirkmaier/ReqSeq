@@ -967,6 +967,10 @@ export interface ElementGetInput {
   readonly view?: View;
   /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
   readonly versionDate: boolean;
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  readonly repository?: string;
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  readonly file?: RelativePath;
 }
 
 /**
@@ -988,6 +992,10 @@ export interface ElementResolveInput {
   readonly version?: Version;
   /** Also give the date of the current version (`versionDate`, D-013, ADR-0005), read from the Git history, as element.get does with the same input. Without it no git runs and `versionDate` is left out. */
   readonly versionDate: boolean;
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  readonly repository?: string;
+  /** Which of the elements ref names is meant: its file, relative to its repository, as details.candidates of ref.ambiguous give it (#255). Give repository too when the same path is in several repositories; when several elements are still left, the error is ref.ambiguous with them. */
+  readonly file?: RelativePath;
 }
 
 /**
