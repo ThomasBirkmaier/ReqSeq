@@ -42,6 +42,11 @@ export type CurrentVersion =
       readonly version: string;
       /** What the lookup of each image its text embeds found, for the check on use (`imagesUnchanged`). */
       readonly images: readonly ImageSeen[];
+      /**
+       * The element as its file holds it now, when the file changed since the store read it (same
+       * UUID): `version` is of this element, not of the record of the store.
+       */
+      readonly element?: ElementRecord;
     }
   | {
       readonly kind: "unknown";
@@ -143,6 +148,7 @@ const versionNow = async (run: Run, record: ElementRecord): Promise<CurrentVersi
       kind: "version",
       version: elementVersion(element, body, run.metamodel, found.images),
       images: found.seen,
+      ...(element === record ? {} : { element }),
     };
   } catch (error) {
     // A number that counts and is not finite (`.inf`, `.nan`) has no canonical form; anything else is a bug.
@@ -243,6 +249,14 @@ const stale = async (run: Run, record: ElementRecord, entry: CurrentVersion): Pr
 };
 
 /**
+ * Whether two entries of one record say the same: the version and what its images were found as,
+ * or the same reason and message. The element a changed file holds now is not compared (JSON
+ * leaves out a property that is undefined).
+ */
+const sameEntry = (a: CurrentVersion, b: CurrentVersion): boolean =>
+  JSON.stringify({ ...a, element: undefined }) === JSON.stringify({ ...b, element: undefined });
+
+/**
  * `versions` with the entries computed again of every element whose embedded images changed on
  * disk (`imagesUnchanged`; an error while looking counts as a change) and of every element without
  * a version (its file or images may be readable again), or `versions` itself when no entry came out
@@ -264,10 +278,15 @@ export const checkImages = async (versions: CurrentVersions): Promise<CurrentVer
     known.delete(record);
   }
   const byRecord = await entriesOf(run, versions.store.elements, known);
+  const before = new Map(again);
   let changed = false;
-  for (const [record, before] of again) {
-    if (JSON.stringify(byRecord.get(record)) === JSON.stringify(before)) {
-      byRecord.set(record, before);
+  for (const [record, after] of byRecord) {
+    const old = before.get(record);
+    if (old === undefined) {
+      continue;
+    }
+    if (sameEntry(after, old)) {
+      byRecord.set(record, old);
     } else {
       changed = true;
     }
@@ -308,4 +327,66 @@ export const currentVersions = async (workspace: Workspace): Promise<CurrentVers
   };
   void check.then(forget, forget);
   return check;
+};
+
+/**
+ * A list of at least this share of the store (1 / `WHOLE_STORE_SHARE` of its elements) builds and
+ * keeps the versions of the whole store (`currentVersions`): it reads most files anyway.
+ */
+const WHOLE_STORE_SHARE = 4;
+
+/**
+ * The entries of `versions` for the records of `page` that need no new computation: as `checkImages`
+ * checks them (`stale`), but only those of `page`, so a page does not look at the images of the
+ * whole store.
+ */
+const keptFor = async (
+  run: Run,
+  versions: CurrentVersions,
+  page: ReadonlySet<ElementRecord>,
+): Promise<Map<ElementRecord, CurrentVersion>> => {
+  const kept = new Map<ElementRecord, CurrentVersion>();
+  for (const [record, entry] of versions.byRecord) {
+    if (page.has(record)) {
+      kept.set(record, entry);
+    }
+  }
+  const candidates = [...kept].filter(([, e]) => e.kind !== "version" || e.images.length > 0);
+  const checked = await mapBounded(candidates, async ([record, entry]) =>
+    (await stale(run, record, entry)) ? [record] : [],
+  );
+  for (const record of checked.flat()) {
+    kept.delete(record);
+  }
+  return kept;
+};
+
+/**
+ * The current versions of `records` only, in their order and each record once, for a command that
+ * shows some elements (`listElements`). Taken from the versions the workspace keeps, each checked
+ * as `checkImages` checks it but only for these records (`keptFor`); when it keeps none and
+ * `records` are a large share of the store (`WHOLE_STORE_SHARE`), the versions of the whole store
+ * are built and kept first. Every other record's version is computed from its file as
+ * `buildCurrentVersions` does. A page of a large workspace thus reads only its own files, also in a
+ * fresh CLI process (N-036), and builds no state. The kept state is not changed.
+ */
+export const currentVersionsOf = async (
+  workspace: Workspace,
+  records: readonly ElementRecord[],
+): Promise<ReadonlyMap<ElementRecord, CurrentVersion>> => {
+  const [store, layout, metamodel] = await Promise.all([
+    workspace.get(elementStoreState),
+    workspace.get(workspaceLayoutState),
+    workspace.get(metamodelState),
+  ]);
+  const kept = workspace.peek(currentVersionsState);
+  const versions =
+    kept !== undefined
+      ? await kept
+      : records.length * WHOLE_STORE_SHARE >= store.elements.length
+        ? await currentVersions(workspace)
+        : undefined;
+  const run = runOf({ layout, metamodel });
+  const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));
+  return entriesOf(run, records, known);
 };

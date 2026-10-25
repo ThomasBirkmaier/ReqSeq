@@ -1,5 +1,6 @@
 // One element as commands return it (`data-export.schema.json#/$defs/element`), built from its file
-// as just read: what `element.create` and `element.update` give back after a write (SR-001).
+// as just read: what `element.create` and `element.update` give back after a write (SR-001). List
+// commands give the same element without its text (`listedElement`, `model/list.ts`).
 import type { Problem } from "../catalog.js";
 import type { ParsedFile } from "../files/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
@@ -51,7 +52,7 @@ export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
  * answered).
  */
 const relationsUnder = (
-  input: ElementViewInput,
+  input: ListedElementInput,
   key: string,
   relation: Pick<RelationKey, "many">,
   extra: Pick<DataExportRelation, "meaning" | "property">,
@@ -95,7 +96,7 @@ const relationsUnder = (
  * `properties` as stored. Keys are unique across properties and relation kinds (ADR-0004), so no
  * target is listed twice.
  */
-const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
+const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
   const { metamodel } = input;
   return [
     ...metamodel.relations.flatMap((kind) =>
@@ -121,7 +122,7 @@ const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
  * `storedVersion` is the version the successor stores, when it is one. The superseded element
  * itself has no relation to its successor (D-045).
  */
-const successorRelations = (input: ElementViewInput): DataExportRelation[] =>
+const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
   input.successionsOf(input.record).map(({ source, kind, item }): DataExportRelation => {
     const state = targetState(input.layout, input.store, source.repository, { id: source.id });
     const available = state.kind === "available";
@@ -202,28 +203,55 @@ export type ExtraFindings = (
   record: ElementRecord,
 ) => readonly LocatableFinding[];
 
+/** What `listedElement` reads: the inputs of a view without the file. */
+export type ListedElementInput = Pick<
+  ElementViewInput,
+  "record" | "metamodel" | "store" | "shortIds" | "titleKey" | "layout" | "successionsOf"
+>;
+
 /**
- * The element with its text, its version (ADR-0005, with the embedded images of `input.images`),
- * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
- * keys included), its own relations, then, when it is superseded, the relations from its successors
- * (`successorRelations`, SR-072 AK3), and the hints with their lines: unknown type and properties
- * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
- * (SR-085), relations between types the metamodel does not allow (SR-086), then relations to
- * superseded elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option
- * 1). The successor relations are relations, not hints, so they are listed also then;
- * `input.successionsOf` must come from `successionsFor`. Other relations pointing at it and the
- * version date are left out.
+ * The element as list commands give it (`data-export.schema.json#/$defs/element`): `version` (the
+ * caller gives the current one, ADR-0005; left out when it has none), its properties (every key
+ * except `id`, `type`, `status`, the title and relation kinds, unknown keys included), its own
+ * relations, then, when it is superseded, the relations from its successors (`successorRelations`,
+ * SR-072 AK3). Without its text (the list commands leave it out, so no file is read), hints and
+ * `readOnly`; `elementView` adds them. `input.successionsOf` must come from `successionsFor`.
  */
-export const elementView = (
-  input: ElementViewInput,
-): DataExportElement & { readonly problems: readonly Problem[] } => {
-  const { record, file, metamodel, shortIds, titleKey } = input;
+export const listedElement = (input: ListedElementInput, version: string | undefined): DataExportElement => {
+  const { record, metamodel, shortIds, titleKey } = input;
   const relationKeys = new Set(metamodel.relations.map((r) => r.key));
   const properties = Object.fromEntries(
     Object.entries(record.data).filter(
       ([key]) => !STRUCTURAL_KEYS.includes(key) && key !== titleKey && !relationKeys.has(key),
     ),
   );
+  return {
+    id: record.id,
+    shortId: shortIds.of(record),
+    type: record.type,
+    status: text(record.data["status"]),
+    title: text(record.data[titleKey]),
+    ...(version === undefined ? {} : { version }),
+    repository: record.repository,
+    file: record.file,
+    properties,
+    relations: [...outgoingRelations(input), ...successorRelations(input)],
+  };
+};
+
+/**
+ * The element as `listedElement` gives it, with its text, its version (ADR-0005, with the embedded
+ * images of `input.images`) and the hints with their lines: unknown type and properties (SR-016),
+ * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085),
+ * relations between types the metamodel does not allow (SR-086), then relations to superseded
+ * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
+ * successor relations are relations, not hints, so they are listed also then. Other relations
+ * pointing at it and the version date are left out.
+ */
+export const elementView = (
+  input: ElementViewInput,
+): DataExportElement & { readonly problems: readonly Problem[] } => {
+  const { record, file, metamodel, shortIds } = input;
   // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
   const findings: readonly LocatableFinding[] = metamodel.valid
     ? [
@@ -239,18 +267,10 @@ export const elementView = (
     const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
-  return {
-    id: record.id,
-    shortId: shortIds.of(record),
-    type: record.type,
-    status: text(record.data["status"]),
-    title: text(record.data[titleKey]),
-    text: file.body,
-    version: elementVersion(record, file.body, metamodel, input.images),
-    repository: record.repository,
-    file: record.file,
-    properties,
-    relations: [...outgoingRelations(input), ...successorRelations(input)],
-    problems,
-  };
+  const { id, shortId, type, status, title, ...rest } = listedElement(
+    input,
+    elementVersion(record, file.body, metamodel, input.images),
+  );
+  // The text after the title, as the element files and the schema order it.
+  return { id, shortId, type, status, title, text: file.body, ...rest, problems };
 };

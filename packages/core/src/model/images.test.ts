@@ -461,7 +461,7 @@ describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
 
   it("[SR-091/AK4] the version of a written element counts its images and equals the one stored for it", async () => {
     const { fixture, workspace } = await open({ "system/needs/N-7b3d5e1f2a4c/layout.png": "first" });
-    const update = async (): Promise<string> =>
+    const update = async (): Promise<string | undefined> =>
       (
         (await invoke(
           "element.update",

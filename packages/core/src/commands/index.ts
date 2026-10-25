@@ -13,6 +13,7 @@ import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
 import metamodelGet from "./metamodel/get.js";
 import traceChain from "./trace/chain.js";
+import traceRelated from "./trace/related.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceStatus from "./workspace/status.js";
@@ -25,6 +26,7 @@ export const commands: readonly AnyCommand[] = [
   elementUpdate,
   metamodelGet,
   traceChain,
+  traceRelated,
   workspaceCheck,
   workspaceInit,
   workspaceStatus,

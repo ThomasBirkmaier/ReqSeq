@@ -146,6 +146,7 @@ export type ProblemCode =
   | "file.invalid-yaml"
   | "file.conflict-markers"
   | "file.unreadable"
+  | "file.faulty"
   | "file.yaml-warning"
   | "file.skipped"
   | "element.invalid"
@@ -268,7 +269,8 @@ export interface DataExportElement {
   readonly title: string;
   /** Markdown body. Left out by list commands unless asked for. */
   readonly text?: string;
-  readonly version: Version;
+  /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
+  readonly version?: Version;
   /** Date of the version from Git; null when not committed yet (D-013: shown instead of the hash). */
   readonly versionDate?: string | null;
   readonly repository: string;
@@ -1232,7 +1234,7 @@ export interface TraceChainOutput {
 }
 
 /**
- * Input of `trace.related` as `run` gets it: validated, properties with a `default` filled in. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth.
+ * Input of `trace.related` as `run` gets it: validated, properties with a `default` filled in. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.related input`.
  */
 export interface TraceRelatedInput {
@@ -1240,10 +1242,14 @@ export interface TraceRelatedInput {
   readonly direction: "children" | "parents";
   readonly maxDepth?: number;
   readonly view?: View;
+  /** Elements of the page; total counts all. */
+  readonly limit: number;
+  /** Elements skipped before the page, in the order of the list (by distance from the selection). */
+  readonly offset: number;
 }
 
 /**
- * Output of `trace.related`. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth.
+ * Output of `trace.related`. All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.related output`.
  */
 export interface TraceRelatedOutput {

@@ -11,7 +11,9 @@
 // `cyclesOf(store.elements, derivationEdges(graph))` finds the cycles of the whole store (SR-090).
 // The chain of SR-022 (`trace.chain`, chain.ts):
 //   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds })
-// Children come from the model's incoming relation index (`model/incoming.ts`).
+// `relatedElements(graph, selection, { direction: "children" | "parents" })` lists the elements
+// related to a selection, each once (SR-023). Children come from the model's incoming relation
+// index (`model/incoming.ts`).
 export {
   CYCLE_NAMES_SHOWN,
   cycleNames,
@@ -56,3 +58,5 @@ export type {
   GapMeaning,
 } from "./chain.js";
 export { chainOutput, traceChain } from "./chain.js";
+export type { RelatedElements, RelatedOptions } from "./related.js";
+export { relatedElements } from "./related.js";

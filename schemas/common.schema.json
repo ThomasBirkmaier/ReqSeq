@@ -162,6 +162,7 @@
         "file.invalid-yaml",
         "file.conflict-markers",
         "file.unreadable",
+        "file.faulty",
         "file.yaml-warning",
         "file.skipped",
         "element.invalid",

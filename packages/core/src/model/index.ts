@@ -69,6 +69,7 @@ export {
   carryCurrentVersions,
   checkImages,
   currentVersions,
+  currentVersionsOf,
   currentVersionsState,
   currentVersionOf,
 } from "./current-versions.js";
@@ -88,8 +89,9 @@ export type { InlineReference, ReferenceTargetState, TextReference } from "./ref
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
-export { elementVersion, elementView, titleKeyOf } from "./view.js";
-export type { ElementViewInput, ExtraFindings } from "./view.js";
+export { elementVersion, elementView, listedElement, titleKeyOf } from "./view.js";
+export type { ElementViewInput, ExtraFindings, ListedElementInput } from "./view.js";
+export { listElements } from "./list.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";

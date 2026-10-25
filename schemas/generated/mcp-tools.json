@@ -299,6 +299,7 @@
             "file.invalid-yaml",
             "file.conflict-markers",
             "file.unreadable",
+            "file.faulty",
             "file.yaml-warning",
             "file.skipped",
             "element.invalid",
@@ -503,7 +504,6 @@
             "type",
             "status",
             "title",
-            "version",
             "repository",
             "file",
             "properties",
@@ -530,7 +530,8 @@
               "description": "Markdown body. Left out by list commands unless asked for."
             },
             "version": {
-              "$ref": "#/$defs/common/$defs/version"
+              "$ref": "#/$defs/common/$defs/version",
+              "description": "The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty)."
             },
             "versionDate": {
               "type": [
@@ -3138,7 +3139,7 @@
     },
     {
       "name": "trace_related",
-      "description": "All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth.",
+      "description": "All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -3165,6 +3166,19 @@
           },
           "view": {
             "$ref": "#/$defs/common/$defs/view"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200,
+            "description": "Elements of the page; total counts all."
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Elements skipped before the page, in the order of the list (by distance from the selection)."
           }
         },
         "additionalProperties": false,
