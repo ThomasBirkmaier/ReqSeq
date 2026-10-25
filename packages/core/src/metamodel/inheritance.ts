@@ -1,9 +1,12 @@
 // Inheritance of types (SR-012): a type that `extends` another one has all its properties and
 // required properties (Pflicht-Properties), over any number of levels. A parent that does not
-// exist, an inheritance cycle and a type naming an unknown property are metamodel errors with file
-// and line, so the workspace opens read-only (SR-011 AK3). An unknown parent or property is reported
-// only when every metamodel file was read, since a faulty file may define it. Resolution never loops
-// and resolves as far as it can, so a read-only workspace still knows its types.
+// exist and an inheritance cycle are metamodel errors with file and line, so the workspace opens
+// read-only (SR-011 AK3). A type naming a property that no definition has is only a warning with
+// file and line (#141 c, option 2): the effective type leaves the key out, so an element value under
+// it is an unknown property (D-012) and the workspace stays writable. An unknown parent or property
+// is reported, and the key left out, only when every metamodel file was read, since a faulty file
+// may define it. Resolution never loops and resolves as far as it can, so a read-only workspace
+// still knows its types.
 import type { Problem } from "../catalog.js";
 import type { MetamodelEffectiveType, MetamodelKey, MetamodelType } from "../generated/types.js";
 
@@ -28,15 +31,20 @@ export type LocatedType = Located<MetamodelType>;
 export interface ResolvedTypes {
   /** In the order of the given types. */
   readonly types: readonly EffectiveType[];
-  /** `metamodel.invalid` errors, in type order. */
+  /** `metamodel.invalid` errors and warnings, in type order. */
   readonly problems: readonly Problem[];
 }
 
-const error = (type: LocatedType, segments: readonly string[], message: string): Problem => {
+const problem = (
+  severity: Problem["severity"],
+  type: LocatedType,
+  segments: readonly string[],
+  message: string,
+): Problem => {
   const line = type.lineOf(segments);
   return {
     code: "metamodel.invalid",
-    severity: "error",
+    severity,
     message,
     file: type.file,
     ...(line === undefined ? {} : { line }),
@@ -76,17 +84,27 @@ const parentProblems = (
   const { key, extends: parent } = type.definition;
   if (parent !== undefined && !byKey.has(parent)) {
     // The chain stops at the unknown parent, so there is no cycle to report either.
-    return complete ? [error(type, ["extends"], `Type ${key} extends unknown type ${parent}`)] : [];
+    return complete
+      ? [problem("error", type, ["extends"], `Type ${key} extends unknown type ${parent}`)]
+      : [];
   }
   if (cycle) {
     const path = [...chain, type].map((t) => t.definition.key).join(" -> ");
-    return [error(type, ["extends"], `Type ${key} is part of an inheritance cycle: ${path}`)];
+    return [problem("error", type, ["extends"], `Type ${key} is part of an inheritance cycle: ${path}`)];
   }
   return [];
 };
 
-/** A property key in `properties` or `required` that no property definition has. */
-const propertyProblems = (type: LocatedType, propertyKeys: ReadonlySet<MetamodelKey>): Problem[] => {
+/**
+ * A property key in `properties` or `required` that no property definition has: a warning, as the
+ * key is treated like a property the type does not have (D-012). The message says when the key is
+ * a relation kind.
+ */
+const propertyProblems = (
+  type: LocatedType,
+  isProperty: (key: MetamodelKey) => boolean,
+  relationKeys: ReadonlySet<MetamodelKey>,
+): Problem[] => {
   const { key, properties = [], required = [] } = type.definition;
   const lists = [
     ["properties", properties],
@@ -94,17 +112,33 @@ const propertyProblems = (type: LocatedType, propertyKeys: ReadonlySet<Metamodel
   ] as const;
   return lists.flatMap(([list, keys]) =>
     keys.flatMap((property, index) =>
-      propertyKeys.has(property)
+      isProperty(property)
         ? []
-        : [error(type, [list, String(index)], `Type ${key} names unknown property ${property}`)],
+        : [
+            problem(
+              "warning",
+              type,
+              [list, String(index)],
+              relationKeys.has(property)
+                ? `Type ${key} names ${property}, which is a relation kind, not a property`
+                : `Type ${key} names unknown property ${property}; it is treated like a property the type does not have`,
+            ),
+          ],
     ),
   );
 };
 
 const unique = (keys: readonly MetamodelKey[]): MetamodelKey[] => [...new Set(keys)];
 
-/** The effective type of `own`; `chain` starts with the type itself, then its ancestors. */
-const effectiveType = (own: MetamodelType, chain: readonly LocatedType[]): EffectiveType => {
+/**
+ * The effective type of `own`; `chain` starts with the type itself, then its ancestors. Keys for
+ * which `isProperty` is false are left out.
+ */
+const effectiveType = (
+  own: MetamodelType,
+  chain: readonly LocatedType[],
+  isProperty: (key: MetamodelKey) => boolean,
+): EffectiveType => {
   const definitions = chain.map((t) => t.definition);
   const { abstract = false, properties: _properties, required: _required, meaning: _meaning, ...rest } = own;
   const rootFirst = [...definitions].reverse();
@@ -114,31 +148,38 @@ const effectiveType = (own: MetamodelType, chain: readonly LocatedType[]): Effec
     ...(meaning === undefined ? {} : { meaning }),
     abstract,
     ancestors: definitions.slice(1).map((d) => d.key),
-    properties: unique(rootFirst.flatMap((d) => [...(d.properties ?? []), ...(d.required ?? [])])),
-    required: unique(rootFirst.flatMap((d) => d.required ?? [])),
+    properties: unique(rootFirst.flatMap((d) => [...(d.properties ?? []), ...(d.required ?? [])])).filter(
+      isProperty,
+    ),
+    required: unique(rootFirst.flatMap((d) => d.required ?? [])).filter(isProperty),
   };
 };
 
 /**
  * Resolves the inheritance of all types. `types` have unique keys (the loader keeps only the first
- * definition of a key); `propertyKeys` are the keys of all defined properties. `complete` is true
- * when every metamodel file was read; otherwise an unknown parent or property is not reported.
+ * definition of a key); `propertyKeys` are the keys of all defined properties, `relationKeys` those
+ * of all relation kinds. `complete` is true
+ * when every metamodel file was read; otherwise an unknown parent or property is not reported, and
+ * an unknown property is kept in the effective types.
  */
 export const resolveTypes = (
   types: readonly LocatedType[],
   propertyKeys: ReadonlySet<MetamodelKey>,
+  relationKeys: ReadonlySet<MetamodelKey>,
   complete: boolean,
 ): ResolvedTypes => {
   const byKey = new Map(types.map((t) => [t.definition.key, t]));
   const problems: Problem[] = [];
+  // While a file is faulty, which may define it, every key counts as a property: not reported, kept.
+  const isProperty = (key: MetamodelKey): boolean => !complete || propertyKeys.has(key);
   const resolved = types.map((type) => {
     const { chain, cycle } = chainOf(type, byKey);
     // The parent first, then the property lists, as most definitions are written.
     problems.push(
       ...parentProblems(type, chain, cycle, byKey, complete),
-      ...(complete ? propertyProblems(type, propertyKeys) : []),
+      ...propertyProblems(type, isProperty, relationKeys),
     );
-    return effectiveType(type.definition, chain);
+    return effectiveType(type.definition, chain, isProperty);
   });
   return { types: resolved, problems };
 };

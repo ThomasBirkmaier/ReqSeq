@@ -545,9 +545,9 @@ export interface MetamodelType {
   /** No elements of this type can be created; only for inheritance. */
   readonly abstract?: boolean;
   readonly meaning?: MetamodelTypeMeaning;
-  /** Property keys this type has, in addition to inherited ones, which come first. Each must be a defined property. */
+  /** Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). */
   readonly properties?: readonly MetamodelKey[];
-  /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and must be a defined property. Empty values are allowed but give a hint (SR-064). */
+  /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
 }
 
@@ -571,9 +571,9 @@ export interface MetamodelEffectiveType {
   readonly abstract: boolean;
   /** The parent, its parent and so on, up to the root type. */
   readonly ancestors: readonly MetamodelKey[];
-  /** All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. */
+  /** All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (#141 c). */
   readonly properties: readonly MetamodelKey[];
-  /** All required property keys, own and inherited, in the same order. */
+  /** All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c). */
   readonly required: readonly MetamodelKey[];
   /** Own meaning, else the meaning of the closest ancestor that has one. */
   readonly meaning?: MetamodelTypeMeaning;

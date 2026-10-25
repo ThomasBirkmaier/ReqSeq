@@ -1318,14 +1318,14 @@
               "items": {
                 "$ref": "#/$defs/key"
               },
-              "description": "Property keys this type has, in addition to inherited ones, which come first. Each must be a defined property."
+              "description": "Property keys this type has, in addition to inherited ones, which come first. Each should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c)."
             },
             "required": {
               "type": "array",
               "items": {
                 "$ref": "#/$defs/key"
               },
-              "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and must be a defined property. Empty values are allowed but give a hint (SR-064)."
+              "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064)."
             }
           },
           "unevaluatedProperties": false
@@ -1385,14 +1385,14 @@
               "items": {
                 "$ref": "#/$defs/key"
               },
-              "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties."
+              "description": "All property keys of the type, each once: those of the root type first, then down to the type itself (the key order of new keys in element files, ADR-0004). Required keys count as properties. Keys that no property definition has are left out (#141 c)."
             },
             "required": {
               "type": "array",
               "items": {
                 "$ref": "#/$defs/key"
               },
-              "description": "All required property keys, own and inherited, in the same order."
+              "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c)."
             },
             "meaning": {
               "$ref": "#/$defs/typeMeaning",

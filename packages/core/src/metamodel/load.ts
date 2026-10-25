@@ -62,10 +62,10 @@ export interface Metamodel {
   readonly meanings: MeaningAssignment;
   /**
    * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice,
-   * key used by a property and a relation kind), every type has known parents without a cycle and
-   * names only known properties, no type or property meaning is declared by two keys, every type in
-   * `source-types`/`target-types` is defined, exactly one status is initial, and no type uses the
-   * prefix `UNKNOWN_TYPE_PREFIX`.
+   * key used by a property and a relation kind), every type has known parents without a cycle (an
+   * unknown property in a type is only a warning, #141 c), no type or property meaning is declared
+   * by two keys, every type in `source-types`/`target-types` is defined, exactly one status is
+   * initial, and no type uses the prefix `UNKNOWN_TYPE_PREFIX`.
    * When false the workspace is read-only (SR-011 AK3).
    */
   readonly valid: boolean;
@@ -412,7 +412,12 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   const statuses = merged.statuses.items as Located<MetamodelStatus>[];
   // After all files: a parent, property, type or meaning may be defined in any file, so these
   // problems come last.
-  const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()), complete);
+  const resolved = resolveTypes(
+    types,
+    new Set(merged.properties.firstFile.keys()),
+    new Set(merged.relations.firstFile.keys()),
+    complete,
+  );
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
   problems.push(
     ...reservedPrefixProblems(types),
