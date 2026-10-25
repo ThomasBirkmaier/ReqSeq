@@ -64,6 +64,15 @@ export {
 export type { FollowedTargets, TargetState } from "./relations.js";
 export { embeddedImages, imageLinks, imageMemo } from "./images.js";
 export type { EmbeddedImage, ImageLink, ImageMemo, ImageSource } from "./images.js";
+export {
+  buildCurrentVersions,
+  carryCurrentVersions,
+  checkImages,
+  currentVersions,
+  currentVersionsState,
+  currentVersionOf,
+} from "./current-versions.js";
+export type { CurrentVersion, CurrentVersions } from "./current-versions.js";
 export { markdownImages, markdownLinks } from "./markdown-links.js";
 export type { MarkdownLink } from "./markdown-links.js";
 export { currentTarget, setInlineReferences, setRelationTargets } from "./targets.js";

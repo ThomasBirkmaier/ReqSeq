@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { FileHash } from "../files/index.js";
-import { readFileSha256 } from "../files/index.js";
+import { readFileSha256, readFileStat } from "../files/index.js";
 import type { VersionFile } from "../version/version.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 import { isSkippedOnSomeSystem, windowsChanges } from "./discover.js";
@@ -198,16 +198,17 @@ const entryNamed = (folder: Folder, name: string): Dirent | undefined => {
 };
 
 /**
- * The state of the image at `names` (from the repository folder), name by name as the folder walk
- * sees them: every folder above it a real folder (a link to a folder makes everything below it
- * missing), not the folder of a nested repository (one with a `.git` entry, or in `excludes`),
- * every name spelled as on disk (`entryNamed`); the file itself a regular file or a link.
+ * The path at `names` (from the repository folder), name by name as the folder walk sees it: every
+ * folder above it a real folder (a link to a folder makes everything below it missing), not the
+ * folder of a nested repository (one with a `.git` entry, or in `excludes`), every name spelled as
+ * on disk (`entryNamed`). Gives the names as spelled on disk, `null` when it is missing, or
+ * `"nested"`.
  */
-const imageState = async (
+const located = async (
   source: ImageSource,
   names: readonly string[],
   memo: ImageMemo,
-): Promise<ImageState> => {
+): Promise<readonly string[] | null | "nested"> => {
   const { folder, excludes } = source.repository;
   const spelled: string[] = [];
   for (const [i, name] of names.entries()) {
@@ -232,7 +233,19 @@ const imageState = async (
       return null;
     }
   }
-  return readFileSha256(folder, spelled.join("/"));
+  return spelled;
+};
+
+/** The state of the image at `names` (`located`); the file itself a regular file or a link. */
+const imageState = async (
+  source: ImageSource,
+  names: readonly string[],
+  memo: ImageMemo,
+): Promise<ImageState> => {
+  const spelled = await located(source, names, memo);
+  return spelled === null || spelled === "nested"
+    ? spelled
+    : readFileSha256(source.repository.folder, spelled.join("/"));
 };
 
 const stateOf = (source: ImageSource, link: ImageLink, memo: ImageMemo): Promise<ImageState> => {
@@ -252,6 +265,68 @@ const stateOf = (source: ImageSource, link: ImageLink, memo: ImageMemo): Promise
 /** Files opened at the same time, so an element with many images does not exhaust file handles. */
 const CONCURRENCY = 32;
 
+/** `fn` of every item, at most `CONCURRENCY` at a time, in the order of `items`. */
+export const mapBounded = async <T, R>(items: readonly T[], fn: (item: T) => Promise<R>): Promise<R[]> => {
+  const results: R[] = [];
+  const queue = items.entries();
+  const worker = async (): Promise<void> => {
+    for (const [index, item] of queue) {
+      results[index] = await fn(item);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
+  return results;
+};
+
+/**
+ * What one image link that is looked up found on disk, kept with a version so that the version can
+ * be checked on use (`imagesUnchanged`, ADR-0008): the size and modification time of the file it
+ * hashed, `null` when it was missing, `"nested"` when it lay in a nested repository.
+ */
+export interface ImageSeen {
+  /** The names from the repository folder down to the file (`ImageLink.names`). */
+  readonly names: readonly string[];
+  readonly found: { readonly size: number; readonly mtimeMs: number } | null | "nested";
+}
+
+/** The embedded images of an element (`embeddedImages`) and what each lookup found (`ImageSeen`). */
+export interface LookedUpImages {
+  readonly images: EmbeddedImage[];
+  /** Every link that is looked up on disk, in the order of `links`; one missing whatever is on disk is left out. */
+  readonly seen: ImageSeen[];
+}
+
+/**
+ * The images `links` name (`imageLinks`), looked up in the repository of `source` with their
+ * SHA-256, and what each lookup found. Images inside a nested repository do not count. Errors other
+ * than "not there" reject with `file.faulty`.
+ */
+export const lookUpImages = async (
+  source: ImageSource,
+  links: readonly ImageLink[],
+  memo: ImageMemo = imageMemo(),
+): Promise<LookedUpImages> => {
+  const read = await mapBounded(links, async (link) => ({ link, state: await stateOf(source, link, memo) }));
+  const images: EmbeddedImage[] = [];
+  const seen: ImageSeen[] = [];
+  for (const { link, state } of read) {
+    if (!link.missing) {
+      seen.push({
+        names: link.names,
+        found: state === null || state === "nested" ? state : { size: state.size, mtimeMs: state.mtimeMs },
+      });
+    }
+    if (state !== "nested") {
+      images.push(
+        state === null
+          ? { path: link.path, sha256: null }
+          : { path: link.path, sha256: state.sha256, size: state.size, mtimeMs: state.mtimeMs },
+      );
+    }
+  }
+  return { images, seen };
+};
+
 /**
  * The embedded images of an element with their SHA-256 (`imageLinks`), looked up in its
  * repository; `null` for one that is missing. Images inside a nested repository do not count.
@@ -262,26 +337,33 @@ export const embeddedImages = async (
   elementFile: string,
   body: string,
   memo: ImageMemo = imageMemo(),
-): Promise<EmbeddedImage[]> => {
-  const links = imageLinks(elementFile, body, source.ignored);
-  const read: { readonly index: number; readonly link: ImageLink; readonly state: ImageState }[] = [];
-  const queue = links.entries();
-  const worker = async (): Promise<void> => {
-    for (const [index, link] of queue) {
-      read.push({ index, link, state: await stateOf(source, link, memo) });
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, links.length) }, worker));
-  return read
-    .sort((a, b) => a.index - b.index)
-    .flatMap(({ link, state }): EmbeddedImage[] => {
-      if (state === "nested") {
-        return [];
-      }
-      return [
-        state === null
-          ? { path: link.path, sha256: null }
-          : { path: link.path, sha256: state.sha256, size: state.size, mtimeMs: state.mtimeMs },
-      ];
-    });
+): Promise<EmbeddedImage[]> =>
+  (await lookUpImages(source, imageLinks(elementFile, body, source.ignored), memo)).images;
+
+/** Whether the lookup `seen` finds the same now: the same kind of result, a file with the same size and time. */
+const seenAgain = async (source: ImageSource, seen: ImageSeen, memo: ImageMemo): Promise<boolean> => {
+  const spelled = await located(source, seen.names, memo);
+  if (spelled === null || spelled === "nested") {
+    return seen.found === spelled;
+  }
+  const now = await readFileStat(source.repository.folder, spelled.join("/"));
+  const { found } = seen;
+  return now === null || found === null || found === "nested"
+    ? now === found
+    : now.size === found.size && now.mtimeMs === found.mtimeMs;
 };
+
+/**
+ * Whether every image lookup in `seen` (`lookUpImages`) finds the same on disk now (ADR-0008): a
+ * missing image still missing, one in a nested repository still there, a file with the same size
+ * and modification time (as the watcher compares Markdown files below a changed folder). Presence
+ * is looked up name by name as `lookUpImages` does, so a rename to another case, a new `.git` entry
+ * above an image or a twin name in the other normal form counts as a change. Nothing is hashed.
+ * Pass a new `memo`: listings in an old one are not read again. Errors other than "not there"
+ * reject with `file.faulty`.
+ */
+export const imagesUnchanged = async (
+  source: ImageSource,
+  seen: readonly ImageSeen[],
+  memo: ImageMemo,
+): Promise<boolean> => (await mapBounded(seen, (s) => seenAgain(source, s, memo))).every(Boolean);

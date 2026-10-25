@@ -8,10 +8,12 @@ import { Alias, Document, parseDocument } from "yaml";
 import { findUnresolvedAlias } from "./parse.js";
 import {
   linkText,
+  readElementBodySync,
   readElementFile,
   readElementFileSync,
   readElementFiles,
   readFileSha256,
+  readFileStat,
   readYamlFile,
 } from "./read.js";
 import type { FileReadResult, YamlReadResult } from "./read.js";
@@ -517,5 +519,81 @@ describe("readFileSha256", () => {
       code: "file.faulty",
       details: { file: "a.png", reason: "EACCES" },
     });
+  });
+});
+
+describe("readFileStat (checking an image kept with a version, ADR-0008)", () => {
+  it("gives the size and mtime readFileSha256 gives, without hashing", async () => {
+    await put("img/a.png", new Uint8Array([1, 2, 3]));
+    await fs.symlink("a.png", path.join(root, "img", "link.png"), "file");
+    for (const file of ["img/a.png", "img/link.png"]) {
+      const hashed = await readFileSha256(root, file);
+      expect(await readFileStat(root, file)).toEqual({ size: hashed?.size, mtimeMs: hashed?.mtimeMs });
+    }
+  });
+
+  it("gives null for a missing file, a name below a file and a folder", async () => {
+    await put("img/a.png", "A");
+    expect(await readFileStat(root, "img/gone.png")).toBeNull();
+    expect(await readFileStat(root, "img/a.png/x.png")).toBeNull();
+    expect(await readFileStat(root, "img")).toBeNull();
+  });
+
+  it("refuses other errors with file.faulty", async () => {
+    await put("a.png", "A");
+    const denied = Object.assign(new Error("denied"), { code: "EACCES" });
+    vi.spyOn(fs, "lstat").mockRejectedValueOnce(denied);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await expect(readFileStat(root, "a.png")).rejects.toMatchObject({
+      code: "file.faulty",
+      details: { file: "a.png", reason: "EACCES" },
+    });
+  });
+});
+
+describe("readElementBodySync (the text of a file read again, ADR-0008)", () => {
+  const ELEMENT = "﻿---\r\nid: x\r\n---\r\n\r\nText ![](a.png)\r\n";
+  const hashOf = (bytes: string | Uint8Array): { sha256: string } => ({
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  });
+
+  it("takes the text after the frontmatter of the bytes the snapshot has, as readElementFile does", async () => {
+    await put("a.md", ELEMENT);
+    const read = await readElementFile(root, "a.md");
+    if (read.kind !== "parsed") {
+      throw new Error("expected a parsed file");
+    }
+    expect(readElementBodySync(root, "a.md", read.file.snapshot)).toEqual({
+      kind: "same",
+      body: read.file.body,
+    });
+  });
+
+  it("reads a file whose bytes changed, or that is gone, as readElementFileSync does", async () => {
+    await put("a.md", ELEMENT);
+    const before = hashOf(ELEMENT);
+    await put("a.md", "---\nid: y\n---\nNew.\n");
+    expect(readElementBodySync(root, "a.md", before)).toMatchObject({
+      kind: "changed",
+      read: { kind: "parsed", file: { body: "New.\n" } },
+    });
+    await fs.rm(path.join(root, "a.md"));
+    expect(readElementBodySync(root, "a.md", before)).toEqual({
+      kind: "changed",
+      read: readElementFileSync(root, "a.md"),
+    });
+  });
+
+  it("reads bytes with the snapshot's hash that give no text after a frontmatter as readElementFileSync does", async () => {
+    const invalid = Uint8Array.of(0x2d, 0x2d, 0x2d, 0x0a, 0xff, 0x0a, 0x2d, 0x2d, 0x2d, 0x0a);
+    for (const bytes of ["No frontmatter.\n", "---\nid: x\nno closing line\n", "<<<<<<< HEAD\n", invalid]) {
+      await put("a.md", bytes);
+      expect(readElementBodySync(root, "a.md", hashOf(bytes))).toEqual({
+        kind: "changed",
+        read: readElementFileSync(root, "a.md"),
+      });
+    }
   });
 });

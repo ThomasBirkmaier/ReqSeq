@@ -172,6 +172,18 @@ const decode = (file: string, bytes: Uint8Array): Decoded => {
   return { kind: "text", text, bom };
 };
 
+/**
+ * The Markdown text after the frontmatter of an element file's bytes, as `parseFileBytes` gives it
+ * (`body`), without parsing the YAML: for bytes that parsed before (the model reads a file again
+ * for its text, ADR-0008). Undefined when the bytes are not UTF-8, hold conflict markers or have no
+ * closed frontmatter.
+ */
+export const elementBody = (file: string, bytes: Uint8Array): string | undefined => {
+  const decoded = decode(file, bytes);
+  const split = decoded.kind === "text" ? splitFrontmatter(decoded.text) : undefined;
+  return split?.kind === "frontmatter" ? split.body : undefined;
+};
+
 /** Parses the bytes of an element file `file` (relative path, `/` separators). Never throws. */
 export const parseFileBytes = (file: string, bytes: Uint8Array): ParseOutcome => {
   const decoded = decode(file, bytes);

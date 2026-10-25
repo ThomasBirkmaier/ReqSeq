@@ -13,8 +13,8 @@ import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { computeVersion, sha256Hex } from "../version/version.js";
 import { workspaceLayoutState } from "../workspace/index.js";
-import type { ImageSource } from "./images.js";
-import { embeddedImages, imageLinks, imageMemo } from "./images.js";
+import type { ImageSeen, ImageSource } from "./images.js";
+import { embeddedImages, imageLinks, imageMemo, imagesUnchanged, lookUpImages } from "./images.js";
 import { ignoreMatcher } from "./ignore.js";
 import { elementStoreState } from "./store.js";
 import { currentTarget } from "./targets.js";
@@ -354,6 +354,82 @@ const storedVersion = async (workspace: Workspace): Promise<string> => {
   };
   return (await currentTarget(context, "system", { id: NEED.id })).version;
 };
+
+describe("lookUpImages and imagesUnchanged (a version kept across watcher batches, ADR-0008)", () => {
+  const BODY = "![](a.png) ![](gone.png) ![](sub/b.png) ![](dir) ![](a\\b.png) ![](plain/c.png)";
+
+  /** A repository with a file, a folder, a nested repository and a missing image. */
+  const repository = async (): Promise<{ root: string; source: ImageSource }> => {
+    const root = await tempRoot();
+    await put(root, "a.png", "A");
+    await put(root, "sub/.git", "gitdir: elsewhere");
+    await put(root, "sub/b.png", "B");
+    await fs.mkdir(path.join(root, "dir"));
+    await put(root, "plain/c.png", "C");
+    return { root, source: sourceOf(root) };
+  };
+
+  const seenOf = async (source: ImageSource): Promise<readonly ImageSeen[]> =>
+    (await lookUpImages(source, imageLinks("SR-1.md", BODY))).seen;
+
+  it("gives the images embeddedImages gives and what each lookup found, leaving out links missing on every OS", async () => {
+    const { root, source } = await repository();
+    const found = await lookUpImages(source, imageLinks("SR-1.md", BODY));
+    expect(found.images).toEqual(await embeddedImages(source, "SR-1.md", BODY));
+    const [a, c] = await Promise.all(["a.png", "plain/c.png"].map((f) => fs.lstat(path.join(root, f))));
+    expect(found.seen).toEqual([
+      { names: ["a.png"], found: { size: 1, mtimeMs: a?.mtimeMs } },
+      { names: ["gone.png"], found: null },
+      { names: ["sub", "b.png"], found: "nested" },
+      { names: ["dir"], found: null },
+      { names: ["plain", "c.png"], found: { size: 1, mtimeMs: c?.mtimeMs } },
+    ]);
+  });
+
+  it("finds every image as it was when nothing changed", async () => {
+    const { source } = await repository();
+    expect(await imagesUnchanged(source, await seenOf(source), imageMemo())).toBe(true);
+    expect(await imagesUnchanged(source, [], imageMemo())).toBe(true);
+  });
+
+  const changes: readonly (readonly [string, (root: string) => Promise<void>])[] = [
+    ["a file with another size", (root) => put(root, "a.png", "AA")],
+    [
+      "a file with another modification time",
+      (root) => fs.utimes(path.join(root, "a.png"), new Date(2020, 0, 1), new Date(2020, 0, 1)),
+    ],
+    ["a file deleted", (root) => fs.rm(path.join(root, "a.png"))],
+    [
+      "a file renamed to another case",
+      (root) => fs.rename(path.join(root, "a.png"), path.join(root, "A.png")),
+    ],
+    ["a missing image created", (root) => put(root, "gone.png", "G")],
+    [
+      "a folder replaced by a file",
+      (root) => fs.rm(path.join(root, "dir"), { recursive: true }).then(() => put(root, "dir", "D")),
+    ],
+    ["a nested repository that is one no longer", (root) => fs.rm(path.join(root, "sub", ".git"))],
+    ["a `.git` entry above a counted image", (root) => put(root, "plain/.git", "gitdir: elsewhere")],
+  ];
+
+  it.each(changes)("sees %s", async (_, change) => {
+    const { root, source } = await repository();
+    const seen = await seenOf(source);
+    await change(root);
+    expect(await imagesUnchanged(source, seen, imageMemo())).toBe(false);
+  });
+
+  it("refuses with file.faulty when a folder cannot be listed", async () => {
+    const { source } = await repository();
+    const seen = await seenOf(source);
+    const denied = Object.assign(new Error("denied"), { code: "EACCES" });
+    vi.spyOn(fs, "readdir").mockRejectedValueOnce(denied);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await expect(imagesUnchanged(source, seen, imageMemo())).rejects.toMatchObject({ code: "file.faulty" });
+  });
+});
 
 describe("the version counts embedded images (SR-091 AK4, ADR-0005)", () => {
   const text = "The wind speed can be read from three metres.\n\n![Layout](N-7b3d5e1f2a4c/layout.png)";

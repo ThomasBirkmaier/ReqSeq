@@ -8,15 +8,19 @@ export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";
 export { parseFileBytes, parseYamlFileBytes } from "./parse.js";
 export type { ParsedContent, ParsedYaml, ParseOutcome, YamlParseOutcome } from "./parse.js";
 export {
+  readElementBodySync,
   readElementFile,
   readElementFileSync,
   readElementFiles,
   readFileSha256,
+  readFileStat,
   readYamlFile,
 } from "./read.js";
 export type {
+  BodyReadResult,
   FileHash,
   FileReadResult,
+  FileStat,
   ParsedFile,
   ReadFilesOptions,
   ReadFilesResult,

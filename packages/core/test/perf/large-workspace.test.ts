@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
+import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
 import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState } from "../../src/model/store.js";
 import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
@@ -142,6 +143,44 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
       },
     );
     expect(findings).toEqual([]);
+  }, 600_000);
+
+  it("computes the current version of every element once per store and carries it over a save (#259)", async () => {
+    await workspace.get(elementStoreState);
+    const { result: versions } = await measure(
+      "current version of every element (first use after the load: every file read again)",
+      () => currentVersions(workspace),
+      { basis: "SR-020 (part of workspace.check from SR-025 on; ADR-0008, #259)" },
+    );
+    const generated = new Map(tree.elements.map((e) => [e.id, e.version]));
+    expect(versions.byRecord.size).toBe(ELEMENTS);
+    expect(
+      versions.store.elements.filter((e) => currentVersionOf(versions, e) !== generated.get(e.id)),
+    ).toEqual([]);
+    const { result: again } = await measure(
+      "current versions on a later use (embedded images checked; the generator embeds none)",
+      () => currentVersions(workspace),
+      { basis: "SR-020 (ADR-0008, #259: images checked on use)" },
+    );
+    expect(again).toBe(versions);
+    const [first] = versions.store.elements;
+    if (first === undefined) {
+      throw new Error("the generated store is empty");
+    }
+    await measure(
+      "save one element with the current versions built (element.update of its text, versions carried)",
+      () => invoke("element.update", { ref: first.id, text: "A new text." }, { workspace }),
+      { basis: "SR-082 AK3, ADR-0008 (#184, #259: the saved element gets its version again)" },
+    );
+    const { result: carried } = await measure(
+      "current versions right after the save",
+      () => currentVersions(workspace),
+      { basis: "SR-020 (ADR-0008, #259)" },
+    );
+    const saved = carried.store.elements.find((e) => e.id === first.id);
+    expect(saved).toBeDefined();
+    expect(currentVersionOf(carried, saved ?? first)).not.toBe(generated.get(first.id));
+    expect(carried.byRecord.size).toBe(ELEMENTS);
   }, 600_000);
 
   it("finds the hints on the relations to one element (ADR-0008: 200 ms)", async () => {

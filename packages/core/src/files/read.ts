@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
-import { fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
+import { elementBody, fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
 import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from "./paths.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
@@ -137,6 +137,32 @@ export const readElementFile = async (root: string, relativePath: string): Promi
 export const readElementFileSync = (root: string, relativePath: string): FileReadResult =>
   elementResult(readBytesSync(root, relativePath));
 
+/** What reading an element file again for its text gives (`readElementBodySync`). */
+export type BodyReadResult =
+  /** The bytes are those of the snapshot: the text after the frontmatter. */
+  | { readonly kind: "same"; readonly body: string }
+  /** The file changed since the snapshot (or cannot be read): the file as `readElementFileSync` reads it now. */
+  | { readonly kind: "changed"; readonly read: FileReadResult };
+
+/**
+ * Reads an element file below `root` again for its text, with blocking calls (ADR-0008): when its
+ * bytes still have the SHA-256 of `snapshot`, only the text after the frontmatter is taken, without
+ * parsing the YAML again; otherwise the file is read as `readElementFileSync` reads it. The same
+ * checks as `readElementFile` (no links, no folder linked out of the root).
+ */
+export const readElementBodySync = (
+  root: string,
+  relativePath: string,
+  snapshot: Pick<FileSnapshot, "sha256">,
+): BodyReadResult => {
+  const raw = readBytesSync(root, relativePath);
+  const body =
+    raw.kind === "bytes" && sha256(raw.bytes) === snapshot.sha256
+      ? elementBody(raw.file, raw.bytes)
+      : undefined;
+  return body === undefined ? { kind: "changed", read: elementResult(raw) } : { kind: "same", body };
+};
+
 /**
  * What an embedded image (ADR-0005 "Files") hashes to, with the `lstat` it was read after (for the
  * cache, ADR-0008).
@@ -194,6 +220,32 @@ export const readFileSha256 = async (root: string, relativePath: string): Promis
     return stat.isFile()
       ? { sha256: await streamSha256(absolute), size: stat.size, mtimeMs: stat.mtimeMs }
       : null;
+  } catch (error) {
+    if (isAbsent(error)) {
+      return null;
+    }
+    throw unreadableImage(file, error);
+  }
+};
+
+/** The size and modification time `readFileSha256` gives with a hash. */
+export type FileStat = Pick<FileHash, "size" | "mtimeMs">;
+
+/**
+ * The size and modification time `readFileSha256` would give for the file at `relativePath` below
+ * `root`, without hashing it (to check an image kept with a version, ADR-0008): a regular file's
+ * size, a symbolic link's text length; `null` when it is not there or is neither. Any other error
+ * is `file.faulty`.
+ */
+export const readFileStat = async (root: string, relativePath: string): Promise<FileStat | null> => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  try {
+    const stat = await fs.lstat(absolute);
+    if (stat.isSymbolicLink()) {
+      const target = linkText(await fs.readlink(absolute, { encoding: "buffer" }));
+      return { size: target.byteLength, mtimeMs: stat.mtimeMs };
+    }
+    return stat.isFile() ? { size: stat.size, mtimeMs: stat.mtimeMs } : null;
   } catch (error) {
     if (isAbsent(error)) {
       return null;
