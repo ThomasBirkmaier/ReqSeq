@@ -143,6 +143,7 @@ describe("element.create", () => {
         "acceptance-criteria:",
         "  - Given rain, when it falls, then the station shows it.",
         "---",
+        "",
         "The station shows rain.",
         "",
       ].join("\n"),
@@ -403,20 +404,53 @@ describe("element.create", () => {
     ]);
   });
 
-  it("writes a text with LF and a final line break, and an empty text as nothing", async () => {
+  it("writes a blank line after the frontmatter, a text with LF and a final line break, and an empty text as nothing", async () => {
     const opened = await standard();
     const out = await create(opened, { type: "need", title: "Rain", text: "Rain is shown." });
     expect(await read(opened, out.files[0] ?? "")).toBe(
-      `---\nid: ${out.element.id}\ntype: need\nstatus: draft\ntitle: Rain\n---\nRain is shown.\n`,
+      `---\nid: ${out.element.id}\ntype: need\nstatus: draft\ntitle: Rain\n---\n\nRain is shown.\n`,
     );
+    expect(out.element.text).toBe("Rain is shown.\n");
     const crlf = await create(opened, { type: "need", title: "Lines", text: "One\r\nTwo\rThree" });
     expect(await read(opened, crlf.files[0] ?? "")).toBe(
-      `---\nid: ${crlf.element.id}\ntype: need\nstatus: draft\ntitle: Lines\n---\nOne\nTwo\nThree\n`,
+      `---\nid: ${crlf.element.id}\ntype: need\nstatus: draft\ntitle: Lines\n---\n\nOne\nTwo\nThree\n`,
     );
     const empty = await create(opened, { type: "need", title: "Empty", text: "" });
     expect(await read(opened, empty.files[0] ?? "")).toBe(
       `---\nid: ${empty.element.id}\ntype: need\nstatus: draft\ntitle: Empty\n---\n`,
     );
+  });
+
+  it("writes the layout element.update writes, and an update with the same text changes nothing (#308)", async () => {
+    const opened = await standard();
+    const out = await create(opened, { type: "need", title: "Rain", text: "Rain is shown." });
+    const file = out.files[0] ?? "";
+    const created = await read(opened, file);
+    const again = (await invoke(
+      "element.update",
+      { ref: out.element.id, text: out.element.text },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"element.update">;
+    expect(again.files).toEqual([]);
+    await invoke("element.update", { ref: out.element.id, text: "Snow" }, { workspace: opened.workspace });
+    await invoke(
+      "element.update",
+      { ref: out.element.id, text: "Rain is shown." },
+      { workspace: opened.workspace },
+    );
+    expect(await read(opened, file)).toBe(created);
+    // The version is the one of the layout without the blank line that element.create wrote before.
+    const id = "0b6f1a52-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
+    const old = await standard({
+      "need/N-0c1d2e3f4a5b.md": `---\nid: ${id}\ntype: need\nstatus: draft\ntitle: Rain\n---\nRain is shown.\n`,
+    });
+    const before = (await invoke(
+      "element.get",
+      { ref: id },
+      { workspace: old.workspace },
+    )) as CommandOutput<"element.get">;
+    expect(before.element.text).toBe("Rain is shown.\n");
+    expect(out.element.version).toBe(before.element.version);
   });
 
   it("makes the next read of the element store find the new element, with a short ID unique among all", async () => {

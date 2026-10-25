@@ -325,7 +325,7 @@ describe("relation targets with ID and version (SR-021)", () => {
         "",
       ].join("\n"),
     );
-    expect((await read(opened, SOURCE.file)).endsWith(`---\n${out.element.text ?? ""}`)).toBe(true);
+    expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${out.element.text ?? ""}`)).toBe(true);
   });
 
   it("[SR-021/AK2] finds references with any label and keeps other query parameters", async () => {

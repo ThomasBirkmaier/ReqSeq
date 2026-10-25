@@ -16,8 +16,10 @@ import type {
   PropertyValue,
 } from "../files/index.js";
 import {
+  bodyForText,
   createFolder,
   editElementFile,
+  elementText,
   parseFileBytes,
   readElementFile,
   resolveInRoot,
@@ -518,17 +520,12 @@ export const createElement = async (
       value: toPropertyValue(value),
     })),
   ];
-  // A new file has LF line endings and ends with a line break (ADR-0004 "Stable writing").
-  const text = await setInlineReferences(
-    context,
-    (input.text ?? "").replace(/\r\n?/g, "\n"),
-    "",
-    repository.name,
-  );
-  const body = text === "" || text.endsWith("\n") ? text : `${text}\n`;
+  // A new file has a blank line after the frontmatter, LF line endings and ends with a line break
+  // (ADR-0004 "Stable writing"), as element.update writes a text (#308).
+  const text = await setInlineReferences(context, input.text ?? "", "", repository.name);
   const { bytes } = editElementFile(EMPTY_FILE, {
     edits,
-    body,
+    body: bodyForText(EMPTY_FILE.body, text),
     keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
   });
   // Every check is done and the bytes are verified before the folder is created, so only a failing
@@ -763,10 +760,10 @@ export const updateElement = async (
   const text =
     input.text === undefined
       ? undefined
-      : await setInlineReferences(context, input.text, current.file.body, record.repository);
+      : await setInlineReferences(context, input.text, elementText(current.file.body), record.repository);
   const { bytes, changed } = editElementFile(current.file, {
     edits: updateEdits(input, set, titleKey),
-    ...(text === undefined ? {} : { body: text }),
+    ...(text === undefined ? {} : { body: bodyForText(current.file.body, text) }),
     keyOrder: type.properties,
   });
   let result: ElementWriteResult & { readonly affected?: number };

@@ -551,7 +551,7 @@ describe("a superseded element names its successor without a relation of its own
     expect(element.relations[0]?.storedVersion).toBe((stored as { version: string }[])[0]?.version);
     // Only the text changed; the superseded file holds no relation, the successor's file holds it.
     const after = await read(opened, N_OLD.file);
-    expect(after).toBe(before.replace("\nI need to see the wind speed.\n", "Changed.\n"));
+    expect(after).toBe(before.replace("\nI need to see the wind speed.\n", "\nChanged.\n"));
     expect(after).not.toContain(N_NEW.id);
     expect(await read(opened, N_NEW.file)).toContain(`supersedes:\n  - { id: ${N_OLD.id}, `);
   });

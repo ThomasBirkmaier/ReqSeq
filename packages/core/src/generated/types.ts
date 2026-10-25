@@ -278,7 +278,7 @@ export interface DataExportElement {
   readonly type: Key;
   readonly status: Key;
   readonly title: string;
-  /** Markdown body. Left out by list commands unless asked for. */
+  /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
   /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
   readonly version?: Version;
@@ -952,6 +952,7 @@ export interface MetamodelGetOutput {
 export interface ElementCreateInput {
   readonly type: Key;
   readonly title: string;
+  /** Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004). */
   readonly text?: string;
   readonly properties?: Readonly<Record<string, ElementInputValue>>;
   readonly repository?: string;
@@ -1049,6 +1050,7 @@ export interface ElementListOutput {
 export interface ElementUpdateInput {
   readonly ref: ElementRef;
   readonly title?: string;
+  /** New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004). */
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly Key[];

@@ -245,6 +245,7 @@ describe("unknown properties and types (SR-016)", () => {
         "weight: 3",
         "tags: [wind, display]",
         "---",
+        "",
         "New text.",
         "",
       ].join("\n"),

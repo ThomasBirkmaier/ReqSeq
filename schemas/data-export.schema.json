@@ -84,7 +84,7 @@
         },
         "text": {
           "type": "string",
-          "description": "Markdown body. Left out by list commands unless asked for."
+          "description": "Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for."
         },
         "version": {
           "$ref": "common.schema.json#/$defs/version",

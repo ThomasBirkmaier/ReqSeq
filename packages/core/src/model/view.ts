@@ -3,6 +3,7 @@
 // commands give the same element without its text (`listedElement`, `model/list.ts`).
 import type { Problem } from "../catalog.js";
 import type { ParsedFile } from "../files/index.js";
+import { elementText } from "../files/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, propertyWithMeaning } from "../metamodel/index.js";
@@ -337,6 +338,7 @@ export const elementView = (
     problems.push(noVersionProblem(record, notComputableMessage(record, computed)));
   }
   const { id, shortId, type, status, title, ...rest } = listedElement(input, version);
-  // The text after the title, as the element files and the schema order it.
-  return { id, shortId, type, status, title, text: file.body, ...rest, problems };
+  // The text after the title, as the element files and the schema order it; without the blank line
+  // after the frontmatter, so element.update takes it back unchanged (#308).
+  return { id, shortId, type, status, title, text: elementText(file.body), ...rest, problems };
 };

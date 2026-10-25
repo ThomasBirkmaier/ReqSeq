@@ -76,7 +76,7 @@ describe("element.get", () => {
     });
     expect(hints(byId).map((p) => p.code)).toEqual(["element.missing-required", "element.missing-required"]);
     expect(byId.version).toMatch(/^n1:[0-9a-f]{16}$/);
-    expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n")[2]);
+    expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n\n")[1]);
     // The date only on request (D-013, ADR-0005 "Version date"); not in a Git repository: none.
     expect(byId).not.toHaveProperty("versionDate");
     expect(await get(opened, { ref: WIND.id, versionDate: true })).toEqual({ ...byId, versionDate: null });
@@ -438,7 +438,7 @@ describe("element.get, more of what stage 1 shows", () => {
   it("shows an element whose counted value has no normal form without a version, with a warning (#276)", async () => {
     const opened = await open({ ...TWO, files: { [GUSTS.file]: ENDLESS_GUSTS } });
     const element = await get(opened, { ref: GUSTS.id, versionDate: true });
-    expect(element).toMatchObject({ id: GUSTS.id, title: "Show gusts", text: "\nGusts.\n", readOnly: false });
+    expect(element).toMatchObject({ id: GUSTS.id, title: "Show gusts", text: "Gusts.\n", readOnly: false });
     expect(element).not.toHaveProperty("version");
     expect(element).not.toHaveProperty("versionDate");
     // The value-kind hint first (SR-085), then why the version is missing.

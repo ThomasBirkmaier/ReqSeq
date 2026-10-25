@@ -90,8 +90,8 @@ describe("element.update", () => {
 
   it("[SR-002/AK2] keeps the UUID when title and text change", async () => {
     const opened = await open();
-    const out = await update(opened, { ref: WIND.id, title: "Show wind", text: "\nNew text.\n" });
-    expect(out.element).toMatchObject({ id: WIND.id, title: "Show wind", text: "\nNew text.\n" });
+    const out = await update(opened, { ref: WIND.id, title: "Show wind", text: "New text.\n" });
+    expect(out.element).toMatchObject({ id: WIND.id, title: "Show wind", text: "New text.\n" });
     expect(await read(opened, WIND.file)).toBe(
       `---\nid: ${WIND.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind\n---\n\nNew text.\n`,
     );
@@ -154,7 +154,7 @@ describe("element.update", () => {
     );
     await onBranch(
       "bob",
-      { ref: GUSTS.id, text: "\nThe station shows gusts above 12 m/s.\n", set: { rationale: "Safety" } },
+      { ref: GUSTS.id, text: "The station shows gusts above 12 m/s.\n", set: { rationale: "Safety" } },
       { type: "need", title: "Bob's need" },
     );
     await fixture.git(["checkout", "--quiet", "main"]);
@@ -226,7 +226,7 @@ describe("element.update", () => {
     const out = await update(opened, {
       ref: GUSTS.id,
       title: "Show gusts",
-      text: "\nThe station shows gusts above 10 m/s.\n",
+      text: "The station shows gusts above 10 m/s.\n",
       set: { "requirement-type": "functional" },
       unset: ["rationale"],
     });
@@ -580,5 +580,80 @@ describe("element.update in a workspace of 50,000 elements (#166, N-036)", () =>
       ]);
     }
     expect(Math.min(...times)).toBeLessThan(SANITY_BOUND_MS);
+  });
+});
+
+describe("element.update text layout (#308)", () => {
+  const get = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">> =>
+    (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
+
+  const HEAD = `---\nid: ${WIND.id}\ntype: system-requirement\nstatus: draft\n`;
+
+  it("adds the final newline to a text without one, as element.create does", async () => {
+    const opened = await open();
+    const out = await update(opened, { ref: WIND.id, text: "New text." });
+    expect(await read(opened, WIND.file)).toBe(`${HEAD}title: Show wind speed\n---\n\nNew text.\n`);
+    expect(out.element.text).toBe("New text.\n");
+  });
+
+  it("gives the text without the blank line after the frontmatter", async () => {
+    const opened = await open();
+    expect((await get(opened, WIND.id)).element.text).toBe("The station shows the current wind speed.\n");
+    expect((await get(opened, GUSTS.id)).element.text).toBe("The station shows gusts above 10 m/s.\n");
+  });
+
+  it("[SR-102/AK1] a new title with the text element.get gave changes only the title line, in every layout", async () => {
+    const layouts = {
+      blank: `${HEAD}title: Show wind speed\n---\n\nText.\n`,
+      none: `${HEAD}title: Show wind speed\n---\nText.\n`,
+      unterminated: `${HEAD}title: Show wind speed\n---\n\nText.`,
+      crlf: `${HEAD}title: Show wind speed\n---\n\nOne\nTwo\n`.replace(/\n/g, "\r\n"),
+      empty: `${HEAD}title: Show wind speed\n---\n`,
+      closing: `${HEAD}title: Show wind speed\n---`,
+    };
+    for (const [layout, file] of Object.entries(layouts)) {
+      const opened = await open({ files: { [WIND.file]: file } });
+      const { element } = await get(opened, WIND.id);
+      const out = await update(opened, { ref: WIND.id, title: "Wind", text: element.text });
+      expect(await read(opened, WIND.file), layout).toBe(
+        file.replace("title: Show wind speed", "title: Wind"),
+      );
+      expect(out.element.text, layout).toBe(element.text);
+      expect(out.element.version, layout).toBe(element.version);
+    }
+  });
+
+  it("passing the text element.get gave back unchanged changes no byte", async () => {
+    const opened = await open();
+    for (const ref of [WIND.id, GUSTS.id]) {
+      const { element } = await get(opened, ref);
+      const out = await update(opened, { ref, text: element.text });
+      expect(out.files).toEqual([]);
+    }
+  });
+
+  it("keeps the layout of the file: the blank line stays, a file written without it stays without", async () => {
+    const without = `${HEAD}title: Show wind speed\n---\nOld.\n`;
+    const opened = await open({ files: { [WIND.file]: without } });
+    await update(opened, { ref: WIND.id, text: "New." });
+    expect(await read(opened, WIND.file)).toBe(`${HEAD}title: Show wind speed\n---\nNew.\n`);
+    await update(opened, { ref: GUSTS.id, text: "Gusts." });
+    expect(await read(opened, GUSTS.file)).toMatch(/\n---\n\nGusts\.\n$/);
+  });
+
+  it("gives a file without text the blank line, and writes an empty text as nothing", async () => {
+    const opened = await open({ files: { [WIND.file]: `${HEAD}title: Show wind speed\n---\n` } });
+    await update(opened, { ref: WIND.id, text: "New." });
+    expect(await read(opened, WIND.file)).toBe(`${HEAD}title: Show wind speed\n---\n\nNew.\n`);
+    await update(opened, { ref: WIND.id, text: "" });
+    expect(await read(opened, WIND.file)).toBe(`${HEAD}title: Show wind speed\n---\n`);
+  });
+
+  it("keeps the version: neither the blank line nor the final newline counts (ADR-0005)", async () => {
+    const opened = await open({ files: { [WIND.file]: `${HEAD}title: Show wind speed\n---\nText.` } });
+    const before = await get(opened, WIND.id);
+    const out = await update(opened, { ref: WIND.id, text: "\nText.\n" });
+    expect(out.files).toEqual([WIND.file]);
+    expect(out.element.version).toBe(before.element.version);
   });
 });

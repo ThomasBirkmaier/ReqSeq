@@ -76,7 +76,7 @@ describe("element.resolve", () => {
       id: WIND.id,
       shortId: "SR-e88fb3",
       title: "Show wind speed",
-      text: "\nThe station shows the current wind speed.\n",
+      text: "The station shows the current wind speed.\n",
       status: "draft",
       file: WIND.file,
     });

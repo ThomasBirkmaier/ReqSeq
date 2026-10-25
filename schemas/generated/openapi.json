@@ -880,7 +880,8 @@
                     "type": "string"
                   },
                   "text": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Markdown text of the element, written below the frontmatter after one blank line; that blank line after the closing `---` is not part of the text. A final line break is added (ADR-0004)."
                   },
                   "properties": {
                     "type": "object",
@@ -1563,7 +1564,8 @@
                     "type": "string"
                   },
                   "text": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "New Markdown text of the element; the blank line after the closing `---` is not part of the text, so the text element.get gives can be passed back unchanged. A changed text gets a final line break (ADR-0004)."
                   },
                   "set": {
                     "type": "object",
@@ -7884,7 +7886,7 @@
               },
               "text": {
                 "type": "string",
-                "description": "Markdown body. Left out by list commands unless asked for."
+                "description": "Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for."
               },
               "version": {
                 "$ref": "#/components/schemas/common/$defs/version",

@@ -24,7 +24,7 @@ const EXPECTED = {
   id: WIND,
   shortId: "SR-e88fb3",
   title: "Show wind speed",
-  text: "\nThe station shows the current wind speed.\n",
+  text: "The station shows the current wind speed.\n",
   status: "draft",
   version: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
 };
