@@ -159,7 +159,7 @@ describe("value kinds (SR-085)", () => {
       ["title", "Property Title (title) expects text; the value is a mapping"],
       [
         "parent-item",
-        "Property Parent item (parent-item) expects a relation target { id, version }; the value is a mapping",
+        "Property Parent item (parent-item) expects a relation target { id, version }; the value is a mapping whose id is no UUID",
       ],
     ]);
   });
@@ -241,7 +241,7 @@ describe("value kinds (SR-085)", () => {
     expect(await messages({ "derives-from": [TARGET, { id: NEED }, "N-ea6fe2e123a9"] })).toEqual([
       [
         "derives-from/1",
-        "Relation Derives from (derives-from) expects each item to be a relation target { id, version }; item 2 is a mapping",
+        "Relation Derives from (derives-from) expects each item to be a relation target { id, version }; item 2 is a mapping without version",
       ],
       [
         "derives-from/2",
@@ -252,6 +252,44 @@ describe("value kinds (SR-085)", () => {
       [
         "derives-from",
         "Relation Derives from (derives-from) expects a list, each item a relation target { id, version }; the value is a mapping",
+      ],
+    ]);
+  });
+
+  it("[SR-085/AK1] names what a mapping that is no relation target lacks or has too much (#302)", async () => {
+    const { id, version } = TARGET;
+    const expects =
+      "Relation Derives from (derives-from) expects each item to be a relation target { id, version }";
+    expect(
+      await messages({
+        "derives-from": [
+          { id, title: "Migrated" },
+          { id, version: "2026-01-01" },
+          { version },
+          { id: 815, version },
+          { id, version, note: "x" },
+          { id, version, title: 1 },
+          { id, version, repository: ["sensor"] },
+          { id, version, title: "T", repository: "sensor" },
+        ],
+      }),
+    ).toEqual([
+      ["derives-from/0", `${expects}; item 1 is a mapping without version`],
+      [
+        "derives-from/1",
+        `${expects}; item 2 is a mapping whose version is the text "2026-01-01", not a version like n1:9f86d081884c7d65`,
+      ],
+      ["derives-from/2", `${expects}; item 3 is a mapping without id`],
+      ["derives-from/3", `${expects}; item 4 is a mapping whose id is no UUID`],
+      [
+        "derives-from/4",
+        `${expects}; item 5 is a mapping with the key note, which a relation target does not have`,
+      ],
+      ["derives-from/5", `${expects}; item 6 is a mapping whose title is no text`],
+      ["derives-from/6", `${expects}; item 7 is a mapping whose repository is no text`],
+      [
+        "derives-from/7",
+        `${expects}; item 8 is a mapping with both title and repository; a target in another repository has no title`,
       ],
     ]);
   });

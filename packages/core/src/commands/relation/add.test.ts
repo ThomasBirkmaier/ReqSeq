@@ -352,6 +352,120 @@ describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-
   });
 });
 
+describe("relation.add gives a stored target without a valid version its current version (SR-021 AK1, #302)", () => {
+  /** A requirement written by a migration script: targets as `{ id, title }`, no version (ADR-0005). */
+  const MIGRATED = { id: "0b7c6e1a-1111-4222-8333-fffffffffff1", file: "requirements/SR-fffffffffff1.md" };
+  const migrated = (items: readonly string[]): FixtureOptions => ({
+    ...TWO,
+    files: {
+      ...TWO.files,
+      [MIGRATED.file]: element(
+        MIGRATED.id,
+        "system-requirement",
+        "Migrated",
+        `derives-from:\n${items.map((item) => `  - ${item}\n`).join("")}`,
+      ),
+    },
+  });
+  const versionAdded = (version: string, line: number): Problem => ({
+    code: "relation.version-added",
+    severity: "info",
+    message:
+      "System Requirement SR-fffff1 had the relation Derives from (derives-from) to Need N-aaaaa1 without a valid version; its current version is stored now",
+    repository: "system",
+    file: MIGRATED.file,
+    line,
+    elementId: MIGRATED.id,
+    targetId: NEED.id,
+    currentVersion: version,
+  });
+
+  it("[SR-021/AK1] writes the current version into the stored entry in place, changes only its line and says so", async () => {
+    const opened = await open(
+      migrated([`{ id: ${NEED.id}, title: "Need one" }`, `{ id: ${NEED2.id}, title: "Need two" }`]),
+    );
+    const before = await read(opened, MIGRATED.file);
+    const version = await versionOf(opened, NEED.id);
+    const out = await add(opened, { source: "SR-fffff1", kind: "derives-from", target: NEED.id });
+    expect(out).toEqual({ files: [MIGRATED.file], problems: [versionAdded(version, 7)] });
+    expect(lineDiff(before, await read(opened, MIGRATED.file))).toEqual({
+      added: [`  - { id: ${NEED.id}, version: ${version}, title: Need one }`],
+      removed: [`  - { id: ${NEED.id}, title: "Need one" }`],
+    });
+    // The value-kind hint on the entry is gone; the one on the other entry stays.
+    const shown = (await invoke(
+      "element.get",
+      { ref: MIGRATED.id },
+      { workspace: opened.workspace },
+    )) as Shown;
+    const kinds = shown.element.problems?.filter((p) => p.code === "element.wrong-value-kind");
+    expect(kinds?.map((p) => [p.line, p.message.endsWith("item 2 is a mapping without version")])).toEqual([
+      [8, true],
+    ]);
+  });
+
+  it("[SR-021/AK1] replaces a version that is no version, and a second call keeps the stored one", async () => {
+    const opened = await open(migrated([`{ id: ${NEED.id}, version: "2026-01-01", title: Need one }`]));
+    const version = await versionOf(opened, NEED.id);
+    const out = await add(opened, { source: MIGRATED.id, kind: "derives-from", target: "N-aaaaa1" });
+    expect(out).toEqual({ files: [MIGRATED.file], problems: [versionAdded(version, 7)] });
+    const after = await read(opened, MIGRATED.file);
+    expect(after).toContain(`\n  - { id: ${NEED.id}, version: ${version}, title: Need one }\n---\n`);
+    expect(await add(opened, { source: MIGRATED.id, kind: "derives-from", target: NEED.id })).toEqual({
+      files: [],
+      problems: [],
+    });
+    expect(await read(opened, MIGRATED.file)).toBe(after);
+  });
+
+  it("keeps the file when another entry for the target has a valid version, as element.update does", async () => {
+    const opened = await open(
+      migrated([`{ id: ${NEED.id} }`, `{ id: ${NEED.id}, version: n1:0000000000000000, title: Need one }`]),
+    );
+    const before = await read(opened, MIGRATED.file);
+    const out = await add(opened, { source: MIGRATED.id, kind: "derives-from", target: NEED.id });
+    expect(out).toEqual({ files: [], problems: [] });
+    expect(await read(opened, MIGRATED.file)).toBe(before);
+  });
+
+  it("[SR-005/AK1] fills in the version of a target in another repository and keeps its repository name", async () => {
+    const opened = await open({ fixture: "SR-021/targets" }, "system");
+    const stored = await read(opened, SR.file);
+    await opened.fixture.write(
+      `system/${SR.file}`,
+      stored.replace(
+        "\n---\n\nThe display",
+        `\nderives-from:\n  - { id: ${SENSOR_NEED.id}, repository: sensor }\n---\n\nThe display`,
+      ),
+    );
+    const before = await read(opened, SR.file);
+    const version = await versionOf(opened, SENSOR_NEED.id);
+    const out = await add(opened, { source: SR.id, kind: "derives-from", target: SENSOR_NEED.id });
+    expect(out.files).toEqual([SR.file]);
+    expect(out.problems?.map((p) => [p.code, p.targetId, p.currentVersion])).toEqual([
+      ["relation.version-added", SENSOR_NEED.id, version],
+    ]);
+    expect(lineDiff(before, await read(opened, SR.file))).toEqual({
+      added: [`  - { id: ${SENSOR_NEED.id}, version: ${version}, repository: sensor }`],
+      removed: [`  - { id: ${SENSOR_NEED.id}, repository: sensor }`],
+    });
+  });
+
+  it("refuses to fill in the version of a relation the metamodel does not allow, and writes nothing", async () => {
+    const opened = await open({
+      ...TWO,
+      files: {
+        ...TWO.files,
+        [NEED2.file]: element(NEED2.id, "need", "Need two", `derives-from:\n  - { id: ${WIND.id} }\n`),
+      },
+    });
+    const before = await read(opened, NEED2.file);
+    const error = await addError(opened, { source: NEED2.id, kind: "derives-from", target: WIND.id });
+    expect(error.code).toBe("relation.not-allowed");
+    expect(await read(opened, NEED2.file)).toBe(before);
+  });
+});
+
 describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3)", () => {
   const CYCLE: FixtureOptions = { fixture: "SR-090/cycle" };
   const name = (n: number): string =>

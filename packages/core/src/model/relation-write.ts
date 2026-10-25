@@ -9,9 +9,14 @@
 //   repository and no title across repositories (SR-005 AK1, D-058). A relation the metamodel does
 //   not allow between the two types is refused with `relation.not-allowed`, by the rule of the
 //   check of SR-086 (`relationTypeFindings`): the tool sets only allowed relations (SR-067 AK1;
-//   assumption, stated in the PR of #264). A relation the source already has is kept with its
-//   stored version and nothing is written (#177 (a)). Whether it closes a cycle of derivations is
-//   the command's to say (SR-067 AK3, `trace/new-cycle.ts`): the model block does not import trace.
+//   assumption, stated in the PR of #264). A relation the source already has with a valid version
+//   is kept with its stored version and nothing is written (#177 (a)). One it has only without a
+//   valid version (written by hand or by a migration script, which cannot compute versions,
+//   ADR-0005) gets the current version in place, with the same checks as a new relation: its line
+//   is replaced by `currentTarget` (`replace-item`, the position in the list stays) and an `info`
+//   problem `relation.version-added` says so (ADR-0004 "Setting a target", as `element.update`
+//   does for relation-valued properties; #302). Whether it closes a cycle of derivations is the
+//   command's to say (SR-067 AK3, `trace/new-cycle.ts`): the model block does not import trace.
 // - `relation.remove` removes every item of the kind that names the target, and the key with the
 //   last one. The target is matched by its UUID as written, so a relation to a target that is gone
 //   (SR-089) can be removed too. `repository` keeps only the items into that repository. Items
@@ -29,6 +34,8 @@ import { allowsType, keyDefinition, metamodelState } from "../metamodel/index.js
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
+import { isVersion } from "./is-version.js";
+import { locateFindings } from "./locate.js";
 import { hasId } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { resolveRef } from "./resolve.js";
@@ -63,6 +70,8 @@ export interface AddedRelation {
   readonly sources: readonly ElementRecord[];
   /** The position of the relation in the list under the kind's key in the source file. */
   readonly index: number;
+  /** One `info` problem `relation.version-added` when a stored entry without a valid version got its version. */
+  readonly problems: readonly Problem[];
 }
 
 /** What `removeRelation` did. */
@@ -146,13 +155,14 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
   const kind = relationKindOf(metamodel, input.kind, sourceType);
   const target = resolveRef(store, shortIds, input.target);
   const items = itemsUnder(source, kind.key);
-  const present = items.findIndex(
-    (item) =>
-      hasId(item) && item.id === target.id && repositoryOf(item, source.repository) === target.repository,
-  );
+  const namesTarget = (item: unknown): item is Readonly<Record<string, unknown>> =>
+    hasId(item) && item.id === target.id && repositoryOf(item, source.repository) === target.repository;
+  const present = items.findIndex((item) => namesTarget(item) && isVersion(item["version"]));
   if (present >= 0) {
-    return { files: [], kind, sources: [source], index: present };
+    return { files: [], kind, sources: [source], index: present, problems: [] };
   }
+  // A stored entry without a valid version is set anew in its place (ADR-0004, #302).
+  const unversioned = items.findIndex(namesTarget);
   const stored = await currentTarget({ layout, metamodel, store }, source.repository, {
     id: target.id,
     repository: target.repository,
@@ -170,17 +180,41 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     });
   }
   const unchanged = await readUnchanged(workspace, layout, source);
+  // A relation target is a flow mapping of strings on one line (ADR-0004).
+  const value = { ...stored };
   const { bytes } = editElementFile(unchanged.current.file, {
-    // A relation target is a flow mapping of strings on one line (ADR-0004).
-    edits: [{ kind: "append-item", key: kind.key, value: { ...stored } }],
+    edits: [
+      unversioned < 0
+        ? { kind: "append-item", key: kind.key, value }
+        : { kind: "replace-item", key: kind.key, index: unversioned, value },
+    ],
     keyOrder: sourceType.properties,
   });
   const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }]);
+  const sources = written.map((w) => w.written.record);
+  const index = unversioned < 0 ? items.length : unversioned;
+  const added: Problem = {
+    code: "relation.version-added",
+    severity: "info",
+    message: `${elementLabel({ metamodel, shortIds }, source)} had the relation ${kind.name} (${kind.key}) to ${elementLabel({ metamodel, shortIds }, target)} without a valid version; its current version is stored now`,
+    repository: source.repository,
+    file: source.file,
+    elementId: source.id,
+    targetId: target.id,
+    currentVersion: stored.version,
+  };
   return {
     files: written.map((w) => w.file),
     kind,
-    sources: written.map((w) => w.written.record),
-    index: items.length,
+    sources,
+    index,
+    problems:
+      unversioned < 0
+        ? []
+        : await locateFindings(
+            layout,
+            sources.map((element) => ({ element, path: [kind.key, index], problem: added })),
+          ),
   };
 };
 

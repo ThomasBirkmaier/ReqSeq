@@ -15,8 +15,10 @@ import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
 import { locateFindings } from "./locate.js";
+import { isVersion } from "./is-version.js";
 import { isRelationTarget } from "./relations.js";
 import { isEmptyValue } from "./required.js";
+import { isUuid } from "./uuid.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 
@@ -153,6 +155,45 @@ const describe = (value: unknown, kind?: ValueKind): string => {
   return Array.isArray(value) ? "a list" : "a mapping";
 };
 
+/** The keys of a relation target (`common.schema.json#/$defs/relationTarget`). */
+const TARGET_KEYS: ReadonlySet<string> = new Set(["id", "version", "title", "repository"]);
+
+/**
+ * What is wrong with a mapping that is no relation target, the first of: `id`, `version`, a key a
+ * target does not have, `title` or `repository` not text, both of them (D-058). A missing version is
+ * what a migration script writes (ADR-0005); `relation.add` and `element.update` store it (#302).
+ */
+const describeMapping = (item: Readonly<Record<string, unknown>>): string => {
+  if (item["id"] === undefined) {
+    return "a mapping without id";
+  }
+  if (!isUuid(item["id"])) {
+    return "a mapping whose id is no UUID";
+  }
+  if (item["version"] === undefined) {
+    return "a mapping without version";
+  }
+  if (!isVersion(item["version"])) {
+    return `a mapping whose version is ${describe(item["version"])}, not a version like n1:9f86d081884c7d65`;
+  }
+  const other = Object.keys(item).find((key) => !TARGET_KEYS.has(key));
+  if (other !== undefined) {
+    return `a mapping with the key ${other}, which a relation target does not have`;
+  }
+  for (const key of ["title", "repository"]) {
+    if (item[key] !== undefined && typeof item[key] !== "string") {
+      return `a mapping whose ${key} is no text`;
+    }
+  }
+  return "a mapping with both title and repository; a target in another repository has no title";
+};
+
+/** A value where a relation target belongs: a mapping says what it lacks or has too much. */
+const describeItem = (value: unknown, kind: ValueKind): string =>
+  kind === "relation" && typeof value === "object" && value !== null && !Array.isArray(value)
+    ? describeMapping(value as Readonly<Record<string, unknown>>)
+    : describe(value, kind);
+
 const finding = (element: ElementRecord, path: ValuePath, message: string): ValueFinding => ({
   element,
   path,
@@ -189,7 +230,7 @@ const keyFindings = (
         finding(
           element,
           [key],
-          `${label} expects ${expected}; the value is ${describe(value, definition.kind)}`,
+          `${label} expects ${expected}; the value is ${describeItem(value, definition.kind)}`,
         ),
       );
     }
@@ -211,7 +252,7 @@ const keyFindings = (
         finding(
           element,
           [key, i],
-          `${label} expects each item to be ${expected}; item ${String(i + 1)} is ${describe(item, definition.kind)}`,
+          `${label} expects each item to be ${expected}; item ${String(i + 1)} is ${describeItem(item, definition.kind)}`,
         ),
       );
     }

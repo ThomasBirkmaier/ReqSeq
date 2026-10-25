@@ -474,6 +474,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { source: "N-a0000000001", kind: "derives-from", target: "SR-b0000000001" },
       expect: "error",
     },
+    {
+      name: "a stored relation without version gets its current version (#302)",
+      fixture: {
+        fixture: "SR-090/cycle",
+        git: true,
+        files: {
+          "requirements/SR-0b0000000004.md":
+            "---\nid: 5e9c0a7d-2b4f-4c61-9d08-0b0000000004\ntype: system-requirement\nstatus: draft\n" +
+            "title: Show wind in large digits\nrequirement-type: functional\n" +
+            "acceptance-criteria:\n  - Given wind, when it is measured, then the station shows it in large digits.\n" +
+            'derives-from:\n  - { id: 5e9c0a7d-2b4f-4c61-9d08-0b0000000001, title: "Migrated" }\n---\n\nD.\n',
+        },
+      },
+      input: { source: "SR-b0000000004", kind: "derives-from", target: "SR-b0000000001" },
+      expect: "output",
+    },
   ],
   "relation.remove": [
     {

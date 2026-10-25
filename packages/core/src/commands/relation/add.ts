@@ -1,7 +1,9 @@
 // relation.add (enabler #264; SR-005, SR-021, SR-041, SR-067 AK3, SR-086, SR-102): adds one
 // relation to the source file (model/relation-write.ts). When a relation with the meaning
 // derivation closes a cycle, the relation is written and the cycle comes back as `trace.cycle`
-// hints, one per element with its line (SR-067 AK3: "zeigt das Tool einen Hinweis"; SR-090).
+// hints, one per element with its line (SR-067 AK3: "zeigt das Tool einen Hinweis"; SR-090). A
+// stored entry without a valid version gets its current version, said by `relation.version-added`
+// before the cycle hints (#302).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import type { AddedRelation } from "../../model/index.js";
@@ -41,6 +43,9 @@ export default defineCommand({
   name: "relation.add",
   run: async (ctx, input): Promise<CommandOutput<"relation.add">> => {
     const added = await addRelation(ctx.workspace, input);
-    return { files: [...added.files], problems: [...(await cycleProblems(ctx.workspace, added))] };
+    return {
+      files: [...added.files],
+      problems: [...added.problems, ...(await cycleProblems(ctx.workspace, added))],
+    };
   },
 });

@@ -166,6 +166,7 @@ export type ProblemCode =
   | "relation.outdated"
   | "relation.target-superseded"
   | "relation.not-found"
+  | "relation.version-added"
   | "hint.not-confirmable"
   | "hint.not-found"
   | "trace.cycle"
