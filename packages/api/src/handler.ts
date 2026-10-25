@@ -12,6 +12,7 @@ export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> =
   "not-found": 404,
   conflict: 409,
   unavailable: 503,
+  "not-implemented": 501,
   internal: 500,
 };
 

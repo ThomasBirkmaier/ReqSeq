@@ -180,6 +180,7 @@ describe("error classes", () => {
       "file.not-regular",
     ]);
     expect(byClass("unavailable")).toEqual(["git.unavailable"]);
+    expect(byClass("not-implemented")).toEqual(["command.not-implemented"]);
     expect(byClass("internal")).toEqual(["internal"]);
   });
 });

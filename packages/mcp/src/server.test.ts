@@ -8,12 +8,14 @@ import {
   PRODUCT_VERSION,
   Workspace,
   createCommandRuntime,
+  agentInstructions,
   defineTestCommand,
   loadContracts,
 } from "@logreq/core";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { callTool, serveMcp } from "./server.js";
+import { toolName } from "./tools.js";
 import { LineTransport } from "./transport.js";
 
 const entry = (name: string, effect = "read", input: Record<string, unknown> = {}) => ({
@@ -35,6 +37,13 @@ const catalog = {
     entry("test.later", "write-files"),
   ],
 };
+
+/**
+ * Upper bounds of the product `tools/list` result and of one tool in it, in bytes of JSON (#303). Raise them
+ * only on purpose, when the catalog grows: an agent puts the whole list into its context.
+ */
+const TOOLS_LIST_MAX_BYTES = 48 * 1024;
+const TOOL_MAX_BYTES = 6 * 1024;
 
 let waitAborted: (() => void) | undefined;
 let waitStarted: (() => void) | undefined;
@@ -121,7 +130,7 @@ afterEach(async () => {
 });
 
 describe("serveMcp", () => {
-  it("offers one tool per catalog command with the catalog's schemas", async () => {
+  it("lists one tool per implemented catalog command with the catalog's schemas", async () => {
     const { client } = await open();
     expect(client.getServerVersion()).toMatchObject({ name: "logreq", version: PRODUCT_VERSION });
     const { tools } = await client.listTools();
@@ -129,10 +138,10 @@ describe("serveMcp", () => {
       ["test_echo", true, "Test command test.echo."],
       ["test_fail", true, "Test command test.fail."],
       ["test_wait", true, "Test command test.wait."],
-      ["test_later", false, "Test command test.later. (not implemented yet)"],
     ]);
     expect(tools[0]?.inputSchema).toEqual(catalog.commands[0]?.input);
-    expect(tools[0]?.outputSchema).toEqual({ type: "object" });
+    // No output schemas: MCP does not need them for structured content, and they made up most of the list.
+    expect(tools.map((t) => t.outputSchema)).toEqual([undefined, undefined, undefined]);
   });
 
   it("[SR-079/AK1] opens no network socket: no network module, and no socket while a session runs", async () => {
@@ -179,12 +188,25 @@ describe("serveMcp", () => {
     });
     const missing = await client.callTool({ name: "test_echo" });
     expect(errorOf(missing)).toMatchObject({ code: "input.invalid" });
+  });
+
+  it("answers a call to a catalog command it does not list with command.not-implemented, as every access", async () => {
+    const { client } = await open();
     const later = await client.callTool({ name: "test_later", arguments: {} });
     expect(errorOf(later)).toEqual({
-      code: "input.invalid",
+      code: "command.not-implemented",
       message: "Command test.later is not implemented yet",
       details: { command: "test.later" },
     });
+    // A name outside the catalog is no tool at all: a protocol error, as the SDK gives it.
+    await expect(client.callTool({ name: "test_nope", arguments: {} })).rejects.toThrow(
+      "Tool test_nope not found",
+    );
+  });
+
+  it("sends the instructions of core in its initialize result", async () => {
+    const { client } = await open();
+    expect(client.getInstructions()).toBe(agentInstructions(runtime, toolName));
   });
 
   it("ends when the input ends", async () => {
@@ -251,8 +273,18 @@ describe("callTool", () => {
     });
     const client = new Client({ name: "test", version: "1" });
     await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
-    const { tools } = await client.listTools();
-    expect(tools.some((t) => t.name === "workspace_status")).toBe(true);
+    const listed = await client.listTools();
+    expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
+    // #303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
+    // into its context. Each tool now carries only the definitions it uses.
+    expect(Buffer.byteLength(JSON.stringify(listed))).toBeLessThan(TOOLS_LIST_MAX_BYTES);
+    for (const tool of listed.tools) {
+      expect([tool.name, Buffer.byteLength(JSON.stringify(tool)) < TOOL_MAX_BYTES]).toEqual([
+        tool.name,
+        true,
+      ]);
+    }
+    expect(client.getInstructions()).toContain("workspace_status");
     toServer.end();
     await served;
     await client.close();

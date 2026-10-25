@@ -78,6 +78,9 @@ const commandErrors = {
   409: errorResponse("Command error of class conflict"),
   413: errorResponse("Request body larger than 32 MiB (input.invalid)"),
   500: errorResponse("Command error of class internal"),
+  501: errorResponse(
+    "Command error of class not-implemented: a catalog command this version does not implement yet",
+  ),
   503: errorResponse("Command error of class unavailable (e.g. git.unavailable)"),
 };
 const catalogEntry = rewrite(
@@ -142,11 +145,12 @@ for (const [file, s] of Object.entries(schemas)) {
   const { $schema, $id, ...rest } = s;
   mcpDefs[component(file)] = rewrite(rest, refTo("#/$defs/", file));
 }
-// Shared definitions appear once; the MCP server attaches the referenced ones to each tool schema
-// at runtime, so every schema it sends is self-contained.
+// Shared definitions appear once; the MCP server lists the implemented tools and attaches to each tool
+// schema only the definitions it reaches, flat (`#/$defs/common.uuid`), so every schema it sends is
+// self-contained and small (packages/mcp/src/tools.ts, #303).
 const mcp = {
   description:
-    "Generated from schemas/commands/catalog.json. The MCP server (stdio) offers exactly these tools (ADR-0009). $refs point into the top-level $defs.",
+    "Generated from schemas/commands/catalog.json. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
   $defs: mcpDefs,
   tools: catalog.commands.map((cmd) => {
     const toRef = refTo("#/$defs/", "common.schema.json");

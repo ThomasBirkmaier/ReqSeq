@@ -185,7 +185,7 @@ export type ProblemCode =
   | "git.revision-missing";
 
 /**
- * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).
+ * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).
  * Schema: `schemas/common.schema.json#/$defs/error`.
  */
 export interface CommandErrorObject {
@@ -210,6 +210,7 @@ export interface CommandErrorObject {
     | "file.read-only"
     | "file.not-regular"
     | "file.folder-missing"
+    | "command.not-implemented"
     | "internal";
   readonly message: string;
   readonly details?: Readonly<Record<string, unknown>>;

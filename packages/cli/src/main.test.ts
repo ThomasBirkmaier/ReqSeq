@@ -373,12 +373,12 @@ describe("logreq <group> <action>", () => {
     expect(closing.stderr).not.toContain("secret");
   });
 
-  it("reports a command of the catalog without implementation as input error", async () => {
+  it("reports a command of the catalog without implementation as command.not-implemented, exit 2", async () => {
     const result = await run(["test", "set-status"]);
     expect(result).toEqual({
       code: EXIT.usage,
       stdout: "",
-      stderr: "error input.invalid: Command test.setStatus is not implemented yet\n",
+      stderr: "error command.not-implemented: Command test.setStatus is not implemented yet\n",
     });
   });
 
@@ -428,7 +428,7 @@ describe("logreq <group> <action>", () => {
     expect(result).toEqual({
       code: EXIT.usage,
       stdout: "",
-      stderr: "error input.invalid: Command reqif.export is not implemented yet\n",
+      stderr: "error command.not-implemented: Command reqif.export is not implemented yet\n",
     });
   });
 

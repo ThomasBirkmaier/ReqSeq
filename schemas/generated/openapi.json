@@ -281,6 +281,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -472,6 +482,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -642,6 +662,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -833,6 +863,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -1001,6 +1041,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -1179,6 +1229,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -1349,6 +1409,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -1507,6 +1577,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -1719,6 +1799,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -1863,6 +1953,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2020,6 +2120,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2227,6 +2337,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -2362,6 +2482,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2530,6 +2660,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -2676,6 +2816,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -2832,6 +2982,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -3213,6 +3373,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -3380,6 +3550,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -3635,6 +3815,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -3802,6 +3992,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -3949,6 +4149,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -4136,6 +4346,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -4274,6 +4494,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -4442,6 +4672,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -4589,6 +4829,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -4781,6 +5031,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -4954,6 +5214,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -5093,6 +5363,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -5276,6 +5556,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -5426,6 +5716,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -5542,6 +5842,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -5689,6 +5999,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -5862,6 +6182,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -6009,6 +6339,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -6166,6 +6506,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -6305,6 +6655,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -6468,6 +6828,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -6621,6 +6991,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -6806,6 +7186,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -7004,6 +7394,16 @@
               }
             }
           },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Command error of class unavailable (e.g. git.unavailable)",
             "content": {
@@ -7144,6 +7544,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -7315,6 +7725,16 @@
           },
           "500": {
             "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -7687,7 +8107,7 @@
             ]
           },
           "error": {
-            "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).",
+            "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).",
             "type": "object",
             "required": [
               "code",
@@ -7716,6 +8136,7 @@
                   "file.read-only",
                   "file.not-regular",
                   "file.folder-missing",
+                  "command.not-implemented",
                   "internal"
                 ]
               },

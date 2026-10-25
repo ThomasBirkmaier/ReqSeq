@@ -72,11 +72,10 @@ describe("serverTools", () => {
     commands: [defineTestCommand({ name: "test.read", run: () => Promise.resolve({}) })],
   });
 
-  it("names tools group_action and marks read commands and missing implementations", () => {
+  it("names tools group_action, marks read commands and leaves out commands without implementation", () => {
     const tools = serverTools(runtime);
     expect(tools.map((t) => [t.name, t.command, t.annotations.readOnlyHint, t.description])).toEqual([
       ["test_read", "test.read", true, "A read command with shared definitions."],
-      ["test_write", "test.write", false, "A write command, never implemented here. (not implemented yet)"],
     ]);
     expect(tools[0]?.annotations).toEqual({
       readOnlyHint: true,
@@ -86,23 +85,116 @@ describe("serverTools", () => {
     expect(toolName("element.setStatus")).toBe("element_setStatus");
   });
 
-  it("attaches only the definitions a schema uses, so every $ref resolves", () => {
-    const [read, write] = serverTools(runtime);
-    expect(Object.keys(read?.inputSchema["$defs"] ?? {})).toEqual(["common", "filter"]);
+  it("attaches only the definitions a schema reaches, one by one and flat, so every $ref resolves", () => {
+    const [read] = serverTools(runtime);
+    const defs = read?.inputSchema["$defs"] as Record<string, Record<string, unknown>>;
+    expect(Object.keys(defs)).toEqual(["common", "common.elementRef", "common.shortId", "common.uuid"]);
     expect(read?.inputSchema["properties"]).toEqual({
-      ref: { $ref: "#/$defs/common/$defs/elementRef" },
+      ref: { $ref: "#/$defs/common.elementRef" },
       all: { $ref: "#/$defs/common" },
     });
-    expect(read?.outputSchema["$defs"]).toBeUndefined();
-    expect(write?.inputSchema).toEqual({ type: "object" });
+    expect(defs["common.elementRef"]?.["anyOf"]).toEqual([
+      { $ref: "#/$defs/common.uuid" },
+      { $ref: "#/$defs/common.shortId" },
+    ]);
+    // A whole file without its definitions: those are entries of their own.
+    expect(defs["common"]?.["$defs"]).toBeUndefined();
+    expect(read).not.toHaveProperty("outputSchema");
   });
 
-  it("gives self-contained schemas for every product command", () => {
+  it("gives self-contained schemas for every implemented product command, and only for those", () => {
     const ajv = new Ajv2020({ strict: false });
     addFormats.default(ajv);
-    for (const tool of serverTools(getCommandRuntime())) {
+    const product = getCommandRuntime();
+    const tools = serverTools(product);
+    expect(tools.map((t) => t.command)).toEqual(
+      product.contracts.commands.map((e) => e.name).filter((name) => product.commands.has(name)),
+    );
+    for (const tool of tools) {
       expect(() => ajv.compile(tool.inputSchema), tool.name).not.toThrow();
-      expect(() => ajv.compile(tool.outputSchema), tool.name).not.toThrow();
     }
+  });
+
+  it("validates like the catalog: flat schemas accept and refuse what core accepts and refuses", () => {
+    const ajv = new Ajv2020({ strict: false });
+    addFormats.default(ajv);
+    const product = getCommandRuntime();
+    const get = serverTools(product).find((t) => t.command === "element.get");
+    const valid = ajv.compile(get?.inputSchema ?? {});
+    const core = product.contracts.validator("element.get", "input");
+    for (const input of [
+      { ref: "SR-825b71" },
+      { ref: "825b7146-fb54-4c3e-9d1a-0a1b2c3d4e5f" },
+      { ref: "x" },
+      {},
+    ]) {
+      expect([input, valid(structuredClone(input))]).toEqual([input, core(structuredClone(input))]);
+    }
+  });
+});
+
+/** The node at the JSON pointer `ref` (`#/a/b`) in `root`. */
+const at = (root: unknown, ref: string): unknown =>
+  ref
+    .slice(2)
+    .split("/")
+    .reduce<unknown>((node, key) => (node as Record<string, unknown> | undefined)?.[key], root);
+
+/**
+ * `schema` with every `$ref` replaced by the schema it points to (resolved in `root`), and without `$defs`.
+ * A definition that refers to itself again (filter conditions) becomes `{ $cycle: name }`, named the same way
+ * in the nested (`common/$defs/uuid`) and the flat (`common.uuid`) form, so both forms compare equal.
+ */
+const dereference = (schema: unknown, root: unknown, stack: readonly string[] = []): unknown => {
+  if (Array.isArray(schema)) {
+    return schema.map((item) => dereference(item, root, stack));
+  }
+  if (typeof schema !== "object" || schema === null) {
+    return schema;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "$defs") {
+      continue;
+    }
+    if (key === "$ref" && typeof value === "string") {
+      const name = value.replace(/^#\/\$defs\//, "").replace("/$defs/", ".");
+      out[key] = stack.includes(name)
+        ? { $cycle: name }
+        : dereference(at(root, value), root, [...stack, name]);
+      continue;
+    }
+    out[key] = dereference(value, root, stack);
+  }
+  return out;
+};
+
+describe("serverTools on the whole catalog", () => {
+  it("gives for every catalog command the schema of mcp-tools.json, once all $refs are resolved", async () => {
+    const file = JSON.parse(await fs.readFile(generated, "utf8")) as {
+      tools: { name: string; inputSchema: unknown }[];
+    };
+    const contracts = loadContracts();
+    // A stub for every command, so every catalog entry is listed, also those of later stages.
+    const all = createCommandRuntime({
+      contracts,
+      commands: contracts.commands.map((entry) =>
+        defineTestCommand({ name: entry.name, run: () => Promise.resolve({}) }),
+      ),
+    });
+    const tools = serverTools(all);
+    expect(tools.map((t) => t.name)).toEqual(file.tools.map((t) => t.name));
+    for (const [index, tool] of tools.entries()) {
+      const full = file.tools[index]?.inputSchema;
+      expect([tool.name, dereference(tool.inputSchema, tool.inputSchema)]).toEqual([
+        tool.name,
+        dereference(full, file),
+      ]);
+    }
+    // The recursive filter condition is among them and ends in a cycle marker on both sides.
+    const list = tools.find((t) => t.command === "element.list");
+    expect(JSON.stringify(dereference(list?.inputSchema, list?.inputSchema))).toContain(
+      '{"$cycle":"filter.condition"}',
+    );
   });
 });

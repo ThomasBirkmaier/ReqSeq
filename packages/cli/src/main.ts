@@ -46,6 +46,7 @@ export const EXIT_BY_CLASS: Readonly<Record<CommandErrorClass, ExitCode>> = {
   "not-found": EXIT.usage,
   conflict: EXIT.usage,
   unavailable: EXIT.usage,
+  "not-implemented": EXIT.usage,
   internal: EXIT.internal,
 };
 

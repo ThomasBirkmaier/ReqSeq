@@ -1,5 +1,5 @@
 {
-  "description": "Generated from schemas/commands/catalog.json. The MCP server (stdio) offers exactly these tools (ADR-0009). $refs point into the top-level $defs.",
+  "description": "Generated from schemas/commands/catalog.json. The MCP server (stdio) lists those of these tools that the running version implements (ADR-0009). $refs point into the top-level $defs; the server sends each tool schema with only the definitions it uses.",
   "$defs": {
     "api-endpoint": {
       "title": "API endpoint file",
@@ -343,7 +343,7 @@
           ]
         },
         "error": {
-          "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).",
+          "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).",
           "type": "object",
           "required": [
             "code",
@@ -372,6 +372,7 @@
                 "file.read-only",
                 "file.not-regular",
                 "file.folder-missing",
+                "command.not-implemented",
                 "internal"
               ]
             },

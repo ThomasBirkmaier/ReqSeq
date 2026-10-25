@@ -1001,6 +1001,7 @@ describe("commands", () => {
       "element.not-found": "not-found",
       "file.changed-on-disk": "conflict",
       "git.unavailable": "unavailable",
+      "command.not-implemented": "not-implemented",
       internal: "internal",
     } as const;
     for (const [code, errorClass] of Object.entries(codes)) {
@@ -1019,7 +1020,14 @@ describe("commands", () => {
       { code: "input.invalid", message: "Unknown command: test.nope", details: { command: "test.nope" } },
     ]);
     const later = await request({ path: "/v1/commands/test.later" });
-    expect(later.body).toMatchObject({ message: "Command test.later is not implemented yet" });
+    expect([later.status, later.body]).toEqual([
+      501,
+      {
+        code: "command.not-implemented",
+        message: "Command test.later is not implemented yet",
+        details: { command: "test.later" },
+      },
+    ]);
     const invalid = await request({ path: "/v1/commands/test.fail", body: "{}" });
     expect(invalid).toMatchObject({ status: 400, body: { code: "input.invalid" } });
     const crash = await request({ path: "/v1/commands/test.crash" });

@@ -206,7 +206,7 @@
       ]
     },
     "error": {
-      "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).",
+      "description": "Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error). `command.not-implemented`: the command is in the catalog, but this version does not implement it yet (a later stage).",
       "type": "object",
       "required": ["code", "message"],
       "properties": {
@@ -232,6 +232,7 @@
             "file.read-only",
             "file.not-regular",
             "file.folder-missing",
+            "command.not-implemented",
             "internal"
           ]
         },

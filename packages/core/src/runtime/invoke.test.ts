@@ -159,10 +159,10 @@ describe("invoke", () => {
     expect(seen.ctx?.signal).toBe(controller.signal);
   });
 
-  it("rejects catalog commands without implementation with input.invalid", async () => {
+  it("rejects catalog commands without implementation with command.not-implemented", async () => {
     const err = await rejection(runtime().invoke("test.unimplemented", {}, ctx));
     expect(err.toJSON()).toEqual({
-      code: "input.invalid",
+      code: "command.not-implemented",
       message: "Command test.unimplemented is not implemented yet",
       details: { command: "test.unimplemented" },
     });
@@ -309,11 +309,13 @@ describe("invoke (product runtime)", () => {
     // baseline.list is a stage 5 command: in the catalog, not implemented yet.
     const err = await rejection(invoke("baseline.list", {}, { workspace: ws }));
     expect(err.toJSON()).toEqual({
-      code: "input.invalid",
+      code: "command.not-implemented",
       message: "Command baseline.list is not implemented yet",
       details: { command: "baseline.list" },
     });
     // The default runtime is created once and reused.
-    expect((await rejection(invoke("baseline.list", {}, { workspace: ws }))).code).toBe("input.invalid");
+    expect((await rejection(invoke("baseline.list", {}, { workspace: ws }))).code).toBe(
+      "command.not-implemented",
+    );
   });
 });

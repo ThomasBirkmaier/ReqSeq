@@ -66,11 +66,13 @@ export interface CommandContext {
  * - `not-found`: something the request names does not exist (element, workspace, folder).
  * - `conflict`: the request is fine, but the state of the workspace or a file refuses it.
  * - `unavailable`: a tool LogReq needs is missing on this machine (Git).
+ * - `not-implemented`: the command is in the catalog, but this version does not implement it yet (#303).
  * - `internal`: a bug in LogReq, or a call aborted by its caller (`details.aborted`).
  *
  * CLI: `internal` is exit code 3, every other class exit code 2 (#124). API and MCP: #125.
  */
-export type CommandErrorClass = "input" | "not-found" | "conflict" | "unavailable" | "internal";
+export type CommandErrorClass =
+  "input" | "not-found" | "conflict" | "unavailable" | "not-implemented" | "internal";
 
 /** The class of every code; the `Record` type makes a new code of the schema fail to compile until it is classified. */
 export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErrorClass>> = {
@@ -94,6 +96,7 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "file.read-only": "conflict",
   "file.not-regular": "conflict",
   "file.folder-missing": "not-found",
+  "command.not-implemented": "not-implemented",
   internal: "internal",
 };
 

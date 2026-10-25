@@ -175,7 +175,7 @@ describe("the local API offers no delete (SR-099)", () => {
 });
 
 describe("the MCP server offers no delete (SR-099)", () => {
-  it("[SR-099/AK1] offers one tool per catalog command, none that deletes an element, and refuses a delete tool", async () => {
+  it("[SR-099/AK1] offers one tool per implemented catalog command, none that deletes an element, and refuses a delete tool", async () => {
     const workspace = new Workspace(fixture.root);
     const toServer = new PassThrough();
     const toClient = new PassThrough();
@@ -189,7 +189,10 @@ describe("the MCP server offers no delete (SR-099)", () => {
     try {
       await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name)).toEqual(catalogNames.map(toolName));
+      // Only implemented commands are listed (#303); the catalog itself has no delete either (tests above).
+      expect(tools.map((t) => t.name)).toEqual(
+        catalogNames.filter((name) => runtime.commands.has(name)).map(toolName),
+      );
       expect(
         tools.map((t) => t.name).filter((name) => DELETE_LIKE.test(name.slice(name.indexOf("_") + 1))),
       ).toEqual([toolName(RELATION_REMOVE)]);

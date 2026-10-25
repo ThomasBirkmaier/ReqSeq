@@ -891,7 +891,7 @@ describe("cross-access: same result through core, CLI, API and MCP", { timeout: 
 });
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-080/AK1] is a CLI subcommand, an API route and an MCP tool (the app follows in stage 3)", async () => {
+  it("[SR-080/AK1] is a CLI subcommand, an API route and, once implemented, an MCP tool (the app follows in stage 3)", async () => {
     const { root } = await copy(DEFAULT);
     const names = runtime.contracts.commands.map((e) => e.name);
     for (const entry of runtime.contracts.commands) {
@@ -922,8 +922,10 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     });
     const client = new Client({ name: "cross-access", version: "1" });
     await client.connect(new LineTransport(toClient, { write: (t) => toServer.write(t) }));
+    // MCP lists only the implemented commands (#303): an agent puts the whole list into its context. A call to
+    // one that is not listed still gives command.not-implemented, as every access (the scenarios above).
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(names.map(toolName));
+    expect(tools.map((t) => t.name)).toEqual(names.filter((n) => runtime.commands.has(n)).map(toolName));
     toServer.end();
     await served;
     await client.close();

@@ -25,8 +25,12 @@ export interface McpToolList {
   readonly tools: readonly McpTool[];
 }
 
-/** A tool as the server offers it: self-contained schemas, and the catalog command it calls. */
-export interface ServerTool extends McpTool {
+/**
+ * A tool as the server lists it: a self-contained input schema, and the catalog command it calls. No output
+ * schema: MCP does not require one for structured content, and the output schemas were four fifths of the
+ * list (#303). schemas/generated/mcp-tools.json keeps them as the contract.
+ */
+export interface ServerTool extends Omit<McpTool, "outputSchema"> {
   readonly command: string;
 }
 
@@ -49,9 +53,10 @@ const rewriteRef = (ref: string, file: string): string => {
   return `#/$defs/${component(match[1] ?? file)}${match[2] ?? ""}`;
 };
 
-const rewrite = (node: unknown, file: string): unknown => {
+/** `node` with every `$ref` string replaced by `to(ref)`. */
+const mapRefs = (node: unknown, to: (ref: string) => string): unknown => {
   if (Array.isArray(node)) {
-    return node.map((item) => rewrite(item, file));
+    return node.map((item) => mapRefs(item, to));
   }
   if (!isRecord(node)) {
     return node;
@@ -59,10 +64,12 @@ const rewrite = (node: unknown, file: string): unknown => {
   return Object.fromEntries(
     Object.entries(node).map(([key, value]) => [
       key,
-      key === "$ref" && typeof value === "string" ? rewriteRef(value, file) : rewrite(value, file),
+      key === "$ref" && typeof value === "string" ? to(value) : mapRefs(value, to),
     ]),
   );
 };
+
+const rewrite = (node: unknown, file: string): unknown => mapRefs(node, (ref) => rewriteRef(ref, file));
 
 /** The schema files of the contracts as `$defs`, keyed by file name without `.schema.json`. */
 const definitions = (contracts: Contracts): Record<string, JsonSchema> =>
@@ -87,6 +94,27 @@ const tool = (entry: CatalogEntry): McpTool => ({
 export function catalogTools(contracts: Contracts): McpToolList {
   return { $defs: definitions(contracts), tools: contracts.commands.map(tool) };
 }
+
+/** `#/$defs/common/$defs/uuid` as the flat `#/$defs/common.uuid`; `#/$defs/data-export` stays as it is. */
+const flatRef = (ref: string): string => ref.replace(/^#\/\$defs\/([^/]+)\/\$defs\//, "#/$defs/$1.");
+
+const flat = (node: unknown): JsonSchema => mapRefs(node, flatRef) as JsonSchema;
+
+/**
+ * The shared definitions one by one, flat: `common.uuid` for a definition of a file, `data-export` for a
+ * whole file (without its `$defs`, which are entries of their own). So a tool schema carries only the
+ * definitions it reaches, not whole files (#303), in the `#/$defs/<name>` form that clients resolve best.
+ */
+const flatDefinitions = (contracts: Contracts): Record<string, JsonSchema> => {
+  const flatDefs: Record<string, JsonSchema> = {};
+  for (const [file, { $defs: nested, ...root }] of Object.entries(definitions(contracts))) {
+    flatDefs[file] = flat(root);
+    for (const [name, schema] of Object.entries(isRecord(nested) ? nested : {})) {
+      flatDefs[`${file}.${name}`] = flat(schema);
+    }
+  }
+  return flatDefs;
+};
 
 /** Names of the `$defs` a schema refers to, directly or through other definitions. */
 const usedDefinitions = (schema: unknown, defs: Readonly<Record<string, JsonSchema>>): string[] => {
@@ -122,23 +150,16 @@ const selfContained = (schema: JsonSchema, defs: Readonly<Record<string, JsonSch
 };
 
 /**
- * The tools the server offers: every catalog command, with self-contained schemas. Commands without an
- * implementation say so in their description, as in the CLI help; calling one gives `input.invalid`.
+ * The tools the server lists: the implemented catalog commands, with self-contained input schemas that
+ * carry only the definitions they use. Commands without an implementation are not listed; a call to one still reaches
+ * `invoke` and gives `command.not-implemented`, as on every access (server.ts).
  */
 export function serverTools(runtime: CommandRuntime): ServerTool[] {
-  const defs = definitions(runtime.contracts);
-  return runtime.contracts.commands.map((entry) => {
-    const plain = tool(entry);
-    return {
-      ...plain,
-      command: entry.name,
-      description: runtime.commands.has(entry.name)
-        ? plain.description
-        : `${plain.description} (not implemented yet)`,
-      inputSchema: selfContained(plain.inputSchema, defs),
-      // `type: "object"` at the root comes from the catalog (catalog.meta.schema.json). Without it, the SDK
-      // would wrap results as `{ result: ... }` for clients of the 2025 protocol revision (SR-080 AK2).
-      outputSchema: selfContained(plain.outputSchema, defs),
-    };
-  });
+  const defs = flatDefinitions(runtime.contracts);
+  return runtime.contracts.commands
+    .filter((entry) => runtime.commands.has(entry.name))
+    .map((entry) => {
+      const { outputSchema: _output, ...plain } = tool(entry);
+      return { ...plain, command: entry.name, inputSchema: selfContained(flat(plain.inputSchema), defs) };
+    });
 }

@@ -91,11 +91,11 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   async function invoke(name: string, input: unknown, ctx: InvokeContext): Promise<unknown> {
     const command = registry.get(name);
     if (command === undefined) {
-      const message =
-        contracts.entry(name) === undefined
-          ? `Unknown command: ${name}`
-          : `Command ${name} is not implemented yet`;
-      throw new CommandError("input.invalid", message, { command: name });
+      throw contracts.entry(name) === undefined
+        ? new CommandError("input.invalid", `Unknown command: ${name}`, { command: name })
+        : new CommandError("command.not-implemented", `Command ${name} is not implemented yet`, {
+            command: name,
+          });
     }
     let checked: unknown;
     try {

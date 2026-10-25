@@ -117,7 +117,7 @@ describe("logreq binary", () => {
     expect(planned.code).toBe(2);
     expect(planned.stdout).toBe("");
     expect(JSON.parse(planned.stderr)).toEqual({
-      code: "input.invalid",
+      code: "command.not-implemented",
       message: "Command reqif.export is not implemented yet",
       details: { command: "reqif.export" },
     });
