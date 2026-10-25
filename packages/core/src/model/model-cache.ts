@@ -1,10 +1,12 @@
 // The model cache of a working copy (ADR-0008, SR-082): `model.json` in the cache folder of the copy
 // holds what each Markdown file contributed to the element store, with the snapshot it was read
-// with and the inode and change time of the file. A start lists the files, `lstat`s each one that
+// with and the inode and change time of the file (decimal strings of `lstat` with `bigint`, so a
+// 64-bit file ID on Windows keeps every bit). A start lists the files, `lstat`s each one that
 // has an entry and reuses the entry when size, modification time, inode and change time still match,
 // so only new and changed files are read. Nothing in it is trusted as a whole except its header:
 // every entry is checked against its file before it is used.
 import { createHash } from "node:crypto";
+import type { BigIntStats } from "node:fs";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { setImmediate as nextTurn } from "node:timers/promises";
@@ -23,18 +25,22 @@ import type { LoadedStore } from "./store.js";
 /** A contribution the cache can hold: one of a file that parsed, so it has the snapshot of its bytes. */
 export type CachedContribution = Contribution & { readonly snapshot: FileSnapshot };
 
-/** An entry of the cache: the contribution and what `lstat` gave for its file when the cache was written. */
+/**
+ * An entry of the cache: the contribution and what `lstat` gave for its file when the cache was
+ * written, the inode (unsigned, `inoKey`) and the change time in nanoseconds as decimal strings. A
+ * file ID on Windows has 64 bits and is often above 2 ** 53, where a JS number loses its low bits.
+ */
 export interface CacheEntry {
   readonly contribution: CachedContribution;
-  readonly ino: number;
-  readonly ctimeMs: number;
+  readonly ino: string;
+  readonly ctimeNs: string;
 }
 
 /** The name of the model cache in the cache folder of a copy (`cacheFolder(root)`). */
 export const MODEL_CACHE_FILE = "model.json";
 
 /** The format of `model.json`; a cache of another format is discarded. */
-export const MODEL_CACHE_FORMAT = 2;
+export const MODEL_CACHE_FORMAT = 3;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -174,6 +180,10 @@ const isProblem = (value: unknown): value is Problem =>
 
 const LINE_ENDINGS: readonly unknown[] = ["\n", "\r\n"];
 
+/** Whether `value` is a decimal string of a whole number of zero or more, as `String` writes a bigint. */
+const isDecimal = (value: unknown): value is string =>
+  typeof value === "string" && /^(?:0|[1-9]\d*)$/.test(value);
+
 /** Whether `value` is a snapshot of `file` as `makeSnapshot` makes it. */
 const isSnapshotOf = (value: unknown, file: string): value is Record<string, unknown> =>
   isRecord(value) &&
@@ -209,7 +219,7 @@ const kindFits = (contribution: Record<string, unknown>, file: string, name: str
 };
 
 /**
- * The entry `[file, contribution, ino, ctimeMs]` of repository `name` as the store holds it:
+ * The entry `[file, contribution, ino, ctimeNs]` of repository `name` as the store holds it:
  * snapshots frozen (`makeSnapshot`) and shared with the element, as a read gives them. Undefined
  * when it does not have the shape the cache writes, so the whole cache is discarded.
  */
@@ -217,11 +227,11 @@ const reviveEntry = (entry: unknown, name: string): readonly [string, CacheEntry
   if (!Array.isArray(entry) || entry.length !== 4) {
     return undefined;
   }
-  const [file, contribution, ino, ctimeMs] = entry as unknown[];
+  const [file, contribution, ino, ctimeNs] = entry as unknown[];
   if (
     typeof file !== "string" ||
-    typeof ino !== "number" ||
-    typeof ctimeMs !== "number" ||
+    !isDecimal(ino) ||
+    !isDecimal(ctimeNs) ||
     !isRecord(contribution) ||
     !isSnapshotOf(contribution["snapshot"], file) ||
     !Array.isArray(contribution["warnings"]) ||
@@ -234,7 +244,7 @@ const reviveEntry = (entry: unknown, name: string): readonly [string, CacheEntry
   if (isRecord(contribution["element"])) {
     contribution["element"]["snapshot"] = snapshot;
   }
-  return [file, { contribution: contribution as unknown as CachedContribution, ino, ctimeMs }];
+  return [file, { contribution: contribution as unknown as CachedContribution, ino, ctimeNs }];
 };
 
 const reviveRepository = (value: unknown): readonly [string, CachedRepository] | undefined => {
@@ -341,14 +351,41 @@ const cacheableJson = (contribution: Contribution): string | undefined => {
   }
 };
 
-/** `lstat` of a file without throwing; undefined when it is not there or cannot be read. */
-const lstatQuietly = (file: string): ReturnType<typeof lstatSync> | undefined => {
+/**
+ * `lstat` of a file with `bigint`, without throwing; undefined when it is not there or cannot be
+ * read. It costs about 0.01 s more than without at 50,000 files (0.17 s instead of 0.16 s on Linux).
+ */
+const lstatQuietly = (file: string): BigIntStats | undefined => {
   try {
-    return lstatSync(file, { throwIfNoEntry: false });
+    return lstatSync(file, { bigint: true, throwIfNoEntry: false });
   } catch {
     return undefined;
   }
 };
+
+/**
+ * The milliseconds of a time in nanoseconds, the same number as the `mtimeMs` or `ctimeMs` of an
+ * `lstat` without `bigint` (Node computes it from the seconds and nanoseconds the same way), so it
+ * can be compared with the `mtimeMs` of a snapshot. Before 1970 the two may differ in the last bit;
+ * such a file is only read again.
+ */
+const msOf = (ns: bigint): number => Number(ns / 1_000_000_000n) * 1e3 + Number(ns % 1_000_000_000n) / 1e6;
+
+/**
+ * The inode of a `bigint` `lstat` as the cache keeps it: unsigned. Node fills the stats from a
+ * signed 64-bit array, so an inode of 2 ** 63 or more (NTFS file IDs with a high sequence number,
+ * ReFS, network and FUSE file systems, overlayfs) comes out negative.
+ */
+export const inoKey = (ino: bigint): string => String(BigInt.asUintN(64, ino));
+
+/**
+ * What the cache keeps of a `bigint` `lstat` of a file: `[ino, ctimeNs]` as decimal strings, or
+ * undefined for a change time before 1970 (negative), which stays out of the cache.
+ */
+export const statKeys = (
+  stat: Pick<BigIntStats, "ino" | "ctimeNs">,
+): readonly [ino: string, ctimeNs: string] | undefined =>
+  stat.ctimeNs < 0n ? undefined : [inoKey(stat.ino), String(stat.ctimeNs)];
 
 /**
  * `model.json` for `store`: every file whose contribution has a snapshot, survives JSON exactly and
@@ -367,14 +404,16 @@ export const serializeModelCache = (
     for (const [file, contribution] of files) {
       const text = cacheableJson(contribution);
       const stat = text === undefined ? undefined : lstatQuietly(path.join(location.folder, file));
+      const keys = stat === undefined ? undefined : statKeys(stat);
       if (
         text !== undefined &&
+        keys !== undefined &&
         stat?.isFile() === true &&
-        stat.size === contribution.snapshot?.size &&
-        stat.mtimeMs === contribution.snapshot.mtimeMs &&
-        stat.ctimeMs < startedAt - RACY_MS
+        Number(stat.size) === contribution.snapshot?.size &&
+        msOf(stat.mtimeNs) === contribution.snapshot.mtimeMs &&
+        msOf(stat.ctimeNs) < startedAt - RACY_MS
       ) {
-        entries.push(`[${JSON.stringify(file)},${text},${String(stat.ino)},${String(stat.ctimeMs)}]`);
+        entries.push(`[${JSON.stringify(file)},${text},"${keys[0]}","${keys[1]}"]`);
       }
     }
     const folder = JSON.stringify(canonicalRoot(location.folder));
@@ -388,7 +427,7 @@ export const serializeModelCache = (
 const stillMatches = (
   folder: string,
   file: string,
-  { contribution: { snapshot }, ino, ctimeMs }: CacheEntry,
+  { contribution: { snapshot }, ino, ctimeNs }: CacheEntry,
   startedAt: number,
 ): boolean => {
   if (snapshot.mtimeMs >= startedAt - RACY_MS) {
@@ -398,10 +437,10 @@ const stillMatches = (
   const stat = lstatQuietly(path.join(folder, file));
   return (
     stat?.isFile() === true &&
-    stat.size === snapshot.size &&
-    stat.mtimeMs === snapshot.mtimeMs &&
-    stat.ino === ino &&
-    stat.ctimeMs === ctimeMs
+    Number(stat.size) === snapshot.size &&
+    msOf(stat.mtimeNs) === snapshot.mtimeMs &&
+    inoKey(stat.ino) === ino &&
+    String(stat.ctimeNs) === ctimeNs
   );
 };
 

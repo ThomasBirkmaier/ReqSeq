@@ -20,10 +20,12 @@ import {
   codeFingerprint,
   computeCodeFingerprint,
   fingerprintFile,
+  inoKey,
   loadThroughCache,
   parseModelCache,
   readModelCache,
   serializeModelCache,
+  statKeys,
 } from "./model-cache.js";
 import { shortIdState } from "./short-id.js";
 import type { LoadedStore } from "./store.js";
@@ -438,9 +440,10 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
       copy.snapshot["path"] = file;
       files.push([file, copy, plain[2], plain[3]]);
     }
-    // Another inode; not `+ 1`: a 64-bit file ID on Windows is a number above 2 ** 53, where `+ 1`
-    // gives the same number.
-    plain[2] = Number(plain[2]) === 1 ? 2 : 1;
+    // Another inode, as the decimal string the cache keeps (a 64-bit file ID on Windows keeps its
+    // low bits): one more than the real one.
+    expect(plain[2]).toMatch(/^\d+$/);
+    plain[2] = String(BigInt(String(plain[2])) + 1n);
     await fs.writeFile(cacheFile(cache), JSON.stringify(cached));
     const result = await loadThroughCache(workspace, cache, layout, async (reuse) => {
       const split = await reuse?.(repository, [
@@ -502,7 +505,9 @@ describe("parseModelCache", () => {
     code: CODE,
     root: ROOT,
     startedAt: 5000,
-    repositories: [{ name: "system", folder: "/work/copy", files: [["a.md", elementEntry, 7, 900]] }],
+    repositories: [
+      { name: "system", folder: "/work/copy", files: [["a.md", elementEntry, "7", "900000000"]] },
+    ],
   };
   const parse = (value: unknown): ModelCache | undefined =>
     parseModelCache(JSON.stringify(value), ROOT, CODE);
@@ -511,7 +516,7 @@ describe("parseModelCache", () => {
     const cache = parse(valid);
     const entry = cache?.repositories.get("system")?.files.get("a.md");
     expect(cache?.startedAt).toBe(5000);
-    expect(entry).toMatchObject({ ino: 7, ctimeMs: 900 });
+    expect(entry).toMatchObject({ ino: "7", ctimeNs: "900000000" });
     const contribution = entry?.contribution;
     expect(contribution?.snapshot).toEqual(snapshot);
     expect(Object.isFrozen(contribution?.snapshot)).toBe(true);
@@ -525,7 +530,7 @@ describe("parseModelCache", () => {
     repositories: [{ name: "system", folder: "/work/copy", files: [entry] }],
   });
   const withContribution = (change: Record<string, unknown>): unknown =>
-    withEntry(["a.md", { ...elementEntry, ...change }, 7, 900]);
+    withEntry(["a.md", { ...elementEntry, ...change }, "7", "900000000"]);
   const withRecord = (change: Record<string, unknown>): unknown =>
     withContribution({ element: { ...record, ...change } });
 
@@ -540,10 +545,14 @@ describe("parseModelCache", () => {
     ["a repository without files", { ...valid, repositories: [{ name: "system", folder: "/f" }] }],
     ["an entry of the old format", withEntry(["a.md", elementEntry])],
     ["an entry that is no list", withEntry({ file: "a.md" })],
-    ["an entry without a file name", withEntry([1, elementEntry, 7, 900])],
-    ["an inode that is no number", withEntry(["a.md", elementEntry, "7", 900])],
-    ["a change time that is no number", withEntry(["a.md", elementEntry, 7, null])],
-    ["a contribution that is no object", withEntry(["a.md", "element", 7, 900])],
+    ["an entry without a file name", withEntry([1, elementEntry, "7", "900000000"])],
+    ["an inode that is a number (format 2)", withEntry(["a.md", elementEntry, 7, "900000000"])],
+    ["an inode that is no decimal", withEntry(["a.md", elementEntry, "0x7", "900000000"])],
+    ["an inode with a sign", withEntry(["a.md", elementEntry, "-7", "900000000"])],
+    ["an inode with a leading zero", withEntry(["a.md", elementEntry, "07", "900000000"])],
+    ["a change time that is a number (format 2)", withEntry(["a.md", elementEntry, "7", 900])],
+    ["a change time that is no whole number", withEntry(["a.md", elementEntry, "7", "900.5"])],
+    ["a contribution that is no object", withEntry(["a.md", "element", "7", "900000000"])],
     ["an unknown kind", withContribution({ kind: "other" })],
     ["no snapshot", withContribution({ snapshot: undefined })],
     ["a snapshot of another file", withContribution({ snapshot: { ...snapshot, path: "b.md" } })],
@@ -573,14 +582,47 @@ describe("parseModelCache", () => {
     ["an element with CRLF", { ...elementEntry, element: { ...record, eol: "\r\n", closingEol: "\r\n" } }],
   ])("takes %s as it is", (_case, contribution) => {
     expect(
-      parse(withEntry(["a.md", contribution, 7, 900]))
+      parse(withEntry(["a.md", contribution, "7", "900000000"]))
         ?.repositories.get("system")
         ?.files.get("a.md"),
     ).toEqual({
       contribution,
-      ino: 7,
-      ctimeMs: 900,
+      ino: "7",
+      ctimeNs: "900000000",
     });
+  });
+
+  it("keeps an inode as unsigned and leaves out a change time before 1970", () => {
+    // Node gives an inode of 2 ** 63 or more as a negative bigint.
+    expect(inoKey(-1n)).toBe("18446744073709551615");
+    expect(inoKey(-(2n ** 63n))).toBe("9223372036854775808");
+    expect(inoKey(7n)).toBe("7");
+    expect(statKeys({ ino: -1n, ctimeNs: 5n })).toEqual(["18446744073709551615", "5"]);
+    expect(statKeys({ ino: 7n, ctimeNs: 0n })).toEqual(["7", "0"]);
+    expect(statKeys({ ino: 7n, ctimeNs: -1n })).toBeUndefined();
+  });
+
+  it("keeps a 64-bit file ID and a change time in nanoseconds exactly", () => {
+    // Both differ from their neighbours only in bits a JS number above 2 ** 53 loses.
+    const [ino, ctimeNs] = statKeys({ ino: -1n, ctimeNs: 1761400000123456789n }) ?? [];
+    expect(Number(ino)).toBe(Number("18446744073709551614"));
+    const entry = parse(withEntry(["a.md", elementEntry, ino, ctimeNs]))
+      ?.repositories.get("system")
+      ?.files.get("a.md");
+    expect(entry).toMatchObject({ ino, ctimeNs });
+    expect(parse(withEntry(["a.md", elementEntry, "0", "0"]))?.repositories.get("system")?.files.size).toBe(
+      1,
+    );
+  });
+
+  it("discards a cache of format 2, with inodes and change times as numbers", () => {
+    expect(
+      parse({
+        ...valid,
+        format: 2,
+        repositories: [{ name: "system", folder: "/work/copy", files: [["a.md", elementEntry, 7, 900]] }],
+      }),
+    ).toBeUndefined();
   });
 });
 
@@ -596,6 +638,12 @@ describe("serializeModelCache", () => {
       [...(store.repositories[0]?.files.values() ?? [])].filter((c) => c.snapshot !== undefined),
     );
     expect(parseModelCache(serializeModelCache("/r", store, startedAt), "/r")).toBeDefined();
+    // The inode (unsigned) and the change time as decimal strings of `lstat` with `bigint`.
+    const stat = await fs.lstat(ws.path("requirements/a.md"), { bigint: true });
+    expect(cache?.repositories.get("system")?.files.get("requirements/a.md")).toMatchObject({
+      ino: inoKey(stat.ino),
+      ctimeNs: String(stat.ctimeNs),
+    });
     await ws.write("requirements/a.md", element(ID_A, "Alpha changed"));
     await fs.rm(ws.path("requirements/b.md"));
     const later = parseModelCache(serializeModelCache("/r", store, startedAt, "code"), "/r", "code");
