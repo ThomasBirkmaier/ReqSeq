@@ -131,8 +131,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
-        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
+        # macOS only on the nightly and manual runs; pull requests use Linux and Windows. Pushes to main use
+        # Linux only: the pull request already ran Windows, and Windows minutes cost money (Thomas, 2026-10-25).
+        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'push' && '["ubuntu-24.04"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
     runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))[matrix.os] }}
     steps:
@@ -162,8 +163,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
-        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
+        # macOS only on the nightly and manual runs; pull requests use Linux and Windows. Pushes to main use
+        # Linux only: the pull request already ran Windows, and Windows minutes cost money (Thomas, 2026-10-25).
+        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'push' && '["ubuntu-24.04"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
     runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))[matrix.os] }}
     steps:
