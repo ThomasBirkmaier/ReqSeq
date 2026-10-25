@@ -10,7 +10,7 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0002](0002-command-catalog.md) | Command catalog as the only program logic | D-025, D-029, D-052, SR-080 |
 | [0003](0003-contracts-first.md) | JSON Schema files are the contracts | D-056, D-052, SR-009 |
 | [0004](0004-element-file-format.md) | Element file format | D-015, D-017, D-040, D-043, D-056, D-058, D-059 |
-| [0005](0005-version-hash.md) | Version (Fassung) as content hash | D-013, D-027, D-057 |
+| [0005](0005-version-hash.md) | Version (Fassung) as content hash | D-013, D-027, D-057, D-060 |
 | [0006](0006-read-only-git.md) | Read Git through the git program, read-only | D-036, SR-083 |
 | [0007](0007-parsing-and-writing-files.md) | Parsing and writing YAML and Markdown | D-012, D-056, SR-008, SR-016, SR-065 |
 | [0008](0008-in-memory-model-and-index.md) | In-memory model, search index, cache and file watching | N-036, SR-007, SR-068, SR-081, SR-082 |

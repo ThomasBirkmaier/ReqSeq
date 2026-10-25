@@ -12,8 +12,13 @@ const EXAMPLE = new URL("../../../../schemas/examples/metamodel/standard-model.y
 const FIXTURES = new URL("../../../../fixtures/", import.meta.url);
 /** Fixture cases whose metamodel is the standard model; other cases hold their own models. */
 const FIXTURE_COPIES = [
+  "SR-001/two-elements/metamodel/standard-model.yaml",
   "SR-004/one-repository/metamodel/standard-model.yaml",
   "SR-004/three-repositories/system/metamodel/standard-model.yaml",
+  "SR-005/cross-repository/system/metamodel/standard-model.yaml",
+  "SR-021/targets/system/metamodel/standard-model.yaml",
+  "SR-040/validity/metamodel/standard-model.yaml",
+  "SR-072/supersede/metamodel/standard-model.yaml",
 ];
 
 /**
@@ -82,7 +87,8 @@ describe("standard model", () => {
     ]);
     // D-037: "die Properties Title, Status, Rationale, Requirement Type, Acceptance Criteria und
     // Validity"; D-059: "zusätzlich die Properties Package, Emergent, Verification Method und
-    // Statement sowie für die Herkunft Source, Source Identifier, Import Date und Delivery".
+    // Statement sowie für die Herkunft Source, Source Identifier, Import Date und Delivery"; D-060:
+    // "Das Standardmodell enthält zusätzlich zu D-037 die Property Topic (Schlüssel `topic`)".
     // Status is the structural key `status` of every element (D-012), its values are the statuses.
     expect(pairs(metamodel.properties)).toEqual([
       ["title", "Title"],
@@ -98,6 +104,7 @@ describe("standard model", () => {
       ["source-identifier", "Source Identifier"],
       ["import-date", "Import Date"],
       ["delivery", "Delivery"],
+      ["topic", "Topic"],
     ]);
     // D-030: "Das Standardmodell bringt Draft, Approved und Obsolete mit."
     expect(pairs(metamodel.statuses)).toEqual([
@@ -121,6 +128,18 @@ describe("standard model", () => {
       ["inspection", "Inspection"],
       ["demonstration", "Demonstration"],
     ]);
+    // Topic as this spec uses it ("thema"): one free-text value on needs and system requirements,
+    // which groups elements and does not count to the version (D-013); the topics are the project's.
+    expect(metamodel.properties.find((p) => p.key === "topic")).toEqual({
+      key: "topic",
+      name: "Topic",
+      kind: "text",
+    });
+    const withTopic = metamodel.types.filter((t) => t.properties?.includes("topic") === true);
+    expect(withTopic.map((t) => t.key)).toEqual(["need", "system-requirement"]);
+    for (const type of withTopic) {
+      expect(type.required, type.key).not.toContain("topic");
+    }
     // English names and keys throughout (D-019).
     const all = [...metamodel.types, ...metamodel.properties, ...metamodel.relations, ...metamodel.statuses];
     for (const definition of all) {

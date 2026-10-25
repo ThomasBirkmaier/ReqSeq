@@ -171,7 +171,7 @@ const bundle = {
   catalog,
 };
 
-// The standard model (D-037, D-059), shipped in core and written by workspace.init (SR-014). The
+// The standard model (D-037, D-059, D-060), shipped in core and written by workspace.init (SR-014). The
 // example of the metamodel format is the source, so the shipped model and the example never differ.
 const STANDARD_MODEL = "schemas/examples/metamodel/standard-model.yaml";
 const standardModel = {

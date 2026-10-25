@@ -1,6 +1,6 @@
 # ADR-0005: Version (Fassung) as content hash
 
-Status: Proposed · Based on: D-013, D-027, D-036, D-042, D-057 · SRs: SR-021, SR-025, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
+Status: Proposed · Based on: D-013, D-027, D-036, D-042, D-057, D-060 · SRs: SR-021, SR-025, SR-031, SR-065, SR-091, SR-097 · Schema: `common.schema.json#/$defs/version`
 
 ## Context
 
@@ -13,7 +13,7 @@ Relations and references store the version of their target as a hash over its co
 **Content of normal form 1:**
 
 1. Text: the Markdown body, everything after the line that closes the frontmatter.
-2. Every property whose definition has `content: true` (D-013, D-057: the flag "counts to the version" per property; in the standard model text, acceptance criteria, requirement type, verification method, emergent and validity count; title, status, packages, rationale, statement and origin do not). Title, status and properties without the flag are not content (SR-021 AK3). Relation kinds are not content, so a new child does not change the parent. Unknown properties are not content.
+2. Every property whose definition has `content: true` (D-013, D-057: the flag "counts to the version" per property; in the standard model text, acceptance criteria, requirement type, verification method, emergent and validity count; title, status, packages, rationale, topic, statement and origin do not). Title, status and properties without the flag are not content (SR-021 AK3). Relation kinds are not content, so a new child does not change the parent. Unknown properties are not content.
 3. Embedded images (D-057: "eingebettete Bilder zählen immer mit"): every image the text embeds with a relative link that resolves inside the same repository, with its SHA-256 (see **Files**). Where the editor puts new images (next to the element file) is SR-097 AK1; any image in the repository counts.
 
 **Canonical form (n1):** UTF-8 bytes of

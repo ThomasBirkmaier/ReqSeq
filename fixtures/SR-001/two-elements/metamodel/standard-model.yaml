@@ -1,5 +1,7 @@
-# Standard model (D-037, extended by D-059), shipped with LogReq and written by workspace.init (SR-014).
-# Keys never change (D-043); names are English (D-019). Every built-in meaning has exactly one key (SR-014 AK3).
+# Standard model (D-037, extended by D-059 and D-060), shipped with LogReq and written by workspace.init (SR-014).
+# Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
+# each type and property meaning exactly one, derivation and replacement two relation kinds each
+# (open question #150).
 # Marked "assumption": not yet covered by a decision.
 logreq-metamodel: 1
 
@@ -8,7 +10,7 @@ types:
     name: Need
     prefix: N
     meaning: need
-    properties: [title, rationale]
+    properties: [title, rationale, topic]
     required: [title]
   - key: use-case
     name: Use Case
@@ -34,6 +36,7 @@ types:
         source-identifier,
         import-date,
         delivery,
+        topic,
       ]
     required: [title, requirement-type, acceptance-criteria]
   - key: decision
@@ -85,13 +88,13 @@ properties:
     content: true
     meaning: validity
   - key: packages
-    name: Packages
+    name: Package
     kind: relation
     many: true
     target-types: [package]
     meaning: packages
   - key: emergent
-    name: Emergent Behavior
+    name: Emergent
     kind: choice
     content: true
     meaning: emergent
@@ -113,6 +116,10 @@ properties:
   - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }
   - { key: import-date, name: Import Date, kind: date, meaning: import-date }
   - { key: delivery, name: Delivery, kind: text, meaning: delivery }
+  # D-060 names only the property. Marked "assumption": kind text (the topics belong to the
+  # project, D-019), on need and system-requirement as this spec uses "thema", not content
+  # (like rationale and packages, D-057), not required.
+  - { key: topic, name: Topic, kind: text }
 
 relations:
   - key: refines
