@@ -148,6 +148,7 @@ const views = async ({ fixture, workspace }: Opened): Promise<Record<string, unk
       throw new Error(`cannot read ${record.file}`);
     }
     out[record.id] = elementView({
+      successions: [],
       record,
       file: read.file,
       images: [],

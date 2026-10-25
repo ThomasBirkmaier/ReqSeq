@@ -48,6 +48,7 @@ import type { ElementStore } from "./store.js";
 import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
+import { successionsFor } from "./successors.js";
 import { elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -296,6 +297,7 @@ const finish = async (
     shortIds,
     titleKey,
     layout: context.layout,
+    successions: successionsFor(workspace, context.store, context.metamodel, written.record),
   });
   if (files.length > 0) {
     await recordWrites(workspace, context.layout, [

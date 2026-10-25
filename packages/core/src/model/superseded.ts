@@ -8,6 +8,7 @@
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
 // superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
 // variants/superseded-validity.ts).
+// The successors of a superseded element in its view (SR-072 AK3) are `successors.ts`.
 import type { Problem } from "../catalog.js";
 import type { MetamodelRelationKind, MetamodelStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";

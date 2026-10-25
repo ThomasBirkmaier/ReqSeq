@@ -7553,7 +7553,7 @@
               },
               "relations": {
                 "type": "array",
-                "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them.",
+                "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them.",
                 "items": {
                   "$ref": "#/components/schemas/data-export/$defs/relation"
                 }

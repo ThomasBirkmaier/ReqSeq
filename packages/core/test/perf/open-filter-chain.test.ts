@@ -29,6 +29,7 @@ import {
   ignoredBy,
   resolveTarget,
   shortIdState,
+  successionsFor,
   titleKeyOf,
   warmWorkspace,
 } from "../../src/model/index.js";
@@ -138,13 +139,23 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     }
   });
 
-  /** Opening an element as `element.get` will: look it up, read its file, build its view. */
+  /**
+   * Opening an element as `element.get` will: look it up, read its file, build its view, with its
+   * successors (`successionsFor`, SR-072 AK3). With `superseded`, the element is shown as if its
+   * status were `obsolete` (marked invalid; no generated element has one), so the view builds the
+   * succession index of a store that has none yet.
+   */
   const openElement = async (
     id: string,
     current: { readonly store: ElementStore; readonly shortIds: ShortIds },
+    superseded = false,
   ): Promise<ReturnType<typeof elementView>> => {
     const titleKey = titleKeyOf(metamodel) ?? "title";
-    const [record] = current.store.byId.get(id) ?? [];
+    const [stored] = current.store.byId.get(id) ?? [];
+    const record =
+      stored === undefined || !superseded
+        ? stored
+        : { ...stored, data: { ...stored.data, status: "obsolete" } };
     const repository = availableRepositories(layout).find((r) => r.name === record?.repository);
     if (record === undefined || repository === undefined) {
       throw new Error(`element ${id} is not in the store`);
@@ -158,7 +169,11 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       record.file,
       read.file.body,
     );
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
     return elementView({
+      successions: successionsFor(workspace, current.store, metamodel, record),
       record,
       file: read.file,
       metamodel,
@@ -255,10 +270,12 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const { result: view, measurement } = await measure(
       "open one element right after a save (store and short IDs as the save left them, file read, element view)",
       async () =>
-        openElement(id, {
-          store: await opened.get(elementStoreState),
-          shortIds: await opened.get(shortIdState),
-        }),
+        openElement(
+          id,
+          { store: await opened.get(elementStoreState), shortIds: await opened.get(shortIdState) },
+          // Superseded: the first such view after the save builds the succession index (SR-072 AK3).
+          true,
+        ),
       { basis: "SR-082 AK3 (core: open after a save, #184; #127)", thresholdMs: OPEN_MS },
     );
     expect(view.id).toBe(id);

@@ -89,6 +89,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.update": [
     {
+      name: "update a superseded element with a successor: same view with the successor relation everywhere (consistency, SR-072 AK3)",
+      fixture: {
+        fixture: "SR-072/supersede",
+        git: true,
+        files: {
+          "needs/N-a1b2c3d4e5f6.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
+          "needs/N-b2c3d4e5f6a7.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+        },
+      },
+      input: { ref: "N-d4e5f6", text: "Changed.\n" },
+      expect: "output",
+    },
+    {
       name: "update an element with a relation to a superseded element (SR-072 AK2 hint)",
       fixture: { fixture: "SR-019/findings", git: true },
       input: { ref: "2b2b2b2b-2222-4222-8222-b00000000008", text: "Changed.\n" },

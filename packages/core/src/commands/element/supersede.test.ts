@@ -508,3 +508,162 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     expect(await none.workspace.get(supersededTargetProblemsState)).toEqual([]);
   });
 });
+
+describe("a superseded element names its successor without a relation of its own (SR-072 AK3)", () => {
+  type Relation = CommandOutput<"element.update">["element"]["relations"][number];
+
+  /** The element as `element.update` shows it after a change of its text: the view of stage 1. */
+  const shown = async (opened: Opened, ref: string): Promise<CommandOutput<"element.update">["element"]> =>
+    (
+      (await invoke(
+        "element.update",
+        { ref, text: "Changed.\n" },
+        { workspace: opened.workspace },
+      )) as CommandOutput<"element.update">
+    ).element;
+
+  const successor = (
+    source: { readonly id: string },
+    kind: string,
+    shortId: string,
+    title: string | undefined,
+  ): Relation => ({
+    kind,
+    meaning: "replacement",
+    direction: "in",
+    id: source.id,
+    shortId,
+    ...(title === undefined ? {} : { title }),
+    accessible: true,
+    targetState: "available",
+    storedVersion: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
+  });
+
+  it("[SR-072/AK3] names the successor as an incoming relation Supersedes; the superseded file has no relation to it", async () => {
+    const opened = await open();
+    await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
+    const before = await read(opened, N_OLD.file);
+    const element = await shown(opened, N_OLD.id);
+    expect(element.relations).toEqual([successor(N_NEW, "supersedes", "N-e5f6a7", "See wind and gusts")]);
+    const stored = (await opened.workspace.get(elementStoreState)).byId.get(N_NEW.id)?.[0]?.data[
+      "supersedes"
+    ];
+    expect(element.relations[0]?.storedVersion).toBe((stored as { version: string }[])[0]?.version);
+    // Only the text changed; the superseded file holds no relation, the successor's file holds it.
+    const after = await read(opened, N_OLD.file);
+    expect(after).toBe(before.replace("\nI need to see the wind speed.\n", "Changed.\n"));
+    expect(after).not.toContain(N_NEW.id);
+    expect(await read(opened, N_NEW.file)).toContain(`supersedes:\n  - { id: ${N_OLD.id}, `);
+  });
+
+  it("[SR-072/AK3] names no successor when the element has none or is not superseded", async () => {
+    const without = await open();
+    await supersede(without, { ref: N_OLD.id, status: "obsolete" });
+    expect((await shown(without, N_OLD.id)).relations).toEqual([]);
+
+    // A relation Supersedes to an element with a valid status names no successor (ADR-0004).
+    const supersedes = `supersedes:\n  - { id: ${N_OLD.id}, version: n1:1111111111111111, title: See the wind }\n`;
+    const valid = await open({
+      files: {
+        [N_NEW.file]: `---\nid: ${N_NEW.id}\ntype: need\nstatus: draft\ntitle: See wind and gusts\n${supersedes}---\n\nGusts.\n`,
+      },
+    });
+    expect((await shown(valid, N_OLD.id)).relations).toEqual([]);
+
+    // Whichever command sets the invalid status: element.setStatus too.
+    await invoke(
+      "element.setStatus",
+      { refs: [N_OLD.id], status: "obsolete" },
+      { workspace: valid.workspace },
+    );
+    expect((await shown(valid, N_OLD.id)).relations).toEqual([
+      successor(N_NEW, "supersedes", "N-e5f6a7", "See wind and gusts"),
+    ]);
+  });
+
+  it("[SR-072/AK3] names every successor under every relation kind with the meaning replacement, after the element's own relations", async () => {
+    const target = `{ id: ${SR_OLD.id}, version: n1:2222222222222222, title: Show wind speed }`;
+    const other = { id: "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a", file: "needs/N-0a0a0a0a0a0a.md" };
+    const opened = await open({
+      files: {
+        [SR_OLD.file]: (
+          await fs.readFile(
+            new URL(`../../../../../fixtures/SR-072/supersede/${SR_OLD.file}`, import.meta.url),
+            "utf8",
+          )
+        ).replace("status: approved", "status: obsolete"),
+        [SR_NEW.file]: `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed and gusts\nrequirement-type: functional\nacceptance-criteria:\n  - Given wind, then gusts.\nsupersedes:\n  - ${target}\nreplaces:\n  - ${target}\n---\n`,
+        // A successor without a title is named by its short ID; a target without a version has no
+        // storedVersion (its shape is SR-085's) and still names the successor.
+        [other.file]: `---\nid: ${other.id}\ntype: need\nstatus: draft\nsupersedes:\n  - { id: ${SR_OLD.id}, title: Show wind speed }\n---\n`,
+      },
+    });
+    const element = await shown(opened, SR_OLD.id);
+    expect(element.relations.map((r) => [r.direction, r.kind, r.shortId])).toEqual([
+      ["out", "derives-from", "N-d4e5f6"],
+      ["in", "supersedes", "N-0a0a0a"],
+      ["in", "supersedes", "SR-a7b8c9"],
+      ["in", "replaces", "SR-a7b8c9"],
+    ]);
+    expect(element.relations.slice(1)).toEqual([
+      {
+        kind: "supersedes",
+        meaning: "replacement",
+        direction: "in",
+        id: other.id,
+        shortId: "N-0a0a0a",
+        accessible: true,
+        targetState: "available",
+      },
+      successor(SR_NEW, "supersedes", "SR-a7b8c9", "Show wind speed and gusts"),
+      successor(SR_NEW, "replaces", "SR-a7b8c9", "Show wind speed and gusts"),
+    ]);
+  });
+
+  it("[SR-072/AK3] gives a successor whose UUID several files share as ambiguous, without short ID and title (SR-088)", async () => {
+    const supersedes = `supersedes:\n  - { id: ${N_OLD.id}, version: n1:1111111111111111, title: See the wind }\n`;
+    const successorFile = `---\nid: ${N_NEW.id}\ntype: need\nstatus: draft\ntitle: See wind and gusts\n${supersedes}---\n`;
+    const opened = await open({
+      files: {
+        [N_OLD.file]: `---\nid: ${N_OLD.id}\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n`,
+        [N_NEW.file]: successorFile,
+        "needs/copy/N-b2c3d4e5f6a7.md": successorFile,
+      },
+    });
+    const ambiguous: Relation = {
+      kind: "supersedes",
+      meaning: "replacement",
+      direction: "in",
+      id: N_NEW.id,
+      accessible: false,
+      targetState: "ambiguous",
+      storedVersion: "n1:1111111111111111",
+    };
+    expect((await shown(opened, N_OLD.id)).relations).toEqual([ambiguous, ambiguous]);
+  });
+
+  it("[SR-072/AK3] names a successor in another repository with its short ID and title (D-058)", async () => {
+    const platformNeed = "4c1d9e7a-8b2f-4a3c-9d5e-6f7a8b9c0d1e";
+    const file = "needs/N-0a1b2c3d4e5f.md";
+    const successorId = "7a1e0c2b-4d3f-4a5b-8c6d-0a1b2c3d4e5f";
+    const opened = await open(
+      {
+        fixture: "SR-005/cross-repository",
+        files: {
+          [`system/${file}`]: `---\nid: ${successorId}\ntype: need\nstatus: draft\ntitle: Gusts in red\n---\n`,
+        },
+      },
+      "system",
+    );
+    await supersede(opened, { ref: platformNeed, status: "obsolete", successor: "N-3d4e5f" });
+    const before = await read(opened, "platform-checkout/needs/N-6f7a8b9c0d1e.md");
+    const element = await shown(opened, platformNeed);
+    expect(element.repository).toBe("platform");
+    expect(element.relations.filter((r) => r.direction === "in")).toEqual([
+      successor({ id: successorId }, "supersedes", "N-3d4e5f", "Gusts in red"),
+    ]);
+    // The superseded file in the other repository holds no relation to its successor.
+    expect(await read(opened, "platform-checkout/needs/N-6f7a8b9c0d1e.md")).not.toContain(successorId);
+    expect(before).not.toContain(successorId);
+  });
+});

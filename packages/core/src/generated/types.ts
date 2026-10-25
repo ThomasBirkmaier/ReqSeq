@@ -281,7 +281,7 @@ export interface DataExportElement {
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly {

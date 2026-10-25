@@ -19,6 +19,7 @@ import type { Metamodel } from "../../src/metamodel/index.js";
 import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
 import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState } from "../../src/model/store.js";
+import { buildSuccessionIndex, successionsOf } from "../../src/model/successors.js";
 import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
 import { invoke } from "../../src/runtime/invoke.js";
@@ -158,6 +159,28 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     );
     // No generated element has an invalid status.
     expect(findings).toEqual([]);
+  }, 600_000);
+
+  it("builds the successions once per store and looks up the successors of a superseded element (ADR-0008: 200 ms)", async () => {
+    const store = await workspace.get(elementStoreState);
+    const metamodel = await workspace.get(metamodelState);
+    const { result: index } = await measure(
+      "succession index: every relation with the meaning replacement, by target (once per store)",
+      () => Promise.resolve(buildSuccessionIndex(store, metamodel)),
+      { basis: "SR-072 AK3, ADR-0008 (open an element: 200 ms)", thresholdMs: 200 },
+    );
+    const [first] = store.elements;
+    if (first === undefined) {
+      throw new Error("the generated store is empty");
+    }
+    // As if it were superseded: no generated element has an invalid status.
+    const superseded = { ...first, data: { ...first.data, status: "obsolete" } };
+    const { result: found } = await measure(
+      "successors of one superseded element (lookup in the index)",
+      () => Promise.resolve(successionsOf(index, metamodel, superseded)),
+      { basis: "SR-072 AK3 (a map lookup per view)", thresholdMs: 5 },
+    );
+    expect(Array.isArray(found)).toBe(true);
   }, 600_000);
 
   it("stores in every relation the version of its target", async () => {

@@ -20,6 +20,7 @@ import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
 import { UNKNOWN_TYPE_PREFIX } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+import type { Succession } from "./successors.js";
 import { supersededFindingsOf } from "./superseded.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
@@ -110,6 +111,33 @@ const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
   ];
 };
 
+/**
+ * The successors of a superseded element (SR-072 AK3): each relation with the meaning
+ * `replacement` from a successor to it (`input.successions`, `successionsFor`), as a relation with
+ * `direction: "in"`. The other end is the successor, with its `targetState` (D-058): `available`
+ * when its repository has exactly one element with its UUID, then also with its short ID and
+ * title, also across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088).
+ * `storedVersion` is the version the successor stores, when it is one. The superseded element
+ * itself has no relation to its successor (D-045).
+ */
+const successorRelations = (input: ElementViewInput): DataExportRelation[] =>
+  input.successions.map(({ source, kind, item }): DataExportRelation => {
+    const state = targetState(input.layout, input.store, source.repository, { id: source.id });
+    const available = state.kind === "available";
+    const title = source.data[input.titleKey];
+    return {
+      kind: kind.key,
+      meaning: "replacement",
+      direction: "in",
+      id: source.id,
+      ...(available ? { shortId: input.shortIds.of(source) } : {}),
+      ...(available && typeof title === "string" ? { title } : {}),
+      accessible: available,
+      targetState: state.kind,
+      ...(isVersion(item["version"]) ? { storedVersion: item["version"] } : {}),
+    };
+  });
+
 /** The definitions of the properties the element's type has; none for an unknown type. */
 const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): VersionPropertyDefinition[] => {
   const keys = new Set(findType(metamodel, record.type)?.properties ?? []);
@@ -152,15 +180,23 @@ export interface ElementViewInput {
   readonly titleKey: string;
   /** Which repositories of the workspace are on this machine (`targetState`, SR-006). */
   readonly layout: Pick<WorkspaceLayout, "repositories">;
+  /**
+   * The relations from the element's successors in `store` (SR-072 AK3). Must come from
+   * `successionsFor` with the same `store` and `metamodel`; `[]` lists none.
+   */
+  readonly successions: readonly Succession[];
 }
 
 /**
  * The element with its text, its version (ADR-0005, with the embedded images of `input.images`),
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
- * keys included), its own relations and the hints with their lines: unknown type and properties
+ * keys included), its own relations, then, when it is superseded, the relations from its successors
+ * (`successorRelations`, SR-072 AK3), and the hints with their lines: unknown type and properties
  * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
- * (SR-085), then relations to superseded elements (SR-072 AK2); none while the metamodel is not
- * valid (#208, #220 option 1). Relations pointing at it and the version date are left out.
+ * (SR-085), then relations to superseded elements (SR-072 AK2); no hints while the metamodel is not
+ * valid (#208, #220 option 1). The successor relations are relations, not hints, so they are
+ * listed also then; `input.successions` must come from `successionsFor`. Other relations pointing
+ * at it and the version date are left out.
  */
 export const elementView = (
   input: ElementViewInput,
@@ -196,7 +232,7 @@ export const elementView = (
     repository: record.repository,
     file: record.file,
     properties,
-    relations: outgoingRelations(input),
+    relations: [...outgoingRelations(input), ...successorRelations(input)],
     problems,
   };
 };
