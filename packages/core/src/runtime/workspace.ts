@@ -23,6 +23,23 @@ export interface WorkspaceState<T> {
    * For async state it runs only after the Promise fulfilled; a rejected build is not disposed.
    */
   dispose(value: T): void | Promise<void>;
+  /**
+   * Derives this state's next value from its current one when a state it depends on is replaced
+   * (`Workspace.replace`), instead of resetting it; undefined resets it. Runs synchronously inside
+   * `replace`, after the new value of `change.key` and of every carried dependency is in place, so
+   * it may `get` them; a state that is not carried is out by then, and a `get` builds it anew. A
+   * hook must not `get` a dependent that comes after it and is not one of its dependencies: that one
+   * would be built anew and then overwritten by its own hook, without being disposed. The current
+   * value is not disposed: the new one is built from it.
+   */
+  carry?(value: T, change: StateChange, workspace: Workspace): T | undefined;
+}
+
+/** A replaced state, for `WorkspaceState.carry`. */
+export interface StateChange {
+  readonly key: WorkspaceState<unknown>;
+  readonly from: unknown;
+  readonly to: unknown;
 }
 
 export interface WorkspaceStateOptions<T> {
@@ -30,6 +47,8 @@ export interface WorkspaceStateOptions<T> {
   readonly dependsOn?: readonly WorkspaceState<unknown>[];
   /** Release a value; for async state it gets the fulfilled Promise (`(await value).close()`). */
   readonly dispose?: (value: T) => void | Promise<void>;
+  /** Carry the value over a replaced dependency (`WorkspaceState.carry`). Default: reset it. */
+  readonly carry?: (value: T, change: StateChange, workspace: Workspace) => T | undefined;
 }
 
 /** Define a kind of per-workspace state at module level: `const metamodelState = defineWorkspaceState(...)`. */
@@ -42,6 +61,7 @@ export const defineWorkspaceState = <T>(
   create,
   dependsOn: [...(options.dependsOn ?? [])],
   dispose: options.dispose ?? ((): void => undefined),
+  ...(options.carry === undefined ? {} : { carry: options.carry }),
 });
 
 /** Whether `from` depends on `target`, directly or through other states. */
@@ -130,12 +150,15 @@ export class Workspace {
 
   /**
    * Replace the state for `key` with `to`, but only while it is still `from` (compare and set, so
-   * a reset or another replace in between wins). Every state that depends on `key` is reset,
-   * dependents first, and then `from` is disposed. Used by the watcher to update the element
-   * store file by file instead of reading it again (SR-007; through `applyStoreChange`). Resolves
-   * with whether the value is now `to` (`to` equal to `from` changes nothing). The value is
-   * replaced even when a disposal fails; the call then rejects with an `AggregateError` of the
-   * failures, as `reset` does.
+   * a reset or another replace in between wins). Every state that depends on `key` is then either
+   * carried over or reset: dependencies first, a state with a `carry` hook gets its next value from
+   * it when every dependency of it that depends on `key` was carried too; every other one is reset,
+   * dependents first, and then `from` is disposed. Used by the watcher and LogReq's own writes to
+   * update the element store file by file instead of reading it again (SR-007, #166; through
+   * `applyStoreChange`), and the states built on it with it (#184). Resolves with whether the value
+   * is now `to` (`to` equal to `from` changes nothing). The value is replaced even when a hook or a
+   * disposal fails; a failed hook resets its state, and the call then rejects with an
+   * `AggregateError` of the failures, as `reset` does.
    */
   async replace<T>(key: WorkspaceState<T>, from: T, to: T): Promise<boolean> {
     if (this.#closed || !this.#state.has(key) || this.#state.get(key) !== from) {
@@ -145,9 +168,42 @@ export class Workspace {
       return true;
     }
     this.#keep(key, to);
-    const dependents = [...this.#state.keys()].filter((k) => k !== key && dependsOn(k, key));
-    await this.#drop(dependents, [{ key, value: from }]);
-    return true;
+    const change: StateChange = { key, from, to };
+    const dependents = dependentsFirst(
+      [...this.#state.keys()].filter((k) => k !== key && dependsOn(k, key)),
+    ).map((k) => ({ key: k, value: this.#state.get(k) }));
+    // Out first, so that a hook that gets a state which is not carried builds it anew.
+    for (const { key: dependent } of dependents) {
+      this.#state.delete(dependent);
+    }
+    const carried = new Set<WorkspaceState<unknown>>([key]);
+    /** Failures of `carry` hooks. */
+    const errors: unknown[] = [];
+    for (const { key: dependent, value } of [...dependents].reverse()) {
+      const ready = dependent.dependsOn.every((d) => carried.has(d) || !dependsOn(d, key));
+      if (!ready || dependent.carry === undefined) {
+        continue;
+      }
+      try {
+        const next = dependent.carry(value, change, this);
+        if (next !== undefined) {
+          this.#keep(dependent, next);
+          carried.add(dependent);
+        }
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    const dropped = this.#drop([], [...dependents.filter((d) => !carried.has(d.key)), { key, value: from }]);
+    if (errors.length === 0) {
+      await dropped;
+      return true;
+    }
+    // `#drop` rejects only with the AggregateError of its disposals.
+    await dropped.catch((error: unknown) => {
+      errors.push(...((error as AggregateError).errors as unknown[]));
+    });
+    throw new AggregateError(errors, "carrying workspace state failed");
   }
 
   /** Store a value; a failed async build is dropped so the next `get` retries (the caller still sees the rejection). */

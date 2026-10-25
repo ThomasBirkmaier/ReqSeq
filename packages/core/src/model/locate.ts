@@ -48,15 +48,15 @@ const unchangedFiles = async (
 };
 
 /**
- * The problems of `findings` in their order, each with the line of its path when the file is
- * unchanged since the store read it. Reads every file with findings once, per repository with
- * `readElementFiles` (32 at a time).
+ * The problem of each of `findings` with the line of its path when the file is unchanged since the
+ * store read it, as a function of the finding. Reads every file with findings once, per repository
+ * with `readElementFiles` (32 at a time); a finding that was not passed gets no line.
  */
-export const locateFindings = async (
+export const findingLocator = async (
   layout: WorkspaceLayout,
   findings: readonly LocatableFinding[],
   options: LocateOptions = {},
-): Promise<readonly Problem[]> => {
+): Promise<(finding: LocatableFinding) => Problem> => {
   const byRepository = new Map<string, Map<string, ElementRecord>>();
   for (const { element } of findings) {
     const files = byRepository.get(element.repository) ?? new Map<string, ElementRecord>();
@@ -70,9 +70,20 @@ export const locateFindings = async (
       files.set(repository.name, await unchangedFiles(repository.folder, [...elements.values()], options));
     }
   }
-  return findings.map((f) => {
+  return (f) => {
     const file = files.get(f.element.repository)?.get(f.element.file);
     const line = file === undefined ? undefined : findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
-  });
+  };
 };
+
+/**
+ * The problems of `findings` in their order, each with the line of its path when the file is
+ * unchanged since the store read it. Reads every file with findings once, per repository with
+ * `readElementFiles` (32 at a time).
+ */
+export const locateFindings = async (
+  layout: WorkspaceLayout,
+  findings: readonly LocatableFinding[],
+  options: LocateOptions = {},
+): Promise<readonly Problem[]> => findings.map(await findingLocator(layout, findings, options));

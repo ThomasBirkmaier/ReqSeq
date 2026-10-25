@@ -9,7 +9,14 @@ import { fileSchemaValidator } from "../runtime/contracts.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
-import { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
+import {
+  SHORT_ID_MIN_LENGTH,
+  UNKNOWN_TYPE_PREFIX,
+  buildShortIds,
+  shortIdGroup,
+  shortIdState,
+  updateShortIds,
+} from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
@@ -401,5 +408,124 @@ describe("ShortIds.tail", () => {
     expect(shortIds.tail("12345678-0000-4000-8000-000003abc123")).toBe("3abc123");
     expect(shortIds.tail("12345678-0000-4000-8000-000000000000")).toBe("000000");
     expect(buildShortIds(new Map(), await metamodelOf()).tail(PAIR_1)).toBe("abc123");
+  });
+});
+
+describe("updateShortIds (#184)", () => {
+  const record = (id: string, file: string, type = "system-requirement"): ElementRecord => ({
+    id,
+    type,
+    repository: "system",
+    file,
+    data: { id, type, status: "draft", title: "T" },
+    eol: "\n",
+    closingEol: "\n",
+    bom: false,
+    snapshot: { path: file, size: 1, mtimeMs: 1, sha256: "0".repeat(64) },
+  });
+
+  const byIdOf = (records: readonly ElementRecord[]): Map<string, ElementRecord[]> => {
+    const byId = new Map<string, ElementRecord[]>();
+    for (const r of records) {
+      byId.set(r.id, [...(byId.get(r.id) ?? []), r]);
+    }
+    return byId;
+  };
+
+  /** UUIDs of no element whose ends lie in the groups above, for `tail`. */
+  const PROBES = ["c1b2c3d4-0000-4000-8000-000003abc123", "aaaaaaaa-aaaa-4aaa-8a02-abcdefabcdef", MOVED_N];
+
+  /** What a caller can see of short IDs: every element's short ID, what it and longer tails find, probes. */
+  const seen = (shortIds: ShortIds, byId: ReadonlyMap<string, readonly ElementRecord[]>): unknown => {
+    const elements = [...byId.values()].flat();
+    return {
+      of: elements.map((e) => shortIds.of(e)),
+      find: elements.map((e) => [
+        shortIds.find(shortIds.of(e)),
+        shortIds.find(`SR-${e.id.slice(-12)}`),
+        shortIds.find(`SR-${e.id.slice(-6)}`),
+      ]),
+      tails: PROBES.map((id) => shortIds.tail(id)),
+    };
+  };
+
+  const metamodelOf = async (): Promise<Metamodel> => open((await moved([])).root).get(metamodelState);
+
+  it("equals a fresh build after a create, an update, a move, a copy and a removal", async () => {
+    const metamodel = await metamodelOf();
+    const a = record(PAIR_1, "requirements/a.md");
+    const b = record(GROUP_A, "requirements/b.md");
+    const c = record(GROUP_C, "requirements/c.md");
+    const x = record(LONG_X, "requirements/x.md");
+    const steps: { records: ElementRecord[]; ids: string[] }[] = [
+      // A new UUID that collides with PAIR_1: both grow.
+      { records: [a, b, c, x, record(PAIR_2, "requirements/p.md")], ids: [PAIR_2] },
+      // An update: the same UUID, another record and type.
+      { records: [a, b, c, x, record(PAIR_2, "requirements/p.md", "need")], ids: [PAIR_2] },
+      // A move and a copy (SR-088): two records of one UUID.
+      {
+        records: [a, b, c, x, record(PAIR_2, "moved/p.md", "need"), record(GROUP_A, "copies/b.md")],
+        ids: [PAIR_2, GROUP_A],
+      },
+      // GROUP_B joins, LONG_Y joins, PAIR_1 is gone.
+      {
+        records: [
+          b,
+          c,
+          x,
+          record(PAIR_2, "moved/p.md", "need"),
+          record(GROUP_A, "copies/b.md"),
+          record(GROUP_B, "requirements/gb.md"),
+          record(LONG_Y, "requirements/y.md"),
+        ],
+        ids: [PAIR_1, GROUP_B, LONG_Y],
+      },
+      // GROUP_B is gone: GROUP_A shares 6 digits only, its short ID gets shorter.
+      {
+        records: [
+          b,
+          c,
+          x,
+          record(PAIR_2, "moved/p.md", "need"),
+          record(GROUP_A, "copies/b.md"),
+          record(LONG_Y, "requirements/y.md"),
+        ],
+        ids: [GROUP_B],
+      },
+      // Every element of a group is gone; nothing else changes.
+      { records: [x, record(LONG_Y, "requirements/y.md")], ids: [GROUP_A, GROUP_B, GROUP_C, PAIR_2] },
+      // No UUID changed.
+      { records: [x, record(LONG_Y, "requirements/y.md")], ids: [] },
+    ];
+    let byId = byIdOf([a, b, c, x]);
+    let shortIds = buildShortIds(byId, metamodel);
+    for (const step of steps) {
+      // Records of UUIDs that did not change stay the same objects, as the store keeps them.
+      const next = byIdOf(
+        step.records.map((r) =>
+          step.ids.includes(r.id) ? r : (byId.get(r.id)?.find((o) => o.file === r.file) ?? r),
+        ),
+      );
+      const before = seen(shortIds, byId);
+      const updated = updateShortIds(shortIds, next, step.ids);
+      expect(seen(updated, next)).toEqual(seen(buildShortIds(next, metamodel), next));
+      // The short IDs before stay as they were, for a command that still holds them.
+      expect(seen(shortIds, byId)).toEqual(before);
+      byId = next;
+      shortIds = updated;
+    }
+  });
+
+  it("refuses short IDs it did not build", () => {
+    const foreign: ShortIds = { of: () => "", tail: () => "", find: () => ({ kind: "unknown" }) };
+    expect(() => updateShortIds(foreign, new Map(), [])).toThrow("needs short IDs from buildShortIds");
+  });
+
+  it("groups a UUID by its last 6 hex digits", () => {
+    expect(shortIdGroup(PAIR_1)).toBe(shortIdGroup(PAIR_2));
+    expect(shortIdGroup(PAIR_1)).not.toBe(shortIdGroup(LONG_X));
+    expect(shortIdGroup(PAIR_1)).toBe("abc123");
+    // Something else than a UUID: dashes near the end are skipped.
+    expect(shortIdGroup("aaaa-bb-cc")).toBe("aabbcc");
   });
 });

@@ -20,6 +20,7 @@ import { readElementFile } from "../../src/files/index.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord, ElementStore, ShortIds } from "../../src/model/index.js";
+import { invoke } from "../../src/runtime/invoke.js";
 import {
   elementStoreState,
   elementView,
@@ -137,28 +138,43 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     }
   });
 
-  it("[SR-082/AK3] shows an element within 200 ms of opening it", async () => {
+  /** Opening an element as `element.get` will: look it up, read its file, build its view. */
+  const openElement = async (
+    id: string,
+    current: { readonly store: ElementStore; readonly shortIds: ShortIds },
+  ): Promise<ReturnType<typeof elementView>> => {
     const titleKey = titleKeyOf(metamodel) ?? "title";
+    const [record] = current.store.byId.get(id) ?? [];
+    const repository = availableRepositories(layout).find((r) => r.name === record?.repository);
+    if (record === undefined || repository === undefined) {
+      throw new Error(`element ${id} is not in the store`);
+    }
+    const read = await readElementFile(repository.folder, record.file);
+    if (read.kind !== "parsed") {
+      throw new Error(`cannot read ${record.file}`);
+    }
+    const images = await embeddedImages(
+      { repository, ignored: ignoredBy(layout) },
+      record.file,
+      read.file.body,
+    );
+    return elementView({
+      record,
+      file: read.file,
+      metamodel,
+      store: current.store,
+      shortIds: current.shortIds,
+      titleKey,
+      layout,
+      images,
+    });
+  };
+
+  it("[SR-082/AK3] shows an element within 200 ms of opening it", async () => {
     const id = tree.elements[Math.floor(ELEMENTS / 2)]?.id ?? "";
     const { result: view, measurement } = await measure(
       "open one element (look up, read its file, element view)",
-      async () => {
-        const [record] = store.byId.get(id) ?? [];
-        const repository = availableRepositories(layout).find((r) => r.name === record?.repository);
-        if (record === undefined || repository === undefined) {
-          throw new Error(`element ${id} is not in the store`);
-        }
-        const read = await readElementFile(repository.folder, record.file);
-        if (read.kind !== "parsed") {
-          throw new Error(`cannot read ${record.file}`);
-        }
-        const images = await embeddedImages(
-          { repository, ignored: ignoredBy(layout) },
-          record.file,
-          read.file.body,
-        );
-        return elementView({ record, file: read.file, metamodel, store, shortIds, titleKey, layout, images });
-      },
+      () => openElement(id, { store, shortIds }),
       { basis: "SR-082 AK3 (core: store lookup, file read, element view; #127)", thresholdMs: OPEN_MS },
     );
     expect(view.id).toBe(id);
@@ -207,5 +223,55 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(chain.size).toBeGreaterThan(0);
     expect(chain.has(top)).toBe(false);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  // Last: it changes a file of the workspace.
+  it("[SR-082/AK3] shows an element within 200 ms of opening it right after a save", async () => {
+    const opened = workspace;
+    if (opened === undefined) {
+      throw new Error("no workspace");
+    }
+    const saved = tree.elements[Math.floor(ELEMENTS / 3)]?.id ?? "";
+    const id = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.id ?? "";
+    // As an API server after a `workspace.check`: every finding state is built (no findings in the
+    // generated workspace, so the carry walks every element without locating anything).
+    const { result: checked } = await measure(
+      "workspace.check in the loaded workspace (builds every finding state)",
+      () => invoke("workspace.check", {}, { workspace: opened }),
+      { basis: "SR-082 AK3 (the states the save carries over; no threshold of its own)" },
+    );
+    expect(checked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
+    // The save puts the written file into the store and carries the short IDs and findings over (#184).
+    await measure(
+      "save one element (element.update of its title)",
+      () =>
+        invoke(
+          "element.update",
+          { ref: saved, title: "Saved in the performance suite" },
+          { workspace: opened },
+        ),
+      { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
+    );
+    const { result: view, measurement } = await measure(
+      "open one element right after a save (store and short IDs as the save left them, file read, element view)",
+      async () =>
+        openElement(id, {
+          store: await opened.get(elementStoreState),
+          shortIds: await opened.get(shortIdState),
+        }),
+      { basis: "SR-082 AK3 (core: open after a save, #184; #127)", thresholdMs: OPEN_MS },
+    );
+    expect(view.id).toBe(id);
+    expect((await opened.get(elementStoreState)).byId.get(saved)?.[0]?.data["title"]).toBe(
+      "Saved in the performance suite",
+    );
+    // The carried finding states equal a fresh check: none, as before the save.
+    const { result: rechecked } = await measure(
+      "workspace.check right after a save (finding states carried over, #184)",
+      () => invoke("workspace.check", {}, { workspace: opened }),
+      { basis: "SR-020 (a check after a save; no threshold of its own)" },
+    );
+    expect(rechecked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 });

@@ -13,15 +13,16 @@ import type { Metamodel } from "../metamodel/index.js";
 import { allowsType, findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
-import { relationItems, relationKey } from "./relation-keys.js";
+import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import { isRelationTarget, resolveTarget } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
-import { shortIdState } from "./short-id.js";
+import { shortIdGroup, shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState } from "./store.js";
+import { carryStoreUpdate, elementStoreState } from "./store.js";
 import type { ValuePath } from "./values.js";
 
 /** What the check needs: targets are looked up in the store, messages show short IDs (SR-084). */
@@ -193,11 +194,49 @@ export const allRelationTypeFindings = (context: RelationTypeContext): readonly 
   return out;
 };
 
+/** Whether `item` names a target (`hasId`) whose UUID lies in one of `groups` (`shortIdGroup`). */
+const targetIn = (item: unknown, groups: ReadonlySet<string>): boolean =>
+  hasId(item) && groups.has(shortIdGroup(item.id));
+
+/**
+ * Whether the findings of `element`, whose file did not change, may differ after a change of the
+ * UUIDs of `groups` (`shortIdGroup`): its own UUID lies in one of them (its short ID), or a target
+ * of a key with a rule does (the target, its type or its short ID). A stand-in for the incoming
+ * relation index of ADR-0008: no allocation per relation, so it scans 200,000 relations quickly.
+ */
+const namesGroup = (element: ElementRecord, rules: Rules, groups: ReadonlySet<string>): boolean => {
+  if (groups.has(shortIdGroup(element.id))) {
+    return true;
+  }
+  for (const [key, value] of Object.entries(element.data)) {
+    const keyRule = rules(key);
+    if (keyRule === undefined) {
+      continue;
+    }
+    // Every item of a list, else the value: more than `relationItems` gives, never less.
+    const items: readonly unknown[] = Array.isArray(value) ? value : [value];
+    if (items.some((item) => targetIn(item, groups))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/** Repository and type of each record of `id`, in store order. */
+const places = (store: ElementStore, id: string): string =>
+  JSON.stringify((store.byId.get(id) ?? []).map((r) => [r.repository, r.type]));
+
+/** Whether `id` has as many records in both stores, with the same repository and type pair by pair. */
+const samePlaces = (from: ElementStore, to: ElementStore, id: string): boolean =>
+  places(from, id) === places(to, id);
+
 /**
  * Every relation of the workspace between types that are not allowed, as a problem with repository,
  * file, line, element and target ID (SR-086 AK2), for `workspace.check` (SR-019). Reads every file
  * with findings again for the lines (`locateFindings`). Kept until the element store or the
- * metamodel is reset.
+ * metamodel is reset; carried over a change of the store (#184): the changed files are looked at
+ * again, and so is every element whose UUID or a target's UUID lies in a short-ID group of a changed
+ * UUID (its targets or the short IDs in its messages may have changed).
  */
 export const relationTypeProblemsState = defineWorkspaceState(
   "relation-types",
@@ -208,5 +247,27 @@ export const relationTypeProblemsState = defineWorkspaceState(
     const shortIds = await workspace.get(shortIdState);
     return locateFindings(layout, allRelationTypeFindings({ store, metamodel, shortIds }));
   },
-  { dependsOn: [elementStoreState, metamodelState, shortIdState] },
+  {
+    dependsOn: [elementStoreState, metamodelState, shortIdState],
+    carry: carryStoreUpdate((value, update, workspace) => {
+      // Synchronously, so these are the short IDs carried over the same update.
+      const context = Promise.all([workspace.get(metamodelState), workspace.get(shortIdState)]);
+      const groups = new Set([...update.ids].map(shortIdGroup));
+      return carryProblems(workspace, value, update, {
+        findingsOf: context.then(
+          ([metamodel, shortIds]) =>
+            (element) =>
+              relationTypeFindings(element, { store: update.to, metamodel, shortIds }),
+        ),
+        // The usual save keeps every changed UUID in the same repositories with the same types:
+        // no short ID changes and every target resolves as before, so only the written files count.
+        again: [...update.ids].every((id) => samePlaces(update.from, update.to, id))
+          ? Promise.resolve([])
+          : context.then(([metamodel]) => {
+              const rules = rulesOf(metamodel);
+              return (element) => namesGroup(element, rules, groups);
+            }),
+      });
+    }),
+  },
 );

@@ -13,8 +13,9 @@
 //   itself or a folder above it, or a path that may be the appearance of a missing one, makes the
 //   layout be read and compared;
 // - element paths changed: the store is updated file by file (`updateElements`, hashes compared)
-//   and replaced (`applyStoreChange`), which resets the state built on it (short IDs, findings). A
-//   store nobody has read yet is left alone: the next read finds the files as they are.
+//   and replaced (`applyStoreChange`), which carries the state built on it (short IDs, findings)
+//   over the change or resets it (#184). A store nobody has read yet is left alone: the next read
+//   finds the files as they are.
 // An update that fails resets the store, so the next command reads it in full.
 //
 // An event without a file name means the OS dropped the names of a burst: ReadDirectoryChangesW

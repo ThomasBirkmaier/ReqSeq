@@ -13,12 +13,13 @@ import type { EffectiveType, Metamodel } from "../metamodel/index.js";
 import { findType, keyDefinition, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState } from "./store.js";
+import { carryStoreUpdate, elementStoreState } from "./store.js";
 
 /**
  * An unknown type (path `["type"]`, code `element.unknown-type`) or an unknown property (path
@@ -119,5 +120,14 @@ export const unknownProblemsState = defineWorkspaceState(
     const store = await workspace.get(elementStoreState);
     return locateFindings(layout, allUnknownFindings(store, metamodel));
   },
-  { dependsOn: [elementStoreState, metamodelState] },
+  {
+    dependsOn: [elementStoreState, metamodelState],
+    // A save or a watcher batch finds and locates the changed files only (#184).
+    carry: carryStoreUpdate((value, update, workspace) => {
+      const metamodel = workspace.get(metamodelState);
+      return carryProblems(workspace, value, update, {
+        findingsOf: metamodel.then((m) => (element) => unknownFindings(element, m)),
+      });
+    }),
+  },
 );

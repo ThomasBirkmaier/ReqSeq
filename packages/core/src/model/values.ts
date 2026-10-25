@@ -11,13 +11,14 @@ import { keyDefinition, metamodelState } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
 import { locateFindings } from "./locate.js";
 import { isRelationTarget } from "./relations.js";
 import { isEmptyValue } from "./required.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState } from "./store.js";
+import { carryStoreUpdate, elementStoreState } from "./store.js";
 
 /** Value kind (Wertart) of a property; a relation kind holds relation targets. */
 export type ValueKind = MetamodelProperty["kind"];
@@ -253,7 +254,8 @@ export const valueKindFindings = (store: ElementStore, metamodel: Metamodel): re
  * element ID (SR-085), for `workspace.check` (SR-019); one element's come from `valueFindings`.
  * Reads every file with findings again for the lines (`locateFindings`): at 50,000 elements that
  * all have a finding that is a full read of the workspace. Kept until the element store or the
- * metamodel is reset.
+ * metamodel is reset; carried over a change of the store, which finds and locates the changed files
+ * only (#184).
  */
 export const valueKindProblemsState = defineWorkspaceState(
   "value-kinds",
@@ -263,5 +265,14 @@ export const valueKindProblemsState = defineWorkspaceState(
     const store = await workspace.get(elementStoreState);
     return locateFindings(layout, valueKindFindings(store, metamodel));
   },
-  { dependsOn: [elementStoreState, metamodelState] },
+  {
+    dependsOn: [elementStoreState, metamodelState],
+    // A save or a watcher batch finds and locates the changed files only (#184).
+    carry: carryStoreUpdate((value, update, workspace) => {
+      const metamodel = workspace.get(metamodelState);
+      return carryProblems(workspace, value, update, {
+        findingsOf: metamodel.then((m) => (element) => valueFindings(element, m)),
+      });
+    }),
+  },
 );

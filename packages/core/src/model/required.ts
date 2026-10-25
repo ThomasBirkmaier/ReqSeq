@@ -11,11 +11,12 @@ import type { Metamodel } from "../metamodel/index.js";
 import { findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
 import type { ElementStore } from "./store.js";
-import { elementStoreState } from "./store.js";
+import { carryStoreUpdate, elementStoreState } from "./store.js";
 
 /**
  * A required property without a value (path `[key]`, code `element.missing-required`, severity
@@ -114,5 +115,14 @@ export const requiredProblemsState = defineWorkspaceState(
     const store = await workspace.get(elementStoreState);
     return locateFindings(layout, allRequiredFindings(store, metamodel));
   },
-  { dependsOn: [elementStoreState, metamodelState] },
+  {
+    dependsOn: [elementStoreState, metamodelState],
+    // A save or a watcher batch finds and locates the changed files only (#184).
+    carry: carryStoreUpdate((value, update, workspace) => {
+      const metamodel = workspace.get(metamodelState);
+      return carryProblems(workspace, value, update, {
+        findingsOf: metamodel.then((m) => (element) => requiredFindings(element, m)),
+      });
+    }),
+  },
 );

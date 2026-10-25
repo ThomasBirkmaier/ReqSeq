@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, ParsedFile } from "../files/index.js";
-import type { Workspace } from "../runtime/workspace.js";
+import type { StateChange, Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
@@ -513,6 +513,83 @@ const storeChangesState = defineWorkspaceState("element-store-changes", (): { ta
   tail: Promise.resolve(),
 }));
 
+/**
+ * What a change of the element store changed (#184): the files whose element record is not the
+ * same object in both stores (changed, new or gone), and the UUIDs of those records before and
+ * after. Every other record is the same object in both, as `updateElements` and `withWrittenFiles`
+ * keep it, so a state built on the store needs to look again only at these.
+ */
+export interface StoreUpdate {
+  readonly from: ElementStore;
+  readonly to: ElementStore;
+  /** Each such file, by repository. */
+  readonly files: ReadonlyMap<string, ReadonlySet<string>>;
+  /** The UUIDs of their records, before and after the change. */
+  readonly ids: ReadonlySet<string>;
+  /** The repositories of `to`, in store order. */
+  readonly repositories: readonly RepositoryContents[];
+}
+
+/**
+ * The update from `from` to `to`, per repository whose contents are another object: every file
+ * whose contribution is another object. Undefined when one of them has no `repositories` or they
+ * hold other repositories: then nothing tells which records are the same.
+ */
+export const storeUpdate = (from: ElementStore, to: ElementStore): StoreUpdate | undefined => {
+  if (from.repositories === undefined || to.repositories?.length !== from.repositories.length) {
+    return undefined;
+  }
+  const before = new Map(from.repositories.map((r) => [r.repository, r]));
+  const files = new Map<string, Set<string>>();
+  const ids = new Set<string>();
+  const note = (result: Contribution | undefined): void => {
+    if (result?.kind === "element") {
+      const { repository, file, id } = result.element;
+      files.set(repository, (files.get(repository) ?? new Set()).add(file));
+      ids.add(id);
+    }
+  };
+  for (const now of to.repositories) {
+    const old = before.get(now.repository);
+    if (old === undefined) {
+      return undefined;
+    }
+    if (old === now) {
+      continue;
+    }
+    for (const [file, result] of old.files) {
+      const next = now.files.get(file);
+      if (next !== result) {
+        note(result);
+        note(next);
+      }
+    }
+    for (const [file, result] of now.files) {
+      if (!old.files.has(file)) {
+        note(result);
+      }
+    }
+  }
+  return { from, to, files, ids, repositories: to.repositories };
+};
+
+/** The update of the store value `applyStoreChange` is installing, by that value (a Promise), while `replace` runs. */
+const updates = new WeakMap<object, StoreUpdate>();
+
+/**
+ * A `carry` hook for a state built on the element store (`WorkspaceState.carry`, #184): when
+ * `applyStoreChange` replaced the store and knows what changed, `next` gets the state's value and
+ * the `StoreUpdate`, and returns the value for the new store (built from the old one by looking
+ * again at the changed files only) or undefined to reset it. Any other replace resets the state.
+ */
+export const carryStoreUpdate =
+  <T>(next: (value: T, update: StoreUpdate, workspace: Workspace) => T | undefined) =>
+  (value: T, change: StateChange, workspace: Workspace): T | undefined => {
+    // The store's value is always a Promise, an object.
+    const update = change.key === elementStoreState ? updates.get(change.to as object) : undefined;
+    return update === undefined ? undefined : next(value, update, workspace);
+  };
+
 const applyNow = async (
   workspace: Workspace,
   change: (store: ElementStore) => Promise<ElementStore | undefined>,
@@ -522,12 +599,23 @@ const applyNow = async (
     if (current === undefined) {
       return undefined;
     }
-    const next = await change(await current);
+    const before = await current;
+    const next = await change(before);
     if (next === undefined) {
       return undefined;
     }
-    if (await workspace.replace(elementStoreState, current, Promise.resolve(next))) {
-      return next;
+    const value = Promise.resolve(next);
+    const update = storeUpdate(before, next);
+    if (update !== undefined) {
+      updates.set(value, update);
+    }
+    try {
+      if (await workspace.replace(elementStoreState, current, value)) {
+        return next;
+      }
+    } finally {
+      // The hooks have run: the update (with the whole store before) is not kept alive any longer.
+      updates.delete(value);
     }
     // The store was replaced in between: apply the change to the newer one.
   }
@@ -538,7 +626,9 @@ const applyNow = async (
  * own writes, #166): `change` gets the current store and returns the new one, or undefined for no
  * change. Calls run one after the other per workspace. When the store was replaced while `change`
  * ran, `change` runs again on the newer store; when it was reset (or never read), nothing happens,
- * since the next read finds the files as they are. Resolves with the store set, or undefined.
+ * since the next read finds the files as they are. The states built on the store are carried over
+ * the change (`storeUpdate`, `carryStoreUpdate`, #184) or reset. Resolves with the store set, or
+ * undefined.
  */
 export const applyStoreChange = (
   workspace: Workspace,
@@ -555,9 +645,10 @@ export const applyStoreChange = (
  * file again (#166, ADR-0008): `element.create`, `element.update` and every later command that
  * writes element files call it once with all files of the command. It goes through the queue of
  * `applyStoreChange`, so a save waits behind a watcher batch that is running. The states built on
- * the store (short IDs, findings) are rebuilt from it when next read. When the result could differ
- * from a full read (`StoreFallback`), or the layout `layout` is no longer the workspace's, the
- * store is reset, so the next read finds the files as written. Other errors are passed on.
+ * the store (short IDs, findings) are carried over the change or reset (`carryStoreUpdate`, #184).
+ * When the result could differ from a full read (`StoreFallback`), or the layout `layout` is no
+ * longer the workspace's, the store is reset, so the next read finds the files as written. Other
+ * errors are passed on.
  */
 export const recordWrites = async (
   workspace: Workspace,

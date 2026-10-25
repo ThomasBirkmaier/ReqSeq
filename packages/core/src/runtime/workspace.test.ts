@@ -1,5 +1,6 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import type { StateChange, WorkspaceState } from "./workspace.js";
 import { Workspace, defineWorkspaceState } from "./workspace.js";
 
 describe("Workspace", () => {
@@ -333,5 +334,170 @@ describe("Workspace.peek and Workspace.replace (SR-007)", () => {
     await Promise.resolve();
     expect(ws.peek(key)).toBeUndefined();
     expect(await ws.get(key)).toBe(2);
+  });
+
+  describe("replace with carry hooks (#184)", () => {
+    const setup = (
+      carry: (value: { n: number }, change: StateChange, ws: Workspace) => { n: number } | undefined,
+    ): {
+      base: WorkspaceState<{ n: number }>;
+      carried: WorkspaceState<{ n: number }>;
+      reset: WorkspaceState<{ n: number }>;
+      above: WorkspaceState<{ n: number }>;
+      disposed: string[];
+    } => {
+      const disposed: string[] = [];
+      const base = defineWorkspaceState("base", () => ({ n: 1 }));
+      const carried = defineWorkspaceState("carried", (ws) => ({ n: ws.get(base).n * 10 }), {
+        dependsOn: [base],
+        carry,
+        dispose: () => {
+          disposed.push("carried");
+        },
+      });
+      // Carried itself, but built on `reset`, which has no hook: it must be reset too.
+      const reset = defineWorkspaceState("reset", (ws) => ({ n: ws.get(base).n * 100 }), {
+        dependsOn: [base],
+      });
+      const above = defineWorkspaceState("above", (ws) => ({ n: ws.get(carried).n + ws.get(reset).n }), {
+        dependsOn: [carried, reset],
+        carry: (value) => ({ n: value.n }),
+      });
+      return { base, carried, reset, above, disposed };
+    };
+
+    it("derives a dependent's next value from its hook and resets the rest", async () => {
+      const seen: StateChange[] = [];
+      const { base, carried, reset, above, disposed } = setup((value, change, ws) => {
+        seen.push(change);
+        // The new value of the replaced state is in place already.
+        return { n: value.n + ws.get(base).n };
+      });
+      const ws = new Workspace("/w");
+      const first = ws.get(base);
+      expect(ws.get(above)).toEqual({ n: 110 });
+      const next = { n: 2 };
+      expect(await ws.replace(base, first, next)).toBe(true);
+      expect(seen).toEqual([{ key: base, from: first, to: next }]);
+      expect(ws.peek(carried)).toEqual({ n: 12 });
+      expect(ws.peek(reset)).toBeUndefined();
+      expect(ws.peek(above)).toBeUndefined();
+      expect(disposed).toEqual([]);
+      expect(ws.get(above)).toEqual({ n: 212 });
+    });
+
+    it("carries a chain of dependents whose dependencies were all carried", async () => {
+      const base = defineWorkspaceState("base", () => 1);
+      const middle = defineWorkspaceState("middle", (ws) => ws.get(base) * 10, {
+        dependsOn: [base],
+        carry: (_value, _change, ws) => ws.get(base) * 10,
+      });
+      const top = defineWorkspaceState("top", (ws) => ws.get(middle) + 1, {
+        dependsOn: [middle, base],
+        // Runs after `middle` got its new value.
+        carry: (_value, _change, ws) => ws.get(middle) + 1,
+      });
+      const ws = new Workspace("/w");
+      expect(ws.get(top)).toBe(11);
+      expect(await ws.replace(base, 1, 2)).toBe(true);
+      expect(ws.peek(middle)).toBe(20);
+      expect(ws.peek(top)).toBe(21);
+    });
+
+    it("lets a hook get a state that is not carried only as built anew", async () => {
+      const base = defineWorkspaceState("base", () => 1);
+      const plain = defineWorkspaceState("plain", (ws) => ws.get(base) * 10, { dependsOn: [base] });
+      const hooked = defineWorkspaceState("hooked", (ws) => ws.get(plain), {
+        dependsOn: [base],
+        carry: (_value, _change, ws) => ws.get(plain),
+      });
+      const ws = new Workspace("/w");
+      expect(ws.get(hooked)).toBe(10);
+      expect(ws.get(plain)).toBe(10);
+      expect(await ws.replace(base, 1, 2)).toBe(true);
+      expect(ws.peek(hooked)).toBe(20);
+      expect(ws.peek(plain)).toBe(20);
+    });
+
+    it("resets a dependent whose hook returns undefined, and its dependents", async () => {
+      const { base, carried, above, disposed } = setup(() => undefined);
+      const ws = new Workspace("/w");
+      const first = ws.get(base);
+      ws.get(above);
+      expect(await ws.replace(base, first, { n: 2 })).toBe(true);
+      expect(ws.peek(carried)).toBeUndefined();
+      expect(ws.peek(above)).toBeUndefined();
+      expect(disposed).toEqual(["carried"]);
+    });
+
+    it("runs no hook when the compare and set fails", async () => {
+      const carry = vi.fn(() => ({ n: 0 }));
+      const { base, carried } = setup(carry);
+      const ws = new Workspace("/w");
+      ws.get(carried);
+      expect(await ws.replace(base, { n: 1 }, { n: 2 })).toBe(false);
+      expect(carry).not.toHaveBeenCalled();
+      expect(ws.peek(carried)).toEqual({ n: 10 });
+    });
+
+    it("resets a dependent whose hook throws, keeps the replacement and reports the failure", async () => {
+      const { base, carried, disposed } = setup(() => {
+        throw new Error("hook failed");
+      });
+      const ws = new Workspace("/w");
+      const first = ws.get(base);
+      ws.get(carried);
+      const failure = await ws.replace(base, first, { n: 2 }).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(failure).toBeInstanceOf(AggregateError);
+      expect((failure as AggregateError).errors).toEqual([new Error("hook failed")]);
+      expect(ws.peek(base)).toEqual({ n: 2 });
+      expect(ws.peek(carried)).toBeUndefined();
+      expect(disposed).toEqual(["carried"]);
+    });
+
+    it("reports a failed hook together with a failed disposal", async () => {
+      const base = defineWorkspaceState("base", () => 1, {
+        dispose: () => {
+          throw new Error("dispose failed");
+        },
+      });
+      const derived = defineWorkspaceState("derived", (ws) => ws.get(base), {
+        dependsOn: [base],
+        carry: () => {
+          throw new Error("hook failed");
+        },
+      });
+      const ws = new Workspace("/w");
+      ws.get(derived);
+      const failure = await ws.replace(base, 1, 2).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect((failure as AggregateError).errors).toEqual([
+        new Error("hook failed"),
+        new Error("dispose failed"),
+      ]);
+    });
+
+    it("drops a carried Promise that rejects, so the next get builds again", async () => {
+      let built = 0;
+      const failing = Promise.reject(new Error("no"));
+      const base = defineWorkspaceState("base", () => 1);
+      const derived = defineWorkspaceState("derived", () => Promise.resolve(++built), {
+        dependsOn: [base],
+        carry: () => failing,
+      });
+      const ws = new Workspace("/w");
+      ws.get(base);
+      await ws.get(derived);
+      expect(await ws.replace(base, 1, 2)).toBe(true);
+      await expect(failing).rejects.toThrow("no");
+      await Promise.resolve();
+      expect(ws.peek(derived)).toBeUndefined();
+      expect(await ws.get(derived)).toBe(2);
+    });
   });
 });
