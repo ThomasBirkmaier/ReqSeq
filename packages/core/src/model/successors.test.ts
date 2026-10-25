@@ -4,6 +4,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
+import { buildIncomingIndex, incomingFor, incomingState } from "./incoming.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { applyStoreChange, elementStoreState, updateElements } from "./store.js";
 import { buildSuccessionIndex, successionIndexState, successionsFor, successionsOf } from "./successors.js";
@@ -199,5 +200,118 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     await workspace.reset(workspaceLayoutState);
     await expect(workspace.get(elementStoreState)).rejects.toThrow();
     expect(successionsFor(workspace, store, metamodel, record).map((s) => s.source.id)).toEqual([N_NEW]);
+  });
+});
+
+describe("successors of a superseded element from the incoming index (#272)", () => {
+  /** The successions as `[source UUID, relation kind, stored item]`, from `successionsFor` and from the succession index. */
+  const both = async (opened: Opened): Promise<[unknown[], unknown[]]> => {
+    const { workspace, record } = opened;
+    const store = await workspace.get(elementStoreState);
+    const metamodel = await workspace.get(metamodelState);
+    const plain = (
+      list: readonly { source: ElementRecord; kind: { key: string }; item: unknown }[],
+    ): unknown[] => list.map((s) => [s.source.id, s.kind.key, s.item]);
+    return [
+      plain(successionsFor(workspace, store, metamodel, record)),
+      plain(successionsOf(buildSuccessionIndex(store, metamodel), metamodel, record)),
+    ];
+  };
+
+  it("names the successors the succession index names, in its order, without building it", async () => {
+    const opened = await open({
+      "needs/N-a1b2c3d4e5f6.md": element(
+        N_OLD,
+        "need",
+        "obsolete",
+        `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`,
+      ),
+      // `replaces` before `supersedes` in the file; the metamodel lists `supersedes` first.
+      "needs/N-b2c3d4e5f6a7.md": element(
+        N_NEW,
+        "need",
+        "draft",
+        [
+          "replaces:",
+          `  - { id: ${N_OLD}, version: ${V} }`,
+          `  - { id: ${N_OLD} }`,
+          "supersedes:",
+          "  - just text",
+          `  - { id: ${N_OLD}, version: ${V}, repository: elsewhere }`,
+          `  - { id: ${N_OLD}, title: See the wind }`,
+          `refines:\n  - { id: ${N_OLD}, version: ${V} }\n`,
+        ].join("\n"),
+      ),
+      "needs/N-0a0a0a0a0a0a.md": element(
+        OTHER,
+        "need",
+        "draft",
+        `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`,
+      ),
+    });
+    const { workspace } = opened;
+    const without = await both(opened);
+    expect(without[0]).toEqual(without[1]);
+    expect(workspace.peek(successionIndexState)).toBeDefined();
+    // Once a chain built the incoming index, the view reads it and builds no succession index.
+    await workspace.reset(successionIndexState);
+    incomingFor(workspace, await workspace.get(elementStoreState), await workspace.get(metamodelState));
+    const [indexed, built] = await both(opened);
+    expect(indexed).toEqual(built);
+    expect(indexed).toEqual([
+      [OTHER, "supersedes", { id: N_OLD, version: V }],
+      [N_NEW, "supersedes", { id: N_OLD, title: "See the wind" }],
+      [N_NEW, "replaces", { id: N_OLD, version: V }],
+      [N_NEW, "replaces", { id: N_OLD }],
+    ]);
+    expect(workspace.peek(successionIndexState)).toBeUndefined();
+  });
+
+  it("names none from the index for an element whose UUID several files share or that nothing points at", async () => {
+    const supersedes = element(N_NEW, "need", "draft", `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`);
+    const opened = await open({
+      "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "needs/copy/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "needs/N-b2c3d4e5f6a7.md": supersedes,
+      "needs/N-0a0a0a0a0a0a.md": element(OTHER, "need", "obsolete"),
+    });
+    const store = await opened.workspace.get(elementStoreState);
+    incomingFor(opened.workspace, store, await opened.workspace.get(metamodelState));
+    expect(await both(opened)).toEqual([[], []]);
+    const [alone] = store.byId.get(OTHER) ?? [];
+    if (alone === undefined) {
+      throw new Error("no superseded need without successors");
+    }
+    expect(await both({ ...opened, record: alone })).toEqual([[], []]);
+    expect(opened.workspace.peek(successionIndexState)).toBeUndefined();
+  });
+
+  it("uses the succession index when the incoming index has another metamodel or cannot hold a replacement kind", async () => {
+    const opened = await open({
+      "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      "needs/N-b2c3d4e5f6a7.md": element(
+        N_NEW,
+        "need",
+        "draft",
+        `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`,
+      ),
+    });
+    const { workspace, record } = opened;
+    const store = await workspace.get(elementStoreState);
+    const metamodel = await workspace.get(metamodelState);
+    const memo = workspace.get(incomingState);
+    // An index built with another metamodel object.
+    memo.set(store, buildIncomingIndex(store, { ...metamodel }));
+    expect(successionsFor(workspace, store, metamodel, record).map((s) => s.source.id)).toEqual([N_NEW]);
+    expect(workspace.peek(successionIndexState)?.get(store)?.metamodel).toBe(metamodel);
+    // A property with the key of a replacement kind (the loader refuses it, ADR-0004): the incoming
+    // index holds no relations under it, the succession index does.
+    const shadowed = {
+      ...metamodel,
+      properties: [...metamodel.properties, { key: "supersedes", name: "Supersedes", kind: "text" as const }],
+    };
+    memo.set(store, buildIncomingIndex(store, shadowed));
+    expect(successionsFor(workspace, store, shadowed, record).map((s) => s.source.id)).toEqual([N_NEW]);
+    expect(workspace.peek(successionIndexState)?.get(store)?.metamodel).toBe(shadowed);
   });
 });

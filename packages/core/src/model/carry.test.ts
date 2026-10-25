@@ -14,6 +14,7 @@ import { supersededValidityProblemsState } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { carryProblems } from "./carry.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
+import { incomingFor, incomingState } from "./incoming.js";
 import { missingTargetProblemsState } from "./missing-targets.js";
 import { relationTypeProblemsState } from "./relation-types.js";
 import { requiredProblemsState } from "./required.js";
@@ -63,13 +64,23 @@ const open = async (
   return { fixture, workspace };
 };
 
-/** Builds the short IDs and every finding state. */
-const buildAll = async (workspace: Workspace): Promise<void> => {
+/**
+ * Builds the short IDs and every finding state; with `indexed`, also the incoming relation index,
+ * as a chain does, so the carry hooks that can read it do (#272).
+ */
+const buildAll = async (workspace: Workspace, indexed = false): Promise<void> => {
   await workspace.get(shortIdState);
   for (const state of [...CARRIED, ...RESET]) {
     await workspace.get(state);
   }
+  if (indexed) {
+    incomingFor(workspace, await workspace.get(elementStoreState), await workspace.get(metamodelState));
+  }
 };
+
+/** Whether the workspace holds the incoming relation index of its store now (carried over the changes). */
+const hasIndex = async (workspace: Workspace): Promise<boolean> =>
+  workspace.peek(incomingState)?.get(await workspace.get(elementStoreState)) !== undefined;
 
 /** What callers see of the derived states: the short ID of each element, what it finds, every finding. */
 const derived = async (workspace: Workspace): Promise<unknown> => {
@@ -129,10 +140,13 @@ const external = async (
 const need = (id: string, extra = ""): string =>
   `---\nid: ${id}\ntype: need\nstatus: draft\ntitle: A need\n${extra}---\n\nText.\n`;
 
-describe("derived states carried over a change of the store (#184)", () => {
+describe.each([
+  { indexed: false, label: "without the incoming index" },
+  { indexed: true, label: "with the incoming index built (#272)" },
+])("derived states carried over a change of the store, $label (#184)", ({ indexed }) => {
   it("equal a fresh build after element.update, and are carried", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     // SR-085 gone: the weight is a number now.
     await updateElement(workspace, { ref: `${SR}4`, set: { weight: 5 } });
     expectCarried(workspace);
@@ -146,7 +160,7 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("equal a fresh build after element.create and element.setStatus", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     await createElement(workspace, { type: "need", title: "A new need", properties: { priority: "urgent" } });
     expectCarried(workspace);
     await expectFresh(fixture, workspace);
@@ -156,13 +170,14 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("equal a fresh build when a target changes type, a UUID collides and a copy goes (watcher)", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     // The target of N-…2's relation becomes a need: the hint on the unchanged N-…2 names it anew.
     const sr1 = await fs.readFile(fixture.path("requirements/SR-b00000000001.md"), "utf8");
     await external(fixture, workspace, {
       "requirements/SR-b00000000001.md": sr1.replace("type: system-requirement", "type: need"),
     });
     expectCarried(workspace);
+    expect(await hasIndex(workspace)).toBe(indexed);
     await expectFresh(fixture, workspace);
     // A UUID with the last 6 digits of N-…1, SR-…1 and VAR-…1: their short IDs grow, and so do
     // those in the messages of unchanged files.
@@ -223,7 +238,7 @@ describe("derived states carried over a change of the store (#184)", () => {
         ),
       "requirements/SR-b0000000000a.md": `---\nid: ${SR}a\ntype: system-requirement\nstatus: draft\ntitle: Has a parent\nverification-method: test\nparent: { id: ${NEED}1, version: n1:1111111111111111 }\n---\n\nText.\n`,
     });
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toEqual([
       "needs/N-a00000000002.md",
     ]);
@@ -241,7 +256,7 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("equal a fresh build when one watcher batch adds a file that sorts before a changed one", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     const need4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
     // Both files get an unknown key; `a/N-new.md` comes first in store order, though not in the batch.
     await external(fixture, workspace, {
@@ -254,7 +269,7 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("look at no unchanged element again after a save that keeps every UUID in place (SR-086 shortcut)", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     // The SR-086 hint of the unchanged N-…2 names SR-…1 as its target.
     const [hint] = (await workspace.get(relationTypeProblemsState)).filter(
       (p) => p.file === "needs/N-a00000000002.md",
@@ -272,7 +287,7 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("are reset when nothing tells which records changed", async () => {
     const { workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     const store = await workspace.get(elementStoreState);
     // A replace from outside `applyStoreChange` carries nothing.
     expect(
@@ -284,7 +299,7 @@ describe("derived states carried over a change of the store (#184)", () => {
 
   it("are reset after a store without its repositories", async () => {
     const { fixture, workspace } = await open();
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     const layout = await workspace.get(workspaceLayoutState);
     await applyStoreChange(workspace, (store) => {
       const { repositories: _dropped, ...rest } = store;
@@ -358,7 +373,7 @@ describe("derived states carried while the metamodel is not valid (#208, #220 op
 
 describe("derived states carried over a change in several repositories (#184)", () => {
   /** The SR-085 fixture (repositories `system` and `sensor`), with an extra system requirement. */
-  const openTwo = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+  const openTwo = async (indexed = false): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
     const fixture = await createFixtureWorkspace({
       fixture: "SR-085/value-kinds",
       files: {
@@ -370,7 +385,7 @@ describe("derived states carried over a change in several repositories (#184)", 
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.path("system"));
     onTestFinished(() => workspace.close());
-    await buildAll(workspace);
+    await buildAll(workspace, indexed);
     return { fixture, workspace };
   };
 
@@ -396,19 +411,28 @@ describe("derived states carried over a change in several repositories (#184)", 
     expect(await derived(workspace)).toEqual(await derived(fresh));
   };
 
-  it("equal a fresh build when a target moves to another repository with its UUID and type", async () => {
-    const { fixture, workspace } = await openTwo();
-    expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toContain(
-      "requirements/SR-new000000001.md",
-    );
-    await fs.rename(
-      fixture.path("system/requirements/SR-9b0f1826503d.md"),
-      fixture.path("sensor/SR-9b0f1826503d.md"),
-    );
-    await watched(workspace, { system: ["requirements/SR-9b0f1826503d.md"], sensor: ["SR-9b0f1826503d.md"] });
-    expectCarried(workspace);
-    await expectFreshTwo(fixture, workspace);
-  });
+  it.each([
+    { indexed: false, label: "without the incoming index" },
+    { indexed: true, label: "with the incoming index built (#272)" },
+  ])(
+    "equal a fresh build when a target moves to another repository with its UUID and type, $label",
+    async ({ indexed }) => {
+      const { fixture, workspace } = await openTwo(indexed);
+      expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toContain(
+        "requirements/SR-new000000001.md",
+      );
+      await fs.rename(
+        fixture.path("system/requirements/SR-9b0f1826503d.md"),
+        fixture.path("sensor/SR-9b0f1826503d.md"),
+      );
+      await watched(workspace, {
+        system: ["requirements/SR-9b0f1826503d.md"],
+        sensor: ["SR-9b0f1826503d.md"],
+      });
+      expectCarried(workspace);
+      await expectFreshTwo(fixture, workspace);
+    },
+  );
 
   it("equal a fresh build when a file of the first repository changes and the second keeps its problems", async () => {
     const { fixture, workspace } = await openTwo();

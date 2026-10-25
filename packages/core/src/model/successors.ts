@@ -7,9 +7,11 @@
 // names its successor; its shape is the value-kind check's (SR-085). The AK2 hints
 // (`superseded.ts`) read only items that are complete relation targets (`isRelationTarget`).
 //
-// The relations are collected once per element store (`successionIndexState`), by the repository
-// and UUID they point at, so a view does a lookup instead of a walk over the store (N-036; until the
-// incoming relation index of ADR-0008 exists).
+// A view does a lookup instead of a walk over the store (N-036): in the incoming relation index of
+// ADR-0008 when the workspace has it for the store (a chain ran, and saves carry it; #272), else in
+// the succession index, collected once per element store (`successionIndexState`) by the repository
+// and UUID the relations point at. The succession index costs about 23 ms per store and is not
+// carried; building the incoming index for a view would cost 0.3 to 0.5 s.
 import type { MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { relationKindsWithMeaning } from "../metamodel/index.js";
@@ -17,8 +19,10 @@ import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
 import { isUuid } from "./elements.js";
+import type { IncomingIndex } from "./incoming.js";
+import { incomingState } from "./incoming.js";
 import type { TargetItem } from "./relation-keys.js";
-import { hasId, relationItems } from "./relation-keys.js";
+import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import { resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { invalidStatuses } from "./superseded.js";
@@ -97,24 +101,68 @@ export const successionsOf = (
   index: SuccessionIndex,
   metamodel: Metamodel,
   record: ElementRecord,
-): readonly Succession[] => {
-  if (
-    !invalidStatuses(metamodel).has(String(record.data["status"])) ||
-    resolveTarget(index.store, record.repository, { id: record.id }).kind !== "found"
-  ) {
-    return [];
-  }
+): readonly Succession[] =>
+  succeeds(index.store, metamodel, record)
+    ? othersThan(record, index.byTarget.get(targetKey(record.repository, record.id)) ?? [])
+    : [];
+
+/** Whether `record` can have successors in `store`: its status is marked invalid and it resolves to one element. */
+const succeeds = (store: ElementStore, metamodel: Metamodel, record: ElementRecord): boolean =>
+  invalidStatuses(metamodel).has(String(record.data["status"])) &&
+  resolveTarget(store, record.repository, { id: record.id }).kind === "found";
+
+/** The successions from files other than `record`'s. */
+const othersThan = (record: ElementRecord, successions: readonly Succession[]): readonly Succession[] => {
   const place = placeOf(record);
-  return (index.byTarget.get(targetKey(record.repository, record.id)) ?? []).filter(
-    (s) => placeOf(s.source) !== place,
+  return successions.filter((s) => placeOf(s.source) !== place);
+};
+
+/**
+ * The relations with the meaning `replacement` among the incoming relations of `record`'s
+ * repository and UUID in `incoming`, as `buildSuccessionIndex` collects them: in store order, then
+ * relation kind (metamodel order), then item. Undefined when the index cannot tell: it holds the
+ * items of a replacement kind's key only when that key is a list of relations (`relationKey`; keys
+ * are unique across properties and relation kinds, ADR-0004).
+ */
+const fromIncoming = (
+  incoming: IncomingIndex,
+  kinds: readonly MetamodelRelationKind[],
+  record: ElementRecord,
+): readonly Succession[] | undefined => {
+  if (kinds.some((kind) => relationKey(incoming.metamodel, kind.key)?.many !== true)) {
+    return undefined;
+  }
+  const ranked = new Map(kinds.map((kind, at) => [kind.key, { kind, at }]));
+  /** The successions of each source, the sources in store order (the order of the index's list). */
+  const bySource = new Map<
+    ElementRecord,
+    { readonly at: number; readonly item: number; readonly succession: Succession }[]
+  >();
+  for (const link of incoming.relationsById.get(record.id) ?? []) {
+    const rank = ranked.get(link.key);
+    if (rank === undefined || link.repository !== record.repository || !isUuid(link.item.id)) {
+      continue;
+    }
+    const list = bySource.get(link.source) ?? [];
+    list.push({
+      at: rank.at,
+      item: Number(link.index),
+      succession: { source: link.source, kind: rank.kind, item: link.item },
+    });
+    bySource.set(link.source, list);
+  }
+  return [...bySource.values()].flatMap((list) =>
+    list.sort((a, b) => a.at - b.at || a.item - b.item).map((entry) => entry.succession),
   );
 };
 
 /**
  * The successions of `record` as `store` holds them, for a view built on `store` with `metamodel`
- * (`ElementViewInput.successions`): from the workspace's index of that store, built when there is
- * none or it was built with another metamodel. Synchronous and without loading any state, so it
- * cannot fail after a command wrote its file. Builds no index when `record`'s status is valid.
+ * (`ElementViewInput.successions`): from the incoming relation index of that store when the
+ * workspace has it (#272), else from the workspace's succession index of that store, built when
+ * there is none or it was built with another metamodel. Synchronous and without loading any state,
+ * so it cannot fail after a command wrote its file. Builds no index when `record`'s status is valid,
+ * and never the incoming one.
  */
 export const successionsFor = (
   workspace: Workspace,
@@ -124,6 +172,15 @@ export const successionsFor = (
 ): readonly Succession[] => {
   if (!invalidStatuses(metamodel).has(String(record.data["status"]))) {
     return [];
+  }
+  const incoming = workspace.peek(incomingState)?.get(store);
+  if (incoming?.metamodel === metamodel) {
+    const found = succeeds(store, metamodel, record)
+      ? fromIncoming(incoming, relationKindsWithMeaning(metamodel, "replacement"), record)
+      : [];
+    if (found !== undefined) {
+      return othersThan(record, found);
+    }
   }
   const memo = workspace.get(successionIndexState);
   let index = memo.get(store);

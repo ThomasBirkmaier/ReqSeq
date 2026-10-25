@@ -283,7 +283,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
     );
     const { result: superseded, measurement: supersededOpen } = await measure(
-      "open a superseded element right after a save (builds the succession index, SR-072 AK3)",
+      "open a superseded element right after a save (successors from the carried incoming index, SR-072 AK3, #272)",
       () => openElement(current, target.id),
       { basis: "SR-082 AK3 (element.get of a superseded element after a save)", thresholdMs: OPEN_MS },
     );

@@ -17,8 +17,11 @@ import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
+import type { IncomingIndex } from "./incoming.js";
+import { incomingState } from "./incoming.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
+import { relationKey } from "./relation-keys.js";
 import { isRelationTarget, resolveTarget } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
@@ -90,8 +93,8 @@ const hitsOf = (
       }
       value.forEach((item: unknown, index) => {
         // The UUID first: the schema check and the lookup cost too much for each of 200,000
-        // relations when a command asks about a few elements (ADR-0008: 200 ms). Switch to the
-        // incoming relation index of ADR-0008 once it exists.
+        // relations when a command asks about a few elements (ADR-0008: 200 ms); with the incoming
+        // relation index only the sources of relations to the targets come here (#272).
         if (filter !== undefined && !(isRecord(item) && filter.ids.has(String(item["id"])))) {
           return;
         }
@@ -176,9 +179,49 @@ const findingsOf = (
 export const supersededTargetFindings = (
   context: SupersededContext,
   targets?: readonly ElementRecord[],
+  incoming?: IncomingIndex,
 ): readonly LocatableFinding[] => {
-  const hits = hitsOf(context, context.store.elements, targets === undefined ? undefined : filterOf(targets));
+  const filter = targets === undefined ? undefined : filterOf(targets);
+  const sources =
+    filter === undefined || incoming === undefined
+      ? context.store.elements
+      : sourcesFromIndex(context, filter, incoming);
+  const hits = hitsOf(context, sources, filter);
   return findingsOf(context, hits, successorsOf(hits));
+};
+
+/**
+ * The elements of the store with a relation of a relation kind to a UUID of `filter`, in store
+ * order, from the incoming relation index of the same store (#272): what `hitsOf` then looks at
+ * instead of every element. The index holds exactly the items `hitsOf` reads (a mapping with a text
+ * `id` in the list under a relation kind's key) when every relation kind's key is a list of
+ * relations to it (`relationKey`: keys are unique across properties and relation kinds, ADR-0004);
+ * otherwise, and for an index of another store or metamodel, every element.
+ */
+const sourcesFromIndex = (
+  context: SupersededContext,
+  filter: TargetFilter,
+  incoming: IncomingIndex,
+): readonly ElementRecord[] => {
+  const { store, metamodel } = context;
+  const kinds = new Set(metamodel.relations.map((k) => k.key));
+  if (
+    incoming.store !== store ||
+    incoming.metamodel !== metamodel ||
+    [...kinds].some((key) => relationKey(metamodel, key)?.many !== true)
+  ) {
+    return store.elements;
+  }
+  const sources = new Set<ElementRecord>();
+  for (const id of filter.ids) {
+    for (const link of incoming.relationsById.get(id) ?? []) {
+      if (kinds.has(link.key)) {
+        sources.add(link.source);
+      }
+    }
+  }
+  // Store order, as a scan gives the hits: one set lookup per element (about 1 ms at N-036).
+  return sources.size === 0 ? [] : store.elements.filter((element) => sources.has(element));
 };
 
 /**
@@ -222,7 +265,10 @@ const successorsFrom = (
 /**
  * The hints with their lines for the relations to `targets` as the element store holds them now:
  * what `element.supersede` and `element.setStatus` return after a write. Empty when none of them
- * has an invalid status.
+ * has an invalid status. With the incoming relation index of the store in the workspace's memo (a
+ * chain ran, and the save carried it), only the sources of relations to `targets` are looked at;
+ * without, every element (about 80 ms at N-036): the save does not build the index, which costs
+ * more (0.3 to 0.5 s; #272, ADR-0008).
  */
 export const supersededTargetProblems = async (
   workspace: Workspace,
@@ -232,7 +278,8 @@ export const supersededTargetProblems = async (
   const store = await workspace.get(elementStoreState);
   const metamodel = await workspace.get(metamodelState);
   const shortIds = await workspace.get(shortIdState);
-  return locateFindings(layout, supersededTargetFindings({ store, metamodel, shortIds }, targets));
+  const incoming = workspace.peek(incomingState)?.get(store);
+  return locateFindings(layout, supersededTargetFindings({ store, metamodel, shortIds }, targets, incoming));
 };
 
 /**

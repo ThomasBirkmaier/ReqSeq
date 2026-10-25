@@ -15,13 +15,15 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { carryProblems } from "./carry.js";
 import type { ElementRecord } from "./elements.js";
+import type { IncomingIndex } from "./incoming.js";
+import { incomingState } from "./incoming.js";
 import type { LocatableFinding } from "./locate.js";
 import { locateFindings } from "./locate.js";
 import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import { isRelationTarget, resolveTarget } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdGroup, shortIdState } from "./short-id.js";
-import type { ElementStore } from "./store.js";
+import type { ElementStore, StoreUpdate } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 import type { ValuePath } from "./values.js";
 
@@ -201,8 +203,9 @@ const targetIn = (item: unknown, groups: ReadonlySet<string>): boolean =>
 /**
  * Whether the findings of `element`, whose file did not change, may differ after a change of the
  * UUIDs of `groups` (`shortIdGroup`): its own UUID lies in one of them (its short ID), or a target
- * of a key with a rule does (the target, its type or its short ID). A stand-in for the incoming
- * relation index of ADR-0008: no allocation per relation, so it scans 200,000 relations quickly.
+ * of a key with a rule does (the target, its type or its short ID). Used when the workspace has no
+ * incoming relation index (`againFromIndex`): no allocation per relation, so it scans 200,000
+ * relations in about 40 ms with the walk of `carryProblems`.
  */
 const namesGroup = (element: ElementRecord, rules: Rules, groups: ReadonlySet<string>): boolean => {
   if (groups.has(shortIdGroup(element.id))) {
@@ -220,6 +223,61 @@ const namesGroup = (element: ElementRecord, rules: Rules, groups: ReadonlySet<st
     }
   }
   return false;
+};
+
+/**
+ * The elements `namesGroup` picks, from the incoming relation index of the store before the change
+ * (#272) instead of a scan of every relation: the records of the new store whose own UUID lies in
+ * one of `groups`, and the sources of relations under a key with a rule to a UUID in one of them.
+ * The UUIDs of a group are found by a scan of the index's keys and the store's UUIDs (a short ID
+ * depends on every UUID of its group, also one no element has, so this part stays a scan, of about
+ * 100,000 strings instead of 200,000 relations). The index of `update.from` holds the relations of
+ * every file that did not change as they are now (the same records), so it is good also when the
+ * new store has none (a change above `CARRY_LIMIT`); the changed files are looked at anyway. The
+ * index holds what `collect` reads under a key with a rule (`relationKey`, `hasId`, a text
+ * `repository`), so no element with a finding that may differ is left out. Some elements may come
+ * twice or from a changed file: `carryProblems` merges by file.
+ */
+const againFromIndex = (
+  index: IncomingIndex,
+  to: ElementStore,
+  rules: Rules,
+  groups: ReadonlySet<string>,
+): readonly ElementRecord[] => {
+  const again: ElementRecord[] = [];
+  for (const [id, records] of to.byId) {
+    if (groups.has(shortIdGroup(id))) {
+      again.push(...records);
+    }
+  }
+  for (const [id, links] of index.relationsById) {
+    if (groups.has(shortIdGroup(id))) {
+      for (const link of links) {
+        if (rules(link.key) !== undefined) {
+          again.push(link.source);
+        }
+      }
+    }
+  }
+  return again;
+};
+
+/**
+ * The elements whose files did not change but whose findings may differ after `update`, for
+ * `carryProblems` (`again`) when a changed UUID came, went or changed its repository or type: from
+ * `incoming`, the incoming relation index of `update.from` built with `metamodel`, a list
+ * (`againFromIndex`); without it, a test that every element is put to (`namesGroup`).
+ */
+export const relationTypeAgain = (
+  update: StoreUpdate,
+  metamodel: Metamodel,
+  incoming: IncomingIndex | undefined,
+): ((element: ElementRecord) => boolean) | readonly ElementRecord[] => {
+  const rules = rulesOf(metamodel);
+  const groups = new Set([...update.ids].map(shortIdGroup));
+  return incoming?.store === update.from && incoming.metamodel === metamodel
+    ? againFromIndex(incoming, update.to, rules, groups)
+    : (element) => namesGroup(element, rules, groups);
 };
 
 /** Repository and type of each record of `id`, in store order. */
@@ -256,7 +314,6 @@ export const relationTypeProblemsState = defineWorkspaceState(
     carry: carryStoreUpdate((value, update, workspace) => {
       // Synchronously, so these are the short IDs carried over the same update.
       const context = Promise.all([workspace.get(metamodelState), workspace.get(shortIdState)]);
-      const groups = new Set([...update.ids].map(shortIdGroup));
       return carryProblems(workspace, value, update, {
         findingsOf: context.then(
           ([metamodel, shortIds]) =>
@@ -267,10 +324,12 @@ export const relationTypeProblemsState = defineWorkspaceState(
         // no short ID changes and every target resolves as before, so only the written files count.
         again: [...update.ids].every((id) => samePlaces(update.from, update.to, id))
           ? Promise.resolve([])
-          : context.then(([metamodel]) => {
-              const rules = rulesOf(metamodel);
-              return (element) => namesGroup(element, rules, groups);
-            }),
+          : context.then(([metamodel]) =>
+              // Read once `replace` has carried every state (a `then` runs after it): inside the
+              // hook the incoming memo may not be carried yet. The index of the store before the
+              // change, when a chain built it (#272); the save does not build it.
+              relationTypeAgain(update, metamodel, workspace.peek(incomingState)?.get(update.from)),
+            ),
         // Nothing against a metamodel that is not valid, as a full build (#208, #220).
         skip: context.then(([metamodel]) => !metamodel.valid),
       });

@@ -10,11 +10,13 @@ import { locateFindings } from "./locate.js";
 import type { RelationTypeContext } from "./relation-types.js";
 import {
   allRelationTypeFindings,
+  relationTypeAgain,
   relationTypeFindings,
   relationTypeProblemsState,
 } from "./relation-types.js";
+import { buildIncomingIndex } from "./incoming.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
-import type { ElementStore } from "./store.js";
+import type { ElementStore, LoadedStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
 const FIXTURE = "SR-086/relation-types";
@@ -289,5 +291,44 @@ describe("relation types (SR-086)", () => {
     });
     expect(performance.now() - started).toBeLessThan(5000);
     expect(findings).toHaveLength(2000);
+  });
+});
+
+describe("elements looked at again after a change of UUIDs (SR-086 carry, #272)", () => {
+  it("picks from the incoming index of the store before the change what the scan picks", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: FIXTURE });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const store = (await workspace.get(elementStoreState)) as LoadedStore;
+    const metamodel = await workspace.get(metamodelState);
+    const update = {
+      from: store,
+      to: store,
+      files: new Map<string, Set<string>>(),
+      repositories: store.repositories,
+    };
+    const files = (list: readonly ElementRecord[]): string[] => [...new Set(list.map((e) => e.file))].sort();
+    const index = buildIncomingIndex(store, metamodel);
+    for (const id of [NEED, SR, DECISION, SAFETY, OTHER.id]) {
+      const changed = { ...update, ids: new Set([id]) };
+      const scan = relationTypeAgain(changed, metamodel, undefined);
+      const picked = relationTypeAgain(changed, metamodel, index);
+      if (typeof scan !== "function" || typeof picked === "function") {
+        throw new Error("a test without the index, a list with it");
+      }
+      expect(files(picked), id).toEqual(files(store.elements.filter(scan)));
+    }
+    expect(
+      files(relationTypeAgain({ ...update, ids: new Set([SR]) }, metamodel, index) as ElementRecord[]),
+    ).toEqual([SAFETY_FILE, NEED_FILE, "requirements/SR-c03e4db185f3.md"]);
+    // An index of another store or built with another metamodel: the scan.
+    const changed = { ...update, ids: new Set([NEED]) };
+    expect(typeof relationTypeAgain(changed, metamodel, buildIncomingIndex({ ...store }, metamodel))).toBe(
+      "function",
+    );
+    expect(typeof relationTypeAgain(changed, metamodel, buildIncomingIndex(store, { ...metamodel }))).toBe(
+      "function",
+    );
   });
 });
