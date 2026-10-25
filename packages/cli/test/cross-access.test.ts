@@ -68,6 +68,11 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   "element.get": [
     { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
     {
+      name: "one element with its version date (D-013)",
+      input: { ref: "SR-e88fb3", versionDate: true },
+      expect: "output",
+    },
+    {
       name: "superseded element with its successor (SR-072 AK3)",
       fixture: {
         fixture: "SR-072/supersede",

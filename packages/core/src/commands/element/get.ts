@@ -20,7 +20,7 @@ export default defineCommand({
     }
     // The variants block imports the model, so its hint is added here (SR-040 AK3).
     return {
-      element: await getElement(ctx.workspace, input.ref, supersededValidityFindingsOf),
+      element: await getElement(ctx.workspace, input.ref, supersededValidityFindingsOf, input.versionDate),
     };
   },
 });

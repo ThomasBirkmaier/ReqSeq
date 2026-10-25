@@ -248,6 +248,17 @@ const imageState = async (
     : readFileSha256(source.repository.folder, spelled.join("/"));
 };
 
+/**
+ * Whether the working copy has the path at `names` inside a nested repository now (`located`):
+ * such an image never counts, so it does not count at an old commit either (ADR-0005 "Version
+ * date"). Errors other than "not there" reject with `file.faulty`.
+ */
+export const inNestedRepository = async (
+  source: ImageSource,
+  names: readonly string[],
+  memo: ImageMemo,
+): Promise<boolean> => (await located(source, names, memo)) === "nested";
+
 const stateOf = (source: ImageSource, link: ImageLink, memo: ImageMemo): Promise<ImageState> => {
   if (link.missing) {
     return Promise.resolve(null);

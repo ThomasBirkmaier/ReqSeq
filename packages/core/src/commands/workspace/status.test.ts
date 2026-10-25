@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+import type * as Reader from "../../git/reader.js";
 import { headCommit } from "../../git/reader.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -11,8 +12,8 @@ import type { CommandOutput } from "../../catalog.js";
 
 // The real reader, wrapped so that one test can make git refuse a repository.
 vi.mock("../../git/reader.js", async (importOriginal) => {
-  const original = await importOriginal<{ headCommit: typeof headCommit }>();
-  return { headCommit: vi.fn(original.headCommit) };
+  const original = await importOriginal<typeof Reader>();
+  return { ...original, headCommit: vi.fn(original.headCommit) };
 });
 
 const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): Promise<FixtureWorkspace> => {

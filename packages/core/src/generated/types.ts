@@ -271,7 +271,7 @@ export interface DataExportElement {
   readonly text?: string;
   /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
   readonly version?: Version;
-  /** Date of the version from Git; null when not committed yet (D-013: shown instead of the hash). */
+  /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. */
   readonly versionDate?: string | null;
   readonly repository: string;
   /** Path relative to the repository. */
@@ -958,20 +958,22 @@ export interface ElementCreateOutput {
 }
 
 /**
- * Input of `element.get` as `run` gets it: validated, properties with a `default` filled in. One element with text, properties, relations, version and its date, hints, and which variants replace or exclude it.
+ * Input of `element.get` as `run` gets it: validated, properties with a `default` filled in. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
  * Schema: `schemas/commands/catalog.json element.get input`.
  */
 export interface ElementGetInput {
   readonly ref: ElementRef;
   readonly view?: View;
+  /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
+  readonly versionDate: boolean;
 }
 
 /**
- * Output of `element.get`. One element with text, properties, relations, version and its date, hints, and which variants replace or exclude it.
+ * Output of `element.get`. One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Stage 1: text, properties, version, the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). Later stages add `versionDate` (from Git, D-013), the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). Later stages add the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
   readonly element: DataExportElement;
 }
 

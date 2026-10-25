@@ -12,10 +12,12 @@
 // - `readOnly`, always: true for an unknown type (SR-016 AK3), while the metamodel is not valid
 //   (SR-011 AK3) and when this process cannot write the root folder of the element's repository
 //   (`isWritableFolder`, like `workspace.status`; SR-018 AK2; unknown on Windows, then not set by it);
-// - a hint `metamodel.meaning-unassigned` when no property has the meaning `title` (SR-013 AK3).
-// Left out until later stages: `versionDate` (Git history, D-013), the other incoming relations,
-// `verification` and `validation`, and the variants that replace or exclude the element (SR-046;
-// the schema has no field for them yet).
+// - a hint `metamodel.meaning-unassigned` when no property has the meaning `title` (SR-013 AK3);
+// - `versionDate` when the caller asks for it (`withDate`): the date of the version shown (D-013,
+//   ADR-0005 "Version date", `versionDates`), `null` for content no commit has and when Git cannot
+//   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast).
+// Left out until later stages: the other incoming relations, `verification` and `validation`, and
+// the variants that replace or exclude the element (SR-046; the schema has no field for them yet).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
@@ -33,8 +35,30 @@ import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState, ignoredBy } from "./store.js";
 import { successionsFor } from "./successors.js";
+import type { VersionDateContext, VersionDateWalk } from "./version-date.js";
+import { prepareVersionDates, versionDates } from "./version-date.js";
 import type { ExtraFindings } from "./view.js";
 import { elementView, titleKeyOf } from "./view.js";
+
+/**
+ * The version date of `walk` when the caller asks for it (`withDate`): Git starts reading the
+ * history at once, while the view is built, and the returned function gives the field for the
+ * version the view computed. Without `withDate` no git runs and the field is left out.
+ */
+const dateWhenAsked = async (
+  context: VersionDateContext,
+  walk: VersionDateWalk,
+  withDate: boolean,
+): Promise<(version: string) => Promise<{ readonly versionDate?: string | null }>> => {
+  if (!withDate) {
+    return () => Promise.resolve({});
+  }
+  await prepareVersionDates(context, [walk]);
+  // One date per request.
+  return async (version) => ({
+    versionDate: (await versionDates(context, [{ ...walk, version }]))[0] as string | null,
+  });
+};
 
 /** What `showElement` reads: the workspace states it works on, as `getElement` takes them. */
 export interface ShowContext {
@@ -56,6 +80,8 @@ export const showElement = async (
   context: ShowContext,
   ref: string,
   extra: ExtraFindings,
+  /** Whether to date the version from Git (`element.get` input `versionDate`). */
+  withDate: boolean,
 ): Promise<DataExportElement> => {
   const { workspace, layout, metamodel, store, shortIds } = context;
   const stored = resolveRef(store, shortIds, ref);
@@ -93,6 +119,11 @@ export const showElement = async (
   }
   const record = classified.element;
   const titleKey = titleKeyOf(metamodel);
+  const dateOf = await dateWhenAsked(
+    { workspace, layout, metamodel },
+    { repository: record.repository, file: record.file, id: record.id, text: read.file.body },
+    withDate,
+  );
   const element = elementView({
     record,
     file: read.file,
@@ -115,13 +146,12 @@ export const showElement = async (
       message: meaningUnassignedMessage("title", "element.get"),
     });
   }
+  const [writable, date] = await Promise.all([isWritableFolder(repository.folder), dateOf(element.version)]);
   return {
     ...element,
+    ...date,
     // The repository root folder, as workspace.status checks it; a folder below it is not asked.
-    readOnly:
-      !metamodel.valid ||
-      findType(metamodel, record.type) === undefined ||
-      (await isWritableFolder(repository.folder)) === false,
+    readOnly: !metamodel.valid || findType(metamodel, record.type) === undefined || writable === false,
     problems,
   };
 };
@@ -131,6 +161,8 @@ export const getElement = async (
   workspace: Workspace,
   ref: string,
   extra: ExtraFindings,
+  /** Whether to date the version from Git (`element.get` input `versionDate`). */
+  withDate: boolean,
 ): Promise<DataExportElement> =>
   showElement(
     {
@@ -142,4 +174,5 @@ export const getElement = async (
     },
     ref,
     extra,
+    withDate,
   );

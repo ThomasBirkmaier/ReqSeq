@@ -57,10 +57,46 @@ export interface FixtureWorkspace {
     files: Readonly<Record<string, FileContent>>,
     options?: { readonly repository?: string; readonly parent?: string; readonly message?: string },
   ): Promise<string>;
+  /**
+   * Make a history of commits in one `git fast-import` (for Git history tests on slow Windows
+   * runners, #206, #226), without touching the working tree, the index or HEAD, and return each
+   * commit's ID and committer date by name. Commits get the fixture's next dates in list order.
+   * With `branch`, that branch points at the last commit afterwards (`git reset --hard` then checks
+   * it out); otherwise no ref is left.
+   */
+  commitHistory(
+    commits: readonly HistoryCommitSpec[],
+    options?: { readonly repository?: string; readonly branch?: string },
+  ): Promise<Readonly<Record<string, MadeCommit>>>;
   /** Current HEAD commit ID of a repository (default the root). */
   head(repository?: string): Promise<string>;
   /** Remove the temporary folder. Call it in `afterEach` or `onTestFinished`. */
   cleanup(): Promise<void>;
+}
+
+/** The content of a file in `commitHistory`: bytes, a symbolic link, or a submodule entry (gitlink). */
+export type HistoryFile = FileContent | { readonly link: string } | { readonly submodule: string };
+
+/** One commit of `commitHistory`. */
+export interface HistoryCommitSpec {
+  /** How the result and later commits (`parents`) name it. */
+  readonly name: string;
+  /**
+   * Names of earlier commits, or commit IDs; default the commit before it in the list (none for the
+   * first). The files start from the tree of the first parent, also for a merge.
+   */
+  readonly parents?: readonly string[];
+  /** Files added or replaced, by path relative to the repository (forward slashes). */
+  readonly files?: Readonly<Record<string, HistoryFile>>;
+  /** Files removed. */
+  readonly deleted?: readonly string[];
+  readonly message?: string;
+}
+
+export interface MadeCommit {
+  readonly id: string;
+  /** Its committer (and author) date, whole seconds. */
+  readonly date: Date;
 }
 
 /** Resolve a relative fixture path; rejects absolute paths and `..` so tests never write outside. */
@@ -90,6 +126,31 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
   await fs.writeFile(gitconfig, "");
   await fs.mkdir(root);
   let commitCount = 0;
+  let historyCount = 0;
+
+  /** The `data` command of fast-import for `content`. */
+  const data = (content: FileContent): Uint8Array[] => {
+    const bytes = typeof content === "string" ? Buffer.from(content) : content;
+    return [Buffer.from(`data ${String(bytes.length)}\n`), bytes, Buffer.from("\n")];
+  };
+  /** A path fast-import can take, inside the repository. */
+  const checkedPath = (repository: string, file: string): void => {
+    resolveInside(resolveInside(root, repository), file);
+    // fast-import reads an unquoted path up to the end of the line; a leading `"` starts a quoted one.
+    if (file.includes("\n") || file.startsWith('"')) {
+      throw new Error(`fixture path must not hold a line break or start with a quote: ${file}`);
+    }
+  };
+  /** The fast-import command that adds or replaces `file`: a file, a symbolic link or a submodule entry. */
+  const fileCommand = (repository: string, file: string, content: HistoryFile): Uint8Array[] => {
+    checkedPath(repository, file);
+    if (typeof content === "string" || content instanceof Uint8Array) {
+      return [Buffer.from(`M 100644 inline ${file}\n`), ...data(content)];
+    }
+    return "link" in content
+      ? [Buffer.from(`M 120000 inline ${file}\n`), ...data(content.link)]
+      : [Buffer.from(`M 160000 ${content.submodule} ${file}\n`)];
+  };
 
   const workspace: FixtureWorkspace = {
     root,
@@ -133,28 +194,81 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       const parent = options.parent ?? (await workspace.head(repository));
       commitCount++;
       const seconds = (BASE_DATE + commitCount * 1000) / 1000;
-      const data = (content: FileContent): Uint8Array[] => {
-        const bytes = typeof content === "string" ? Buffer.from(content) : content;
-        return [Buffer.from(`data ${String(bytes.length)}\n`), bytes, Buffer.from("\n")];
-      };
       const ref = `refs/logreq-fixture/${String(commitCount)}`;
       const stream = [
         Buffer.from(`commit ${ref}\ncommitter LogReq Test <test@logreq.invalid> ${String(seconds)} +0000\n`),
         ...data(options.message ?? "fixture"),
         Buffer.from(`from ${parent}\n`),
-        ...Object.entries(files).flatMap(([file, content]) => {
-          resolveInside(resolveInside(root, repository), file);
-          // fast-import reads an unquoted path up to the end of the line; a leading `"` starts a quoted one.
-          if (file.includes("\n") || file.startsWith('"')) {
-            throw new Error(`fixture path must not hold a line break or start with a quote: ${file}`);
-          }
-          return [Buffer.from(`M 100644 inline ${file}\n`), ...data(content)];
-        }),
+        ...Object.entries(files).flatMap(([file, content]) => fileCommand(repository, file, content)),
       ];
       await workspace.git(["fast-import", "--quiet"], repository, Buffer.concat(stream));
       const commit = (await workspace.git(["rev-parse", ref], repository)).trim();
       await workspace.git(["update-ref", "-d", ref], repository);
       return commit;
+    },
+    async commitHistory(commits, options = {}) {
+      const repository = options.repository ?? ".";
+      historyCount++;
+      const ref =
+        options.branch === undefined
+          ? `refs/logreq-fixture/history-${String(historyCount)}`
+          : `refs/heads/${options.branch}`;
+      const marks = new Map<string, number>();
+      const made: { readonly name: string; readonly mark: number; readonly date: Date }[] = [];
+      const stream = commits.flatMap((commit, i): Uint8Array[] => {
+        if (marks.has(commit.name)) {
+          throw new Error(`commit name used twice: ${commit.name}`);
+        }
+        const parents = commit.parents ?? commits.slice(i - 1, i).map((c) => c.name);
+        const parentRef = (parent: string): string => {
+          const mark = marks.get(parent);
+          return mark === undefined ? parent : `:${String(mark)}`;
+        };
+        marks.set(commit.name, i + 1);
+        commitCount++;
+        const seconds = (BASE_DATE + commitCount * 1000) / 1000;
+        made.push({ name: commit.name, mark: i + 1, date: new Date(seconds * 1000) });
+        const [first, ...merged] = parents;
+        return [
+          // A commit without parents starts a new root (`reset` empties the branch).
+          ...(first === undefined ? [Buffer.from(`reset ${ref}\n`)] : []),
+          Buffer.from(
+            `commit ${ref}\nmark :${String(i + 1)}\ncommitter LogReq Test <test@logreq.invalid> ${String(seconds)} +0000\n`,
+          ),
+          ...data(commit.message ?? commit.name),
+          ...(first === undefined ? [] : [Buffer.from(`from ${parentRef(first)}\n`)]),
+          ...merged.map((parent) => Buffer.from(`merge ${parentRef(parent)}\n`)),
+          ...(commit.deleted ?? []).map((file) => {
+            checkedPath(repository, file);
+            return Buffer.from(`D ${file}\n`);
+          }),
+          ...Object.entries(commit.files ?? {}).flatMap(([file, content]) =>
+            fileCommand(repository, file, content),
+          ),
+        ];
+      });
+      const marksFile = path.join(base, `marks-${String(historyCount)}`);
+      await workspace.git(
+        ["fast-import", "--quiet", `--export-marks=${marksFile}`],
+        repository,
+        Buffer.concat(stream),
+      );
+      if (options.branch === undefined) {
+        await workspace.git(["update-ref", "-d", ref], repository);
+      }
+      // One line `:<mark> <commit ID>` per commit.
+      const ids: Readonly<Record<string, string>> = Object.fromEntries(
+        (await fs.readFile(marksFile, "utf8"))
+          .trim()
+          .split("\n")
+          .map((line): [string, string] => {
+            const [mark = "", id = ""] = line.split(" ");
+            return [mark, id];
+          }),
+      );
+      return Object.fromEntries(
+        made.map(({ name, mark, date }) => [name, { id: String(ids[`:${String(mark)}`]), date }]),
+      );
     },
     async head(repository = ".") {
       return (await workspace.git(["rev-parse", "HEAD"], repository)).trim();

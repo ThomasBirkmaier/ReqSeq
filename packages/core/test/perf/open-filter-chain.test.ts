@@ -1,13 +1,19 @@
 // SR-082 AK3 and AK4 in the performance suite (ADR-0011): opening an element, applying a filter and
 // computing a chain in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
-// Opening is `element.get` (look up, read the file, element view with its hints and successors).
+// Opening is `element.get` (look up, read the file, element view with its hints and successors),
+// without the version date, which the app asks for in a second call (recorded separately).
 // Stage 1 has no filter language (SR-070, stage 3) and no chain (SR-022, stage 2), so these are
 // measured at the lowest level core has (#127, option 1): they run on the in-memory store, and the
 // chain on the model's incoming relation index and the derivation walk of the trace block (#258,
 // ADR-0008); the index is carried over a save (#267), so a chain right after one stays within the
 // threshold too. Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
 // `measure` recorded the times.
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
+import type {
+  GeneratedWorkspace,
+  HistoryCommitSpec,
+  LargeFixtureWorkspace,
+  VersionFunction,
+} from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -22,7 +28,7 @@ import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord, ElementStore, IncomingLink } from "../../src/model/index.js";
-import { invoke } from "../../src/runtime/invoke.js";
+import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
 import {
   buildIncomingIndex,
   elementStoreState,
@@ -54,18 +60,78 @@ const RESULT_MS = 500;
 /** The versions stored in relations do not matter here: nothing compares them. */
 const VERSION: VersionFunction = () => "n1:0000000000000000";
 
+/** Commits of each repository's history before the generated state (opening dates a version, ADR-0005). */
+const HISTORY = 1000;
+/** Element files each of those commits changes. */
+const CHANGED = 10;
+/** Every this many commits also change the elements the AK3 tests open. */
+const OPENED_EVERY = 25;
+
+/**
+ * Makes each repository a Git repository with a history like a project's: a first commit of all its
+ * files, then `HISTORY` commits that each give `CHANGED` element files an earlier text (the opened
+ * ones every `OPENED_EVERY` commits), and last a commit of the generated files (`git add --all`), so
+ * that opening an element walks a real history (ADR-0005 "Version date"). One `git fast-import` per
+ * repository builds the history (#206, #226).
+ */
+const writeHistory = async (
+  fixture: LargeFixtureWorkspace,
+  tree: GeneratedWorkspace,
+): Promise<Map<string, string>> => {
+  const dates = new Map<string, string>();
+  const opened = new Set(
+    [Math.floor(ELEMENTS / 2), Math.floor(ELEMENTS / 2) + 1].map((i) => tree.elements[i]?.id),
+  );
+  for (const { name, folder } of tree.repositories) {
+    const prefix = `${folder}/`;
+    const files = Object.fromEntries(
+      [...tree.files]
+        .filter(([file]) => file.startsWith(prefix))
+        .map(([file, text]) => [file.slice(prefix.length), text]),
+    );
+    const elements = tree.elements.filter((e) => e.repository === name);
+    const earlier = (file: string, commit: number): string =>
+      `${String(files[file])}\nEarlier text ${String(commit)}.\n`;
+    const commits: HistoryCommitSpec[] = [{ name: "start", files }];
+    for (let commit = 1; commit <= HISTORY; commit++) {
+      const changed = Array.from(
+        { length: CHANGED },
+        (_, i) => elements[(commit * 7919 + i * 104_729) % elements.length]?.file ?? "",
+      );
+      if (commit % OPENED_EVERY === 0) {
+        changed.push(...elements.filter((e) => opened.has(e.id)).map((e) => e.file));
+      }
+      commits.push({
+        name: String(commit),
+        files: Object.fromEntries(changed.map((file) => [file, earlier(file, commit)])),
+      });
+    }
+    await fixture.git(["init", "--quiet", "--initial-branch=main"], folder);
+    await fixture.commitHistory(commits, { repository: folder, branch: "main" });
+    await fixture.commit(folder, "generated");
+    // The version date of every generated element: the last commit gave each its generated text back.
+    const date = (await fixture.git(["log", "-1", "--format=%cI"], folder)).trim();
+    dates.set(name, new Date(date).toISOString().replace(/\.\d{3}Z$/, "Z"));
+  }
+  return dates;
+};
+
 describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-082, N-036)", () => {
   let tree: GeneratedWorkspace;
   let fixture: LargeFixtureWorkspace | undefined;
   let workspace: Workspace | undefined;
   let store: ElementStore;
   let metamodel: Metamodel;
+  let generatedDates = new Map<string, string>();
 
   beforeAll(async () => {
     tree = generateLargeWorkspace({ version: VERSION, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree);
+    generatedDates = await writeHistory(fixture, tree);
     workspace = new Workspace(fixture.workspaceRoot);
-    // As a server or the app does it at start (SR-082 AK1, AK2).
+    // As a server or the app does it at start (SR-082 AK1, AK2): the adapters create the command
+    // runtime (catalog and schemas) before the first call (`configureCommandRuntime`).
+    getCommandRuntime();
     await warmWorkspace(workspace);
     store = await workspace.get(elementStoreState);
     metamodel = await workspace.get(metamodelState);
@@ -99,13 +165,22 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     }
   });
 
-  /** Opening an element: `element.get`, as every access calls it (SR-080). */
+  /**
+   * Opening an element: `element.get`, as every access calls it (SR-080); with `versionDate`, the
+   * second call of the app that asks for the date (D-013, ADR-0005).
+   */
   const openElement = async (
     opened: Workspace,
     id: string,
+    versionDate = false,
   ): Promise<CommandOutput<"element.get">["element"]> =>
-    ((await invoke("element.get", { ref: id }, { workspace: opened })) as CommandOutput<"element.get">)
-      .element;
+    (
+      (await invoke(
+        "element.get",
+        { ref: id, ...(versionDate ? { versionDate } : {}) },
+        { workspace: opened },
+      )) as CommandOutput<"element.get">
+    ).element;
 
   /** A system requirement and the target of its first derives-from relation, both in the store. */
   const relationToTarget = (): { readonly source: ElementRecord; readonly target: ElementRecord } => {
@@ -129,14 +204,27 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   };
 
   it("[SR-082/AK3] shows an element within 200 ms of opening it", async () => {
-    const id = tree.elements[Math.floor(ELEMENTS / 2)]?.id ?? "";
+    const element = tree.elements[Math.floor(ELEMENTS / 2)];
+    const id = element?.id ?? "";
     const { result: view, measurement } = await measure(
       "open one element (look up, read its file, element view)",
       () => openElement(opened(), id),
-      { basis: "SR-082 AK3 (element.get: store lookup, file read, element view)", thresholdMs: OPEN_MS },
+      {
+        basis: "SR-082 AK3 (element.get: store lookup, file read, element view; no git)",
+        thresholdMs: OPEN_MS,
+      },
     );
     expect(view.id).toBe(id);
     expect(view.problems).toEqual([]);
+    expect(view).not.toHaveProperty("versionDate");
+    // The date on request, as the app asks for it in a second call: recorded, no threshold.
+    const { result: dated } = await measure(
+      `open one element with its version date (versionDate: true, ${String(HISTORY + 2)} commits)`,
+      () => openElement(opened(), id, true),
+      { basis: "D-013, ADR-0005 (element.get with versionDate; recorded, no threshold of its own)" },
+    );
+    expect(dated.versionDate).toBe(generatedDates.get(element?.repository ?? ""));
+    expect({ ...dated, versionDate: undefined }).toEqual(view);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
@@ -330,6 +418,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-082 AK3 (element.get after a save, #184)", thresholdMs: OPEN_MS },
     );
     expect(view.id).toBe(id);
+    expect(view).not.toHaveProperty("versionDate");
     expect((await current.get(elementStoreState)).byId.get(saved)?.[0]?.data["title"]).toBe(
       "Saved in the performance suite",
     );

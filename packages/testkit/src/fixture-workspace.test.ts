@@ -171,6 +171,55 @@ describe("createFixtureWorkspace", () => {
     await expect(ws.commitFiles({ "a\nb.md": "x" })).rejects.toThrow(/line break/);
   });
 
+  it("makes a history of commits with merges, links and submodule entries in one go", async () => {
+    const ws = await make({ files: { "a.md": "a" }, git: true });
+    const base = await ws.head();
+    const made = await ws.commitHistory([
+      { name: "one", parents: [base], files: { "x.md": "1", "l.md": { link: "x.md" } } },
+      { name: "two", files: { "x.md": "2" }, deleted: ["l.md"], message: "second" },
+      { name: "side", parents: ["one"], files: { "y.md": "y" } },
+      { name: "merge", parents: ["two", "side"], files: { sub: { submodule: base } } },
+      { name: "root", parents: [], files: { "r.md": "r" } },
+    ]);
+    expect(Object.keys(made)).toEqual(["one", "two", "side", "merge", "root"]);
+    const id = (name: string): string => String(made[name]?.id);
+    const seconds = (name: string): string => String(Number(made[name]?.date) / 1000);
+    const show = async (name: string): Promise<string> =>
+      (await ws.git(["log", "-1", "--format=%P|%ct|%s", id(name)])).trim();
+    expect(await show("one")).toBe(`${base}|${seconds("one")}|one`);
+    expect(await show("two")).toBe(`${id("one")}|${seconds("two")}|second`);
+    expect(await show("merge")).toBe(`${id("two")} ${id("side")}|${seconds("merge")}|merge`);
+    expect(await show("root")).toBe(`|${seconds("root")}|root`);
+    expect((await ws.git(["ls-tree", id("one")])).split("\n")).toContain(
+      `120000 blob ${(await ws.git(["hash-object", "--stdin"], ".", Buffer.from("x.md"))).trim()}\tl.md`,
+    );
+    // A merge starts from the tree of its first parent.
+    expect(await ws.git(["ls-tree", "--name-only", id("merge")])).toBe("a.md\nsub\nx.md\n");
+    expect(await ws.git(["ls-tree", id("merge"), "sub"])).toBe(`160000 commit ${base}\tsub\n`);
+    // Working tree, index, HEAD and refs are as before.
+    expect(await ws.head()).toBe(base);
+    expect(await ws.git(["status", "--porcelain"])).toBe("");
+    expect((await ws.git(["for-each-ref", "--format=%(refname)"])).trim()).toBe("refs/heads/main");
+    await expect(ws.commitHistory([{ name: "a" }, { name: "a" }])).rejects.toThrow(/twice/);
+    await expect(ws.commitHistory([{ name: "a", deleted: ["../a.md"] }])).rejects.toThrow(/relative/);
+  });
+
+  it("makes a history on a branch of a new repository, to check out with a reset", async () => {
+    const ws = await make({ files: { "keep.txt": "untracked" } });
+    await ws.git(["init", "--quiet", "--initial-branch=main"]);
+    const made = await ws.commitHistory(
+      [
+        { name: "one", files: { "a.md": "1" } },
+        { name: "two", files: { "a.md": "2" } },
+      ],
+      { branch: "main" },
+    );
+    expect(await ws.head()).toBe(made["two"]?.id);
+    await ws.git(["reset", "--hard", "--quiet"]);
+    expect(read(ws.path("a.md"))).toBe("2");
+    expect(read(ws.path("keep.txt"))).toBe("untracked");
+  });
+
   it("rejects with git's own error when git exits before it read its input", async () => {
     const ws = await make({ git: true });
     // More than any pipe holds: the rest of the write fails (EPIPE) once git has exited.

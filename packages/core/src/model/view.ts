@@ -141,7 +141,10 @@ const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
   });
 
 /** The definitions of the properties the element's type has; none for an unknown type. */
-const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): VersionPropertyDefinition[] => {
+const versionDefinitions = (
+  record: Pick<ElementRecord, "type">,
+  metamodel: Metamodel,
+): VersionPropertyDefinition[] => {
   const keys = new Set(findType(metamodel, record.type)?.properties ?? []);
   return metamodel.properties
     .filter((p) => keys.has(p.key))
@@ -150,11 +153,11 @@ const versionDefinitions = (record: ElementRecord, metamodel: Metamodel): Versio
 
 /**
  * The version of an element (ADR-0005) from its record, the text of its file and the images the
- * text embeds (`embeddedImages`). The one place model code computes it, for views and stored
- * targets.
+ * text embeds (`embeddedImages`). The one place model code computes it, for views, stored targets
+ * and the versions at old commits (`version-date.ts`).
  */
 export const elementVersion = (
-  record: ElementRecord,
+  record: Pick<ElementRecord, "type" | "data">,
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
@@ -267,7 +270,7 @@ export const listedElement = (input: ListedElementInput, version: string | undef
  */
 export const elementView = (
   input: ElementViewInput,
-): DataExportElement & { readonly problems: readonly Problem[] } => {
+): DataExportElement & { readonly version: string; readonly problems: readonly Problem[] } => {
   const { record, file, metamodel, shortIds } = input;
   // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
   const findings: readonly LocatableFinding[] = metamodel.valid
@@ -284,10 +287,9 @@ export const elementView = (
     const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
-  const { id, shortId, type, status, title, ...rest } = listedElement(
-    input,
-    elementVersion(record, file.body, metamodel, input.images),
-  );
-  // The text after the title, as the element files and the schema order it.
-  return { id, shortId, type, status, title, text: file.body, ...rest, problems };
+  const version = elementVersion(record, file.body, metamodel, input.images);
+  const { id, shortId, type, status, title, ...rest } = listedElement(input, version);
+  // The text after the title, as the element files and the schema order it; a view always has its
+  // version (the version date of `element.get` is asked for it).
+  return { id, shortId, type, status, title, text: file.body, version, ...rest, problems };
 };

@@ -161,6 +161,18 @@ describe("logreq binary", () => {
         ],
       },
     });
+    // The version date only on request (D-013), from the fixture's commit. The supersede changed only
+    // the status of N-d4e5f6, which is not in the version, so its date stays (ADR-0005).
+    const element = (stdout: string): Record<string, unknown> =>
+      (JSON.parse(stdout) as { element: Record<string, unknown> }).element;
+    expect(element(shown.stdout)).not.toHaveProperty("versionDate");
+    const dated = await logreq(["element", "get", "SR-f6a7b8", "--version-date", "--json"], { cwd: ws.root });
+    expect(dated.code).toBe(0);
+    expect(element(dated.stdout)["versionDate"]).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+    const changed = await logreq(["element", "get", "N-d4e5f6", "--version-date", "--json"], {
+      cwd: ws.root,
+    });
+    expect(element(changed.stdout)["versionDate"]).toBe(element(dated.stdout)["versionDate"]);
     const unknown = await logreq(["element", "get", "N-ffffff", "--json"], { cwd: ws.root });
     expect(unknown.code).toBe(2);
     expect(unknown.stdout).toBe("");

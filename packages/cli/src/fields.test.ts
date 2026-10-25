@@ -250,6 +250,7 @@ describe("inputFields", () => {
     );
     expect(byName).toEqual({
       "element.get:ref": "string:positional",
+      "element.get:versionDate": "boolean:flag",
       "element.get:view": "string:flag",
       "workspace.check:changedFiles": "string[]:flag",
       "workspace.check:changedSince": "string:flag",

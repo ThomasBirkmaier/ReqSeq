@@ -74,7 +74,9 @@ describe("element.get", () => {
     expect(hints(byId).map((p) => p.code)).toEqual(["element.missing-required", "element.missing-required"]);
     expect(byId.version).toMatch(/^n1:[0-9a-f]{16}$/);
     expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n")[2]);
+    // The date only on request (D-013, ADR-0005 "Version date"); not in a Git repository: none.
     expect(byId).not.toHaveProperty("versionDate");
+    expect(await get(opened, { ref: WIND.id, versionDate: true })).toEqual({ ...byId, versionDate: null });
     expect(await get(opened, { ref: "SR-e88fb3" })).toEqual(byId);
     expect(await get(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });
@@ -259,7 +261,7 @@ describe("element.get", () => {
       store: await workspace.get(elementStoreState),
       shortIds: await workspace.get(shortIdState),
     };
-    const error = await showElement(context, WIND.id, () => []).catch((e: unknown) => e);
+    const error = await showElement(context, WIND.id, () => [], false).catch((e: unknown) => e);
     expect((error as CommandError).code).toBe("internal");
   });
 });
