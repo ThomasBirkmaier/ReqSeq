@@ -115,8 +115,7 @@ const show = (
   incomplete: expansion.incomplete,
 });
 
-// The commands of SR-022 to SR-024 and SR-090 (such as `trace.chain`) are not in the catalog yet, so
-// the tests name an existing command where `derivationGraph` asks for the one to name in its error.
+// `derivationGraph` names the command in its error (SR-013 AK3); the tests name `trace.chain`.
 describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("reads the states once, with the incoming index of the store", async () => {
     const workspace = await open();
@@ -132,14 +131,14 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
 
   it("follows the relation kinds with the meaning derivation, in metamodel order", async () => {
     const workspace = await open();
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     expect(graph.kinds.map((k) => k.key)).toEqual(["refines", "derives-from"]);
     // A property of the same key wins over a relation kind (`keyDefinition`): that key is no derivation.
     const shadowed: Metamodel = {
       ...graph.metamodel,
       properties: [...graph.metamodel.properties, { key: "refines", name: "Refines note", kind: "text" }],
     };
-    const other = derivationGraph({ ...graph, metamodel: shadowed }, "workspace.check");
+    const other = derivationGraph({ ...graph, metamodel: shadowed }, "trace.chain");
     expect(other.kinds.map((k) => k.key)).toEqual(["derives-from"]);
   });
 
@@ -149,13 +148,13 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
       "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT.replaceAll("    meaning: derivation\n", ""),
     });
     const context = await traceContext(workspace);
-    expect(() => derivationGraph(context, "workspace.check")).toThrow(CommandError);
+    expect(() => derivationGraph(context, "trace.chain")).toThrow(CommandError);
     try {
-      derivationGraph(context, "workspace.check");
+      derivationGraph(context, "trace.chain");
     } catch (error) {
       expect(error).toMatchObject({
         code: "metamodel.meaning-unassigned",
-        details: { meaning: "derivation", list: "relations", command: "workspace.check" },
+        details: { meaning: "derivation", list: "relations", command: "trace.chain" },
       });
     }
   });
@@ -163,7 +162,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("gives the parents of an element from its own relations (source = child, target = parent)", async () => {
     const workspace = await open();
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     // Metamodel order of the kinds; a replacement and an inline reference are no parents.
     expect(show(parentsOf(graph, r(S1)))).toEqual({
       steps: [
@@ -198,7 +197,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("gives the children of an element from the incoming index, across repositories", async () => {
     const workspace = await open();
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     // Repository `away` is not on this machine: children there cannot be seen (spec question #262).
     expect(show(childrenOf(graph, r(S1)))).toEqual({
       steps: [
@@ -246,7 +245,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("gives every derivation edge of the store, from child to parent, with an available parent (SR-090)", async () => {
     const workspace = await open();
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     const edges = derivationEdges(graph);
     // Not: the replacement (no derivation), targets in a repository not here or not listed, a
     // missing target, one whose UUID two files share (as `targetState` finds them).
@@ -269,7 +268,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("is complete downwards when every repository of the workspace file is on this machine", async () => {
     const workspace = await open({ ...FILES, "system/logreq-workspace.yaml": workspaceFile([PLATFORM]) });
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     expect(childrenOf(graph, r(S1)).incomplete).toBe(false);
     expect(childrenOf(graph, r(DUP)).incomplete).toBe(false);
   });
@@ -277,7 +276,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   it("walks up to the top parents and down to the last children", async () => {
     const workspace = await open();
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     const up = walkDerivation(graph, [r(S2)], { direction: "up" });
     expect(up.nodes.map((n) => [n.element.id, n.depth])).toEqual([
       [S2, 0],
@@ -328,7 +327,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
       ]),
     });
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     for (const direction of ["up", "down"] as const) {
       const result = walkDerivation(graph, [r(N1)], { direction });
       expect(result.nodes).toHaveLength(3);
@@ -371,7 +370,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
     const workspace = new Workspace(fixture.root);
     onTestFinished(() => workspace.close());
     const r = await recordsOf(workspace);
-    const graph = derivationGraph(await traceContext(workspace), "workspace.check");
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     expect(graph.kinds.map((k) => k.key)).toEqual(["satisfies"]);
     expect(show(parentsOf(graph, r(S1))).steps).toEqual([[N1, S1, "satisfies", ["satisfies", 0]]]);
     expect(show(childrenOf(graph, r(N1))).steps).toEqual([[S1, S1, "satisfies", ["satisfies", 0]]]);

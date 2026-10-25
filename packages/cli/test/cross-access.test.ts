@@ -38,6 +38,8 @@ interface Scenario {
 }
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
+/** Needs, system and component requirements and a variant (SR-022). */
+const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
@@ -159,6 +161,57 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
+  ],
+  "trace.chain": [
+    {
+      name: "a need down to its component requirements, with gaps (SR-022)",
+      fixture: CHAIN,
+      input: { ref: "N-00a001" },
+      expect: "output",
+    },
+    {
+      name: "up from a component requirement to depth 1, in the core view",
+      fixture: CHAIN,
+      input: { ref: "CR-00c002", direction: "up", maxDepth: 1, view: "core" },
+      expect: "output",
+    },
+    {
+      name: "a cycle and a parent in a repository that is not here (SR-022 AK4, SR-006)",
+      fixture: {
+        fixture: "SR-022/chain",
+        git: true,
+        files: {
+          "logreq-workspace.yaml":
+            "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+            '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
+            '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
+            "metamodel: { repository: system, path: metamodel }\n",
+          "components/CR-00000000c001.md":
+            "---\nid: 5c0e1d2a-0022-4022-8022-00000000c001\ntype: component-requirement\nstatus: draft\ntitle: Count anemometer turns\n" +
+            "derives-from:\n" +
+            "  - { id: 5c0e1d2a-0022-4022-8022-00000000b001, version: n1:0000000000000000 }\n" +
+            "  - { id: 5c0e1d2a-0022-4022-8022-00000000c002, version: n1:0000000000000000 }\n" +
+            "  - { id: 5c0e1d2a-0022-4022-8022-00000000f001, version: n1:0000000000000000, repository: vault }\n" +
+            "---\n",
+        },
+      },
+      input: { ref: "SR-00b001" },
+      expect: "output",
+    },
+    {
+      name: "no relation kind with the meaning derivation (SR-013 AK3)",
+      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      root: "system",
+      input: { ref: "SR-c4d5e6" },
+      expect: "error",
+    },
+    { name: "unknown reference", fixture: CHAIN, input: { ref: "SR-ffffff" }, expect: "error" },
+    {
+      name: "view of no variant",
+      fixture: CHAIN,
+      input: { ref: "N-00a001", view: "N-00a002" },
+      expect: "error",
+    },
   ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.

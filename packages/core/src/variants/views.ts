@@ -13,10 +13,12 @@
 // where a list belongs gives none (the value-kind check, SR-085, reports it). An entry names a target
 // when `hasId` holds (a mapping with a text `id`); its other keys are SR-085's. The view and the hint
 // (superseded-validity.ts) share this reading.
+import type { CommandName } from "../catalog.js";
+import { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { propertyWithMeaning, typesWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord, ElementStore, RelationKey } from "../model/index.js";
-import { hasId, relationItems, relationKey } from "../model/index.js";
+import { propertyWithMeaning, requireMeaning, typesWithMeaning } from "../metamodel/index.js";
+import type { ElementRecord, ElementStore, RelationKey, ShortIds } from "../model/index.js";
+import { hasId, relationItems, relationKey, resolveRef } from "../model/index.js";
 
 /** A view the tool computes: the core, or one variant. */
 export type View =
@@ -122,4 +124,33 @@ export const variantTypes = (metamodel: Metamodel): ReadonlySet<string> =>
 export const variantsOf = (store: ElementStore, metamodel: Metamodel): readonly ElementRecord[] => {
   const types = variantTypes(metamodel);
   return store.elements.filter((e) => types.has(e.type));
+};
+
+/**
+ * The view a command input names (`common.schema.json#/$defs/view`): `core`, or a reference to a
+ * variant (`resolveRef`: `ref.unknown`, `ref.ambiguous`). The view is decided by the validity, so
+ * `command` needs the meaning `validity`, and for a variant the meaning `variant` (SR-013 AK3:
+ * `metamodel.meaning-unassigned`). A reference to an element whose type has not the meaning
+ * `variant` is `input.invalid`.
+ */
+export const resolveView = (
+  context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
+  view: string,
+  command: CommandName,
+): View => {
+  const { metamodel, store, shortIds } = context;
+  requireMeaning(metamodel, "validity", command);
+  if (view === "core") {
+    return { kind: "core" };
+  }
+  requireMeaning(metamodel, "variant", command);
+  const variant = resolveRef(store, shortIds, view);
+  if (!variantTypes(metamodel).has(variant.type)) {
+    throw new CommandError(
+      "input.invalid",
+      `${view} is no variant: view takes core or a variant, an element whose type has the meaning variant`,
+      { command, fields: ["view"] },
+    );
+  }
+  return { kind: "variant", variant };
 };

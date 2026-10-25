@@ -45,8 +45,8 @@ import { cyclesOf } from "./walk.js";
 /** The elements of a cycle a message names at most; the rest are counted (every one has its own problem). */
 export const CYCLE_NAMES_SHOWN = 20;
 
-/** The elements of `cycle` as a message names them: type name and short ID, the first ones of a long cycle. */
-const cycleNames = (cycle: Cycle<unknown>, label: (element: ElementRecord) => string): string => {
+/** The elements of `cycle` as a message names them: type name and short ID, the first ones of a long cycle (also `trace.chain`). */
+export const cycleNames = (cycle: Cycle<unknown>, label: (element: ElementRecord) => string): string => {
   const shown = cycle.elements.slice(0, CYCLE_NAMES_SHOWN).map(label).join(", ");
   const more = cycle.elements.length - CYCLE_NAMES_SHOWN;
   return more > 0 ? `${shown}, and ${String(more)} more` : shown;

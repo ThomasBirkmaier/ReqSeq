@@ -71,6 +71,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
   "metamodel.get": [{}, { extra: true }],
+  "trace.chain": [
+    { ref: WIND },
+    { ref: APPROVED, direction: "down", view: "core" },
+    { ref: RETIRED, direction: "up" },
+    { ref: "SR-ffffff" },
+  ],
   "workspace.check": [{}, { severity: "error" }, { changedSince: "main" }],
   "workspace.init": [
     { path: "new", name: "New" },

@@ -172,9 +172,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => incomingFor(opened(), store, metamodel),
       { basis: "SR-082 AK4 (built once per element store, not per chain; ADR-0008, #258)" },
     );
-    // `trace.chain` (SR-022) is not in the catalog yet: an existing command stands in for the name
-    // that a missing `derivation` meaning would report (SR-013 AK3).
-    const graph = derivationGraph({ layout, metamodel, store, incoming }, "workspace.check");
+    const graph = derivationGraph({ layout, metamodel, store, incoming }, "trace.chain");
     const { result: chain, measurement } = await measure(
       "chain: every element derived from the first need",
       () => walkDerivation(graph, [top], { direction: "down" }),

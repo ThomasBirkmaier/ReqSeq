@@ -4,15 +4,17 @@
 //
 // Use (one consistent view, ADR-0008):
 //   const graph = derivationGraph(await traceContext(workspace), "trace.chain"); // SR-013 AK3
-// (`trace.chain` stands for the command of SR-022, which is not in the catalog yet)
 //   const result = walkDerivation(graph, [element], { direction: "down", maxDepth, leaves });
 // `result.nodes` (each element once, breadth first, with depth and `via`), `pathTo(result, element)`,
 // `result.edges` (every step, `cyclic` inside a cycle), `result.cycles`, `result.unresolved` and
 // `result.incomplete` (SR-006 AK2). `walk(starts, expand, options)` takes any steps (SR-024), and
 // `cyclesOf(store.elements, derivationEdges(graph))` finds the cycles of the whole store (SR-090).
+// The chain of SR-022 (`trace.chain`, chain.ts):
+//   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds })
 // Children come from the model's incoming relation index (`model/incoming.ts`).
 export {
   CYCLE_NAMES_SHOWN,
+  cycleNames,
   cycleFindings,
   derivationCycleFindings,
   derivationCycleProblemsState,
@@ -42,3 +44,15 @@ export type {
   WalkUnresolved,
 } from "./walk.js";
 export { cyclesOf, pathTo, walk } from "./walk.js";
+export type {
+  Chain,
+  ChainDirection,
+  ChainEvidence,
+  ChainGap,
+  ChainOptions,
+  ChainOutputContext,
+  ChainWalk,
+  GapKind,
+  GapMeaning,
+} from "./chain.js";
+export { chainOutput, traceChain } from "./chain.js";

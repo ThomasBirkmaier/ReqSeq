@@ -1173,11 +1173,62 @@ export interface TraceChainInput {
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
-  readonly nodes: readonly Readonly<Record<string, unknown>>[];
-  readonly edges: readonly Readonly<Record<string, unknown>>[];
-  readonly gaps?: readonly Readonly<Record<string, unknown>>[];
-  readonly incomplete?: Incomplete;
-  readonly problems?: readonly Problem[];
+  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes and 36 MB of JSON): a client that shows it step by step asks with `maxDepth` 1 and asks again below an element that is not `expanded`. */
+  readonly nodes: readonly {
+    readonly id: Uuid;
+    readonly shortId: ShortId;
+    readonly type: string;
+    readonly title: string;
+    readonly status?: string;
+    readonly repository: string;
+    /** Path relative to the repository. */
+    readonly file: string;
+    /** Steps from the root: 0 for the root, 1 for its parents or children, and so on. */
+    readonly depth: number;
+    /** `up` for a parent (and its parents), `down` for a child (and its children); left out for the root. */
+    readonly direction?: "up" | "down";
+    /** Its parents or children were looked at; false only at `maxDepth`, where the chain was cut. */
+    readonly expanded: boolean;
+  }[];
+  /** Every derivation relation the chain followed, from the child that stores it (`source`) to its parent (`target`, ADR-0004): the upward ones, then the downward ones, in the order they were followed. */
+  readonly edges: readonly {
+    readonly source: Uuid;
+    /** Workspace name of the repository of `source`. */
+    readonly sourceRepository: string;
+    readonly target: Uuid;
+    /** Workspace name of the repository of `target`. */
+    readonly targetRepository: string;
+    /** Key of the relation kind with the meaning `derivation` (SR-013). */
+    readonly kind: Key;
+    readonly direction: "up" | "down";
+    /** Both ends lie in one cycle of derivations (SR-022 AK4). */
+    readonly cyclic: boolean;
+  }[];
+  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). Evidence records come in stage 4 (SR-028): until then every requirement without a child is `no-evidence`. */
+  readonly gaps: readonly {
+    readonly id: Uuid;
+    /** Workspace name of the repository of the element with the gap. */
+    readonly repository: string;
+    readonly kind: "no-child" | "no-evidence";
+  }[];
+  /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. */
+  readonly unresolved: readonly {
+    readonly direction: "up" | "down";
+    /** The element of the chain whose parents or children were looked at. */
+    readonly from: Uuid;
+    /** Workspace name of the repository of `from`. */
+    readonly fromRepository: string;
+    readonly kind: Key;
+    /** The other end: the parent the relation names (up), the child that stores it (down). */
+    readonly id: Uuid;
+    readonly shortId?: ShortId;
+    readonly title?: string;
+    /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
+    readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
+  }[];
+  readonly incomplete: Incomplete;
+  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). */
+  readonly problems: readonly Problem[];
 }
 
 /**
