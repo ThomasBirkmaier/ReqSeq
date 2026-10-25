@@ -80,11 +80,13 @@ export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState }
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export { elementVersion, elementView, titleKeyOf } from "./view.js";
-export type { ElementViewInput } from "./view.js";
+export type { ElementViewInput, ExtraFindings } from "./view.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";
 export type { SupersedeInput, SupersedeResult } from "./supersede.js";
+export { getElement, showElement } from "./get.js";
+export type { ShowContext } from "./get.js";
 export {
   elementLabel,
   invalidStatuses,

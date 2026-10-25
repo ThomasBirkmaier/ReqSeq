@@ -137,6 +137,35 @@ describe("logreq binary", () => {
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ name: "Weather station", readOnly: false });
   });
+
+  it("shows one element with element get, and exits 2 for an unknown reference", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
+    fixtures.push(ws);
+    const supersede = await logreq(
+      ["element", "supersede", "N-d4e5f6", "obsolete", "--successor", "N-e5f6a7", "--json"],
+      { cwd: ws.root },
+    );
+    expect(supersede.code).toBe(0);
+    const shown = await logreq(["element", "get", "N-d4e5f6", "--json"], { cwd: ws.root });
+    expect(shown.stderr).toBe("");
+    expect(shown.code).toBe(0);
+    expect(JSON.parse(shown.stdout)).toMatchObject({
+      element: {
+        id: "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6",
+        shortId: "N-d4e5f6",
+        status: "obsolete",
+        title: "See the wind",
+        readOnly: false,
+        relations: [
+          { kind: "supersedes", direction: "in", shortId: "N-e5f6a7", title: "See wind and gusts" },
+        ],
+      },
+    });
+    const unknown = await logreq(["element", "get", "N-ffffff", "--json"], { cwd: ws.root });
+    expect(unknown.code).toBe(2);
+    expect(unknown.stdout).toBe("");
+    expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
+  });
 });
 
 describe("logreq with test commands", () => {

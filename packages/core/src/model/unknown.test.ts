@@ -261,7 +261,7 @@ describe("unknown properties and types (SR-016)", () => {
       throw new Error("fixture file must parse");
     }
     const view = elementView({
-      successions: [],
+      successionsOf: () => [],
       record,
       file: read.file,
       images: [],

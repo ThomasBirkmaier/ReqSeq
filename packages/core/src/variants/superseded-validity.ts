@@ -14,7 +14,8 @@
 // there. An entry is looked up in the store only when it names one of these UUIDs.
 import type { Problem } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
-import type { LocatableFinding, SupersededContext } from "../model/index.js";
+import type { MetamodelStatus } from "../generated/types.js";
+import type { ElementRecord, LocatableFinding, SupersededContext } from "../model/index.js";
 import {
   elementLabel,
   elementStoreState,
@@ -25,7 +26,67 @@ import {
 } from "../model/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import type { Validity } from "./views.js";
 import { validityEntries, validityOf, validityTarget, variantTypes } from "./views.js";
+
+/** What the hints of the sources need, once per call: the validity and the superseded variants. */
+interface Scope {
+  readonly validity: Validity;
+  readonly invalid: ReadonlyMap<string, MetamodelStatus>;
+  readonly types: ReadonlySet<string>;
+  /** The UUIDs of the variants with an invalid status. */
+  readonly superseded: ReadonlySet<string>;
+}
+
+/** The scope of `context`; undefined when no hint is possible (no validity, no invalid status or no superseded variant). */
+const scopeOf = (context: SupersededContext): Scope | undefined => {
+  const { store, metamodel } = context;
+  const validity = validityOf(metamodel);
+  const invalid = invalidStatuses(metamodel);
+  if (validity === undefined || invalid.size === 0) {
+    return undefined;
+  }
+  const types = variantTypes(metamodel);
+  const superseded = new Set(
+    store.elements.filter((e) => types.has(e.type) && invalid.has(String(e.data["status"]))).map((e) => e.id),
+  );
+  return superseded.size === 0 ? undefined : { validity, invalid, types, superseded };
+};
+
+/** The hints of one source, in the order of its validity entries. */
+const findingsOfSource = (
+  context: SupersededContext,
+  scope: Scope,
+  source: ElementRecord,
+  findings: LocatableFinding[],
+): void => {
+  const { validity, invalid, types, superseded } = scope;
+  for (const { path, value } of validityEntries(validity, source)) {
+    const named = validityTarget(value, source);
+    if (named === undefined || !superseded.has(named.id)) {
+      continue;
+    }
+    const match = resolveTarget(context.store, source.repository, named);
+    if (match.kind !== "found" || !types.has(match.element.type)) {
+      continue;
+    }
+    const target = match.element;
+    const status = invalid.get(String(target.data["status"]));
+    if (status === undefined) {
+      continue;
+    }
+    const problem: Problem = {
+      code: "variant.superseded-in-validity",
+      severity: "warning",
+      message: `${validity.label} of ${elementLabel(context, source)} lists ${elementLabel(context, target)}, which is superseded (status ${status.name})`,
+      repository: source.repository,
+      file: source.file,
+      elementId: source.id,
+      targetId: target.id,
+    };
+    findings.push({ element: source, path, problem });
+  }
+};
 
 /**
  * The hints `variant.superseded-in-validity` (SR-040 AK3), one per validity entry that names a
@@ -36,46 +97,29 @@ import { validityEntries, validityOf, validityTarget, variantTypes } from "./vie
  * marks no status invalid.
  */
 export const supersededValidityFindings = (context: SupersededContext): readonly LocatableFinding[] => {
-  const { store, metamodel } = context;
-  const validity = validityOf(metamodel);
-  const invalid = invalidStatuses(metamodel);
-  if (validity === undefined || invalid.size === 0) {
-    return [];
-  }
-  const types = variantTypes(metamodel);
-  const superseded = new Set(
-    store.elements.filter((e) => types.has(e.type) && invalid.has(String(e.data["status"]))).map((e) => e.id),
-  );
-  if (superseded.size === 0) {
-    return [];
-  }
+  const scope = scopeOf(context);
   const findings: LocatableFinding[] = [];
-  for (const source of store.elements) {
-    for (const { path, value } of validityEntries(validity, source)) {
-      const named = validityTarget(value, source);
-      if (named === undefined || !superseded.has(named.id)) {
-        continue;
-      }
-      const match = resolveTarget(store, source.repository, named);
-      if (match.kind !== "found" || !types.has(match.element.type)) {
-        continue;
-      }
-      const target = match.element;
-      const status = invalid.get(String(target.data["status"]));
-      if (status === undefined) {
-        continue;
-      }
-      const problem: Problem = {
-        code: "variant.superseded-in-validity",
-        severity: "warning",
-        message: `${validity.label} of ${elementLabel(context, source)} lists ${elementLabel(context, target)}, which is superseded (status ${status.name})`,
-        repository: source.repository,
-        file: source.file,
-        elementId: source.id,
-        targetId: target.id,
-      };
-      findings.push({ element: source, path, problem });
+  if (scope !== undefined) {
+    for (const source of context.store.elements) {
+      findingsOfSource(context, scope, source, findings);
     }
+  }
+  return findings;
+};
+
+/**
+ * The same hints for one element, for a command that shows it (`element.get`). `source` need not
+ * be the store's copy (a file read again); the variants are looked up in the store. One pass over
+ * the store for the superseded variants (N-036: about as cheap as a filter).
+ */
+export const supersededValidityFindingsOf = (
+  context: SupersededContext,
+  source: ElementRecord,
+): readonly LocatableFinding[] => {
+  const scope = scopeOf(context);
+  const findings: LocatableFinding[] = [];
+  if (scope !== undefined) {
+    findingsOfSource(context, scope, source, findings);
   }
   return findings;
 };

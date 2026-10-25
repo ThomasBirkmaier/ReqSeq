@@ -13,6 +13,7 @@ export { allowsType, findType, keyDefinition, typeForNewElement } from "./lookup
 export type { KeyDefinition } from "./lookup.js";
 export {
   MEANINGS,
+  meaningUnassignedMessage,
   propertyWithMeaning,
   relationKindsWithMeaning,
   requireMeaning,

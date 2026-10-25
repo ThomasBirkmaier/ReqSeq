@@ -303,6 +303,26 @@ describe("element.update", () => {
     expect(await filesBelow(opened.fixture.root)).toEqual(before);
   });
 
+  it("[SR-086/AK1] gives the hint on a relation between types that are not allowed for the element it writes", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-086/relation-types" });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const out = await update(
+      { fixture, workspace },
+      { ref: "22a972fd-f4f1-4b95-ba1d-e3e85234824e", text: "Changed.\n" },
+    );
+    expect((out.problems ?? []).filter((p) => p.code === "relation.not-allowed")).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        elementId: "22a972fd-f4f1-4b95-ba1d-e3e85234824e",
+        targetId: "fa1e252c-ae4a-43c5-b53c-c03e4db185f3",
+        line: 7,
+      }),
+    ]);
+    expect(out.element.problems).toEqual(out.problems);
+  });
+
   it("only reads an element of an unknown type (SR-016 AK3)", async () => {
     const opened = await open({
       files: {

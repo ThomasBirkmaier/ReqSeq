@@ -75,7 +75,7 @@ describe("elementView", () => {
     );
     const record = recordOf(file);
     const view = elementView({
-      successions: [],
+      successionsOf: () => [],
       record,
       file,
       images: [],
@@ -120,7 +120,7 @@ describe("elementView", () => {
       `---\nid: ${GUSTS}\ntype: system-requirement\nstatus: draft\ntitle: x\nbased-on:\n  - { id: ${OTHER}, version: n1:0000000000000000 }\n---\n`,
     );
     const view = elementView({
-      successions: [],
+      successionsOf: () => [],
       record: recordOf(file),
       file,
       images: [],
@@ -165,7 +165,7 @@ describe("elementView", () => {
       );
       const record = recordOf(file);
       return elementView({
-        successions: [],
+        successionsOf: () => [],
         record,
         file,
         metamodel: withParent,
@@ -223,7 +223,7 @@ describe("elementView", () => {
     const file = parsedFile(`---\nid: ${OTHER}\ntype: gadget\nstatus: 3\ntitle: [a]\nweight: 2\n---\nBody\n`);
     const record = recordOf(file);
     const view = elementView({
-      successions: [],
+      successionsOf: () => [],
       record,
       file,
       images: [],
@@ -250,7 +250,7 @@ describe("elementView", () => {
       data: { ...recordOf(file).data, "requirement-type": "odd", "acceptance-criteria": ["Shows it"] },
     };
     const view = elementView({
-      successions: [],
+      successionsOf: () => [],
       record,
       file,
       images: [],
@@ -272,7 +272,7 @@ describe("elementView", () => {
     const record = recordOf(file);
     const viewWith = (m: Metamodel): ReturnType<typeof elementView> =>
       elementView({
-        successions: [],
+        successionsOf: () => [],
         record,
         file,
         images: [],

@@ -13,7 +13,7 @@ import { commands } from "./index.js";
  * done, in a PR with green CI before its acceptance is prepared (stage-run skill, step 7); until
  * then its commands arrive one SR at a time.
  */
-const COMPLETED_STAGES: readonly number[] = [];
+const COMPLETED_STAGES: readonly number[] = [1];
 
 const commandsDir = import.meta.dirname;
 const isImplementation = (file: string): boolean =>

@@ -58,6 +58,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", title: "New decision", folder: "new" },
     { type: "nope", title: "Unknown type" },
   ],
+  "element.get": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "element.update": [
     { ref: WIND, title: "Renamed", text: "" },
     { ref: GUSTS, text: "New text\n", set: { rationale: "Why", "requirement-type": "quality" } },

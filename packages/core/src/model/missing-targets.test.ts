@@ -346,7 +346,7 @@ describe("missing relation targets (SR-089)", () => {
         throw new Error(`cannot read ${record.file}`);
       }
       const view = elementView({
-        successions: [],
+        successionsOf: () => [],
         record,
         file: read.file,
         images: [],

@@ -1,0 +1,498 @@
+import fs from "node:fs/promises";
+import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { describe, expect, it, onTestFinished } from "vitest";
+import type { CommandOutput, Problem } from "../../catalog.js";
+import { CommandError } from "../../catalog.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState, showElement, shortIdState } from "../../model/index.js";
+import { invoke } from "../../runtime/invoke.js";
+import { Workspace } from "../../runtime/workspace.js";
+import { workspaceLayoutState } from "../../workspace/index.js";
+
+type Element = CommandOutput<"element.get">["element"];
+
+interface Opened {
+  readonly fixture: FixtureWorkspace;
+  readonly workspace: Workspace;
+}
+
+const open = async (options: FixtureOptions, root = ""): Promise<Opened> => {
+  const fixture = await createFixtureWorkspace(options);
+  onTestFinished(() => fixture.cleanup());
+  const workspace = new Workspace(root === "" ? fixture.root : fixture.path(root));
+  onTestFinished(() => workspace.close());
+  return { fixture, workspace };
+};
+
+/** The hints of a shown element; element.get always gives them. */
+const hints = (element: Element): readonly Problem[] => element.problems ?? [];
+
+const get = async (opened: Opened, input: Record<string, unknown>): Promise<Element> =>
+  ((await invoke("element.get", input, { workspace: opened.workspace })) as CommandOutput<"element.get">)
+    .element;
+
+const getError = async (opened: Opened, input: Record<string, unknown>): Promise<CommandError> => {
+  try {
+    await get(opened, input);
+  } catch (error) {
+    if (error instanceof CommandError) {
+      return error;
+    }
+    throw error;
+  }
+  throw new Error("expected element.get to fail");
+};
+
+/** The elements of fixtures/SR-001/two-elements. */
+const WIND = { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", file: "requirements/SR-6328cee88fb3.md" };
+const GUSTS = { id: "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c", file: "requirements/SR-1d2e3f4a5b6c.md" };
+const TWO: FixtureOptions = { fixture: "SR-001/two-elements" };
+
+/** Every file below `folder` with its content, for "nothing written". */
+const snapshot = async (folder: string): Promise<Record<string, string>> => {
+  const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
+  const files = entries.filter((e) => e.isFile()).map((e) => `${e.parentPath}/${e.name}`);
+  return Object.fromEntries(
+    await Promise.all(files.map(async (f): Promise<[string, string]> => [f, await fs.readFile(f, "utf8")])),
+  );
+};
+
+describe("element.get", () => {
+  it("[SR-084/AK1] shows the element with the type prefix and at least 6 characters of its UUID, by UUID or short ID", async () => {
+    const opened = await open(TWO);
+    const byId = await get(opened, { ref: WIND.id });
+    expect(byId).toMatchObject({
+      id: WIND.id,
+      shortId: "SR-e88fb3",
+      type: "system-requirement",
+      status: "draft",
+      repository: expect.any(String) as string,
+      file: WIND.file,
+      readOnly: false,
+    });
+    expect(hints(byId).map((p) => p.code)).toEqual(["element.missing-required", "element.missing-required"]);
+    expect(byId.version).toMatch(/^n1:[0-9a-f]{16}$/);
+    expect(byId.text).toBe((await fs.readFile(opened.fixture.path(WIND.file), "utf8")).split("---\n")[2]);
+    expect(byId).not.toHaveProperty("versionDate");
+    expect(await get(opened, { ref: "SR-e88fb3" })).toEqual(byId);
+    expect(await get(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
+  });
+
+  it("writes no file and changes no status", async () => {
+    const opened = await open({ ...TWO, git: true });
+    const before = await snapshot(opened.fixture.root);
+    await get(opened, { ref: WIND.id });
+    await get(opened, { ref: GUSTS.id });
+    expect(await snapshot(opened.fixture.root)).toEqual(before);
+  });
+
+  it("refuses unknown and ambiguous references and a view (SR-043, stage 5)", async () => {
+    const opened = await open(TWO);
+    expect((await getError(opened, { ref: "SR-ffffff" })).code).toBe("ref.unknown");
+    expect((await getError(opened, { ref: WIND.id.replace("e8df", "0000") })).code).toBe("ref.unknown");
+    const view = await getError(opened, { ref: WIND.id, view: "core" });
+    expect([view.code, view.details]).toEqual([
+      "input.invalid",
+      { command: "element.get", fields: ["view"] },
+    ]);
+  });
+
+  it("[SR-005/AK2] shows the title of a target in another repository that is on this machine", async () => {
+    const opened = await open({ fixture: "SR-089/missing-targets" }, "system");
+    const element = await get(opened, { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" });
+    expect(element.repository).toBe("sensor");
+    expect(element.relations.filter((r) => r.kind === "derives-from")).toEqual([
+      expect.objectContaining({
+        id: "7d2c9e4f-1a3b-4c5d-8e6f-0a1b2c3d4e5f",
+        title: "Gusts visible",
+        accessible: true,
+        targetState: "available",
+      }),
+      expect.objectContaining({
+        id: "3b8e1f2a-6c4d-4e7f-9a1b-2c3d4e5f6a7b",
+        title: "Wind speed visible at a glance",
+        accessible: true,
+        targetState: "available",
+      }),
+    ]);
+  });
+
+  it("[SR-006/AK1] shows a target in a repository that is not on this machine only by short ID, as not accessible", async () => {
+    const opened = await open({ fixture: "SR-089/missing-targets" }, "system");
+    const element = await get(opened, { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" });
+    const [vault] = element.relations.filter((r) => r.kind === "based-on");
+    expect(vault).toEqual({
+      kind: "based-on",
+      direction: "out",
+      ...(vault?.meaning === undefined ? {} : { meaning: vault.meaning }),
+      id: "41b29219-7bc1-41c2-96a3-ed3a9c39dbb8",
+      shortId: "UNKNOWN-39dbb8",
+      accessible: false,
+      targetState: "inaccessible",
+      storedVersion: "n1:5f3b4a1e0c9d2e71",
+    });
+  });
+
+  it("[SR-088/AK2] marks a relation to a UUID that two files share as ambiguous; that UUID itself is ambiguous", async () => {
+    const opened = await open({ fixture: "SR-088/copied-file" }, "system");
+    const element = await get(opened, { ref: "4f4f8db9-be88-4699-8641-6ae4d00fcab6" });
+    const [copied] = element.relations;
+    expect(copied).toMatchObject({
+      id: "948a10f1-05c3-4212-bd19-00606ccf2661",
+      accessible: false,
+      targetState: "ambiguous",
+    });
+    expect(copied).not.toHaveProperty("title");
+    const error = await getError(opened, { ref: "948a10f1-05c3-4212-bd19-00606ccf2661" });
+    expect(error.code).toBe("ref.ambiguous");
+    expect((error.details as { candidates: unknown[] }).candidates).toHaveLength(2);
+  });
+
+  it("[SR-016/AK3] shows an element of an unknown type with a hint and only for reading", async () => {
+    const opened = await open({ fixture: "SR-016/unknown" });
+    const element = await get(opened, { ref: "2c9e4b71-6d58-4f03-a1e7-0f6a7b8c9d0e" });
+    expect(element).toMatchObject({ type: "gadget", title: "Wind vane", readOnly: true });
+    expect(hints(element)).toContainEqual(expect.objectContaining({ code: "element.unknown-type", line: 3 }));
+  });
+
+  it("[SR-016/AK1] gives a hint with the key of each unknown property and keeps it under properties", async () => {
+    const opened = await open({ fixture: "SR-016/unknown" });
+    const element = await get(opened, { ref: "5e0b8c2d-7f14-4a39-b6d2-8e9f0a1b2c3d" });
+    expect(element.readOnly).toBe(false);
+    expect(element.properties).toMatchObject({ "customer-id": 815, legacy: { source: "DOORS" } });
+    const unknown = hints(element).filter((p) => p.code === "element.unknown-property");
+    expect(unknown.map((p) => [p.line, p.message.includes("customer-id")])).toContainEqual([6, true]);
+    expect(unknown.some((p) => p.message.includes("legacy"))).toBe(true);
+  });
+
+  it("[SR-085/AK2] gives a hint with the allowed values for a choice value that is not one of them", async () => {
+    const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
+    const element = await get(opened, { ref: "c0dcc639-0097-42b7-b926-b69e094ad34c" });
+    const [hint] = hints(element);
+    expect(hints(element)).toHaveLength(1);
+    expect(hint).toMatchObject({ severity: "warning", file: "anemometer/SR-b69e094ad34c.md", line: 6 });
+    expect(hint?.message).toMatch(/low.*medium.*high/);
+  });
+
+  it("[SR-086/AK1] gives a hint with source, target and relation kind for a relation between types that are not allowed", async () => {
+    const opened = await open({ fixture: "SR-086/relation-types" }, "system");
+    const element = await get(opened, { ref: "22a972fd-f4f1-4b95-ba1d-e3e85234824e" });
+    expect(hints(element)).toEqual([
+      expect.objectContaining({
+        code: "relation.not-allowed",
+        severity: "warning",
+        elementId: "22a972fd-f4f1-4b95-ba1d-e3e85234824e",
+        targetId: "fa1e252c-ae4a-43c5-b53c-c03e4db185f3",
+        line: 7,
+      }),
+    ]);
+    expect(hints(element)[0]?.message).toMatch(/derives-from/i);
+    const allowed = await get(opened, { ref: "fa1e252c-ae4a-43c5-b53c-c03e4db185f3" });
+    expect(hints(allowed).filter((p) => p.code === "relation.not-allowed")).toEqual([]);
+  });
+
+  it("[SR-091/AK4] gives another version when an embedded image changes", async () => {
+    const opened = await open({
+      ...TWO,
+      files: {
+        [WIND.file]: `---\nid: ${WIND.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind\n---\n\n![Dial](dial.png)\n`,
+        "requirements/dial.png": "one",
+      },
+    });
+    const before = await get(opened, { ref: WIND.id });
+    await opened.fixture.write("requirements/dial.png", "two");
+    const after = await get(opened, { ref: WIND.id });
+    expect(after.version).not.toBe(before.version);
+    expect(after.text).toBe(before.text);
+  });
+
+  it("works read-only without hints while the metamodel is not valid (#208, #220 option 1)", async () => {
+    const opened = await open({
+      ...TWO,
+      files: {
+        "metamodel/standard-model.yaml": "types: [\n",
+        [GUSTS.file]: `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\ncolour: red\n---\n`,
+      },
+    });
+    expect((await opened.workspace.get(metamodelState)).valid).toBe(false);
+    const element = await get(opened, { ref: GUSTS.id });
+    expect(element).toMatchObject({ id: GUSTS.id, readOnly: true, problems: [] });
+    expect(element.properties).toHaveProperty("colour", "red");
+  });
+
+  it("shows a file that changed on disk since it was read as it is now", async () => {
+    const opened = await open(TWO);
+    await get(opened, { ref: WIND.id });
+    const text = await fs.readFile(opened.fixture.path(WIND.file), "utf8");
+    await opened.fixture.write(WIND.file, `${text}More.\n`);
+    expect((await get(opened, { ref: WIND.id })).text).toMatch(/More\.\n$/);
+  });
+
+  it("gives ref.unknown for a file that is gone or holds another element, and reads the files again", async () => {
+    const opened = await open(TWO);
+    const store = await opened.workspace.get(elementStoreState);
+    await fs.rm(opened.fixture.path(WIND.file));
+    const gone = await getError(opened, { ref: WIND.id });
+    expect([gone.code, gone.details]).toEqual([
+      "ref.unknown",
+      { ref: WIND.id, repository: expect.any(String) as string, file: WIND.file },
+    ]);
+    const fresh = await opened.workspace.get(elementStoreState);
+    expect(fresh).not.toBe(store);
+    expect(fresh.byId.has(WIND.id)).toBe(false);
+    const other = GUSTS.id.replace("3f2a", "4f2a");
+    const text = await fs.readFile(opened.fixture.path(GUSTS.file), "utf8");
+    await opened.fixture.write(GUSTS.file, text.replace(GUSTS.id, other));
+    expect((await getError(opened, { ref: GUSTS.id })).code).toBe("ref.unknown");
+    expect((await get(opened, { ref: other })).id).toBe(other);
+  });
+
+  it("reports a repository the layout does not list as an internal error", async () => {
+    const opened = await open(TWO);
+    const { workspace } = opened;
+    const layout = await workspace.get(workspaceLayoutState);
+    const context = {
+      workspace,
+      layout: { ...layout, repositories: [] },
+      metamodel: await workspace.get(metamodelState),
+      store: await workspace.get(elementStoreState),
+      shortIds: await workspace.get(shortIdState),
+    };
+    const error = await showElement(context, WIND.id, () => []).catch((e: unknown) => e);
+    expect((error as CommandError).code).toBe("internal");
+  });
+});
+
+describe("element.get, more of what stage 1 shows", () => {
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "is read-only in a repository folder this process cannot write (SR-018 AK2; skipped as root)",
+    async () => {
+      const opened = await open(TWO);
+      const folder = opened.fixture.root;
+      await fs.chmod(folder, 0o555);
+      onTestFinished(() => fs.chmod(folder, 0o755));
+      expect(await get(opened, { ref: WIND.id })).toMatchObject({ id: WIND.id, readOnly: true });
+    },
+  );
+
+  it("[SR-013/AK3] gives a hint naming the missing meaning title of a valid metamodel, with an empty title", async () => {
+    const model = await fs.readFile(
+      new URL("../../../../../fixtures/SR-001/two-elements/metamodel/standard-model.yaml", import.meta.url),
+      "utf8",
+    );
+    const opened = await open({
+      ...TWO,
+      files: { "metamodel/standard-model.yaml": model.replace("    meaning: title\n", "") },
+    });
+    expect((await opened.workspace.get(metamodelState)).valid).toBe(true);
+    const element = await get(opened, { ref: WIND.id });
+    expect(element.title).toBe("");
+    expect(element.properties).toHaveProperty("title");
+    expect(hints(element)).toContainEqual({
+      code: "metamodel.meaning-unassigned",
+      severity: "warning",
+      message:
+        "No property of the metamodel has the meaning title, which element.get needs. Add `meaning: title` to a property in the metamodel files.",
+    });
+  });
+
+  it("gives file.faulty for a file that became faulty since it was read", async () => {
+    const opened = await open(TWO);
+    await get(opened, { ref: WIND.id });
+    await opened.fixture.write(WIND.file, "---\nid: [\n---\n");
+    const error = await getError(opened, { ref: WIND.id });
+    expect(error.code).toBe("file.faulty");
+    expect(error.details).toMatchObject({ ref: WIND.id, file: WIND.file, problems: [expect.any(Object)] });
+  });
+
+  it("[SR-040/AK3] shows the hint on a validity that lists a superseded variant", async () => {
+    const opened = await open({
+      fixture: "SR-040/validity",
+      files: {
+        "variants/VAR-b2b2b2b2b2b2.md":
+          "---\nid: 40a0e000-0000-4000-8000-b2b2b2b2b2b2\ntype: variant\nstatus: obsolete\ntitle: Mountain\n---\n",
+      },
+    });
+    const element = await get(opened, { ref: "40a0e000-0000-4000-8000-000000000ab2" });
+    expect(hints(element).filter((p) => p.code === "variant.superseded-in-validity")).toEqual([
+      {
+        code: "variant.superseded-in-validity",
+        severity: "warning",
+        message:
+          "Property Validity (validity) of System Requirement SR-000ab2 lists Variant VAR-b2b2b2, which is superseded (status Obsolete)",
+        repository: "system",
+        file: "requirements/SR-000000000ab2.md",
+        line: 11,
+        elementId: "40a0e000-0000-4000-8000-000000000ab2",
+        targetId: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
+      },
+    ]);
+    // element.update returns the same element, with the same hint (get adds only readOnly).
+    const updated = (
+      (await invoke(
+        "element.update",
+        { ref: "40a0e000-0000-4000-8000-000000000ab2", text: element.text ?? "" },
+        { workspace: opened.workspace },
+      )) as CommandOutput<"element.update">
+    ).element;
+    expect({ ...updated, readOnly: element.readOnly }).toEqual(element);
+    const unaffected = await open({ fixture: "SR-040/validity" });
+    const plain = await get(unaffected, { ref: "40a0e000-0000-4000-8000-000000000ab2" });
+    expect(hints(plain).filter((p) => p.code === "variant.superseded-in-validity")).toEqual([]);
+  });
+});
+
+describe("a superseded element names its successor without a relation of its own (SR-072 AK3)", () => {
+  it("[SR-072/AK3] element.get names the successor as an incoming relation; the superseded file has none", async () => {
+    const opened = await open({ fixture: "SR-072/supersede" });
+    const old = "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6";
+    const successor = "7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7";
+    await invoke(
+      "element.supersede",
+      { ref: old, status: "obsolete", successor },
+      { workspace: opened.workspace },
+    );
+    const before = await fs.readFile(opened.fixture.path("needs/N-a1b2c3d4e5f6.md"), "utf8");
+    const element = await get(opened, { ref: "N-d4e5f6" });
+    expect(element.status).toBe("obsolete");
+    expect(element.relations).toEqual([
+      {
+        kind: "supersedes",
+        meaning: "replacement",
+        direction: "in",
+        id: successor,
+        shortId: "N-e5f6a7",
+        title: "See wind and gusts",
+        accessible: true,
+        targetState: "available",
+        storedVersion: expect.stringMatching(/^n1:[0-9a-f]{16}$/) as string,
+      },
+    ]);
+    expect(before).not.toContain(successor);
+    expect(await fs.readFile(opened.fixture.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toBe(before);
+  });
+
+  it("[SR-072/AK2] element.get gives the hint on a relation to a superseded element, naming its successor", async () => {
+    const opened = await open({ fixture: "SR-072/supersede" });
+    await invoke(
+      "element.supersede",
+      {
+        ref: "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6",
+        status: "obsolete",
+        successor: "7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7",
+      },
+      { workspace: opened.workspace },
+    );
+    const element = await get(opened, { ref: "7a1e0c2b-4d3f-4a5b-8c6d-c3d4e5f6a7b8" });
+    expect(hints(element)).toEqual([
+      expect.objectContaining({
+        code: "relation.target-superseded",
+        targetId: "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6",
+        line: 10,
+        message: expect.stringMatching(/superseded \(status Obsolete\); successor: Need N-e5f6a7$/) as string,
+      }),
+    ]);
+  });
+
+  it("[SR-072/AK3] element.get names no successor for an element that is not superseded", async () => {
+    const opened = await open({ fixture: "SR-072/supersede" });
+    const element = await get(opened, { ref: "N-d4e5f6" });
+    expect(element.relations.filter((r) => r.direction === "in")).toEqual([]);
+  });
+});
+
+describe("element.get gives the same hints on relations to superseded elements as workspace.check (SR-072 AK2)", () => {
+  const OLD = "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6";
+  const NEW = "7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7";
+  const SECOND = "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a";
+  const LENIENT = "7a1e0c2b-4d3f-4a5b-8c6d-0c0c0c0c0c0c";
+  const AMBIGUOUS = "7a1e0c2b-4d3f-4a5b-8c6d-0d0d0d0d0d0d";
+  const SELF = "7a1e0c2b-4d3f-4a5b-8c6d-0e0e0e0e0e0e";
+  const POINTER = "7a1e0c2b-4d3f-4a5b-8c6d-0f0f0f0f0f0f";
+  const MISSING = "7a1e0c2b-4d3f-4a5b-8c6d-000000000000";
+  const V = "n1:1111111111111111";
+
+  const element = (id: string, type: string, status: string, title: string, extra = ""): string =>
+    `---\nid: ${id}\ntype: ${type}\nstatus: ${status}\ntitle: ${title}\n${extra}---\n`;
+
+  const FILES = {
+    "needs/N-a1b2c3d4e5f6.md": element(OLD, "need", "obsolete", "See the wind"),
+    "needs/N-b2c3d4e5f6a7.md": element(
+      NEW,
+      "need",
+      "draft",
+      "See wind and gusts",
+      `supersedes:\n  - { id: ${OLD}, version: ${V} }\n`,
+    ),
+    "needs/N-0a0a0a0a0a0a.md": element(
+      SECOND,
+      "need",
+      "draft",
+      "See the gusts",
+      `supersedes:\n  - { id: ${OLD}, version: ${V} }\n`,
+    ),
+    // Without a version: a successor in the view (SR-072 AK3), not named in the hints (no relation target).
+    "needs/N-0c0c0c0c0c0c.md": element(
+      LENIENT,
+      "need",
+      "draft",
+      "See it roughly",
+      `supersedes:\n  - { id: ${OLD} }\n`,
+    ),
+    "needs/N-0d0d0d0d0d0d.md": element(AMBIGUOUS, "need", "obsolete", "Copied"),
+    "needs/copy/N-0d0d0d0d0d0d.md": element(AMBIGUOUS, "need", "obsolete", "Copied"),
+    // Replaces itself: no successor of itself, in the whole workspace and for one element.
+    "needs/N-0e0e0e0e0e0e.md": element(
+      SELF,
+      "need",
+      "obsolete",
+      "Itself",
+      `supersedes:\n  - { id: ${SELF}, version: ${V} }\n`,
+    ),
+    "requirements/SR-0f0f0f0f0f0f.md": element(
+      POINTER,
+      "system-requirement",
+      "draft",
+      "Pointer",
+      `derives-from:\n  - { id: ${MISSING}, version: ${V} }\n  - { id: ${AMBIGUOUS}, version: ${V} }\n  - { id: ${OLD}, version: ${V} }\n  - { id: ${SELF}, version: ${V} }\n`,
+    ),
+  };
+
+  const supersededHints = (problems: readonly Problem[]): readonly Problem[] =>
+    problems.filter((p) => p.code === "relation.target-superseded");
+
+  it("[SR-072/AK2] element.get and workspace.check give the same hints, naming only complete successor relations", async () => {
+    const opened = await open({ fixture: "SR-072/supersede", files: FILES });
+    const check = (await invoke(
+      "workspace.check",
+      {},
+      { workspace: opened.workspace },
+    )) as CommandOutput<"workspace.check">;
+    const store = await opened.workspace.get(elementStoreState);
+    const shown = store.elements.filter((e) => e.id !== AMBIGUOUS);
+    for (const record of shown) {
+      const element = await get(opened, { ref: record.id });
+      expect(supersededHints(hints(element)), record.file).toEqual(
+        supersededHints(check.problems).filter((p) => p.elementId === record.id),
+      );
+    }
+    const pointer = supersededHints(hints(await get(opened, { ref: POINTER })));
+    expect(pointer.map((p) => [p.targetId, p.message])).toEqual([
+      [
+        OLD,
+        "Relation Derives from (derives-from) from System Requirement SR-0f0f0f points to Need N-d4e5f6, which is superseded (status Obsolete); successors: Need N-0a0a0a, Need N-e5f6a7",
+      ],
+      [
+        SELF,
+        "Relation Derives from (derives-from) from System Requirement SR-0f0f0f points to Need N-0e0e0e, which is superseded (status Obsolete)",
+      ],
+    ]);
+    const old = await get(opened, { ref: OLD });
+    expect(old.relations.filter((r) => r.direction === "in").map((r) => r.id)).toEqual([
+      SECOND,
+      LENIENT,
+      NEW,
+    ]);
+  });
+});

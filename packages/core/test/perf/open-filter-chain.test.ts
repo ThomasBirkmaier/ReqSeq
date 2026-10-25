@@ -1,10 +1,9 @@
 // SR-082 AK3 and AK4 in the performance suite (ADR-0011): opening an element, applying a filter and
 // computing a chain in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
-// Stage 1 has no `element.get`, no filter language (SR-070, stage 3) and no chain (SR-022, stage 2),
-// so each criterion is measured at the lowest level core has (#127, option 1): opening is the lookup
-// of the UUID in the store, the read of its file and the element view that `element.create` and
-// `element.update` return; the filter and the chain run on the in-memory store and an index of
-// incoming relations, which ADR-0008 says they will run on. Later stages add tests of their commands
+// Opening is `element.get` (look up, read the file, element view with its hints and successors).
+// Stage 1 has no filter language (SR-070, stage 3) and no chain (SR-022, stage 2), so these are
+// measured at the lowest level core has (#127, option 1): they run on the in-memory store and an
+// index of incoming relations, which ADR-0008 says they will run on. Later stages add tests of their commands
 // with the same tags. The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
 // `measure` recorded the times.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
@@ -16,26 +15,13 @@ import { RACY_MS, serializeModelCache } from "../../src/model/model-cache.js";
 import type { LoadedStore } from "../../src/model/store.js";
 import { canonicalRoot, writeCacheFile } from "../../src/workspace/index.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { readElementFile } from "../../src/files/index.js";
+import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
-import type { ElementRecord, ElementStore, ShortIds } from "../../src/model/index.js";
+import type { ElementRecord, ElementStore } from "../../src/model/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
-import {
-  elementStoreState,
-  elementView,
-  embeddedImages,
-  hasId,
-  ignoredBy,
-  resolveTarget,
-  shortIdState,
-  successionsFor,
-  titleKeyOf,
-  warmWorkspace,
-} from "../../src/model/index.js";
+import { elementStoreState, hasId, resolveTarget, titleKeyOf, warmWorkspace } from "../../src/model/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
-import type { WorkspaceLayout } from "../../src/workspace/index.js";
-import { availableRepositories, workspaceLayoutState } from "../../src/workspace/index.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -96,8 +82,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   let workspace: Workspace | undefined;
   let store: ElementStore;
   let metamodel: Metamodel;
-  let layout: WorkspaceLayout;
-  let shortIds: ShortIds;
 
   beforeAll(async () => {
     tree = generateLargeWorkspace({ version: VERSION, elements: ELEMENTS, relations: RELATIONS });
@@ -107,8 +91,6 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     await warmWorkspace(workspace);
     store = await workspace.get(elementStoreState);
     metamodel = await workspace.get(metamodelState);
-    layout = await workspace.get(workspaceLayoutState);
-    shortIds = await workspace.get(shortIdState);
     expect(store.elements).toHaveLength(ELEMENTS);
   }, 600_000);
 
@@ -139,58 +121,41 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     }
   });
 
-  /**
-   * Opening an element as `element.get` will: look it up, read its file, build its view, with its
-   * successors (`successionsFor`, SR-072 AK3). With `superseded`, the element is shown as if its
-   * status were `obsolete` (marked invalid; no generated element has one), so the view builds the
-   * succession index of a store that has none yet.
-   */
+  /** Opening an element: `element.get`, as every access calls it (SR-080). */
   const openElement = async (
+    opened: Workspace,
     id: string,
-    current: { readonly store: ElementStore; readonly shortIds: ShortIds },
-    superseded = false,
-  ): Promise<ReturnType<typeof elementView>> => {
-    const titleKey = titleKeyOf(metamodel) ?? "title";
-    const [stored] = current.store.byId.get(id) ?? [];
-    const record =
-      stored === undefined || !superseded
-        ? stored
-        : { ...stored, data: { ...stored.data, status: "obsolete" } };
-    const repository = availableRepositories(layout).find((r) => r.name === record?.repository);
-    if (record === undefined || repository === undefined) {
-      throw new Error(`element ${id} is not in the store`);
+  ): Promise<CommandOutput<"element.get">["element"]> =>
+    ((await invoke("element.get", { ref: id }, { workspace: opened })) as CommandOutput<"element.get">)
+      .element;
+
+  /** A system requirement and the target of its first derives-from relation, both in the store. */
+  const relationToTarget = (): { readonly source: ElementRecord; readonly target: ElementRecord } => {
+    for (const source of store.elements.slice(Math.floor(ELEMENTS / 4))) {
+      const [first] = Array.isArray(source.data["derives-from"])
+        ? (source.data["derives-from"] as unknown[])
+        : [];
+      const match = hasId(first) ? resolveTarget(store, source.repository, first) : undefined;
+      if (match?.kind === "found") {
+        return { source, target: match.element };
+      }
     }
-    const read = await readElementFile(repository.folder, record.file);
-    if (read.kind !== "parsed") {
-      throw new Error(`cannot read ${record.file}`);
-    }
-    const images = await embeddedImages(
-      { repository, ignored: ignoredBy(layout) },
-      record.file,
-      read.file.body,
-    );
+    throw new Error("the generated workspace has no derives-from relation");
+  };
+
+  const opened = (): Workspace => {
     if (workspace === undefined) {
       throw new Error("no workspace");
     }
-    return elementView({
-      successions: successionsFor(workspace, current.store, metamodel, record),
-      record,
-      file: read.file,
-      metamodel,
-      store: current.store,
-      shortIds: current.shortIds,
-      titleKey,
-      layout,
-      images,
-    });
+    return workspace;
   };
 
   it("[SR-082/AK3] shows an element within 200 ms of opening it", async () => {
     const id = tree.elements[Math.floor(ELEMENTS / 2)]?.id ?? "";
     const { result: view, measurement } = await measure(
       "open one element (look up, read its file, element view)",
-      () => openElement(id, { store, shortIds }),
-      { basis: "SR-082 AK3 (core: store lookup, file read, element view; #127)", thresholdMs: OPEN_MS },
+      () => openElement(opened(), id),
+      { basis: "SR-082 AK3 (element.get: store lookup, file read, element view)", thresholdMs: OPEN_MS },
     );
     expect(view.id).toBe(id);
     expect(view.problems).toEqual([]);
@@ -242,17 +207,14 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
 
   // Last: it changes a file of the workspace.
   it("[SR-082/AK3] shows an element within 200 ms of opening it right after a save", async () => {
-    const opened = workspace;
-    if (opened === undefined) {
-      throw new Error("no workspace");
-    }
+    const current = opened();
     const saved = tree.elements[Math.floor(ELEMENTS / 3)]?.id ?? "";
     const id = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.id ?? "";
     // As an API server after a `workspace.check`: every finding state is built (no findings in the
     // generated workspace, so the carry walks every element without locating anything).
     const { result: checked } = await measure(
       "workspace.check in the loaded workspace (builds every finding state)",
-      () => invoke("workspace.check", {}, { workspace: opened }),
+      () => invoke("workspace.check", {}, { workspace: current }),
       { basis: "SR-082 AK3 (the states the save carries over; no threshold of its own)" },
     );
     expect(checked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
@@ -263,32 +225,50 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
         invoke(
           "element.update",
           { ref: saved, title: "Saved in the performance suite" },
-          { workspace: opened },
+          { workspace: current },
         ),
       { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
     );
     const { result: view, measurement } = await measure(
-      "open one element right after a save (store and short IDs as the save left them, file read, element view)",
-      async () =>
-        openElement(
-          id,
-          { store: await opened.get(elementStoreState), shortIds: await opened.get(shortIdState) },
-          // Superseded: the first such view after the save builds the succession index (SR-072 AK3).
-          true,
-        ),
-      { basis: "SR-082 AK3 (core: open after a save, #184; #127)", thresholdMs: OPEN_MS },
+      "open one element right after a save (element.get on the store and short IDs as the save left them)",
+      () => openElement(current, id),
+      { basis: "SR-082 AK3 (element.get after a save, #184)", thresholdMs: OPEN_MS },
     );
     expect(view.id).toBe(id);
-    expect((await opened.get(elementStoreState)).byId.get(saved)?.[0]?.data["title"]).toBe(
+    expect((await current.get(elementStoreState)).byId.get(saved)?.[0]?.data["title"]).toBe(
       "Saved in the performance suite",
     );
     // The carried finding states equal a fresh check: none, as before the save.
     const { result: rechecked } = await measure(
       "workspace.check right after a save (finding states carried over, #184)",
-      () => invoke("workspace.check", {}, { workspace: opened }),
+      () => invoke("workspace.check", {}, { workspace: current }),
       { basis: "SR-020 (a check after a save; no threshold of its own)" },
     );
     expect(rechecked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
+
+    // Supersede a target of relations by its status (a save), then open it and one of its sources.
+    const { source, target } = relationToTarget();
+    await measure(
+      "save one status (element.setStatus obsolete, marked invalid)",
+      () => invoke("element.setStatus", { refs: [target.id], status: "obsolete" }, { workspace: current }),
+      { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
+    );
+    const { result: superseded, measurement: supersededOpen } = await measure(
+      "open a superseded element right after a save (builds the succession index, SR-072 AK3)",
+      () => openElement(current, target.id),
+      { basis: "SR-082 AK3 (element.get of a superseded element after a save)", thresholdMs: OPEN_MS },
+    );
+    expect(superseded.status).toBe("obsolete");
+    const { result: pointing, measurement: pointingOpen } = await measure(
+      "open an element with a relation to a superseded element (SR-072 AK2 hint)",
+      () => openElement(current, source.id),
+      { basis: "SR-082 AK3 (element.get with a relation to a superseded element)", thresholdMs: OPEN_MS },
+    );
+    expect(pointing.problems).toContainEqual(
+      expect.objectContaining({ code: "relation.target-superseded", targetId: target.id }),
+    );
+    expect(supersededOpen.ms, thresholdMessage(supersededOpen)).toBeLessThanOrEqual(OPEN_MS);
+    expect(pointingOpen.ms, thresholdMessage(pointingOpen)).toBeLessThanOrEqual(OPEN_MS);
   });
 });

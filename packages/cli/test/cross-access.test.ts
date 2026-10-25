@@ -59,6 +59,39 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
   ],
+  "element.get": [
+    { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
+    {
+      name: "superseded element with its successor (SR-072 AK3)",
+      fixture: {
+        fixture: "SR-072/supersede",
+        git: true,
+        files: {
+          "needs/N-a1b2c3d4e5f6.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6\ntype: need\nstatus: obsolete\ntitle: See the wind\n---\n",
+          "needs/N-b2c3d4e5f6a7.md":
+            "---\nid: 7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7\ntype: need\nstatus: draft\ntitle: See wind and gusts\nsupersedes:\n  - { id: 7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6, version: n1:1111111111111111, title: See the wind }\n---\n",
+        },
+      },
+      input: { ref: "N-d4e5f6" },
+      expect: "output",
+    },
+    {
+      name: "unknown type, read-only (SR-016 AK3)",
+      fixture: { fixture: "SR-016/unknown", git: true },
+      input: { ref: "2c9e4b71-6d58-4f03-a1e7-0f6a7b8c9d0e" },
+      expect: "output",
+    },
+    {
+      name: "relations across repositories, one missing (SR-005, SR-006)",
+      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      root: "system",
+      input: { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" },
+      expect: "output",
+    },
+    { name: "unknown reference", input: { ref: "SR-ffffff" }, expect: "error" },
+    { name: "view of a variant (stage 5)", input: { ref: "SR-e88fb3", view: "core" }, expect: "error" },
+  ],
   "element.setStatus": [
     { name: "approve one element", input: { refs: ["SR-e88fb3"], status: "approved" }, expect: "output" },
     {

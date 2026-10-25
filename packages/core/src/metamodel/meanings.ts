@@ -186,11 +186,19 @@ export const requireMeaning = (metamodel: Metamodel, meaning: Meaning, command: 
   if (metamodel.meanings[meaning].length > 0) {
     return;
   }
-  const list = MEANINGS[meaning];
-  const { label } = LABELS[list];
-  throw new CommandError(
-    "metamodel.meaning-unassigned",
-    `No ${label} of the metamodel has the meaning ${meaning}, which ${command} needs. Add \`meaning: ${meaning}\` to a ${label} in the metamodel files.`,
-    { meaning, list, command },
-  );
+  throw new CommandError("metamodel.meaning-unassigned", meaningUnassignedMessage(meaning, command), {
+    meaning,
+    list: MEANINGS[meaning],
+    command,
+  });
+};
+
+/**
+ * The message of `metamodel.meaning-unassigned` (SR-013 AK3): no key has `meaning`, which `command`
+ * needs, and where to add it. `requireMeaning` throws it; a read command that works without the
+ * meaning gives it as a hint.
+ */
+export const meaningUnassignedMessage = (meaning: Meaning, command: CommandName): string => {
+  const { label } = LABELS[MEANINGS[meaning]];
+  return `No ${label} of the metamodel has the meaning ${meaning}, which ${command} needs. Add \`meaning: ${meaning}\` to a ${label} in the metamodel files.`;
 };

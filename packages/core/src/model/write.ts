@@ -49,6 +49,7 @@ import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
+import type { ExtraFindings } from "./view.js";
 import { elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -281,6 +282,7 @@ const finish = async (
   shortIds: ShortIds,
   titleKey: string,
   files: readonly string[],
+  extraFindings: ExtraFindings | undefined,
   replaced?: FileSnapshot,
 ): Promise<ElementWriteResult> => {
   const repository = targetRepository(context.layout, written.record.repository);
@@ -297,7 +299,8 @@ const finish = async (
     shortIds,
     titleKey,
     layout: context.layout,
-    successions: successionsFor(workspace, context.store, context.metamodel, written.record),
+    successionsOf: (element) => successionsFor(workspace, context.store, context.metamodel, element),
+    ...(extraFindings === undefined ? {} : { extraFindings }),
   });
   if (files.length > 0) {
     await recordWrites(workspace, context.layout, [
@@ -381,6 +384,7 @@ const folderOf = (folder: string): string => {
 export const createElement = async (
   workspace: Workspace,
   input: CreateElementInput,
+  extraFindings?: ExtraFindings,
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
@@ -450,9 +454,15 @@ export const createElement = async (
     await writeFileAtomic(repository.folder, file, decode(bytes), null),
   );
   const shortIds = buildShortIds(withRecord(store, written.record).byId, metamodel);
-  return finish(workspace, written, context, shortIds, titleKey, [
-    workspacePath(layout, repository, written.record.file),
-  ]);
+  return finish(
+    workspace,
+    written,
+    context,
+    shortIds,
+    titleKey,
+    [workspacePath(layout, repository, written.record.file)],
+    extraFindings,
+  );
 };
 
 /** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
@@ -636,6 +646,7 @@ export const writeElementFiles = async (
 export const updateElement = async (
   workspace: Workspace,
   input: UpdateElementInput,
+  extraFindings?: ExtraFindings,
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
@@ -668,7 +679,7 @@ export const updateElement = async (
     keyOrder: type.properties,
   });
   if (!changed) {
-    return finish(workspace, current, context, shortIds, titleKey, []);
+    return finish(workspace, current, context, shortIds, titleKey, [], extraFindings);
   }
   const written = writtenElement(
     repository.name,
@@ -682,6 +693,7 @@ export const updateElement = async (
     shortIds,
     titleKey,
     [workspacePath(layout, repository, record.file)],
+    extraFindings,
     record.snapshot,
   );
 };

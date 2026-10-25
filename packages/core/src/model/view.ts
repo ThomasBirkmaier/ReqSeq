@@ -15,6 +15,7 @@ import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
 import type { RelationKey } from "./relation-keys.js";
 import { hasId, relationItems } from "./relation-keys.js";
+import { relationTypeFindings } from "./relation-types.js";
 import { targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import type { ShortIds } from "./short-id.js";
@@ -113,7 +114,7 @@ const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
 
 /**
  * The successors of a superseded element (SR-072 AK3): each relation with the meaning
- * `replacement` from a successor to it (`input.successions`, `successionsFor`), as a relation with
+ * `replacement` from a successor to it (`input.successionsOf`, `successionsFor`), as a relation with
  * `direction: "in"`. The other end is the successor, with its `targetState` (D-058): `available`
  * when its repository has exactly one element with its UUID, then also with its short ID and
  * title, also across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088).
@@ -121,7 +122,7 @@ const outgoingRelations = (input: ElementViewInput): DataExportRelation[] => {
  * itself has no relation to its successor (D-045).
  */
 const successorRelations = (input: ElementViewInput): DataExportRelation[] =>
-  input.successions.map(({ source, kind, item }): DataExportRelation => {
+  input.successionsOf(input.record).map(({ source, kind, item }): DataExportRelation => {
     const state = targetState(input.layout, input.store, source.repository, { id: source.id });
     const available = state.kind === "available";
     const title = source.data[input.titleKey];
@@ -181,11 +182,25 @@ export interface ElementViewInput {
   /** Which repositories of the workspace are on this machine (`targetState`, SR-006). */
   readonly layout: Pick<WorkspaceLayout, "repositories">;
   /**
-   * The relations from the element's successors in `store` (SR-072 AK3). Must come from
-   * `successionsFor` with the same `store` and `metamodel`; `[]` lists none.
+   * The relations from the successors of an element in `store`: `successionsFor` with the same
+   * `store` and `metamodel`; `() => []` lists none. Asked for `record` (its successors, SR-072 AK3)
+   * and for the superseded targets of its relations (the successors their hints name, SR-072 AK2),
+   * so no view walks the store (`supersededFindingsOf`, N-036).
    */
-  readonly successions: readonly Succession[];
+  readonly successionsOf: (element: ElementRecord) => readonly Succession[];
+  /** Hints of blocks that import the model (variants, SR-040 AK3), listed after the others. */
+  readonly extraFindings?: ExtraFindings;
 }
+
+/**
+ * Hints on one element from a block that imports the model, so the model cannot ask it itself
+ * (`supersededValidityFindingsOf`, SR-040 AK3), before their lines are known. Asked only while
+ * the metamodel is valid. `record` is the element as shown.
+ */
+export type ExtraFindings = (
+  context: Pick<ElementViewInput, "store" | "metamodel" | "shortIds">,
+  record: ElementRecord,
+) => readonly LocatableFinding[];
 
 /**
  * The element with its text, its version (ADR-0005, with the embedded images of `input.images`),
@@ -193,10 +208,11 @@ export interface ElementViewInput {
  * keys included), its own relations, then, when it is superseded, the relations from its successors
  * (`successorRelations`, SR-072 AK3), and the hints with their lines: unknown type and properties
  * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
- * (SR-085), then relations to superseded elements (SR-072 AK2); no hints while the metamodel is not
- * valid (#208, #220 option 1). The successor relations are relations, not hints, so they are
- * listed also then; `input.successions` must come from `successionsFor`. Other relations pointing
- * at it and the version date are left out.
+ * (SR-085), relations between types the metamodel does not allow (SR-086), then relations to
+ * superseded elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option
+ * 1). The successor relations are relations, not hints, so they are listed also then;
+ * `input.successionsOf` must come from `successionsFor`. Other relations pointing at it and the
+ * version date are left out.
  */
 export const elementView = (
   input: ElementViewInput,
@@ -214,7 +230,9 @@ export const elementView = (
         ...unknownFindings(record, metamodel),
         ...requiredFindings(record, metamodel),
         ...valueFindings(record, metamodel),
-        ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record),
+        ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
+        ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
+        ...(input.extraFindings?.(input, record) ?? []),
       ]
     : [];
   const problems: Problem[] = findings.map((f) => {

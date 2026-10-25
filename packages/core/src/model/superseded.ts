@@ -24,6 +24,7 @@ import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
+import type { Succession } from "./successors.js";
 
 /** What the hints need: targets are looked up in the store, messages show short IDs (SR-084). */
 export interface SupersededContext {
@@ -128,7 +129,8 @@ export const elementLabel = (
 const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly ElementRecord[]> => {
   const successors = new Map<string, ElementRecord[]>();
   for (const hit of hits) {
-    if (hit.kind.meaning === "replacement") {
+    // An element that replaces itself is no successor of itself, as in the view (`successionsOf`).
+    if (hit.kind.meaning === "replacement" && placeOf(hit.source) !== placeOf(hit.target)) {
       const place = placeOf(hit.target);
       const known = successors.get(place) ?? [];
       if (!known.some((s) => placeOf(s) === placeOf(hit.source))) {
@@ -181,24 +183,41 @@ export const supersededTargetFindings = (
 
 /**
  * The hints on the relations of one element (SR-072 AK2), in the order of its keys and items, for
- * a command about one element (`elementView`: `element.create`, `element.update`, later
- * `element.get`), like `unknownFindings`. `source` need not be in the store as it is (a new or
- * just written element): the successors are the sources of `replacement` relations in the store
- * to the same targets, with `source` in place of the store's copy of it.
+ * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
+ * like `unknownFindings`. `source` need not be in the store as it is (a new or just written
+ * element): the successors are the sources of `replacement` relations in the store to the same
+ * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
+ * (`successionsFor` on the same store) in the succession index, not by a walk over the store
+ * (N-036, ADR-0008: 200 ms to open an element).
  */
 export const supersededFindingsOf = (
   context: SupersededContext,
   source: ElementRecord,
+  successionsOfTarget: (target: ElementRecord) => readonly Succession[],
 ): readonly LocatableFinding[] => {
   const own = hitsOf(context, [source], undefined);
-  if (own.length === 0) {
-    return [];
-  }
-  const stored = hitsOf(context, context.store.elements, filterOf(own.map((h) => h.target))).filter(
-    (h) => placeOf(h.source) !== placeOf(source),
-  );
-  return findingsOf(context, own, successorsOf([...stored, ...own]));
+  return own.length === 0 ? [] : findingsOf(context, own, successorsFrom(own, successionsOfTarget));
 };
+
+/**
+ * The successors of each target of `own` by its place: the elements of the store with a
+ * `replacement` relation to it (`successionsOfTarget`, from the succession index), each once, in
+ * store order. Only items that are complete relation targets count, as in `hitsOf`; the index also
+ * keeps items without a version, which the view lists as successors (SR-072 AK3). `findingsOf`
+ * leaves out the hit's own source, so `source` itself needs no special case.
+ */
+const successorsFrom = (
+  own: readonly Hit[],
+  successionsOfTarget: (target: ElementRecord) => readonly Succession[],
+): ReadonlyMap<string, readonly ElementRecord[]> =>
+  new Map(
+    own.map((hit): [string, readonly ElementRecord[]] => {
+      const sources = successionsOfTarget(hit.target)
+        .filter((s) => isRelationTarget(s.item))
+        .map((s): [string, ElementRecord] => [placeOf(s.source), s.source]);
+      return [placeOf(hit.target), [...new Map(sources).values()]];
+    }),
+  );
 
 /**
  * The hints with their lines for the relations to `targets` as the element store holds them now:

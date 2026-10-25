@@ -2,4 +2,8 @@
 // variants. Core blocks and commands import it relatively; it is not part of the package's public API.
 export { appliesIn, validityEntries, validityOf, validityTarget, variantTypes, variantsOf } from "./views.js";
 export type { Validity, ValidityEntry, ValidityTarget, View } from "./views.js";
-export { supersededValidityFindings, supersededValidityProblemsState } from "./superseded-validity.js";
+export {
+  supersededValidityFindings,
+  supersededValidityFindingsOf,
+  supersededValidityProblemsState,
+} from "./superseded-validity.js";
