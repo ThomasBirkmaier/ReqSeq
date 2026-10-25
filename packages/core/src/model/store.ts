@@ -533,13 +533,13 @@ export interface StoreUpdate {
 /**
  * The update from `from` to `to`, per repository whose contents are another object: every file
  * whose contribution is another object. Undefined when one of them has no `repositories` or they
- * hold other repositories: then nothing tells which records are the same.
+ * hold other repositories or the same in another order: then nothing tells which records are the
+ * same, and kept problems could not be merged by the index of their repository (`carryProblems`).
  */
 export const storeUpdate = (from: ElementStore, to: ElementStore): StoreUpdate | undefined => {
   if (from.repositories === undefined || to.repositories?.length !== from.repositories.length) {
     return undefined;
   }
-  const before = new Map(from.repositories.map((r) => [r.repository, r]));
   const files = new Map<string, Set<string>>();
   const ids = new Set<string>();
   const note = (result: Contribution | undefined): void => {
@@ -549,9 +549,10 @@ export const storeUpdate = (from: ElementStore, to: ElementStore): StoreUpdate |
       ids.add(id);
     }
   };
-  for (const now of to.repositories) {
-    const old = before.get(now.repository);
-    if (old === undefined) {
+  for (const [i, now] of to.repositories.entries()) {
+    // The same repositories in the same order: `carryProblems` merges kept problems by this index.
+    const old = from.repositories[i];
+    if (old?.repository !== now.repository) {
       return undefined;
     }
     if (old === now) {

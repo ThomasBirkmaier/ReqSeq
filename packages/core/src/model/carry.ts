@@ -44,7 +44,8 @@ interface Group {
   readonly findings: readonly LocatableFinding[];
 }
 
-const earlier = (a: Kept, b: Group): boolean => a.at < b.at || (a.at === b.at && a.file < b.file);
+/** Whether a kept problem comes before a group in store order: by repository, then by `byPath`. */
+const earlier = (a: Kept, b: Group): boolean => a.at < b.at || (a.at === b.at && byPath(a.file, b.file) < 0);
 
 /**
  * The problems of a finding state after `update`, from `old`, its problems before (per element in

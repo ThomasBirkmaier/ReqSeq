@@ -238,6 +238,37 @@ describe("derived states carried over a change of the store (#184)", () => {
     await expectFresh(fixture, workspace);
   });
 
+  it("equal a fresh build when one watcher batch adds a file that sorts before a changed one", async () => {
+    const { fixture, workspace } = await open();
+    await buildAll(workspace);
+    const need4 = await fs.readFile(fixture.path("needs/N-a00000000004.md"), "utf8");
+    // Both files get an unknown key; `a/N-new.md` comes first in store order, though not in the batch.
+    await external(fixture, workspace, {
+      "needs/N-a00000000004.md": need4.replace("title: Old need", "title: Old need\nbogus-a: 1"),
+      "a/N-new.md": need("9c9c9c9c-9999-4999-8999-c00000000077", "bogus-b: 2\n"),
+    });
+    expectCarried(workspace);
+    await expectFresh(fixture, workspace);
+  });
+
+  it("look at no unchanged element again after a save that keeps every UUID in place (SR-086 shortcut)", async () => {
+    const { fixture, workspace } = await open();
+    await buildAll(workspace);
+    // The SR-086 hint of the unchanged N-…2 names SR-…1 as its target.
+    const [hint] = (await workspace.get(relationTypeProblemsState)).filter(
+      (p) => p.file === "needs/N-a00000000002.md",
+    );
+    expect(hint).toBeDefined();
+    await updateElement(workspace, { ref: `${SR}1`, title: "A new title" });
+    expectCarried(workspace);
+    const [after] = (await workspace.get(relationTypeProblemsState)).filter(
+      (p) => p.file === "needs/N-a00000000002.md",
+    );
+    // The very problem kept, not found and located again.
+    expect(after).toBe(hint);
+    await expectFresh(fixture, workspace);
+  });
+
   it("are reset when nothing tells which records changed", async () => {
     const { workspace } = await open();
     await buildAll(workspace);
@@ -262,6 +293,87 @@ describe("derived states carried over a change of the store (#184)", () => {
     // A save then reads the store in full again, through the fallback of `recordWrites`.
     await recordWrites(workspace, layout, []);
     await expectFresh(fixture, workspace);
+  });
+});
+
+describe("derived states carried over a change in several repositories (#184)", () => {
+  /** The SR-085 fixture (repositories `system` and `sensor`), with an extra system requirement. */
+  const openTwo = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-085/value-kinds",
+      files: {
+        // A parent item that is a system requirement (SR-086), named without `repository:`.
+        "system/requirements/SR-new000000001.md":
+          "---\nid: 9d9d9d9d-9999-4999-8999-d00000000001\ntype: system-requirement\nstatus: draft\ntitle: New\nparent-item: { id: 234ae95e-f9e5-4d31-9ab2-9b0f1826503d, version: n1:1111111111111111 }\n---\n\nText.\n",
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    await buildAll(workspace);
+    return { fixture, workspace };
+  };
+
+  /** Applies changed paths per repository the way the watcher does (SR-007). */
+  const watched = async (
+    workspace: Workspace,
+    paths: Readonly<Record<string, readonly string[]>>,
+  ): Promise<void> => {
+    const layout = await workspace.get(workspaceLayoutState);
+    const changed = await applyStoreChange(workspace, (store) =>
+      updateElements(
+        store,
+        layout,
+        new Map(Object.entries(paths).map(([repository, list]) => [repository, { paths: [...list] }])),
+      ),
+    );
+    expect(changed).toBeDefined();
+  };
+
+  const expectFreshTwo = async (fixture: FixtureWorkspace, workspace: Workspace): Promise<void> => {
+    const fresh = new Workspace(fixture.path("system"));
+    onTestFinished(() => fresh.close());
+    expect(await derived(workspace)).toEqual(await derived(fresh));
+  };
+
+  it("equal a fresh build when a target moves to another repository with its UUID and type", async () => {
+    const { fixture, workspace } = await openTwo();
+    expect((await workspace.get(relationTypeProblemsState)).map((p) => p.file)).toContain(
+      "requirements/SR-new000000001.md",
+    );
+    await fs.rename(
+      fixture.path("system/requirements/SR-9b0f1826503d.md"),
+      fixture.path("sensor/SR-9b0f1826503d.md"),
+    );
+    await watched(workspace, { system: ["requirements/SR-9b0f1826503d.md"], sensor: ["SR-9b0f1826503d.md"] });
+    expectCarried(workspace);
+    await expectFreshTwo(fixture, workspace);
+  });
+
+  it("equal a fresh build when a file of the first repository changes and the second keeps its problems", async () => {
+    const { fixture, workspace } = await openTwo();
+    expect((await workspace.get(valueKindProblemsState)).map((p) => p.repository)).toContain("sensor");
+    const file = fixture.path("system/requirements/SR-9b0f1826503d.md");
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("One wrong value", "One more wrong value"),
+    );
+    await watched(workspace, { system: ["requirements/SR-9b0f1826503d.md"] });
+    expectCarried(workspace);
+    await expectFreshTwo(fixture, workspace);
+  });
+
+  it("equal a fresh build when a file of the second repository changes and the first keeps its problems", async () => {
+    const { fixture, workspace } = await openTwo();
+    expect((await workspace.get(valueKindProblemsState)).map((p) => p.repository)).toContain("system");
+    const file = fixture.path("sensor/anemometer/SR-b69e094ad34c.md");
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("The choice value", "The choice value really"),
+    );
+    await watched(workspace, { sensor: ["anemometer/SR-b69e094ad34c.md"] });
+    expectCarried(workspace);
+    await expectFreshTwo(fixture, workspace);
   });
 });
 
@@ -310,7 +422,7 @@ describe("storeUpdate (#184)", () => {
     });
   });
 
-  it("cannot tell without repositories or with other repositories", async () => {
+  it("cannot tell without repositories or with other repositories or another order of them", async () => {
     const store = await load();
     const { repositories: _dropped, ...bare } = store;
     expect(storeUpdate(bare, store)).toBeUndefined();
@@ -318,6 +430,14 @@ describe("storeUpdate (#184)", () => {
     expect(storeUpdate(store, { ...store, repositories: [] })).toBeUndefined();
     const renamed = (store.repositories ?? []).map((r) => ({ ...r, repository: "other" }));
     expect(storeUpdate(store, { ...store, repositories: renamed })).toBeUndefined();
+    const two = await createFixtureWorkspace({ fixture: "SR-085/value-kinds" });
+    onTestFinished(() => two.cleanup());
+    const both = new Workspace(two.path("system"));
+    onTestFinished(() => both.close());
+    const pair = await both.get(elementStoreState);
+    const reversed = [...(pair.repositories ?? [])].reverse();
+    expect(reversed.map((r) => r.repository)).toEqual(["sensor", "system"]);
+    expect(storeUpdate(pair, { ...pair, repositories: reversed })).toBeUndefined();
   });
 
   it("gives a hook nothing for another state than the store", () => {
