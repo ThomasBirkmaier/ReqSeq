@@ -6,7 +6,7 @@
 // inheritance.ts) and the built-in meanings are assigned (SR-013, meanings.ts). Checks across the
 // lists (enabler #157): a key is either a property or a relation kind (ADR-0004, while merging);
 // after all files, every type in `source-types`/`target-types` is defined and exactly one status is
-// initial.
+// initial. No type uses the prefix that short IDs of elements of an unknown type use (#154).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -33,6 +33,14 @@ import { assignMeanings } from "./meanings.js";
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
 
+/**
+ * Prefix of the short ID of an element whose type the metamodel does not know (SR-016 AK3), of every
+ * element while the metamodel is missing, and of a relation target that is not available (#193).
+ * Decision on #154 (option 1). Reserved: a type with this prefix is a metamodel error, so a short ID
+ * with it never names an element of a known type.
+ */
+export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
+
 /** The metamodel of the checked-out state: the definitions as written, and the types resolved. */
 export interface Metamodel {
   /** Repository and folder from the workspace file. */
@@ -56,7 +64,8 @@ export interface Metamodel {
    * The folder exists and no file has an error (faulty YAML, schema violation, key defined twice,
    * key used by a property and a relation kind), every type has known parents without a cycle and
    * names only known properties, no type or property meaning is declared by two keys, every type in
-   * `source-types`/`target-types` is defined, and exactly one status is initial.
+   * `source-types`/`target-types` is defined, exactly one status is initial, and no type uses the
+   * prefix `UNKNOWN_TYPE_PREFIX`.
    * When false the workspace is read-only (SR-011 AK3).
    */
   readonly valid: boolean;
@@ -265,6 +274,18 @@ const unknownTypeProblems = (
   ];
 };
 
+/** Every type with the prefix `UNKNOWN_TYPE_PREFIX`, on the line of its prefix (#154). */
+const reservedPrefixProblems = (types: readonly Located<MetamodelType>[]): Problem[] =>
+  types
+    .filter((t) => t.definition.prefix === UNKNOWN_TYPE_PREFIX)
+    .map((t) =>
+      locatedProblem(
+        t,
+        ["prefix"],
+        `Type ${t.definition.key} uses the reserved prefix ${UNKNOWN_TYPE_PREFIX}, which short IDs of elements of an unknown type use`,
+      ),
+    );
+
 const ONE_INITIAL = "exactly one status must have initial: true";
 
 /**
@@ -394,6 +415,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   const resolved = resolveTypes(types, new Set(merged.properties.firstFile.keys()), complete);
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
   problems.push(
+    ...reservedPrefixProblems(types),
     ...resolved.problems,
     ...assigned.problems,
     // A type or the initial status that seems missing may be in a faulty file, which is reported

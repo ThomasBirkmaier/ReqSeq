@@ -300,7 +300,7 @@ describe("short IDs", () => {
     expect(await filesBelow(ws.root)).toEqual(files);
   });
 
-  it("shows an element of a type the metamodel does not know with the prefix UNKNOWN (spec question #154)", async () => {
+  it("shows an element of a type the metamodel does not know with the prefix UNKNOWN (decision on #154)", async () => {
     const id = "0a1b2c3d-0000-4000-8000-0000000beef1";
     const ws = await fixture({
       fixture: "SR-003/moved",

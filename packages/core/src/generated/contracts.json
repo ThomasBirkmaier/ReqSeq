@@ -1299,7 +1299,7 @@
             "prefix": {
               "type": "string",
               "pattern": "^[A-Z][A-Z0-9]*$",
-              "description": "Prefix of the short ID, e.g. SR (D-017)."
+              "description": "Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154)."
             },
             "extends": {
               "$ref": "#/$defs/key",

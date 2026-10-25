@@ -283,7 +283,7 @@ const followedFromSource = async (opened: Opened): Promise<FollowedTargets> => {
 describe("missing access (SR-006)", () => {
   it("[SR-006/AK1] shows a target whose repository is not on this machine only with its short ID and as not accessible", async () => {
     const opened = await openWithoutPlatform();
-    // Prefix UNKNOWN: the type of the target is not known here (assumption, spec question #154).
+    // Prefix UNKNOWN: the type of the target is not known here (decision on #154).
     expect(await relationsOfSource(opened)).toEqual([
       {
         kind: "derives-from",

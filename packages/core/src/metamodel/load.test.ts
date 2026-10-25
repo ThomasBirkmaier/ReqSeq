@@ -5,7 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Metamodel } from "./index.js";
-import { MEANINGS, loadMetamodel, metamodelState } from "./index.js";
+import { MEANINGS, UNKNOWN_TYPE_PREFIX, loadMetamodel, metamodelState } from "./index.js";
 
 const fixture = async (options: FixtureOptions = {}): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-011/split-folder", ...options });
@@ -509,6 +509,66 @@ describe("loadMetamodel", () => {
       ["model/z-faulty.yaml", 2],
       ["model/z-more.yaml", 5],
     ]);
+  });
+
+  it("reports a type with the reserved prefix UNKNOWN on the line of its prefix and keeps the type (#154)", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml": [
+          "logreq-metamodel: 1",
+          "types:",
+          "  - key: mystery",
+          "    name: Mystery",
+          `    prefix: ${UNKNOWN_TYPE_PREFIX}`,
+          "",
+        ].join("\n"),
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.types.find((t) => t.key === "mystery")?.prefix).toBe("UNKNOWN");
+    expect(metamodel.problems.filter((p) => p.severity === "error")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/z-more.yaml",
+        line: 5,
+        message:
+          "Type mystery uses the reserved prefix UNKNOWN, which short IDs of elements of an unknown type use",
+      },
+    ]);
+  });
+
+  it("reports the reserved prefix UNKNOWN also while a file is faulty", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
+        "model/z-more.yaml":
+          "logreq-metamodel: 1\ntypes:\n  - { key: mystery, name: Mystery, prefix: UNKNOWN }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.problems.filter((p) => p.severity === "error").map((p) => [p.file, p.line])).toEqual([
+      ["model/z-faulty.yaml", 2],
+      ["model/z-more.yaml", 3],
+    ]);
+    expect(metamodel.problems.find((p) => p.file === "model/z-more.yaml")).toMatchObject({
+      code: "metamodel.invalid",
+      message: expect.stringContaining("reserved prefix UNKNOWN") as unknown,
+    });
+  });
+
+  it("accepts a prefix that only starts with UNKNOWN", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-more.yaml":
+          "logreq-metamodel: 1\ntypes:\n  - { key: unknown-ish, name: Unknownish, prefix: UNKNOWNX }\n  - { key: unk, name: Unk, prefix: UNK }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(true);
+    expect(metamodel.problems).toEqual([YML_WARNING]);
   });
 
   it("passes YAML warnings on without making the metamodel invalid", async () => {

@@ -538,7 +538,7 @@ export interface MetamodelType {
   /** Display name. English in the standard model (D-019). */
   readonly name: string;
   readonly description?: string;
-  /** Prefix of the short ID, e.g. SR (D-017). */
+  /** Prefix of the short ID, e.g. SR (D-017). UNKNOWN is reserved for elements of an unknown type and is a metamodel error (#154). */
   readonly prefix: string;
   /** Parent type; its properties and required properties are inherited, over any number of levels (SR-012 AK2). A parent that is not defined, or a cycle, is a metamodel error. */
   readonly extends?: MetamodelKey;

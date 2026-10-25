@@ -4,7 +4,7 @@
 // prefix and the 12 digits it got when the element was created and never changes (D-056, SR-084 AK3).
 // Computing short IDs reads nothing and writes nothing.
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, metamodelState } from "../metamodel/index.js";
+import { UNKNOWN_TYPE_PREFIX, findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
@@ -12,11 +12,9 @@ import { carryStoreUpdate, elementStoreState } from "./store.js";
 /** Digits of the UUID a short ID shows at least (D-017, D-056, SR-084 AK1). */
 export const SHORT_ID_MIN_LENGTH = 6;
 
-/**
- * Prefix of an element whose type the metamodel does not know (SR-016 AK3), or of every element
- * while the metamodel is missing. Assumption until spec question #154 is answered (option 1).
- */
-export const UNKNOWN_TYPE_PREFIX = "UNKNOWN";
+// The prefix of an element whose type the metamodel does not know (decision on #154); the metamodel
+// owns it, since its check refuses a type with it.
+export { UNKNOWN_TYPE_PREFIX };
 
 /**
  * What a short ID names: one element, none, or several (SR-060 AK3: `ref.unknown`, `ref.ambiguous`).

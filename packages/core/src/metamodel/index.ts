@@ -7,7 +7,7 @@ export { assertWritable, metamodelProblems, workspaceAccess } from "./access.js"
 export type { WorkspaceAccess } from "./access.js";
 export { resolveTypes } from "./inheritance.js";
 export type { EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
-export { METAMODEL_FILE_EXTENSION, loadMetamodel } from "./load.js";
+export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
 export { allowsType, findType, keyDefinition, typeForNewElement } from "./lookup.js";
 export type { KeyDefinition } from "./lookup.js";
