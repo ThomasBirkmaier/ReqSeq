@@ -42,10 +42,21 @@ export interface FixtureWorkspace {
   path(relativePath: string): string;
   /** Write a file (creates folders). */
   write(relativePath: string, content: FileContent): Promise<void>;
-  /** Run `git <args>` in a repository of the fixture (default the root) and return stdout. */
-  git(args: readonly string[], repository?: string): Promise<string>;
+  /** Run `git <args>` in a repository of the fixture (default the root) and return stdout; `input` goes to stdin. */
+  git(args: readonly string[], repository?: string, input?: Uint8Array): Promise<string>;
   /** Commit everything in a repository (default the root) and return the new HEAD commit ID. */
   commit(repository?: string, message?: string): Promise<string>;
+  /**
+   * Make a commit with `files` (added or replaced) on top of `parent` (default HEAD) without
+   * touching the working tree, the index or any branch, and return its ID: one `git fast-import`
+   * instead of writing and adding the files. For fixtures with hundreds of files, which took
+   * several seconds per `git add` on a loaded windows-2025 runner (#226); check one out with
+   * `git reset --hard <commit>` or merge it.
+   */
+  commitFiles(
+    files: Readonly<Record<string, FileContent>>,
+    options?: { readonly repository?: string; readonly parent?: string; readonly message?: string },
+  ): Promise<string>;
   /** Current HEAD commit ID of a repository (default the root). */
   head(repository?: string): Promise<string>;
   /** Remove the temporary folder. Call it in `afterEach` or `onTestFinished`. */
@@ -88,9 +99,9 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       await fs.mkdir(path.dirname(file), { recursive: true });
       await fs.writeFile(file, content);
     },
-    async git(args, repository = ".") {
+    async git(args, repository = ".", input) {
       const date = new Date(BASE_DATE + commitCount * 1000).toISOString();
-      const { stdout } = await execFileAsync("git", [...args], {
+      const run = execFileAsync("git", [...args], {
         cwd: resolveInside(root, repository),
         env: {
           ...cleanEnv(),
@@ -105,6 +116,10 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
           GIT_COMMITTER_DATE: date,
         },
       });
+      // A git that exits before reading all of stdin (EPIPE) rejects `run`, which carries the error.
+      run.child.stdin?.on("error", () => undefined);
+      run.child.stdin?.end(input);
+      const { stdout } = await run;
       return stdout;
     },
     async commit(repository = ".", message = "fixture") {
@@ -112,6 +127,34 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       await workspace.git(["add", "--all"], repository);
       await workspace.git(["commit", "--quiet", "--allow-empty", "--no-verify", "-m", message], repository);
       return workspace.head(repository);
+    },
+    async commitFiles(files, options = {}) {
+      const repository = options.repository ?? ".";
+      const parent = options.parent ?? (await workspace.head(repository));
+      commitCount++;
+      const seconds = (BASE_DATE + commitCount * 1000) / 1000;
+      const data = (content: FileContent): Uint8Array[] => {
+        const bytes = typeof content === "string" ? Buffer.from(content) : content;
+        return [Buffer.from(`data ${String(bytes.length)}\n`), bytes, Buffer.from("\n")];
+      };
+      const ref = `refs/logreq-fixture/${String(commitCount)}`;
+      const stream = [
+        Buffer.from(`commit ${ref}\ncommitter LogReq Test <test@logreq.invalid> ${String(seconds)} +0000\n`),
+        ...data(options.message ?? "fixture"),
+        Buffer.from(`from ${parent}\n`),
+        ...Object.entries(files).flatMap(([file, content]) => {
+          resolveInside(resolveInside(root, repository), file);
+          // fast-import reads an unquoted path up to the end of the line; a leading `"` starts a quoted one.
+          if (file.includes("\n") || file.startsWith('"')) {
+            throw new Error(`fixture path must not hold a line break or start with a quote: ${file}`);
+          }
+          return [Buffer.from(`M 100644 inline ${file}\n`), ...data(content)];
+        }),
+      ];
+      await workspace.git(["fast-import", "--quiet"], repository, Buffer.concat(stream));
+      const commit = (await workspace.git(["rev-parse", ref], repository)).trim();
+      await workspace.git(["update-ref", "-d", ref], repository);
+      return commit;
     },
     async head(repository = ".") {
       return (await workspace.git(["rev-parse", "HEAD"], repository)).trim();

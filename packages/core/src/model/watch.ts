@@ -14,6 +14,13 @@
 //   and replaced (`applyStoreChange`), which resets the state built on it (short IDs, findings). A
 //   store nobody has read yet is left alone: the next read finds the files as they are.
 // An update that fails resets the store, so the next command reads it in full.
+//
+// An event without a file name means the OS dropped the names of a burst: ReadDirectoryChangesW
+// (Windows) overflows its buffer of about 4 KB on a pull of a few hundred files, and libuv then
+// reports one change without a name, nothing else. Every repository below the watched folder is
+// then checked file by file (size and mtime), the metamodel is read again when its folder lies
+// there, and the layout is read once and compared, so a pull that also changed the workspace file
+// is not missed (SR-007 AK2).
 import type { FSWatcher } from "node:fs";
 import fs from "node:fs";
 import path from "node:path";
@@ -27,6 +34,7 @@ import {
   LOCAL_FILE,
   WORKSPACE_FILE,
   availableRepositories,
+  loadWorkspaceLayout,
   workspaceLayoutState,
 } from "../workspace/index.js";
 import { ELEMENT_FILE_EXTENSION } from "./discover.js";
@@ -163,11 +171,18 @@ interface ElementChanges {
 
 interface Batch {
   layout: boolean;
+  /** The OS dropped names in the main repository: the layout is read and compared (an overflow). */
+  checkLayout: boolean;
   metamodel: boolean;
   elements: ElementChanges | undefined;
 }
 
-const emptyBatch = (): Batch => ({ layout: false, metamodel: false, elements: undefined });
+const emptyBatch = (): Batch => ({
+  layout: false,
+  checkLayout: false,
+  metamodel: false,
+  elements: undefined,
+});
 
 /** The element changes of a batch for `layout`; changes sorted with another layout are dropped. */
 const elementChanges = (batch: Batch, layout: WorkspaceLayout): Map<string, Set<string> | null> => {
@@ -368,11 +383,18 @@ class Watcher implements WorkspaceWatcher {
     }
     const repositories = availableRepositories(layout);
     if (name === null) {
-      // The OS dropped the details (e.g. an overflow): check every repository below this folder.
+      // The OS dropped the names (an overflow): anything below this folder may have changed.
       this.#mark((b) => {
         const changes = elementChanges(b, layout);
         for (const r of repositories.filter((r) => within(folder, r.folder))) {
           changes.set(r.name, null);
+        }
+        if (holdsMetamodel(folder, layout.metamodel.folder)) {
+          b.metamodel = true;
+        }
+        // The repository folders are real paths; the root is the path the workspace was opened with.
+        if (repositories.some((r) => r.main && within(folder, r.folder))) {
+          b.checkLayout = true;
         }
       });
       return;
@@ -443,7 +465,11 @@ class Watcher implements WorkspaceWatcher {
       return;
     }
     try {
-      if (batch.layout || this.#workspace.peek(workspaceLayoutState) !== this.#layout) {
+      if (
+        batch.layout ||
+        this.#workspace.peek(workspaceLayoutState) !== this.#layout ||
+        (batch.checkLayout && (await this.#layoutChanged()))
+      ) {
         await this.#workspace.reset(workspaceLayoutState);
         await this.#start();
         return;
@@ -458,6 +484,17 @@ class Watcher implements WorkspaceWatcher {
         // dependent state is that state's to report; the watcher goes on.
         await this.#workspace.reset(elementStoreState).catch(() => undefined);
       }
+    }
+  }
+
+  /** Whether the workspace and local files now give another layout than the watched one. */
+  async #layoutChanged(): Promise<boolean> {
+    const watched = this.#watched;
+    try {
+      return JSON.stringify(await loadWorkspaceLayout(this.#workspace.root)) !== JSON.stringify(watched);
+    } catch {
+      // A workspace file that no longer reads: the layout state reports why.
+      return true;
     }
   }
 

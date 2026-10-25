@@ -142,6 +142,43 @@ describe("createFixtureWorkspace", () => {
     }
   });
 
+  it("makes commits of many files without touching the working tree, the index or a branch", async () => {
+    const ws = await make({ files: { "a.md": "a" }, git: true });
+    const before = await ws.head();
+    const first = await ws.commitFiles({
+      "a.md": "changed",
+      "sub/b.md": "b",
+      "img.png": Uint8Array.of(0, 255),
+    });
+    expect(first).toMatch(COMMIT);
+    expect(await ws.head()).toBe(before);
+    expect(await ws.git(["status", "--porcelain"])).toBe("");
+    expect(read(ws.path("a.md"))).toBe("a");
+    expect(await ws.git(["show", `${first}:a.md`])).toBe("changed");
+    expect((await ws.git(["log", "-1", "--format=%P %an %s", first])).trim()).toBe(
+      `${before} LogReq Test fixture`,
+    );
+    // On another parent, with a message; no branch or other ref is left.
+    const second = await ws.commitFiles({ "c.md": "c" }, { parent: first, message: "upstream" });
+    expect((await ws.git(["log", "-1", "--format=%P %s", second])).trim()).toBe(`${first} upstream`);
+    expect(await ws.git(["show", `${second}:sub/b.md`])).toBe("b");
+    expect((await ws.git(["for-each-ref", "--format=%(refname)"])).trim()).toBe("refs/heads/main");
+    await ws.git(["merge", "--quiet", "--ff-only", second]);
+    expect([...fs.readFileSync(ws.path("img.png"))]).toEqual([0, 255]);
+    expect(read(ws.path("c.md"))).toBe("c");
+    await expect(ws.commitFiles({ "../x.md": "x" })).rejects.toThrow(/relative/);
+    await expect(ws.commitFiles({ '"q.md': "x" })).rejects.toThrow(/quote/);
+    await expect(ws.commitFiles({ "a\nb.md": "x" })).rejects.toThrow(/line break/);
+  });
+
+  it("rejects with git's own error when git exits before it read its input", async () => {
+    const ws = await make({ git: true });
+    // More than any pipe holds: the rest of the write fails (EPIPE) once git has exited.
+    await expect(
+      ws.git(["rev-parse", "--verify", "--quiet", "nope"], ".", Buffer.alloc(16 * 1024 * 1024)),
+    ).rejects.toThrow(/rev-parse/);
+  });
+
   it("removes everything on cleanup", async () => {
     const ws = await createFixtureWorkspace({ files: { "a.md": "a" }, git: true });
     await ws.cleanup();

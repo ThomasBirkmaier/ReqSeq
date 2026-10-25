@@ -241,19 +241,26 @@ describe("watching a workspace with the file system (SR-007)", () => {
     for (let i = 1; i <= count; i++) {
       files[`pulled/SR-${uuid(i).slice(-12)}.md`] = requirement(uuid(i), `Requirement ${String(i)}`);
     }
-    const { fixture, workspace } = await opened({ files, git: true });
-    const before = await fixture.head();
-    // Upstream: every file approved and derived from a new need; then back to the old commit.
+    const { fixture, workspace } = await opened({ git: true });
+    // The commits are made with `commitFiles` (one `git fast-import`): writing and adding 1,000
+    // files twice took most of the test's time on a loaded windows-2025 runner (#226).
+    const before = await fixture.commitFiles(files);
+    // Upstream: every file approved and derived from a new need.
     const target = uuid(count + 1);
-    await fixture.write(`needs/N-${target.slice(-12)}.md`, need(target, "Gusts"));
+    const upstreamFiles: Record<string, string> = {
+      [`needs/N-${target.slice(-12)}.md`]: need(target, "Gusts"),
+    };
     for (let i = 1; i <= count; i++) {
-      await fixture.write(
-        `pulled/SR-${uuid(i).slice(-12)}.md`,
-        requirement(uuid(i), `Requirement ${String(i)}`, "approved", target),
+      upstreamFiles[`pulled/SR-${uuid(i).slice(-12)}.md`] = requirement(
+        uuid(i),
+        `Requirement ${String(i)}`,
+        "approved",
+        target,
       );
     }
-    const upstream = await fixture.commit(undefined, "upstream");
-    await fixture.git(["reset", "--hard", before]);
+    const upstream = await fixture.commitFiles(upstreamFiles, { parent: before, message: "upstream" });
+    // The working tree at the old commit: Git writes the 1,000 files with drafts.
+    await fixture.git(["reset", "--quiet", "--hard", before]);
     const store = await workspace.get(elementStoreState);
     expect(records(store, uuid(1))[0]?.data["status"]).toBe("draft");
     expect(resolveId(store.byId, target).kind).toBe("unknown");
@@ -488,6 +495,131 @@ describe("the watcher's rules (SR-007)", () => {
     fake.only().send(REQUIREMENT_FILE);
     await watcher.settled();
     expect(await title(workspace, REQUIREMENT)).toBe("A title that makes the file longer");
+  });
+
+  it("[SR-007/AK2] reads the metamodel again and keeps an unchanged layout when the OS drops the names of a burst", async () => {
+    const { fixture, workspace } = await opened();
+    const store = await workspace.get(elementStoreState);
+    await workspace.get(metamodelState);
+    const layout = workspace.peek(workspaceLayoutState);
+    const { fake, watcher } = await watched(workspace);
+    const first = fake.only();
+    // An overflow (Windows): the names of the pull are gone, one event without a name is left.
+    first.send(null);
+    await watcher.settled();
+    expect(workspace.peek(metamodelState)).toBeUndefined();
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
+    expect(first.closed).toBe(false);
+    expect(workspace.peek(elementStoreState)).toBeDefined();
+    expect(await workspace.get(elementStoreState)).toBe(store);
+    // The same, when the pull changed an element file: it is read again, nothing else.
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Pulled with an overflow", "approved"));
+    first.send(null);
+    await watcher.settled();
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
+    expect(records(await workspace.get(elementStoreState), REQUIREMENT)[0]?.data).toMatchObject({
+      title: "Pulled with an overflow",
+      status: "approved",
+    });
+  });
+
+  it("[SR-007/AK2] reads the layout again when the OS dropped the name of a changed workspace file", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    await workspace.get(workspaceLayoutState);
+    const layout = workspace.peek(workspaceLayoutState);
+    const { fake, watcher } = await watched(workspace);
+    const first = fake.only();
+    const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
+    await fixture.write(
+      "logreq-workspace.yaml",
+      text.replace("name: Weather station", "name: Pulled station"),
+    );
+    first.send(null);
+    await watcher.settled();
+    expect(first.closed).toBe(true);
+    expect(workspace.peek(elementStoreState)).toBeUndefined();
+    expect(workspace.peek(workspaceLayoutState)).not.toBe(layout);
+    expect((await workspace.get(workspaceLayoutState)).name).toBe("Pulled station");
+    expect(fake.only().recursive).toBe(true);
+    // A workspace file that no longer reads: the layout is reset and only the root is watched for it.
+    await fixture.write("logreq-workspace.yaml", "logreq-workspace: [\n");
+    fake.only().send(null);
+    await watcher.settled();
+    expect(workspace.peek(workspaceLayoutState)).toBeUndefined();
+    expect(fake.open().map((h) => [h.folder, h.recursive])).toEqual([[workspace.root, false]]);
+  });
+
+  it("[SR-007/AK2] reads the layout again after a nameless event when the workspace was opened through a link", async () => {
+    const { fixture } = await opened();
+    // A junction on Windows (no admin rights needed), a symbolic link elsewhere: the repository
+    // folders are real paths, the root is the path the workspace was opened with.
+    const link = path.join(path.dirname(fixture.root), "linked");
+    await fs.symlink(fixture.root, link, "junction");
+    const workspace = new Workspace(link);
+    onTestFinished(async () => {
+      await workspace.close();
+      // Runs before the fixture is removed; the link alone goes, never its target.
+      await fs.unlink(link);
+    });
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const first = fake.only();
+    expect(first.folder).not.toBe(link);
+    const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
+    await fixture.write(
+      "logreq-workspace.yaml",
+      text.replace("name: Weather station", "name: Linked station"),
+    );
+    first.send(null);
+    await watcher.settled();
+    expect(first.closed).toBe(true);
+    expect((await workspace.get(workspaceLayoutState)).name).toBe("Linked station");
+  });
+
+  it("[SR-007/AK2] reads the metamodel again after a nameless event in another repository that holds it", async () => {
+    const { workspace } = await opened({
+      files: {
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
+      },
+    });
+    const other = path.join(workspace.root, "..", "model");
+    await fs.cp(path.join(workspace.root, "metamodel"), path.join(other, "metamodel"), { recursive: true });
+    await workspace.get(elementStoreState);
+    await workspace.get(metamodelState);
+    const layout = workspace.peek(workspaceLayoutState);
+    const { fake, watcher } = await watched(workspace);
+    fake.of(other).send(null);
+    await watcher.settled();
+    expect(workspace.peek(metamodelState)).toBeUndefined();
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
+  });
+
+  it("[SR-007/AK2] checks only the repository whose names the OS dropped when it holds neither the workspace file nor the metamodel", async () => {
+    const { workspace } = await opened({
+      files: {
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: system, path: metamodel }\n",
+      },
+    });
+    const other = path.join(workspace.root, "..", "other");
+    await fs.mkdir(path.join(other, "requirements"), { recursive: true });
+    await fs.writeFile(path.join(other, "requirements", "SR-0c1d2e3f4a5b.md"), requirement(OTHER, "Other"));
+    await workspace.get(elementStoreState);
+    const metamodel = workspace.get(metamodelState);
+    await metamodel;
+    const layout = workspace.peek(workspaceLayoutState);
+    const { fake, watcher } = await watched(workspace);
+    await fs.writeFile(
+      path.join(other, "requirements", "SR-0c1d2e3f4a5b.md"),
+      requirement(OTHER, "Other, pulled"),
+    );
+    fake.of(other).send(null);
+    await watcher.settled();
+    expect(workspace.peek(metamodelState)).toBe(metamodel);
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
+    expect(await title(workspace, OTHER)).toBe("Other, pulled");
   });
 
   it("reads the layout again when the workspace file or the local file changes, and watches anew", async () => {
