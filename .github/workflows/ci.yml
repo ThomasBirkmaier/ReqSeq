@@ -23,7 +23,9 @@ concurrency:
 jobs:
   trace-check:
     name: trace-check
-    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    needs: runners
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,9 +53,11 @@ jobs:
   # (Thomas, 2026-10-25): Linux and macOS jobs run there while its runners are online, otherwise on GitHub.
   # Pull requests from forks never run there. Windows always runs on GitHub. The weekly reference run
   # (Sunday 04:00 UTC) uses GitHub's runners only, so that SR-076's macOS 14 and Ubuntu 24.04 (x64) stay covered.
+  # When GitHub cannot start hosted jobs (spending limit), this job fails within seconds; the jobs that need it
+  # still run (`!cancelled()`) and fall back to the Mac runners (the literal map in their `runs-on`, #251).
+  # Windows has no self-hosted runner and stays red then.
   runners:
     name: pick runners
-    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
     runs-on: ubuntu-latest
     outputs:
       map: ${{ steps.pick.outputs.map }}
@@ -85,9 +89,9 @@ jobs:
   static:
     name: static (typecheck, lint, format, contracts, licenses)
     # Title, body and label edits only matter to trace-check.
-    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map)['ubuntu-24.04'] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -107,14 +111,14 @@ jobs:
   # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems (macOS nightly).
   test:
     name: test (${{ matrix.os }})
-    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
     strategy:
       fail-fast: false
       matrix:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map)[matrix.os] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -138,14 +142,14 @@ jobs:
   # On Linux the suite runs inside a user and network namespace (`unshare -rn`): no network at all.
   e2e:
     name: e2e (${{ matrix.os }})
-    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
     strategy:
       fail-fast: false
       matrix:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map)[matrix.os] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
