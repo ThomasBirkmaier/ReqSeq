@@ -85,9 +85,18 @@ const inside = (parent: string, child: string): string | undefined => {
 const within = (folder: string | undefined, absolute: string): boolean =>
   folder !== undefined && (absolute === folder || inside(folder, absolute) !== undefined);
 
-/** Whether the metamodel folder is `absolute` or lies below it. */
+// The metamodel folder is the repository's real path joined with `location.path` as typed in the
+// workspace file; event and walk paths are spelled as the file system gives them. So both are
+// compared in Unicode NFC (#225): on macOS an NFD folder typed in NFC is the same folder. Where a
+// file system keeps the normal forms apart, this only errs towards an extra reset or watch.
+
+/** Whether the metamodel folder is `absolute` or lies below it, compared in NFC. */
 const holdsMetamodel = (absolute: string, metamodel: string | undefined): boolean =>
-  metamodel !== undefined && within(absolute, metamodel);
+  metamodel !== undefined && within(absolute.normalize("NFC"), metamodel.normalize("NFC"));
+
+/** Whether `absolute` is the metamodel folder or lies below it, compared in NFC. */
+const inMetamodel = (metamodel: string | undefined, absolute: string): boolean =>
+  within(metamodel?.normalize("NFC"), absolute.normalize("NFC"));
 
 const atOrBelow = (relative: string, folder: string): boolean =>
   relative === folder || relative.startsWith(`${folder}/`);
@@ -373,7 +382,7 @@ class Watcher implements WorkspaceWatcher {
       this.#mark((b) => (b.layout = true));
       return;
     }
-    if (within(layout.metamodel.folder, absolute)) {
+    if (inMetamodel(layout.metamodel.folder, absolute)) {
       this.#mark((b) => (b.metamodel = true));
     }
     // The innermost repository holds the file (a nested repository is read under its own name).

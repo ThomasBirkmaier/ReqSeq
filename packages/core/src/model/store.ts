@@ -221,7 +221,8 @@ export const loadElements = async (
 export interface RepositoryChanges {
   /**
    * Paths relative to the repository (`/` as separator) of files or folders that were created,
-   * changed, renamed or deleted. Every listed file at or below such a path is checked again.
+   * changed, renamed or deleted, in any Unicode normal form. Every listed file at or below such a
+   * path (both compared in NFC) is checked again.
    */
   readonly paths: readonly string[];
   /** The watcher cannot say which paths changed: every file is checked again. */
@@ -283,14 +284,18 @@ const updateContents = async (
   // One walk again: it sees new, moved and deleted files and folders and applies every rule of the
   // full read (ignore globs, nested repositories, links) without reading a file (N-036).
   const listed = await listMarkdownFiles(repository, ignored);
-  const named = new Set(changes.paths);
+  // Compared in Unicode NFC (#225): the watcher may spell a path in another normal form than
+  // `readdir` (FSEvents on macOS). Where a file system keeps the forms apart, a file is at most
+  // checked once more.
+  const named = new Set(changes.paths.map((p) => p.normalize("NFC")));
   const check: string[] = [];
   for (const file of listed.files) {
     const old = before.files.get(file);
-    const touched = changes.all === true || atOrBelow(file, named);
+    const key = file.normalize("NFC");
+    const touched = changes.all === true || atOrBelow(key, named);
     if (
       old === undefined ||
-      named.has(file) ||
+      named.has(key) ||
       (touched && (await statChanged(repository.folder, file, old)))
     ) {
       check.push(file);

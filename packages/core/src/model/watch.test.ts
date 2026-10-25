@@ -69,6 +69,25 @@ const within = async (limitMs: number, condition: () => Promise<boolean>): Promi
   }
 };
 
+/** `Übersicht` in both Unicode normal forms: one precomposed `Ü`, or `U` and a combining diaeresis. */
+const NFC = `${String.fromCodePoint(0xdc)}bersicht`;
+const NFD = `U${String.fromCodePoint(0x308)}bersicht`;
+/** Each normal form with the other one. */
+const FORMS = [
+  [NFC, NFD],
+  [NFD, NFC],
+] as const;
+
+/** Whether two paths name one existing folder (same device and inode, or file index on Windows). */
+const sameFolder = async (a: string, b: string): Promise<boolean> => {
+  try {
+    const [one, two] = await Promise.all([fs.stat(a, { bigint: true }), fs.stat(b, { bigint: true })]);
+    return one.dev === two.dev && one.ino === two.ino;
+  } catch {
+    return false;
+  }
+};
+
 const records = (store: ElementStore, id: string): readonly ElementRecord[] => store.byId.get(id) ?? [];
 
 const title = async (workspace: Workspace, id: string): Promise<unknown> =>
@@ -187,6 +206,33 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(await titleShown(workspace, NEED, "Replaced")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
     await fixture.write(NEED_FILE, need(NEED, "Saved after the move"));
     expect(await titleShown(workspace, NEED, "Saved after the move")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+  });
+
+  it("[SR-007/AK1] shows saves within 2 seconds in a folder named in NFD, and reads its metamodel again, whatever normal form the workspace file names it in (#225)", async () => {
+    const { fixture, workspace } = await opened({
+      files: { [`${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Decomposed") },
+    });
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write(`${NFD}/metamodel/model.yaml`, model);
+    // APFS ignores the normal form of names: there the workspace file names the folder in NFC, as
+    // keyboards type it. NTFS and ext4 keep NFC and NFD apart: there it names the folder as stored.
+    const same = await sameFolder(fixture.path(NFC), fixture.path(NFD));
+    if (process.env["CI"] !== undefined) {
+      expect(same).toBe(process.platform === "darwin");
+    }
+    const typed = same ? NFC : NFD;
+    await fixture.write(
+      "logreq-workspace.yaml",
+      `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\n`,
+    );
+    await watching(fixture, workspace);
+    await fixture.write(`${NFD}/SR-0c1d2e3f4a5b.md`, requirement(OTHER, "Decomposed, edited"));
+    expect(await titleShown(workspace, OTHER, "Decomposed, edited")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+    await workspace.get(metamodelState);
+    await fixture.write(`${NFD}/metamodel/model.yaml`, `${model}\n# edited\n`);
+    expect(
+      await within(SAVE_LIMIT_MS, () => Promise.resolve(workspace.peek(metamodelState) === undefined)),
+    ).toBeLessThanOrEqual(SAVE_LIMIT_MS);
   });
 
   it("[SR-007/AK2] has relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
@@ -484,6 +530,48 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
+  it("updates the store for a file or folder that an event spells in another Unicode normal form than the walk (#225)", async () => {
+    for (const [onDisk, inEvent] of FORMS) {
+      const { fixture, workspace } = await opened({
+        files: { [`${onDisk}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Before") },
+      });
+      await workspace.get(elementStoreState);
+      const { fake, watcher } = await watched(workspace);
+      // The file named: read again even with the same size and time.
+      await fixture.write(`${onDisk}/SR-0c1d2e3f4a5b.md`, requirement(OTHER, "Edited"));
+      fake.only().send(`${inEvent}/SR-0c1d2e3f4a5b.md`);
+      await watcher.settled();
+      expect(await title(workspace, OTHER)).toBe("Edited");
+      // Its folder named: the file is checked again.
+      await fixture.write(`${onDisk}/SR-0c1d2e3f4a5b.md`, requirement(OTHER, "Edited in the folder"));
+      fake.only().send(inEvent);
+      await watcher.settled();
+      expect(await title(workspace, OTHER)).toBe("Edited in the folder");
+    }
+  });
+
+  it("reads the metamodel again when an event spells its folder in another Unicode normal form than the workspace file (#225)", async () => {
+    for (const [typed, inEvent] of FORMS) {
+      const { fixture, workspace } = await opened();
+      const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+      await fixture.write(`${typed}/model.yaml`, model);
+      await fixture.write(
+        "logreq-workspace.yaml",
+        `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}" }\n`,
+      );
+      const store = workspace.get(elementStoreState);
+      await Promise.all([store, workspace.get(metamodelState)]);
+      const { fake, watcher } = await watched(workspace);
+      for (const name of [`${inEvent}/model.yaml`, inEvent]) {
+        fake.only().send(name);
+        await watcher.settled();
+        expect(workspace.peek(metamodelState)).toBeUndefined();
+        expect(workspace.peek(elementStoreState)).toBe(store);
+        await workspace.get(metamodelState);
+      }
+    }
+  });
+
   it("watches anew after a watch broke, and leaves out a folder that cannot be watched", async () => {
     const { workspace } = await opened();
     const fake = new FakeWatch();
@@ -760,6 +848,27 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
       "vendor",
       "vendor/sub",
     ]);
+  });
+
+  it("keeps the metamodel folder watched below an ignore glob when the workspace file spells it in another Unicode normal form (#225)", async () => {
+    for (const [typed, onDisk] of FORMS) {
+      const { workspace } = await opened({
+        files: {
+          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\nignore: ["docs/**"]\n`,
+          [`docs/${onDisk}/model.yaml`]: "",
+          "docs/other/page.md": "",
+        },
+      });
+      const { fake } = await perFolder(workspace);
+      expect(folders(fake, workspace.root)).toEqual([
+        "",
+        "docs",
+        `docs/${onDisk}`,
+        "metamodel",
+        "needs",
+        "requirements",
+      ]);
+    }
   });
 
   it("follows events per folder: changed files, new and deleted folders, broken watches", async () => {
