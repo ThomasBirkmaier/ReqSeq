@@ -1,13 +1,13 @@
 // workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-040, SR-072, SR-085, SR-086,
-// SR-088 and SR-089): every finding of the whole workspace against the metamodel, as `problems`, and `ok`, from
-// which the CLI takes its exit code (ADR-0009). Each finding comes from the whole-workspace state of
-// its block, which is kept until the element store or the metamodel is reset, so a second check of
-// an unchanged workspace reads no file again.
+// SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
+// `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
+// the whole-workspace state of its block, which is kept until the element store or the metamodel is
+// reset, so a second check of an unchanged workspace reads no file again.
 //
 // - `ok` is false when the workspace has a finding of severity `warning` or `error`: SR-019 AK2
-//   ends the check with exit code 1 for findings of SR-015, SR-016, SR-085 and SR-086, which are
-//   warnings ("Hinweis" blocks nothing, so they stay warnings in every access, SR-080). Info, such
-//   as a repository that is not on this machine (SR-006), keeps `ok` true (AK1).
+//   ends the check with exit code 1 for findings of SR-015, SR-016, SR-085, SR-086 and SR-090,
+//   which are warnings ("Hinweis" blocks nothing, so they stay warnings in every access, SR-080).
+//   Info, such as a repository that is not on this machine (SR-006), keeps `ok` true (AK1).
 // - `severity` is the lowest severity shown. It only filters `problems`; `ok` is about all findings,
 //   so the exit code never depends on it (the spec has no such option).
 // - Findings are appended one by one: spreading a state into `push` passes every problem as an
@@ -20,7 +20,7 @@
 //   (#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
 // - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, stage 2). Until
 //   then they are refused, so a pipeline never takes a full check for a restricted one.
-// - Outdated relations (SR-025) and cycles (SR-090) come in stage 2 (#127 option 1).
+// - Outdated relations (SR-025) come in stage 2 (#127 option 1).
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
@@ -38,6 +38,7 @@ import {
   unknownProblemsState,
   valueKindProblemsState,
 } from "../../model/index.js";
+import { derivationCycleProblemsState } from "../../trace/index.js";
 import { supersededValidityProblemsState } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
@@ -58,6 +59,7 @@ export const FINDING_STATES = [
   relationTypeProblemsState, // SR-086
   duplicateIdProblemsState, // SR-088
   missingTargetProblemsState, // SR-089
+  derivationCycleProblemsState, // SR-090
 ] as const;
 
 const refuseRestriction = (input: CommandInput<"workspace.check">): void => {

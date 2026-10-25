@@ -1,6 +1,6 @@
 // `logreq workspace check` end to end (SR-019, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-085, SR-086,
-// SR-088 and SR-089 handed over to this command (#127 option 1).
+// SR-088, SR-089 and SR-090 handed over to this command (#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -54,6 +54,8 @@ beforeAll(() => {
 
 const NEED = "1a1a1a1a-1111-4111-8111-a0000000000";
 const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
+/** The elements of fixtures/SR-090/cycle: A (1), B (2) and C (3) form the cycle, D (4) derives from A. */
+const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
 
 describe("logreq workspace check (SR-019)", () => {
   it("[SR-019/AK1] ends with exit code 0 for a workspace without findings", async () => {
@@ -120,6 +122,22 @@ describe("logreq workspace check (SR-019)", () => {
       new Set(["system:requirements/SR-c4d5e6f7a8b9.md", "sensor:anemometer/SR-1e0f9a8b7c6d.md"]),
     );
     expect(human.stdout).toContain("error  relation.missing-target  system:requirements/SR-c4d5e6f7a8b9.md:");
+  });
+
+  it("[SR-019/AK2] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 (SR-090)", async () => {
+    const ws = await fixture("SR-090/cycle");
+    const { human, json, output } = await checkBoth(ws.root);
+    expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
+    expect(kinds(output)).toEqual([
+      ["trace.cycle", "requirements/SR-0b0000000001.md", `${CYCLE}1`],
+      ["trace.cycle", "requirements/SR-0b0000000002.md", `${CYCLE}2`],
+      ["trace.cycle", "requirements/SR-0b0000000003.md", `${CYCLE}3`],
+    ]);
+    const lines = human.stdout.split("\n");
+    expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 5"]);
+    expect(
+      lines.filter((line) => line.startsWith("warning  trace.cycle  system:requirements/SR-0b000000000")),
+    ).toHaveLength(3);
   });
 
   it("[SR-019/AK2] shows only errors with --severity error, and still ends with exit code 1 for warnings", async () => {
@@ -197,5 +215,40 @@ describe("findings handed over to workspace check", () => {
       ["error", "copies/N-00606ccf2661.md"],
       ["error", "requirements/N-00606ccf2661.md"],
     ]);
+  });
+
+  it("[SR-090/AK1] reports the cycle of A, B and C, naming all three elements", async () => {
+    const ws = await fixture("SR-090/cycle");
+    const { human, output } = await checkBoth(ws.root);
+    const cycle = output.problems.filter((p) => p.code === "trace.cycle");
+    expect(cycle.map((p) => [p.elementId, p.targetId])).toEqual([
+      [`${CYCLE}1`, `${CYCLE}2`],
+      [`${CYCLE}2`, `${CYCLE}3`],
+      [`${CYCLE}3`, `${CYCLE}1`],
+    ]);
+    // D only derives from A: it is no element of the cycle.
+    expect(output.problems.map((p) => p.elementId)).not.toContain(`${CYCLE}4`);
+    expect(human.stdout).toContain(
+      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element 5e9c0a7d-2b4f-4c61-9d08-0b0000000002)\n",
+    );
+  });
+
+  it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle", async () => {
+    const ws = await fixture("SR-090/cycle");
+    const { human, json, output } = await checkBoth(ws.root);
+    expect([human.code, json.code]).toEqual([1, 1]);
+    expect(output.ok).toBe(false);
+    // Only the cycle's own findings, so the exit code comes from them.
+    expect(new Set(output.problems.map((p) => p.code))).toEqual(new Set(["trace.cycle"]));
+    // Breaking the cycle ends the check with exit code 0 again.
+    await fs.writeFile(
+      ws.path("requirements/SR-0b0000000003.md"),
+      (await fs.readFile(ws.path("requirements/SR-0b0000000003.md"), "utf8")).replace(
+        `${CYCLE}1`,
+        "5e9c0a7d-2b4f-4c61-9d08-0a0000000001",
+      ),
+    );
+    const fixed = await logreq(["workspace", "check"], ws.root);
+    expect(fixed.code).toBe(0);
   });
 });

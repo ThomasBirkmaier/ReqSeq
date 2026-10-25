@@ -58,7 +58,12 @@ describe("workspace.check", () => {
     const ws = await fixture({ fixture: "SR-089/missing-targets" });
     const out = await check(open(ws.path("system")));
     expect(out.ok).toBe(true);
-    expect(out.problems.map((p) => [p.code, p.severity])).toEqual([["workspace.repository-missing", "info"]]);
+    // Its metamodel has no relation kind with the meaning derivation: the cycle check says so as info
+    // (SR-013 AK3, SR-090; spec question #270 option 1).
+    expect(out.problems.map((p) => [p.code, p.severity])).toEqual([
+      ["workspace.repository-missing", "info"],
+      ["metamodel.meaning-unassigned", "info"],
+    ]);
     expect(out.checkedElements).toBe(4);
   });
 
@@ -70,6 +75,19 @@ describe("workspace.check", () => {
     expect(out.problems.every((p) => p.repository === "system" && p.message !== "")).toBe(true);
     // Thirteen elements: the two faulty files are no elements, the copied need counts twice.
     expect(out.checkedElements).toBe(13);
+  });
+
+  it("[SR-019/AK2] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok", async () => {
+    const ws = await fixture({ fixture: "SR-090/cycle" });
+    const out = await check(open(ws.root));
+    const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
+    expect(out.ok).toBe(false);
+    expect(kinds(out)).toEqual([
+      ["trace.cycle", "requirements/SR-0b0000000001.md", `${CYCLE}1`],
+      ["trace.cycle", "requirements/SR-0b0000000002.md", `${CYCLE}2`],
+      ["trace.cycle", "requirements/SR-0b0000000003.md", `${CYCLE}3`],
+    ]);
+    expect(out.checkedElements).toBe(5);
   });
 
   it("[SR-019/AK2] is not ok for warnings alone, since they are findings too", async () => {

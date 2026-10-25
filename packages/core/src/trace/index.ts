@@ -11,6 +11,12 @@
 // `result.incomplete` (SR-006 AK2). `walk(starts, expand, options)` takes any steps (SR-024), and
 // `cyclesOf(store.elements, derivationEdges(graph))` finds the cycles of the whole store (SR-090).
 // Children come from the model's incoming relation index (`model/incoming.ts`).
+export {
+  CYCLE_NAMES_SHOWN,
+  cycleFindings,
+  derivationCycleFindings,
+  derivationCycleProblemsState,
+} from "./cycles.js";
 export type { DerivationGraph, DerivationLink, DerivationWalkOptions, TraceContext } from "./graph.js";
 export {
   childrenOf,
