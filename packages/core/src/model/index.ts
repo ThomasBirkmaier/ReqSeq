@@ -39,13 +39,19 @@ export {
 } from "./relation-types.js";
 export type { RelationTypeContext, RelationTypeFinding } from "./relation-types.js";
 export {
+  allMissingReferenceFindings,
   allMissingTargetFindings,
+  missingReferenceFindings,
   missingTargetFindings,
   missingTargetProblemsState,
 } from "./missing-targets.js";
 export { hasId, relationItems, relationKey } from "./relation-keys.js";
 export type { RelationKey, TargetItem } from "./relation-keys.js";
-export type { MissingTargetContext, MissingTargetFinding } from "./missing-targets.js";
+export type {
+  MissingReferenceFinding,
+  MissingTargetContext,
+  MissingTargetFinding,
+} from "./missing-targets.js";
 export { allUnknownFindings, unknownFindings, unknownProblemsState } from "./unknown.js";
 export type { UnknownFinding } from "./unknown.js";
 export {
@@ -60,8 +66,16 @@ export { embeddedImages, imageLinks, imageMemo } from "./images.js";
 export type { EmbeddedImage, ImageLink, ImageMemo, ImageSource } from "./images.js";
 export { markdownImages, markdownLinks } from "./markdown-links.js";
 export type { MarkdownLink } from "./markdown-links.js";
-export { currentTarget, inlineReferences, setInlineReferences, setRelationTargets } from "./targets.js";
-export type { InlineReference, TargetContext } from "./targets.js";
+export { currentTarget, setInlineReferences, setRelationTargets } from "./targets.js";
+export type { TargetContext } from "./targets.js";
+export {
+  inlineReferences,
+  referenceTargetState,
+  resolveReference,
+  textReferences,
+  unavailableRepositoryHint,
+} from "./references.js";
+export type { InlineReference, ReferenceTargetState, TextReference } from "./references.js";
 export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";

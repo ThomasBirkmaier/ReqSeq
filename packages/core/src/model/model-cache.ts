@@ -21,6 +21,7 @@ import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js"
 import { availableRepositories, canonicalRoot, readCacheFile, writeCacheFile } from "../workspace/index.js";
 import type { Contribution } from "./contribution.js";
 import type { LoadedStore } from "./store.js";
+import { isUuid } from "./uuid.js";
 
 /** A contribution the cache can hold: one of a file that parsed, so it has the snapshot of its bytes. */
 export type CachedContribution = Contribution & { readonly snapshot: FileSnapshot };
@@ -39,8 +40,11 @@ export interface CacheEntry {
 /** The name of the model cache in the cache folder of a copy (`cacheFolder(root)`). */
 export const MODEL_CACHE_FILE = "model.json";
 
-/** The format of `model.json`; a cache of another format is discarded. */
-export const MODEL_CACHE_FORMAT = 3;
+/**
+ * The format of `model.json`; a cache of another format is discarded. 4: element records carry the
+ * inline references of their text (`ElementRecord.references`, #240).
+ */
+export const MODEL_CACHE_FORMAT = 4;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -192,6 +196,23 @@ const isSnapshotOf = (value: unknown, file: string): value is Record<string, unk
   typeof value["mtimeMs"] === "number" &&
   typeof value["sha256"] === "string";
 
+const isOptionalText = (value: unknown): boolean => value === undefined || typeof value === "string";
+
+/** Whether `value` is a list of inline references as `textReferences` makes it (one or more). */
+const isReferences = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(
+    (r: unknown) =>
+      isRecord(r) &&
+      isUuid(r["id"]) &&
+      typeof r["line"] === "number" &&
+      Number.isInteger(r["line"]) &&
+      r["line"] >= 1 &&
+      isOptionalText(r["version"]) &&
+      isOptionalText(r["repository"]),
+  );
+
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */
 const isElementOf = (value: unknown, file: string, name: string): value is Record<string, unknown> =>
   isRecord(value) &&
@@ -200,6 +221,7 @@ const isElementOf = (value: unknown, file: string, name: string): value is Recor
   typeof value["id"] === "string" &&
   typeof value["type"] === "string" &&
   isRecord(value["data"]) &&
+  (value["references"] === undefined || isReferences(value["references"])) &&
   LINE_ENDINGS.includes(value["eol"]) &&
   (value["closingEol"] === "" || LINE_ENDINGS.includes(value["closingEol"])) &&
   typeof value["bom"] === "boolean";

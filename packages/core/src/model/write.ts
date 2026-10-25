@@ -422,7 +422,12 @@ export const createElement = async (
     })),
   ];
   // A new file has LF line endings and ends with a line break (ADR-0004 "Stable writing").
-  const text = await setInlineReferences(context, (input.text ?? "").replace(/\r\n?/g, "\n"), "");
+  const text = await setInlineReferences(
+    context,
+    (input.text ?? "").replace(/\r\n?/g, "\n"),
+    "",
+    repository.name,
+  );
   const body = text === "" || text.endsWith("\n") ? text : `${text}\n`;
   const { bytes } = editElementFile(EMPTY_FILE, {
     edits,
@@ -654,7 +659,9 @@ export const updateElement = async (
     current.record.data,
   );
   const text =
-    input.text === undefined ? undefined : await setInlineReferences(context, input.text, current.file.body);
+    input.text === undefined
+      ? undefined
+      : await setInlineReferences(context, input.text, current.file.body, record.repository);
   const { bytes, changed } = editElementFile(current.file, {
     edits: updateEdits(input, set, titleKey),
     ...(text === undefined ? {} : { body: text }),

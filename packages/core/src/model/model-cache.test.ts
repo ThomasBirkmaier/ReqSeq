@@ -570,6 +570,22 @@ describe("parseModelCache", () => {
     ["an element with an unknown line ending", withRecord({ eol: "\r" })],
     ["an element with an unknown closing line ending", withRecord({ closingEol: "\r" })],
     ["an element without a byte order mark flag", withRecord({ bom: "no" })],
+    ["references that are no list", withRecord({ references: {} })],
+    ["an empty list of references", withRecord({ references: [] })],
+    ["a reference that is no object", withRecord({ references: [null] })],
+    ["a reference without an id", withRecord({ references: [{ line: 3 }] })],
+    ["a reference whose id is no UUID", withRecord({ references: [{ id: "SR-1", line: 3 }] })],
+    ["a reference on line 0", withRecord({ references: [{ id: ID_A, line: 0 }] })],
+    ["a reference on a line that is no whole number", withRecord({ references: [{ id: ID_A, line: 2.5 }] })],
+    ["a reference without a line", withRecord({ references: [{ id: ID_A }] })],
+    [
+      "a reference with a version that is no text",
+      withRecord({ references: [{ id: ID_A, line: 3, version: 1 }] }),
+    ],
+    [
+      "a reference with a repository that is no text",
+      withRecord({ references: [{ id: ID_A, line: 3, repository: null }] }),
+    ],
     ["a file that is no element, of another file", withContribution({ kind: "not-element", file: "b.md" })],
     ["a problem that is none", withContribution({ kind: "problem", problem: { message: "m" } })],
   ])("discards a cache with %s", (_case, value) => {
@@ -580,6 +596,19 @@ describe("parseModelCache", () => {
     ["a file that is no element", { kind: "not-element", file: "a.md", warnings: [], snapshot }],
     ["a problem", { kind: "problem", problem: { ...warning, severity: "error" }, warnings: [], snapshot }],
     ["an element with CRLF", { ...elementEntry, element: { ...record, eol: "\r\n", closingEol: "\r\n" } }],
+    [
+      "an element with inline references (#240)",
+      {
+        ...elementEntry,
+        element: {
+          ...record,
+          references: [
+            { id: ID_A, line: 4 },
+            { id: ID_A, version: "n1:0000000000000000", repository: "sensor", line: 5 },
+          ],
+        },
+      },
+    ],
   ])("takes %s as it is", (_case, contribution) => {
     expect(
       parse(withEntry(["a.md", contribution, "7", "900000000"]))

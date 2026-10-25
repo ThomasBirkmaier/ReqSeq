@@ -138,6 +138,36 @@ describe("generateLargeWorkspace", () => {
     expect(across).toBeGreaterThan(100);
   });
 
+  it("writes about two inline references per element to earlier elements, with repository only across repositories (#240)", () => {
+    const generated = small();
+    const byId = new Map(generated.elements.map((e) => [e.id, e]));
+    const order = new Map(generated.elements.map((e, i) => [e.id, i]));
+    let count = 0;
+    let across = 0;
+    for (const source of generated.elements) {
+      const content = generated.files.get(`${source.repository}/${source.file}`) ?? "";
+      for (const [, label, id, version, repository] of content.matchAll(
+        /\[([^\]]+)\]\(logreq:([0-9a-f-]{36})\?version=([^&)]+)(?:&repository=([a-z]+))?\)/g,
+      )) {
+        count++;
+        const target = byId.get(id ?? "");
+        expect(order.get(id ?? "")).toBeLessThan(order.get(source.id) ?? 0);
+        expect(version).toBe(target?.version);
+        if (target?.repository === source.repository) {
+          expect([label, repository]).toEqual([target.title, undefined]);
+        } else {
+          across++;
+          expect(repository).toBe(target?.repository);
+          expect(label).toMatch(new RegExp(`^[A-Z]+-${(id ?? "").slice(-6)}$`));
+        }
+      }
+    }
+    expect(count).toBe(generated.references);
+    expect(count).toBeGreaterThan(generated.elements.length * 1.5);
+    expect(count).toBeLessThan(generated.elements.length * 2.5);
+    expect(across).toBeGreaterThan(100);
+  });
+
   it("follows the source and target types of the standard model, without derivation cycles or duplicate targets", () => {
     const generated = small();
     const index = new Map(generated.elements.map((e, i) => [e.id, i]));

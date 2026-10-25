@@ -12,7 +12,8 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import { elementStoreState } from "./store.js";
 import { watchWorkspace } from "./watch.js";
 import type { TargetContext } from "./targets.js";
-import { currentTarget, inlineReferences, setInlineReferences, setRelationTargets } from "./targets.js";
+import { inlineReferences } from "./references.js";
+import { currentTarget, setInlineReferences, setRelationTargets } from "./targets.js";
 
 /** The elements of fixtures/SR-021/targets; `text` is the text of the file. */
 const PKG = {
@@ -320,7 +321,7 @@ describe("relation targets with ID and version (SR-021)", () => {
       [
         `The display follows [${NEED.title}](${ref(NEED.id, STORED_NEED)}).`,
         `Shipped in [${PKG.title}](${ref(PKG.id, versionOf(PKG))}) and [again](${ref(NEED.id, versionOf(NEED))}).`,
-        `A reference across repositories: [N-0e9d7c](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}).`,
+        `A reference across repositories: [N-0e9d7c](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}&repository=sensor).`,
         "",
       ].join("\n"),
     );
@@ -509,7 +510,12 @@ describe("relation targets with ID and version (SR-021)", () => {
     const ctx = await context(opened);
     const v = versionOf(NEED);
     expect(
-      await setInlineReferences(ctx, `[a](logreq:${NEED.id}?) [b](logreq:${NEED.id}?x=1&&version=old&)`, ""),
+      await setInlineReferences(
+        ctx,
+        `[a](logreq:${NEED.id}?) [b](logreq:${NEED.id}?x=1&&version=old&)`,
+        "",
+        "system",
+      ),
     ).toBe(`[a](logreq:${NEED.id}?version=${v}) [b](logreq:${NEED.id}?x=1&version=${v})`);
   });
 
@@ -517,8 +523,183 @@ describe("relation targets with ID and version (SR-021)", () => {
     const opened = await open();
     const ctx = await context(opened);
     const text = `[a](${ref(NEED.id)}) [b](${ref(NEED.id)})`;
-    expect(await setInlineReferences(ctx, text, text)).toBe(
+    expect(await setInlineReferences(ctx, text, text, "system")).toBe(
       `[a](${ref(NEED.id, versionOf(NEED))}) [b](${ref(NEED.id, versionOf(NEED))})`,
     );
+  });
+});
+
+/** An inline reference that names the repository of its target (D-058, #240). */
+const across = (id: string, repository: string, version?: string): string =>
+  `logreq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;
+
+describe("inline references across repositories (D-058, decision on #177 (c))", () => {
+  it("[SR-005/AK1] names the repository of a target in another repository, and none within the source's own", async () => {
+    const opened = await open();
+    const out = await run(opened, "element.create", {
+      type: "need",
+      title: "Gusts",
+      text: `See [N-0e9d7c](${ref(SENSOR_NEED.id)}) and [${NEED.title}](${ref(NEED.id)}).\n`,
+    });
+    expect(out.element.text).toBe(
+      `See [N-0e9d7c](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}&repository=sensor) and [${NEED.title}](${ref(NEED.id, versionOf(NEED))}).\n`,
+    );
+    const sensor = await run(opened, "element.create", {
+      type: "need",
+      repository: "sensor",
+      title: "Gust sensor",
+      text: `For [the display](${ref(NEED.id)}), like [N-0e9d7c](${ref(SENSOR_NEED.id)}).\n`,
+    });
+    expect(sensor.element.text).toBe(
+      `For [the display](${across(NEED.id, "system", versionOf(NEED))}), like [N-0e9d7c](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}).\n`,
+    );
+  });
+
+  it("looks a target up in the repository the reference names, keeps the parameter where it is and drops the source's own", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    const v = versionOf(SENSOR_NEED);
+    expect(
+      await setInlineReferences(
+        ctx,
+        `[a](logreq:${SENSOR_NEED.id}?repository=sensor) [b](logreq:${SENSOR_NEED.id}?repository=sensor&version=${OTHER}&x=1) [c](logreq:${NEED.id}?repository=system)`,
+        "",
+        "system",
+      ),
+    ).toBe(
+      `[a](logreq:${SENSOR_NEED.id}?repository=sensor&version=${v}) [b](logreq:${SENSOR_NEED.id}?repository=sensor&version=${v}&x=1) [c](logreq:${NEED.id}?version=${versionOf(NEED)})`,
+    );
+    const error = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `[wrong](${across(SENSOR_NEED.id, "system")})\n`,
+    });
+    expect([error.code, error.details]).toEqual([
+      "ref.unknown",
+      { ref: SENSOR_NEED.id, repository: "system" },
+    ]);
+    const unlisted = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `[elsewhere](${across(SENSOR_NEED.id, "elsewhere")})\n`,
+    });
+    expect([unlisted.code, unlisted.details]).toEqual([
+      "ref.unknown",
+      { ref: SENSOR_NEED.id, repository: "elsewhere" },
+    ]);
+  });
+
+  it("keeps stored references as written, also old ones without repository, and sets a hand-changed repository anew", async () => {
+    const stored = [
+      `Old [N-0e9d7c](${ref(SENSOR_NEED.id, STORED_NEED)}) and new [N-0e9d7c](${across(SENSOR_NEED.id, "sensor", OTHER)}).`,
+      "",
+    ].join("\n");
+    const opened = await open({ [`system/${SOURCE.file}`]: await sourceWithText(stored) });
+    const kept = await run(opened, "element.update", { ref: SOURCE.id, text: stored });
+    expect(kept.element.text).toBe(stored);
+    const changed = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `${stored}Changed [N-0e9d7c](${ref(SENSOR_NEED.id, STORED_NEED)}&repository=sensor&x=1).\n`,
+    });
+    expect(changed.element.text).toBe(
+      `${stored}Changed [N-0e9d7c](${ref(SENSOR_NEED.id, versionOf(SENSOR_NEED))}&repository=sensor&x=1).\n`,
+    );
+  });
+
+  it("refuses a new reference to a repository that is not on this machine and keeps a stored one", async () => {
+    const stored = `Kept [N-0e9d7c](${across(SENSOR_NEED.id, "sensor", STORED_NEED)}).\n`;
+    const opened = await open({ [`system/${SOURCE.file}`]: await sourceWithText(stored) });
+    await fs.rm(opened.fixture.path("sensor"), { recursive: true });
+    const kept = await run(opened, "element.update", { ref: SOURCE.id, text: `${stored}More.\n` });
+    expect(kept.element.text).toBe(`${stored}More.\n`);
+    const error = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `${stored}[new](${across(SENSOR_NEED.id, "sensor")})\n`,
+    });
+    expect([error.code, error.details]).toEqual([
+      "ref.unknown",
+      { ref: SENSOR_NEED.id, repository: "sensor", reason: "repository-not-available" },
+    ]);
+  });
+
+  it("keeps a stored reference without version that names a repository whose target cannot be found", async () => {
+    const stored = `Gone [x](${across(UNKNOWN, "sensor")}).\n`;
+    const opened = await open({ [`system/${SOURCE.file}`]: await sourceWithText(stored) });
+    const out = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `${stored}[y](${ref(PKG.id)})\n`,
+    });
+    expect(out.element.text).toBe(`${stored}[y](${ref(PKG.id, versionOf(PKG))})\n`);
+  });
+});
+
+describe("inline references without repository (D-058, decision on #177 (c))", () => {
+  it("[SR-005/AK1] puts the repository right after the version and keeps other parameters", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    expect(
+      await setInlineReferences(ctx, `[a](logreq:${SENSOR_NEED.id}?x=1&version=${OTHER}&y=2)`, "", "system"),
+    ).toBe(`[a](logreq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor&y=2)`);
+  });
+
+  it("looks a target up in the source's own repository first, then in the one other repository that has it", async () => {
+    // The need's UUID also in the sensor repository (a copied file, SR-088).
+    const opened = await open({
+      [`sensor/needs/N-${NEED.id.slice(-12)}.md`]: `---\nid: ${NEED.id}\ntype: need\nstatus: draft\ntitle: Copy\n---\nCopy.\n`,
+      [`sensor/needs/N-copy-of-sensor-need.md`]: `---\nid: ${PKG.id}\ntype: need\nstatus: draft\ntitle: Copy\n---\nCopy.\n`,
+    });
+    const ctx = await context(opened);
+    expect(await setInlineReferences(ctx, `[a](${ref(NEED.id)})`, "", "system")).toBe(
+      `[a](${ref(NEED.id, versionOf(NEED))})`,
+    );
+    expect(await setInlineReferences(ctx, `[a](${ref(SENSOR_NEED.id)})`, "", "system")).toBe(
+      `[a](${across(SENSOR_NEED.id, "sensor", versionOf(SENSOR_NEED))})`,
+    );
+    // From a third place: the package is in system and sensor, so a link from sensor finds its own.
+    expect(await setInlineReferences(ctx, `[a](${ref(PKG.id)})`, "", "sensor")).toBe(
+      `[a](${ref(PKG.id, versionOf({ text: "Copy." }))})`,
+    );
+  });
+
+  it("refuses a reference without repository whose UUID is not in the source's repository but in several others", async () => {
+    const opened = await open({
+      [`sensor/needs/N-${NEED.id.slice(-12)}.md`]: `---\nid: ${NEED.id}\ntype: need\nstatus: draft\ntitle: Copy\n---\nCopy.\n`,
+    });
+    const ctx = await context(opened);
+    const error = await setInlineReferences(ctx, `[a](${ref(NEED.id)})`, "", "third").catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(CommandError);
+    expect([(error as CommandError).code, (error as CommandError).message]).toEqual([
+      "ref.ambiguous",
+      `${NEED.id} names more than one element; give one file a new UUID, or add repository=<name> to the link (system, sensor)`,
+    ]);
+  });
+
+  it("treats an empty repository parameter as none", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    expect(
+      await setInlineReferences(
+        ctx,
+        `[a](logreq:${SENSOR_NEED.id}?repository=&x=1) [b](logreq:${NEED.id}?repository=)`,
+        "",
+        "system",
+      ),
+    ).toBe(
+      `[a](logreq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor) [b](logreq:${NEED.id}?version=${versionOf(NEED)})`,
+    );
+  });
+
+  it("says how to name a repository that is not on this machine when a new link without repository finds no target", async () => {
+    const opened = await open();
+    await fs.rm(opened.fixture.path("sensor"), { recursive: true });
+    const error = await runError(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `[x](${ref(SENSOR_NEED.id)})\n`,
+    });
+    expect([error.code, error.message, error.details]).toEqual([
+      "ref.unknown",
+      `No element has the UUID ${SENSOR_NEED.id}, so its version cannot be stored; if it lies in repository sensor, which is not on this machine, add repository=sensor to the link`,
+      { ref: SENSOR_NEED.id },
+    ]);
   });
 });

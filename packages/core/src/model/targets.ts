@@ -2,21 +2,28 @@
 // relation or reference stores the UUID of its target and the target's version at the moment it is
 // set. A target already stored keeps its stored version, so saving never confirms an outdated
 // relation on its own; only confirming a hint changes a stored version (D-042, SR-027). Every new
-// target gets the current version of its target (spec question #177). Used by `element.create`
-// and `element.update`; `relation.add`, `element.supersede` and cross-repository relations
-// (SR-005) build on `currentTarget`.
+// target gets the current version of its target (spec question #177). Across repositories a
+// relation target and an inline reference also name the target's repository (D-058). Used by
+// `element.create` and `element.update`; `relation.add`, `element.supersede` and cross-repository
+// relations (SR-005) build on `currentTarget`.
 import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
 import type { ElementInputValue, ElementValue, RelationTarget } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import { resolveId } from "./duplicates.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
-import { classifyFile, isUuid } from "./elements.js";
+import { classifyFile } from "./elements.js";
 import type { ImageMemo } from "./images.js";
 import { embeddedImages } from "./images.js";
-import { markdownLinks } from "./markdown-links.js";
+import type { InlineReference } from "./references.js";
+import {
+  inlineReferences,
+  queryOf,
+  resolveReference,
+  SCHEME,
+  unavailableRepositoryHint,
+} from "./references.js";
 import { isUnavailableRepository, resolveTarget } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { ignoredBy } from "./store.js";
@@ -51,17 +58,29 @@ const single = (
           { ref: id, ...where, reason: "repository-not-available" },
         );
       }
+      // Only an inline reference names no repository (a link, D-058): say how to name one not here.
       throw new CommandError(
         "ref.unknown",
-        `No element ${repository === undefined ? "" : `of repository ${repository} `}has the UUID ${id}, so its version cannot be stored`,
+        `No element ${repository === undefined ? "" : `of repository ${repository} `}has the UUID ${id}, so its version cannot be stored${repository === undefined ? unavailableRepositoryHint(context.layout) : ""}`,
         { ref: id, ...where },
       );
-    case "ambiguous":
-      throw new CommandError("ref.ambiguous", `${id} names more than one element; give one file a new UUID`, {
-        ref: id,
-        ...where,
-        candidates: match.elements.map((e) => ({ id: e.id, repository: e.repository, file: e.file })),
-      });
+    case "ambiguous": {
+      // Copies in several repositories: a link can name the one it means.
+      const repositories = [...new Set(match.elements.map((e) => e.repository))];
+      const hint =
+        repository === undefined && repositories.length > 1
+          ? `, or add repository=<name> to the link (${repositories.join(", ")})`
+          : "";
+      throw new CommandError(
+        "ref.ambiguous",
+        `${id} names more than one element; give one file a new UUID${hint}`,
+        {
+          ref: id,
+          ...where,
+          candidates: match.elements.map((e) => ({ id: e.id, repository: e.repository, file: e.file })),
+        },
+      );
+    }
   }
 };
 
@@ -209,106 +228,101 @@ export const setRelationTargets = async (
   return (await Promise.all(once.map(set))) as ElementValue;
 };
 
-/** An inline reference `[label](logreq:<uuid>?version=<version>)` in a text (ADR-0004). */
-export interface InlineReference {
-  readonly id: string;
-  /** Undefined when the link has no `version` parameter. */
-  readonly version?: string;
-  /** The link destination as written: `logreq:` and the UUID, then the query, if any. */
-  readonly destination: string;
-  /** Offsets of the destination in the text, end exclusive. */
-  readonly start: number;
-  readonly end: number;
-}
-
-const SCHEME = "logreq:";
-
-/** The query parameters of a destination, in order, as written; empty ones (`?`, `&&`) are none. */
-const queryOf = (destination: string): string[] => {
-  const query = destination.indexOf("?");
-  return query < 0
-    ? []
-    : destination
-        .slice(query + 1)
-        .split("&")
-        .filter((p) => p !== "");
-};
-
 /**
- * The inline references of a Markdown text in order: links (not images) whose destination is
- * `logreq:<uuid>`, outside code (`markdownLinks`). A `logreq:` link whose target is no UUID is not
- * one.
+ * The destination as a reference that is set stores it (ADR-0004): `version` replaced where it is,
+ * else appended; then `repository=<across>` right after `version` when the target lies in another
+ * repository and the link names none. A `repository` that names the source's own repository is
+ * dropped, as `currentTarget` stores no repository within it (D-058). Other parameters stay.
  */
-export const inlineReferences = (text: string): InlineReference[] =>
-  markdownLinks(text).flatMap((link): InlineReference[] => {
-    if (link.image || !link.destination.startsWith(SCHEME)) {
-      return [];
-    }
-    const rest = link.destination.slice(SCHEME.length);
-    const id = rest.includes("?") ? rest.slice(0, rest.indexOf("?")) : rest;
-    if (!isUuid(id)) {
-      return [];
-    }
-    const version = queryOf(link.destination)
-      .find((p) => p.startsWith("version="))
-      ?.slice("version=".length);
-    const { destination, start, end } = link;
-    return [{ id, ...(version === undefined ? {} : { version }), destination, start, end }];
-  });
-
-/** The destination with `version` set: the parameter replaced where it is, else appended; other parameters stay. */
-const withVersion = (reference: InlineReference, version: string): string => {
-  const params = queryOf(reference.destination);
+const withTarget = (
+  reference: InlineReference,
+  version: string,
+  across: string | undefined,
+  sourceRepository: string,
+): string => {
+  // An empty `repository=` names none, and one naming the source's own repository is dropped.
+  const params = queryOf(reference.destination).filter(
+    (p) => p !== "repository=" && !(p.startsWith("repository=") && reference.repository === sourceRepository),
+  );
   const at = params.findIndex((p) => p.startsWith("version="));
-  const next = at < 0 ? [...params, `version=${version}`] : params.with(at, `version=${version}`);
+  const named = reference.repository !== undefined && reference.repository !== sourceRepository;
+  const added = [`version=${version}`, ...(across === undefined || named ? [] : [`repository=${across}`])];
+  const next = at < 0 ? [...params, ...added] : params.toSpliced(at, 1, ...added);
   return `${SCHEME}${reference.id}?${next.join("&")}`;
 };
 
+/** A reference as the stored text has it: UUID, version and repository as written. */
+const referenceKey = (reference: InlineReference): string =>
+  JSON.stringify([reference.id, reference.version, reference.repository]);
+
 /**
- * The text as it is stored (SR-021 AK2): every inline reference carries the UUID and version of its
- * target. A reference with a UUID and version that `storedText` already has is kept. A reference
- * whose destination `storedText` has as written, but without a version, gets the current version
- * when its target can be found and is kept as it is otherwise, so it never blocks other changes.
- * Every other reference (new, or with a version changed by hand, spec question #177) gets the
- * current version of its target, looked up in the whole workspace (the link names no repository);
- * an unknown or ambiguous target refuses the write. Labels, other query parameters and everything
- * else stay as given.
+ * The text as it is stored (SR-021 AK2, D-058): every inline reference carries the UUID and version
+ * of its target and, when the target lies in another repository than `sourceRepository`, the
+ * workspace name of that repository. A reference with a UUID, version and repository that
+ * `storedText` already has is kept as written, also one to another repository without
+ * `repository` (written before references named their repository, decision on #177 (c)). A
+ * reference whose destination `storedText` has as written, but without a version, gets the current
+ * version when its target can be found and is kept as it is otherwise, so it never blocks other
+ * changes. Every other reference (new, or with a version or repository changed by hand, spec
+ * question #177) gets the current version of its target (`resolveReference`): looked up in the
+ * repository it names (`ref.unknown` with reason `repository-not-available` for one that is not on
+ * this machine), or, when it names none, in the source's own repository and else in the one other
+ * repository that has it; `repository` then follows `version` when the target lies in another
+ * repository, and a `repository` naming the source's own is dropped (`withTarget`). An unknown or
+ * ambiguous target refuses the write. Labels, other query parameters and everything else stay as
+ * given.
  */
 export const setInlineReferences = async (
   context: TargetContext,
   text: string,
   storedText: string,
+  sourceRepository: string,
 ): Promise<string> => {
   const before = inlineReferences(storedText);
-  const pairs = new Set(before.flatMap((r) => (r.version === undefined ? [] : [`${r.id} ${r.version}`])));
+  const kept = new Set(before.flatMap((r) => (r.version === undefined ? [] : [referenceKey(r)])));
   const destinations = new Set(before.map((r) => r.destination));
-  const versions = new Map<string, Promise<string>>();
-  const versionOf = (id: string): Promise<string> => {
-    const known = versions.get(id);
+  const targets = new Map<string, Promise<{ readonly version: string; readonly repository: string }>>();
+  const targetOf = (
+    reference: InlineReference,
+  ): Promise<{ readonly version: string; readonly repository: string }> => {
+    const key = JSON.stringify([reference.id, reference.repository]);
+    const known = targets.get(key);
     if (known !== undefined) {
       return known;
     }
-    const pending = (async () =>
-      (await current(context, single(context, resolveId(context.store.byId, id), id))).version)();
-    versions.set(id, pending);
+    const { id, repository } = reference;
+    const pending = (async () => {
+      const record = single(
+        context,
+        resolveReference(context.store, sourceRepository, reference),
+        id,
+        repository,
+      );
+      return { version: (await current(context, record)).version, repository: record.repository };
+    })();
+    targets.set(key, pending);
     return pending;
   };
   const parts: string[] = [];
   let last = 0;
   for (const reference of inlineReferences(text)) {
-    if (reference.version !== undefined && pairs.has(`${reference.id} ${reference.version}`)) {
+    if (reference.version !== undefined && kept.has(referenceKey(reference))) {
       continue;
     }
-    let version: string;
+    let target: { readonly version: string; readonly repository: string };
     try {
-      version = await versionOf(reference.id);
+      target = await targetOf(reference);
     } catch (error) {
       if (destinations.has(reference.destination) && isLookupError(error)) {
         continue;
       }
       throw error;
     }
-    parts.push(text.slice(last, reference.start), withVersion(reference, version));
+    const across = target.repository === sourceRepository ? undefined : target.repository;
+    parts.push(
+      text.slice(last, reference.start),
+      withTarget(reference, target.version, across, sourceRepository),
+    );
     last = reference.end;
   }
   parts.push(text.slice(last));

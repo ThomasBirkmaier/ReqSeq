@@ -80,6 +80,8 @@ export interface GeneratedWorkspace {
   readonly elements: readonly GeneratedElement[];
   /** Number of relation targets written. */
   readonly relations: number;
+  /** Number of inline references written in the texts (about 2 per element, ADR-0004). */
+  readonly references: number;
   /** Every file: path relative to the root of the tree (`/` as separator) to content, in path order. */
   readonly files: ReadonlyMap<string, string>;
   /** SHA-256 over all paths and contents; equal digests mean equal trees. */
@@ -119,7 +121,12 @@ class Random {
 
   /** One of `items`, which must not be empty. */
   pick<T>(items: readonly T[]): T {
-    return items[this.below(items.length)] as T;
+    return this.pickBefore(items, items.length);
+  }
+
+  /** One of `items[0 .. end)`, which must not be empty. */
+  pickBefore<T>(items: readonly T[], end: number): T {
+    return items[this.below(end)] as T;
   }
 
   /** A lower-case UUID version 4 that ends with the 12 hex digits of `stem`. */
@@ -187,7 +194,8 @@ interface Draft {
   readonly repository: string;
   readonly file: string;
   readonly title: string;
-  readonly text: string;
+  /** Gets the inline references once the versions of their targets are known (`withReferences`). */
+  text: string;
   /** `id`, `type`, `status`, the title and the other properties, in file order. */
   readonly properties: Readonly<Record<string, unknown>>;
   /** Relation key to targets, in the order added. */
@@ -422,6 +430,28 @@ const addRelations = (drafts: readonly Draft[], pools: Pools, count: number, ran
   }
 };
 
+/**
+ * Adds 0 to 4 inline references (about 2 on average) to the text of `draft`, which is
+ * `drafts[index]`, each to an earlier element, whose version is already known (ADR-0004, D-058):
+ * `[<title>](logreq:<uuid>?version=<version>)` within the source's repository,
+ * `[<prefix>-<6 digits>](…&repository=<name>)` across. Returns how many were added. So the cold
+ * load and the cache measure reading references too (#240).
+ */
+const withReferences = (draft: Draft, drafts: readonly Draft[], index: number, random: Random): number => {
+  const count = index === 0 ? 0 : random.below(5);
+  const links = Array.from({ length: count }, () => {
+    const target = random.pickBefore(drafts, index);
+    const destination = `logreq:${target.id}?version=${target.version}`;
+    return target.repository === draft.repository
+      ? `[${target.title}](${destination})`
+      : `[${target.spec.prefix}-${target.id.slice(-6)}](${destination}&repository=${target.repository})`;
+  });
+  if (count > 0) {
+    draft.text = `${draft.text}\nSee ${links.join(" and ")}.\n`;
+  }
+  return count;
+};
+
 /** Relation keys in file order: relation-valued properties first, then relation kinds. */
 const RELATION_KEYS = ["validity", "packages", "derives-from", "refines", "based-on", "excludes"];
 /** Relation-valued properties count to the version with their target IDs; relation kinds never do (ADR-0005). */
@@ -499,8 +529,9 @@ const elementFile = (draft: Draft): string => {
  * in all four repositories (needs and use cases in `product`; decisions, variants and packages in
  * `system`; system requirements spread over `system`, `sensor` and `display`), each repository in
  * the folder of its name. Relations are written only in the source file, one target per line
- * (ADR-0004); derivations always point at an earlier element, so there are no cycles. Every target
- * stores the version `options.version` gives for it.
+ * (ADR-0004); derivations always point at an earlier element, so there are no cycles. Texts hold
+ * about 2 inline references per element to earlier elements, some across repositories. Every
+ * target stores the version `options.version` gives for it.
  */
 export function generateLargeWorkspace(options: LargeWorkspaceOptions): GeneratedWorkspace {
   const seed = options.seed ?? DEFAULT_SEED;
@@ -516,13 +547,16 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
   addRelations(drafts, pools, options.relations ?? DEFAULT_RELATIONS, random);
   // Relation-valued properties point at variants and packages only, which come before every element
   // that has them, so their versions are set before an element needs them.
-  for (const draft of drafts) {
+  // The inline references of an element point at earlier ones, whose versions are set by then.
+  let references = 0;
+  drafts.forEach((draft, index) => {
+    references += withReferences(draft, drafts, index, random);
     draft.version = options.version({
       type: draft.spec.key,
       text: draft.text,
       properties: versionProperties(draft),
     });
-  }
+  });
   // Relation kinds may point at later elements (a variant excludes requirements), so the files are
   // written once every version is known.
   const files = new Map<string, string>([
@@ -554,6 +588,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
       (sum, d) => sum + [...d.relations.values()].reduce((n, list) => n + list.length, 0),
       0,
     ),
+    references,
     files: sorted,
     digest: hash.digest("hex"),
   };

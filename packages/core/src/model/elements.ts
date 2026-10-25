@@ -4,7 +4,9 @@
 import { isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedFile } from "../files/index.js";
-import { fileSchemaValidator } from "../runtime/contracts.js";
+import type { TextReference } from "./references.js";
+import { textReferences } from "./references.js";
+import { isUuid } from "./uuid.js";
 
 /**
  * One element file as read from the working tree. Plain data and small (ADR-0008): neither the YAML
@@ -22,6 +24,11 @@ export interface ElementRecord {
   readonly file: string;
   /** The frontmatter as plain data (YAML 1.2 core schema). */
   readonly data: Readonly<Record<string, unknown>>;
+  /**
+   * The inline references of the text (ADR-0004, D-058) in text order, with their lines in the
+   * file; left out when the text has none. The text itself is not kept.
+   */
+  readonly references?: readonly TextReference[];
   /** Line endings and byte order mark of the file (ADR-0007). */
   readonly eol: LineEnding;
   readonly closingEol: LineEnding | "";
@@ -49,9 +56,7 @@ export type Classified =
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** A UUID as LogReq writes it: version 4, lower case (`common.schema.json#/$defs/uuid`, D-017). */
-export const isUuid = (value: unknown): value is string =>
-  fileSchemaValidator("common.schema.json#/$defs/uuid")(value);
+export { isUuid } from "./uuid.js";
 
 /** The keys every element has (D-012): fields of their own, never properties. */
 export const STRUCTURAL_KEYS: readonly string[] = ["id", "type", "status"];
@@ -115,6 +120,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
     return invalid(repository, file, "type", "type must be a type key");
   }
   const { eol, closingEol, bom, snapshot } = file;
+  const references = textReferences(file.frontmatter, file.body);
   return {
     kind: "element",
     element: {
@@ -123,6 +129,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       repository,
       file: file.path,
       data,
+      ...(references.length === 0 ? {} : { references }),
       eol,
       closingEol,
       bom,
