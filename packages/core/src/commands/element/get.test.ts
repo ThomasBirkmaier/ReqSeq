@@ -307,7 +307,14 @@ describe("element.get", () => {
   it("[SR-086/AK1] gives a hint with source, target and relation kind for a relation between types that are not allowed", async () => {
     const opened = await open({ fixture: "SR-086/relation-types" }, "system");
     const element = await get(opened, { ref: "22a972fd-f4f1-4b95-ba1d-e3e85234824e" });
-    expect(hints(element)).toEqual([
+    // The fixture stores a made-up version, so the relation is outdated too, and the two elements
+    // derive from each other, so it is in a cycle too (both shown at the element, SR-026 AK3).
+    expect(hints(element).map((p) => p.code)).toEqual([
+      "relation.not-allowed",
+      "trace.cycle",
+      "relation.outdated",
+    ]);
+    expect(hints(element).filter((p) => p.code === "relation.not-allowed")).toEqual([
       expect.objectContaining({
         code: "relation.not-allowed",
         severity: "warning",
@@ -388,7 +395,9 @@ describe("element.get", () => {
       store: await workspace.get(elementStoreState),
       shortIds: await workspace.get(shortIdState),
     };
-    const error = await showElement(context, WIND.id, () => [], false).catch((e: unknown) => e);
+    const error = await showElement(context, WIND.id, () => Promise.resolve([]), false).catch(
+      (e: unknown) => e,
+    );
     expect((error as CommandError).code).toBe("internal");
   });
 });

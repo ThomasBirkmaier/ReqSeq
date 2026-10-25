@@ -6,7 +6,7 @@
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { getElement } from "../../model/index.js";
-import { supersededValidityFindingsOf } from "../../variants/index.js";
+import { elementHints } from "../../hints/index.js";
 
 export default defineCommand({
   name: "element.get",
@@ -18,9 +18,9 @@ export default defineCommand({
         { command: "element.get", fields: ["view"] },
       );
     }
-    // The variants block imports the model, so its hint is added here (SR-040 AK3).
+    // The variants and hints blocks import the model, so their hints are added here (SR-040 AK3, SR-026 AK3).
     return {
-      element: await getElement(ctx.workspace, input.ref, supersededValidityFindingsOf, input.versionDate, {
+      element: await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, {
         repository: input.repository,
         file: input.file,
       }),

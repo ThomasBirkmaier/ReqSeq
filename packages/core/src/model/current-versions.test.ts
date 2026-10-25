@@ -15,6 +15,7 @@ import {
   buildCurrentVersions,
   checkImages,
   currentVersions,
+  currentVersionsOf,
   currentVersionsState,
   currentVersionOf,
 } from "./current-versions.js";
@@ -320,6 +321,18 @@ describe("images checked on use (the watcher does not report them, ADR-0008)", (
     expect(again).not.toBe(checked);
     expect(again.byRecord.get(pictured)).toMatchObject({ kind: "version" });
     expect(currentVersionOf(again, pictured)).toBe(currentVersionOf(first, pictured));
+  });
+
+  it("computes the version of a record the built state does not hold from its file (SR-026, #38)", async () => {
+    const { workspace } = await open();
+    const versions = await currentVersions(workspace);
+    const record = await recordOf(workspace, "pictures/N-c00000000001.md");
+    // A record object the state was not built with, as a store read after the build gives it.
+    const other: ElementRecord = { ...record };
+    expect(versions.byRecord.has(other)).toBe(false);
+    const own = await currentVersionsOf(workspace, [record, other]);
+    expect(own.get(record)).toBe(versions.byRecord.get(record));
+    expect(own.get(other)).toEqual(versions.byRecord.get(record));
   });
 
   it("lets callers that come while a check runs share it", async () => {

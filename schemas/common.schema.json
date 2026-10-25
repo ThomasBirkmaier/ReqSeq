@@ -132,6 +132,14 @@
         "elementId": {
           "$ref": "#/$defs/uuid"
         },
+        "elementRepository": {
+          "type": "string",
+          "description": "Workspace name of the repository of the element the problem is about, when `repository` and `file` name another file (the evidence record of `evidence.outdated`, SR-025 AK4). With `elementFile` it names one copy of a UUID several files share (SR-088)."
+        },
+        "elementFile": {
+          "type": "string",
+          "description": "The file of the element the problem is about, relative to `elementRepository`; given with it."
+        },
         "targetId": {
           "$ref": "#/$defs/uuid"
         },

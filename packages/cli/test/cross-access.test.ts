@@ -44,6 +44,9 @@ const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
+/** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
+const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
+
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
 
@@ -90,6 +93,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.get": [
     { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
+    {
+      name: "an element with an outdated relation and reference, with dates (SR-026 AK3)",
+      fixture: HINTS,
+      input: { ref: "SR-0000b1", versionDate: true },
+      expect: "output",
+    },
     {
       name: "one element with its version date (D-013)",
       input: { ref: "SR-e88fb3", versionDate: true },
@@ -263,6 +272,32 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "SR-00b001", text: "Changed.\n" },
       expect: "output",
     },
+  ],
+  "hint.list": [
+    {
+      name: "every open hint with kind, element, target and reason, dates from Git (SR-026 AK1)",
+      fixture: HINTS,
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "filtered by kind, type, package and variant (SR-026 AK2)",
+      fixture: HINTS,
+      input: {
+        kind: ["element.unknown-property"],
+        type: ["system-requirement"],
+        package: "PKG-0000d1",
+        variant: "VAR-0000c2",
+      },
+      expect: "output",
+    },
+    {
+      name: "hints of one element (SR-026 AK3)",
+      fixture: HINTS,
+      input: { ref: "SR-0000b1" },
+      expect: "output",
+    },
+    { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
   ],
   "trace.affected": [
     {

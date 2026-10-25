@@ -10,17 +10,29 @@
 //   outdated. Of records with the same newest date, one for the current version counts.
 // - Problem `evidence.outdated`, severity `warning` (as `relation.outdated`: SR-019 AK2 ends the
 //   check with exit code 1 for it), with the record's repository, file and line when it has them,
-//   `elementId`, the record's version as `storedVersion` and the current one as `currentVersion`.
+//   `elementId` with the element's own repository and file (`elementRepository`, `elementFile`:
+//   `repository` and `file` are the record's, and a UUID may have several copies, SR-088), the
+//   record's version as `storedVersion` and the current one as `currentVersion`.
 //   No hint ID: such a hint is not confirmed, a new record settles it (ADR-0012).
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is SR-029's `evidence.unknown-element`, stage 4).
 // - Order: by element in store order, then kind, then variant as the records give them.
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecordFile } from "../generated/types.js";
+import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
-import type { ElementRecord, ShortIds } from "../model/index.js";
-import { currentVersionOf, currentVersionsState, elementLabel, shortIdState } from "../model/index.js";
+import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
+import {
+  currentVersionOf,
+  currentVersionsOf,
+  currentVersionsState,
+  elementLabel,
+  shortIdState,
+} from "../model/index.js";
+import { settledValue } from "../runtime/settled.js";
+import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
 
 /** One evidence record as far as the check needs it (`evidence-record.schema.json`, ADR-0012), and where it lies. */
 export type EvidenceVersion = Pick<
@@ -108,6 +120,8 @@ export const outdatedEvidenceFindings = (
         ...(record.file === undefined ? {} : { file: record.file }),
         ...(record.line === undefined ? {} : { line: record.line }),
         elementId: element.id,
+        elementRepository: element.repository,
+        elementFile: element.file,
         storedVersion: record.version,
         currentVersion: version,
       });
@@ -137,3 +151,53 @@ export const outdatedEvidenceProblemsState = defineWorkspaceState(
   },
   { dependsOn: [evidenceRecordsState, metamodelState, shortIdState, currentVersionsState] },
 );
+
+/** What the outdated evidence of one element reads: the states `element.get` works on. */
+export interface ElementEvidenceContext {
+  readonly workspace: Workspace;
+  readonly layout: WorkspaceLayout;
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+  readonly shortIds: ShortIds;
+}
+
+/**
+ * The hints `evidence.outdated` of one element shown (SR-026 AK3), as
+ * `outdatedEvidenceProblemsState` has them: from that state when its build has ended
+ * (`settledValue`), else from the records and the current version of this element alone
+ * (`currentVersionsOf`; ADR-0008). `element` may be the element as its file holds it now; it is
+ * looked up in the store by repository and file. Each problem keeps the line in its record file.
+ */
+export const elementEvidenceFindings = async (
+  context: ElementEvidenceContext,
+  element: ElementRecord,
+): Promise<LocatableFinding[]> => {
+  const { workspace, layout, metamodel, store, shortIds } = context;
+  const own = (p: Problem): boolean =>
+    p.elementId === element.id &&
+    p.elementRepository === element.repository &&
+    p.elementFile === element.file;
+  const toFinding = (problem: Problem): LocatableFinding => ({ element, path: [], at: "line", problem });
+  const kept = await settledValue(workspace.peek(outdatedEvidenceProblemsState));
+  if (kept !== undefined) {
+    return kept.filter(own).map(toFinding);
+  }
+  // None for an element the store does not hold yet (one just created).
+  const record = (store.byId.get(element.id) ?? []).find(
+    (r) => r.repository === element.repository && r.file === element.file,
+  );
+  if (record === undefined) {
+    return [];
+  }
+  const records = await workspace.get(evidenceRecordsState);
+  if (records.length === 0) {
+    return [];
+  }
+  const versions = { store, layout, metamodel, byRecord: await currentVersionsOf(workspace, [record]) };
+  return outdatedEvidenceFindings(
+    [record],
+    records,
+    (r) => currentVersionOf(versions, r),
+    (r) => elementLabel({ metamodel, shortIds }, r),
+  ).map(toFinding);
+};

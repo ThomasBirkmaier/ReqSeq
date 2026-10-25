@@ -23,6 +23,7 @@ import { readElementBodySync } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
+import { settledValue } from "../runtime/settled.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -321,6 +322,17 @@ export const currentVersions = async (workspace: Workspace): Promise<CurrentVers
 };
 
 /**
+ * The current versions the workspace keeps when their build has ended, else undefined: never waits
+ * for a build that is running (`settledValue`; ADR-0008: single-element paths such as `element.get`
+ * read the versions of the targets they need instead). The kept versions are not checked
+ * (`checkImages`); a caller checks the entries it uses (`currentVersionsOf`). A build that failed
+ * rejects here as it would in `currentVersions`: it is a bug (every expected failure is an
+ * `unknown` entry).
+ */
+export const currentVersionsIfBuilt = (workspace: Workspace): Promise<CurrentVersions | undefined> =>
+  settledValue(workspace.peek(currentVersionsState));
+
+/**
  * A list of at least this share of the store (1 / `WHOLE_STORE_SHARE` of its elements) builds and
  * keeps the versions of the whole store (`currentVersions`): it reads most files anyway.
  */
@@ -337,8 +349,10 @@ const keptFor = async (
   page: ReadonlySet<ElementRecord>,
 ): Promise<Map<ElementRecord, CurrentVersion>> => {
   const kept = new Map<ElementRecord, CurrentVersion>();
-  for (const [record, entry] of versions.byRecord) {
-    if (page.has(record)) {
+  // One lookup per record of the page, not a walk over the whole store (N-036).
+  for (const record of page) {
+    const entry = versions.byRecord.get(record);
+    if (entry !== undefined) {
       kept.set(record, entry);
     }
   }
@@ -354,10 +368,11 @@ const keptFor = async (
 
 /**
  * The current versions of `records` only, in their order and each record once, for a command that
- * shows some elements (`listElements`). Taken from the versions the workspace keeps, each checked
- * as `checkImages` checks it but only for these records (`keptFor`); when it keeps none and
- * `records` are a large share of the store (`WHOLE_STORE_SHARE`), the versions of the whole store
- * are built and kept first. Every other record's version is computed from its file as
+ * shows some elements (`listElements`, the hints of one element in its view, SR-026 AK3). Taken
+ * from the versions the workspace keeps when their build has ended (`currentVersionsIfBuilt`: a
+ * build that is running is not waited for), each checked as `checkImages` checks it but only for
+ * these records (`keptFor`); when none are built and `records` are a large share of the store
+ * (`WHOLE_STORE_SHARE`), the versions of the whole store are built and kept first. Every other record's version is computed from its file as
  * `buildCurrentVersions` does. A page of a large workspace thus reads only its own files, also in a
  * fresh CLI process (N-036), and builds no state. The kept state is not changed.
  */
@@ -370,13 +385,11 @@ export const currentVersionsOf = async (
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
   ]);
-  const kept = workspace.peek(currentVersionsState);
   const versions =
-    kept !== undefined
-      ? await kept
-      : records.length * WHOLE_STORE_SHARE >= store.elements.length
-        ? await currentVersions(workspace)
-        : undefined;
+    (await currentVersionsIfBuilt(workspace)) ??
+    (records.length * WHOLE_STORE_SHARE >= store.elements.length
+      ? await currentVersions(workspace)
+      : undefined);
   const run = runOf({ layout, metamodel });
   const known = versions === undefined ? undefined : await keptFor(run, versions, new Set(records));
   return entriesOf(run, records, known);

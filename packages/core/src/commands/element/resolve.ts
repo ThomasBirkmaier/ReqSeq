@@ -18,7 +18,7 @@ import { CommandError, defineCommand } from "../../catalog.js";
 import type { ElementCopy } from "../../model/index.js";
 import { getElement, shortIdState } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
-import { supersededValidityFindingsOf } from "../../variants/index.js";
+import { elementHints } from "../../hints/index.js";
 import { NORMAL_FORM } from "../../version/version.js";
 
 /**
@@ -86,13 +86,7 @@ export default defineCommand({
     }
     const copy = { repository: input.repository, file: input.file };
     try {
-      const element = await getElement(
-        ctx.workspace,
-        input.ref,
-        supersededValidityFindingsOf,
-        input.versionDate,
-        copy,
-      );
+      const element = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
       return { element, current: currentOf(version, element.version) };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {

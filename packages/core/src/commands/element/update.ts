@@ -6,16 +6,12 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { updateElement } from "../../model/index.js";
-import { supersededValidityFindingsOf } from "../../variants/index.js";
+import { elementHints } from "../../hints/index.js";
 
 export default defineCommand({
   name: "element.update",
   run: async (ctx, input): Promise<CommandOutput<"element.update">> => {
-    const { element, files, problems, affected } = await updateElement(
-      ctx.workspace,
-      input,
-      supersededValidityFindingsOf,
-    );
+    const { element, files, problems, affected } = await updateElement(ctx.workspace, input, elementHints);
     return { element, files: [...files], affected, problems: [...problems] };
   },
 });

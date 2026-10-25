@@ -8,8 +8,9 @@
 //   across repositories (SR-005 AK2, SR-084), a target in a missing repository only by short ID
 //   (SR-006 AK1), a target whose UUID several files share as ambiguous (SR-088 AK2);
 // - the successors of a superseded element as incoming relations (SR-072 AK3, `successionsFor`);
-// - the hints of the element (SR-016, SR-085, SR-086, SR-072 AK2), none while the metamodel is not
-//   valid (#208, #220 option 1);
+// - the hints of the element (SR-016, SR-085, SR-086, SR-072 AK2), and those of blocks that import
+//   the model (`ElementHints`: SR-040 AK3, the outdated relations of SR-026 AK3), none while the
+//   metamodel is not valid (#208, #220 option 1);
 // - `readOnly`, always: true for an unknown type (SR-016 AK3), while the metamodel is not valid
 //   (SR-011 AK3) and when this process cannot write the root folder of the element's repository
 //   (`isWritableFolder`, like `workspace.status`; SR-018 AK2; unknown on Windows, then not set by it);
@@ -30,6 +31,7 @@ import { findType, meaningUnassignedMessage, metamodelState } from "../metamodel
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../workspace/index.js";
+import type { ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
 import { embeddedImages } from "./images.js";
 import type { ElementCopy } from "./resolve.js";
@@ -37,11 +39,11 @@ import { resolveRef } from "./resolve.js";
 import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+import type { LocatableFinding } from "./locate.js";
 import { elementStoreState, ignoredBy } from "./store.js";
 import { successionsFor } from "./successors.js";
 import type { VersionDateContext, VersionDateWalk } from "./version-date.js";
 import { prepareVersionDates, versionDates } from "./version-date.js";
-import type { ExtraFindings } from "./view.js";
 import { elementView, titleKeyOf } from "./view.js";
 
 /**
@@ -77,6 +79,18 @@ export interface ShowContext {
 }
 
 /**
+ * Hints on the element shown from blocks that import the model, so the model cannot ask them itself
+ * (`element.get` passes the superseded variants of SR-040 AK3 and the outdated relations of SR-026
+ * AK3), before their lines in the file just read are known. Asked only while the metamodel is
+ * valid; `record` is the element as its file holds it now, `withDate` the input `versionDate`.
+ */
+export type ElementHints = (
+  context: ShowContext,
+  record: ElementRecord,
+  withDate: boolean,
+) => Promise<readonly LocatableFinding[]>;
+
+/**
  * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), in the repository and file
  * of `copy` when given (#255), read from its file now.
  * A file that changed since the store read it is shown as it is now, like a relation target is
@@ -87,7 +101,7 @@ export interface ShowContext {
 export const showElement = async (
   context: ShowContext,
   ref: string,
-  extra: ExtraFindings,
+  extra: ElementHints,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
   /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
@@ -129,15 +143,21 @@ export const showElement = async (
   }
   const record = classified.element;
   const titleKey = titleKeyOf(metamodel);
-  const dateOf = await dateWhenAsked(
-    { workspace, layout, metamodel },
-    { repository: record.repository, file: record.file, id: record.id, text: read.file.body },
-    withDate,
-  );
+  // The hints of other blocks (only against a valid metamodel), the start of the history walk and
+  // the images run side by side.
+  const [hints, dateOf, images] = await Promise.all([
+    metamodel.valid ? extra(context, record, withDate) : [],
+    dateWhenAsked(
+      { workspace, layout, metamodel },
+      { repository: record.repository, file: record.file, id: record.id, text: read.file.body },
+      withDate,
+    ),
+    embeddedImages({ repository, ignored: ignoredBy(layout) }, record.file, read.file.body),
+  ]);
   const element = elementView({
     record,
     file: read.file,
-    images: await embeddedImages({ repository, ignored: ignoredBy(layout) }, record.file, read.file.body),
+    images,
     metamodel,
     store,
     shortIds,
@@ -145,7 +165,7 @@ export const showElement = async (
     titleKey: titleKey ?? "",
     layout,
     successionsOf: (element) => successionsFor(workspace, store, metamodel, element),
-    extraFindings: extra,
+    extraFindings: hints,
   });
   const problems: Problem[] = [...element.problems];
   // A hint only against a valid metamodel, like the view's own (#208, #220 option 1).
@@ -170,7 +190,7 @@ export const showElement = async (
 export const getElement = async (
   workspace: Workspace,
   ref: string,
-  extra: ExtraFindings,
+  extra: ElementHints,
   /** Whether to date the version from Git (`element.get` input `versionDate`). */
   withDate: boolean,
   /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */

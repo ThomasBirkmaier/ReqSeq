@@ -16,16 +16,22 @@ export interface LocatableFinding {
   readonly path: readonly (string | number)[];
   /**
    * `"key"`: the line is the one of the top-level key `path[0]` itself, also for a block value
-   * (a finding about the key, SR-016). Otherwise the first line of the value at `path`.
+   * (a finding about the key, SR-016). `"line"`: the problem has its line already and `path` is
+   * not looked up (an inline reference in the text, whose line the element record keeps, SR-026
+   * AK3). Otherwise the first line of the value at `path`.
    */
-  readonly at?: "key";
+  readonly at?: "key" | "line";
   /** Gets `line` when the path is found in the unchanged file. */
   readonly problem: Problem;
 }
 
 /** The line of a finding in `file` (see `LocatableFinding.at`), undefined when it is not found. */
-export const findingLine = (file: ParsedFile, finding: LocatableFinding): number | undefined =>
-  finding.at === "key" ? keyLineOf(file, String(finding.path[0])) : lineOf(file, finding.path);
+export const findingLine = (file: ParsedFile, finding: LocatableFinding): number | undefined => {
+  if (finding.at === "line") {
+    return finding.problem.line;
+  }
+  return finding.at === "key" ? keyLineOf(file, String(finding.path[0])) : lineOf(file, finding.path);
+};
 
 export interface LocateOptions {
   /** Stops reading further files; the call then rejects with the signal's reason. */

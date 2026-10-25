@@ -22,7 +22,9 @@ export {
   cycleFindings,
   derivationCycleFindings,
   derivationCycleProblemsState,
+  elementCycleFindings,
 } from "./cycles.js";
+export type { ElementCycleContext } from "./cycles.js";
 export type { DerivationGraph, DerivationLink, DerivationWalkOptions, TraceContext } from "./graph.js";
 export {
   childrenOf,

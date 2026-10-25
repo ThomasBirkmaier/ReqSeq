@@ -69,6 +69,7 @@ export {
   carryCurrentVersions,
   checkImages,
   currentVersions,
+  currentVersionsIfBuilt,
   currentVersionsOf,
   currentVersionsState,
   currentVersionOf,
@@ -92,14 +93,14 @@ export { resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";
 export { isVersion } from "./is-version.js";
 export { elementVersion, elementView, listedElement, titleKeyOf } from "./view.js";
-export type { ElementViewInput, ExtraFindings, ListedElementInput } from "./view.js";
+export type { ElementViewInput, ListedElementInput } from "./view.js";
 export { listElements } from "./list.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";
 export type { SupersedeInput, SupersedeResult } from "./supersede.js";
 export { getElement, showElement } from "./get.js";
-export type { ShowContext } from "./get.js";
+export type { ElementHints, ShowContext } from "./get.js";
 export {
   elementLabel,
   invalidStatuses,

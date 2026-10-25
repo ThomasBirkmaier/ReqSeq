@@ -254,19 +254,13 @@ export interface ElementViewInput {
    * so no view walks the store (`supersededFindingsOf`, N-036).
    */
   readonly successionsOf: (element: ElementRecord) => readonly Succession[];
-  /** Hints of blocks that import the model (variants, SR-040 AK3), listed after the others. */
-  readonly extraFindings?: ExtraFindings;
+  /**
+   * Hints of blocks that import the model, before their lines are known, listed after the others
+   * and only while the metamodel is valid: what the caller's `ElementHints` gave for `record`
+   * (`showElement`, `finish` of the writes).
+   */
+  readonly extraFindings?: readonly LocatableFinding[];
 }
-
-/**
- * Hints on one element from a block that imports the model, so the model cannot ask it itself
- * (`supersededValidityFindingsOf`, SR-040 AK3), before their lines are known. Asked only while
- * the metamodel is valid. `record` is the element as shown.
- */
-export type ExtraFindings = (
-  context: Pick<ElementViewInput, "store" | "metamodel" | "shortIds">,
-  record: ElementRecord,
-) => readonly LocatableFinding[];
 
 /** What `listedElement` reads: the inputs of a view without the file. */
 export type ListedElementInput = Pick<
@@ -329,7 +323,7 @@ export const elementView = (
         ...valueFindings(record, metamodel),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
-        ...(input.extraFindings?.(input, record) ?? []),
+        ...(input.extraFindings ?? []),
       ]
     : [];
   const problems: Problem[] = findings.map((f) => {

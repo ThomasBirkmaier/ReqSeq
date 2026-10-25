@@ -4,16 +4,12 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { createElement } from "../../model/index.js";
-import { supersededValidityFindingsOf } from "../../variants/index.js";
+import { elementHints } from "../../hints/index.js";
 
 export default defineCommand({
   name: "element.create",
   run: async (ctx, input): Promise<CommandOutput<"element.create">> => {
-    const { element, files, problems } = await createElement(
-      ctx.workspace,
-      input,
-      supersededValidityFindingsOf,
-    );
+    const { element, files, problems } = await createElement(ctx.workspace, input, elementHints);
     return { element, files: [...files], problems: [...problems] };
   },
 });

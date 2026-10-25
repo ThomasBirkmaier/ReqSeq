@@ -52,6 +52,7 @@ import type {
 } from "../model/index.js";
 import {
   currentVersionOf,
+  currentVersionsOf,
   currentVersionsState,
   elementLabel,
   elementStoreState,
@@ -100,7 +101,7 @@ export interface OutdatedFinding {
 }
 
 /** A finding before its line is known: an item has the path of its value, a link its line from the store. */
-interface Candidate {
+export interface Candidate {
   readonly finding: OutdatedFinding;
   readonly path?: ValuePath;
 }
@@ -138,9 +139,45 @@ const problemOf = (
   hintId,
 });
 
-const relationCandidates = (element: ElementRecord, context: OutdatedContext, out: Candidate[]): void => {
-  const { layout, metamodel, versions } = context;
-  const place = { sourceRepository: element.repository, file: element.file, source: element.id };
+/** Where the targets of links are looked up: the store and the repositories on this machine. */
+interface LinkContext {
+  readonly layout: Pick<WorkspaceLayout, "repositories">;
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+}
+
+/** A relation item or inline reference that stores a version of normal form 1 of an available target. */
+type StoredLink = { readonly stored: string; readonly target: ElementRecord } & (
+  | {
+      readonly kind: "relation";
+      readonly key: string;
+      /** How messages name the relation kind or property. */
+      readonly label: string;
+      readonly path: ValuePath;
+      /** The `repository` the item names, as written. */
+      readonly named: unknown;
+    }
+  | {
+      readonly kind: "reference";
+      /** The `repository` of the link as written. */
+      readonly repository: string | undefined;
+      /** The place of the link among the links of the text with the same target, repository and version (the `n` of the hint ID). */
+      readonly occurrence: number;
+      readonly line: number;
+    }
+);
+
+/**
+ * Each relation item of `element` (keys in file order, then items), then each inline reference (in
+ * text order), that stores a version of normal form 1 of a target that is `available`: the links
+ * the outdated check compares (see the file comment).
+ */
+const eachStoredLink = (
+  element: ElementRecord,
+  context: LinkContext,
+  visit: (link: StoredLink) => void,
+): void => {
+  const { layout, metamodel, store } = context;
   for (const [key, value] of Object.entries(element.data)) {
     const relation = relationKey(metamodel, key);
     if (relation === undefined) {
@@ -154,40 +191,22 @@ const relationCandidates = (element: ElementRecord, context: OutdatedContext, ou
       if (!isN1Version(stored)) {
         continue;
       }
-      const state = targetState(layout, versions.store, element.repository, item);
-      const current =
-        state.kind === "available" ? outdatedAgainst(versions, state.element, stored) : undefined;
-      if (state.kind !== "available" || current === undefined) {
-        continue;
-      }
-      const target = state.element;
-      const named = item["repository"];
-      const hintId = hintIdOf({
-        kind: "relation",
-        ...place,
-        key,
-        target: target.id,
-        ...(typeof named === "string" ? { repository: named } : {}),
-        version: stored,
-      });
-      const message = `${relation.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
-      out.push({
-        path,
-        finding: {
-          element,
-          target,
+      const state = targetState(layout, store, element.repository, item);
+      if (state.kind === "available") {
+        const { label } = relation;
+        visit({
+          kind: "relation",
+          key,
+          label,
+          path,
+          named: item["repository"],
           stored,
-          current,
-          problem: problemOf(element, target, message, { stored, current }, hintId),
-        },
-      });
+          target: state.element,
+        });
+      }
     }
   }
-};
-
-const referenceCandidates = (element: ElementRecord, context: OutdatedContext, out: Candidate[]): void => {
-  const { layout, versions } = context;
-  /** How often each target, repository and version occurred in the text so far (the `n` of the hint ID). */
+  /** How often each target, repository and version occurred in the text so far. */
   const seen = new Map<string, number>();
   for (const reference of element.references ?? []) {
     const { id, repository, version: stored } = reference;
@@ -197,35 +216,67 @@ const referenceCandidates = (element: ElementRecord, context: OutdatedContext, o
     if (!isN1Version(stored)) {
       continue;
     }
-    const state = referenceTargetState(layout, versions.store, element.repository, reference);
-    const current = state.kind === "available" ? outdatedAgainst(versions, state.element, stored) : undefined;
-    if (state.kind !== "available" || current === undefined) {
-      continue;
+    const state = referenceTargetState(layout, store, element.repository, reference);
+    if (state.kind === "available") {
+      const { line } = reference;
+      visit({ kind: "reference", repository, occurrence, line, stored, target: state.element });
     }
-    const target = state.element;
-    const hintId = hintIdOf({
-      kind: "reference",
-      sourceRepository: element.repository,
-      file: element.file,
-      source: element.id,
-      target: target.id,
-      ...(repository === undefined ? {} : { repository }),
-      version: stored,
-      occurrence,
-    });
-    const message = `Reference in the text of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
-    const problem = problemOf(element, target, message, { stored, current }, hintId);
-    out.push({
-      finding: { element, target, stored, current, problem: { ...problem, line: reference.line } },
-    });
   }
+};
+
+/** The finding of `link` of `element`, whose target's current version is `current`. */
+const candidateOf = (
+  element: ElementRecord,
+  link: StoredLink,
+  current: string,
+  context: OutdatedContext,
+): Candidate => {
+  const { stored, target } = link;
+  const place = { sourceRepository: element.repository, file: element.file, source: element.id };
+  const versions = { stored, current };
+  if (link.kind === "relation") {
+    const { key, named } = link;
+    const hintId = hintIdOf({
+      kind: "relation",
+      ...place,
+      key,
+      target: target.id,
+      ...(typeof named === "string" ? { repository: named } : {}),
+      version: stored,
+    });
+    const message = `${link.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
+    const problem = problemOf(element, target, message, versions, hintId);
+    return { path: link.path, finding: { element, target, stored, current, problem } };
+  }
+  const { repository, occurrence } = link;
+  const hintId = hintIdOf({
+    kind: "reference",
+    ...place,
+    target: target.id,
+    ...(repository === undefined ? {} : { repository }),
+    version: stored,
+    occurrence,
+  });
+  const message = `Reference in the text of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
+  const problem = { ...problemOf(element, target, message, versions, hintId), line: link.line };
+  return { finding: { element, target, stored, current, problem } };
+};
+
+/** The outdated relations, then references, of `element`, before their lines are looked up, appended to `out`. */
+const candidatesInto = (element: ElementRecord, context: OutdatedContext, out: Candidate[]): void => {
+  const { versions } = context;
+  eachStoredLink(element, { ...context, store: versions.store }, (link) => {
+    const current = outdatedAgainst(versions, link.target, link.stored);
+    if (current !== undefined) {
+      out.push(candidateOf(element, link, current, context));
+    }
+  });
 };
 
 /** The outdated relations, then references, of one element, before their lines are looked up. */
 const candidatesOf = (element: ElementRecord, context: OutdatedContext): Candidate[] => {
   const out: Candidate[] = [];
-  relationCandidates(element, context, out);
-  referenceCandidates(element, context, out);
+  candidatesInto(element, context, out);
   return out;
 };
 
@@ -281,14 +332,49 @@ const locateOutdated = async (
 };
 
 /**
- * The outdated relations and inline references of one element (for its view, SR-026), with lines
- * as the whole-workspace state gives them; `datedProblems` gives their problems with dates.
+ * The outdated relations and inline references of one element, with lines as the whole-workspace
+ * state gives them; `datedProblems` gives their problems with dates.
  */
 export const outdatedFindingsOf = async (
   layout: WorkspaceLayout,
   element: ElementRecord,
   context: OutdatedContext,
 ): Promise<OutdatedFinding[]> => locateOutdated(layout, candidatesOf(element, context));
+
+/** What the outdated hints of one element in its view read: the states `element.get` works on. */
+export interface ShownContext {
+  readonly workspace: Workspace;
+  readonly layout: WorkspaceLayout;
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+  readonly shortIds: ShortIds;
+}
+
+/**
+ * The outdated relations and inline references of `element` as its view shows them (SR-026 AK3),
+ * by the same rules as the whole-workspace state, before their lines are known: an item has the
+ * path of its value (the view looks it up in the file it has just read), a link its line in that
+ * file. `element` may be the element as its file holds it now; its targets are looked up in the
+ * store. The current versions are those of the workspace when their build has ended; otherwise
+ * only the targets' versions are read, each from its file (`currentVersionsOf`; ADR-0008: a single
+ * element never waits for the whole build).
+ */
+export const outdatedOfShown = async (
+  context: ShownContext,
+  element: ElementRecord,
+): Promise<Candidate[]> => {
+  const { workspace, layout, metamodel, store, shortIds } = context;
+  const targets = new Set<ElementRecord>();
+  eachStoredLink(element, context, (link) => {
+    targets.add(link.target);
+  });
+  if (targets.size === 0) {
+    return [];
+  }
+  const byRecord = await currentVersionsOf(workspace, [...targets]);
+  const versions: CurrentVersions = { store, layout, metamodel, byRecord };
+  return candidatesOf(element, { layout, metamodel, shortIds, versions });
+};
 
 /** The findings of every element of `elements`, in order, before their lines are looked up; in slices (SR-082). */
 const candidatesOfAll = async (
@@ -297,8 +383,7 @@ const candidatesOfAll = async (
 ): Promise<Candidate[]> => {
   const out: Candidate[] = [];
   await forEachSliced(elements, (element) => {
-    relationCandidates(element, context, out);
-    referenceCandidates(element, context, out);
+    candidatesInto(element, context, out);
   });
   return out;
 };

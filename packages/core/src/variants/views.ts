@@ -137,6 +137,8 @@ export const resolveView = (
   context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
   view: string,
   command: CommandName,
+  /** The input field that names the view, for `input.invalid` (`hint.list` names it `variant`). */
+  field = "view",
 ): View => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
@@ -148,8 +150,8 @@ export const resolveView = (
   if (!variantTypes(metamodel).has(variant.type)) {
     throw new CommandError(
       "input.invalid",
-      `${view} is no variant: view takes core or a variant, an element whose type has the meaning variant`,
-      { command, fields: ["view"] },
+      `${view} is no variant: ${field} takes ${field === "view" ? "core or " : ""}a variant, an element whose type has the meaning variant`,
+      { command, fields: [field] },
     );
   }
   return { kind: "variant", variant };

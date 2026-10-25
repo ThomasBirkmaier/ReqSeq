@@ -71,6 +71,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: WIND, unset: ["status"] },
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
+  "hint.list": [{}, { kind: ["relation.outdated"], type: ["need"] }, { ref: OBSOLETE }, { ref: "SR-ffffff" }],
   "metamodel.get": [{}, { extra: true }],
   "relation.add": [
     { source: GUSTS, kind: "replaces", target: OBSOLETE },

@@ -102,6 +102,64 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
     );
     expect(again).toEqual(out);
   }, 900_000);
+
+  it("lists the hints (SR-026) and shows them at one element", async () => {
+    const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    const { result: all } = await measure(
+      "hint.list, every hint (states kept, dates from Git)",
+      async () => (await invoke("hint.list", {}, { workspace })) as CommandOutput<"hint.list">,
+      { basis: "SR-026, SR-020 (60 s)", thresholdMs: 60_000 },
+    );
+    expect(all.hints).toEqual(check.problems);
+    const source = all.hints[0];
+    const type = tree.elements.find((e) => e.id === source?.elementId)?.type ?? "";
+    const { result: typed } = await measure(
+      `hint.list filtered by type ${type} (states kept)`,
+      async () => (await invoke("hint.list", { type: [type] }, { workspace })) as CommandOutput<"hint.list">,
+      { basis: "SR-026 AK2; SR-068 (filter within 500 ms) for comparison", thresholdMs: 500 },
+    );
+    expect(typed.hints.length).toBeGreaterThan(0);
+    expect(typed.hints.length).toBeLessThanOrEqual(all.hints.length);
+    const { result: own } = await measure(
+      "hint.list of one element (states kept)",
+      async () =>
+        (await invoke("hint.list", { ref: source?.elementId }, { workspace })) as CommandOutput<"hint.list">,
+      { basis: "SR-026 AK3; SR-082 AK3 (open within 200 ms) for comparison", thresholdMs: 200 },
+    );
+    expect(own.hints.length).toBeGreaterThan(0);
+    const shown = await measure(
+      "element.get of an element with outdated relations (versions built)",
+      async () =>
+        (await invoke(
+          "element.get",
+          { ref: source?.elementId },
+          { workspace },
+        )) as CommandOutput<"element.get">,
+      { basis: "SR-026 AK3, SR-082 AK3 (200 ms)", thresholdMs: 200 },
+    );
+    expect(shown.result.element.problems?.filter((p) => p.code === "relation.outdated")).toHaveLength(
+      own.hints.length,
+    );
+    // A second process: the store from the cache folder is not there, so it is loaded first; the
+    // element view then reads only the versions of its targets (ADR-0008).
+    const fresh = new Workspace(fixture.workspaceRoot);
+    try {
+      await fresh.get(elementStoreState);
+      const { result: cold } = await measure(
+        "element.get of an element with outdated relations (versions not built)",
+        async () =>
+          (await invoke(
+            "element.get",
+            { ref: source?.elementId },
+            { workspace: fresh },
+          )) as CommandOutput<"element.get">,
+        { basis: "SR-026 AK3, SR-082 AK3 (200 ms)", thresholdMs: 200 },
+      );
+      expect(cold.element.problems).toEqual(shown.result.element.problems);
+    } finally {
+      await fresh.close();
+    }
+  }, 900_000);
 });
 
 describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {

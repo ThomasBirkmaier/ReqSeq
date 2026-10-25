@@ -51,7 +51,7 @@ import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
-import type { ExtraFindings } from "./view.js";
+import type { ElementHints } from "./get.js";
 import { elementContent, elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -332,7 +332,8 @@ interface FinishOptions {
   readonly titleKey: string;
   /** Written files relative to the workspace root; none when nothing was written. */
   readonly files: readonly string[];
-  readonly extraFindings: ExtraFindings | undefined;
+  /** Hints of blocks that import the model (`ElementHints`), asked for the written element. */
+  readonly extraFindings: ElementHints | undefined;
   /** The snapshot the write replaced; none for a new file. */
   readonly replaced?: FileSnapshot;
   /** The element before a save that wrote it (`element.update`): `affected` is counted. */
@@ -364,6 +365,12 @@ const finish = async (
     written.file.body,
     context.images,
   );
+  const { layout, metamodel, store } = context;
+  // Asked only while the metamodel is valid, as the view asks its own (#208, #220 option 1).
+  const hints =
+    extraFindings === undefined || !metamodel.valid
+      ? []
+      : await extraFindings({ workspace, layout, metamodel, store, shortIds }, written.record, false);
   const element = elementView({
     ...written,
     images,
@@ -373,7 +380,7 @@ const finish = async (
     titleKey,
     layout: context.layout,
     successionsOf: (element) => successionsFor(workspace, context.store, context.metamodel, element),
-    ...(extraFindings === undefined ? {} : { extraFindings }),
+    extraFindings: hints,
   });
   const affected =
     before === undefined
@@ -470,7 +477,7 @@ const folderOf = (folder: string): string => {
 export const createElement = async (
   workspace: Workspace,
   input: CreateElementInput,
-  extraFindings?: ExtraFindings,
+  extraFindings?: ElementHints,
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
@@ -730,7 +737,7 @@ export const writeElementFiles = async (
 export const updateElement = async (
   workspace: Workspace,
   input: UpdateElementInput,
-  extraFindings?: ExtraFindings,
+  extraFindings?: ElementHints,
 ): Promise<UpdateElementResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;

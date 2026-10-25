@@ -25,9 +25,12 @@
 //   all 50,000 elements takes about 30 s, still within SR-020's 60 s.
 // - `cycleFindings` makes the findings of any cycle of derivation edges, also one a command finds
 //   itself (SR-067 AK3: a walk up from the parent of a new relation that reaches its child).
+// - `elementCycleFindings` gives the hint of one element for its view (SR-026 AK3) without the
+//   whole-store pass (below).
 import type { Problem } from "../catalog.js";
+import type { Metamodel } from "../metamodel/index.js";
 import { meaningUnassignedMessage, metamodelState } from "../metamodel/index.js";
-import type { ElementRecord, LocatableFinding, ShortIds } from "../model/index.js";
+import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
 import {
   elementLabel,
   elementStoreState,
@@ -35,10 +38,14 @@ import {
   relationPath,
   shortIdState,
 } from "../model/index.js";
+import { settledValue } from "../runtime/settled.js";
+import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { DerivationGraph, DerivationLink } from "./graph.js";
-import { derivationEdges, derivationGraph, traceContext } from "./graph.js";
+import { derivationEdges, derivationGraph, parentsOf, traceContext, walkDerivation } from "./graph.js";
+import { upwardGraph } from "./new-cycle.js";
 import type { Cycle, GraphEdge } from "./walk.js";
 import { cyclesOf } from "./walk.js";
 
@@ -158,3 +165,79 @@ export const derivationCycleProblemsState = defineWorkspaceState(
   },
   { dependsOn: [elementStoreState, metamodelState, shortIdState] },
 );
+
+/** What the cycle hint of one element reads: the states `element.get` works on. */
+export interface ElementCycleContext {
+  readonly workspace: Workspace;
+  readonly layout: Pick<WorkspaceLayout, "repositories">;
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+  readonly shortIds: ShortIds;
+}
+
+/**
+ * The kept hints `trace.cycle` of `element` at the relation they name as its file holds it now: the
+ * first relation of a derivation kind to the hint's target (as `cycleFindings` picks it), so its
+ * line comes from that file; at the kept line where the file no longer has one.
+ */
+const keptAtElement = (
+  graph: DerivationGraph,
+  element: ElementRecord,
+  kept: readonly Problem[],
+): LocatableFinding[] => {
+  const { steps } = parentsOf(graph, element);
+  return kept.map((problem): LocatableFinding => {
+    const step = steps.find((s) => s.to.id === problem.targetId);
+    return step === undefined
+      ? { element, path: [], at: "line", problem }
+      : { element, path: relationPath(step.link), problem };
+  });
+};
+
+/**
+ * The hint `trace.cycle` of one element shown (SR-026 AK3), as `derivationCycleProblemsState` has
+ * it: from that state when its build has ended (`settledValue`; the line from the file as it is now, `keptAtElement`), else
+ * from a walk up from this element alone (ADR-0008: a single element never builds the incoming
+ * index or the cycles of the whole store). The element lies in a cycle exactly when one of the
+ * elements above it (its ancestors, reached through each one's own relations, `upwardGraph`) has a
+ * derivation to it; the strongly connected component of the element is then the same in the graph
+ * of these ancestors as in the whole store (every element on a way back to it is above it), so
+ * `cyclesOf` and `cycleFindings` on that graph give the same hint as the whole-store pass, before
+ * its line is known. `element` may be the element as its file holds it now; it is looked up in the
+ * store by repository and file. None without a relation kind with the meaning `derivation` (the
+ * check gives an info then, not a hint).
+ */
+export const elementCycleFindings = async (
+  context: ElementCycleContext,
+  element: ElementRecord,
+): Promise<LocatableFinding[]> => {
+  const { workspace, metamodel, store, shortIds } = context;
+  if (metamodel.meanings.derivation.length === 0) {
+    return [];
+  }
+  const sameFile = (p: Pick<Problem, "repository" | "file">): boolean =>
+    p.repository === element.repository && p.file === element.file;
+  const kept = await settledValue(workspace.peek(derivationCycleProblemsState));
+  if (kept !== undefined) {
+    const own = kept.filter((p) => p.code === "trace.cycle" && p.elementId === element.id && sameFile(p));
+    return own.length === 0 ? [] : keptAtElement(upwardGraph(context, "element.get"), element, own);
+  }
+  const record = (store.byId.get(element.id) ?? []).find(sameFile);
+  if (record === undefined) {
+    return [];
+  }
+  const graph = upwardGraph(context, "element.get");
+  const up = walkDerivation(graph, [record], { direction: "up" });
+  if (!up.edges.some((edge) => edge.to === record)) {
+    return [];
+  }
+  const above = new Set(up.nodes.map((node) => node.element));
+  return cyclesOf(
+    store.elements.filter((e) => above.has(e)),
+    up.edges,
+  )
+    .filter((cycle) => cycle.elements.includes(record))
+    .flatMap((cycle) => cycleFindings(graph, shortIds, cycle))
+    .filter((finding) => finding.element === record)
+    .map((finding) => ({ ...finding, element }));
+};

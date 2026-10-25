@@ -129,6 +129,10 @@ export interface Problem {
   readonly repository?: string;
   readonly line?: number;
   readonly elementId?: Uuid;
+  /** Workspace name of the repository of the element the problem is about, when `repository` and `file` name another file (the evidence record of `evidence.outdated`, SR-025 AK4). With `elementFile` it names one copy of a UUID several files share (SR-088). */
+  readonly elementRepository?: string;
+  /** The file of the element the problem is about, relative to `elementRepository`; given with it. */
+  readonly elementFile?: string;
   readonly targetId?: Uuid;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
@@ -982,7 +986,7 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). Later stages add the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). Later stages add the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
   readonly element: DataExportElement;
 }
 
@@ -1359,10 +1363,15 @@ export interface TraceAffectedOutput {
  * Schema: `schemas/commands/catalog.json hint.list input`.
  */
 export interface HintListInput {
+  /** Only hints with one of these codes. */
   readonly kind?: readonly ProblemCode[];
+  /** Only hints about elements of one of these types, or of a type that extends one of them (SR-012). */
   readonly type?: readonly Key[];
+  /** Only hints about elements whose property with the meaning packages lists this package. */
   readonly package?: ElementRef;
+  /** Only hints about elements that apply in this variant by their validity: those without a validity and those whose validity lists it (SR-040). */
   readonly variant?: ElementRef;
+  /** Only the hints about this element. */
   readonly ref?: ElementRef;
 }
 
@@ -1371,7 +1380,10 @@ export interface HintListInput {
  * Schema: `schemas/commands/catalog.json hint.list output`.
  */
 export interface HintListOutput {
+  /** The open hints: findings of severity warning about one element (glossary "Hinweis": the element should be checked; it blocks nothing and changes no status), from the same whole-workspace findings as workspace.check; errors, info and warnings about no element are not hints. Filters combine with AND. Each hint with its kind (code), the element it is about (elementId, repository, file, line), its target where it has one (targetId) and its reason (message; for an outdated relation with both versions and their dates, D-013). In the order of workspace.check. */
   readonly hints: readonly Problem[];
+  /** True while a repository of the workspace file is not on this machine: the hints of its elements are not listed (SR-006 AK2). */
+  readonly incomplete: Incomplete;
 }
 
 /**
