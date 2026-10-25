@@ -8,6 +8,8 @@ on:
   # macOS runs only here, to save Actions minutes (Thomas, 2026-10-24).
   schedule:
     - cron: "0 2 * * *"
+    # Weekly reference run on GitHub's runners only (job `runners`).
+    - cron: "0 4 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -45,12 +47,47 @@ jobs:
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
+  # Self-hosted runners on the product owner's Mac (toolchain/self-hosted-runner/README.md), to save Actions minutes
+  # (Thomas, 2026-10-25): Linux and macOS jobs run there while its runners are online, otherwise on GitHub.
+  # Pull requests from forks never run there. Windows always runs on GitHub. The weekly reference run
+  # (Sunday 04:00 UTC) uses GitHub's runners only, so that SR-076's macOS 14 and Ubuntu 24.04 (x64) stay covered.
+  runners:
+    name: pick runners
+    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    runs-on: ubuntu-latest
+    outputs:
+      map: ${{ steps.pick.outputs.map }}
+    steps:
+      - name: Pick runners
+        id: pick
+        env:
+          # Fine-grained token for this repository only, permission "Administration: read". Without it
+          # (or when the API call fails) every job runs on GitHub.
+          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          REFERENCE_RUN: ${{ github.event.schedule == '0 4 * * 0' }}
+        run: |
+          linux='"ubuntu-24.04"'
+          macos='"macos-14"'
+          online=""
+          if [ -n "$GH_TOKEN" ] && [ "$SAME_REPO" = "true" ] && [ "$REFERENCE_RUN" != "true" ]; then
+            online="$(curl -fsS --max-time 10 -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" |
+              jq -r '[.runners[] | select(.status == "online") | .labels[].name] | unique | join(" ")')" || online=""
+          fi
+          case " $online " in *" logreq-linux "*) linux='["self-hosted","logreq-linux"]' ;; esac
+          case " $online " in *" logreq-mac "*) macos='["self-hosted","logreq-mac"]' ;; esac
+          map="{\"ubuntu-24.04\":$linux,\"macos-14\":$macos,\"windows-2025\":\"windows-2025\"}"
+          echo "map=$map" >> "$GITHUB_OUTPUT"
+          echo "Runners: \`$map\`" >> "$GITHUB_STEP_SUMMARY"
+
   # Static checks run once; they do not depend on the operating system.
   static:
     name: static (typecheck, lint, format, contracts, licenses)
     # Title, body and label edits only matter to trace-check.
     if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
-    runs-on: ubuntu-latest
+    needs: runners
+    runs-on: ${{ fromJSON(needs.runners.outputs.map)['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -76,7 +113,8 @@ jobs:
       matrix:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
-    runs-on: ${{ matrix.os }}
+    needs: runners
+    runs-on: ${{ fromJSON(needs.runners.outputs.map)[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -106,7 +144,8 @@ jobs:
       matrix:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
-    runs-on: ${{ matrix.os }}
+    needs: runners
+    runs-on: ${{ fromJSON(needs.runners.outputs.map)[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
