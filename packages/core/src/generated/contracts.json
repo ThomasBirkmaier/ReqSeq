@@ -333,7 +333,8 @@
             "workspace.repository-missing",
             "workspace.invalid",
             "workspace.not-watched",
-            "git.unavailable"
+            "git.unavailable",
+            "git.revision-missing"
           ]
         },
         "error": {
@@ -360,6 +361,7 @@
                 "reqif.invalid",
                 "reqif.unmapped",
                 "git.unavailable",
+                "git.commit-not-found",
                 "file.changed-on-disk",
                 "file.faulty",
                 "file.read-only",
@@ -2261,13 +2263,14 @@
             "changedFiles": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "../common.schema.json#/$defs/localPath"
               },
-              "description": "Only these files and their targets (not implemented yet, SR-092)."
+              "description": "Restrict the check to the elements in these files and their targets (SR-092). A file must lie in a repository of the workspace and be no folder; deleted and non-element files add nothing. With changedSince, both count. To cover deleted elements, use changedSince: a deleted file named only in changedFiles adds no old UUID."
             },
             "changedSince": {
               "type": "string",
-              "description": "Git revision; only files changed since then and their targets (SR-025 AK4) (not implemented yet, SR-092)."
+              "minLength": 1,
+              "description": "Git revision, e.g. the target commit of a merge request: restrict the check to the elements whose files (or embedded images) in the working copy differ from it, untracked files included, and their targets (SR-092). Looked up in every repository of the workspace; a repository without it, or without Git, adds nothing and gets an info problem (git.revision-missing, git.unavailable). The relations to an element file deleted since, or whose UUID changed, are kept. Error git.commit-not-found (CLI exit code 4) when no repository has it."
             },
             "severity": {
               "enum": [
@@ -2286,7 +2289,7 @@
           "properties": {
             "ok": {
               "type": "boolean",
-              "description": "False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009)."
+              "description": "False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps."
             },
             "problems": {
               "type": "array",
@@ -2296,7 +2299,8 @@
             },
             "checkedElements": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "description": "Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092)."
             },
             "durationMs": {
               "type": "integer",

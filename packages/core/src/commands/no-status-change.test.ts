@@ -95,7 +95,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: [GUSTS, OBSOLETE, RETIRED], direction: "parents", view: "core" },
     { refs: ["SR-ffffff"], direction: "children" },
   ],
-  "workspace.check": [{}, { severity: "error" }, { changedSince: "main" }],
+  "workspace.check": [
+    {},
+    { severity: "error" },
+    { changedFiles: ["needs/N-aaaaaaaaaaaa.md"] },
+    { changedSince: "main" },
+  ],
   "workspace.init": [
     { path: "new", name: "New" },
     { path: ".", name: "Again" },

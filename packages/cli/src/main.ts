@@ -22,7 +22,7 @@ import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { outcomeExitCode, renderError, renderHuman, renderJson } from "./render.js";
 
-/** Exit codes of `logreq` (ADR-0009). 4 is reserved for "commit not available locally" (SR-092 AK2). */
+/** Exit codes of `logreq` (ADR-0009). */
 export const EXIT = {
   /** Success without error findings. */
   ok: 0,
@@ -32,6 +32,8 @@ export const EXIT = {
   usage: 2,
   /** Internal error. */
   internal: 3,
+  /** A given commit is not available locally (SR-092 AK2: `git.commit-not-found`). */
+  commitNotFound: 4,
   /** The call was aborted (Ctrl-C, SIGTERM): 128 + SIGINT, as shells report it. */
   aborted: 130,
 } as const;
@@ -47,8 +49,10 @@ export const EXIT_BY_CLASS: Readonly<Record<CommandErrorClass, ExitCode>> = {
   internal: EXIT.internal,
 };
 
-/** Error codes with an exit code of their own; all others get the one of their class. None yet. */
-export const EXIT_BY_CODE: Readonly<Partial<Record<CommandErrorCode, ExitCode>>> = {};
+/** Error codes with an exit code of their own; all others get the one of their class. */
+export const EXIT_BY_CODE: Readonly<Partial<Record<CommandErrorCode, ExitCode>>> = {
+  "git.commit-not-found": EXIT.commitNotFound,
+};
 
 /** Exit code of a failed call: aborted, else by code, else by class. */
 export const exitCodeFor = (

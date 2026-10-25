@@ -174,7 +174,8 @@ export type ProblemCode =
   | "workspace.repository-missing"
   | "workspace.invalid"
   | "workspace.not-watched"
-  | "git.unavailable";
+  | "git.unavailable"
+  | "git.revision-missing";
 
 /**
  * Error of a command call. Same codes over CLI (stderr, exit code), API (HTTP body) and MCP (tool error).
@@ -196,6 +197,7 @@ export interface CommandErrorObject {
     | "reqif.invalid"
     | "reqif.unmapped"
     | "git.unavailable"
+    | "git.commit-not-found"
     | "file.changed-on-disk"
     | "file.faulty"
     | "file.read-only"
@@ -893,9 +895,9 @@ export interface WorkspaceStatusOutput {
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
-  /** Only these files and their targets (not implemented yet, SR-092). */
-  readonly changedFiles?: readonly string[];
-  /** Git revision; only files changed since then and their targets (SR-025 AK4) (not implemented yet, SR-092). */
+  /** Restrict the check to the elements in these files and their targets (SR-092). A file must lie in a repository of the workspace and be no folder; deleted and non-element files add nothing. With changedSince, both count. To cover deleted elements, use changedSince: a deleted file named only in changedFiles adds no old UUID. */
+  readonly changedFiles?: readonly LocalPath[];
+  /** Git revision, e.g. the target commit of a merge request: restrict the check to the elements whose files (or embedded images) in the working copy differ from it, untracked files included, and their targets (SR-092). Looked up in every repository of the workspace; a repository without it, or without Git, adds nothing and gets an info problem (git.revision-missing, git.unavailable). The relations to an element file deleted since, or whose UUID changed, are kept. Error git.commit-not-found (CLI exit code 4) when no repository has it. */
   readonly changedSince?: string;
   /** Lowest severity of the problems shown; does not change ok or the exit code. */
   readonly severity: "error" | "warning" | "info";
@@ -906,9 +908,10 @@ export interface WorkspaceCheckInput {
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
-  /** False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). */
+  /** False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps. */
   readonly ok: boolean;
   readonly problems: readonly Problem[];
+  /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
   readonly durationMs?: number;

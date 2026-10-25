@@ -9,7 +9,14 @@ import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import * as reader from "./reader.js";
 import type { ObjectInfos, ObjectReader } from "./reader.js";
-import { fileHistory, headCommit, headFiles, openObjectReader } from "./reader.js";
+import {
+  changedPaths,
+  fileHistory,
+  headCommit,
+  headFiles,
+  openObjectReader,
+  resolveCommit,
+} from "./reader.js";
 
 interface Call {
   readonly file: string;
@@ -37,7 +44,7 @@ interface FakeProcess {
 // program, an old git).
 const mock = vi.hoisted(() => ({
   calls: [] as Call[],
-  fake: undefined as Fake | undefined,
+  fake: undefined as Fake | ((args: readonly string[]) => Fake | undefined) | undefined,
   process: undefined as ((args: readonly string[]) => FakeProcess | undefined) | undefined,
   dropped: [] as string[],
 }));
@@ -104,7 +111,7 @@ vi.mock("node:child_process", async (importOriginal) => {
       return original.execFile(file, args, options, callback);
     }
     mock.calls.push({ file, args, options });
-    const fake = mock.fake;
+    const fake = typeof mock.fake === "function" ? mock.fake(args) : mock.fake;
     if (fake === undefined) {
       return original.execFile(file, args, options, callback);
     }
@@ -168,11 +175,14 @@ const FIXED = ["--no-pager", "-c", "core.fsmonitor=false", "-c", "protocol.allow
 describe("git reader", () => {
   it("exports only typed functions and checks, no way to run another subcommand or argument", () => {
     expect(Object.keys(reader).sort()).toEqual([
+      "changedPaths",
       "fileHistory",
       "headCommit",
       "headFiles",
       "isGitPath",
+      "isRevision",
       "openObjectReader",
+      "resolveCommit",
     ]);
   });
 
@@ -838,5 +848,152 @@ describe("object reader", () => {
     const failed = await failing.info([at("first", "x.md")]);
     expect(failed).toMatchObject({ known: false, reason: "not-a-repository" });
     expect(await failing.info([at("first", "a.md")])).toBe(failed);
+  });
+});
+
+describe("commits and changes since a commit (SR-092)", () => {
+  /** `repo` with `a.md` in its first commit (with the annotated tag `v1`) and `b.md` added in a second. */
+  const changes = async (): Promise<{
+    ws: FixtureWorkspace;
+    folder: string;
+    first: string;
+    second: string;
+  }> => {
+    const ws = await fixture(["repo"]);
+    const first = await ws.head("repo");
+    await ws.git(["tag", "-a", "-m", "v1", "v1"], "repo");
+    await ws.write("repo/b.md", "b\n");
+    const second = await ws.commit("repo");
+    return { ws, folder: ws.path("repo"), first, second };
+  };
+
+  /** Every file below `folder` with its bytes. */
+  const snapshot = async (folder: string): Promise<Record<string, string>> => {
+    const out: Record<string, string> = {};
+    for (const entry of await fs.readdir(folder, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile()) {
+        const file = `${entry.parentPath}/${entry.name}`;
+        out[file] = (await fs.readFile(file)).toString("base64");
+      }
+    }
+    return out;
+  };
+
+  it("names the commit of a revision, peeled; none for a name that is no commit here", async () => {
+    const { ws, folder, first, second } = await changes();
+    expect(await resolveCommit(folder, "HEAD")).toEqual({ known: true, commit: second });
+    expect(await resolveCommit(folder, "v1")).toEqual({ known: true, commit: first });
+    expect(await resolveCommit(folder, "HEAD~1")).toEqual({ known: true, commit: first });
+    expect(await resolveCommit(folder, first.slice(0, 12))).toEqual({ known: true, commit: first });
+    const tree = (await ws.git(["rev-parse", "HEAD^{tree}"], "repo")).trim();
+    for (const none of [
+      "no-such-branch",
+      "0".repeat(40),
+      tree,
+      "HEAD:a.md",
+      "--output=out.txt",
+      "my branch",
+    ]) {
+      expect(await resolveCommit(folder, none)).toEqual({ known: true, commit: undefined });
+    }
+    // The revision goes to standard input: the name that looks like an option wrote no file.
+    await expect(fs.stat(ws.path("repo/out.txt"))).rejects.toThrow();
+    expect(mock.calls.at(-1)?.args).toEqual([...FIXED, "cat-file", "--batch-check", "--buffer"]);
+  });
+
+  it("is unknown where git fails or prints something else, and refuses a revision git cannot take", async () => {
+    const ws = await fixture();
+    expect(await resolveCommit(ws.path("plain"), "HEAD")).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+    for (const bad of ["", " HEAD", "HEAD\n", "a\nb"]) {
+      await expect(resolveCommit(ws.path("plain"), bad)).rejects.toThrow(/cannot pass the revision/);
+    }
+    mock.fake = { stdout: "what\n" };
+    expect(await resolveCommit(ws.path("plain"), "HEAD")).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: "unexpected output of git cat-file for HEAD^{commit}: what",
+    });
+  });
+
+  it("lists the files of the working copy that differ from a commit, and the untracked ones, relative to the folder", async () => {
+    const { ws, folder, first, second } = await changes();
+    await ws.write("repo/a.md", "a2\n");
+    await ws.git(["add", "a.md"], "repo");
+    await ws.write("repo/sub/d.md", "d\n");
+    await ws.write("repo/.gitignore", "*.log\n");
+    await ws.write("repo/x.log", "ignored\n");
+    // A file named like the commit: `--` keeps it from being read as the revision.
+    await ws.write(`repo/${first}`, "named like the commit\n");
+    const since = await changedPaths(folder, first);
+    expect(since.known ? [...since.paths].sort() : since).toEqual(
+      [".gitignore", "a.md", "b.md", first, "sub/d.md"].sort(),
+    );
+    // Below a subfolder only, relative to it.
+    expect(await changedPaths(ws.path("repo/sub"), first)).toEqual({ known: true, paths: ["d.md"] });
+    // A rename is a deletion and an addition.
+    await ws.git(["mv", "b.md", "moved.md"], "repo");
+    const renamed = await changedPaths(folder, second);
+    expect(renamed.known ? [...renamed.paths].sort() : renamed).toEqual(
+      [".gitignore", "a.md", "b.md", first, "moved.md", "sub/d.md"].sort(),
+    );
+  });
+
+  it("runs diff and ls-files with the fixed command lines, `--` after the commit, and writes nothing", async () => {
+    const { ws, folder, first, second } = await changes();
+    // Changed after the index was written: git must not refresh the index (D-036). A file with only
+    // new stat data (same bytes, later time) is what `diff` would otherwise write into the index.
+    await ws.write("repo/a.md", "a3\n");
+    const later = new Date(Date.now() + 60_000);
+    await fs.utimes(ws.path("repo/b.md"), later, later);
+    const before = await snapshot(ws.path("repo/.git"));
+    mock.calls.length = 0;
+    await changedPaths(folder, first);
+    expect(mock.calls.map((c) => [c.args, (c.options as ExecFileOptions).timeout])).toEqual(
+      expect.arrayContaining([
+        [
+          [
+            ...FIXED,
+            "-c",
+            "diff.autoRefreshIndex=false",
+            "diff",
+            "--no-ext-diff",
+            "--no-renames",
+            "--relative",
+            "--name-only",
+            "-z",
+            first,
+            "--",
+          ],
+          60_000,
+        ],
+        [
+          [...FIXED, "-c", "core.untrackedCache=false", "ls-files", "--others", "--exclude-standard", "-z"],
+          60_000,
+        ],
+      ]),
+    );
+    expect(mock.calls).toHaveLength(2);
+    // The file with only new stat data counts as changed: more, never less.
+    expect(await changedPaths(folder, second)).toEqual({ known: true, paths: ["a.md", "b.md"] });
+    await resolveCommit(folder, "HEAD");
+    expect(await snapshot(ws.path("repo/.git"))).toEqual(before);
+  });
+
+  it("is unknown when git fails, and refuses what is no commit ID", async () => {
+    const ws = await fixture();
+    expect(await changedPaths(ws.path("plain"), "a".repeat(40))).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+    const { folder, first } = await changes();
+    mock.fake = (args) =>
+      args.includes("ls-files")
+        ? { error: execError("Command failed", { killed: true, signal: "SIGKILL" }) }
+        : undefined;
+    expect(await changedPaths(folder, first)).toMatchObject({ known: false, reason: "timeout" });
+    await expect(changedPaths(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
   });
 });

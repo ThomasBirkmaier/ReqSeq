@@ -135,17 +135,23 @@ describe("workspace.check", () => {
     );
   });
 
-  it("[SR-019/AK2] refuses to restrict the check to changed files before SR-092", async () => {
-    const ws = await fixture({ fixture: "SR-072/supersede" });
+  it("[SR-019/AK2] restricted to changed files (SR-092), reports the findings of those elements and their targets only", async () => {
+    const ws = await fixture({ fixture: "SR-019/findings" });
     const workspace = open(ws.root);
-    await expect(check(workspace, { changedSince: "main" })).rejects.toMatchObject({
-      code: "input.invalid",
-      message: "workspace.check cannot be restricted to changed files yet (SR-092): leave out changedSince",
-      details: { command: "workspace.check", fields: ["changedSince"] },
+    const out = await check(workspace, {
+      changedFiles: ["requirements/SR-b00000000002.md", "requirements/SR-b00000000006.md"],
     });
-    await expect(check(workspace, { changedFiles: [], changedSince: "main" })).rejects.toMatchObject({
-      code: "input.invalid",
-      details: { fields: ["changedFiles", "changedSince"] },
+    expect(kinds(out)).toEqual(
+      FINDINGS.filter(
+        ([, file]) =>
+          file === "requirements/SR-b00000000002.md" || file === "requirements/SR-b00000000006.md",
+      ),
+    );
+    expect(out.ok).toBe(false);
+    expect(await check(workspace, { changedFiles: [] })).toEqual({
+      ok: true,
+      problems: [],
+      checkedElements: 0,
     });
   });
 

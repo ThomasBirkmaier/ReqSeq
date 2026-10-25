@@ -563,7 +563,7 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
 };
 
 /** Whether `folder` holds a `.git` entry; without one it is no repository and no process starts. */
-const hasGitEntry = async (folder: string): Promise<boolean> =>
+export const hasGitEntry = async (folder: string): Promise<boolean> =>
   fs.lstat(path.join(folder, ".git")).then(
     () => true,
     () => false,

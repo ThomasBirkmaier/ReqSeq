@@ -537,6 +537,13 @@ describe("logreq <group> <action>", () => {
     expect(exitCodeFor(new CommandError("internal", "x"))).toBe(EXIT.internal);
     expect(exitCodeFor(new CommandError("internal", "x", { aborted: true }))).toBe(EXIT.aborted);
   });
+
+  it("[SR-092/AK2] ends with exit code 4 of its own for a commit that is not available locally", () => {
+    expect(exitCodeFor(new CommandError("git.commit-not-found", "no commit"))).toBe(4);
+    expect(EXIT.commitNotFound).toBe(4);
+    // Every other code keeps the exit code of its class.
+    expect(exitCodeFor(new CommandError("git.unavailable", "no git"))).toBe(EXIT.usage);
+  });
 });
 
 describe("workspace discovery", () => {

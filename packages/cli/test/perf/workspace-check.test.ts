@@ -152,4 +152,48 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
       await fs.rm(own, { recursive: true, force: true });
     }
   }, 900_000);
+
+  // SR-092 in a pipeline: the same worst case, each repository a Git repository with a tag `base` and a
+  // merge request of 3 changed elements on top. Recorded only, with no threshold: the check still
+  // builds the states of the whole workspace before it restricts them (#293).
+  it("records a check restricted to a merge request of 3 changed elements, with Git (SR-092)", async () => {
+    const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
+    const merged = await writeLargeWorkspace(tree, { git: true });
+    const own = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-092-cache-"));
+    try {
+      const folders = new Map(tree.repositories.map((r) => [r.name, r.folder]));
+      for (const repository of tree.repositories) {
+        await merged.git(["tag", "base"], repository.folder);
+      }
+      const changed = [tree.elements[1000], tree.elements[25_000], tree.elements[49_999]].filter(
+        (e) => e !== undefined,
+      );
+      for (const element of changed) {
+        const folder = folders.get(element.repository) ?? "";
+        const file = merged.path(`${folder}/${element.file}`);
+        await fs.writeFile(file, `${await fs.readFile(file, "utf8")}Changed in the merge request.\n`);
+        await merged.commit(folder, "the merge request");
+      }
+      const env = { XDG_CACHE_HOME: own, LOCALAPPDATA: own };
+      const { result: run } = await measure(
+        "logreq workspace check --changed-since base --json, 3 changed elements, every relation outdated, Git (new CLI process, no cache)",
+        () =>
+          logreq(["workspace", "check", "--changed-since", "base", "--json"], {
+            cwd: merged.workspaceRoot,
+            env,
+          }),
+        { basis: "SR-092, SR-020 (command line, from process start to exit; recorded only, #293)" },
+      );
+      expect(run.stderr).toBe("");
+      expect(run.code).toBe(1);
+      const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+      const ids = new Set(changed.map((e) => e.id));
+      expect(out.ok).toBe(false);
+      expect(out.checkedElements).toBeLessThan(100);
+      expect(out.problems.some((p) => p.targetId !== undefined && ids.has(p.targetId))).toBe(true);
+    } finally {
+      await merged.cleanup();
+      await fs.rm(own, { recursive: true, force: true });
+    }
+  }, 1_800_000);
 });

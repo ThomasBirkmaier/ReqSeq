@@ -44,6 +44,20 @@ const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
+/** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
+const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
+
+/** What is done to a template once it is built: more commits. */
+const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise<void>>([
+  [
+    SECOND_COMMIT,
+    async (ws) => {
+      const file = ws.path("requirements/SR-b00000000004.md");
+      await fs.appendFile(file, "Changed in a second commit.\n");
+      await ws.commit();
+    },
+  ],
+]);
 
 /** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
 const MISSING_TARGETS: FixtureOptions = { fixture: "SR-089/missing-targets", git: ["system", "sensor"] };
@@ -470,7 +484,23 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: {},
       expect: "output",
     },
-    { name: "restricted to changed files (SR-092)", input: { changedSince: "main" }, expect: "error" },
+    {
+      name: "restricted to changed files (SR-092)",
+      fixture: { fixture: "SR-019/findings", git: true },
+      input: { changedFiles: ["requirements/SR-b00000000002.md", "needs/N-a00000000002.md"] },
+      expect: "output",
+    },
+    {
+      name: "restricted to changes since the commit before (SR-092)",
+      fixture: SECOND_COMMIT,
+      input: { changedSince: "HEAD~1" },
+      expect: "output",
+    },
+    {
+      name: "a commit that is not here (SR-092 AK2)",
+      input: { changedSince: "0123456789abcdef0123456789abcdef01234567" },
+      expect: "error",
+    },
   ],
   "workspace.status": [
     { name: "one repository", input: {}, expect: "output" },
@@ -656,7 +686,9 @@ afterAll(async () => {
 beforeAll(async () => {
   cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cross-access-"));
   for (const options of FIXTURES) {
-    templates.set(options, await createFixtureWorkspace(options));
+    const template = await createFixtureWorkspace(options);
+    await TEMPLATE_SETUP.get(options)?.(template);
+    templates.set(options, template);
   }
 }, 120_000);
 

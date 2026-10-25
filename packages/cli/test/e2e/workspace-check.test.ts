@@ -329,3 +329,56 @@ describe("outdated relations in workspace check (SR-025)", () => {
     );
   });
 });
+
+describe("workspace check restricted to a merge request (SR-092)", () => {
+  const B_FILE = "requirements/SR-0b0000000002.md";
+
+  it("[SR-092/AK1] reports only the findings of the changed element and its targets with --changed-since", async () => {
+    const ws = await fixture("SR-025/outdated", true);
+    // On the target branch: B gets a finding of its own; B has nothing to do with N.
+    const b = await fs.readFile(ws.path(B_FILE), "utf8");
+    await fs.writeFile(ws.path(B_FILE), b.replace("\ntitle: ", "\nodd-key: 1\ntitle: "));
+    await ws.commit();
+    await ws.git(["tag", "target"]);
+    // The merge request changes the need N: A's relation and reference to it are outdated.
+    await fs.writeFile(
+      ws.path("needs/N-0a0000000001.md"),
+      `${await fs.readFile(ws.path("needs/N-0a0000000001.md"), "utf8")}Changed in the merge request.\n`,
+    );
+    await ws.commit();
+    const full = await logreq(["workspace", "check", "--json"], ws.root);
+    expect(kinds(JSON.parse(full.stdout) as Output)).toEqual([
+      ["element.unknown-property", B_FILE, `${OUTDATED}b0000000002`],
+      ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
+      ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
+    ]);
+    const json = await logreq(["workspace", "check", "--changed-since", "target", "--json"], ws.root);
+    expect([json.code, json.stderr]).toEqual([1, ""]);
+    const output = JSON.parse(json.stdout) as Output;
+    expect(output.problems.map((p) => [p.code, p.elementId, p.targetId])).toEqual([
+      ["relation.outdated", A_ID, N_ID],
+      ["relation.outdated", A_ID, N_ID],
+    ]);
+    expect(output.checkedElements).toBe(1);
+    // With a file named directly: the same restriction.
+    const named = await logreq(
+      ["workspace", "check", "--changed-files", "needs/N-0a0000000001.md", "--json"],
+      ws.root,
+    );
+    expect((JSON.parse(named.stdout) as Output).problems).toEqual(output.problems);
+    // Nothing changed since HEAD: exit code 0.
+    const none = await logreq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
+    expect(none).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 0\nNo problems.\n", stderr: "" });
+  });
+
+  it("[SR-092/AK2] says that a commit is not available locally and ends with exit code 4", async () => {
+    const ws = await fixture("SR-025/outdated", true);
+    const missing = "0123456789abcdef0123456789abcdef01234567";
+    const message = `Commit ${missing} is not available locally in any repository of the workspace: fetch it, or deepen a shallow clone`;
+    const human = await logreq(["workspace", "check", "--changed-since", missing], ws.root);
+    expect(human).toEqual({ code: 4, stdout: "", stderr: `error git.commit-not-found: ${message}\n` });
+    const json = await logreq(["workspace", "check", "--changed-since", "no-such-branch", "--json"], ws.root);
+    expect(json.code).toBe(4);
+    expect(JSON.parse(json.stderr)).toMatchObject({ code: "git.commit-not-found" });
+  });
+});

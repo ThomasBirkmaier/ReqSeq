@@ -88,6 +88,7 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "reqif.invalid": "input",
   "reqif.unmapped": "input",
   "git.unavailable": "unavailable",
+  "git.commit-not-found": "not-found",
   "file.changed-on-disk": "conflict",
   "file.faulty": "conflict",
   "file.read-only": "conflict",

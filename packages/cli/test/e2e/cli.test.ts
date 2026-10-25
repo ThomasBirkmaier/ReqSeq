@@ -323,21 +323,22 @@ describe("logreq with test commands", () => {
         p.file,
         p.message,
       ]);
+    // `changedFiles` are local paths: the CLI makes them absolute (ADR-0009), from every source.
     expect(files(flags)).toEqual([
-      ["a.md", "changed since HEAD~1"],
-      ["b.md", "changed since HEAD~1"],
+      [ws.path("a.md"), "changed since HEAD~1"],
+      [ws.path("b.md"), "changed since HEAD~1"],
     ]);
     const fromFile = await logreq(["workspace", "check", "--input", "@input.json", "--json"], {
       cwd: ws.root,
       testCommands: true,
     });
-    expect(files(fromFile)).toEqual([["c.md", "changed since main"]]);
+    expect(files(fromFile)).toEqual([[ws.path("c.md"), "changed since main"]]);
     const fromStdin = await logreq(["workspace", "check", "--input", "-", "--json"], {
       cwd: ws.root,
       testCommands: true,
       stdin: JSON.stringify({ changedFiles: ["d.md"] }),
     });
-    expect(files(fromStdin)).toEqual([["d.md", "changed since (none)"]]);
+    expect(files(fromStdin)).toEqual([[ws.path("d.md"), "changed since (none)"]]);
   });
 
   it("finds the workspace from a subfolder, or takes --workspace", async () => {

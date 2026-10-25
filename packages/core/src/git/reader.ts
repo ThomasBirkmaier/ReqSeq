@@ -51,9 +51,37 @@ const COMMANDS = {
   objectInfo: ["cat-file", "--batch-check", "--buffer"],
   /** What `contents` answers, for every object named on standard input (git before 2.36). */
   objectContents: ["cat-file", "--batch", "--buffer"],
+  /**
+   * The files of the working copy that differ from a given commit: committed, staged and not staged
+   * (SR-092). Paths relative to the folder git runs in and only below it (`--relative`), NUL after
+   * each (`-z`); a rename is a deletion and an addition, and no external diff program runs. The
+   * commit ID follows, then `--` (`TRAILING`), so a file of that name is never read as a revision.
+   * `diff.autoRefreshIndex=false`: `diff` would otherwise refresh the index of a file whose stat
+   * data changed, which writes `.git/index` even with `GIT_OPTIONAL_LOCKS=0` (D-036). Without the
+   * refresh, nothing is written and no clean filter (LFS) runs, except for a racily clean entry,
+   * whose content git hashes to compare. A stat-dirty file is listed as changed: more, never less.
+   */
+  changes: [
+    "-c",
+    "diff.autoRefreshIndex=false",
+    "diff",
+    "--no-ext-diff",
+    "--no-renames",
+    "--relative",
+    "--name-only",
+    "-z",
+  ],
+  /**
+   * The files Git neither tracks nor ignores, relative to the folder git runs in and below it
+   * (SR-092). No untracked cache, which git would otherwise store in the index.
+   */
+  untracked: ["-c", "core.untrackedCache=false", "ls-files", "--others", "--exclude-standard", "-z"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 type GitCommand = keyof typeof COMMANDS;
+
+/** What follows the commit ID of a command line: `--` ends the revisions of `diff`. */
+const TRAILING: Readonly<Partial<Record<GitCommand, readonly string[]>>> = { changes: ["--"] };
 
 /** Does nothing: for errors already handled elsewhere and for objects nobody reads. */
 const ignore = (): undefined => undefined;
@@ -164,7 +192,11 @@ const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): 
   new Promise((resolve) => {
     const child = execFile(
       "git",
-      [...FIXED_OPTIONS, ...COMMANDS[command], ...(options.revision === undefined ? [] : [options.revision])],
+      [
+        ...FIXED_OPTIONS,
+        ...COMMANDS[command],
+        ...(options.revision === undefined ? [] : [options.revision, ...(TRAILING[command] ?? [])]),
+      ],
       {
         cwd,
         env: gitEnv(),
@@ -208,10 +240,10 @@ const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const isObjectId = (text: string): boolean => OBJECT_ID.test(text);
 
 /**
- * Whether git can take `name` as one line of standard input: not empty, no line break, and no
+ * Whether git can take `name` as one line of standard input: not empty, no line break or NUL, and no
  * white space at either end (git would drop a trailing carriage return).
  */
-const isLine = (name: string): boolean => name !== "" && !/[\n\r]/.test(name) && name.trim() === name;
+const isLine = (name: string): boolean => name !== "" && !/[\n\r\0]/.test(name) && name.trim() === name;
 
 /**
  * Whether `file` (relative to the top level, `/` as separator) can be passed to `fileHistory`, or
@@ -762,4 +794,76 @@ export const openObjectReader = (folder: string, options: ReadOptions = {}): Obj
       session = undefined;
     },
   };
+};
+
+/**
+ * Whether `revision` can be passed to `resolveCommit`: one line of standard input, as `isLine`
+ * allows. Anything else git understands is fine there; it never becomes an argument.
+ */
+export const isRevision = (revision: string): boolean => isLine(revision);
+
+/** The commit a revision names; undefined where the repository has none of that name. */
+export type ResolvedCommit = { readonly known: true; readonly commit: string | undefined } | GitUnknown;
+
+/**
+ * The commit `revision` names in the repository of `folder` (any revision git reads: a branch, a
+ * tag, `origin/main`, a commit ID or a unique prefix of one, `HEAD~2`), peeled to a commit
+ * (`^{commit}`). Undefined when it names none there: no such name, a prefix of several objects,
+ * an object that is no commit, a commit that a shallow or partial clone does not have (SR-092
+ * AK2). The revision goes to the standard input of `cat-file --batch-check`, never on the command
+ * line, so it cannot be read as an option (ADR-0006). Unknown when git fails or `folder` is not in
+ * a repository. A programming error when `isRevision` refuses the revision.
+ */
+export const resolveCommit = async (
+  folder: string,
+  revision: string,
+  options: ReadOptions = {},
+): Promise<ResolvedCommit> => {
+  if (!isRevision(revision)) {
+    throw new Error(`resolveCommit cannot pass the revision ${JSON.stringify(revision)}`);
+  }
+  const name = `${revision}^{commit}`;
+  const result = await run(folder, "objectInfo", { ...options, input: `${name}\n` });
+  if (!result.ok) {
+    return unknown(result);
+  }
+  try {
+    const info = parseHeader(name, result.stdout.toString("utf8").replace(/\n$/, ""));
+    return { known: true, commit: info?.type === "commit" ? info.id : undefined };
+  } catch (error) {
+    return { known: false, reason: "not-a-repository", detail: (error as Error).message };
+  }
+};
+
+export type ChangedPaths = { readonly known: true; readonly paths: readonly string[] } | GitUnknown;
+
+/** The names of a `-z` listing: NUL after each. */
+const zList = (stdout: Buffer): string[] => stdout.toString("utf8").split("\0").slice(0, -1);
+
+/**
+ * The files of the working copy in `folder` that differ from `commit` (committed since, staged or
+ * not), deleted ones included, and the files Git neither tracks nor ignores (SR-092): paths
+ * relative to `folder` with `/`, only below it, as Git stores them (also in another Unicode form
+ * than the file system's, ADR-0006). Unknown when git fails. A programming error when `commit` is
+ * not an object ID (`resolveCommit` gives one).
+ */
+export const changedPaths = async (
+  folder: string,
+  commit: string,
+  options: ReadOptions = {},
+): Promise<ChangedPaths> => {
+  if (!isObjectId(commit)) {
+    throw new Error(`changedPaths needs a commit ID, not ${commit}`);
+  }
+  const [changes, untracked] = await Promise.all([
+    run(folder, "changes", { ...options, revision: commit }),
+    run(folder, "untracked", options),
+  ]);
+  if (!changes.ok) {
+    return unknown(changes);
+  }
+  if (!untracked.ok) {
+    return unknown(untracked);
+  }
+  return { known: true, paths: [...zList(changes.stdout), ...zList(untracked.stdout)] };
 };

@@ -18,7 +18,7 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 - With `--input`, positional values fill the positional fields that `--input` does not give, in order; flags override fields of `--input`.
 - Local file and folder fields (`common.schema.json#/$defs/localPath`, e.g. `workspace init <path>`, `evidence enrich-junit <file>`) are relative to the current folder; the CLI passes them on as absolute paths.
 - Workspace: `--workspace`, else the nearest folder upwards with `logreq-workspace.yaml`, else the current folder.
-- Exit codes: `0` no error findings, `1` an error finding or `ok: false` (`workspace check` sets it for any warning or error, shown or not), `2` usage or input error (every error class but `internal`), `3` internal error, `130` aborted (Ctrl-C); `4` is reserved for SR-092. See ADR-0009.
+- Exit codes: `0` no error findings, `1` an error finding or `ok: false` (`workspace check` sets it for any warning or error, shown or not), `2` usage or input error (every error class but `internal`), `3` internal error, `4` a given commit is not available locally (`workspace check --changed-since`, SR-092), `130` aborted (Ctrl-C). See ADR-0009.
 - While the metamodel is faulty or missing, `workspace check` reports its errors, the file findings and duplicate IDs only, not the findings that need the metamodel (unknown or missing properties, values, relations); they return once the metamodel is fixed.
 - `--input -` reads standard input to its end and does not watch the abort signal: Ctrl-C while the CLI waits for input ends the process through the second-signal path (exit code 130).
 - Output is UTF-8 without colors. Problems go to stdout, errors to stderr. A closed pipe (`logreq ... | head`) ends quietly.

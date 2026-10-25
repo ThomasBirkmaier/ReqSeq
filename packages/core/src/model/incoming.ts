@@ -226,6 +226,19 @@ export const buildIncomingIndex = (store: ElementStore, metamodel: Metamodel): I
   return { store, metamodel, relationsById, referencesById };
 };
 
+/**
+ * The relations and inline references of `source` that an index of `metamodel` holds, in the order
+ * of its frontmatter keys and items, then of its text: what a source points at (SR-092).
+ */
+export const outgoingLinks = (source: ElementRecord, metamodel: Metamodel): IncomingLink[] => {
+  const links: IncomingLink[] = [];
+  const push = (_id: string, link: IncomingLink): void => {
+    links.push(link);
+  };
+  linksOf(source, relationKeysOf(metamodel), { relation: push, reference: push });
+  return links;
+};
+
 const NONE: readonly never[] = Object.freeze([]);
 
 /**

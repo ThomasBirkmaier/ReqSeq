@@ -18,8 +18,13 @@
 //   would report every property of every element as unknown. `ok` stays false: the metamodel, or
 //   the layout for a missing metamodel folder, has an `error`. States carried over a store change
 //   (#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
-// - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, stage 2). Until
-//   then they are refused, so a pipeline never takes a full check for a restricted one.
+// - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, `model/changed.ts`;
+//   spec question #291): the findings of the changed elements and their targets, and those whose
+//   target is a changed element. The problems of the layout and the metamodel are always kept, and so
+//   is an `info` per repository whose changes are not looked at (no such commit, no Git). The
+//   states are still built for the whole workspace (they are kept for the next call); the outdated
+//   relations are restricted before their dates are asked for, so only the kept ones cost a walk.
+//   `ok` and `checkedElements` are about what the restriction keeps.
 // - Outdated relations and references (SR-025), after the states of `FINDING_STATES`: the current
 //   versions are checked first (images the watcher does not report, ADR-0008), so the state is built
 //   on the versions of now; their state keeps findings, and their problems get the dates of both
@@ -29,16 +34,18 @@
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
 //   every access (SR-080 AK2).
-import type { CommandInput, CommandOutput, Problem } from "../../catalog.js";
-import { CommandError, defineCommand } from "../../catalog.js";
+import type { CommandOutput, Problem } from "../../catalog.js";
+import { defineCommand } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
+  changedFiles,
   currentVersions,
   duplicateIdProblemsState,
   elementStoreState,
   missingTargetProblemsState,
   relationTypeProblemsState,
   requiredProblemsState,
+  restrictTo,
   supersededTargetProblemsState,
   unknownProblemsState,
   valueKindProblemsState,
@@ -70,35 +77,33 @@ export const FINDING_STATES = [
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 
-const refuseRestriction = (input: CommandInput<"workspace.check">): void => {
-  const given = (["changedFiles", "changedSince"] as const).filter((key) => input[key] !== undefined);
-  if (given.length > 0) {
-    throw new CommandError(
-      "input.invalid",
-      `workspace.check cannot be restricted to changed files yet (SR-092): leave out ${given.join(" and ")}`,
-      { command: "workspace.check", fields: given },
-    );
-  }
-};
-
 export default defineCommand({
   name: "workspace.check",
   run: async (ctx, input): Promise<CommandOutput<"workspace.check">> => {
-    refuseRestriction(input);
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);
-    const findings: Problem[] = [...layout.problems, ...metamodel.problems, ...store.problems];
-    if (metamodel.valid) {
-      await currentVersions(ctx.workspace);
-    }
-    for (const state of FINDING_STATES) {
-      for (const problem of await ctx.workspace.get(state)) {
+    // Git first: a commit that is not here fails the call before anything is built (SR-092 AK2).
+    const changed = await changedFiles(ctx.workspace.root, layout, input, ctx.signal);
+    const versions = metamodel.valid ? await currentVersions(ctx.workspace) : undefined;
+    const restriction =
+      changed === undefined ? undefined : restrictTo(changed, { store, layout, metamodel, versions });
+    const keeps = (problem: Problem): boolean => restriction?.keeps(problem) ?? true;
+    const findings: Problem[] = [...layout.problems, ...metamodel.problems, ...(changed?.problems ?? [])];
+    for (const problem of store.problems) {
+      if (keeps(problem)) {
         findings.push(problem);
       }
     }
+    for (const state of FINDING_STATES) {
+      for (const problem of await ctx.workspace.get(state)) {
+        if (keeps(problem)) {
+          findings.push(problem);
+        }
+      }
+    }
     const lowest = RANK[input.severity];
-    const outdated = await ctx.workspace.get(outdatedRelationsState);
+    const outdated = (await ctx.workspace.get(outdatedRelationsState)).filter((f) => keeps(f.problem));
     // The dates are asked of Git only when the warnings are shown; for `ok` the problems suffice.
     const shown =
       RANK.warning < lowest ? outdated.map((f) => f.problem) : await datedProblems(ctx.workspace, outdated);
@@ -108,7 +113,7 @@ export default defineCommand({
     return {
       ok: !findings.some((p) => RANK[p.severity] >= RANK.warning),
       problems: findings.filter((p) => RANK[p.severity] >= lowest),
-      checkedElements: store.elements.length,
+      checkedElements: restriction?.selected.length ?? store.elements.length,
     };
   },
 });

@@ -158,6 +158,7 @@ describe("error classes", () => {
       "ref.unknown",
       "workspace.not-found",
       "element.not-found",
+      "git.commit-not-found",
       "file.folder-missing",
     ]);
     expect(byClass("conflict")).toEqual([

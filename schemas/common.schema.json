@@ -190,7 +190,8 @@
         "workspace.repository-missing",
         "workspace.invalid",
         "workspace.not-watched",
-        "git.unavailable"
+        "git.unavailable",
+        "git.revision-missing"
       ]
     },
     "error": {
@@ -214,6 +215,7 @@
             "reqif.invalid",
             "reqif.unmapped",
             "git.unavailable",
+            "git.commit-not-found",
             "file.changed-on-disk",
             "file.faulty",
             "file.read-only",

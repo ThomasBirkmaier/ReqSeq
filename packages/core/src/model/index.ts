@@ -111,7 +111,16 @@ export {
 export type { SupersededContext } from "./superseded.js";
 export { buildSuccessionIndex, successionIndexState, successionsFor, successionsOf } from "./successors.js";
 export type { Succession, SuccessionIndex } from "./successors.js";
-export { buildIncomingIndex, incomingFor, incomingState, incomingTo, relationPath } from "./incoming.js";
+export {
+  buildIncomingIndex,
+  incomingFor,
+  incomingState,
+  incomingTo,
+  outgoingLinks,
+  relationPath,
+} from "./incoming.js";
+export { changedFiles, restrictTo } from "./changed.js";
+export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";

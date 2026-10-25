@@ -109,9 +109,26 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
   let fixture: LargeFixtureWorkspace;
   let workspace: Workspace;
 
+  /** The elements a merge request changes in a second commit (SR-092): three of 50,000. */
+  let merged: readonly GeneratedWorkspace["elements"][number][];
+
   beforeAll(async () => {
     tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree, { git: true });
+    // A merge request on top: tag `base`, then a commit that changes three elements.
+    const folders = new Map(tree.repositories.map((r) => [r.name, r.folder]));
+    merged = [tree.elements[1000], tree.elements[25_000], tree.elements[49_999]].filter(
+      (e) => e !== undefined,
+    );
+    for (const repository of tree.repositories) {
+      await fixture.git(["tag", "base"], repository.folder);
+    }
+    for (const element of merged) {
+      const folder = folders.get(element.repository) ?? "";
+      const file = fixture.path(`${folder}/${element.file}`);
+      await fs.writeFile(file, `${await fs.readFile(file, "utf8")}Changed in the merge request.\n`);
+      await fixture.commit(folder, "the merge request");
+    }
     workspace = new Workspace(fixture.workspaceRoot);
   }, 900_000);
 
@@ -141,5 +158,36 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
     // The stored version is in no commit; the current one is the generated commit's.
     expect(new Set(problems.map((p) => p.storedDate))).toEqual(new Set([null]));
     expect(problems.every((p) => typeof p.currentDate === "string")).toBe(true);
+  }, 1_800_000);
+
+  it("restricted to a merge request of 3 changed elements, dates only the findings it keeps (SR-092)", async () => {
+    const ids = new Set(merged.map((e) => e.id));
+    const restricted = async (w: Workspace): Promise<CommandOutput<"workspace.check">> =>
+      (await invoke(
+        "workspace.check",
+        { changedSince: "base" },
+        { workspace: w },
+      )) as CommandOutput<"workspace.check">;
+    const { result: kept } = await measure(
+      "workspace.check --changed-since, 3 changed elements, every relation outdated, Git (states kept)",
+      () => restricted(workspace),
+      { basis: "SR-092, SR-020 (in process; the whole-workspace states are kept from the test before)" },
+    );
+    const fresh = new Workspace(fixture.workspaceRoot);
+    try {
+      const { result: cold } = await measure(
+        "workspace.check --changed-since, 3 changed elements, every relation outdated, Git (fresh workspace)",
+        () => restricted(fresh),
+        { basis: "SR-092, SR-020 (in process, store from the model cache)", thresholdMs: 60_000 },
+      );
+      expect(cold).toEqual(kept);
+    } finally {
+      await fresh.close();
+    }
+    expect(kept.ok).toBe(false);
+    // Every finding is of a changed element or one of its targets, or a relation to a changed element.
+    expect(kept.problems.length).toBeGreaterThan(0);
+    expect(kept.problems.some((p) => p.targetId !== undefined && ids.has(p.targetId))).toBe(true);
+    expect(kept.checkedElements).toBeLessThan(100);
   }, 1_800_000);
 });

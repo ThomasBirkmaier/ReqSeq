@@ -21,7 +21,7 @@ Status: Proposed · Based on: D-025, D-029 · SRs: SR-019, SR-079, SR-080, SR-08
   | 1 | The output has a problem of severity `error`, or `ok: false` (SR-019, SR-025, SR-029 AK2) |
   | 2 | Usage error (unknown command or option, missing action) or a `CommandError` of any class but `internal` |
   | 3 | `internal`, any failure outside a command, or a failed write to stdout or stderr |
-  | 4 | Reserved: a given commit is not available locally (SR-092 AK2); the error code comes with SR-092 |
+  | 4 | A given commit is not available locally: `git.commit-not-found` (SR-092 AK2; `workspace check --changed-since` when no repository of the workspace has the revision) |
   | 130 | Aborted (Ctrl-C, SIGTERM) |
 
   The exit code of an error comes from `EXIT_BY_CODE[code]` when a code has its own (only for cases like 4), else from its class (table under "Errors"). An SR that asks for exit code 1 is met by returning problems with severity `error` or `ok: false`, never by throwing: a thrown `CommandError` is a failed call, not a finding. `workspace.check` sets `ok: false` when the workspace has a finding of severity `warning` or `error`, because SR-019 AK2 ends the check with exit code 1 also for the hints of SR-015, SR-016, SR-085 and SR-086, which stay warnings in every access; info (a repository that is not here) keeps `ok` true. Its `severity` input only filters the problems shown; `ok`, and so the exit code, is about all findings, shown or not (SR-019 AK2 knows no such option).
@@ -54,7 +54,7 @@ The CLI starts both servers (`logreq serve api`, `logreq mcp`); they are its onl
 | Class | Codes | CLI exit code | HTTP status |
 |---|---|---|---|
 | `input` | `input.invalid`, `ref.ambiguous`, `relation.not-allowed`, `variant.nested`, `reqif.invalid`, `reqif.unmapped` | 2 | 400 |
-| `not-found` | `ref.unknown`, `element.not-found`, `workspace.not-found`, `file.folder-missing` | 2 | 404 |
+| `not-found` | `ref.unknown`, `element.not-found`, `workspace.not-found`, `file.folder-missing`, `git.commit-not-found` (exit code 4 by `EXIT_BY_CODE`) | 2 | 404 |
 | `conflict` | `workspace.read-only`, `element.read-only`, `file.read-only`, `file.changed-on-disk`, `file.faulty`, `file.not-regular`, `baseline.uncommitted-changes`, `metamodel.meaning-unassigned` | 2 | 409 |
 | `unavailable` | `git.unavailable` | 2 | 503 |
 | `internal` | `internal` | 3 | 500 |
