@@ -8,12 +8,7 @@
 // ADR-0008); the index is carried over a save (#267), so a chain right after one stays within the
 // threshold too. Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
 // `measure` recorded the times.
-import type {
-  GeneratedWorkspace,
-  HistoryCommitSpec,
-  LargeFixtureWorkspace,
-  VersionFunction,
-} from "@logreq/testkit";
+import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -50,6 +45,7 @@ import {
   walkDerivation,
 } from "../../src/trace/index.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
+import { standardModel, versionOf } from "./core-version.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -57,8 +53,6 @@ const RELATIONS = 200_000;
 const OPEN_MS = 200;
 /** SR-082 AK4. */
 const RESULT_MS = 500;
-/** The versions stored in relations do not matter here: nothing compares them. */
-const VERSION: VersionFunction = () => "n1:0000000000000000";
 
 /** Commits of each repository's history before the generated state (opening dates a version, ADR-0005). */
 const HISTORY = 1000;
@@ -125,7 +119,10 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   let generatedDates = new Map<string, string>();
 
   beforeAll(async () => {
-    tree = generateLargeWorkspace({ version: VERSION, elements: ELEMENTS, relations: RELATIONS });
+    // Core's versions: the stored versions are compared by workspace.check (SR-025) and must be the
+    // current ones, or every relation is an outdated-relation finding.
+    const version = versionOf(await standardModel());
+    tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree);
     generatedDates = await writeHistory(fixture, tree);
     workspace = new Workspace(fixture.workspaceRoot);
@@ -393,14 +390,27 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const current = opened();
     const saved = tree.elements[Math.floor(ELEMENTS / 3)]?.id ?? "";
     const id = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.id ?? "";
-    // As an API server after a `workspace.check`: every finding state is built (no findings in the
-    // generated workspace, so the carry walks every element without locating anything).
+    // As an API server after a `workspace.check`: every finding state is built. The only findings:
+    // the relations to the element whose text the SR-024 test above saved are outdated (SR-025).
+    const changed = relationToTarget().target.id;
+    const check = async (): Promise<CommandOutput<"workspace.check">> =>
+      (await invoke("workspace.check", {}, { workspace: current })) as CommandOutput<"workspace.check">;
     const { result: checked } = await measure(
       "workspace.check in the loaded workspace (builds every finding state)",
-      () => invoke("workspace.check", {}, { workspace: current }),
+      check,
       { basis: "SR-082 AK3 (the states the save carries over; no threshold of its own)" },
     );
-    expect(checked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
+    expect(checked.ok).toBe(false);
+    expect(checked.checkedElements).toBe(ELEMENTS);
+    expect(checked.problems.length).toBeGreaterThan(0);
+    // Exactly the relations and references to it (17 = 10 + 7 in the generated workspace).
+    const index = incomingFor(current, await current.get(elementStoreState), metamodel);
+    expect(checked.problems).toHaveLength(
+      (index.relationsById.get(changed)?.length ?? 0) + (index.referencesById.get(changed)?.length ?? 0),
+    );
+    expect(checked.problems.filter((p) => p.code !== "relation.outdated" || p.targetId !== changed)).toEqual(
+      [],
+    );
     // The save puts the written file into the store and carries the short IDs and findings over (#184).
     await measure(
       "save one element (element.update of its title)",
@@ -422,13 +432,14 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect((await current.get(elementStoreState)).byId.get(saved)?.[0]?.data["title"]).toBe(
       "Saved in the performance suite",
     );
-    // The carried finding states equal a fresh check: none, as before the save.
+    // The carried finding states give what the check gave before the save: the title save outdates
+    // no relation here.
     const { result: rechecked } = await measure(
       "workspace.check right after a save (finding states carried over, #184)",
-      () => invoke("workspace.check", {}, { workspace: current }),
+      check,
       { basis: "SR-020 (a check after a save; no threshold of its own)" },
     );
-    expect(rechecked).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
+    expect(rechecked).toEqual(checked);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
 
     // Supersede a target of relations by its status (a save), then open it and one of its sources.

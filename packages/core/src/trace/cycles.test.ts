@@ -11,7 +11,11 @@ import type { DerivationLink } from "./graph.js";
 import { derivationGraph, traceContext } from "./graph.js";
 import type { GraphEdge } from "./walk.js";
 
-const V = "n1:1111111111111111";
+/**
+ * The current version of every `requirement(id)` without text: the id and relation kinds are no
+ * content (ADR-0005), so the relations these tests write are not outdated (SR-025).
+ */
+const V = "n1:e56561e2ecbb739f";
 
 /** The UUIDs of fixtures/SR-090/cycle: the need, A, B, C (the cycle) and D (derives from A). */
 const P = "5e9c0a7d-2b4f-4c61-9d08-0";
@@ -326,10 +330,17 @@ describe("cycles in the derivations (SR-090)", () => {
       [B, C],
       [C, A],
     ]);
-    await fixture.write("requirements/SR-0b0000000003.md", requirement(C, derivesFrom(NEED)));
+    // The current version of the need in fixtures/SR-090/cycle, so that the new relation is not outdated (SR-025).
+    await fixture.write(
+      "requirements/SR-0b0000000003.md",
+      requirement(C, ["derives-from:", `  - { id: ${NEED}, version: n1:3e5f74ee1859b526 }`]),
+    );
     await workspace.reset(elementStoreState);
     expect(await cycles(workspace)).toEqual([]);
-    expect((await check(workspace)).ok).toBe(true);
+    // No cycle any more. C has other content now, so B's relation to it is outdated (SR-025): that
+    // is the only finding left.
+    const out = await check(workspace);
+    expect(out.problems.map((p) => [p.code, p.elementId, p.targetId])).toEqual([["relation.outdated", B, C]]);
   });
 
   it("reports nothing against a metamodel that is not valid (#208, #220)", async () => {

@@ -6,7 +6,7 @@ import type { ParsedFile } from "../files/index.js";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, propertyWithMeaning } from "../metamodel/index.js";
-import { fileSchemaValidator } from "../runtime/contracts.js";
+import { isVersion } from "./is-version.js";
 import { computeVersion } from "../version/version.js";
 import type { VersionFile, VersionPropertyDefinition, VersionValue } from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -26,9 +26,6 @@ import type { Succession } from "./successors.js";
 import { supersededFindingsOf } from "./superseded.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
-
-const isVersion = (value: unknown): value is string =>
-  fileSchemaValidator("common.schema.json#/$defs/version")(value);
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 

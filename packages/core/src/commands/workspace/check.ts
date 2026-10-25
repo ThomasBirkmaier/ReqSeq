@@ -20,7 +20,11 @@
 //   (#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
 // - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, stage 2). Until
 //   then they are refused, so a pipeline never takes a full check for a restricted one.
-// - Outdated relations (SR-025) come in stage 2 (#127 option 1).
+// - Outdated relations and references (SR-025), after the states of `FINDING_STATES`: the current
+//   versions are checked first (images the watcher does not report, ADR-0008), so the state is built
+//   on the versions of now; their state keeps findings, and their problems get the dates of both
+//   versions per call (`datedProblems`), since a new commit changes them without a file change.
+//   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1).
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
@@ -29,6 +33,7 @@ import type { CommandInput, CommandOutput, Problem } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
+  currentVersions,
   duplicateIdProblemsState,
   elementStoreState,
   missingTargetProblemsState,
@@ -38,6 +43,7 @@ import {
   unknownProblemsState,
   valueKindProblemsState,
 } from "../../model/index.js";
+import { datedProblems, outdatedEvidenceProblemsState, outdatedRelationsState } from "../../hints/index.js";
 import { derivationCycleProblemsState } from "../../trace/index.js";
 import { supersededValidityProblemsState } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
@@ -48,7 +54,8 @@ const RANK: Readonly<Record<Severity, number>> = { info: 0, warning: 1, error: 2
 
 /**
  * The whole-workspace findings after the files themselves, in the order of their SRs. The one list
- * of them: tests that need every finding state take it from here.
+ * of them: tests that need every finding state take it from here. The outdated relations of SR-025
+ * follow them (`outdatedRelationsState`): their state keeps findings, which get their dates per call.
  */
 export const FINDING_STATES = [
   requiredProblemsState, // SR-015
@@ -60,6 +67,7 @@ export const FINDING_STATES = [
   duplicateIdProblemsState, // SR-088
   missingTargetProblemsState, // SR-089
   derivationCycleProblemsState, // SR-090
+  outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 
 const refuseRestriction = (input: CommandInput<"workspace.check">): void => {
@@ -81,12 +89,22 @@ export default defineCommand({
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);
     const findings: Problem[] = [...layout.problems, ...metamodel.problems, ...store.problems];
+    if (metamodel.valid) {
+      await currentVersions(ctx.workspace);
+    }
     for (const state of FINDING_STATES) {
       for (const problem of await ctx.workspace.get(state)) {
         findings.push(problem);
       }
     }
     const lowest = RANK[input.severity];
+    const outdated = await ctx.workspace.get(outdatedRelationsState);
+    // The dates are asked of Git only when the warnings are shown; for `ok` the problems suffice.
+    const shown =
+      RANK.warning < lowest ? outdated.map((f) => f.problem) : await datedProblems(ctx.workspace, outdated);
+    for (const problem of shown) {
+      findings.push(problem);
+    }
     return {
       ok: !findings.some((p) => RANK[p.severity] >= RANK.warning),
       problems: findings.filter((p) => RANK[p.severity] >= lowest),

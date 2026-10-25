@@ -7,16 +7,10 @@
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
 // the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import {
-  createFixtureWorkspace,
-  generateLargeWorkspace,
-  measure,
-  writeLargeWorkspace,
-} from "@logreq/testkit";
+import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
-import type { Metamodel } from "../../src/metamodel/index.js";
-import { STANDARD_MODEL_TEXT, findType, metamodelState } from "../../src/metamodel/index.js";
+import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
 import { currentVersionOf, currentVersions } from "../../src/model/current-versions.js";
 import { shortIdState } from "../../src/model/short-id.js";
 import { elementStoreState } from "../../src/model/store.js";
@@ -25,51 +19,13 @@ import { supersededTargetFindings } from "../../src/model/superseded.js";
 import { currentTarget } from "../../src/model/targets.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
-import type { VersionValue } from "../../src/version/version.js";
-import { computeVersion } from "../../src/version/version.js";
+import { standardModel, versionOf } from "./core-version.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** Targets whose version core recomputes from their file (every one is compared with the generator). */
 const SAMPLE = 500;
-
-/** The standard model as a workspace reads it. */
-const standardModel = async (): Promise<Metamodel> => {
-  const fixture = await createFixtureWorkspace({
-    files: {
-      "logreq-workspace.yaml":
-        'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
-      "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
-    },
-  });
-  const workspace = new Workspace(fixture.root);
-  try {
-    return await workspace.get(metamodelState);
-  } finally {
-    await workspace.close();
-    await fixture.cleanup();
-  }
-};
-
-/** Core's version (ADR-0005) for the generator, like `elementVersion` does it for a read element. */
-const versionOf =
-  (metamodel: Metamodel): VersionFunction =>
-  ({ type, text, properties }) => {
-    const keys = new Set(findType(metamodel, type)?.properties ?? []);
-    return computeVersion({
-      text,
-      properties: properties as Readonly<Record<string, VersionValue>>,
-      definitions: metamodel.properties
-        .filter((p) => keys.has(p.key))
-        .map((p) => ({
-          key: p.key,
-          kind: p.kind,
-          ...(p.content === undefined ? {} : { content: p.content }),
-        })),
-      files: [],
-    });
-  };
 
 describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
   let version: VersionFunction;
@@ -131,7 +87,7 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
   it("runs workspace.check, finding nothing (SR-020: 60 s)", async () => {
     await workspace.get(elementStoreState);
     const { result: findings } = await measure(
-      "workspace.check (every finding state of stage 1)",
+      "workspace.check (every finding state, with the current versions of SR-025)",
       async () => {
         const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
         expect(out.ok).toBe(true);
@@ -146,11 +102,23 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
   }, 600_000);
 
   it("computes the current version of every element once per store and carries it over a save (#259)", async () => {
+    // The first build on its own, in a workspace of its own: workspace.check above built them in its time.
+    const own = new Workspace(fixture.workspaceRoot);
+    try {
+      await own.get(elementStoreState);
+      await measure(
+        "current version of every element (first use after the load: every file read again)",
+        () => currentVersions(own),
+        { basis: "SR-020 (part of workspace.check from SR-025 on; ADR-0008, #259)" },
+      );
+    } finally {
+      await own.close();
+    }
     await workspace.get(elementStoreState);
     const { result: versions } = await measure(
-      "current version of every element (first use after the load: every file read again)",
+      "current version of every element (after workspace.check built them)",
       () => currentVersions(workspace),
-      { basis: "SR-020 (part of workspace.check from SR-025 on; ADR-0008, #259)" },
+      { basis: "SR-020 (ADR-0008, #259: kept with the store)" },
     );
     const generated = new Map(tree.elements.map((e) => [e.id, e.version]));
     expect(versions.byRecord.size).toBe(ELEMENTS);

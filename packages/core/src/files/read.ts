@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
-import { elementBody, fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
+import { elementBody, elementFrontmatter, fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
 import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from "./paths.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
@@ -161,6 +161,22 @@ export const readElementBodySync = (
       ? elementBody(raw.file, raw.bytes)
       : undefined;
   return body === undefined ? { kind: "changed", read: elementResult(raw) } : { kind: "same", body };
+};
+
+/**
+ * The YAML text of the frontmatter of an element file below `root` when its bytes still have the
+ * SHA-256 of `snapshot`, without parsing it; undefined when the file changed since, or cannot be
+ * read. Blocking calls and the same checks as `readElementBodySync`.
+ */
+export const readElementFrontmatterSync = (
+  root: string,
+  relativePath: string,
+  snapshot: Pick<FileSnapshot, "sha256">,
+): string | undefined => {
+  const raw = readBytesSync(root, relativePath);
+  return raw.kind === "bytes" && sha256(raw.bytes) === snapshot.sha256
+    ? elementFrontmatter(raw.file, raw.bytes)
+    : undefined;
 };
 
 /**

@@ -168,6 +168,7 @@ export type ProblemCode =
   | "variant.nested"
   | "evidence.unknown-element"
   | "evidence.invalid-record"
+  | "evidence.outdated"
   | "metamodel.invalid"
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"

@@ -10,6 +10,7 @@ export type { ParsedContent, ParsedYaml, ParseOutcome, YamlParseOutcome } from "
 export {
   readElementBodySync,
   readElementFile,
+  readElementFrontmatterSync,
   readElementFileSync,
   readElementFiles,
   readFileSha256,

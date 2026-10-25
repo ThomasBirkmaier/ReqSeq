@@ -1,6 +1,6 @@
 // `logreq workspace check` end to end (SR-019, ADR-0009): the built binary with the product commands on
-// fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-085, SR-086,
-// SR-088, SR-089 and SR-090 handed over to this command (#127 option 1).
+// fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-025, SR-085,
+// SR-086, SR-088, SR-089 and SR-090 handed over to this command (#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -16,8 +16,13 @@ interface Problem {
   readonly severity: string;
   readonly repository?: string;
   readonly file?: string;
+  readonly line?: number;
+  readonly message?: string;
   readonly elementId?: string;
   readonly targetId?: string;
+  readonly storedDate?: string | null;
+  readonly currentDate?: string | null;
+  readonly hintId?: string;
 }
 
 interface Output {
@@ -31,8 +36,8 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
 });
 
-const fixture = async (name: string): Promise<FixtureWorkspace> => {
-  const ws = await createFixtureWorkspace({ fixture: name });
+const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => {
+  const ws = await createFixtureWorkspace(git ? { fixture: name, git: true } : { fixture: name });
   fixtures.push(ws);
   return ws;
 };
@@ -240,15 +245,87 @@ describe("findings handed over to workspace check", () => {
     expect(output.ok).toBe(false);
     // Only the cycle's own findings, so the exit code comes from them.
     expect(new Set(output.problems.map((p) => p.code))).toEqual(new Set(["trace.cycle"]));
-    // Breaking the cycle ends the check with exit code 0 again.
+    // Breaking the cycle ends the check with exit code 0 again: C derives from the need, with the
+    // need's current version, so the relation is not outdated (SR-025).
     await fs.writeFile(
       ws.path("requirements/SR-0b0000000003.md"),
       (await fs.readFile(ws.path("requirements/SR-0b0000000003.md"), "utf8")).replace(
-        `${CYCLE}1`,
-        "5e9c0a7d-2b4f-4c61-9d08-0a0000000001",
+        `{ id: ${CYCLE}1, version: n1:bf80fe67ff43c803 }`,
+        "{ id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001, version: n1:3e5f74ee1859b526 }",
       ),
     );
     const fixed = await logreq(["workspace", "check"], ws.root);
     expect(fixed.code).toBe(0);
+  });
+});
+
+/** The elements of fixtures/SR-025/outdated: the need N, requirement A (derives from N, valid in V, references N) and the variant V. */
+const OUTDATED = "5e025a7d-2b4f-4c61-9d08-0";
+const N_ID = `${OUTDATED}a0000000001`;
+const A_ID = `${OUTDATED}b0000000001`;
+const V_ID = `${OUTDATED}c0000000001`;
+
+/** The committer date of HEAD in `ws`, as ADR-0005 writes a version date. */
+const headDate = async (ws: FixtureWorkspace): Promise<string> =>
+  new Date(Number((await ws.git(["show", "-s", "--format=%ct", "HEAD"])).trim()) * 1000)
+    .toISOString()
+    .replace(".000Z", "Z");
+
+describe("outdated relations in workspace check (SR-025)", () => {
+  it("[SR-025/AK1] reports nothing and ends with exit code 0 when every relation is current", async () => {
+    const ws = await fixture("SR-025/outdated", true);
+    const { human, json, output } = await checkBoth(ws.root);
+    expect(human).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 4\nNo problems.\n", stderr: "" });
+    expect(json.code).toBe(0);
+    expect(output).toEqual({ ok: true, problems: [], checkedElements: 4 });
+  });
+
+  it("[SR-025/AK2] [SR-019/AK2] names source, target and the dates of both versions and ends with exit code 1", async () => {
+    const ws = await fixture("SR-025/outdated", true);
+    const stored = await headDate(ws);
+    // The need and the variant get a new text after A's relations to them were set, and are committed.
+    for (const file of ["needs/N-0a0000000001.md", "variants/V-0c0000000001.md"]) {
+      await fs.writeFile(ws.path(file), `${await fs.readFile(ws.path(file), "utf8")}Changed.\n`);
+    }
+    await ws.commit();
+    const current = await headDate(ws);
+    const { human, json, output } = await checkBoth(ws.root);
+    expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
+    expect(output.ok).toBe(false);
+    expect(
+      output.problems.map((p) => [
+        p.code,
+        p.file,
+        p.line,
+        p.elementId,
+        p.targetId,
+        p.storedDate,
+        p.currentDate,
+      ]),
+    ).toEqual([
+      ["relation.outdated", "requirements/SR-0b0000000001.md", 10, A_ID, V_ID, stored, current],
+      ["relation.outdated", "requirements/SR-0b0000000001.md", 12, A_ID, N_ID, stored, current],
+      ["relation.outdated", "requirements/SR-0b0000000001.md", 15, A_ID, N_ID, stored, current],
+    ]);
+    expect(output.problems.map((p) => p.hintId)).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^relation\\.outdated/system/requirements%2FSR-0b0000000001\\.md/${A_ID}/validity/${V_ID}\\?version=n1:`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^relation\\.outdated/system/requirements%2FSR-0b0000000001\\.md/${A_ID}/derives-from/${N_ID}\\?version=n1:`,
+        ),
+      ),
+      expect.stringMatching(
+        new RegExp(
+          `^relation\\.outdated/system/requirements%2FSR-0b0000000001\\.md/${A_ID}/@text/${N_ID}\\?version=n1:.*&n=1$`,
+        ),
+      ),
+    ]);
+    expect(human.stdout).toContain(
+      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element ${A_ID})\n`,
+    );
   });
 });

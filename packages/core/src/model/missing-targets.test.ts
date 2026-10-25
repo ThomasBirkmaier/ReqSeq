@@ -141,7 +141,8 @@ describe("missing relation targets (SR-089)", () => {
     ]);
     expect(all[0]?.target).toEqual({
       id: REMOVED,
-      version: VERSION,
+      // The version of the need before its removal: its current one, so the relation was not outdated (SR-025).
+      version: "n1:1fafa3d2afe9cbdd",
       title: "Wind speed visible at a glance",
     });
     const sr = recordOf(context.store, SR);

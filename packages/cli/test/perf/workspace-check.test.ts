@@ -6,10 +6,16 @@
 // The test is tagged `[SR-020/AK1]`, so it asserts its threshold (ADR-0011): a time over 60 s fails it,
 // after `measure` has recorded the time for verification/performance.md. The ubuntu-24.04 runner of the
 // perf job has 4 vCPU and 16 GB, the machine of AK1. Exit code and output are asserted too.
+//
+// The second test is the worst case of SR-025 for AK1: every relation and inline reference stores a
+// version its target does not have, so the check reports every one of them as outdated, each with
+// its line. Without Git (a workspace copied without history, as a pipeline may check it): the dates
+// are then null without a walk; with Git the dates of 50,000 targets take longer (recorded in
+// packages/core/test/perf/outdated-relations.test.ts).
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { CommandOutput, VersionValue } from "@logreq/core";
+import type { CommandOutput, Problem, VersionValue } from "@logreq/core";
 import { Workspace, computeVersion, invoke } from "@logreq/core";
 import type { LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
 import {
@@ -27,6 +33,18 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** SR-020 AK1. */
 const THRESHOLD_MS = 60_000;
+/** A version no element has: every relation and reference that stores it is outdated. */
+const OLD_VERSION: VersionFunction = () => "n1:0000000000000000";
+
+/** How many relation items and inline references with a version the files hold. */
+const storedVersions = (files: ReadonlyMap<string, string>): number => {
+  let count = 0;
+  for (const content of files.values()) {
+    count += [...content.matchAll(/\{ id: [0-9a-f-]{36}, version: |\(logreq:[0-9a-f-]{36}\?version=/g)]
+      .length;
+  }
+  return count;
+};
 
 type Metamodel = CommandOutput<"metamodel.get">;
 
@@ -105,4 +123,33 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
     expect(JSON.parse(run.stdout)).toEqual({ ok: true, problems: [], checkedElements: ELEMENTS });
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
   }, 600_000);
+
+  it("[SR-020/AK1] checks a workspace in which every relation is outdated in at most 60 s", async () => {
+    const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
+    const outdated = await writeLargeWorkspace(tree);
+    const own = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-020-cache-"));
+    try {
+      const env = { XDG_CACHE_HOME: own, LOCALAPPDATA: own };
+      const { result: run, measurement } = await measure(
+        "logreq workspace check --json, every relation outdated, no Git (new CLI process, no cache)",
+        () => logreq(["workspace", "check", "--json"], { cwd: outdated.workspaceRoot, env }),
+        {
+          basis: "SR-020 AK1, worst case of SR-025 (command line, from process start to exit)",
+          thresholdMs: THRESHOLD_MS,
+        },
+      );
+      expect(run.stderr).toBe("");
+      // Outdated relations are warnings: not ok (ADR-0009).
+      expect(run.code).toBe(1);
+      const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
+      expect(out.ok).toBe(false);
+      expect(out.checkedElements).toBe(ELEMENTS);
+      expect(out.problems).toHaveLength(storedVersions(tree.files));
+      expect(out.problems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual([]);
+      expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(THRESHOLD_MS);
+    } finally {
+      await outdated.cleanup();
+      await fs.rm(own, { recursive: true, force: true });
+    }
+  }, 900_000);
 });

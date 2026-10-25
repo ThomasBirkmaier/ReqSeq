@@ -10,7 +10,7 @@ import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
 import type { ElementInputValue, ElementValue, RelationTarget } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { fileSchemaValidator } from "../runtime/contracts.js";
+import { isVersion } from "./is-version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
@@ -166,9 +166,6 @@ const targetKey = (
   item: { readonly id: string; readonly repository?: unknown },
   sourceRepository: string,
 ): string => JSON.stringify([item.id, item.repository ?? sourceRepository]);
-
-const isVersion = (value: unknown): boolean =>
-  fileSchemaValidator("common.schema.json#/$defs/version")(value);
 
 /** Whether a stored entry has a valid version; then it is kept unchanged, whatever else it holds. */
 const hasVersion = (item: Readonly<Record<string, unknown>>): boolean => isVersion(item["version"]);
