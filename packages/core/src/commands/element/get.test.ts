@@ -49,6 +49,9 @@ const WIND = { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", file: "requirements/S
 const GUSTS = { id: "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c", file: "requirements/SR-1d2e3f4a5b6c.md" };
 const TWO: FixtureOptions = { fixture: "SR-001/two-elements" };
 
+/** GUSTS with a counted value that has no normal form (`.inf`, ADR-0005): it has no version (#276). */
+const ENDLESS_GUSTS = `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n`;
+
 /** Every file below `folder` with its content, for "nothing written". */
 const snapshot = async (folder: string): Promise<Record<string, string>> => {
   const entries = await fs.readdir(folder, { recursive: true, withFileTypes: true });
@@ -421,6 +424,26 @@ describe("element.get, more of what stage 1 shows", () => {
       message:
         "No property of the metamodel has the meaning title, which element.get needs. Add `meaning: title` to a property in the metamodel files.",
     });
+  });
+
+  it("shows an element whose counted value has no normal form without a version, with a warning (#276)", async () => {
+    const opened = await open({ ...TWO, files: { [GUSTS.file]: ENDLESS_GUSTS } });
+    const element = await get(opened, { ref: GUSTS.id, versionDate: true });
+    expect(element).toMatchObject({ id: GUSTS.id, title: "Show gusts", text: "\nGusts.\n", readOnly: false });
+    expect(element).not.toHaveProperty("version");
+    expect(element).not.toHaveProperty("versionDate");
+    // The value-kind hint first (SR-085), then why the version is missing.
+    expect(hints(element).map((p) => p.code)).toEqual(["element.wrong-value-kind", "file.faulty"]);
+    expect(hints(element).at(-1)).toEqual({
+      code: "file.faulty",
+      severity: "warning",
+      message: `No version: ${GUSTS.file} of repository system: version: Infinity is not a valid number`,
+      repository: "system",
+      file: GUSTS.file,
+      elementId: GUSTS.id,
+    });
+    // Every other element keeps its version.
+    expect((await get(opened, { ref: WIND.id })).version).toMatch(/^n1:/);
   });
 
   it("gives file.faulty for a file that became faulty since it was read", async () => {

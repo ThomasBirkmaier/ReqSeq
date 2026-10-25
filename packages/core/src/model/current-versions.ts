@@ -32,7 +32,7 @@ import type { ImageMemo, ImageSeen, ImageSource, LookedUpImages } from "./images
 import { imageLinks, imageMemo, imagesUnchanged, lookUpImages, mapBounded } from "./images.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState, ignoredBy } from "./store.js";
-import { elementVersion, versionOrRangeError } from "./view.js";
+import { elementVersion, notComputableMessage, versionOrRangeError } from "./view.js";
 
 /** The current version of one element, or why it has none. */
 export type CurrentVersion =
@@ -149,7 +149,7 @@ const versionNow = async (run: Run, record: ElementRecord): Promise<CurrentVersi
     ? {
         kind: "unknown",
         reason: "not-computable",
-        message: `${record.file} of repository ${record.repository}: ${version.message}`,
+        message: notComputableMessage(record, version),
       }
     : { kind: "version", version, images: found.seen, ...(element === record ? {} : { element }) };
 };

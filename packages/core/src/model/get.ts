@@ -3,7 +3,8 @@
 // is read-only (SR-011 AK3).
 //
 // Stage 1 gives what stage 1 has (catalog description of the output of element.get):
-// - text, properties, version (SR-091), own relations with the target's short ID and title, also
+// - text, properties, version (SR-091; left out with a `file.faulty` warning when a counted value
+//   has no normal form, #276), own relations with the target's short ID and title, also
 //   across repositories (SR-005 AK2, SR-084), a target in a missing repository only by short ID
 //   (SR-006 AK1), a target whose UUID several files share as ambiguous (SR-088 AK2);
 // - the successors of a superseded element as incoming relations (SR-072 AK3, `successionsFor`);
@@ -46,21 +47,24 @@ import { elementView, titleKeyOf } from "./view.js";
 /**
  * The version date of `walk` when the caller asks for it (`withDate`): Git starts reading the
  * history at once, while the view is built, and the returned function gives the field for the
- * version the view computed. Without `withDate` no git runs and the field is left out.
+ * version the view computed. Without `withDate` no git runs and the field is left out; it is also
+ * left out for an element without a version (a counted value without a normal form, #276).
  */
 const dateWhenAsked = async (
   context: VersionDateContext,
   walk: VersionDateWalk,
   withDate: boolean,
-): Promise<(version: string) => Promise<{ readonly versionDate?: string | null }>> => {
+): Promise<(version: string | undefined) => Promise<{ readonly versionDate?: string | null }>> => {
   if (!withDate) {
     return () => Promise.resolve({});
   }
   await prepareVersionDates(context, [walk]);
-  // One date per request.
-  return async (version) => ({
-    versionDate: (await versionDates(context, [{ ...walk, version }]))[0] as string | null,
-  });
+  // One date per request. The history is read before the version is known; for an element
+  // without a version (#276) that read is not used and no date is given.
+  return async (version) =>
+    version === undefined
+      ? {}
+      : { versionDate: (await versionDates(context, [{ ...walk, version }]))[0] as string | null };
 };
 
 /** What `showElement` reads: the workspace states it works on, as `getElement` takes them. */

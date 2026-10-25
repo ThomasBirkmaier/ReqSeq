@@ -396,6 +396,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
   /** fixtures/SR-024/affected: b002 derives from b001, b003 refers to it in its text, b004 derives from b002, b005 replaces b002. */
   const AFFECTED: FixtureOptions = { fixture: "SR-024/affected" };
   const SPEED = "SR-00b001";
+  const SPEED_FILE = "requirements/SR-00000000b001.md";
 
   it("[SR-024/AK2] shows the number of directly affected elements when the content changed", async () => {
     const opened = await open(AFFECTED);
@@ -436,6 +437,48 @@ describe("element.update: directly affected elements (SR-024)", () => {
     );
     const out = await update(opened, { ref: SPEED, unset: ["weight"] });
     expect([out.files, out.affected]).toEqual([[file], 2]);
+  });
+
+  /** SPEED with an acceptance criterion `.inf`, which counts and has no normal form: no version (#276). */
+  const openEndless = async (): Promise<Opened> => {
+    const opened = await open(AFFECTED);
+    await fs.writeFile(
+      opened.fixture.path(SPEED_FILE),
+      (await read(opened, SPEED_FILE)).replace(
+        "  - Given wind, when it is measured, then the station shows its speed.\n",
+        "  - .inf\n",
+      ),
+    );
+    return opened;
+  };
+
+  it("[SR-024/AK2] counts a change of the content of an element that keeps a value without a normal form (#276)", async () => {
+    const opened = await openEndless();
+    // The text changes and the value stays: neither the old nor the new element has a version.
+    const text = await update(opened, { ref: SPEED, text: "The station shows the wind speed in knots.\n" });
+    expect([text.files, text.affected]).toEqual([[SPEED_FILE], 2]);
+    expect(text.element).not.toHaveProperty("version");
+    expect(text.problems?.at(-1)).toMatchObject({
+      code: "file.faulty",
+      severity: "warning",
+      message: `No version: ${SPEED_FILE} of repository system: version: Infinity is not a valid number`,
+    });
+    expect(text.element.problems).toEqual(text.problems);
+    // A property that counts changes, the value stays.
+    const counted = await update(opened, { ref: SPEED, set: { "requirement-type": "quality" } });
+    expect([counted.files, counted.affected]).toEqual([[SPEED_FILE], 2]);
+  });
+
+  it("[SR-024/AK3] shows no affected elements when only the title of an element without a version changed (#276)", async () => {
+    const opened = await openEndless();
+    const title = await update(opened, { ref: SPEED, title: "Show the wind speed" });
+    expect([title.files, title.affected]).toEqual([[SPEED_FILE], 0]);
+    expect(title.element).not.toHaveProperty("version");
+    expect(title.element.title).toBe("Show the wind speed");
+    // Nothing written: nothing affected, still without a version.
+    const same = await update(opened, { ref: SPEED, title: "Show the wind speed" });
+    expect([same.files, same.affected]).toEqual([[], 0]);
+    expect(same.element).not.toHaveProperty("version");
   });
 
   it("[SR-024/AK3] shows no affected elements when only the title or a property outside the content changed", async () => {

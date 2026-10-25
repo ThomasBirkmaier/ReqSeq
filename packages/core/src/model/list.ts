@@ -11,18 +11,16 @@
 //   read, a counted value has no normal form) is listed without `version`, with one `file.faulty`
 //   warning in its `problems` that says why. One such element never fails the list (ADR-0008
 //   "Current versions").
-import type { Problem } from "../catalog.js";
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import type { CurrentVersion } from "./current-versions.js";
 import { currentVersionsOf } from "./current-versions.js";
 import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { successionsFor } from "./successors.js";
-import { listedElement, titleKeyOf } from "./view.js";
+import { listedElement, noVersionProblem, titleKeyOf } from "./view.js";
 
 /** The states a list reads: `records` must be elements of `store`, `shortIds` of the same store. */
 export interface ListContext {
@@ -31,19 +29,6 @@ export interface ListContext {
   readonly store: ElementStore;
   readonly shortIds: ShortIds;
 }
-
-/** Why `record` has no version, as a hint on the listed element. */
-const noVersion = (
-  record: ElementRecord,
-  version: Extract<CurrentVersion, { readonly kind: "unknown" }>,
-): Problem => ({
-  code: "file.faulty",
-  severity: "warning",
-  message: `No version: ${version.message}`,
-  repository: record.repository,
-  file: record.file,
-  elementId: record.id,
-});
 
 /** `records`, in their order and each once, as list commands give them (see the file comment). */
 export const listElements = async (
@@ -65,7 +50,7 @@ export const listElements = async (
     elements.push(
       version.kind === "version"
         ? listedElement(input, version.version)
-        : { ...listedElement(input, undefined), problems: [noVersion(stored, version)] },
+        : { ...listedElement(input, undefined), problems: [noVersionProblem(stored, version.message)] },
     );
   }
   return elements;

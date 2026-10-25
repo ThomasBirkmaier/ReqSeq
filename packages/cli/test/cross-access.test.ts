@@ -153,6 +153,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "SR-0d1e2f" },
       expect: "error",
     },
+    {
+      name: "element without a version: current is unknown (#276)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-1d2e3f4a5b6c.md":
+            "---\nid: 3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n",
+        },
+      },
+      input: { ref: "SR-4a5b6c", version: "n1:0000000000000000", versionDate: true },
+      expect: "output",
+    },
   ],
   "element.setStatus": [
     { name: "approve one element", input: { refs: ["SR-e88fb3"], status: "approved" }, expect: "output" },

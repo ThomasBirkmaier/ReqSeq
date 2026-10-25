@@ -191,16 +191,44 @@ describe("element.resolve", () => {
   it("[SR-060/AK2] reports whether the given version is still the current one", async () => {
     const opened = await open(TWO);
     const { element: now } = await resolve(opened, { ref: WIND.id });
-    expect((await resolve(opened, { ref: "SR-e88fb3", version: now.version })).current).toBe(true);
-    expect((await resolve(opened, { ref: "SR-e88fb3", version: "n1:0000000000000000" })).current).toBe(false);
+    expect((await resolve(opened, { ref: "SR-e88fb3", version: now.version })).current).toBe("current");
+    expect((await resolve(opened, { ref: "SR-e88fb3", version: "n1:0000000000000000" })).current).toBe(
+      "outdated",
+    );
     // The text changes on disk: the version given before is outdated (D-013).
     const file = opened.fixture.path(WIND.file);
     await fs.writeFile(file, (await fs.readFile(file, "utf8")).replace("current", "measured"));
     const changed = await resolve(opened, { ref: "SR-e88fb3", version: now.version });
-    expect(changed.current).toBe(false);
+    expect(changed.current).toBe("outdated");
     expect(changed.element.text).toContain("measured wind speed");
     expect(changed.element.version).not.toBe(now.version);
-    expect((await resolve(opened, { ref: WIND.id, version: changed.element.version })).current).toBe(true);
+    expect((await resolve(opened, { ref: WIND.id, version: changed.element.version })).current).toBe(
+      "current",
+    );
+  });
+
+  it("[SR-060/AK2] tells unknown, not current or outdated, for an element without a version (#276)", async () => {
+    // A counted value without a normal form (`.inf`, ADR-0005) leaves the element without a version.
+    const endless = `---\nid: ${GUSTS.id}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\nacceptance-criteria: .inf\n---\n\nGusts.\n`;
+    const opened = await open({ ...TWO, files: { [GUSTS.file]: endless } });
+    const given = await resolve(opened, { ref: GUSTS.id, version: "n1:0000000000000000", versionDate: true });
+    expect(given.current).toBe("unknown");
+    expect(given.element).not.toHaveProperty("version");
+    expect(given.element).not.toHaveProperty("versionDate");
+    expect(given.element.problems?.at(-1)).toMatchObject({
+      code: "file.faulty",
+      severity: "warning",
+      message: `No version: ${GUSTS.file} of repository system: version: Infinity is not a valid number`,
+    });
+    // The element as element.get shows it; without a version given, `current` stays null.
+    const shown = (await invoke("element.get", { ref: GUSTS.id }, { workspace: opened.workspace })) as {
+      element: unknown;
+    };
+    expect(given.element).toEqual(shown.element);
+    expect(await resolve(opened, { ref: "SR-4a5b6c", versionDate: false })).toEqual({
+      element: shown.element,
+      current: null,
+    });
   });
 
   it("dates the current version only on request, as element.get does (D-013, ADR-0005)", async () => {
@@ -212,7 +240,7 @@ describe("element.resolve", () => {
       versionDate: true,
       version: plain.element.version,
     });
-    expect(dated.current).toBe(true);
+    expect(dated.current).toBe("current");
     expect(dated.element.versionDate).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
     const shown = (await invoke(
       "element.get",
@@ -238,7 +266,7 @@ describe("element.resolve", () => {
     );
     const after = await resolve(opened, { ref: GUSTS.id, version: before.version });
     expect(after.element).toMatchObject({ status: "approved", title: "Show gusts now" });
-    expect(after.current).toBe(true);
+    expect(after.current).toBe("current");
   });
 
   it("[SR-060/AK3] reports an unknown short ID or UUID as ref.unknown", async () => {
@@ -287,7 +315,7 @@ describe("element.resolve", () => {
       element: unknown;
     };
     expect(resolved.element).toEqual(shown.element);
-    expect((await resolve(opened, { ...input, version: resolved.element.version })).current).toBe(true);
+    expect((await resolve(opened, { ...input, version: resolved.element.version })).current).toBe("current");
     // A file that holds none of them keeps its own ref.unknown, without a guessed short ID.
     const error = await resolveError(opened, { ref, file: "needs/N-00606ccf2661.md" });
     expect(error.code).toBe("ref.unknown");

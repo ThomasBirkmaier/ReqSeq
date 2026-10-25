@@ -3,6 +3,7 @@ import {
   MISSING_FILE,
   NORMAL_FORM,
   canonicalContent,
+  comparableContent,
   computeVersion,
   normalizeText,
   sha256Hex,
@@ -170,6 +171,23 @@ describe("version (ADR-0005, normal form n1)", () => {
     expect(canon(-0)).toContain("prop n\n[0]\n");
     expect(() => canon(Number.POSITIVE_INFINITY)).toThrow(RangeError);
     expect(() => canon(Number.NaN)).toThrow("version: NaN is not a valid number");
+  });
+
+  it("compares content with non-finite numbers without a version (#276)", () => {
+    const definition: VersionPropertyDefinition = { key: "n", kind: "number", content: true };
+    const input = (n: number, text = ""): VersionInput => ({
+      text,
+      properties: { n: { at: [n] } },
+      definitions: [definition],
+      files: [],
+    });
+    expect(comparableContent(input(Number.NEGATIVE_INFINITY))).toBe(
+      'logreq-version n1\ntext\n""\nprop n\n{"at":[-Infinity]}\n',
+    );
+    expect(comparableContent(input(Number.NaN))).toContain("[NaN]");
+    expect(comparableContent(input(Number.NaN, "a"))).not.toBe(comparableContent(input(Number.NaN, "b")));
+    // A finite value gives the canonical content of the version.
+    expect(comparableContent(input(1))).toBe(canonicalContent(input(1)));
   });
 
   it("reads only own property keys, also for keys like constructor", () => {

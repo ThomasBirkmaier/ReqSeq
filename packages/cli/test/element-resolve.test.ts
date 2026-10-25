@@ -31,7 +31,7 @@ const EXPECTED = {
 
 interface Resolved {
   readonly element: Record<string, unknown>;
-  readonly current: boolean | null;
+  readonly current: "current" | "outdated" | "unknown" | null;
 }
 
 let fixture: FixtureWorkspace;
@@ -58,7 +58,7 @@ const open = (): Workspace => {
   return workspace;
 };
 
-/** The current version as core gives it, to tell `current` true from false. */
+/** The current version as core gives it, to tell `current` "current" from "outdated". */
 const currentVersion = async (): Promise<string> => {
   const resolved = (await runtime.invoke(
     "element.resolve",
@@ -82,7 +82,7 @@ describe("element.resolve from another tool", () => {
     expect(code).toBe(EXIT.ok);
     const resolved = JSON.parse(out) as Resolved;
     expect(resolved.element).toMatchObject(EXPECTED);
-    expect(resolved.current).toBe(true);
+    expect(resolved.current).toBe("current");
   });
 
   it("dates the current version on the command line with --version-date (D-013)", async () => {
@@ -131,7 +131,7 @@ describe("element.resolve from another tool", () => {
     });
     const resolved = JSON.parse(body) as Resolved;
     expect(resolved.element).toMatchObject(EXPECTED);
-    expect(resolved.current).toBe(false);
+    expect(resolved.current).toBe("outdated");
   });
 
   it("[SR-060/AK1] gives title, text, status and current version through the MCP server", async () => {

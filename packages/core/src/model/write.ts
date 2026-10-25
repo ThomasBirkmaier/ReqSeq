@@ -52,7 +52,7 @@ import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
 import type { ExtraFindings } from "./view.js";
-import { elementVersion, elementView, titleKeyOf, versionOrRangeError } from "./view.js";
+import { elementContent, elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
 export interface ElementWriteResult {
@@ -67,7 +67,8 @@ export interface UpdateElementResult extends ElementWriteResult {
   /**
    * The number of directly affected elements when the save changed the version (SR-024 AK2,
    * `directlyAffectedCount`); 0 when it did not: a title, a property that does not count to the
-   * version, or no change at all (AK3, D-013).
+   * version, or no change at all (AK3, D-013). Also for an element without a version (a value
+   * that counts has no normal form): what the version is computed from is compared (#276).
    */
   readonly affected: number;
 }
@@ -283,22 +284,26 @@ const withTargets = async (
     ]),
   );
 
-/** The element as it was before a save, to tell whether the save changed its version (SR-024 AK2). */
+/** The element as it was before a save, to tell whether the save changed its content (SR-024 AK2, AK3). */
 interface Before {
   /** Its record in the store the save started from. */
   readonly record: ElementRecord;
-  /** Undefined when it had none (a value that counts without a normal form, ADR-0005). */
-  readonly version: string | undefined;
+  /**
+   * What its version is computed from (`elementContent`); undefined when an embedded image cannot
+   * be read.
+   */
+  readonly content: string | undefined;
 }
 
 /**
- * The version of an element as read (`elementVersion`), with the images its text embeds; undefined
- * when it has none (as the current versions call it, #259): an embedded image or a folder above it
- * cannot be read (`file.faulty`), or a value that counts has no normal form (`.inf`, `.nan`,
- * ADR-0005). A save of such an element counts as a change of its version, so a save that removes a
- * broken image link or the value still works. Any other error is a bug and passed on.
+ * What the version of an element as read is computed from (`elementContent`), with the images its
+ * text embeds, also when a value that counts has no normal form (`.inf`, `.nan`, ADR-0005) and it
+ * has no version (#276); undefined when an embedded image or a folder above it cannot be read
+ * (`file.faulty`, as the current versions call it, #259). A save of such an element counts as a
+ * change, so a save that removes a broken image link still works. Any other error is a bug and
+ * passed on.
  */
-const versionBefore = async (
+const contentBefore = async (
   context: Context,
   repository: RepositoryLocation,
   read: ReadElement,
@@ -318,10 +323,7 @@ const versionBefore = async (
     }
     return undefined;
   }
-  const version = versionOrRangeError(() =>
-    elementVersion(read.record, read.file.body, context.metamodel, images),
-  );
-  return version instanceof RangeError ? undefined : version;
+  return elementContent(read.record, read.file.body, context.metamodel, images);
 };
 
 /** What `finish` needs besides the workspace, the written element and the context. */
@@ -340,9 +342,13 @@ interface FinishOptions {
 /**
  * The result of a write; with `files` written, the element store gets the file as written
  * (`replaced`; `recordWrites`, #166). With `before` (a save of an existing element), `affected` is
- * the number of directly affected elements when the version changed, else 0 (SR-024 AK2, AK3), on
- * the incoming index of the store before the write: the links of other elements did not change,
- * and the index is built before `recordWrites`, so the carry of the index (#273) takes it over.
+ * the number of directly affected elements when the content the version is computed from changed
+ * (`elementContent`), else 0 (SR-024 AK2, AK3). The content is compared, not the version, so a save
+ * of an element without a version (a value that counts has no normal form, #276) that changes only
+ * its title or status also affects nothing; an embedded image that could not be read before the
+ * save counts as a change (`contentBefore`). Counted on the incoming index of the store before the
+ * write: the links of other elements did not change, and the index is built before
+ * `recordWrites`, so the carry of the index (#273) takes it over.
  */
 const finish = async (
   workspace: Workspace,
@@ -352,14 +358,15 @@ const finish = async (
 ): Promise<ElementWriteResult & { readonly affected?: number }> => {
   const { shortIds, titleKey, files, extraFindings, replaced, before } = options;
   const repository = targetRepository(context.layout, written.record.repository);
+  const images = await embeddedImages(
+    { repository, ignored: ignoredBy(context.layout) },
+    written.record.file,
+    written.file.body,
+    context.images,
+  );
   const element = elementView({
     ...written,
-    images: await embeddedImages(
-      { repository, ignored: ignoredBy(context.layout) },
-      written.record.file,
-      written.file.body,
-      context.images,
-    ),
+    images,
     metamodel: context.metamodel,
     store: context.store,
     shortIds,
@@ -373,7 +380,8 @@ const finish = async (
       ? {}
       : {
           affected:
-            before.version === element.version
+            before.content !== undefined &&
+            before.content === elementContent(written.record, written.file.body, context.metamodel, images)
               ? 0
               : directlyAffectedCount(
                   incomingFor(workspace, context.store, context.metamodel),
@@ -759,7 +767,7 @@ export const updateElement = async (
     const before: Before = {
       // The record of the store: its own relations to itself are no affected element.
       record,
-      version: await versionBefore(context, repository, current),
+      content: await contentBefore(context, repository, current),
     };
     const written = writtenElement(
       repository.name,

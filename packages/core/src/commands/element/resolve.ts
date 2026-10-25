@@ -5,7 +5,9 @@
 // (AK3), and an input that picks one copy of a duplicate (#255) reaches both commands the same way.
 // The input `versionDate` dates the current version as element.get does (D-013, ADR-0005).
 // The current version is the one of the element's file as it is now, computed for this one element
-// (ADR-0005), not from a build of every element's version (ADR-0008, `currentVersions`).
+// (ADR-0005), not from a build of every element's version (ADR-0008, `currentVersions`). An element
+// without one (a value that counts has no normal form) is shown as element.get shows it, without
+// `version`, and a given version is neither "current" nor "outdated": `current` is "unknown" (#276).
 //
 // A short ID whose prefix fits no element stays `ref.unknown`, even when its tail fits an element of
 // another type: it may also be a reference to an element that is gone or in a missing repository,
@@ -52,6 +54,24 @@ const withOutdatedPrefix = async (
   });
 };
 
+/**
+ * Whether `given` is the current version `computed` (AK2): `"current"` or `"outdated"`; `"unknown"`
+ * when the element has no version to compare with (a value that counts has no normal form;
+ * element.get leaves `version` out and says why, #276); null when no version was given. Strings, not
+ * booleans, so a caller that tests `current` for truth never takes `"unknown"` for current.
+ */
+const currentOf = (
+  given: string | undefined,
+  computed: string | undefined,
+): CommandOutput<"element.resolve">["current"] =>
+  given === undefined
+    ? null
+    : computed === undefined
+      ? "unknown"
+      : given === computed
+        ? "current"
+        : "outdated";
+
 export default defineCommand({
   name: "element.resolve",
   run: async (ctx, input): Promise<CommandOutput<"element.resolve">> => {
@@ -73,7 +93,7 @@ export default defineCommand({
         input.versionDate,
         copy,
       );
-      return { element, current: version === undefined ? null : version === element.version };
+      return { element, current: currentOf(version, element.version) };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {
         throw await withOutdatedPrefix(ctx.workspace, input.ref, copy, error);

@@ -7,8 +7,13 @@ import type { DataExportElement, DataExportRelation } from "../generated/types.j
 import type { Metamodel } from "../metamodel/index.js";
 import { findType, propertyWithMeaning } from "../metamodel/index.js";
 import { isVersion } from "./is-version.js";
-import { computeVersion } from "../version/version.js";
-import type { VersionFile, VersionPropertyDefinition, VersionValue } from "../version/version.js";
+import { comparableContent, computeVersion } from "../version/version.js";
+import type {
+  VersionFile,
+  VersionInput,
+  VersionPropertyDefinition,
+  VersionValue,
+} from "../version/version.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
@@ -158,13 +163,39 @@ export const elementVersion = (
   body: string,
   metamodel: Metamodel,
   images: readonly VersionFile[],
-): string =>
-  computeVersion({
-    text: body,
-    properties: record.data as Readonly<Record<string, VersionValue>>,
-    definitions: versionDefinitions(record, metamodel),
-    files: images,
-  });
+): string => computeVersion(versionInput(record, body, metamodel, images));
+
+/** What the version of an element is computed from (`elementVersion`, `elementContent`). */
+const versionInput = (
+  record: Pick<ElementRecord, "type" | "data">,
+  body: string,
+  metamodel: Metamodel,
+  images: readonly VersionFile[],
+): VersionInput => ({
+  text: body,
+  properties: record.data as Readonly<Record<string, VersionValue>>,
+  definitions: versionDefinitions(record, metamodel),
+  files: images,
+});
+
+/**
+ * What the version of an element is computed from, as `comparableContent` writes it: equal for two
+ * states of an element exactly when their versions are equal, also when a value that counts has
+ * no normal form and there is no version (`.inf`, `.nan`, ADR-0005). For telling whether a save
+ * changed the content (SR-024 AK2, AK3; #276); never shown.
+ */
+export const elementContent = (
+  record: Pick<ElementRecord, "type" | "data">,
+  body: string,
+  metamodel: Metamodel,
+  images: readonly VersionFile[],
+): string => comparableContent(versionInput(record, body, metamodel, images));
+
+/** Why `record` has no version, for the RangeError `versionOrRangeError` gave: its file, repository and reason. */
+export const notComputableMessage = (
+  record: Pick<ElementRecord, "repository" | "file">,
+  error: RangeError,
+): string => `${record.file} of repository ${record.repository}: ${error.message}`;
 
 /**
  * The version `compute` gives (`elementVersion`), or the RangeError it throws for a value that
@@ -182,6 +213,23 @@ export const versionOrRangeError = (compute: () => string): string | RangeError 
     throw error;
   }
 };
+
+/**
+ * Why `record` has no version (`why`: the file and the reason, as `CurrentVersion` says it), as a
+ * `file.faulty` warning on the element: the same for a view (`elementView`) and a list
+ * (`listElements`).
+ */
+export const noVersionProblem = (
+  record: Pick<ElementRecord, "id" | "repository" | "file">,
+  why: string,
+): Problem => ({
+  code: "file.faulty",
+  severity: "warning",
+  message: `No version: ${why}`,
+  repository: record.repository,
+  file: record.file,
+  elementId: record.id,
+});
 
 export interface ElementViewInput {
   /** The element as classified from `file`. */
@@ -264,10 +312,14 @@ export const listedElement = (input: ListedElementInput, version: string | undef
  * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
  * successor relations are relations, not hints, so they are listed also then. Other relations
  * pointing at it and the version date are left out.
+ *
+ * A value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) leaves out `version`, and
+ * the last problem is a `file.faulty` warning that says why (`noVersionProblem`), as list commands
+ * and the current versions give such an element (#259, #276): the view never fails on it.
  */
 export const elementView = (
   input: ElementViewInput,
-): DataExportElement & { readonly version: string; readonly problems: readonly Problem[] } => {
+): DataExportElement & { readonly problems: readonly Problem[] } => {
   const { record, file, metamodel, shortIds } = input;
   // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
   const findings: readonly LocatableFinding[] = metamodel.valid
@@ -284,9 +336,13 @@ export const elementView = (
     const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };
   });
-  const version = elementVersion(record, file.body, metamodel, input.images);
+  // A number that counts and is not finite has no canonical form; anything else is a bug.
+  const computed = versionOrRangeError(() => elementVersion(record, file.body, metamodel, input.images));
+  const version = computed instanceof RangeError ? undefined : computed;
+  if (computed instanceof RangeError) {
+    problems.push(noVersionProblem(record, notComputableMessage(record, computed)));
+  }
   const { id, shortId, type, status, title, ...rest } = listedElement(input, version);
-  // The text after the title, as the element files and the schema order it; a view always has its
-  // version (the version date of `element.get` is asked for it).
-  return { id, shortId, type, status, title, text: file.body, version, ...rest, problems };
+  // The text after the title, as the element files and the schema order it.
+  return { id, shortId, type, status, title, text: file.body, ...rest, problems };
 };

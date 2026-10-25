@@ -74,19 +74,28 @@ const byCodePoint = (a: string, b: string): number => Buffer.compare(Buffer.from
 const isRecord = (value: VersionValue): value is Readonly<Record<string, VersionValue>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** Canonical JSON (non-finite numbers throw a RangeError): no whitespace, object keys sorted by code point, every string in normal form. */
-function canonicalJson(value: VersionValue): string {
+/**
+ * What canonical JSON does with a number that is not finite (`.inf`, `.nan`): `throw` a RangeError
+ * (a version, ADR-0005), or `write` it as `String(value)` (`comparableContent`, never hashed).
+ */
+type NonFinite = "throw" | "write";
+
+/** Canonical JSON: no whitespace, object keys sorted by code point, every string in normal form. */
+function canonicalJson(value: VersionValue, nonFinite: NonFinite): string {
   if (typeof value === "string") {
     return JSON.stringify(normalizeText(value));
   }
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
+    return `[${value.map((v: VersionValue) => canonicalJson(v, nonFinite)).join(",")}]`;
   }
   if (isRecord(value)) {
     const entries = Object.entries(value).sort(([a], [b]) => byCodePoint(a, b));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v, nonFinite)}`).join(",")}}`;
   }
   if (typeof value === "number" && !Number.isFinite(value)) {
+    if (nonFinite === "write") {
+      return String(value);
+    }
     throw new RangeError(`version: ${String(value)} is not a valid number`);
   }
   // Numbers as ECMAScript Number::toString (RFC 8785), booleans and null as JSON.
@@ -112,7 +121,17 @@ const isAbsent = (value: VersionValue | undefined): value is undefined | null | 
   value === undefined || value === null || (Array.isArray(value) && value.length === 0);
 
 /** The canonical content of normal form n1 (ADR-0005). Its UTF-8 bytes are hashed. */
-export function canonicalContent(input: VersionInput): string {
+export const canonicalContent = (input: VersionInput): string => contentOf(input, "throw");
+
+/**
+ * The canonical content with a number that is not finite written as `String(value)` instead of
+ * throwing: equal for two inputs exactly when their versions would be equal, had they one. Never
+ * hashed and never a version; for telling whether a save changed the content of an element whose
+ * version cannot be computed (SR-024 AK2, AK3; #276).
+ */
+export const comparableContent = (input: VersionInput): string => contentOf(input, "write");
+
+function contentOf(input: VersionInput, nonFinite: NonFinite): string {
   // The text is one JSON string line, so no text can look like a `prop` or `file` section.
   const parts = [`logreq-version ${NORMAL_FORM}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
   const counted = input.definitions.filter((d) => d.content === true);
@@ -122,7 +141,9 @@ export function canonicalContent(input: VersionInput): string {
     if (isAbsent(value)) {
       continue;
     }
-    parts.push(`prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relationIds(value) : value)}\n`);
+    parts.push(
+      `prop ${def.key}\n${canonicalJson(def.kind === "relation" ? relationIds(value) : value, nonFinite)}\n`,
+    );
   }
   const seen = new Set<string>();
   for (const file of [...input.files].sort((a, b) => byCodePoint(a.path, b.path))) {
