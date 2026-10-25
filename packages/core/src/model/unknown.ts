@@ -117,6 +117,10 @@ export const unknownProblemsState = defineWorkspaceState(
   async (workspace): Promise<readonly Problem[]> => {
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
+    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    if (!metamodel.valid) {
+      return [];
+    }
     const store = await workspace.get(elementStoreState);
     return locateFindings(layout, allUnknownFindings(store, metamodel));
   },
@@ -127,6 +131,8 @@ export const unknownProblemsState = defineWorkspaceState(
       const metamodel = workspace.get(metamodelState);
       return carryProblems(workspace, value, update, {
         findingsOf: metamodel.then((m) => (element) => unknownFindings(element, m)),
+        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        skip: metamodel.then((m) => !m.valid),
       });
     }),
   },

@@ -2,6 +2,7 @@ import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
+import { metamodelState } from "../../metamodel/index.js";
 import { elementStoreState } from "../../model/index.js";
 import { loadContracts } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -137,5 +138,53 @@ describe("workspace.check", () => {
     expect([validate(out), validate.errors ?? []]).toEqual([true, []]);
     expect(JSON.parse(JSON.stringify(out))).toEqual(out);
     expect(out.problems).toHaveLength(FINDINGS.length);
+  });
+
+  // #208, assumption of spec question #220 option 1: against a metamodel that is not valid only the
+  // findings that need no metamodel are reported, so one typo does not bury its cause.
+  const WITHOUT_METAMODEL = FINDINGS.filter(([code]) =>
+    ["file.invalid-yaml", "file.conflict-markers", "element.duplicate-id"].includes(code),
+  );
+
+  it("[SR-019/AK2] [SR-011/AK3] reports only the metamodel error and the findings without metamodel while the metamodel is faulty", async () => {
+    const ws = await fixture({
+      fixture: "SR-019/findings",
+      files: { "metamodel/broken.yaml": "properties: [\n" },
+    });
+    const out = await check(open(ws.root));
+    expect(out.ok).toBe(false);
+    expect(out.problems[0]).toMatchObject({
+      severity: "error",
+      repository: "system",
+      file: "metamodel/broken.yaml",
+    });
+    expect(kinds({ ...out, problems: out.problems.slice(1) })).toEqual(WITHOUT_METAMODEL);
+    expect(out.checkedElements).toBe(13);
+  });
+
+  it("[SR-019/AK2] [SR-011/AK3] reports only the missing metamodel folder and the findings without metamodel", async () => {
+    const ws = await fixture({
+      fixture: "SR-019/findings",
+      files: {
+        "logreq-workspace.yaml":
+          'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: no-metamodel }\n',
+      },
+    });
+    const out = await check(open(ws.root));
+    expect(out.ok).toBe(false);
+    expect(out.problems[0]).toMatchObject({ code: "metamodel.invalid", severity: "error" });
+    expect(kinds({ ...out, problems: out.problems.slice(1) })).toEqual(WITHOUT_METAMODEL);
+  });
+
+  it("[SR-019/AK2] [SR-011/AK3] reports every finding again once the faulty metamodel file is fixed", async () => {
+    const ws = await fixture({
+      fixture: "SR-019/findings",
+      files: { "metamodel/broken.yaml": "properties: [\n" },
+    });
+    const workspace = open(ws.root);
+    expect(kinds(await check(workspace)).slice(1)).toEqual(WITHOUT_METAMODEL);
+    await ws.write("metamodel/broken.yaml", "logreq-metamodel: 1\n");
+    await workspace.reset(metamodelState);
+    expect(kinds(await check(workspace))).toEqual(FINDINGS);
   });
 });

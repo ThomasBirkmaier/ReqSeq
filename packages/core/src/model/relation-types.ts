@@ -244,6 +244,10 @@ export const relationTypeProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
+    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    if (!metamodel.valid) {
+      return [];
+    }
     const shortIds = await workspace.get(shortIdState);
     return locateFindings(layout, allRelationTypeFindings({ store, metamodel, shortIds }));
   },
@@ -267,6 +271,8 @@ export const relationTypeProblemsState = defineWorkspaceState(
               const rules = rulesOf(metamodel);
               return (element) => namesGroup(element, rules, groups);
             }),
+        // Nothing against a metamodel that is not valid, as a full build (#208, #220).
+        skip: context.then(([metamodel]) => !metamodel.valid),
       });
     }),
   },

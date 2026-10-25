@@ -12,6 +12,12 @@
 //   so the exit code never depends on it (the spec has no such option).
 // - Findings are appended one by one: spreading a state into `push` passes every problem as an
 //   argument and overflows the stack at some 100,000 problems (N-036: 50,000 elements).
+// - While the metamodel is not valid (SR-011 AK3), every state that checks against it is empty
+//   (#208; assumption of spec question #220, option 1): its errors are reported, together with the
+//   file findings (SR-008) and duplicate IDs (SR-088), which need no metamodel. Otherwise one typo
+//   would report every property of every element as unknown. `ok` stays false: the metamodel, or
+//   the layout for a missing metamodel folder, has an `error`. States carried over a store change
+//   (#184) stay empty too (`carryProblems` option `skip`); a reset of the metamodel drops them.
 // - `changedFiles` and `changedSince` restrict the check to a merge request (SR-092, stage 2). Until
 //   then they are refused, so a pipeline never takes a full check for a restricted one.
 // - Outdated relations (SR-025) and cycles (SR-090) come in stage 2 (#127 option 1).

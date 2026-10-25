@@ -23,6 +23,12 @@ export interface CarryProblemsOptions {
    * of them, or a test that every element of the store is put to. Default: none.
    */
   readonly again?: Promise<((element: ElementRecord) => boolean) | readonly ElementRecord[]>;
+  /**
+   * Whether the state has no problems at all after the update, as a full build gives none (a
+   * metamodel that is not valid, #208, #220): then nothing is kept, found or located, and neither
+   * `findingsOf` nor `again` is awaited. Default: no.
+   */
+  readonly skip?: Promise<boolean>;
 }
 
 /** Code-unit order of file paths, as the store has them (`inListOrder`). */
@@ -63,11 +69,16 @@ export const carryProblems = async (
   update: StoreUpdate,
   options: CarryProblemsOptions,
 ): Promise<readonly Problem[]> => {
+  // The layout is taken now, with the update, not after the wait for `skip`.
+  const layoutNow = workspace.get(workspaceLayoutState);
+  if (await (options.skip ?? false)) {
+    return [];
+  }
   const [before, findingsOf, again, layout] = await Promise.all([
     old,
     options.findingsOf,
     options.again ?? [],
-    workspace.get(workspaceLayoutState),
+    layoutNow,
   ]);
   const index = new Map(update.repositories.map((r, i) => [r.repository, i]));
   const placed: Kept[] = [];

@@ -294,6 +294,15 @@ describe("element.update", () => {
     expect((await updateError(opened, { ref: "SR-4a5b6c", title: "x" })).code).toBe("ref.ambiguous");
   });
 
+  it("refuses with workspace.read-only while the metamodel is not valid, even for an unknown key (#208)", async () => {
+    const opened = await open({ files: { "metamodel/broken.yaml": "properties: [\n" } });
+    const before = await filesBelow(opened.fixture.root);
+    // The command refuses before element.update looks at the keys against the partial metamodel.
+    const error = await updateError(opened, { ref: GUSTS.id, set: { bogus: 1 } });
+    expect(error.code).toBe("workspace.read-only");
+    expect(await filesBelow(opened.fixture.root)).toEqual(before);
+  });
+
   it("only reads an element of an unknown type (SR-016 AK3)", async () => {
     const opened = await open({
       files: {

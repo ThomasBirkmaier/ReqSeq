@@ -159,8 +159,8 @@ export interface ElementViewInput {
  * its properties (every key except `id`, `type`, `status`, the title and relation kinds, unknown
  * keys included), its own relations and the hints with their lines: unknown type and properties
  * (SR-016), required properties without a value (SR-015, SR-064), values of the wrong kind
- * (SR-085), then relations to superseded elements (SR-072 AK2). Relations pointing at it and the
- * version date are left out.
+ * (SR-085), then relations to superseded elements (SR-072 AK2); none while the metamodel is not
+ * valid (#208, #220 option 1). Relations pointing at it and the version date are left out.
  */
 export const elementView = (
   input: ElementViewInput,
@@ -172,12 +172,15 @@ export const elementView = (
       ([key]) => !STRUCTURAL_KEYS.includes(key) && key !== titleKey && !relationKeys.has(key),
     ),
   );
-  const findings: readonly LocatableFinding[] = [
-    ...unknownFindings(record, metamodel),
-    ...requiredFindings(record, metamodel),
-    ...valueFindings(record, metamodel),
-    ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record),
-  ];
+  // No hints against a metamodel that is not valid: its errors are the findings (#208, #220).
+  const findings: readonly LocatableFinding[] = metamodel.valid
+    ? [
+        ...unknownFindings(record, metamodel),
+        ...requiredFindings(record, metamodel),
+        ...valueFindings(record, metamodel),
+        ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record),
+      ]
+    : [];
   const problems: Problem[] = findings.map((f) => {
     const line = findingLine(file, f);
     return line === undefined ? f.problem : { ...f.problem, line };

@@ -258,6 +258,30 @@ describe("elementView", () => {
     expect(view.problems).toEqual([expect.objectContaining({ code: "element.wrong-value-kind" })]);
     expect(view.problems[0]).not.toHaveProperty("line");
   });
+
+  it("gives no hints while the metamodel is not valid (#208, #220 option 1)", async () => {
+    const { metamodel, store, layout } = await context();
+    const file = parsedFile(
+      `---\nid: ${OTHER}\ntype: system-requirement\nstatus: draft\ntitle: x\nbogus: 1\nrequirement-type: odd\n---\n`,
+    );
+    const record = recordOf(file);
+    const viewWith = (m: Metamodel): ReturnType<typeof elementView> =>
+      elementView({
+        record,
+        file,
+        images: [],
+        metamodel: m,
+        store,
+        shortIds: buildShortIds(new Map([[OTHER, [record]]]), m),
+        titleKey: "title",
+        layout,
+      });
+    // The same element has hints against the valid metamodel.
+    expect(viewWith(metamodel).problems.map((p) => p.code)).toEqual(
+      expect.arrayContaining(["element.unknown-property", "element.wrong-value-kind"]),
+    );
+    expect(viewWith({ ...metamodel, valid: false }).problems).toEqual([]);
+  });
 });
 
 describe("writtenElement", () => {

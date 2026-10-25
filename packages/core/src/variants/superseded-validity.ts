@@ -92,6 +92,10 @@ export const supersededValidityProblemsState = defineWorkspaceState(
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
+    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
+    if (!metamodel.valid) {
+      return [];
+    }
     const shortIds = await workspace.get(shortIdState);
     return locateFindings(layout, supersededValidityFindings({ store, metamodel, shortIds }));
   },

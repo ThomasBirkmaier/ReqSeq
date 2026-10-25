@@ -8,6 +8,7 @@ import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Problem } from "../catalog.js";
 import type { WorkspaceState } from "../runtime/workspace.js";
+import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { supersededValidityProblemsState } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -292,6 +293,65 @@ describe("derived states carried over a change of the store (#184)", () => {
     expect(workspace.peek(shortIdState)).toBeUndefined();
     // A save then reads the store in full again, through the fallback of `recordWrites`.
     await recordWrites(workspace, layout, []);
+    await expectFresh(fixture, workspace);
+  });
+});
+
+describe("derived states carried while the metamodel is not valid (#208, #220 option 1)", () => {
+  /** The metamodel states, which check nothing against a metamodel that is not valid. */
+  const AGAINST_METAMODEL = [
+    requiredProblemsState,
+    unknownProblemsState,
+    valueKindProblemsState,
+    relationTypeProblemsState,
+  ];
+
+  /** Unknown keys, a value of the wrong kind and a relation to a target of the wrong type. */
+  const faulty = async (fixture: FixtureWorkspace, workspace: Workspace): Promise<void> => {
+    const sr1 = await fs.readFile(fixture.path("requirements/SR-b00000000001.md"), "utf8");
+    await external(fixture, workspace, {
+      "requirements/SR-b00000000001.md": sr1.replace("type: system-requirement", "type: need"),
+      "needs/N-a00000000004.md": need(`${NEED}4`, "priority: 3\nbogus: 1\n"),
+    });
+  };
+
+  it("stay empty over a store change, as a fresh build", async () => {
+    const { fixture, workspace } = await open({ "metamodel/broken.yaml": "properties: [\n" });
+    await buildAll(workspace);
+    expect((await workspace.get(metamodelState)).valid).toBe(false);
+    await faulty(fixture, workspace);
+    expectCarried(workspace);
+    for (const state of AGAINST_METAMODEL) {
+      expect(await workspace.get(state), state.name).toEqual([]);
+    }
+    // A second batch of the watcher: a save through LogReq is refused while the metamodel is not valid.
+    const sr2 = await fs.readFile(fixture.path("requirements/SR-b00000000002.md"), "utf8");
+    await external(fixture, workspace, {
+      "requirements/SR-b00000000002.md": sr2.replace(
+        "status: draft",
+        "status: draft\nweight: heavy\nbogus-c: 1",
+      ),
+    });
+    expectCarried(workspace);
+    for (const state of AGAINST_METAMODEL) {
+      expect(await workspace.get(state), state.name).toEqual([]);
+    }
+    await expectFresh(fixture, workspace);
+  });
+
+  it("are dropped by a reset of the metamodel and find everything once it is fixed", async () => {
+    const { fixture, workspace } = await open({ "metamodel/broken.yaml": "properties: [\n" });
+    await buildAll(workspace);
+    await faulty(fixture, workspace);
+    expectCarried(workspace);
+    await fixture.write("metamodel/broken.yaml", "logreq-metamodel: 1\n");
+    await workspace.reset(metamodelState);
+    for (const state of AGAINST_METAMODEL) {
+      expect(workspace.peek(state), state.name).toBeUndefined();
+    }
+    for (const state of AGAINST_METAMODEL) {
+      expect((await workspace.get(state)).length, state.name).toBeGreaterThan(0);
+    }
     await expectFresh(fixture, workspace);
   });
 });
