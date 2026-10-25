@@ -247,6 +247,8 @@ describe("short IDs", () => {
     const shortIds = buildShortIds(byIdOf(records), metamodel);
     const all = records.map((r) => shortIds.of(r));
     expect(new Set(all).size).toBe(records.length);
+    // The tails alone are unique too, whatever the type (AK2 across types, review of #155 on #72).
+    expect(new Set(records.map((r) => shortIds.tail(r.id))).size).toBe(records.length);
     const hex = ids.map((id) => id.replaceAll("-", ""));
     const lengthened: string[] = [];
     for (const [i, r] of records.entries()) {
@@ -383,6 +385,15 @@ describe("ShortIds.find", () => {
     });
   });
 
+  it("lists the elements whose UUID ends with a tail, whatever the prefix, without finding them (#275)", async () => {
+    const { store, shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
+    expect(shortIds.find("SR-bd8c26")).toEqual({ kind: "unknown" });
+    expect(shortIds.withTail("SR-bd8c26")).toEqual([only(store, MOVED_N)]);
+    expect(shortIds.withTail("UC-abc123")).toEqual([only(store, PAIR_1), only(store, PAIR_2)]);
+    expect(shortIds.withTail("SR-fedcba")).toEqual([]);
+    expect(shortIds.withTail(PAIR_1)).toEqual([]);
+  });
+
   it("reports a wrong prefix, an unknown tail and a malformed short ID as unknown", async () => {
     const { shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
     for (const ref of [
@@ -517,7 +528,12 @@ describe("updateShortIds (#184)", () => {
   });
 
   it("refuses short IDs it did not build", () => {
-    const foreign: ShortIds = { of: () => "", tail: () => "", find: () => ({ kind: "unknown" }) };
+    const foreign: ShortIds = {
+      of: () => "",
+      tail: () => "",
+      find: () => ({ kind: "unknown" }),
+      withTail: () => [],
+    };
     expect(() => updateShortIds(foreign, new Map(), [])).toThrow("needs short IDs from buildShortIds");
   });
 

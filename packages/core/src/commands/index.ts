@@ -8,6 +8,7 @@
 import type { AnyCommand } from "../catalog.js";
 import elementCreate from "./element/create.js";
 import elementGet from "./element/get.js";
+import elementResolve from "./element/resolve.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
@@ -24,6 +25,7 @@ import workspaceStatus from "./workspace/status.js";
 export const commands: readonly AnyCommand[] = [
   elementCreate,
   elementGet,
+  elementResolve,
   elementSetStatus,
   elementSupersede,
   elementUpdate,

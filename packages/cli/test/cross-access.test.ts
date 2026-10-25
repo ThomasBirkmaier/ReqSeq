@@ -103,6 +103,32 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "unknown reference", input: { ref: "SR-ffffff" }, expect: "error" },
     { name: "view of a variant (stage 5)", input: { ref: "SR-e88fb3", view: "core" }, expect: "error" },
   ],
+  "element.resolve": [
+    {
+      name: "short ID with an outdated version (SR-060)",
+      input: { ref: "SR-e88fb3", version: "n1:0000000000000000" },
+      expect: "output",
+    },
+    {
+      name: "short ID with its version date (D-013)",
+      input: { ref: "SR-e88fb3", versionDate: true },
+      expect: "output",
+    },
+    { name: "unknown short ID (SR-060 AK3)", input: { ref: "SR-ffffff" }, expect: "error" },
+    {
+      name: "outdated prefix names the candidate (SR-060 AK3, #275)",
+      fixture: {
+        fixture: "SR-004/one-repository",
+        git: true,
+        files: {
+          "requirements/SR-7a8b9c0d1e2f.md":
+            "---\nid: 9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f\ntype: need\nstatus: draft\ntitle: Formerly a requirement\n---\n",
+        },
+      },
+      input: { ref: "SR-0d1e2f" },
+      expect: "error",
+    },
+  ],
   "element.setStatus": [
     { name: "approve one element", input: { refs: ["SR-e88fb3"], status: "approved" }, expect: "output" },
     {

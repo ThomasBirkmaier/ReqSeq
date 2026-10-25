@@ -39,6 +39,13 @@ export interface ShortIds {
    * ambiguous; a wrong prefix or a malformed short ID is unknown.
    */
   find(shortId: string): ShortIdMatch;
+  /**
+   * The elements whose UUID ends with the digits of `shortId`, whatever their type: none for a
+   * malformed short ID. Never a match by itself (a reference must not be retargeted to another
+   * element); `element.resolve` names them as candidates when `find` gives unknown and the prefix
+   * may be outdated (SR-060, #275).
+   */
+  withTail(shortId: string): readonly ElementRecord[];
 }
 
 /** `common.schema.json#/$defs/shortId`. */
@@ -143,17 +150,19 @@ const shortIdsOf = (index: Index): ShortIds => {
   const prefixOf = (element: ElementRecord): string =>
     findType(metamodel, element.type)?.prefix ?? UNKNOWN_TYPE_PREFIX;
 
-  const find = (shortId: string): ShortIdMatch => {
+  const withTail = (shortId: string): readonly ElementRecord[] => {
     if (!SHORT_ID_PATTERN.test(shortId)) {
-      return { kind: "unknown" };
+      return [];
     }
-    const dash = shortId.indexOf("-");
-    const prefix = shortId.slice(0, dash);
-    const digits = reversedDigits(shortId.slice(dash + 1));
-    const matches = (groups.get(digits.slice(0, SHORT_ID_MIN_LENGTH)) ?? [])
+    const digits = reversedDigits(shortId.slice(shortId.indexOf("-") + 1));
+    return (groups.get(digits.slice(0, SHORT_ID_MIN_LENGTH)) ?? [])
       .filter((entry) => entry.digits.startsWith(digits))
-      .flatMap((entry) => entry.elements)
-      .filter((element) => prefixOf(element) === prefix);
+      .flatMap((entry) => entry.elements);
+  };
+
+  const find = (shortId: string): ShortIdMatch => {
+    const prefix = shortId.slice(0, shortId.indexOf("-"));
+    const matches = withTail(shortId).filter((element) => prefixOf(element) === prefix);
     const [first, ...others] = matches;
     if (first === undefined) {
       return { kind: "unknown" };
@@ -161,7 +170,12 @@ const shortIdsOf = (index: Index): ShortIds => {
     return others.length === 0 ? { kind: "found", element: first } : { kind: "ambiguous", elements: matches };
   };
 
-  const ids: ShortIds = { of: (element) => `${prefixOf(element)}-${tail(element.id)}`, tail, find };
+  const ids: ShortIds = {
+    of: (element) => `${prefixOf(element)}-${tail(element.id)}`,
+    tail,
+    find,
+    withTail,
+  };
   indexes.set(ids, index);
   return ids;
 };

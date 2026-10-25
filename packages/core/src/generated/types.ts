@@ -984,7 +984,10 @@ export interface ElementGetOutput {
  */
 export interface ElementResolveInput {
   readonly ref: ElementRef;
+  /** The version the reference stores (D-013); optional. A version of another normal form than the one the tool computes (n1) is refused with input.invalid (ADR-0005). */
   readonly version?: Version;
+  /** Also give the date of the current version (`versionDate`, D-013, ADR-0005), read from the Git history, as element.get does with the same input. Without it no git runs and `versionDate` is left out. */
+  readonly versionDate: boolean;
 }
 
 /**
@@ -992,8 +995,9 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/catalog.json element.resolve output`.
  */
 export interface ElementResolveOutput {
+  /** The element as element.get shows it, with title, text, status and current version (SR-060 AK1) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
   readonly element: DataExportElement;
-  /** null when no version was given. */
+  /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2); null when no version was given. */
   readonly current: boolean | null;
 }
 
