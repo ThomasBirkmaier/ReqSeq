@@ -71,6 +71,17 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
   "metamodel.get": [{}, { extra: true }],
+  "relation.add": [
+    { source: GUSTS, kind: "replaces", target: OBSOLETE },
+    { source: APPROVED, kind: "refines", target: RETIRED },
+    { source: RETIRED, kind: "refines", target: WIND },
+    { source: APPROVED, kind: "derives-from", target: WIND },
+  ],
+  "relation.remove": [
+    { source: GUSTS, kind: "derives-from", target: WIND },
+    { source: APPROVED, kind: "refines", target: RETIRED },
+    { source: "SR-ffffff", kind: "refines", target: WIND },
+  ],
   "trace.affected": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "trace.chain": [
     { ref: WIND },

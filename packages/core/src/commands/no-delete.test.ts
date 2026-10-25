@@ -54,6 +54,14 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, status: "obsolete" },
     { ref: WIND, status: "draft" },
   ],
+  "relation.add": [
+    { source: WIND, kind: "replaces", target: GUSTS },
+    { source: WIND, kind: "nope", target: GUSTS },
+  ],
+  "relation.remove": [
+    { source: GUSTS, kind: "derives-from", target: WIND },
+    { source: GUSTS, kind: "nope", target: WIND },
+  ],
   "workspace.init": [
     { path: "new", name: "New" },
     { path: ".", name: "Again" },

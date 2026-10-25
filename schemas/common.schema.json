@@ -177,6 +177,7 @@
         "relation.not-allowed",
         "relation.outdated",
         "relation.target-superseded",
+        "relation.not-found",
         "trace.cycle",
         "variant.core-changed",
         "variant.superseded-in-validity",

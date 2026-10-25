@@ -308,6 +308,60 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "relation.add": [
+    {
+      name: "a derivation that closes a cycle, with hints (SR-067 AK3)",
+      fixture: { fixture: "SR-090/cycle", git: true },
+      input: {
+        source: "SR-b0000000001",
+        kind: "derives-from",
+        target: "5e9c0a7d-2b4f-4c61-9d08-0b0000000004",
+      },
+      expect: "output",
+    },
+    {
+      name: "a relation across repositories (SR-005)",
+      fixture: { fixture: "SR-021/targets", git: ["system", "sensor"] },
+      root: "system",
+      input: {
+        source: "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05",
+        kind: "derives-from",
+        target: "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21",
+      },
+      expect: "output",
+    },
+    {
+      name: "a relation the metamodel does not allow",
+      fixture: { fixture: "SR-090/cycle", git: true },
+      input: { source: "N-a0000000001", kind: "derives-from", target: "SR-b0000000001" },
+      expect: "error",
+    },
+  ],
+  "relation.remove": [
+    {
+      name: "a relation that closed a cycle",
+      fixture: { fixture: "SR-090/cycle", git: true },
+      input: { source: "SR-b0000000003", kind: "derives-from", target: "SR-b0000000001" },
+      expect: "output",
+    },
+    {
+      name: "only relations into the repository given",
+      fixture: { fixture: "SR-090/cycle", git: true },
+      input: {
+        source: "SR-b0000000003",
+        kind: "derives-from",
+        target: "5e9c0a7d-2b4f-4c61-9d08-0b0000000001",
+        repository: "system",
+      },
+      expect: "output",
+    },
+    {
+      name: "no relation kind",
+      fixture: { fixture: "SR-090/cycle", git: true },
+      input: { source: "SR-b0000000003", kind: "nope", target: "SR-b0000000001" },
+      expect: "error",
+    },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [

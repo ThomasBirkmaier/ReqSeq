@@ -118,6 +118,8 @@ export { warmWorkspace } from "./warm.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";
 export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
+export { addRelation, removeRelation } from "./relation-write.js";
+export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
 export { assertElementWritable, createElement, updateElement, writtenElement } from "./write.js";
 export type {
   CreateElementInput,

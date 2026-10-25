@@ -161,6 +161,7 @@ export type ProblemCode =
   | "relation.not-allowed"
   | "relation.outdated"
   | "relation.target-superseded"
+  | "relation.not-found"
   | "trace.cycle"
   | "variant.core-changed"
   | "variant.superseded-in-validity"
@@ -1173,6 +1174,8 @@ export interface RelationRemoveInput {
   readonly source: ElementRef;
   readonly kind: Key;
   readonly target: ElementRef;
+  /** Only relations into this repository (workspace name); a relation that names none points into the source's repository (D-058). Names the one meant when a UUID has relations into several repositories. */
+  readonly repository?: string;
 }
 
 /**

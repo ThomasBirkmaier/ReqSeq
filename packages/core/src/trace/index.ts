@@ -32,6 +32,7 @@ export {
   traceContext,
   walkDerivation,
 } from "./graph.js";
+export { closedCycle, upwardGraph } from "./new-cycle.js";
 export type {
   Cycle,
   Expand,

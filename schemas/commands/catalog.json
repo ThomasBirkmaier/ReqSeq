@@ -872,6 +872,10 @@
           },
           "target": {
             "$ref": "../common.schema.json#/$defs/elementRef"
+          },
+          "repository": {
+            "type": "string",
+            "description": "Only relations into this repository (workspace name); a relation that names none points into the source's repository (D-058). Names the one meant when a UUID has relations into several repositories."
           }
         },
         "additionalProperties": false,

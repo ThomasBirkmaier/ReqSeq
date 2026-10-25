@@ -178,6 +178,39 @@ describe("logreq binary", () => {
     expect(unknown.stdout).toBe("");
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
+
+  it("adds and removes a relation with relation add and relation remove, with a hint on a cycle (#264, SR-067 AK3)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-090/cycle", git: true });
+    fixtures.push(ws);
+    const D = "5e9c0a7d-2b4f-4c61-9d08-0b0000000004";
+    const added = await logreq(["relation", "add", "SR-b0000000001", "derives-from", D, "--json"], {
+      cwd: ws.root,
+    });
+    expect(added.stderr).toBe("");
+    expect(added.code).toBe(0);
+    expect(JSON.parse(added.stdout)).toMatchObject({
+      files: ["requirements/SR-0b0000000001.md"],
+      problems: [
+        { code: "trace.cycle", severity: "warning", file: "requirements/SR-0b0000000001.md", line: 12 },
+        { code: "trace.cycle", severity: "warning", file: "requirements/SR-0b0000000004.md", line: 10 },
+      ],
+    });
+    const shown = await logreq(["element", "get", "SR-b0000000001", "--json"], { cwd: ws.root });
+    expect(JSON.parse(shown.stdout)).toMatchObject({
+      element: {
+        relations: [{ kind: "derives-from" }, { kind: "derives-from" }, { kind: "derives-from", id: D }],
+      },
+    });
+    const removed = await logreq(["relation", "remove", "SR-b0000000001", "derives-from", D, "--json"], {
+      cwd: ws.root,
+    });
+    expect(removed.code).toBe(0);
+    expect(JSON.parse(removed.stdout)).toEqual({ files: ["requirements/SR-0b0000000001.md"], problems: [] });
+    expect(await ws.git(["status", "--porcelain"])).toBe("");
+    const refused = await logreq(["relation", "add", "N-a0000000001", "derives-from", D], { cwd: ws.root });
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("is not allowed");
+  });
 });
 
 describe("logreq with test commands", () => {
