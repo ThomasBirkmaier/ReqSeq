@@ -138,7 +138,7 @@ export interface Problem {
   readonly currentVersion?: Version;
   readonly storedDate?: string | null;
   readonly currentDate?: string | null;
-  /** Stable ID of a confirmable hint (D-042). */
+  /** Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given. */
   readonly hintId?: string;
 }
 
@@ -166,6 +166,8 @@ export type ProblemCode =
   | "relation.outdated"
   | "relation.target-superseded"
   | "relation.not-found"
+  | "hint.not-confirmable"
+  | "hint.not-found"
   | "trace.cycle"
   | "variant.core-changed"
   | "variant.superseded-in-validity"
@@ -1387,7 +1389,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints: writes the current target version into the relation and nothing else (D-042).
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
@@ -1395,7 +1397,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints: writes the current target version into the relation and nothing else (D-042).
+ * Output of `hint.confirm`. Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {

@@ -7,13 +7,21 @@
 // (`yaml-text.ts`). The result is parsed again and must hold exactly the intended data, so a
 // write never breaks or silently changes a file.
 import { isDeepStrictEqual } from "node:util";
-import { isMap, isScalar, isSeq, parseDocument } from "yaml";
+import { Scalar, isCollection, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import type { CST, Node, Pair, YAMLSeq } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { LineEnding } from "./frontmatter.js";
 import { parseFileBytes } from "./parse.js";
 import type { ItemValue, PropertyValue, ScalarValue } from "./yaml-text.js";
-import { renderItem, renderItemLines, renderKey, renderValue } from "./yaml-text.js";
+import {
+  NEEDS_ESCAPE,
+  doubleQuoted,
+  renderItem,
+  renderItemLines,
+  renderKey,
+  renderScalar,
+  renderValue,
+} from "./yaml-text.js";
 
 export type FrontmatterEdit =
   /** Sets a top-level key; a missing key is appended (ordered by `keyOrder`). */
@@ -25,7 +33,24 @@ export type FrontmatterEdit =
   /** Appends an item to a list; a missing or empty key becomes a list. */
   | { readonly kind: "append-item"; readonly key: string; readonly value: ItemValue }
   /** Removes item `index` of a list, for example one relation. */
-  | { readonly kind: "remove-item"; readonly key: string; readonly index: number };
+  | { readonly kind: "remove-item"; readonly key: string; readonly index: number }
+  /**
+   * Replaces the text of one string scalar at `path` inside the value of `key`, for example the
+   * stored version of one relation target (SR-027 AK1): only that scalar's source range is
+   * rewritten, in its own quoting; every other byte of the file stays. The key may have no other
+   * kind of edit in the same request.
+   */
+  | {
+      readonly kind: "set-scalar";
+      readonly key: string;
+      readonly path: readonly (string | number)[];
+      readonly value: string;
+    };
+
+/** The edits that work on the state of a whole key. */
+type KeyEdit = Exclude<FrontmatterEdit, { readonly kind: "set-scalar" }>;
+/** An edit of one scalar inside the value of a key. */
+type ScalarEdit = Extract<FrontmatterEdit, { readonly kind: "set-scalar" }>;
 
 /** The texts of a read file the writer needs; a `ParsedFile` fits. */
 export interface EditableFile {
@@ -188,7 +213,7 @@ const checkIndex = (slots: readonly Slot[], key: string, index: number): void =>
   }
 };
 
-const applyEdit = (state: KeyState, edit: FrontmatterEdit, original: Original | undefined): KeyState => {
+const applyEdit = (state: KeyState, edit: KeyEdit, original: Original | undefined): KeyState => {
   switch (edit.kind) {
     case "set":
       return Array.isArray(edit.value)
@@ -230,7 +255,7 @@ const withoutNegativeZero = <T>(value: T): T => {
   return value;
 };
 
-const cleanEdit = (edit: FrontmatterEdit): FrontmatterEdit => {
+const cleanEdit = (edit: KeyEdit): KeyEdit => {
   switch (edit.kind) {
     case "set":
       return { ...edit, value: withoutNegativeZero(edit.value) };
@@ -411,6 +436,50 @@ const changedPairSplice = (
     : { start: spans.afterColon, end: spans.valueEnd, text: rendered };
 };
 
+// --- editing one scalar in place ---------------------------------------------------------------
+
+/** `value` in the quoting of `node`: single quotes stay where they can, plain where it reads back the same, else double quotes. */
+const requoted = (node: Scalar, value: string): string => {
+  if (node.type === Scalar.QUOTE_SINGLE && !NEEDS_ESCAPE.test(value)) {
+    return `'${value.replaceAll("'", "''")}'`;
+  }
+  // A flow value is the strictest place for a plain scalar, so plain there reads back anywhere.
+  return node.type === Scalar.PLAIN ? renderScalar(value, "flow-value") : doubleQuoted(value);
+};
+
+/** A copy of `data` with `value` at `path` (`scalarSplice` checked that `data` has the path). */
+const withValueAt = (data: unknown, path: readonly (string | number)[], value: string): unknown => {
+  const [head, ...rest] = path;
+  if (head === undefined) {
+    return value;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item: unknown, i) => (i === head ? withValueAt(item, rest, value) : item));
+  }
+  const record = data as Readonly<Record<string, unknown>>;
+  return { ...record, [head]: withValueAt(record[String(head)], rest, value) };
+};
+
+/** The splice of one `set-scalar` edit; undefined when the scalar holds the value already. */
+const scalarSplice = (originals: ReadonlyMap<string, Original>, edit: ScalarEdit): Splice | undefined => {
+  const value = originals.get(edit.key)?.pair.value;
+  const node: unknown =
+    edit.path.length === 0 ? value : isCollection(value) ? value.getIn(edit.path, true) : undefined;
+  if (
+    !isScalar(node) ||
+    typeof node.value !== "string" ||
+    node.type === Scalar.BLOCK_LITERAL ||
+    node.type === Scalar.BLOCK_FOLDED
+  ) {
+    throw invalid(`Cannot change ${[edit.key, ...edit.path].join(".")}: it is no text on one line`);
+  }
+  if (node.value === edit.value) {
+    return undefined;
+  }
+  const [start, end] = rangeOf(node);
+  return { start, end, text: requoted(node, edit.value) };
+};
+
 // --- the writer --------------------------------------------------------------------------------
 
 interface Change {
@@ -420,7 +489,7 @@ interface Change {
 }
 
 /** The keys whose data the edits really change, in the order of their first edit. */
-const changesOf = (edits: readonly FrontmatterEdit[], originals: ReadonlyMap<string, Original>): Change[] => {
+const changesOf = (edits: readonly KeyEdit[], originals: ReadonlyMap<string, Original>): Change[] => {
   const states = new Map<string, KeyState>();
   for (const edit of edits.map(cleanEdit)) {
     const original = originals.get(edit.key);
@@ -493,12 +562,23 @@ const planFrontmatter = (file: EditableFile, request: FileEditRequest): Plan => 
   }
   const { originals, data, indent } = parseFrontmatter(text);
   const keyOrder = request.keyOrder ?? [];
-  const edits = request.edits ?? [];
-  checkKeys(edits, originals, data);
+  const all = request.edits ?? [];
+  checkKeys(all, originals, data);
+  const edits = all.filter((e): e is KeyEdit => e.kind !== "set-scalar");
+  const keyEdited = new Set(edits.map((e) => e.key));
+  const scalars = all
+    .filter((e): e is ScalarEdit => e.kind === "set-scalar")
+    .flatMap((edit) => {
+      if (keyEdited.has(edit.key)) {
+        throw invalid(`Cannot change ${edit.key}: a scalar in it and the whole key in one write`);
+      }
+      const splice = scalarSplice(originals, edit);
+      return splice === undefined ? [] : [{ edit, splice }];
+    });
   // Existing keys first (their place is fixed), then new keys in metamodel order (ADR-0004).
   const place = (c: Change): number => (c.original === undefined ? rank(keyOrder, c.key) : -1);
   const changes = changesOf(edits, originals).sort((a, b) => place(a) - place(b));
-  if (changes.length === 0) {
+  if (changes.length === 0 && scalars.length === 0) {
     return { frontmatter: text, expected: data };
   }
   const itemIndent = `${indent}  `;
@@ -514,10 +594,14 @@ const planFrontmatter = (file: EditableFile, request: FileEditRequest): Plan => 
     }
   }
   let out = text + appended;
-  for (const s of splices.sort((a, b) => b.start - a.start)) {
+  for (const s of [...splices, ...scalars.map((c) => c.splice)].sort((a, b) => b.start - a.start)) {
     out = out.slice(0, s.start) + s.text + out.slice(s.end);
   }
-  return { frontmatter: out, expected: expectedData(data, changes) };
+  const expected = expectedData(data, changes);
+  for (const { edit } of scalars) {
+    expected[edit.key] = withValueAt(expected[edit.key], edit.path, edit.value);
+  }
+  return { frontmatter: out, expected };
 };
 
 /** Parses the result again: it must be readable and hold exactly the intended data and text. */

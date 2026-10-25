@@ -328,6 +328,43 @@ describe("outdated relations in workspace check (SR-025)", () => {
       `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element ${A_ID})\n`,
     );
   });
+
+  it("[SR-019/AK4] [SR-025/AK3] reports a confirmed hint no more, and ends with exit code 0 when nothing else is left", async () => {
+    const ws = await fixture("SR-025/outdated", true);
+    // The need gets a new text after A's derivation and reference to it were set.
+    const need = "needs/N-0a0000000001.md";
+    await fs.writeFile(ws.path(need), `${await fs.readFile(ws.path(need), "utf8")}Changed.\n`);
+    const first = await checkBoth(ws.root);
+    expect([first.human.code, first.json.code]).toEqual([1, 1]);
+    const [derives, link] = first.output.problems;
+    expect([derives?.line, link?.line]).toEqual([12, 15]);
+    // Confirm the derivation: the check reports only the reference.
+    const confirmed = await logreq(
+      ["hint", "confirm", "--hint-ids", derives?.hintId ?? "", "--json"],
+      ws.root,
+    );
+    expect([confirmed.code, confirmed.stderr]).toEqual([0, ""]);
+    const second = await checkBoth(ws.root);
+    expect([second.human.code, second.json.code]).toEqual([1, 1]);
+    expect(second.output.problems.map((p) => p.hintId)).toEqual([link?.hintId]);
+    expect(second.human.stdout).not.toContain("SR-0b0000000001.md:12");
+    expect(second.human.stdout).toContain("SR-0b0000000001.md:15");
+    // Confirm the reference too: A's text changes, so B's refinement of A is outdated now (ADR-0004).
+    await logreq(["hint", "confirm", "--hint-ids", link?.hintId ?? ""], ws.root);
+    const third = await checkBoth(ws.root);
+    expect(third.output.problems.map((p) => [p.elementId, p.targetId])).toEqual([
+      ["5e025a7d-2b4f-4c61-9d08-0b0000000002", A_ID],
+    ]);
+    // Confirm that one as well: nothing is left, and the check ends with exit code 0.
+    await logreq(["hint", "confirm", "--hint-ids", third.output.problems[0]?.hintId ?? ""], ws.root);
+    const last = await checkBoth(ws.root);
+    expect([last.human.code, last.json.code, last.output]).toEqual([
+      0,
+      0,
+      { ok: true, problems: [], checkedElements: 4 },
+    ]);
+    expect(last.human.stdout).toBe("ok: true\ncheckedElements: 4\nNo problems.\n");
+  });
 });
 
 describe("workspace check restricted to a merge request (SR-092)", () => {

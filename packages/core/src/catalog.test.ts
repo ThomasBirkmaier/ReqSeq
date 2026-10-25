@@ -15,6 +15,7 @@ import type {
 import {
   COMMAND_ERROR_CLASSES,
   CommandError,
+  commandErrorOrThrow,
   defineCommand,
   defineTestCommand,
   errorClass,
@@ -87,6 +88,13 @@ describe("command definitions", () => {
 });
 
 describe("CommandError", () => {
+  it("commandErrorOrThrow gives a CommandError back and throws any other error again", () => {
+    const refused = new CommandError("input.invalid", "No");
+    expect(commandErrorOrThrow(refused)).toBe(refused);
+    const bug = new TypeError("bug");
+    expect(() => commandErrorOrThrow(bug)).toThrow(bug);
+  });
+
   it("carries code and message", () => {
     const err = new CommandError("element.not-found", "No element SR-123456");
     expect(err).toBeInstanceOf(Error);

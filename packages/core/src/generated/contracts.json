@@ -302,7 +302,7 @@
             },
             "hintId": {
               "type": "string",
-              "description": "Stable ID of a confirmable hint (D-042)."
+              "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
             }
           },
           "additionalProperties": false
@@ -329,6 +329,8 @@
             "relation.outdated",
             "relation.target-superseded",
             "relation.not-found",
+            "hint.not-confirmable",
+            "hint.not-found",
             "trace.cycle",
             "variant.core-changed",
             "variant.superseded-in-validity",
@@ -3758,7 +3760,7 @@
       },
       {
         "name": "hint.confirm",
-        "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042).",
+        "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.",
         "effect": "write-files",
         "stage": 2,
         "implements": [

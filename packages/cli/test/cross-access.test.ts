@@ -46,6 +46,8 @@ const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
 const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
+/** Where SR-0000b1 of HINTS stores its outdated relation and reference, as hint IDs name it (SR-025). */
+const HINT_AT_B1 = `relation.outdated/system/${encodeURIComponent("requirements/SR-0000000000b1.md")}/26a0b000-0000-4000-8000-0000000000b1`;
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -298,6 +300,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
+  ],
+  "hint.confirm": [
+    {
+      name: "a relation and an inline reference at once, and IDs that confirm nothing (SR-027 AK1, AK2)",
+      fixture: HINTS,
+      input: {
+        hintIds: [
+          `${HINT_AT_B1}/derives-from/26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000`,
+          `${HINT_AT_B1}/@text/26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000&n=1`,
+          `${HINT_AT_B1}/derives-from/26a0b000-0000-4000-8000-0000000000a1?version=n1:1111111111111111`,
+          "element.unknown-property",
+        ],
+      },
+      expect: "output",
+    },
+    { name: "hint IDs that are not a list", fixture: HINTS, input: { hintIds: "x" }, expect: "error" },
   ],
   "trace.affected": [
     {

@@ -49,7 +49,7 @@ const probedNode = (contents: unknown, context: Context): unknown => {
 
 // Characters outside YAML's printable set, plus line breaks, tab, U+0085, U+2028/U+2029 and the
 // byte order mark: never written raw.
-const NEEDS_ESCAPE = /[\p{Cc}\p{Cs}\u2028\u2029\ufeff\ufffe\uffff]/u;
+export const NEEDS_ESCAPE = /[\p{Cc}\p{Cs}\u2028\u2029\ufeff\ufffe\uffff]/u;
 
 /** True when `text` written plain in `context` reads back as exactly this string. */
 export const isPlainSafe = (text: string, context: Context): boolean => {

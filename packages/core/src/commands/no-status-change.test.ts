@@ -3,8 +3,9 @@
 // command, read or write, runs here on elements of several statuses, among them one the metamodel does
 // not know; afterwards every element file has the `status` line it had. The status is read from the
 // files on disk, not from the element store. Loading, the watcher (SR-007) and a changed metamodel
-// (SR-015) change no status either. Confirming a hint and importing a delivery (AK2) are not
-// implemented yet; by #127 option 1 the guard below adds them to the scenarios once they are.
+// (SR-015) change no status either. Confirming a hint (AK2) writes the files of approved, obsolete
+// and draft elements here; importing a delivery (AK2) is not implemented yet, and by #127 option 1
+// the guard below adds it to the scenarios once it is.
 import fs from "node:fs";
 import path from "node:path";
 import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
@@ -31,11 +32,18 @@ const OBSOLETE = "0b7c6e1a-1111-4222-8333-444455556666";
 const APPROVED = "0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa";
 const RETIRED = "0b7c6e1a-1111-4222-8333-bbbbbbbbbbbb";
 
+/** A relation to an outdated version of WIND, as SR-001/two-elements has one from GUSTS, so `hint.confirm` writes. */
+const OUTDATED = `derives-from:\n  - { id: ${WIND}, version: n1:0000000000000000 }\n`;
+
+/** The hint ID of the outdated derivation of `source` in `file` (hints/hint-id.ts). */
+const hintId = (file: string, source: string, target: string): string =>
+  `relation.outdated/system/${encodeURIComponent(file)}/${source}/derives-from/${target}?version=n1:0000000000000000`;
+
 /** Elements added to SR-001/two-elements: approved, obsolete, and `retired`, which the metamodel does not know. */
 const FILES: Readonly<Record<string, string>> = {
-  "requirements/SR-444455556666.md": `---\nid: ${OBSOLETE}\ntype: system-requirement\nstatus: obsolete\ntitle: Old\n---\n`,
-  "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n---\n`,
-  "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n---\n`,
+  "requirements/SR-444455556666.md": `---\nid: ${OBSOLETE}\ntype: system-requirement\nstatus: obsolete\ntitle: Old\n${OUTDATED}---\n`,
+  "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
+  "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
 };
 
@@ -71,13 +79,25 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: WIND, unset: ["status"] },
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
+  "hint.confirm": [
+    { hintIds: [hintId("requirements/SR-1d2e3f4a5b6c.md", GUSTS, WIND)] },
+    {
+      hintIds: [
+        hintId("needs/N-aaaaaaaaaaaa.md", APPROVED, WIND),
+        hintId("requirements/SR-444455556666.md", OBSOLETE, WIND),
+      ],
+    },
+    { hintIds: ["element.unknown-property", hintId("requirements/SR-1d2e3f4a5b6c.md", GUSTS, WIND)] },
+    { hintIds: [hintId("needs/N-bbbbbbbbbbbb.md", RETIRED, WIND)] },
+    {},
+  ],
   "hint.list": [{}, { kind: ["relation.outdated"], type: ["need"] }, { ref: OBSOLETE }, { ref: "SR-ffffff" }],
   "metamodel.get": [{}, { extra: true }],
   "relation.add": [
     { source: GUSTS, kind: "replaces", target: OBSOLETE },
     { source: APPROVED, kind: "refines", target: RETIRED },
     { source: RETIRED, kind: "refines", target: WIND },
-    { source: APPROVED, kind: "derives-from", target: WIND },
+    { source: APPROVED, kind: "derives-from", target: GUSTS },
   ],
   "relation.remove": [
     { source: GUSTS, kind: "derives-from", target: WIND },
@@ -194,6 +214,36 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       }
     });
   }
+
+  it("[SR-087/AK2] hint.confirm writes the new version into files of every status and keeps each status", async () => {
+    const { fixture, workspace } = await open();
+    const sources = [
+      ["requirements/SR-1d2e3f4a5b6c.md", GUSTS],
+      ["requirements/SR-444455556666.md", OBSOLETE],
+      ["needs/N-aaaaaaaaaaaa.md", APPROVED],
+    ] as const;
+    const before = contents(fixture.root, Object.keys(STATUS_LINES));
+    const out = await runtime.invoke(
+      "hint.confirm",
+      { hintIds: sources.map(([file, id]) => hintId(file, id, WIND)) },
+      { workspace },
+    );
+    expect(out).toMatchObject({ files: sources.map(([file]) => file), problems: [] });
+    const after = contents(fixture.root, Object.keys(STATUS_LINES));
+    expect(Object.keys(after).filter((file) => after[file] !== before[file])).toEqual(
+      sources.map(([file]) => file).sort(),
+    );
+    expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
+    // A status the metamodel does not know stays as written too.
+    await expect(
+      runtime.invoke(
+        "hint.confirm",
+        { hintIds: [hintId("needs/N-bbbbbbbbbbbb.md", RETIRED, WIND)] },
+        { workspace },
+      ),
+    ).resolves.toMatchObject({ files: ["needs/N-bbbbbbbbbbbb.md"] });
+    expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
+  });
 
   it("[SR-087/AK1] element.setStatus and element.supersede change only the status of the elements they name", async () => {
     const { fixture, workspace } = await open();

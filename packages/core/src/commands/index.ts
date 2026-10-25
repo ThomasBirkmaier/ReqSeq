@@ -12,6 +12,7 @@ import elementResolve from "./element/resolve.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
+import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
 import metamodelGet from "./metamodel/get.js";
 import relationAdd from "./relation/add.js";
@@ -30,6 +31,7 @@ export const commands: readonly AnyCommand[] = [
   elementSetStatus,
   elementSupersede,
   elementUpdate,
+  hintConfirm,
   hintList,
   metamodelGet,
   relationAdd,

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -119,6 +120,32 @@ describe("workspace.check", () => {
     });
     const missing = await fixture({ fixture: "SR-089/missing-targets" });
     expect((await check(open(missing.path("system")), { severity: "warning" })).problems).toEqual([]);
+  });
+
+  it("[SR-019/AK4] reports a hint about a relation no more once it is confirmed, and is ok when nothing else is left", async () => {
+    // fixtures/SR-025/outdated: requirement A derives from need N; B refines A. N gets a new text.
+    const ws = await fixture({ fixture: "SR-025/outdated" });
+    const need = "needs/N-0a0000000001.md";
+    await ws.write(need, `${fs.readFileSync(ws.path(need), "utf8")}Changed.\n`);
+    const workspace = open(ws.root);
+    const before = await check(workspace);
+    expect(before.ok).toBe(false);
+    const [derives, link] = before.problems;
+    expect([derives?.code, derives?.line, link?.code, link?.line]).toEqual([
+      "relation.outdated",
+      12,
+      "relation.outdated",
+      15,
+    ]);
+    await invoke("hint.confirm", { hintIds: [derives?.hintId] }, { workspace });
+    const after = await check(workspace);
+    expect([after.ok, after.problems]).toEqual([false, [link]]);
+    // The reference changes A's text, so B's refinement of A is outdated now (ADR-0004); confirm both.
+    await invoke("hint.confirm", { hintIds: [link?.hintId] }, { workspace });
+    const refines = (await check(workspace)).problems.map((p) => p.hintId);
+    expect(refines).toHaveLength(1);
+    await invoke("hint.confirm", { hintIds: refines }, { workspace });
+    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
   it("[SR-019/AK2] checks again after the element store is read again", async () => {

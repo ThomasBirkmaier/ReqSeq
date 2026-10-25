@@ -1400,7 +1400,7 @@
     },
     {
       "name": "hint.confirm",
-      "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042).",
+      "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-027", "SR-087", "SR-102"],

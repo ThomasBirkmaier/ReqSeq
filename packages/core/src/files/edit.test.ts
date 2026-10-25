@@ -637,3 +637,75 @@ describe("editElementFile: review round 1", () => {
     });
   });
 });
+
+describe("set-scalar: one scalar replaced in place (SR-027 AK1, SR-102 AK1)", () => {
+  const scalar = (key: string, path: readonly (string | number)[], value: string): FrontmatterEdit => ({
+    kind: "set-scalar",
+    key,
+    path,
+    value,
+  });
+  const OLD = "n1:0000000000000000";
+  const NEW = "n1:1111111111111111";
+
+  it("replaces only the text of the scalar, in its own quoting, and keeps every other byte", () => {
+    const text = [
+      "---",
+      "a:   # by hand",
+      `  - { id: ${U1}, version: ${OLD}, title: 'One' }   # first`,
+      `  - id: ${U2}`,
+      `    version: '${OLD}'  # old`,
+      `    title: "Two"`,
+      `  - {id: ${U3}, version: "${OLD}"}`,
+      `b: { id: ${U1}, version: ${OLD} }`,
+      `c: ${OLD}`,
+      "---",
+      "Text",
+      "",
+    ].join("\n");
+    const edits = [
+      scalar("a", [0, "version"], NEW),
+      scalar("a", [1, "version"], NEW),
+      scalar("a", [2, "version"], NEW),
+      scalar("b", ["version"], NEW),
+      scalar("c", [], NEW),
+    ];
+    expect(edit(text, { edits })).toBe(text.replaceAll(OLD, NEW));
+  });
+
+  it("quotes a value that cannot stay plain or single-quoted", () => {
+    const text = `---\na: { v: x }\nb: 'y'\nc: "z"\n---\n`;
+    const edits = [scalar("a", ["v"], "x, y"), scalar("b", [], "it's\ttab"), scalar("c", [], "it's")];
+    expect(edit(text, { edits })).toBe(`---\na: { v: "x, y" }\nb: "it's\\ttab"\nc: "it's"\n---\n`);
+    expect(edit(text, { edits: [scalar("b", [], "it's")] })).toBe(
+      `---\na: { v: x }\nb: 'it''s'\nc: "z"\n---\n`,
+    );
+  });
+
+  it("changes nothing when the scalar holds the value already", () => {
+    const text = `---\na: { v: ${OLD} }\n---\n`;
+    const result = editElementFile(fileOf(text), { edits: [scalar("a", ["v"], OLD)] });
+    expect([decode(result.bytes), result.changed]).toEqual([text, false]);
+  });
+
+  it("refuses a path that names no text on one line, and a key that is edited as a whole too", () => {
+    const text = `---\na: { v: 1, w: [x] }\nb: |\n  block\nc: plain\n---\n`;
+    for (const bad of [
+      scalar("a", ["v"], NEW),
+      scalar("a", ["w"], NEW),
+      scalar("a", ["nope"], NEW),
+      scalar("b", [], NEW),
+      scalar("c", ["v"], NEW),
+      scalar("d", [], NEW),
+    ]) {
+      expect(errorOf(() => edit(text, { edits: [bad] }))).toMatchObject({
+        code: "input.invalid",
+        message: expect.stringContaining("it is no text on one line") as unknown,
+      });
+    }
+    expect(errorOf(() => edit(text, { edits: [set("c", "x"), scalar("c", [], NEW)] }))).toMatchObject({
+      code: "input.invalid",
+      message: "Cannot change c: a scalar in it and the whole key in one write",
+    });
+  });
+});

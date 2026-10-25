@@ -13,6 +13,8 @@ export type {
   ShownContext,
 } from "./outdated.js";
 export { datedProblems, outdatedFindingsOf, outdatedOfShown, outdatedRelationsState } from "./outdated.js";
+export type { ConfirmedHints } from "./confirm.js";
+export { confirmHints } from "./confirm.js";
 export { elementHints } from "./element.js";
 export type { HintFilter } from "./list.js";
 export { HINT_STATES, hintsOf, isHint, listHints, resolveHintFilter } from "./list.js";

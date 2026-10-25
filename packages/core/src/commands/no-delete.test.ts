@@ -54,6 +54,14 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, status: "obsolete" },
     { ref: WIND, status: "draft" },
   ],
+  "hint.confirm": [
+    {
+      hintIds: [
+        `relation.outdated/system/${encodeURIComponent("requirements/SR-1d2e3f4a5b6c.md")}/${GUSTS}/derives-from/${WIND}?version=n1:0000000000000000`,
+      ],
+    },
+    { hintIds: "not a list" },
+  ],
   "relation.add": [
     { source: WIND, kind: "replaces", target: GUSTS },
     { source: WIND, kind: "nope", target: GUSTS },

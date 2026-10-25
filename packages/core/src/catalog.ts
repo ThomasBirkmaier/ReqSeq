@@ -129,6 +129,17 @@ export class CommandError extends Error {
 }
 
 /**
+ * `error` when it is a `CommandError`, for a command that turns a refusal into a problem and goes
+ * on; any other error is a bug and is thrown again.
+ */
+export const commandErrorOrThrow = (error: unknown): CommandError => {
+  if (error instanceof CommandError) {
+    return error;
+  }
+  throw error;
+};
+
+/**
  * Define the implementation of a catalog command; the file default-exports the result (see
  * commands/index.ts). The name picks the catalog entry, which types `input` and the result of `run`:
  * `defineCommand({ name: "workspace.status", run: async (ctx, input) => ... })`.

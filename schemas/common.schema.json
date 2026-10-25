@@ -159,7 +159,7 @@
         },
         "hintId": {
           "type": "string",
-          "description": "Stable ID of a confirmable hint (D-042)."
+          "description": "Stable ID of a confirmable hint (D-042); on the hint.* problems of hint.confirm, the ID as given."
         }
       },
       "additionalProperties": false
@@ -186,6 +186,8 @@
         "relation.outdated",
         "relation.target-superseded",
         "relation.not-found",
+        "hint.not-confirmable",
+        "hint.not-found",
         "trace.cycle",
         "variant.core-changed",
         "variant.superseded-in-validity",
