@@ -2,9 +2,9 @@
 // computing a chain in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 // Opening is `element.get` (look up, read the file, element view with its hints and successors).
 // Stage 1 has no filter language (SR-070, stage 3) and no chain (SR-022, stage 2), so these are
-// measured at the lowest level core has (#127, option 1): they run on the in-memory store and an
-// index of incoming relations, which ADR-0008 says they will run on. Later stages add tests of their commands
-// with the same tags. The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
+// measured at the lowest level core has (#127, option 1): they run on the in-memory store, and the
+// chain on the model's incoming relation index and the derivation walk of the trace block (#258,
+// ADR-0008). Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
 // `measure` recorded the times.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
@@ -20,8 +20,17 @@ import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../../src/model/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
-import { elementStoreState, hasId, resolveTarget, titleKeyOf, warmWorkspace } from "../../src/model/index.js";
+import {
+  buildIncomingIndex,
+  elementStoreState,
+  hasId,
+  resolveTarget,
+  titleKeyOf,
+  warmWorkspace,
+} from "../../src/model/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
+import { cyclesOf, derivationEdges, derivationGraph, walkDerivation } from "../../src/trace/index.js";
+import { workspaceLayoutState } from "../../src/workspace/index.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -31,50 +40,6 @@ const OPEN_MS = 200;
 const RESULT_MS = 500;
 /** The versions stored in relations do not matter here: nothing compares them. */
 const VERSION: VersionFunction = () => "n1:0000000000000000";
-
-/** The keys of the relation kinds with the meaning `derivation` (SR-013): the links of a chain. */
-const derivationKeys = (metamodel: Metamodel): string[] =>
-  metamodel.relations.filter((r) => r.meaning === "derivation").map((r) => r.key);
-
-/**
- * The index of incoming derivation relations (ADR-0008 plans one in the model, built with the store):
- * for each element, the elements whose relations under `keys` point at it.
- */
-const incomingIndex = (store: ElementStore, keys: readonly string[]): Map<ElementRecord, ElementRecord[]> => {
-  const incoming = new Map<ElementRecord, ElementRecord[]>();
-  for (const source of store.elements) {
-    for (const key of keys) {
-      const value = source.data[key];
-      for (const item of Array.isArray(value) ? (value as unknown[]) : []) {
-        const match = hasId(item) ? resolveTarget(store, source.repository, item) : undefined;
-        if (match?.kind === "found") {
-          const list = incoming.get(match.element) ?? [];
-          list.push(source);
-          incoming.set(match.element, list);
-        }
-      }
-    }
-  }
-  return incoming;
-};
-
-/** The chain below `top` (SR-022 down the derivation): every element that derives from it, directly or not. */
-const chainBelow = (
-  incoming: ReadonlyMap<ElementRecord, readonly ElementRecord[]>,
-  top: ElementRecord,
-): Set<ElementRecord> => {
-  const seen = new Set<ElementRecord>();
-  const queue = [top];
-  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
-    for (const child of incoming.get(next) ?? []) {
-      if (!seen.has(child)) {
-        seen.add(child);
-        queue.push(child);
-      }
-    }
-  }
-  return seen;
-};
 
 describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-082, N-036)", () => {
   let tree: GeneratedWorkspace;
@@ -182,26 +147,49 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   it("[SR-082/AK4] computes a chain within 500 ms", async () => {
-    const keys = derivationKeys(metamodel);
     const need = tree.elements.find((e) => e.type === "need");
     const [top] = store.byId.get(need?.id ?? "") ?? [];
-    if (top === undefined) {
-      throw new Error("the generated workspace has no need");
+    const [bottom] = store.elements.filter((e) => e.type === "system-requirement").slice(-1);
+    if (top === undefined || bottom === undefined) {
+      throw new Error("the generated workspace has no need or no system requirement");
     }
-    // Built once with the store in the model (ADR-0008); recorded, no threshold of its own.
+    const layout = await opened().get(workspaceLayoutState);
+    // Built once per element store in the model (`incomingFor`, ADR-0008), not per chain: recorded
+    // only, about 0.25 to 0.45 s here. Not carried over a save yet, so the first chain after one pays
+    // it too (#267).
     const { result: incoming } = await measure(
-      "index of incoming derivation relations (200,000 relations)",
-      () => incomingIndex(store, keys),
-      { basis: "SR-082 AK4 (part of loading the model, not of computing a chain)" },
+      "incoming relation index (relation kinds, relation-valued properties, references; 200,000 relations)",
+      () => buildIncomingIndex(store, metamodel),
+      { basis: "SR-082 AK4 (built once per element store, not per chain; ADR-0008, #258)" },
     );
+    // `trace.chain` (SR-022) is not in the catalog yet: an existing command stands in for the name
+    // that a missing `derivation` meaning would report (SR-013 AK3).
+    const graph = derivationGraph({ layout, metamodel, store, incoming }, "workspace.check");
     const { result: chain, measurement } = await measure(
       "chain: every element derived from the first need",
-      () => chainBelow(incoming, top),
-      { basis: "SR-082 AK4 (core: graph walk over the in-memory index; #127)", thresholdMs: RESULT_MS },
+      () => walkDerivation(graph, [top], { direction: "down" }),
+      {
+        basis: "SR-082 AK4 (core: derivation walk over the incoming index; #127, #258)",
+        thresholdMs: RESULT_MS,
+      },
     );
-    expect(keys).toEqual(expect.arrayContaining(["refines", "derives-from"]));
-    expect(chain.size).toBeGreaterThan(0);
-    expect(chain.has(top)).toBe(false);
+    const { result: up } = await measure(
+      "chain upwards: every parent of the last system requirement",
+      () => walkDerivation(graph, [bottom], { direction: "up" }),
+      { basis: "SR-082 AK4 (core: derivation walk upwards; recorded, #258)" },
+    );
+    const { result: cycles } = await measure(
+      "cycles of the whole store (every derivation edge, strongly connected components)",
+      () => cyclesOf(store.elements, derivationEdges(graph)),
+      { basis: "SR-090 (cycles over all derivation relations; recorded, #258)" },
+    );
+    expect(cycles).toEqual([]);
+    expect(graph.kinds.map((k) => k.key)).toEqual(expect.arrayContaining(["refines", "derives-from"]));
+    expect(chain.nodes[0]?.element).toBe(top);
+    expect(chain.nodes.length).toBeGreaterThan(1);
+    expect(up.nodes.length).toBeGreaterThan(1);
+    // Every repository of the generated workspace is on this machine.
+    expect(chain.incomplete).toBe(false);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 

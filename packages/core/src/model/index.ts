@@ -98,6 +98,8 @@ export {
 export type { SupersededContext } from "./superseded.js";
 export { buildSuccessionIndex, successionIndexState, successionsFor, successionsOf } from "./successors.js";
 export type { Succession, SuccessionIndex } from "./successors.js";
+export { buildIncomingIndex, incomingFor, incomingState, incomingTo, relationPath } from "./incoming.js";
+export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { MODEL_CACHE_FILE } from "./model-cache.js";
 export { warmWorkspace } from "./warm.js";
