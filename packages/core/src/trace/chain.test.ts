@@ -9,7 +9,8 @@ import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";
 import type { ElementRecord } from "../model/index.js";
 import { elementStoreState, shortIdState } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
-import type { Chain, ChainOptions } from "./chain.js";
+import type { TraceChainOutput } from "../generated/types.js";
+import type { Chain, ChainOptions, ChainOutputContext } from "./chain.js";
 import { chainOutput, traceChain } from "./chain.js";
 import { CYCLE_NAMES_SHOWN } from "./cycles.js";
 import type { DerivationGraph } from "./graph.js";
@@ -682,5 +683,122 @@ describe("trace chain output", () => {
         expanded: true,
       },
     ]);
+  });
+
+  describe("pages (SR-082 AK4, spec-frage #290)", () => {
+    /** Every page of `size` nodes of `chain`, from the first on. */
+    const pagesOf = (
+      chain: Chain<unknown>,
+      context: ChainOutputContext,
+      size: number,
+    ): TraceChainOutput[] => {
+      const pages = [chainOutput(chain, context, { limit: size, offset: 0 })];
+      for (let offset = size; offset < (pages[0]?.total ?? 0); offset += size) {
+        pages.push(chainOutput(chain, context, { limit: size, offset }));
+      }
+      for (const page of pages) {
+        expect(page.nodes.length).toBeLessThanOrEqual(size);
+      }
+      return pages;
+    };
+    const sorted = (items: readonly object[]): string[] => items.map((i) => JSON.stringify(i)).sort();
+
+    it.each([
+      ["a need down with its gaps, and a requirement up", CHAIN, SPEED, 2],
+      [
+        "a root with two ancestors and three children, one node a page",
+        {
+          ...CHAIN,
+          files: {
+            "components/CR-00000000c003.md": component(`${P}c003`, [TURNS]),
+            "components/CR-00000000c004.md": component(`${P}c004`, [TURNS]),
+            "components/CR-00000000c005.md": component(`${P}c005`, [TURNS]),
+          },
+        },
+        TURNS,
+        1,
+      ],
+      [
+        "a cycle through the root, with an edge back to it",
+        {
+          ...CHAIN,
+          files: {
+            "requirements/SR-00000000b001.md": component(SPEED, [SEE_WIND, TURNS]).replace(
+              "component-requirement",
+              "system-requirement",
+            ),
+          },
+        },
+        SPEED,
+        2,
+      ],
+      [
+        "unresolved children of the root (SR-088)",
+        {
+          ...CHAIN,
+          files: {
+            "requirements/copy/SR-00000000b001.md": component(SPEED, [SEE_WIND]).replace(
+              "component-requirement",
+              "system-requirement",
+            ),
+          },
+        },
+        SEE_WIND,
+        2,
+      ],
+    ])("splits %s into pages that together give the whole chain", async (_name, options, root, size) => {
+      const opened = await open(options);
+      const context = {
+        metamodel: opened.graph.metamodel,
+        shortIds: await opened.workspace.get(shortIdState),
+      };
+      const chain = chainOf(opened, root, { direction: "both" });
+      const whole = chainOutput(chain, context);
+      const pages = pagesOf(chain, context, size);
+      expect(pages.length).toBeGreaterThan(1);
+      // No node on two pages (twins of SR-088 are told apart by their file).
+      const nodeKeys = pages.flatMap((p) => p.nodes.map((n) => [n.id, n.file, n.direction].join(" ")));
+      expect(new Set(nodeKeys).size).toBe(nodeKeys.length);
+      // No edge on two pages: as many as the whole chain has (twins name their edges the same way).
+      expect(pages.flatMap((p) => p.edges)).toHaveLength(whole.edges.length);
+      // Nodes and gaps in the order of the whole chain; each edge and unresolved relation on one page.
+      expect(pages.flatMap((p) => p.nodes)).toEqual(whole.nodes);
+      expect(pages.flatMap((p) => p.gaps)).toEqual(whole.gaps);
+      expect(sorted(pages.flatMap((p) => p.edges))).toEqual(sorted(whole.edges));
+      expect(sorted(pages.flatMap((p) => p.unresolved))).toEqual(sorted(whole.unresolved));
+      // What belongs to the whole chain is on every page.
+      for (const page of pages) {
+        expect(page).toMatchObject({
+          root,
+          total: whole.nodes.length,
+          incomplete: whole.incomplete,
+          problems: whole.problems,
+        });
+      }
+    });
+
+    it("lists the edges that lead to the nodes of the page, in their walk", async () => {
+      const opened = await open();
+      const context = {
+        metamodel: opened.graph.metamodel,
+        shortIds: await opened.workspace.get(shortIdState),
+      };
+      // Up: SEE_WIND; down: TURNS, STALL.
+      const chain = chainOf(opened, SPEED, { direction: "both" });
+      const second = chainOutput(chain, context, { limit: 2, offset: 1 });
+      expect(second.nodes.map((n) => [n.id, n.direction])).toEqual([
+        [SEE_WIND, "up"],
+        [TURNS, "down"],
+      ]);
+      expect(second.edges.map((e) => [e.source, e.target, e.direction])).toEqual([
+        [SPEED, SEE_WIND, "up"],
+        [TURNS, SPEED, "down"],
+      ]);
+      expect(second.gaps).toEqual([{ id: TURNS, repository: "system", kind: "no-evidence" }]);
+      expect(second.total).toBe(4);
+      // Past the end: no nodes, the total still.
+      const past = chainOutput(chain, context, { limit: 2, offset: 4 });
+      expect([past.nodes, past.edges, past.gaps, past.total]).toEqual([[], [], [], 4]);
+    });
   });
 });

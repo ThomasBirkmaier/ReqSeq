@@ -1201,7 +1201,7 @@ export interface RelationRemoveOutput {
 }
 
 /**
- * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps and cycles.
+ * Input of `trace.chain` as `run` gets it: validated, properties with a `default` filled in. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain input`.
  */
 export interface TraceChainInput {
@@ -1209,15 +1209,19 @@ export interface TraceChainInput {
   readonly direction: "up" | "down" | "both";
   readonly view?: View;
   readonly maxDepth?: number;
+  /** Nodes of the page; total counts all. The walk is always complete: depth, gaps, cycles and incomplete are those of the whole chain (spec-frage #290). Every page walks the whole chain again; to step through a chain, ask with `maxDepth` instead. */
+  readonly limit: number;
+  /** Nodes skipped before the page, in the order of `nodes` (the root, then the parents level by level, then the children level by level). */
+  readonly offset: number;
 }
 
 /**
- * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps and cycles.
+ * Output of `trace.chain`. Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.
  * Schema: `schemas/commands/catalog.json trace.chain output`.
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
-  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes and 36 MB of JSON): a client that shows it step by step asks with `maxDepth` 1 and asks again below an element that is not `expanded`. */
+  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -1234,7 +1238,9 @@ export interface TraceChainOutput {
     /** Its parents or children were looked at; false only at `maxDepth`, where the chain was cut. */
     readonly expanded: boolean;
   }[];
-  /** Every derivation relation the chain followed, from the child that stores it (`source`) to its parent (`target`, ADR-0004): the upward ones, then the downward ones, in the order they were followed. */
+  /** The number of all nodes of the chain; `nodes` holds the page of `limit` from `offset`. */
+  readonly total: number;
+  /** Every derivation relation the chain followed, from the child that stores it (`source`) to its parent (`target`, ADR-0004): the upward ones, then the downward ones, in the order they were followed. Paged with the nodes: an edge is listed on the page of the node it leads to in its walk (upwards the parent, downwards the child), so every edge is on exactly one page. */
   readonly edges: readonly {
     readonly source: Uuid;
     /** Workspace name of the repository of `source`. */
@@ -1248,14 +1254,14 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). Evidence records come in stage 4 (SR-028): until then every requirement without a child is `no-evidence`. */
+  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). Evidence records come in stage 4 (SR-028): until then every requirement without a child is `no-evidence`. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
     readonly kind: "no-child" | "no-evidence";
   }[];
-  /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. */
+  /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. Only those of the nodes of the page (`from`). */
   readonly unresolved: readonly {
     readonly direction: "up" | "down";
     /** The element of the chain whose parents or children were looked at. */
@@ -1271,7 +1277,7 @@ export interface TraceChainOutput {
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   }[];
   readonly incomplete: Incomplete;
-  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). */
+  /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
 }
 

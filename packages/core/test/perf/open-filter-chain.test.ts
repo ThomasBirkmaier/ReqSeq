@@ -2,12 +2,12 @@
 // computing a chain in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 // Opening is `element.get` (look up, read the file, element view with its hints and successors),
 // without the version date, which the app asks for in a second call (recorded separately).
-// Stage 1 has no filter language (SR-070, stage 3) and no chain (SR-022, stage 2), so these are
-// measured at the lowest level core has (#127, option 1): they run on the in-memory store, and the
-// chain on the model's incoming relation index and the derivation walk of the trace block (#258,
-// ADR-0008); the index is carried over a save (#267), so a chain right after one stays within the
-// threshold too. Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
-// `measure` recorded the times.
+// The chain is `trace.chain` (SR-022) through the catalog, of the need with the largest chain, as
+// its first page (spec-frage #290): the first after the start (the start builds the incoming
+// relation index, `warmWorkspace`, #227), again, and right after a save (the index is carried
+// over, #267). The whole chain is recorded without a threshold. Stage 1 has no filter language
+// (SR-070, stage 3), so the filter runs on the in-memory store (#127, option 1). The tests are
+// tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
 import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import fs from "node:fs/promises";
@@ -29,6 +29,7 @@ import {
   elementStoreState,
   hasId,
   incomingFor,
+  incomingState,
   resolveTarget,
   shortIdState,
   titleKeyOf,
@@ -37,14 +38,14 @@ import {
 import { Workspace } from "../../src/runtime/workspace.js";
 import {
   affectedOutput,
+  chainOutput,
   cyclesOf,
   derivationEdges,
   derivationGraph,
   traceAffected,
+  traceChain,
   traceContext,
-  walkDerivation,
 } from "../../src/trace/index.js";
-import { workspaceLayoutState } from "../../src/workspace/index.js";
 import { standardModel, versionOf } from "./core-version.js";
 
 const ELEMENTS = 50_000;
@@ -244,48 +245,131 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
+  type Chain = CommandOutput<"trace.chain">;
+
+  /** `trace.chain` (SR-022) through the catalog, as every access calls it (SR-080). */
+  const chainOf = async (current: Workspace, input: Readonly<Record<string, unknown>>): Promise<Chain> =>
+    (await invoke("trace.chain", input, { workspace: current })) as Chain;
+
+  /** The largest page (catalog). */
+  const MAX_LIMIT = 5000;
+
+  /**
+   * The need of the largest chain: the first one the generator wrote. Nearly every element of the
+   * workspace lies below it (about 42,000 nodes, 112,000 edges, 36 MB of JSON as a whole).
+   */
+  const firstNeed = (): string => tree.elements.find((e) => e.type === "need")?.id ?? "";
+
   it("[SR-082/AK4] computes a chain within 500 ms", async () => {
-    const need = tree.elements.find((e) => e.type === "need");
-    const [top] = store.byId.get(need?.id ?? "") ?? [];
-    const [bottom] = store.elements.filter((e) => e.type === "system-requirement").slice(-1);
-    if (top === undefined || bottom === undefined) {
-      throw new Error("the generated workspace has no need or no system requirement");
-    }
-    const layout = await opened().get(workspaceLayoutState);
-    // Built once per element store in the model (`incomingFor`, ADR-0008), not per chain, and carried
-    // over a save (#267): recorded only, about 0.25 to 0.45 s here. The workspace keeps it, so the
-    // chain after a save below finds it carried.
-    const { result: incoming } = await measure(
-      "incoming relation index (relation kinds, relation-valued properties, references; 200,000 relations)",
-      () => incomingFor(opened(), store, metamodel),
-      { basis: "SR-082 AK4 (built once per element store, not per chain; ADR-0008, #258)" },
-    );
-    const graph = derivationGraph({ layout, metamodel, store, incoming }, "trace.chain");
-    const { result: chain, measurement } = await measure(
-      "chain: every element derived from the first need",
-      () => walkDerivation(graph, [top], { direction: "down" }),
+    const current = opened();
+    const need = firstNeed();
+    // The result is the first page (200 nodes by default) of the complete walk (spec-frage #290).
+    // The first chain after the start: the start built the incoming relation index of the store
+    // (`warmWorkspace`, #227), so the chain only walks it.
+    const { result: first, measurement: firstCall } = await measure(
+      "trace.chain of the first need, first page: first chain after the start (incoming index built at the start)",
+      () => chainOf(current, { ref: need }),
       {
-        basis: "SR-082 AK4 (core: derivation walk over the incoming index; #127, #258)",
+        basis:
+          "SR-082 AK4 (trace.chain through the catalog, first page; the index from warmWorkspace; #227, #290)",
         thresholdMs: RESULT_MS,
       },
     );
-    const { result: up } = await measure(
-      "chain upwards: every parent of the last system requirement",
-      () => walkDerivation(graph, [bottom], { direction: "up" }),
-      { basis: "SR-082 AK4 (core: derivation walk upwards; recorded, #258)" },
+    const { result: chain, measurement } = await measure(
+      "trace.chain of the first need, first page: up and down, of every element derived from it",
+      () => chainOf(current, { ref: need }),
+      {
+        basis: "SR-082 AK4 (trace.chain through the catalog, first page; SR-022, #227, #290)",
+        thresholdMs: RESULT_MS,
+      },
     );
+    expect(chain).toEqual(first);
+    expect(chain.root).toBe(need);
+    expect(chain.nodes).toHaveLength(200);
+    expect(chain.total).toBeGreaterThan(ELEMENTS / 2);
+    expect(chain.problems).toEqual([]);
+    // Every repository of the generated workspace is on this machine.
+    expect(chain.incomplete).toBe(false);
+    // What an adapter adds and what the tests check, recorded only: the page as JSON (the API, MCP
+    // and the CLI send it so) and its check against the catalog (tests and debug builds).
+    await measure(
+      "trace.chain of the first need, first page: the output as JSON (what an adapter sends)",
+      () => JSON.stringify(chain),
+      { basis: "SR-082 AK4 (serialisation by the adapter; recorded, #227)" },
+    );
+    const valid = getCommandRuntime().contracts.validator("trace.chain", "output");
+    const { result: matches } = await measure(
+      "trace.chain of the first need, first page: the output checked against the catalog schema",
+      () => valid(chain),
+      {
+        basis:
+          "SR-082 AK4 (output check of LOGREQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227)",
+      },
+    );
+    expect(matches).toBe(true);
+    // The whole chain, recorded so that its cost stays visible: every page of 5,000 through the
+    // catalog, and the output of every node at once in core (what one page held before #290).
+    const { result: pages } = await measure(
+      "trace.chain of the first need: every page of 5,000 (the whole chain)",
+      async () => {
+        const all: Chain[] = [];
+        for (let offset = 0; offset < chain.total; offset += MAX_LIMIT) {
+          all.push(await chainOf(current, { ref: need, offset, limit: MAX_LIMIT }));
+        }
+        return all;
+      },
+      { basis: "SR-082 AK4 (the whole chain page by page; recorded, #227, #290)" },
+    );
+    expect(pages.reduce((n, page) => n + page.nodes.length, 0)).toBe(chain.total);
+    const context = await traceContext(current);
+    const graph = derivationGraph(context, "trace.chain");
+    const [root] = context.store.byId.get(need) ?? [];
+    if (root === undefined) {
+      throw new Error("no first need");
+    }
+    const shortIds = await current.get(shortIdState);
+    const { result: whole } = await measure(
+      "trace.chain of the first need in core: the walks and the output of every node",
+      () =>
+        chainOutput(traceChain(graph, root, { direction: "both" }), { metamodel: graph.metamodel, shortIds }),
+      { basis: "SR-082 AK4 (the whole chain as one result; recorded, #227, #290)" },
+    );
+    const { result: json } = await measure(
+      "trace.chain of the first need: the whole chain as JSON",
+      () => JSON.stringify(whole),
+      { basis: "SR-082 AK4 (serialisation of the whole chain; recorded, #227)" },
+    );
+    await measure(
+      `trace.chain of the first need, whole: ${String(Math.round(json.length / 1e6))} MB of JSON, ${String(whole.nodes.length)} nodes, ${String(whole.edges.length)} edges`,
+      () => json.length,
+      { basis: "SR-082 AK4 (size of the whole chain; recorded, #227)" },
+    );
+    expect(whole.nodes).toHaveLength(chain.total);
+    expect(pages.reduce((n, page) => n + page.edges.length, 0)).toBe(whole.edges.length);
+    const [bottom] = store.elements.filter((e) => e.type === "system-requirement").slice(-1);
+    const { result: up } = await measure(
+      "trace.chain upwards: every parent of the last system requirement",
+      () => chainOf(current, { ref: bottom?.id ?? "", direction: "up" }),
+      { basis: "SR-082 AK4 (trace.chain upwards; recorded, #227)" },
+    );
+    expect(up.nodes.length).toBeGreaterThan(1);
     const { result: cycles } = await measure(
       "cycles of the whole store (every derivation edge, strongly connected components)",
       () => cyclesOf(store.elements, derivationEdges(graph)),
       { basis: "SR-090 (cycles over all derivation relations; recorded, #258)" },
     );
     expect(cycles).toEqual([]);
-    expect(graph.kinds.map((k) => k.key)).toEqual(expect.arrayContaining(["refines", "derives-from"]));
-    expect(chain.nodes[0]?.element).toBe(top);
-    expect(chain.nodes.length).toBeGreaterThan(1);
-    expect(up.nodes.length).toBeGreaterThan(1);
-    // Every repository of the generated workspace is on this machine.
-    expect(chain.incomplete).toBe(false);
+    // What the start pays so that the first chain does not (`warmWorkspace`), once more on the same store.
+    const { result: index } = await measure(
+      "incoming relation index (relation kinds, relation-valued properties, references; 200,000 relations)",
+      () => buildIncomingIndex(store, metamodel),
+      {
+        basis:
+          "SR-082 AK1, AK4 (built once per store at the start, carried over a save; recorded, #227, #267)",
+      },
+    );
+    expect(index.relationsById.size).toBeGreaterThan(0);
+    expect(firstCall.ms, thresholdMessage(firstCall)).toBeLessThanOrEqual(RESULT_MS);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
@@ -327,9 +411,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     type Affected = CommandOutput<"trace.affected">;
     const affectedOf = async (): Promise<Affected> =>
       (await invoke("trace.affected", { ref: need }, { workspace: current })) as Affected;
-    // The first call builds the incoming index of the store (`incomingFor`, once per store, as for
-    // the chain above): recorded only.
-    await measure("trace.affected of the first need, with the incoming index built on the way", affectedOf, {
+    // The first call: the incoming index of the store was built at the start (`warmWorkspace`): recorded only.
+    await measure("trace.affected of the first need: first call", affectedOf, {
       basis: "SR-024 AK1 (N-036; the index once per store; recorded)",
     });
     const { result: affected, measurement } = await measure(
@@ -472,10 +555,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const current = opened();
     // As a server after a first chain: the incoming index of the store is built.
     const { store: before, incoming: indexBefore } = await traceContext(current);
-    const top = before.elements.find((e) => e.type === "need");
-    if (top === undefined) {
-      throw new Error("the generated workspace has no need");
-    }
+    const need = firstNeed();
     // The save rewrites a source of relations: its links are dropped and added again (#267).
     const { source } = relationToTarget();
     await measure(
@@ -484,27 +564,27 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
         invoke("element.update", { ref: source.id, title: "Saved before a chain" }, { workspace: current }),
       { basis: "SR-082 AK4 (the save before the chain; no threshold of its own; #184, #267)" },
     );
-    const { result, measurement } = await measure(
-      "chain right after a save: every element derived from the first need (incoming index carried)",
-      async () => {
-        // `trace.chain` (SR-022) is not in the catalog yet: as in the chain test above.
-        const context = await traceContext(current);
-        const graph = derivationGraph(context, "workspace.check");
-        return { context, chain: walkDerivation(graph, [top], { direction: "down" }) };
-      },
+    // The save carried the index over to the new store (#267): the chain below does not build it.
+    const saved = await current.get(elementStoreState);
+    expect(saved).not.toBe(before);
+    expect(current.peek(incomingState)?.get(saved)?.store).toBe(saved);
+    const { result: chain, measurement } = await measure(
+      "trace.chain of the first need, first page, right after a save (incoming index carried, short IDs updated)",
+      () => chainOf(current, { ref: need }),
       {
         basis:
-          "SR-082 AK4 (core: trace context with the carried index and derivation walk after a save; #267)",
+          "SR-082 AK4 (trace.chain through the catalog, first page, after a save; #184, #227, #267, #290)",
         thresholdMs: RESULT_MS,
       },
     );
-    const { context, chain } = result;
+    const context = await traceContext(current);
     expect(context.store).not.toBe(before);
     expect(context.store.byId.get(source.id)?.[0]?.data["title"]).toBe("Saved before a chain");
     expect(context.incoming).not.toBe(indexBefore);
     expect(context.incoming.store).toBe(context.store);
-    expect(chain.nodes[0]?.element).toBe(top);
-    expect(chain.nodes.length).toBeGreaterThan(1);
+    expect(chain.root).toBe(need);
+    expect(chain.nodes).toHaveLength(200);
+    expect(chain.total).toBeGreaterThan(ELEMENTS / 2);
     // The carried index equals a fresh build of the same store: every list, link by link.
     const fresh = buildIncomingIndex(context.store, context.metamodel);
     const same = (a: IncomingLink | undefined, b: IncomingLink): boolean =>

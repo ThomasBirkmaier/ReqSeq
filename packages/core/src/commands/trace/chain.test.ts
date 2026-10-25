@@ -175,6 +175,23 @@ describe("trace.chain (SR-022)", () => {
     ]);
   });
 
+  it("gives one page of nodes with total (SR-082 AK4, spec-frage #290)", async () => {
+    const workspace = await open();
+    const whole = await chain(workspace, { ref: SPEED });
+    expect(whole.total).toBe(whole.nodes.length);
+    expect(levels(await chain(workspace, { ref: SPEED, limit: 2, offset: 1 }))).toEqual([
+      ["N-00a001", 1, "up"],
+      ["CR-00c001", 1, "down"],
+    ]);
+    // Stepping with maxDepth still works page by page.
+    const step = await chain(workspace, { ref: SPEED, maxDepth: 1, limit: 1, offset: 3 });
+    expect([levels(step), step.total]).toEqual([[["CR-00c002", 1, "down"]], 4]);
+    for (const input of [{ limit: 0 }, { limit: 5001 }, { offset: -1 }]) {
+      const error = await chainError(workspace, { ref: SPEED, ...input });
+      expect(error.code).toBe("input.invalid");
+    }
+  });
+
   it("fails with ref.unknown for an element that does not exist", async () => {
     const workspace = await open();
     const error = await chainError(workspace, { ref: "SR-ffffff" });

@@ -27,8 +27,13 @@
 // - Elements are named by UUID and workspace name of their repository (D-058). Two files of one
 //   repository with the same UUID (SR-088) are two nodes, told apart only by `file`; edges and gaps
 //   name both the same way.
+// - Pages (SR-082 AK4, spec-frage #290): the walks are always complete, so depth, gaps, cycles and
+//   `incomplete` are those of the whole chain; `chainOutput` builds one page of nodes (the root, the
+//   upward ones, the downward ones) and the edges, gaps and unresolved relations of those nodes. An
+//   edge belongs to the node it leads to in its walk, so each edge is on one page.
 // - Cost (SR-082 AK4, N-036): the walks are linear in the elements and edges reached; the output adds
-//   one short ID and one title per element.
+//   one short ID and one title per node of the page. At N-036 the largest chain has about 42,000
+//   nodes, 112,000 edges and 36 MB of JSON as a whole (#227).
 import type { Problem } from "../catalog.js";
 import type { TraceChainOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -134,17 +139,24 @@ const gapsOf = <L>(
 ): { readonly gaps: ChainGap[]; readonly evidence: ChainEvidence<L>[] } => {
   const needs = typeKeys(graph.metamodel, "need");
   const requirements = typeKeys(graph.metamodel, "requirement");
-  const parents = new Set(down.edges.map((edge) => edge.from));
   const gaps: ChainGap[] = [];
   const evidence: ChainEvidence<L>[] = [];
+  // The walk expands its nodes in order and takes the steps of each one after the other, so the
+  // edges come in the order of the nodes they start from: one pass over both, no lookup (SR-082 AK4).
+  let next = 0;
   for (const { element, depth, expanded, leaves } of down.nodes) {
+    let parent = false;
+    while (down.edges[next]?.from === element) {
+      parent = true;
+      next += 1;
+    }
     if (!expanded) {
       continue;
     }
     for (const leaf of leaves) {
       evidence.push({ element, depth: depth + 1, leaf });
     }
-    if (parents.has(element)) {
+    if (parent) {
       continue;
     }
     if (needs.has(element.type)) {
@@ -233,38 +245,37 @@ const cycleHints = (context: ChainOutputContext, cycle: WalkCycle<DerivationLink
   }));
 };
 
-/** The chain as `trace.chain` gives it (catalog output): UUIDs, short IDs and titles. */
-export const chainOutput = (chain: Chain<unknown>, context: ChainOutputContext): TraceChainOutput => {
-  const { metamodel, shortIds } = context;
-  // Without the meaning `title` (SR-013 AK3) no key is the title: every title is empty, as in element.get.
+/** The page of `chainOutput`: `limit` nodes from `offset`, in the order of the output's nodes. */
+export interface ChainPage {
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/** Every node of a chain on one page (the core tests and a full export). */
+const EVERY_NODE: ChainPage = { limit: Number.POSITIVE_INFINITY, offset: 0 };
+
+type ChainEdge = TraceChainOutput["edges"][number];
+
+/** The title of an element; without the meaning `title` (SR-013 AK3) every title is empty, as in element.get. */
+const titles = (metamodel: Metamodel): ((element: ElementRecord) => string) => {
   const titleKey = titleKeyOf(metamodel) ?? "";
-  const titleOf = (element: ElementRecord): string => {
+  return (element) => {
     const title = element.data[titleKey];
     return typeof title === "string" ? title : "";
   };
-  const node = (element: ElementRecord, depth: number, expanded: boolean): ChainNode => {
-    const status = element.data["status"];
-    return {
-      id: element.id,
-      shortId: shortIds.of(element),
-      type: element.type,
-      title: titleOf(element),
-      ...(typeof status === "string" ? { status } : {}),
-      repository: element.repository,
-      file: element.file,
-      depth,
-      expanded,
-    };
-  };
-  const nodes: ChainNode[] = [node(chain.root, 0, chain.rootExpanded)];
-  const edges: TraceChainOutput["edges"][number][] = [];
-  const unresolved: ChainUnresolved[] = [];
-  for (const { direction, result } of chain.walks) {
-    // The root is each walk's first node.
-    for (const { element, depth, expanded } of result.nodes.slice(1)) {
-      nodes.push({ ...node(element, depth, expanded), direction });
-    }
-    for (const edge of result.edges) {
+};
+
+/**
+ * Adds to `edges` the edges of a walk that lead to an element of `onPage` in the walk: upwards the
+ * parent, downwards the child. (A loop, not a spread: a whole chain has over 100,000 edges.)
+ */
+const addEdgesTo = (
+  edges: ChainEdge[],
+  { result, direction }: ChainWalk<unknown>,
+  onPage: ReadonlySet<ElementRecord>,
+): void => {
+  for (const edge of result.edges) {
+    if (onPage.has(edge.to)) {
       const target = direction === "up" ? edge.to : edge.from;
       edges.push({
         source: edge.link.source.id,
@@ -276,36 +287,53 @@ export const chainOutput = (chain: Chain<unknown>, context: ChainOutputContext):
         cyclic: edge.cyclic,
       });
     }
-    for (const { from, link, state } of result.unresolved) {
-      if (direction === "down") {
-        unresolved.push({
-          direction,
-          from: from.id,
-          fromRepository: from.repository,
-          kind: link.key,
-          id: link.source.id,
-          shortId: shortIds.of(link.source),
-          title: titleOf(link.source),
-          targetState: state.kind,
-        });
-      } else if (isUuid(link.item.id)) {
-        // A target that is no UUID is a finding of its own (SR-085).
-        unresolved.push({
-          direction,
-          from: from.id,
-          fromRepository: from.repository,
-          kind: link.key,
-          id: link.item.id,
-          ...(state.kind === "inaccessible"
-            ? { shortId: `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(link.item.id)}` }
-            : {}),
-          targetState: state.kind,
-        });
-      }
+  }
+};
+
+/** Adds to `unresolved` the unresolved relations of the elements of `onPage` in a walk. */
+const addUnresolvedOf = (
+  unresolved: ChainUnresolved[],
+  { result, direction }: ChainWalk<unknown>,
+  onPage: ReadonlySet<ElementRecord>,
+  shortIds: ShortIds,
+  titleOf: (element: ElementRecord) => string,
+): void => {
+  for (const { from, link, state } of result.unresolved) {
+    if (!onPage.has(from)) {
+      continue;
+    }
+    if (direction === "down") {
+      unresolved.push({
+        direction,
+        from: from.id,
+        fromRepository: from.repository,
+        kind: link.key,
+        id: link.source.id,
+        shortId: shortIds.of(link.source),
+        title: titleOf(link.source),
+        targetState: state.kind,
+      });
+    } else if (isUuid(link.item.id)) {
+      // A target that is no UUID is a finding of its own (SR-085).
+      unresolved.push({
+        direction,
+        from: from.id,
+        fromRepository: from.repository,
+        kind: link.key,
+        id: link.item.id,
+        ...(state.kind === "inaccessible"
+          ? { shortId: `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(link.item.id)}` }
+          : {}),
+        targetState: state.kind,
+      });
     }
   }
+};
+
+/** The hints of the whole chain: meanings no type has (SR-013 AK3), then one per cycle (SR-022 AK4). */
+const chainProblems = (chain: Chain<unknown>, context: ChainOutputContext): Problem[] => {
   const problems: Problem[] = [];
-  if (metamodel.valid) {
+  if (context.metamodel.valid) {
     for (const meaning of chain.unassigned) {
       problems.push({
         code: "metamodel.meaning-unassigned",
@@ -317,13 +345,86 @@ export const chainOutput = (chain: Chain<unknown>, context: ChainOutputContext):
   for (const cycle of chain.cycles) {
     problems.push(...cycleHints(context, cycle));
   }
+  return problems;
+};
+
+/**
+ * One page of the chain as `trace.chain` gives it (catalog output): UUIDs, short IDs and titles
+ * (spec-frage #290, SR-082 AK4). The nodes are the root, then those of the upward walk, then those
+ * of the downward walk (each walk without its root); `total` counts them all. Only the nodes of the
+ * page are built, with the edges that lead to them in their walk (so each edge is on one page),
+ * their gaps and their unresolved relations. Depth, gaps, cycles, hints and `incomplete` are those
+ * of the whole chain. Default: every node.
+ */
+export const chainOutput = (
+  chain: Chain<unknown>,
+  context: ChainOutputContext,
+  page: ChainPage = EVERY_NODE,
+): TraceChainOutput => {
+  const { shortIds } = context;
+  const titleOf = titles(context.metamodel);
+  const node = (
+    element: ElementRecord,
+    depth: number,
+    expanded: boolean,
+    direction?: ChainNode["direction"],
+  ): ChainNode => {
+    const status = element.data["status"];
+    return {
+      id: element.id,
+      shortId: shortIds.of(element),
+      type: element.type,
+      title: titleOf(element),
+      ...(typeof status === "string" ? { status } : {}),
+      repository: element.repository,
+      file: element.file,
+      depth,
+      expanded,
+      ...(direction === undefined ? {} : { direction }),
+    };
+  };
+  const rootOnPage = page.offset === 0;
+  const nodes: ChainNode[] = rootOnPage ? [node(chain.root, 0, chain.rootExpanded)] : [];
+  const edges: ChainEdge[] = [];
+  const gaps: ChainGap[] = [];
+  const unresolved: ChainUnresolved[] = [];
+  // The position among all nodes of a walk's second node; the root is the first of all.
+  let start = 1;
+  for (const walked of chain.walks) {
+    const { direction, result } = walked;
+    // The elements of this walk on the page; the root is each walk's first node.
+    const onPage = new Set<ElementRecord>(rootOnPage ? [chain.root] : []);
+    // This walk's nodes on the page, after its root; clamped, so a page that ends before the walk
+    // starts takes none of it (`slice` counts a negative end from the back).
+    const first = Math.max(1, page.offset - start + 1);
+    const last = Math.max(first, page.offset + page.limit - start + 1);
+    for (const { element, depth, expanded } of result.nodes.slice(first, last)) {
+      onPage.add(element);
+      nodes.push(node(element, depth, expanded, direction));
+    }
+    start += result.nodes.length - 1;
+    // No node of this walk on the page: nothing of it either.
+    if (onPage.size === 0) {
+      continue;
+    }
+    if (direction === "down") {
+      for (const gap of chain.gaps) {
+        if (onPage.has(gap.element)) {
+          gaps.push(gap);
+        }
+      }
+    }
+    addEdgesTo(edges, walked, onPage);
+    addUnresolvedOf(unresolved, walked, onPage, shortIds, titleOf);
+  }
   return {
     root: chain.root.id,
     nodes,
+    total: start,
     edges,
-    gaps: chain.gaps.map(({ element, kind }) => ({ id: element.id, repository: element.repository, kind })),
+    gaps: gaps.map(({ element, kind }) => ({ id: element.id, repository: element.repository, kind })),
     unresolved,
     incomplete: chain.incomplete,
-    problems,
+    problems: chainProblems(chain, context),
   };
 };

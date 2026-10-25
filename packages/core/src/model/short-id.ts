@@ -94,7 +94,7 @@ export const shortIdGroup = (id: string): string => {
 };
 
 /** The key of a UUID's group in `Index.groups`: its last digits from the last. */
-const groupKey = (id: string): string => reversedDigits(id).slice(0, SHORT_ID_MIN_LENGTH);
+const groupKey = (id: string): string => reversedDigits(shortIdGroup(id));
 
 const commonStart = (a: string, b: string): number => {
   let n = 0;
@@ -127,24 +127,30 @@ const link = (group: Entry[], shared: Map<string, number>): void => {
 const shortIdsOf = (index: Index): ShortIds => {
   const { groups, shared, metamodel } = index;
 
-  const sharedDigits = (digits: string): number => {
-    const known = shared.get(digits);
-    if (known !== undefined) {
-      return known;
+  const tailOf = (id: string): string => {
+    const group = groups.get(groupKey(id));
+    // Alone in its group (most UUIDs), or the UUID of no element and no group: the shortest tail,
+    // without reading all digits (SR-082 AK4, #227).
+    if (group === undefined || (group.length === 1 && group[0]?.id === id)) {
+      return shortIdGroup(id);
     }
-    // Alone in its group, or the UUID of no element: compare with the group it would be in.
-    let n = 0;
-    for (const other of groups.get(digits.slice(0, SHORT_ID_MIN_LENGTH)) ?? []) {
-      if (other.digits !== digits) {
-        n = Math.max(n, commonStart(other.digits, digits));
-      }
-    }
-    return n;
+    // In a group with others, `link` noted what it shares; the UUID of no element: compare with
+    // the group it would be in.
+    const digits = reversedDigits(id);
+    const shares = shared.get(digits) ?? Math.max(...group.map((other) => commonStart(other.digits, digits)));
+    return id.replaceAll("-", "").slice(-Math.max(SHORT_ID_MIN_LENGTH, shares + 1));
   };
 
+  // Each tail once per index (it never changes): a chain or a list of affected elements names tens
+  // of thousands of elements, on every call (SR-082 AK4, #227).
+  const tails = new Map<string, string>();
   const tail = (id: string): string => {
-    const length = Math.max(SHORT_ID_MIN_LENGTH, sharedDigits(reversedDigits(id)) + 1);
-    return id.replaceAll("-", "").slice(-length);
+    let known = tails.get(id);
+    if (known === undefined) {
+      known = tailOf(id);
+      tails.set(id, known);
+    }
+    return known;
   };
 
   const prefixOf = (element: ElementRecord): string =>

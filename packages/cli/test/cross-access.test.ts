@@ -45,6 +45,15 @@ const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 
+/** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
+const MISSING_TARGETS: FixtureOptions = { fixture: "SR-089/missing-targets", git: ["system", "sensor"] };
+/** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
+const WITH_VAULT =
+  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
+  '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
+  "metamodel: { repository: system, path: metamodel }\n";
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   "element.create": [
@@ -95,7 +104,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "relations across repositories, one missing (SR-005, SR-006)",
-      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      fixture: MISSING_TARGETS,
       root: "system",
       input: { ref: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d" },
       expect: "output",
@@ -259,11 +268,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: {
         ...AFFECTED,
         files: {
-          "logreq-workspace.yaml":
-            "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
-            '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
-            '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
-            "metamodel: { repository: system, path: metamodel }\n",
+          "logreq-workspace.yaml": WITH_VAULT,
         },
       },
       input: { ref: "D-00d001" },
@@ -271,7 +276,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "no relation kind with the meaning derivation (SR-013 AK3)",
-      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      fixture: MISSING_TARGETS,
       root: "system",
       input: { ref: "SR-c4d5e6" },
       expect: "error",
@@ -286,6 +291,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "one page of a chain up and down (SR-082 AK4, spec-frage #290)",
+      fixture: CHAIN,
+      input: { ref: "SR-00b001", limit: 2, offset: 1 },
+      expect: "output",
+    },
+    {
       name: "up from a component requirement to depth 1, in the core view",
       fixture: CHAIN,
       input: { ref: "CR-00c002", direction: "up", maxDepth: 1, view: "core" },
@@ -297,11 +308,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         fixture: "SR-022/chain",
         git: true,
         files: {
-          "logreq-workspace.yaml":
-            "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
-            '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
-            '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
-            "metamodel: { repository: system, path: metamodel }\n",
+          "logreq-workspace.yaml": WITH_VAULT,
           "components/CR-00000000c001.md":
             "---\nid: 5c0e1d2a-0022-4022-8022-00000000c001\ntype: component-requirement\nstatus: draft\ntitle: Count anemometer turns\n" +
             "derives-from:\n" +
@@ -316,7 +323,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "no relation kind with the meaning derivation (SR-013 AK3)",
-      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      fixture: MISSING_TARGETS,
       root: "system",
       input: { ref: "SR-c4d5e6" },
       expect: "error",
@@ -344,7 +351,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "metamodel without the meaning derivation (SR-013 AK3)",
-      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      fixture: MISSING_TARGETS,
       root: "system",
       input: { refs: ["9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"], direction: "parents" },
       expect: "error",
@@ -458,7 +465,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     {
       name: "info only, a repository missing",
-      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      fixture: MISSING_TARGETS,
       root: "system",
       input: {},
       expect: "output",

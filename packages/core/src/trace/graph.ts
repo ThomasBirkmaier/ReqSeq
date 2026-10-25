@@ -130,6 +130,13 @@ export const parentsOf = (graph: DerivationGraph, element: ElementRecord): Expan
  */
 export const childrenOf = (graph: DerivationGraph, element: ElementRecord): Expansion<DerivationLink> => {
   const { repository } = element;
+  // The relations `incomingTo` gives, read from the index directly: inline references are no
+  // derivation (ADR-0004), so they are not read at all.
+  const links = graph.incoming.relationsById.get(element.id);
+  if (links === undefined) {
+    // No relation points at it (a leaf of the chain, SR-082 AK4): nothing more to look up.
+    return { steps: NONE, unresolved: NONE, incomplete: graph.unavailable };
+  }
   // Most UUIDs have one record: only a shared one is looked at further (SR-088).
   const records = graph.store.byId.get(element.id) ?? NONE;
   const twins = records.length > 1 ? records.filter((r) => r.repository === repository) : NONE;
@@ -137,9 +144,7 @@ export const childrenOf = (graph: DerivationGraph, element: ElementRecord): Expa
     twins.length > 1 ? { kind: "ambiguous", repository, elements: twins } : undefined;
   const steps: Step<DerivationLink>[] = [];
   const unresolved: Unresolved<DerivationLink>[] = [];
-  // The relations `incomingTo` gives, read from the index directly: inline references are no
-  // derivation (ADR-0004), so they are not read at all.
-  for (const link of graph.incoming.relationsById.get(element.id) ?? NONE) {
+  for (const link of links) {
     if (graph.kindByKey.has(link.key) && link.repository === repository) {
       if (ambiguous === undefined) {
         steps.push({ to: link.source, link });

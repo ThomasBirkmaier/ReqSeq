@@ -12,7 +12,7 @@
 // The affected elements of SR-024 (`trace.affected`, affected.ts, a lean walk of their own):
 //   affectedOutput(traceAffected(graph, element), { metamodel, shortIds }, { limit, offset })
 // The chain of SR-022 (`trace.chain`, chain.ts):
-//   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds })
+//   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds }, { limit, offset })
 // `relatedElements(graph, selection, { direction: "children" | "parents" })` lists the elements
 // related to a selection, each once (SR-023). Children come from the model's incoming relation
 // index (`model/incoming.ts`).
@@ -65,6 +65,7 @@ export type {
   ChainGap,
   ChainOptions,
   ChainOutputContext,
+  ChainPage,
   ChainWalk,
   GapKind,
   GapMeaning,

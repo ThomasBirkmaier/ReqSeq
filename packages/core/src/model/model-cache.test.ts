@@ -27,6 +27,7 @@ import {
   serializeModelCache,
   statKeys,
 } from "./model-cache.js";
+import { incomingState } from "./incoming.js";
 import { shortIdState } from "./short-id.js";
 import type { LoadedStore } from "./store.js";
 import { elementStoreState, loadElements } from "./store.js";
@@ -815,13 +816,18 @@ describe("codeFingerprint", () => {
 });
 
 describe("warmWorkspace", () => {
-  it("loads the store and the short IDs ahead of the first command", async () => {
+  it("loads the store and the short IDs and builds the incoming index ahead of the first command", async () => {
     const ws = await fixture();
     const workspace = new Workspace(ws.root);
     onTestFinished(() => workspace.close());
     await warmWorkspace(workspace);
-    expect(workspace.peek(elementStoreState)).toBeDefined();
+    const store = await workspace.peek(elementStoreState);
+    if (store === undefined) {
+      throw new Error("warmWorkspace did not load the store");
+    }
     expect((await workspace.peek(shortIdState))?.tail(ID_A)).toBe("3f4a5b");
+    // The first chain after a start finds the index ready (SR-082 AK4, #227).
+    expect(workspace.peek(incomingState)?.get(store)?.store).toBe(store);
   });
 
   it("never rejects, also for a workspace that is closed or cannot be read", async () => {

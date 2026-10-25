@@ -109,7 +109,7 @@ export interface WalkResult<E, L> {
   readonly nodes: readonly WalkNode<E, L>[];
   /** The node of each reached element (by record). */
   readonly byElement: ReadonlyMap<ElementRecord, WalkNode<E, L>>;
-  /** Every step taken, in the order the walk took them. */
+  /** Every step taken, in the order the walk took them: by the node they start from, in node order. */
   readonly edges: readonly WalkEdge<E>[];
   /** The cycles of the walked graph, in the order of their first element among the nodes. */
   readonly cycles: readonly WalkCycle<E>[];
@@ -371,9 +371,14 @@ export const walk = <E, L = never>(
     expanded: expands(depth),
     leaves: leaves?.(element) ?? NO_LEAVES,
   }));
+  // Built on first read (`pathTo`): a chain of 40,000 elements does not need it (SR-082 AK4, #227).
+  let byElement: ReadonlyMap<ElementRecord, WalkNode<E, L>> | undefined;
   return {
     nodes,
-    byElement: new Map(nodes.map((n) => [n.element, n])),
+    get byElement() {
+      byElement ??= new Map(nodes.map((n) => [n.element, n]));
+      return byElement;
+    },
     edges,
     cycles: cycles.map(closed),
     unresolved,

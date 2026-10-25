@@ -2,7 +2,9 @@
 // the evidence, with depth, gaps, cycles and `incomplete` (trace/chain.ts). The relation kinds come
 // from the meaning `derivation` (SR-013 AK1, AK3); `view` keeps the elements that apply in the core
 // or a variant by their validity (`appliesIn`, SR-040; the full views come in stage 5). Evidence
-// records come in stage 4 (SR-028, SR-033): until then the chain has none.
+// records come in stage 4 (SR-028, SR-033): until then the chain has none. The walk is always
+// complete; the output is one page of `limit` nodes from `offset` with `total` (SR-082 AK4,
+// spec-frage #290), as `trace.related` and `trace.affected` give theirs.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { resolveRef, shortIdState } from "../../model/index.js";
@@ -26,6 +28,6 @@ export default defineCommand({
       ...(input.maxDepth === undefined ? {} : { maxDepth: input.maxDepth }),
       ...(view === undefined ? {} : { includes: (element) => appliesIn(validity, element, view) }),
     });
-    return chainOutput(chain, { metamodel, shortIds });
+    return chainOutput(chain, { metamodel, shortIds }, { limit: input.limit, offset: input.offset });
   },
 });
