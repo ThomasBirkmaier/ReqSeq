@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -352,6 +353,35 @@ describe("loadWorkspaceLayout", () => {
         message: "Metamodel folder model is missing in repository main",
       },
     ]);
+  });
+
+  it("gives an existing metamodel folder as its real path, links resolved and the name as stored, unless a link leads out of the repository (#231)", async () => {
+    const ws = await setup(yaml(MAIN, "metamodel: { repository: main, path: METAMODEL }\n"));
+    // Where the file system ignores letter case (APFS, NTFS), the folder typed in another case is
+    // the stored one, spelled as stored; elsewhere it is missing.
+    const typed = (await loadWorkspaceLayout(ws.path("main"))).metamodel;
+    const sameCase = await fs.stat(ws.path("main/METAMODEL")).then(
+      () => true,
+      () => false,
+    );
+    expect(typed).toEqual({
+      repository: "main",
+      path: "METAMODEL",
+      folder: ws.path(sameCase ? "main/metamodel" : "main/METAMODEL"),
+      exists: sameCase,
+    });
+    await fs.symlink(ws.path("main/metamodel"), ws.path("main/linked"), "junction");
+    await ws.write(`main/${WORKSPACE_FILE}`, yaml(MAIN, "metamodel: { repository: main, path: linked }\n"));
+    expect((await loadWorkspaceLayout(ws.path("main"))).metamodel.folder).toBe(ws.path("main/metamodel"));
+    await ws.write("shared/model/types.yaml", "types: {}\n");
+    await fs.symlink(ws.path("shared/model"), ws.path("main/outside"), "junction");
+    await ws.write(`main/${WORKSPACE_FILE}`, yaml(MAIN, "metamodel: { repository: main, path: outside }\n"));
+    expect((await loadWorkspaceLayout(ws.path("main"))).metamodel).toEqual({
+      repository: "main",
+      path: "outside",
+      folder: ws.path("main/outside"),
+      exists: true,
+    });
   });
 
   it("fails with workspace.not-found when there is no workspace file", async () => {

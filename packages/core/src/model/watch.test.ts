@@ -78,6 +78,9 @@ const FORMS = [
   [NFD, NFC],
 ] as const;
 
+/** A folder name typed in the workspace file and the same name in another normal form or letter case. */
+const SPELLINGS = [...FORMS, ["Modell", "modell"], ["modell", "Modell"]] as const;
+
 /** Whether two paths name one existing folder (same device and inode, or file index on Windows). */
 const sameFolder = async (a: string, b: string): Promise<boolean> => {
   try {
@@ -233,6 +236,42 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(
       await within(SAVE_LIMIT_MS, () => Promise.resolve(workspace.peek(metamodelState) === undefined)),
     ).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+  });
+
+  it("[SR-007/AK1] shows saves within 2 seconds in a nested repository named in NFD, and reads the metamodel again when the workspace file types its folder in another letter case (#231)", async () => {
+    const { fixture, workspace } = await opened({
+      files: { [`vendor/${NFD}/SR-0c1d2e3f4a5b.md`]: requirement(OTHER, "Nested") },
+    });
+    // Typed as a keyboard types it where the file system ignores normal form (APFS) or letter
+    // case (APFS, NTFS); elsewhere as stored, since another spelling is another folder there.
+    const sameForm = await sameFolder(fixture.path(`vendor/${NFC}`), fixture.path(`vendor/${NFD}`));
+    const sameCase = await sameFolder(fixture.path("Metamodel"), fixture.path("metamodel"));
+    if (process.env["CI"] !== undefined) {
+      expect(sameForm).toBe(process.platform === "darwin");
+      expect(sameCase).toBe(process.platform !== "linux");
+    }
+    const nested = sameForm ? NFC : NFD;
+    const metamodel = sameCase ? "Metamodel" : "metamodel";
+    await fixture.write(
+      "logreq-workspace.yaml",
+      `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: "vendor/${nested}" }\nmetamodel: { repository: system, path: ${metamodel} }\n`,
+    );
+    await watching(fixture, workspace);
+    const layout = workspace.peek(workspaceLayoutState);
+    expect(records(await workspace.get(elementStoreState), OTHER)[0]?.repository).toBe("sub");
+    // Written through the typed spellings: the file system keeps the names as stored.
+    await fixture.write(`vendor/${nested}/SR-0c1d2e3f4a5b.md`, requirement(OTHER, "Nested, edited"));
+    expect(await titleShown(workspace, OTHER, "Nested, edited")).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await workspace.get(metamodelState);
+    await fixture.write(`${metamodel}/model.yaml`, `${model}\n# edited\n`);
+    expect(
+      await within(SAVE_LIMIT_MS, () => Promise.resolve(workspace.peek(metamodelState) === undefined)),
+    ).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+    expect((await workspace.get(metamodelState)).valid).toBe(true);
+    // The layout was kept: no repository or metamodel folder changed.
+    await watchWorkspace(workspace).settled();
+    expect(workspace.peek(workspaceLayoutState)).toBe(layout);
   });
 
   it("[SR-007/AK2] has relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
@@ -682,26 +721,122 @@ describe("the watcher's rules (SR-007)", () => {
     }
   });
 
-  it("reads the metamodel again when an event spells its folder in another Unicode normal form than the workspace file (#225)", async () => {
-    for (const [typed, inEvent] of FORMS) {
+  it("reads the metamodel again for events spelled as its folder is stored, whatever letter case or normal form the workspace file types it in, and once more for a twin folder (#225, #231)", async () => {
+    for (const [typed, stored] of SPELLINGS) {
       const { fixture, workspace } = await opened();
       const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
-      await fixture.write(`${typed}/model.yaml`, model);
+      await fixture.write(`${stored}/model.yaml`, model);
+      // APFS (macOS) and NTFS ignore letter case, APFS also the normal form: there both spellings
+      // name the stored folder. Elsewhere the typed spelling is a folder of its own, its twin.
+      const same = await sameFolder(fixture.path(typed), fixture.path(stored));
+      if (!same) {
+        await fixture.write(`${typed}/model.yaml`, model);
+      }
       await fixture.write(
         "logreq-workspace.yaml",
         `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}" }\n`,
       );
       const store = workspace.get(elementStoreState);
       await Promise.all([store, workspace.get(metamodelState)]);
+      const layout = await workspace.get(workspaceLayoutState);
+      // The layout gives the folder as stored, as events and the walk spell it.
+      expect(layout.metamodel.folder).toBe(fixture.path(same ? stored : typed));
       const { fake, watcher } = await watched(workspace);
-      for (const name of [`${inEvent}/model.yaml`, inEvent]) {
+      // Where the spellings are twins, an event of the other one resets the metamodel too: a safety
+      // net, should an event ever spell the folder otherwise than `realpath`.
+      for (const name of [`${stored}/model.yaml`, stored]) {
         fake.only().send(name);
         await watcher.settled();
         expect(workspace.peek(metamodelState)).toBeUndefined();
         expect(workspace.peek(elementStoreState)).toBe(store);
+        expect(await workspace.get(workspaceLayoutState)).toBe(layout);
         await workspace.get(metamodelState);
       }
     }
+  });
+
+  it("reads the layout again when a missing metamodel folder appears, also spelled in another letter case or normal form than typed (#231)", async () => {
+    for (const [typed, created] of [[NFC, NFC] as const, ...SPELLINGS]) {
+      const { fixture, workspace } = await opened({
+        files: {
+          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\n`,
+        },
+      });
+      const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+      await workspace.get(elementStoreState);
+      const missing = await workspace.get(workspaceLayoutState);
+      expect(missing.metamodel.exists).toBe(false);
+      const { fake, watcher } = await watched(workspace);
+      // Still missing: the layout is read, compared and kept.
+      fake.only().send(`docs/${created}/model.yaml`);
+      await watcher.settled();
+      expect(await workspace.get(workspaceLayoutState)).toBe(missing);
+      // Created: an event elsewhere does not look for it; one in the folder, spelled as created,
+      // reads the layout again.
+      await fixture.write(`docs/${created}/model.yaml`, model);
+      fake.only().send(REQUIREMENT_FILE);
+      await watcher.settled();
+      expect(await workspace.get(workspaceLayoutState)).toBe(missing);
+      fake.only().send(`docs/${created}/model.yaml`);
+      await watcher.settled();
+      const found = await workspace.get(workspaceLayoutState);
+      // Where the file system keeps the spellings apart, the typed folder is still missing.
+      expect(found !== missing).toBe(
+        await sameFolder(fixture.path(`docs/${typed}`), fixture.path(`docs/${created}`)),
+      );
+      expect(found.metamodel.exists).toBe(found !== missing);
+    }
+  });
+
+  it("reads the layout again when the metamodel folder or a folder above it is renamed, moved, deleted or created, in any letter case (#231)", async () => {
+    const { fixture, workspace } = await opened({
+      files: {
+        "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: docs/model }\n`,
+      },
+    });
+    const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
+    await fixture.write("docs/model/model.yaml", model);
+    await workspace.get(elementStoreState);
+    expect((await workspace.get(workspaceLayoutState)).metamodel.exists).toBe(true);
+    const { fake, watcher } = await watched(workspace);
+    const exists = async (): Promise<boolean> => (await workspace.get(workspaceLayoutState)).metamodel.exists;
+    // The folder itself renamed: it is missing now.
+    await fs.rename(fixture.path("docs/model"), fixture.path("docs/renamed"));
+    fake.only().send("docs/model");
+    await watcher.settled();
+    expect(await exists()).toBe(false);
+    // Created with the folder above it (`mkdir -p`), the event naming only that folder.
+    await fs.rm(fixture.path("docs"), { recursive: true });
+    await fixture.write("docs/model/model.yaml", model);
+    fake.only().send("docs");
+    await watcher.settled();
+    expect(await exists()).toBe(true);
+    // The folder above it moved away, the event spelling it in another letter case.
+    await fs.rename(fixture.path("docs"), fixture.path("moved"));
+    fake.only().send("DOCS");
+    await watcher.settled();
+    expect(await exists()).toBe(false);
+  });
+
+  it("[SR-007/AK2] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (#231)", async () => {
+    const { workspace } = await opened({
+      files: {
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
+      },
+    });
+    const other = path.join(workspace.root, "..", "model");
+    await fs.mkdir(other, { recursive: true });
+    await workspace.get(elementStoreState);
+    const missing = await workspace.get(workspaceLayoutState);
+    expect(missing.metamodel.exists).toBe(false);
+    const { fake, watcher } = await watched(workspace);
+    await fs.cp(path.join(workspace.root, "metamodel"), path.join(other, "metamodel"), { recursive: true });
+    fake.of(await fs.realpath(other)).send(null);
+    await watcher.settled();
+    const found = await workspace.get(workspaceLayoutState);
+    expect(found).not.toBe(missing);
+    expect(found.metamodel.exists).toBe(true);
   });
 
   it("watches anew after a watch broke, and leaves out a folder that cannot be watched", async () => {
@@ -1000,6 +1135,23 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
         "needs",
         "requirements",
       ]);
+    }
+  });
+
+  it("keeps a folder below an ignore glob watched that may hold the missing metamodel folder in another letter case or normal form (#231)", async () => {
+    for (const [typed, onDisk] of [
+      ["docs", "Docs"],
+      [NFC, NFD],
+    ] as const) {
+      const { workspace } = await opened({
+        files: {
+          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\nignore: ["${onDisk}/**"]\n`,
+          [`${onDisk}/other/page.md`]: "",
+        },
+      });
+      expect((await workspace.get(workspaceLayoutState)).metamodel.exists).toBe(false);
+      const { fake } = await perFolder(workspace);
+      expect(folders(fake, workspace.root)).toEqual(["", onDisk, "metamodel", "needs", "requirements"]);
     }
   });
 

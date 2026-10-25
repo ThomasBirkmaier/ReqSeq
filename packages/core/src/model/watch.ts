@@ -9,7 +9,9 @@
 // pull with 1,000 changed files is one or a few updates (SR-007 AK2). Per batch:
 // - the workspace file or `.logreq/local.yaml` changed: the layout is reset (and with it the
 //   metamodel, the store and all state built on them) and the new repositories are watched;
-// - a path in the metamodel folder changed: the metamodel is reset (SR-015);
+// - a path in the metamodel folder changed: the metamodel is reset (SR-015); a change of the folder
+//   itself or a folder above it, or a path that may be the appearance of a missing one, makes the
+//   layout be read and compared;
 // - element paths changed: the store is updated file by file (`updateElements`, hashes compared)
 //   and replaced (`applyStoreChange`), which resets the state built on it (short IDs, findings). A
 //   store nobody has read yet is left alone: the next read finds the files as they are.
@@ -93,18 +95,40 @@ const inside = (parent: string, child: string): string | undefined => {
 const within = (folder: string | undefined, absolute: string): boolean =>
   folder !== undefined && (absolute === folder || inside(folder, absolute) !== undefined);
 
-// The metamodel folder is the repository's real path joined with `location.path` as typed in the
-// workspace file; event and walk paths are spelled as the file system gives them. So both are
-// compared in Unicode NFC (#225): on macOS an NFD folder typed in NFC is the same folder. Where a
-// file system keeps the normal forms apart, this only errs towards an extra reset or watch.
+/** Compares event and walk paths with the metamodel folder of one layout (`metamodelFolder`). */
+interface MetamodelFolder {
+  /** The folder exists: a change in it reads the metamodel again; else the layout is checked. */
+  readonly exists: boolean;
+  /** Whether `absolute` is the metamodel folder or lies below it. */
+  readonly isAtOrBelowMetamodel: (absolute: string) => boolean;
+  /** Whether the metamodel folder is `absolute` or lies below it. */
+  readonly holdsMetamodel: (absolute: string) => boolean;
+}
 
-/** Whether the metamodel folder is `absolute` or lies below it, compared in NFC. */
-const holdsMetamodel = (absolute: string, metamodel: string | undefined): boolean =>
-  metamodel !== undefined && within(absolute.normalize("NFC"), metamodel.normalize("NFC"));
+/** The NFC, lower-case form of a path: what a file system that ignores case and normal form compares. */
+const folded = (absolute: string): string => absolute.normalize("NFC").toLowerCase();
 
-/** Whether `absolute` is the metamodel folder or lies below it, compared in NFC. */
-const inMetamodel = (metamodel: string | undefined, absolute: string): boolean =>
-  within(metamodel?.normalize("NFC"), absolute.normalize("NFC"));
+/**
+ * How the watcher of `layout` finds its metamodel folder, computed once per layout. An existing
+ * folder is a real path (the layout), spelled as the file system stores the name, as event and
+ * walk paths are (#231); a missing one is spelled as typed in the workspace file. Both are
+ * compared in NFC and lower case: on macOS a name in another letter case or normal form is the same
+ * folder (#225), and should an event ever spell it otherwise than `realpath`, it still counts.
+ * Where a file system keeps such names apart, a twin folder only costs an extra reset of the
+ * metamodel or an extra check of the layout. A missing folder below a linked folder is not found:
+ * the events of its files name the link's target.
+ */
+const metamodelFolder = ({ metamodel }: WorkspaceLayout): MetamodelFolder => {
+  if (metamodel.folder === undefined) {
+    return { exists: false, isAtOrBelowMetamodel: () => false, holdsMetamodel: () => false };
+  }
+  const folder = folded(metamodel.folder);
+  return {
+    exists: metamodel.exists,
+    isAtOrBelowMetamodel: (absolute) => within(folder, folded(absolute)),
+    holdsMetamodel: (absolute) => within(folded(absolute), folder),
+  };
+};
 
 const atOrBelow = (relative: string, folder: string): boolean =>
   relative === folder || relative.startsWith(`${folder}/`);
@@ -136,7 +160,11 @@ const mayHoldElements = async (folder: string, relative: string): Promise<boolea
  * folders of other repositories of the workspace nested in it, and those of the `ignore` globs,
  * unless the metamodel lies in them.
  */
-const skipIn = (layout: WorkspaceLayout, repository: RepositoryLocation): ((relative: string) => boolean) => {
+const skipIn = (
+  layout: WorkspaceLayout,
+  metamodel: MetamodelFolder,
+  repository: RepositoryLocation,
+): ((relative: string) => boolean) => {
   const ignored = ignoredBy(layout);
   const excludes = new Set(repository.excludes);
   return (relative) => {
@@ -144,7 +172,7 @@ const skipIn = (layout: WorkspaceLayout, repository: RepositoryLocation): ((rela
     return (
       hasSkippedName(relative) ||
       excludes.has(absolute) ||
-      (ignored(relative) && !holdsMetamodel(absolute, layout.metamodel.folder))
+      (ignored(relative) && !metamodel.holdsMetamodel(absolute))
     );
   };
 };
@@ -171,7 +199,10 @@ interface ElementChanges {
 
 interface Batch {
   layout: boolean;
-  /** The OS dropped names in the main repository: the layout is read and compared (an overflow). */
+  /**
+   * The layout is read and compared: the OS dropped names in the main repository (an overflow), or
+   * the missing metamodel folder may have appeared.
+   */
   checkLayout: boolean;
   metamodel: boolean;
   elements: ElementChanges | undefined;
@@ -183,6 +214,21 @@ const emptyBatch = (): Batch => ({
   metamodel: false,
   elements: undefined,
 });
+
+/**
+ * A change at `absolute`: in an existing metamodel folder it reads the metamodel again. At the
+ * folder or above it (renamed, moved, replaced, deleted, created with `mkdir -p`), or anywhere in a
+ * missing one, the layout is read and compared, so its real path and `exists` are current.
+ */
+const markMetamodel = (batch: Batch, metamodel: MetamodelFolder, absolute: string): void => {
+  const inside = metamodel.isAtOrBelowMetamodel(absolute);
+  if (inside && metamodel.exists) {
+    batch.metamodel = true;
+  }
+  if (metamodel.holdsMetamodel(absolute) || (inside && !metamodel.exists)) {
+    batch.checkLayout = true;
+  }
+};
 
 /** The element changes of a batch for `layout`; changes sorted with another layout are dropped. */
 const elementChanges = (batch: Batch, layout: WorkspaceLayout): Map<string, Set<string> | null> => {
@@ -305,6 +351,7 @@ class Watcher implements WorkspaceWatcher {
       return;
     }
     const watched = layout;
+    const metamodel = metamodelFolder(layout);
     this.#watched = layout;
     const repositories = availableRepositories(layout);
     for (const repository of repositories) {
@@ -313,13 +360,13 @@ class Watcher implements WorkspaceWatcher {
         return;
       }
       const onName = (name: string | null): void => {
-        this.#onEvent(watched, repository.folder, name);
+        this.#onEvent(watched, metamodel, repository.folder, name);
       };
       if (!this.#recursive) {
         // Every repository has its own tree; a nested one is left out of the outer tree (`excludes`).
         const tree = new FolderTree(repository.folder, {
           watch: this.#watch,
-          skip: skipIn(layout, repository),
+          skip: skipIn(layout, metamodel, repository),
           onEvent: onName,
           onUnwatchable: (folder, code) => {
             this.#report(notWatched(repository.name, folder, code));
@@ -376,7 +423,7 @@ class Watcher implements WorkspaceWatcher {
   }
 
   /** Sorts one event of a repository watcher into the batch. */
-  #onEvent(layout: WorkspaceLayout, folder: string, name: string | null): void {
+  #onEvent(layout: WorkspaceLayout, metamodel: MetamodelFolder, folder: string, name: string | null): void {
     // An event of a watch whose layout is no longer watched (its start was superseded) is dropped.
     if (layout !== this.#watched) {
       return;
@@ -389,8 +436,10 @@ class Watcher implements WorkspaceWatcher {
         for (const r of repositories.filter((r) => within(folder, r.folder))) {
           changes.set(r.name, null);
         }
-        if (holdsMetamodel(folder, layout.metamodel.folder)) {
-          b.metamodel = true;
+        // Anything below this folder may have changed, the metamodel folder itself too.
+        if (metamodel.holdsMetamodel(folder)) {
+          b.metamodel ||= metamodel.exists;
+          b.checkLayout = true;
         }
         // The repository folders are real paths; the root is the path the workspace was opened with.
         if (repositories.some((r) => r.main && within(folder, r.folder))) {
@@ -404,8 +453,10 @@ class Watcher implements WorkspaceWatcher {
       this.#mark((b) => (b.layout = true));
       return;
     }
-    if (inMetamodel(layout.metamodel.folder, absolute)) {
-      this.#mark((b) => (b.metamodel = true));
+    if (metamodel.isAtOrBelowMetamodel(absolute) || metamodel.holdsMetamodel(absolute)) {
+      this.#mark((b) => {
+        markMetamodel(b, metamodel, absolute);
+      });
     }
     // The innermost repository holds the file (a nested repository is read under its own name).
     let owner: { readonly repository: RepositoryLocation; readonly relative: string } | undefined;

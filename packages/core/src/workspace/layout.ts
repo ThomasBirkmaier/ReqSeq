@@ -36,7 +36,11 @@ export interface MetamodelLocation {
   readonly repository: string;
   /** Folder inside the repository. */
   readonly path: string;
-  /** The absolute folder; undefined when the repository is unknown or not available. */
+  /**
+   * The absolute folder; undefined when the repository is unknown or not available. An existing
+   * folder is its real path (links resolved, the name as stored) unless a link leads out of the
+   * repository; a missing one is the repository's folder joined with `path` as typed.
+   */
   readonly folder: string | undefined;
   /** The folder exists. Loading and checking the metamodel files is the metamodel block (SR-011). */
   readonly exists: boolean;
@@ -95,8 +99,6 @@ const realFolder = async (folder: string): Promise<string | undefined> =>
     async (real) => ((await fs.stat(real)).isDirectory() ? real : undefined),
     () => undefined,
   );
-
-const isFolder = async (folder: string): Promise<boolean> => (await realFolder(folder)) !== undefined;
 
 const invalid = (severity: Problem["severity"], file: string, message: string): Problem => ({
   code: "workspace.invalid",
@@ -280,13 +282,19 @@ const locateMetamodel = async (
     );
     return { ...location, folder: undefined, exists: false };
   }
-  const exists = await isFolder(folder);
-  if (!exists) {
+  const real = await realFolder(folder);
+  if (real === undefined) {
     problems.push(
       metamodelProblem(`Metamodel folder ${location.path} is missing in repository ${location.repository}`),
     );
+    return { ...location, folder, exists: false };
   }
-  return { ...location, folder, exists };
+  // The real path, as for the repositories (#231): links resolved and the name as stored, so on
+  // macOS a folder typed in another letter case or Unicode normal form (APFS ignores both) is
+  // spelled as the watcher's events and the walk spell it. A link that leads out of the repository
+  // keeps the folder as typed: the metamodel's files are named relative to their repository.
+  const inRepository = real === repository.folder || isInside(repository.folder, real);
+  return { ...location, folder: inRepository ? real : folder, exists: true };
 };
 
 /**
