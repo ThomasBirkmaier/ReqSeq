@@ -2337,7 +2337,7 @@
           "relation"
         ],
         "x-logreq-effect": "read",
-        "x-logreq-stage": 2,
+        "x-logreq-stage": 3,
         "x-logreq-implements": [
           "SR-012",
           "SR-067"

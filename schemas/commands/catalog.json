@@ -761,7 +761,7 @@
       "name": "relation.options",
       "summary": "Relation kinds and target types the metamodel allows for an element (SR-067).",
       "effect": "read",
-      "stage": 2,
+      "stage": 3,
       "implements": ["SR-012", "SR-067"],
       "input": {
         "type": "object",
