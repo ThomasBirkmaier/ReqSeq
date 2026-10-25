@@ -177,6 +177,13 @@ const assemble = (repositories: readonly RepositoryContents[]): LoadedStore => {
 };
 
 /**
+ * The order of file paths in a repository of the store: by UTF-16 code units, as
+ * `listMarkdownFiles` sorts them (not `localeCompare`). States that merge in store order use it
+ * (`carryProblems`, `carryIncomingIndex`).
+ */
+export const byPath = (a: string, b: string): number => Number(a > b) - Number(a < b);
+
+/**
  * Contributions of the files listed, in path order (code units, as `listMarkdownFiles` sorts):
  * `fresh` where read, else `before`. Every listed file is in one of them.
  */
@@ -187,7 +194,7 @@ const inListOrder = (
 ): Map<string, Contribution> => {
   const listed = new Set(files);
   const kept = [...before].filter(([file]) => listed.has(file) && !fresh.has(file));
-  const entries = [...kept, ...fresh].sort(([a], [b]) => Number(a > b) - Number(a < b));
+  const entries = [...kept, ...fresh].sort(([a], [b]) => byPath(a, b));
   return new Map(entries);
 };
 

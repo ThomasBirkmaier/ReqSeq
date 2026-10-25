@@ -87,6 +87,32 @@ const age = async (ws: FixtureWorkspace, seconds = 60): Promise<void> => {
 const settled = (): number => Date.now() + RACY_MS + 200;
 
 /**
+ * Waits until the change time of every Markdown file of the workspace lies more than `RACY_MS`
+ * (and 200 ms) before `Date.now()`, the clock a load with the real clock compares it with. A fixed
+ * sleep of `RACY_MS` plus 100 ms assumed that the wall clock runs on evenly; on the self-hosted Linux
+ * runner (a VM on a Mac, whose clock is stepped back when it is synchronised) it did not, and files
+ * that had settled by the elapsed time still looked racy and were left out of the cache (#273).
+ * Comparing the change times the load will compare, with the clock it will read, does not depend on
+ * how much time passed.
+ */
+const settle = async (ws: FixtureWorkspace): Promise<void> => {
+  for (;;) {
+    let latest = 0;
+    for (const entry of await fs.readdir(ws.root, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".md")) {
+        const { ctimeMs } = await fs.lstat(path.join(entry.parentPath, entry.name));
+        latest = Math.max(latest, ctimeMs);
+      }
+    }
+    const wait = latest + RACY_MS + 200 - Date.now();
+    if (wait <= 0) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+};
+
+/**
  * Opens the workspace with the cache folder, reads its store through the cache and closes it
  * (waiting for the save). `read` lists the files the load read instead of taking them from the cache.
  * `now` is the clock of the load (`settled` unless a test checks the racy rules with the real one).
@@ -210,7 +236,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
     const cache = await tempFolder();
     await loadOnce(ws.root, cache);
     // The other files settle, so that the load with the real clock below writes them to the cache.
-    await new Promise((resolve) => setTimeout(resolve, RACY_MS + 100));
+    await settle(ws);
     // b: another size; c: gone; d: new.
     await ws.write("requirements/b.md", element(ID_B, "Bravo two"));
     await fs.rm(ws.path("requirements/c.md"));

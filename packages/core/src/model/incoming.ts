@@ -29,6 +29,12 @@
 // At 50,000 elements and 200,000 relations this is bound by memory access (each record, value, item
 // and UUID is touched once), so the index is keyed by the UUID strings the items already hold rather
 // than by a composed key, and a walk reads the links it stored instead of the sources again.
+//
+// Carried over a change of the store (#184, #267): a save or a watcher batch derives the index of
+// the new store from the old one (`carryIncomingIndex`, through the `carry` hook of `incomingState`)
+// instead of building it again, so the first chain after a save does not pay the build (SR-082 AK4).
+// Each list stays in the order a fresh build gives it; the order of the UUIDs in the maps is not
+// defined (a carried index adds new ones last).
 import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -37,7 +43,8 @@ import type { TextReference } from "./references.js";
 import { resolveReference } from "./references.js";
 import type { RelationKey, TargetItem } from "./relation-keys.js";
 import { hasId, relationKey } from "./relation-keys.js";
-import type { ElementStore } from "./store.js";
+import type { ElementStore, StoreUpdate } from "./store.js";
+import { byPath, carryStoreUpdate, elementStoreState } from "./store.js";
 import type { ValuePath } from "./values.js";
 
 /** A relation in the frontmatter of `source` that points at a target. */
@@ -78,9 +85,13 @@ export interface IncomingReference {
 /** A relation or an inline reference that points at a target. */
 export type IncomingLink = IncomingRelation | IncomingReference;
 
-/** The relations and inline references of one element store, by the UUID they name. */
+/**
+ * The relations and inline references of one element store, by the UUID they name. The order of
+ * the UUIDs in the maps is not defined (a carried index adds new ones last); the order of each list
+ * is.
+ */
 export interface IncomingIndex {
-  /** The store the index was built from. */
+  /** The store the index was built from or carried over to. */
   readonly store: ElementStore;
   /** The metamodel it was built with: which keys hold relations. */
   readonly metamodel: Metamodel;
@@ -136,6 +147,70 @@ const relationKeysOf = (metamodel: Metamodel): ReadonlyMap<string, RelationKey> 
   return keys;
 };
 
+/** Takes the links of one source, in the order of its frontmatter keys and items, then of its text. */
+interface LinkSink {
+  relation(id: string, link: IncomingRelation): void;
+  reference(id: string, link: IncomingReference): void;
+}
+
+/** Gives every relation and inline reference of `source` that the index holds (see the file comment) to `sink`. */
+const linksOf = (source: ElementRecord, keys: ReadonlyMap<string, RelationKey>, sink: LinkSink): void => {
+  const addItem = (key: string, index: number | undefined, item: unknown): void => {
+    if (!hasId(item)) {
+      return;
+    }
+    const named = item["repository"];
+    const repository = named === undefined ? source.repository : named;
+    if (typeof repository === "string") {
+      sink.relation(item.id, { kind: "relation", source, key, index, item, repository });
+    }
+  };
+  const { data } = source;
+  for (const key of Object.keys(data)) {
+    const relation = keys.get(key);
+    if (relation === undefined) {
+      continue;
+    }
+    const value: unknown = data[key];
+    if (!Array.isArray(value)) {
+      // One target; under a key with `many` it has none (SR-085 reports it).
+      if (!relation.many) {
+        addItem(key, undefined, value);
+      }
+    } else if (relation.many) {
+      for (let index = 0; index < value.length; index += 1) {
+        addItem(key, index, value[index]);
+      }
+    }
+  }
+  for (const reference of source.references ?? []) {
+    sink.reference(reference.id, { kind: "reference", source, reference });
+  }
+};
+
+/** Appends `link` to the list of `id` in `byId`. */
+const add = <T>(byId: Map<string, T[]>, id: string, link: T): void => {
+  const links = byId.get(id);
+  if (links === undefined) {
+    byId.set(id, [link]);
+  } else {
+    links.push(link);
+  }
+};
+
+/** A sink that appends each link to the list of the UUID it names. */
+const collector = (
+  relationsById: Map<string, IncomingRelation[]>,
+  referencesById: Map<string, IncomingReference[]>,
+): LinkSink => ({
+  relation: (id, link) => {
+    add(relationsById, id, link);
+  },
+  reference: (id, link) => {
+    add(referencesById, id, link);
+  },
+});
+
 /**
  * The incoming relation index of `store`: one pass over its elements, their frontmatter keys that
  * hold relations and their inline references; no file read and no schema check (ADR-0008).
@@ -144,51 +219,125 @@ export const buildIncomingIndex = (store: ElementStore, metamodel: Metamodel): I
   const keys = relationKeysOf(metamodel);
   const relationsById = new Map<string, IncomingRelation[]>();
   const referencesById = new Map<string, IncomingReference[]>();
-  const add = <T>(byId: Map<string, T[]>, id: string, link: T): void => {
-    const links = byId.get(id);
-    if (links === undefined) {
-      byId.set(id, [link]);
-    } else {
-      links.push(link);
-    }
-  };
-  const addItem = (source: ElementRecord, key: string, index: number | undefined, item: unknown): void => {
-    if (!hasId(item)) {
-      return;
-    }
-    const named = item["repository"];
-    const repository = named === undefined ? source.repository : named;
-    if (typeof repository === "string") {
-      add(relationsById, item.id, { kind: "relation", source, key, index, item, repository });
-    }
-  };
+  const sink = collector(relationsById, referencesById);
   for (const source of store.elements) {
-    const { data } = source;
-    for (const key of Object.keys(data)) {
-      const relation = keys.get(key);
-      if (relation === undefined) {
-        continue;
-      }
-      const value: unknown = data[key];
-      if (!Array.isArray(value)) {
-        // One target; under a key with `many` it has none (SR-085 reports it).
-        if (!relation.many) {
-          addItem(source, key, undefined, value);
-        }
-      } else if (relation.many) {
-        for (let index = 0; index < value.length; index += 1) {
-          addItem(source, key, index, value[index]);
-        }
-      }
-    }
-    for (const reference of source.references ?? []) {
-      add(referencesById, reference.id, { kind: "reference", source, reference });
-    }
+    linksOf(source, keys, sink);
   }
   return { store, metamodel, relationsById, referencesById };
 };
 
 const NONE: readonly never[] = Object.freeze([]);
+
+/**
+ * One list of the index before a change (`links`) without the links whose source lies in a changed
+ * file, merged with `added`, the links of the records in the changed files after it (in store
+ * order), by the store order of their sources (`before`). No source is in both, so the list is in
+ * the order a fresh build gives it.
+ */
+const carriedList = <T extends IncomingLink>(
+  links: readonly T[],
+  added: readonly T[],
+  changed: (source: ElementRecord) => boolean,
+  before: (a: ElementRecord, b: ElementRecord) => boolean,
+): T[] => {
+  const out: T[] = [];
+  const rest = added.values();
+  let head = rest.next();
+  for (const link of links) {
+    if (changed(link.source)) {
+      continue;
+    }
+    while (head.done !== true && before(head.value.source, link.source)) {
+      out.push(head.value);
+      head = rest.next();
+    }
+    out.push(link);
+  }
+  for (; head.done !== true; head = rest.next()) {
+    out.push(head.value);
+  }
+  return out;
+};
+
+/**
+ * A copy of `byId` with the lists of the UUIDs in `affected` carried over (`carriedList`); a UUID
+ * whose list comes out empty is left out, as a fresh build has no list for it.
+ */
+const carriedMap = <T extends IncomingLink>(
+  byId: ReadonlyMap<string, readonly T[]>,
+  affected: ReadonlySet<string>,
+  added: ReadonlyMap<string, readonly T[]>,
+  changed: (source: ElementRecord) => boolean,
+  before: (a: ElementRecord, b: ElementRecord) => boolean,
+): ReadonlyMap<string, readonly T[]> => {
+  const next = new Map(byId);
+  for (const id of affected) {
+    const links = carriedList(byId.get(id) ?? NONE, added.get(id) ?? NONE, changed, before);
+    if (links.length === 0) {
+      next.delete(id);
+    } else {
+      next.set(id, links);
+    }
+  }
+  return next;
+};
+
+/**
+ * The incoming relation index of `update.to`, carried over from `index`, the index of `update.from`
+ * (a save or a watcher batch; #184, #267): the links whose source lies in a changed file
+ * (`StoreUpdate.files`) are dropped, the links of the records in those files now are added, and
+ * every other list and link is kept as the same object. `index` itself is not changed. Each list is
+ * in the order a fresh build gives it; the maps themselves may name their UUIDs in another order (a
+ * UUID that was not in `index` comes last). The records of the changed files, before and after, are
+ * those of `StoreUpdate.ids` that lie in them (`storeUpdate` names the UUIDs of both). Costs a copy
+ * of both maps plus the lists of the UUIDs that these records point at (N-036).
+ */
+export const carryIncomingIndex = (index: IncomingIndex, update: StoreUpdate): IncomingIndex => {
+  const keys = relationKeysOf(index.metamodel);
+  const inChangedFile = (source: ElementRecord): boolean =>
+    update.files.get(source.repository)?.has(source.file) === true;
+  const recordsIn = (store: ElementStore): ElementRecord[] =>
+    [...update.ids].flatMap((id) => (store.byId.get(id) ?? NONE).filter(inChangedFile));
+  // The sources of the lists before the change that lie in a changed file: by object, cheaper than
+  // by repository and file for each link of a long list (a variant that every element names).
+  const replaced = new Set(recordsIn(update.from));
+  const changed = (source: ElementRecord): boolean => replaced.has(source);
+  // Every source lies in a repository of the store, so `order` has it (`storeUpdate`: the same
+  // repositories before and after, in the same order).
+  const order = new Map(update.repositories.map((contents, at) => [contents.repository, at]));
+  const before = (a: ElementRecord, b: ElementRecord): boolean =>
+    a.repository === b.repository
+      ? byPath(a.file, b.file) < 0
+      : Number(order.get(a.repository)) < Number(order.get(b.repository));
+  // The UUIDs the changed files pointed at before and point at now.
+  const affected = new Set<string>();
+  const note: LinkSink = {
+    relation: (id) => {
+      affected.add(id);
+    },
+    reference: (id) => {
+      affected.add(id);
+    },
+  };
+  for (const source of replaced) {
+    linksOf(source, keys, note);
+  }
+  const relations = new Map<string, IncomingRelation[]>();
+  const references = new Map<string, IncomingReference[]>();
+  const sink = collector(relations, references);
+  for (const source of recordsIn(update.to).sort((a, b) => Number(before(b, a)) - Number(before(a, b)))) {
+    linksOf(source, keys, sink);
+  }
+  for (const id of [...relations.keys(), ...references.keys()]) {
+    affected.add(id);
+  }
+  return {
+    store: update.to,
+    metamodel: index.metamodel,
+    relationsById: carriedMap(index.relationsById, affected, relations, changed, before),
+    referencesById: carriedMap(index.referencesById, affected, references, changed, before),
+  };
+};
 
 /**
  * The relations and inline references that point at the UUID `id` in `repository`: the relations in
@@ -204,15 +353,40 @@ export const incomingTo = (index: IncomingIndex, repository: string, id: string)
 ];
 
 /**
+ * The most UUIDs a store change may name (`StoreUpdate.ids`, before and after) for the index to be
+ * carried over it. The carry runs inside `Workspace.replace`, in the thread that serves commands, and
+ * costs a fixed 30 to 50 ms (copying both maps) plus about 0.1 ms per changed record at N-036
+ * (50,000 elements, 200,000 relations, local runs: 0.13 to 0.25 s for 1,000, about 0.2 s for 2,000,
+ * 0.3 to 0.4 s for 5,000, 1 s for all), while a build takes 0.3 to 0.5 s. Above the limit the new
+ * store gets no index, and the next chain builds it, outside the change (#273). The same 1,000
+ * files as the read pool's threshold for a watcher batch (ADR-0008).
+ */
+export const CARRY_LIMIT = 1_000;
+
+/**
  * The incoming relation indexes of a workspace, by the element store each was built from (with the
  * metamodel it was built with). Built on first use of a store by `incomingFor`, without a `get` of
- * any other state; an index is dropped with its store (a WeakMap, like the succession index). Not
- * carried over a change of the store (ADR-0008, #267): the first command after a save or a watcher
- * batch that needs it builds the index of the new store again.
+ * any other state; an index is dropped with its store (a WeakMap). Carried over a change of the
+ * store (ADR-0008, #184, #267): when a save or a watcher batch replaces a store that has an index,
+ * the index of the new store is derived from it (`carryIncomingIndex`) and added to the same memo,
+ * so the next chain finds it ready; the index of the old store stays for a command that still holds
+ * that store. A store without an index gets none (nothing is built for a save), and so does a store
+ * after a change of more than `CARRY_LIMIT` UUIDs (a pull, a checkout): the next chain builds it.
+ * Any other change of the store (a reset, a full read) drops the memo.
  */
 export const incomingState = defineWorkspaceState(
   "incoming",
   (): WeakMap<ElementStore, IncomingIndex> => new WeakMap(),
+  {
+    dependsOn: [elementStoreState],
+    carry: carryStoreUpdate((memo, update) => {
+      const index = memo.get(update.from);
+      if (index !== undefined && update.ids.size <= CARRY_LIMIT) {
+        memo.set(update.to, carryIncomingIndex(index, update));
+      }
+      return memo;
+    }),
+  },
 );
 
 /**

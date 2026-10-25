@@ -4,7 +4,8 @@
 // Stage 1 has no filter language (SR-070, stage 3) and no chain (SR-022, stage 2), so these are
 // measured at the lowest level core has (#127, option 1): they run on the in-memory store, and the
 // chain on the model's incoming relation index and the derivation walk of the trace block (#258,
-// ADR-0008). Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
+// ADR-0008); the index is carried over a save (#267), so a chain right after one stays within the
+// threshold too. Later stages add tests of their commands with the same tags (`trace.chain`: #227). The tests are tagged, so they assert their thresholds (ADR-0011, #215) after
 // `measure` recorded the times.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
@@ -12,24 +13,33 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { RACY_MS, serializeModelCache } from "../../src/model/model-cache.js";
-import type { LoadedStore } from "../../src/model/store.js";
+import type { LoadedStore, StoreUpdate } from "../../src/model/store.js";
+import { storeUpdate } from "../../src/model/store.js";
+import { CARRY_LIMIT, carryIncomingIndex } from "../../src/model/incoming.js";
 import { canonicalRoot, writeCacheFile } from "../../src/workspace/index.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";
 import { metamodelState } from "../../src/metamodel/index.js";
-import type { ElementRecord, ElementStore } from "../../src/model/index.js";
+import type { ElementRecord, ElementStore, IncomingLink } from "../../src/model/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import {
   buildIncomingIndex,
   elementStoreState,
   hasId,
+  incomingFor,
   resolveTarget,
   titleKeyOf,
   warmWorkspace,
 } from "../../src/model/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
-import { cyclesOf, derivationEdges, derivationGraph, walkDerivation } from "../../src/trace/index.js";
+import {
+  cyclesOf,
+  derivationEdges,
+  derivationGraph,
+  traceContext,
+  walkDerivation,
+} from "../../src/trace/index.js";
 import { workspaceLayoutState } from "../../src/workspace/index.js";
 
 const ELEMENTS = 50_000;
@@ -154,12 +164,12 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       throw new Error("the generated workspace has no need or no system requirement");
     }
     const layout = await opened().get(workspaceLayoutState);
-    // Built once per element store in the model (`incomingFor`, ADR-0008), not per chain: recorded
-    // only, about 0.25 to 0.45 s here. Not carried over a save yet, so the first chain after one pays
-    // it too (#267).
+    // Built once per element store in the model (`incomingFor`, ADR-0008), not per chain, and carried
+    // over a save (#267): recorded only, about 0.25 to 0.45 s here. The workspace keeps it, so the
+    // chain after a save below finds it carried.
     const { result: incoming } = await measure(
       "incoming relation index (relation kinds, relation-valued properties, references; 200,000 relations)",
-      () => buildIncomingIndex(store, metamodel),
+      () => incomingFor(opened(), store, metamodel),
       { basis: "SR-082 AK4 (built once per element store, not per chain; ADR-0008, #258)" },
     );
     // `trace.chain` (SR-022) is not in the catalog yet: an existing command stands in for the name
@@ -191,6 +201,38 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     // Every repository of the generated workspace is on this machine.
     expect(chain.incomplete).toBe(false);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  it("records the carry of the incoming index over a change of CARRY_LIMIT elements (#273, no threshold)", async () => {
+    const index = incomingFor(opened(), store, metamodel);
+    // A change that rewrote every `step`-th element in place (the same content, new records), as
+    // `updateElements` gives it; nothing is written.
+    const step = Math.floor(ELEMENTS / CARRY_LIMIT);
+    const chosen = store.elements.filter((_, i) => i % step === 0).slice(0, CARRY_LIMIT);
+    const copies = new Map(chosen.map((record) => [record, { ...record }]));
+    const to: ElementStore = {
+      ...store,
+      elements: store.elements.map((record) => copies.get(record) ?? record),
+      byId: new Map([...store.byId].map(([id, records]) => [id, records.map((r) => copies.get(r) ?? r)])),
+    };
+    const files = new Map<string, Set<string>>();
+    for (const { repository, file } of chosen) {
+      files.set(repository, (files.get(repository) ?? new Set()).add(file));
+    }
+    const update: StoreUpdate = {
+      from: store,
+      to,
+      files,
+      ids: new Set(chosen.map((record) => record.id)),
+      repositories: (store as LoadedStore).repositories,
+    };
+    expect(update.ids.size).toBe(CARRY_LIMIT);
+    const { result: carried } = await measure(
+      `carry the incoming index over a change of ${String(CARRY_LIMIT)} elements (the limit, #273)`,
+      () => carryIncomingIndex(index, update),
+      { basis: "SR-082 AK4 (the largest carry inside a store change; against the build above, #273)" },
+    );
+    expect(carried.relationsById.size).toBe(index.relationsById.size);
   });
 
   // Last: it changes a file of the workspace.
@@ -258,5 +300,82 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     );
     expect(supersededOpen.ms, thresholdMessage(supersededOpen)).toBeLessThanOrEqual(OPEN_MS);
     expect(pointingOpen.ms, thresholdMessage(pointingOpen)).toBeLessThanOrEqual(OPEN_MS);
+  });
+
+  // After the test above: it changes a file too.
+  it("[SR-082/AK4] computes a chain within 500 ms right after a save", async () => {
+    const current = opened();
+    // As a server after a first chain: the incoming index of the store is built.
+    const { store: before, incoming: indexBefore } = await traceContext(current);
+    const top = before.elements.find((e) => e.type === "need");
+    if (top === undefined) {
+      throw new Error("the generated workspace has no need");
+    }
+    // The save rewrites a source of relations: its links are dropped and added again (#267).
+    const { source } = relationToTarget();
+    await measure(
+      "save one element with relations (element.update of its title, incoming index carried)",
+      () =>
+        invoke("element.update", { ref: source.id, title: "Saved before a chain" }, { workspace: current }),
+      { basis: "SR-082 AK4 (the save before the chain; no threshold of its own; #184, #267)" },
+    );
+    const { result, measurement } = await measure(
+      "chain right after a save: every element derived from the first need (incoming index carried)",
+      async () => {
+        // `trace.chain` (SR-022) is not in the catalog yet: as in the chain test above.
+        const context = await traceContext(current);
+        const graph = derivationGraph(context, "workspace.check");
+        return { context, chain: walkDerivation(graph, [top], { direction: "down" }) };
+      },
+      {
+        basis:
+          "SR-082 AK4 (core: trace context with the carried index and derivation walk after a save; #267)",
+        thresholdMs: RESULT_MS,
+      },
+    );
+    const { context, chain } = result;
+    expect(context.store).not.toBe(before);
+    expect(context.store.byId.get(source.id)?.[0]?.data["title"]).toBe("Saved before a chain");
+    expect(context.incoming).not.toBe(indexBefore);
+    expect(context.incoming.store).toBe(context.store);
+    expect(chain.nodes[0]?.element).toBe(top);
+    expect(chain.nodes.length).toBeGreaterThan(1);
+    // The carried index equals a fresh build of the same store: every list, link by link.
+    const fresh = buildIncomingIndex(context.store, context.metamodel);
+    const same = (a: IncomingLink | undefined, b: IncomingLink): boolean =>
+      a?.source === b.source &&
+      (a.kind === "relation"
+        ? b.kind === "relation" &&
+          a.key === b.key &&
+          a.index === b.index &&
+          a.item === b.item &&
+          a.repository === b.repository
+        : b.kind === "reference" && a.reference === b.reference);
+    let differing = 0;
+    for (const [carried, built] of [
+      [context.incoming.relationsById, fresh.relationsById],
+      [context.incoming.referencesById, fresh.referencesById],
+    ] as const) {
+      expect(carried.size).toBe(built.size);
+      for (const [id, links] of built) {
+        const kept: readonly IncomingLink[] = carried.get(id) ?? [];
+        if (kept.length !== links.length || links.some((link, i) => !same(kept[i], link))) {
+          differing += 1;
+        }
+      }
+    }
+    expect(differing).toBe(0);
+    // What the save paid for it: the carry alone, once more on the same change.
+    const update = storeUpdate(before, context.store);
+    if (update === undefined) {
+      throw new Error("the save gave no store update");
+    }
+    const { result: again } = await measure(
+      "carry the incoming index over a save of one element (part of the save, #267)",
+      () => carryIncomingIndex(indexBefore, update),
+      { basis: "SR-082 AK4 (what a save pays to keep the index; recorded, #267)" },
+    );
+    expect(again.relationsById.size).toBe(fresh.relationsById.size);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 });

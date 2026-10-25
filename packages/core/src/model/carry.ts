@@ -10,6 +10,7 @@ import type { ElementRecord } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLocator, locateFindings } from "./locate.js";
 import type { StoreUpdate } from "./store.js";
+import { byPath } from "./store.js";
 
 /** The findings of one element of the new store, in the order its state gives them. */
 export type FindingsOf = (element: ElementRecord) => readonly LocatableFinding[];
@@ -30,9 +31,6 @@ export interface CarryProblemsOptions {
    */
   readonly skip?: Promise<boolean>;
 }
-
-/** Code-unit order of file paths, as the store has them (`inListOrder`). */
-const byPath = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
 /** A kept problem with its place in store order. */
 interface Kept {
