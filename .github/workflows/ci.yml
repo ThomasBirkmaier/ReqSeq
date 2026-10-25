@@ -11,13 +11,20 @@ on:
     # Weekly reference run on GitHub's runners only (job `runners`).
     - cron: "0 4 * * 0"
   workflow_dispatch:
+    inputs:
+      github-runners:
+        description: Run Linux and macOS on GitHub's runners (costs Actions minutes)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
   # Label and text edits get their own group so they never cancel a full run.
-  group: ci-${{ github.ref }}-${{ contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
+  # Scheduled and manual runs get their own groups, so that a push to main never cancels a nightly run that waits
+  # for the Mac, or a manual run on GitHub's runners.
+  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +32,7 @@ jobs:
     name: trace-check
     if: ${{ !cancelled() }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')['ubuntu-24.04'] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,11 +57,15 @@ jobs:
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
   # Self-hosted runners on the product owner's Mac (toolchain/self-hosted-runner/README.md), to save Actions minutes
-  # (Thomas, 2026-10-25): Linux and macOS jobs run there while its runners are online, otherwise on GitHub.
+  # (Thomas, 2026-10-25): Linux and macOS jobs always run there. While the Mac is offline they wait in the
+  # queue instead of falling back to GitHub, so the Actions budget is never spent by accident (Thomas,
+  # 2026-10-25: "pausieren oder so arbeiten, dass wir nicht wieder die Limits sprengen"). A manual run with
+  # `github-runners: true` uses GitHub's runners for Linux and macOS when Thomas wants that.
   # Pull requests from forks never run there. Windows always runs on GitHub. The weekly reference run
   # (Sunday 04:00 UTC) uses GitHub's runners only, so that SR-076's macOS 14 and Ubuntu 24.04 (x64) stay covered.
   # When GitHub cannot start hosted jobs (spending limit), this job fails within seconds; the jobs that need it
-  # still run (`!cancelled()`) and fall back to the Mac runners (the literal map in their `runs-on`, #251).
+  # still run (`!cancelled()`) and fall back to the Mac runners (the literal map in their `runs-on`, #251),
+  # except for pull requests from forks, which never run on the Mac.
   # Windows has no self-hosted runner and stays red then.
   runners:
     name: pick runners
@@ -64,23 +75,28 @@ jobs:
     steps:
       - name: Pick runners
         id: pick
+        shell: bash
         env:
-          # Fine-grained token for this repository only, permission "Administration: read". Without it
-          # (or when the API call fails) every job runs on GitHub.
+          # Fine-grained token for this repository only, permission "Administration: read". It only
+          # tells the summary whether the Mac is online; jobs go to the Mac either way.
           GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
           SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           REFERENCE_RUN: ${{ github.event.schedule == '0 4 * * 0' }}
+          GITHUB_RUNNERS: ${{ github.event_name == 'workflow_dispatch' && inputs.github-runners }}
         run: |
-          linux='"ubuntu-24.04"'
-          macos='"macos-14"'
-          online=""
-          if [ -n "$GH_TOKEN" ] && [ "$SAME_REPO" = "true" ] && [ "$REFERENCE_RUN" != "true" ]; then
+          linux='["self-hosted","logreq-linux"]'
+          macos='["self-hosted","logreq-mac"]'
+          if [ "$SAME_REPO" != "true" ] || [ "$REFERENCE_RUN" = "true" ] || [ "$GITHUB_RUNNERS" = "true" ]; then
+            linux='"ubuntu-24.04"'
+            macos='"macos-14"'
+          fi
+          online="unknown"
+          if [ -n "$GH_TOKEN" ] && [ "$SAME_REPO" = "true" ]; then
             online="$(curl -fsS --max-time 10 -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
               "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" |
-              jq -r '[.runners[] | select(.status == "online") | .labels[].name] | unique | join(" ")')" || online=""
+              jq -r '[.runners[] | select(.status == "online") | .labels[].name] | unique | join(" ")')" || online="unknown"
           fi
-          case " $online " in *" logreq-linux "*) linux='["self-hosted","logreq-linux"]' ;; esac
-          case " $online " in *" logreq-mac "*) macos='["self-hosted","logreq-mac"]' ;; esac
+          echo "Online runner labels: \`${online:-none}\` (jobs for an offline Mac wait in the queue)" >> "$GITHUB_STEP_SUMMARY"
           map="{\"ubuntu-24.04\":$linux,\"macos-14\":$macos,\"windows-2025\":\"windows-2025\"}"
           echo "map=$map" >> "$GITHUB_OUTPUT"
           echo "Runners: \`$map\`" >> "$GITHUB_STEP_SUMMARY"
@@ -91,7 +107,7 @@ jobs:
     # Title, body and label edits only matter to trace-check.
     if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')['ubuntu-24.04'] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -118,7 +134,7 @@ jobs:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -149,7 +165,7 @@ jobs:
         # macOS only on the nightly and manual runs; pull requests and main use Linux and Windows.
         os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04","windows-2025"]') }}
     needs: runners
-    runs-on: ${{ fromJSON(needs.runners.outputs.map || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))[matrix.os] }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
