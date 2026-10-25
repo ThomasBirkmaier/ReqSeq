@@ -13,6 +13,7 @@ import {
   fileSchemaValidator,
   isTempFile,
   loadContracts,
+  lockCacheFile,
 } from "@logreq/core";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { DRAIN_BYTES, HTTP_STATUS_BY_CLASS, MAX_BODY_BYTES } from "./handler.js";
@@ -24,6 +25,7 @@ import {
   REQUEST_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   listenOnAll,
+  refuseRunningApi,
   startApiServer,
   urlOf,
 } from "./server.js";
@@ -377,6 +379,30 @@ describe("listening", () => {
     await fs.rm(gone.endpointFile);
     await expect(gone.close()).resolves.toBeUndefined();
     server = undefined;
+  });
+
+  it("puts api.json into the cache folder the workspace was opened with", async () => {
+    const folder = path.join(dir, "workspace-cache");
+    const server = await startApiServer({ workspace: new Workspace(dir, { cacheFolder: folder }), runtime });
+    onTestFinished(() => server.close());
+    expect(server.endpointFile).toBe(path.join(folder, "api.json"));
+  });
+
+  it("refuseRunningApi asks before a start: free, starting, or running", async () => {
+    const workspace = new Workspace(dir);
+    await expect(refuseRunningApi({ workspace, cacheFolder: dir })).resolves.toBeUndefined();
+    await expect(fs.readdir(dir)).resolves.not.toContain("api.json");
+    const lock = await lockCacheFile(dir, "api.json");
+    await expect(refuseRunningApi({ workspace, cacheFolder: dir })).rejects.toMatchObject({
+      code: "input.invalid",
+      message: expect.stringContaining("runs already or is starting") as unknown,
+    });
+    await lock?.release();
+    const first = await start();
+    await expect(refuseRunningApi({ workspace, cacheFolder: dir })).rejects.toMatchObject({
+      code: "input.invalid",
+      details: { url: first.urls[0], folder: dir },
+    });
   });
 
   it("refuses to start while the API of api.json answers there with its token", async () => {

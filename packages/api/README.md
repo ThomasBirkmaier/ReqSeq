@@ -22,7 +22,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/v1/commands   #
 
 ## Code
 
-- `src/server.ts`: `startApiServer({ workspace, runtime?, port?, cacheFolder? })` takes the lock of `api.json` (core's `lockCacheFile`), checks that no other API serves the copy, listens, writes `api.json` (mode 0600, through core's `writeCacheFile`) and returns `{ port, addresses, urls, endpointFile, close }`; `close()` removes `api.json` (`removeCacheFile`). `LOOPBACK_HOSTS` is the only bind address list.
+- `src/server.ts`: `startApiServer({ workspace, runtime?, port?, cacheFolder? })` takes the lock of `api.json` (core's `lockCacheFile`), checks that no other API serves the copy, listens, writes `api.json` (mode 0600, through core's `writeCacheFile`) and returns `{ port, addresses, urls, endpointFile, close }`; `close()` removes `api.json` (`removeCacheFile`). `cacheFolder` defaults to `workspace.cacheFolder`, else `cacheFolder(workspace.root)`. `checkPort(port)` refuses a port that is not a whole number from 0 to 65535 (`input.invalid`). `refuseRunningApi({ workspace, cacheFolder? })` makes the same checks without starting anything (`logreq serve api` calls it before it loads the workspace, SR-082). `LOOPBACK_HOSTS` is the only bind address list.
 - `src/handler.ts`: `createRequestHandler`: Host, Origin and token checks, routes, `HTTP_STATUS_BY_CLASS`.
 
 ## Tests

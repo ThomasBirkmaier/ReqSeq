@@ -81,6 +81,8 @@ export {
 } from "./superseded.js";
 export type { SupersededContext } from "./superseded.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
+export { MODEL_CACHE_FILE } from "./model-cache.js";
+export { warmWorkspace } from "./warm.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";
 export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";

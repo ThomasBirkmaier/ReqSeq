@@ -17,6 +17,8 @@ import type { DiscoveredFiles } from "./discover.js";
 import { listMarkdownFiles, listsFile } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
 import { ignoreMatcher } from "./ignore.js";
+import type { Reuse } from "./model-cache.js";
+import { loadThroughCache } from "./model-cache.js";
 import type { ReadRequest } from "./read-pool.js";
 import { openReadPool, readWorkers } from "./read-pool.js";
 
@@ -66,6 +68,9 @@ export interface ElementStore {
   readonly repositories?: readonly RepositoryContents[];
 }
 
+/** A store as a full read gives it: with what each file of each repository contributed. */
+export type LoadedStore = ElementStore & { readonly repositories: readonly RepositoryContents[] };
+
 /** Files read at the same time; bounded so 50,000 files do not exhaust file handles (N-036). */
 const READ_CONCURRENCY = 32;
 
@@ -97,6 +102,11 @@ export interface ReadOptions {
   readonly workers?: number;
   /** A read of at least this many files runs in worker threads, a smaller one in this thread. Default 1,000. */
   readonly workerThreshold?: number;
+  /**
+   * Which listed files of a repository to take from the model cache instead of reading them
+   * (`loadThroughCache`, SR-082). Default: read every file.
+   */
+  readonly reuse?: Reuse;
 }
 
 /**
@@ -137,7 +147,7 @@ const readAll = async <R extends ReadRequest & { readonly repository: Repository
 };
 
 /** The store fields from the contents of the repositories, in their order. */
-const assemble = (repositories: readonly RepositoryContents[]): ElementStore => {
+const assemble = (repositories: readonly RepositoryContents[]): LoadedStore => {
   const elements: ElementRecord[] = [];
   const nonElements: RepositoryFile[] = [];
   const problems: Problem[] = [];
@@ -190,29 +200,36 @@ export const ignoredBy = (layout: WorkspaceLayout): ((relativePath: string) => b
  * SR-004 AK3). One folder walk per repository, then the files are read, each classified as soon as
  * it is read: with bounded parallelism in this thread, or, from `workerThreshold` files of all
  * repositories together, in one pool of worker threads (ADR-0008); no call of the version control
- * program (N-036).
+ * program (N-036). With `options.reuse`, files whose model cache entry still matches are taken from
+ * it instead of being read (SR-082).
  */
 export const loadElements = async (
   layout: WorkspaceLayout,
   signal?: AbortSignal,
   options: ReadOptions = {},
-): Promise<ElementStore> => {
+): Promise<LoadedStore> => {
   const ignored = ignoredBy(layout);
-  const walks: { readonly repository: RepositoryLocation; readonly listed: DiscoveredFiles }[] = [];
+  const walks: {
+    readonly repository: RepositoryLocation;
+    readonly listed: DiscoveredFiles;
+    readonly reused: ReadonlyMap<string, Contribution>;
+    readonly files: readonly string[];
+  }[] = [];
   for (const repository of availableRepositories(layout)) {
-    walks.push({ repository, listed: await listMarkdownFiles(repository, ignored) });
+    const listed = await listMarkdownFiles(repository, ignored);
+    const { reused, read } = (await options.reuse?.(repository, listed.files)) ?? {
+      reused: new Map<string, Contribution>(),
+      read: listed.files,
+    };
+    walks.push({ repository, listed, reused, files: read });
   }
-  const read = await readAll(
-    walks.map((walk) => ({ ...walk, files: walk.listed.files })),
-    signal,
-    options,
-  );
+  const read = await readAll(walks, signal, options);
   return assemble(
-    read.map(([{ repository, listed }, files]) => ({
+    read.map(([{ repository, listed, reused }, files]) => ({
       repository: repository.name,
       location: repository,
       listing: listed.problems,
-      files: inListOrder(listed.files, files),
+      files: inListOrder(listed.files, files, reused),
     })),
   );
 };
@@ -465,7 +482,8 @@ export const withWrittenFiles = async (
 };
 
 /**
- * The element store of a workspace, read on first use and kept until reset. Reading it again
+ * The element store of a workspace, read on first use and kept until reset; through the model
+ * cache when the workspace has a cache folder (`WorkspaceOptions.cacheFolder`, SR-082). Reading it again
  * (`workspace.reset(elementStoreState)` or a new `Workspace`) finds every element where it lies
  * now; the watcher and LogReq's own writes update it file by file instead (`applyStoreChange`;
  * `updateElements`, SR-007; `recordWrites`, #166). Resetting the workspace layout resets it
@@ -478,7 +496,15 @@ export const withWrittenFiles = async (
  */
 export const elementStoreState = defineWorkspaceState(
   "elements",
-  async (workspace): Promise<ElementStore> => loadElements(await workspace.get(workspaceLayoutState)),
+  async (workspace): Promise<ElementStore> => {
+    const layout = await workspace.get(workspaceLayoutState);
+    const folder = workspace.cacheFolder;
+    return folder === undefined
+      ? loadElements(layout)
+      : loadThroughCache(workspace, folder, layout, (reuse) =>
+          loadElements(layout, undefined, reuse === undefined ? {} : { reuse }),
+        );
+  },
   { dependsOn: [workspaceLayoutState] },
 );
 

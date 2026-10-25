@@ -85,15 +85,29 @@ const dependentsFirst = (keys: readonly WorkspaceState<unknown>[]): WorkspaceSta
   return dependenciesFirst.reverse();
 };
 
+/** How a workspace is opened. */
+export interface WorkspaceOptions {
+  /**
+   * The cache folder of this copy (`cacheFolder(root)`, ADR-0008). With it the element store is
+   * loaded through the model cache there and the cache is written after a load (SR-082); without it
+   * every load reads all files and nothing is written outside the working tree. The CLI and the
+   * servers pass it; tests that do not test the cache leave it out.
+   */
+  readonly cacheFolder?: string;
+}
+
 export class Workspace {
   /** Absolute path of the folder with `logreq-workspace.yaml` (or the folder a command creates it in). */
   readonly root: string;
+  /** The cache folder of the model cache, if this workspace uses one (`WorkspaceOptions`). */
+  readonly cacheFolder: string | undefined;
   readonly #state = new Map<WorkspaceState<unknown>, unknown>();
   #closed = false;
 
   /** Creates the object only; nothing is read until a command asks for state. */
-  constructor(root: string) {
+  constructor(root: string, options: WorkspaceOptions = {}) {
     this.root = path.resolve(root);
+    this.cacheFolder = options.cacheFolder;
   }
 
   /** The state of this workspace for `key`, created on first use and kept until `reset` or `close`. */

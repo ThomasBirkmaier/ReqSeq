@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import type { CommandRuntime } from "@logreq/core";
@@ -10,7 +12,7 @@ import {
 } from "@logreq/core";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
 import { EXIT, exitCodeFor, runCli } from "./main.js";
@@ -133,6 +135,19 @@ interface Result {
   readonly stdout: string;
   readonly stderr: string;
 }
+
+// The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
+let cacheHome = "";
+beforeAll(async () => {
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+    vi.stubEnv(name, cacheHome);
+  }
+});
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  await fs.rm(cacheHome, { recursive: true, force: true });
+});
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {

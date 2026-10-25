@@ -42,7 +42,10 @@ export interface ApiServerOptions {
   readonly runtime?: CommandRuntime;
   /** TCP port, 0 (default) for any free one. */
   readonly port?: number;
-  /** Folder of `api.json`. Default: the cache folder of the workspace (`cacheFolder(workspace.root)`). */
+  /**
+   * Folder of `api.json`. Default: the cache folder of the workspace (`workspace.cacheFolder`, else
+   * `cacheFolder(workspace.root)`).
+   */
   readonly cacheFolder?: string;
 }
 
@@ -170,7 +173,8 @@ export async function listenOnAll(
   }
 }
 
-const checkPort = (port: number): number => {
+/** `port` when it is a TCP port (0 for any free one); else `input.invalid`. */
+export const checkPort = (port: number): number => {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new CommandError(
       "input.invalid",
@@ -270,6 +274,40 @@ const refuseWhileRunning = async (folder: string): Promise<void> => {
   }
 };
 
+/** The folder of `api.json` for these options. */
+const endpointFolder = (options: Pick<ApiServerOptions, "workspace" | "cacheFolder">): string =>
+  options.cacheFolder ?? options.workspace.cacheFolder ?? cacheFolder(options.workspace.root);
+
+/**
+ * Rejects as `startApiServer` would when an API for this working copy runs or is starting: with the
+ * lock of `api.json` taken by another process, or an `api.json` that names a running API. Nothing is
+ * written. `logreq serve api` asks before it loads the workspace (SR-082), so a second start does not
+ * load 50,000 elements only to be refused; `startApiServer` checks again under the lock.
+ */
+export async function refuseRunningApi(
+  options: Pick<ApiServerOptions, "workspace" | "cacheFolder">,
+): Promise<void> {
+  const folder = endpointFolder(options);
+  const lock = await lockCacheFile(folder, ENDPOINT_FILE);
+  if (lock === undefined) {
+    throw starting(folder);
+  }
+  try {
+    await refuseWhileRunning(folder);
+  } finally {
+    await lock.release();
+  }
+}
+
+/** The error of a start while another API holds the lock. */
+const starting = (folder: string): CommandError =>
+  new CommandError(
+    "input.invalid",
+    `A LogReq API for this working copy runs already or is starting. Stop it first. ` +
+      `If none runs, remove ${ENDPOINT_FILE}.lock in ${folder}.`,
+    { folder },
+  );
+
 /**
  * Start the local API: take the lock of `api.json` (`lockCacheFile`), so that of two starts at the same time
  * only one goes on; refuse while `api.json` names a running API; listen on LOOPBACK_HOSTS; write `api.json`
@@ -280,15 +318,10 @@ const refuseWhileRunning = async (folder: string): Promise<void> => {
 export async function startApiServer(options: ApiServerOptions): Promise<ApiServer> {
   const runtime = options.runtime ?? getCommandRuntime();
   const requested = checkPort(options.port ?? 0);
-  const folder = options.cacheFolder ?? cacheFolder(options.workspace.root);
+  const folder = endpointFolder(options);
   const lock = await lockCacheFile(folder, ENDPOINT_FILE);
   if (lock === undefined) {
-    throw new CommandError(
-      "input.invalid",
-      `A LogReq API for this working copy runs already or is starting. Stop it first. ` +
-        `If none runs, remove ${ENDPOINT_FILE}.lock in ${folder}.`,
-      { folder },
-    );
+    throw starting(folder);
   }
   try {
     return await startLocked(options, runtime, requested, folder);

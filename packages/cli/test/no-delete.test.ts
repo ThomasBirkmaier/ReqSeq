@@ -13,7 +13,7 @@ import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
 
 /** The product catalog and implementations. */
@@ -33,6 +33,19 @@ let cache: string;
 let original: string;
 
 const elementFile = (): Promise<string> => fs.readFile(path.join(fixture.root, ELEMENT_FILE), "utf8");
+
+// The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
+let cacheHome = "";
+beforeAll(async () => {
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+    vi.stubEnv(name, cacheHome);
+  }
+});
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  await fs.rm(cacheHome, { recursive: true, force: true });
+});
 
 beforeAll(async () => {
   fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });

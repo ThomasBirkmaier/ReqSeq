@@ -14,7 +14,7 @@ import { LineTransport, serveMcp } from "@logreq/mcp";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
 
 const runtime = createCommandRuntime();
@@ -29,6 +29,20 @@ type Created = CommandOutput<"element.create">;
 
 /** A file written by another process shows in a running workspace within 2 s (SR-007 AK1); slack for CI. */
 const SEEN_LIMIT_MS = 10_000;
+
+// The OS cache folder of `runCli` (the model cache of every CLI command, SR-082) lies in a temporary
+// folder on every OS; the servers get the shared cache folder of each test.
+let cacheHome = "";
+beforeAll(async () => {
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+    vi.stubEnv(name, cacheHome);
+  }
+});
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  await fs.rm(cacheHome, { recursive: true, force: true });
+});
 
 /** One OS cache folder for every copy, as one OS user has: `base` stands for the profile. */
 const sharedCache = async (): Promise<{ readonly base: string; readonly env: CacheEnvironment }> => {

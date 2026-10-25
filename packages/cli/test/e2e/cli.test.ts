@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { cliEnv } from "../support/logreq.js";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -37,7 +38,7 @@ const logreq = (args: readonly string[], options: RunOptions): Promise<Run> =>
     const child = spawn(
       process.execPath,
       ["--import", blockNetwork, options.testCommands === true ? testBin : bin, ...args],
-      { cwd: options.cwd, stdio: "pipe" },
+      { cwd: options.cwd, stdio: "pipe", env: cliEnv() },
     );
     const out: Buffer[] = [];
     const err: Buffer[] = [];

@@ -15,7 +15,7 @@ import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EXIT, argvFor, runCli } from "../src/index.js";
 
 /** The product catalog and implementations; outputs are checked against the catalog (vitest.config.ts). */
@@ -319,6 +319,19 @@ const copies: string[] = [];
 let cache: string;
 
 // Building the templates spawns `git` four times per repository. On Windows runners that can take seconds.
+// The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
+let cacheHome = "";
+beforeAll(async () => {
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+    vi.stubEnv(name, cacheHome);
+  }
+});
+afterAll(async () => {
+  vi.unstubAllEnvs();
+  await fs.rm(cacheHome, { recursive: true, force: true });
+});
+
 beforeAll(async () => {
   cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cross-access-"));
   for (const options of FIXTURES) {

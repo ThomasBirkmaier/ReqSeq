@@ -6,6 +6,7 @@ import { PassThrough, Readable } from "node:stream";
 import type { CommandRuntime } from "@logreq/core";
 import {
   cacheFolder,
+  lockCacheFile,
   createCommandRuntime,
   defineTestCommand,
   defineWorkspaceState,
@@ -145,18 +146,40 @@ describe("logreq serve api", () => {
     });
     controller.abort();
     expect(await exit).toBe(EXIT.ok);
-    expect(opts.err.text).toBe("");
+    // The API listens once the workspace is loaded (SR-082); the line says why it takes a while.
+    expect(opts.err.text).toBe("Loading the workspace...\n");
   });
 
   it("takes --port and --workspace", async () => {
     await fs.mkdir(fixture.path("other"));
     const controller = new AbortController();
-    controller.abort();
     const opts = options(["serve", "api", "--port", "0", "--workspace", "other"], {
       signal: controller.signal,
     });
-    expect(await runCli(opts)).toBe(EXIT.ok);
+    const exit = runCli(opts);
+    await started(opts.out);
+    controller.abort();
+    expect(await exit).toBe(EXIT.ok);
     expect(opts.out.text).toContain(cacheFolder(fixture.path("other")));
+  });
+
+  it("stops without listening when it is stopped while the workspace loads (SR-082)", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const opts = options(["serve", "api"], { signal: controller.signal });
+    expect(await runCli(opts)).toBe(EXIT.ok);
+    expect(opts.out.text).toBe("");
+    await expect(fs.stat(path.join(cacheFolder(fixture.root), "api.json"))).rejects.toThrow();
+  });
+
+  it("refuses a second API before it loads the workspace (ADR-0009)", async () => {
+    const lock = await lockCacheFile(cacheFolder(fixture.root), "api.json");
+    const opts = options(["serve", "api"]);
+    expect(await runCli(opts)).toBe(EXIT.usage);
+    expect(opts.err.text).toMatch(
+      /^error input\.invalid: A LogReq API for this working copy runs already or is starting/,
+    );
+    await lock?.release();
   });
 
   it("keeps its workspace current with files changed outside the tool (SR-007)", async () => {
@@ -211,6 +234,7 @@ describe("logreq serve api", () => {
     for (const port of ["abc", "-1", "70000", ""]) {
       const opts = options(["serve", "api", "--port", port]);
       expect(await runCli(opts)).toBe(EXIT.usage);
+      // Refused before the workspace loads.
       expect(opts.err.text).toMatch(/^error input\.invalid: Port must be a whole number/);
     }
   });
@@ -284,7 +308,7 @@ describe("server commands and the catalog", () => {
     const opts = options(["serve", "api", "--port", String(port)]);
     expect(await runCli(opts)).toBe(EXIT.usage);
     expect(opts.err.text).toMatch(
-      /^error input\.invalid: Cannot listen on 127\.0\.0\.1 port \d+ \(EADDRINUSE\)/,
+      /^Loading the workspace\.\.\.\nerror input\.invalid: Cannot listen on 127\.0\.0\.1 port \d+ \(EADDRINUSE\)/,
     );
     await new Promise((resolve) => blocker.close(resolve));
   });

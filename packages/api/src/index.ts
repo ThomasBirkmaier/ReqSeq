@@ -7,5 +7,5 @@ export {
   createRequestHandler,
 } from "./handler.js";
 export type { HandlerOptions, RequestHandler } from "./handler.js";
-export { ENDPOINT_FILE, LOOPBACK_HOSTS, startApiServer } from "./server.js";
+export { ENDPOINT_FILE, LOOPBACK_HOSTS, checkPort, refuseRunningApi, startApiServer } from "./server.js";
 export type { ApiServer, ApiServerOptions } from "./server.js";

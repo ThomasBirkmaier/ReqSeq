@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
 import { generateLargeWorkspace, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { cliEnv } from "../support/logreq.js";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -30,7 +31,11 @@ interface Run {
 
 const logreq = (args: readonly string[], cwd: string): Promise<Run> =>
   new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], { cwd, stdio: "pipe" });
+    const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
+      cwd,
+      stdio: "pipe",
+      env: cliEnv(),
+    });
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error(`logreq ${args.join(" ")} did not exit within ${String(EXIT_WITHIN_MS)} ms`));

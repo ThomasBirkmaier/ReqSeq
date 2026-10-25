@@ -1,6 +1,9 @@
 // Separate working copies of one repository (SR-081 AK3): two clones create 100 elements each, the test
 // merges them with Git (never LogReq, D-036), and the check finds no duplicate IDs (SR-088) and nothing
 // that a cache kept from before the merge.
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { cloneFixtureWorkspace, createFixtureWorkspace, untilWatching } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -8,6 +11,7 @@ import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
+import { RACY_MS } from "./model-cache.js";
 import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
@@ -38,8 +42,8 @@ const copies = async (
 };
 
 /** A workspace on the copy, closed (with its watcher) before the copy is removed. */
-const open = (copy: FixtureWorkspace): Workspace => {
-  const workspace = new Workspace(copy.root);
+const open = (copy: FixtureWorkspace, cacheFolder?: string): Workspace => {
+  const workspace = new Workspace(copy.root, cacheFolder === undefined ? {} : { cacheFolder });
   onTestFinished(() => workspace.close());
   return workspace;
 };
@@ -148,5 +152,33 @@ describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => 
     expect(elementsOf(kept)).toEqual(elementsOf(read));
     expect(await findings(running)).toEqual(await findings(fresh));
     expect(await running.get(duplicateIdProblemsState)).toEqual([]);
+  });
+
+  it("[SR-081/AK3] a copy that starts again with its model cache after the merge finds the same as a fresh read", async () => {
+    const [a, b] = (await copies(2)).clones as [FixtureWorkspace, FixtureWorkspace];
+    await Promise.all([createNeeds(a, "A", PER_COPY), createNeeds(b, "B", PER_COPY)]);
+    const cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-081-model-cache-"));
+    onTestFinished(() => fs.rm(cache, { recursive: true, force: true }));
+    // The files of A are older than the racy window of the cache (ADR-0008), as after a while of work.
+    const when = new Date(Date.now() - 60_000);
+    for (const entry of await fs.readdir(a.root, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile() && !entry.parentPath.includes(".git")) {
+        await fs.utimes(path.join(entry.parentPath, entry.name), when, when);
+      }
+    }
+    // Their change times (set by utimes) must settle too before the cache takes them.
+    await new Promise((resolve) => setTimeout(resolve, RACY_MS + 100));
+    const before = new Workspace(a.root, { cacheFolder: cache });
+    expect((await before.get(elementStoreState)).elements).toHaveLength(FIXTURE_ELEMENTS + PER_COPY);
+    await before.close();
+
+    await merge(a, b);
+    const cached = open(a, cache);
+    const fresh = open(a);
+    const [kept, read] = await Promise.all([cached.get(elementStoreState), fresh.get(elementStoreState)]);
+    expect(kept.elements).toHaveLength(FIXTURE_ELEMENTS + 2 * PER_COPY);
+    expect(kept).toStrictEqual(read);
+    expect(await findings(cached)).toEqual(await findings(fresh));
+    expect(await cached.get(duplicateIdProblemsState)).toEqual([]);
   });
 });

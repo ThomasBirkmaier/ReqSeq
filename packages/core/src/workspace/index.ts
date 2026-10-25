@@ -4,6 +4,7 @@
 export { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";
 export {
   cacheFolder,
+  canonicalRoot,
   lockCacheFile,
   osCacheFolder,
   readCacheFile,

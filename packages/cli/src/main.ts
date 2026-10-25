@@ -6,12 +6,14 @@ import {
   CommandError,
   PRODUCT_VERSION,
   Workspace,
+  cacheFolder,
   errorClass,
   findWorkspaceRoot,
   getCommandRuntime,
+  warmWorkspace,
   watchWorkspace,
 } from "@logreq/core";
-import { startApiServer } from "@logreq/api";
+import { checkPort, refuseRunningApi, startApiServer } from "@logreq/api";
 import { serveMcp } from "@logreq/mcp";
 import { CommanderError } from "commander";
 import type { InputStream } from "./input.js";
@@ -94,6 +96,9 @@ const settle = (promise: Promise<unknown>): Promise<Settled> =>
     (error: unknown) => ({ ok: false, error }),
   );
 
+/** The workspace at `root`, with the model cache in the cache folder of the copy (ADR-0008, SR-082). */
+const openWorkspace = (root: string): Workspace => new Workspace(root, { cacheFolder: cacheFolder(root) });
+
 /** Run the command; the workspace is closed afterwards, and a failing close never hides the command's error. */
 async function call(
   invocation: Invocation,
@@ -101,7 +106,7 @@ async function call(
   runtime: CommandRuntime,
 ): Promise<unknown> {
   const input = await buildInput(invocation, options.cwd, options.stdin);
-  const workspace = new Workspace(await workspaceRoot(invocation.workspace, options.cwd));
+  const workspace = openWorkspace(await workspaceRoot(invocation.workspace, options.cwd));
   const context = options.signal === undefined ? { workspace } : { workspace, signal: options.signal };
   const result = await settle(runtime.invoke(invocation.entry.name, input, context));
   const closed = await settle(workspace.close());
@@ -153,17 +158,32 @@ async function serveUntilStopped(
   runtime: CommandRuntime,
   signal: AbortSignal,
 ): Promise<void> {
-  const workspace = new Workspace(await workspaceRoot(request.workspace, options.cwd));
+  const workspace = openWorkspace(await workspaceRoot(request.workspace, options.cwd));
   const served = await settle(
     (async () => {
       // A server keeps its workspace open: files changed outside the tool show without a restart (SR-007).
-      await watchWorkspace(workspace).ready;
+      // The workspace loads only once the folders are watched, so a change during the load is seen.
+      const watching = watchWorkspace(workspace).ready;
       if (request.server === "mcp") {
+        await watching;
+        // The workspace loads while the client connects: a cold load (up to 30 s at 50,000 elements,
+        // SR-082 AK2) must not hold up the handshake. The first tool call waits for it.
+        void warmWorkspace(workspace);
         // Standard output carries the protocol: nothing else is written there.
         await serveMcp({ runtime, workspace, input: options.stdin, output: options.stdout, signal });
         return;
       }
-      const server = await startApiServer({ runtime, workspace, port: portNumber(request.port) });
+      // A wrong port and a second API for the copy are refused before anything loads (ADR-0009).
+      const port = checkPort(portNumber(request.port));
+      await refuseRunningApi({ workspace });
+      await watching;
+      // The API listens once the workspace is loaded, so an answer means "usable" (SR-082 AK1, AK2).
+      options.stderr.write("Loading the workspace...\n");
+      await Promise.race([warmWorkspace(workspace), stopped(signal)]);
+      if (signal.aborted) {
+        return;
+      }
+      const server = await startApiServer({ runtime, workspace, port });
       options.stdout.write(
         `LogReq API on ${server.urls.join(" and ")}\nPort and token: ${server.endpointFile}\nStop with Ctrl-C.\n`,
       );

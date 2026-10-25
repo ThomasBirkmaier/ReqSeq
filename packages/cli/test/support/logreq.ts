@@ -3,7 +3,8 @@
 // `pnpm build` first. The process loads the network block of the test run, so it fails any connection
 // that leaves the machine (SR-077).
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -16,6 +17,28 @@ export const bin = path.join(cliDir, "dist", "bin.js");
 export const blockNetwork = pathToFileURL(
   path.join(cliDir, "..", "..", "scripts", "test-support", "block-network.mjs"),
 ).href;
+
+/**
+ * A temporary home and OS cache folder for every spawned CLI of this test process, so that no model
+ * cache (SR-082) or `api.json` lands in the real cache of the user or the runner. Removed when the
+ * process exits.
+ */
+export const cacheHome = mkdtempSync(path.join(os.tmpdir(), "logreq-cache-home-"));
+process.once("exit", () => {
+  rmSync(cacheHome, { recursive: true, force: true });
+});
+
+/**
+ * The environment of a spawned CLI: this process's, with home and OS cache folder (Linux, macOS,
+ * Windows) in `home` (default `cacheHome`).
+ */
+export const cliEnv = (home: string = cacheHome): NodeJS.ProcessEnv => ({
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  XDG_CACHE_HOME: home,
+  LOCALAPPDATA: home,
+});
 
 /** Throws when the binary is not built, naming the command that builds and runs the suite. */
 export function requireBuiltCli(suite: string): void {
@@ -32,7 +55,7 @@ export interface Run {
 
 export interface RunOptions {
   readonly cwd: string;
-  /** Variables added to the environment of the test process. */
+  /** Variables added to the environment of `cliEnv()` (they win over its cache folder). */
   readonly env?: Readonly<Record<string, string>>;
 }
 
@@ -42,7 +65,7 @@ export const logreq = (args: readonly string[], options: RunOptions): Promise<Ru
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
       cwd: options.cwd,
       stdio: "pipe",
-      env: { ...process.env, ...options.env },
+      env: { ...cliEnv(), ...options.env },
     });
     const out: Buffer[] = [];
     const err: Buffer[] = [];

@@ -19,4 +19,6 @@ export type { CacheEnvironment, PrivateLock } from "./workspace/cache.js";
 export { isTempFile } from "./files/index.js";
 export * from "./version/version.js";
 export { watchWorkspace } from "./model/watch.js";
+export { MODEL_CACHE_FILE } from "./model/model-cache.js";
+export { warmWorkspace } from "./model/warm.js";
 export type { WorkspaceWatcher } from "./model/watch.js";
