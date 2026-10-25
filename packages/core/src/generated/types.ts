@@ -320,6 +320,29 @@ export interface DataExportRelation {
 }
 
 /**
+ * An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `logreq-record`; `test-case` is `testCase`.
+ * Schema: `schemas/data-export.schema.json#/$defs/evidenceRecord`.
+ */
+export interface DataExportEvidenceRecord {
+  /** Verification: a requirement. Validation: a need or a requirement (D-012). */
+  readonly element: Uuid;
+  readonly version: Version;
+  readonly kind: "verification" | "validation";
+  /** Required for verification (D-026). */
+  readonly method?: "test" | "analysis" | "inspection" | "demonstration";
+  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). */
+  readonly variant?: Uuid;
+  /** Prüfling. Required for verification, optional for validation (D-007). */
+  readonly item?: string;
+  readonly result: "passed" | "failed";
+  readonly date: IsoDateTime;
+  /** Where the Beleg is: relative path, file URL or any URI. */
+  readonly evidence?: string;
+  /** Optional test case name or ID (D-026, SR-033). */
+  readonly testCase?: string;
+}
+
+/**
  * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural; every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.
  * Schema: `schemas/element.schema.json#`.
  */
@@ -1012,7 +1035,8 @@ export interface ElementUpdateInput {
 export interface ElementUpdateOutput {
   readonly element: DataExportElement;
   readonly files: readonly string[];
-  readonly affected?: number;
+  /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed the version (the content, D-013); 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). */
+  readonly affected: number;
   readonly problems?: readonly Problem[];
 }
 
@@ -1264,6 +1288,8 @@ export interface TraceRelatedOutput {
  */
 export interface TraceAffectedInput {
   readonly ref: ElementRef;
+  readonly limit: number;
+  readonly offset: number;
 }
 
 /**
@@ -1271,12 +1297,34 @@ export interface TraceAffectedInput {
  * Schema: `schemas/commands/catalog.json trace.affected output`.
  */
 export interface TraceAffectedOutput {
+  /** The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element. */
   readonly affected: readonly {
     readonly id: Uuid;
+    readonly shortId: ShortId;
+    readonly type: string;
+    readonly title: string;
+    readonly repository: string;
+    /** Path relative to the repository. */
+    readonly file: string;
+    /** Steps from the element: 1 when this element's file points at it directly. */
     readonly distance: number;
-    readonly path: readonly Uuid[];
+    /** The way: the element asked for first, this element last, each element in between that points at the one before it; each named by UUID and repository (D-058). */
+    readonly path: readonly {
+      readonly id: Uuid;
+      readonly repository: string;
+    }[];
+    /** How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text. */
+    readonly via: {
+      readonly kind: "relation" | "reference";
+      readonly key?: Key;
+    };
   }[];
-  readonly incomplete?: Incomplete;
+  /** The number of all affected elements; `affected` holds the page of `limit` from `offset`. */
+  readonly total: number;
+  /** The evidence records of an older version of the element (SR-024 AK4): records whose `version` is not its current one. Evidence records are read from stage 4 on (SR-028); until then the list is empty. */
+  readonly records: readonly DataExportEvidenceRecord[];
+  /** True while a repository of the workspace file is not on this machine: elements there may point at the element (SR-006 AK2). */
+  readonly incomplete: Incomplete;
 }
 
 /**

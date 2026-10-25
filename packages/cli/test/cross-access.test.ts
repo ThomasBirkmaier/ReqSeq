@@ -38,6 +38,8 @@ interface Scenario {
 }
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
+/** Needs, requirements, a decision and a package that point at each other (SR-024). */
+const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
@@ -163,6 +165,49 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
+    {
+      name: "change the text of an element two others point at: affected 2 (SR-024 AK2)",
+      fixture: AFFECTED,
+      input: { ref: "SR-00b001", text: "Changed.\n" },
+      expect: "output",
+    },
+  ],
+  "trace.affected": [
+    {
+      name: "affected elements of a need, directly and through the chain (SR-024 AK1)",
+      fixture: AFFECTED,
+      input: { ref: "N-00a001" },
+      expect: "output",
+    },
+    {
+      name: "one page of the affected elements of a need",
+      fixture: AFFECTED,
+      input: { ref: "N-00a001", limit: 2, offset: 1 },
+      expect: "output",
+    },
+    {
+      name: "a relation that is no derivation, then the chain, and a repository that is not here (SR-006)",
+      fixture: {
+        ...AFFECTED,
+        files: {
+          "logreq-workspace.yaml":
+            "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+            '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
+            '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
+            "metamodel: { repository: system, path: metamodel }\n",
+        },
+      },
+      input: { ref: "D-00d001" },
+      expect: "output",
+    },
+    {
+      name: "no relation kind with the meaning derivation (SR-013 AK3)",
+      fixture: { fixture: "SR-089/missing-targets", git: ["system", "sensor"] },
+      root: "system",
+      input: { ref: "SR-c4d5e6" },
+      expect: "error",
+    },
+    { name: "unknown reference", fixture: AFFECTED, input: { ref: "SR-ffffff" }, expect: "error" },
   ],
   "trace.chain": [
     {

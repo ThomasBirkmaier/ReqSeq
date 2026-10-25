@@ -32,7 +32,7 @@ import type { ImageMemo, ImageSeen, ImageSource, LookedUpImages } from "./images
 import { imageLinks, imageMemo, imagesUnchanged, lookUpImages, mapBounded } from "./images.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState, ignoredBy } from "./store.js";
-import { elementVersion } from "./view.js";
+import { elementVersion, versionOrRangeError } from "./view.js";
 
 /** The current version of one element, or why it has none. */
 export type CurrentVersion =
@@ -143,24 +143,15 @@ const versionNow = async (run: Run, record: ElementRecord): Promise<CurrentVersi
     }
     return { kind: "unknown", reason: "image-unreadable", message: error.message };
   }
-  try {
-    return {
-      kind: "version",
-      version: elementVersion(element, body, run.metamodel, found.images),
-      images: found.seen,
-      ...(element === record ? {} : { element }),
-    };
-  } catch (error) {
-    // A number that counts and is not finite (`.inf`, `.nan`) has no canonical form; anything else is a bug.
-    if (!(error instanceof RangeError)) {
-      throw error;
-    }
-    return {
-      kind: "unknown",
-      reason: "not-computable",
-      message: `${record.file} of repository ${record.repository}: ${error.message}`,
-    };
-  }
+  // A number that counts and is not finite (`.inf`, `.nan`) has no canonical form; anything else is a bug.
+  const version = versionOrRangeError(() => elementVersion(element, body, run.metamodel, found.images));
+  return version instanceof RangeError
+    ? {
+        kind: "unknown",
+        reason: "not-computable",
+        message: `${record.file} of repository ${record.repository}: ${version.message}`,
+      }
+    : { kind: "version", version, images: found.seen, ...(element === record ? {} : { element }) };
 };
 
 /**

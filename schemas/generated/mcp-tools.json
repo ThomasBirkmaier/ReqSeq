@@ -688,6 +688,84 @@
             }
           },
           "additionalProperties": false
+        },
+        "evidenceRecord": {
+          "type": "object",
+          "description": "An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `logreq-record`; `test-case` is `testCase`.",
+          "required": [
+            "element",
+            "version",
+            "kind",
+            "result",
+            "date"
+          ],
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/common/$defs/uuid",
+              "description": "Verification: a requirement. Validation: a need or a requirement (D-012)."
+            },
+            "version": {
+              "$ref": "#/$defs/common/$defs/version"
+            },
+            "kind": {
+              "enum": [
+                "verification",
+                "validation"
+              ]
+            },
+            "method": {
+              "enum": [
+                "test",
+                "analysis",
+                "inspection",
+                "demonstration"
+              ],
+              "description": "Required for verification (D-026)."
+            },
+            "variant": {
+              "$ref": "#/$defs/common/$defs/uuid",
+              "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2)."
+            },
+            "item": {
+              "type": "string",
+              "description": "Prüfling. Required for verification, optional for validation (D-007)."
+            },
+            "result": {
+              "enum": [
+                "passed",
+                "failed"
+              ]
+            },
+            "date": {
+              "$ref": "#/$defs/common/$defs/dateTime"
+            },
+            "evidence": {
+              "type": "string",
+              "description": "Where the Beleg is: relative path, file URL or any URI."
+            },
+            "testCase": {
+              "type": "string",
+              "description": "Optional test case name or ID (D-026, SR-033)."
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "verification"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "method",
+                  "item"
+                ]
+              }
+            }
+          ],
+          "additionalProperties": false
         }
       }
     },
@@ -2469,7 +2547,8 @@
           },
           "affected": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed the version (the content, D-013); 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3)."
           },
           "problems": {
             "type": "array",
@@ -2481,7 +2560,8 @@
         "additionalProperties": false,
         "required": [
           "element",
-          "files"
+          "files",
+          "affected"
         ]
       }
     },
@@ -3224,6 +3304,17 @@
         "properties": {
           "ref": {
             "$ref": "#/$defs/common/$defs/elementRef"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -3236,38 +3327,112 @@
         "properties": {
           "affected": {
             "type": "array",
+            "description": "The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element.",
             "items": {
               "type": "object",
               "properties": {
                 "id": {
                   "$ref": "#/$defs/common/$defs/uuid"
                 },
+                "shortId": {
+                  "$ref": "#/$defs/common/$defs/shortId"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "repository": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string",
+                  "description": "Path relative to the repository."
+                },
                 "distance": {
                   "type": "integer",
-                  "minimum": 0
+                  "minimum": 1,
+                  "description": "Steps from the element: 1 when this element's file points at it directly."
                 },
                 "path": {
                   "type": "array",
+                  "description": "The way: the element asked for first, this element last, each element in between that points at the one before it; each named by UUID and repository (D-058).",
                   "items": {
-                    "$ref": "#/$defs/common/$defs/uuid"
-                  }
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/common/$defs/uuid"
+                      },
+                      "repository": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "repository"
+                    ]
+                  },
+                  "minItems": 2
+                },
+                "via": {
+                  "type": "object",
+                  "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text.",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "relation",
+                        "reference"
+                      ]
+                    },
+                    "key": {
+                      "$ref": "#/$defs/common/$defs/key"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ]
                 }
               },
               "additionalProperties": false,
               "required": [
                 "id",
+                "shortId",
+                "type",
+                "title",
+                "repository",
+                "file",
                 "distance",
-                "path"
+                "path",
+                "via"
               ]
             }
           },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The number of all affected elements; `affected` holds the page of `limit` from `offset`."
+          },
+          "records": {
+            "type": "array",
+            "description": "The evidence records of an older version of the element (SR-024 AK4): records whose `version` is not its current one. Evidence records are read from stage 4 on (SR-028); until then the list is empty.",
+            "items": {
+              "$ref": "#/$defs/data-export/$defs/evidenceRecord"
+            }
+          },
           "incomplete": {
-            "$ref": "#/$defs/common/$defs/incomplete"
+            "$ref": "#/$defs/common/$defs/incomplete",
+            "description": "True while a repository of the workspace file is not on this machine: elements there may point at the element (SR-006 AK2)."
           }
         },
         "additionalProperties": false,
         "required": [
-          "affected"
+          "affected",
+          "total",
+          "records",
+          "incomplete"
         ]
       }
     },

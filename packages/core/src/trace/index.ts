@@ -7,8 +7,10 @@
 //   const result = walkDerivation(graph, [element], { direction: "down", maxDepth, leaves });
 // `result.nodes` (each element once, breadth first, with depth and `via`), `pathTo(result, element)`,
 // `result.edges` (every step, `cyclic` inside a cycle), `result.cycles`, `result.unresolved` and
-// `result.incomplete` (SR-006 AK2). `walk(starts, expand, options)` takes any steps (SR-024), and
+// `result.incomplete` (SR-006 AK2). `walk(starts, expand, options)` takes any steps, and
 // `cyclesOf(store.elements, derivationEdges(graph))` finds the cycles of the whole store (SR-090).
+// The affected elements of SR-024 (`trace.affected`, affected.ts, a lean walk of their own):
+//   affectedOutput(traceAffected(graph, element), { metamodel, shortIds }, { limit, offset })
 // The chain of SR-022 (`trace.chain`, chain.ts):
 //   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds })
 // `relatedElements(graph, selection, { direction: "children" | "parents" })` lists the elements
@@ -46,6 +48,15 @@ export type {
   WalkUnresolved,
 } from "./walk.js";
 export { cyclesOf, pathTo, walk } from "./walk.js";
+export type {
+  Affected,
+  AffectedNode,
+  AffectedOptions,
+  AffectedOutputContext,
+  AffectedPage,
+  AffectedRecord,
+} from "./affected.js";
+export { affectedOutput, traceAffected } from "./affected.js";
 export type {
   Chain,
   ChainDirection,

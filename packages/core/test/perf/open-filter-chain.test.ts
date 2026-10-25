@@ -29,14 +29,17 @@ import {
   hasId,
   incomingFor,
   resolveTarget,
+  shortIdState,
   titleKeyOf,
   warmWorkspace,
 } from "../../src/model/index.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import {
+  affectedOutput,
   cyclesOf,
   derivationEdges,
   derivationGraph,
+  traceAffected,
   traceContext,
   walkDerivation,
 } from "../../src/trace/index.js";
@@ -231,6 +234,70 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       { basis: "SR-082 AK4 (the largest carry inside a store change; against the build above, #273)" },
     );
     expect(carried.relationsById.size).toBe(index.relationsById.size);
+  });
+
+  it("[SR-082/AK4] computes the affected elements of the first need within 500 ms (SR-024)", async () => {
+    const current = opened();
+    const need = tree.elements.find((e) => e.type === "need")?.id ?? "";
+    type Affected = CommandOutput<"trace.affected">;
+    const affectedOf = async (): Promise<Affected> =>
+      (await invoke("trace.affected", { ref: need }, { workspace: current })) as Affected;
+    // The first call builds the incoming index of the store (`incomingFor`, once per store, as for
+    // the chain above): recorded only.
+    await measure("trace.affected of the first need, with the incoming index built on the way", affectedOf, {
+      basis: "SR-024 AK1 (N-036; the index once per store; recorded)",
+    });
+    const { result: affected, measurement } = await measure(
+      "trace.affected of the first need (first page of 200, incoming index built before)",
+      affectedOf,
+      { basis: "SR-082 AK4 (trace.affected, SR-024 AK1, on the incoming index)", thresholdMs: RESULT_MS },
+    );
+    // Nearly the whole workspace lies below the first need.
+    expect(affected.total).toBeGreaterThan(ELEMENTS / 2);
+    expect(affected.affected).toHaveLength(200);
+    expect(affected.incomplete).toBe(false);
+    // The parts: the walk, and the output of one page and of every affected element.
+    const graph = derivationGraph(await traceContext(current), "trace.affected");
+    const [start] = graph.store.byId.get(need) ?? [];
+    if (start === undefined) {
+      throw new Error("no first need");
+    }
+    const { result: walked } = await measure(
+      "affected elements of the first need: the walk (core)",
+      () => traceAffected(graph, start),
+      { basis: "SR-024 AK1 (N-036; recorded)" },
+    );
+    const context = { metamodel: graph.metamodel, shortIds: await current.get(shortIdState) };
+    await measure(
+      "affected elements of the first need: the output of every one (short IDs, titles, ways)",
+      () => affectedOutput(walked, context, { limit: walked.reached.size, offset: 0 }),
+      { basis: "SR-024 AK1 (N-036; recorded; a page holds at most 5,000)" },
+    );
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  // Before the tests after a save: it saves the text of one element twice.
+  it("records two content saves in a row that count the affected elements (SR-024 AK2, #273)", async () => {
+    const current = opened();
+    const { target } = relationToTarget();
+    const save = (text: string): Promise<CommandOutput<"element.update">> =>
+      invoke("element.update", { ref: target.id, text }, { workspace: current }) as Promise<
+        CommandOutput<"element.update">
+      >;
+    // The incoming index of this store was built by trace.affected above.
+    const { result: first } = await measure(
+      "content save that counts the affected elements (incoming index of the store built before)",
+      () => save("Changed in the performance suite.\n"),
+      { basis: "SR-024 AK2 (N-036; recorded)" },
+    );
+    // The save replaced the store and carried the incoming index over (#273): no build again.
+    const { result: second } = await measure(
+      "second content save right after a save (incoming index carried over the first, #273)",
+      () => save("Changed again in the performance suite.\n"),
+      { basis: "SR-024 AK2 (N-036; recorded)" },
+    );
+    expect(second.affected).toBe(first.affected);
+    expect(first.affected).toBeGreaterThan(0);
   });
 
   // Last: it changes a file of the workspace.

@@ -71,6 +71,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
   "metamodel.get": [{}, { extra: true }],
+  "trace.affected": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "trace.chain": [
     { ref: WIND },
     { ref: APPROVED, direction: "down", view: "core" },

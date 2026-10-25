@@ -166,6 +166,23 @@ export const elementVersion = (
     files: images,
   });
 
+/**
+ * The version `compute` gives (`elementVersion`), or the RangeError it throws for a value that
+ * counts and has no normal form (`.inf`, `.nan`, ADR-0005). Any other error is a bug and passed on.
+ * For the readers that need a version of every element (current versions, #259) or of the element
+ * before a save (SR-024 AK2) without failing on such a value.
+ */
+export const versionOrRangeError = (compute: () => string): string | RangeError => {
+  try {
+    return compute();
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return error;
+    }
+    throw error;
+  }
+};
+
 export interface ElementViewInput {
   /** The element as classified from `file`. */
   readonly record: ElementRecord;

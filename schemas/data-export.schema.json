@@ -218,6 +218,47 @@
         }
       },
       "additionalProperties": false
+    },
+    "evidenceRecord": {
+      "type": "object",
+      "description": "An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `logreq-record`; `test-case` is `testCase`.",
+      "required": ["element", "version", "kind", "result", "date"],
+      "properties": {
+        "element": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Verification: a requirement. Validation: a need or a requirement (D-012)."
+        },
+        "version": { "$ref": "common.schema.json#/$defs/version" },
+        "kind": {
+          "enum": ["verification", "validation"]
+        },
+        "method": {
+          "enum": ["test", "analysis", "inspection", "demonstration"],
+          "description": "Required for verification (D-026)."
+        },
+        "variant": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2)."
+        },
+        "item": {
+          "type": "string",
+          "description": "Prüfling. Required for verification, optional for validation (D-007)."
+        },
+        "result": { "enum": ["passed", "failed"] },
+        "date": { "$ref": "common.schema.json#/$defs/dateTime" },
+        "evidence": {
+          "type": "string",
+          "description": "Where the Beleg is: relative path, file URL or any URI."
+        },
+        "testCase": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "verification" } } },
+          "then": { "required": ["method", "item"] }
+        }
+      ],
+      "additionalProperties": false
     }
   }
 }

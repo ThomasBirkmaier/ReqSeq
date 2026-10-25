@@ -6,6 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { editElementFile, parseFileBytes } from "../../files/index.js";
+import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import type { ElementRecord, ElementStore } from "../../model/index.js";
 import { elementStoreState, loadElements, shortIdState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -388,6 +389,72 @@ describe("element.update", () => {
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\ntitle: no longer an element\n---\n");
     expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+  });
+});
+
+describe("element.update: directly affected elements (SR-024)", () => {
+  /** fixtures/SR-024/affected: b002 derives from b001, b003 refers to it in its text, b004 derives from b002, b005 replaces b002. */
+  const AFFECTED: FixtureOptions = { fixture: "SR-024/affected" };
+  const SPEED = "SR-00b001";
+
+  it("[SR-024/AK2] shows the number of directly affected elements when the content changed", async () => {
+    const opened = await open(AFFECTED);
+    const text = await update(opened, { ref: SPEED, text: "The station shows the wind speed in knots.\n" });
+    expect([text.files, text.affected]).toEqual([["requirements/SR-00000000b001.md"], 2]);
+    // A property that counts to the version (D-013): the same two.
+    expect((await update(opened, { ref: SPEED, set: { "requirement-type": "quality" } })).affected).toBe(2);
+    // A relation and a replacement point at the gusts; the storm warning derived from them is not direct.
+    expect((await update(opened, { ref: "SR-00b002", text: "Gusts.\n" })).affected).toBe(2);
+    // Nothing points at the storm warning.
+    const storms = await update(opened, { ref: "SR-00b004", text: "Warn.\n" });
+    expect([storms.files.length, storms.affected]).toEqual([1, 0]);
+  });
+
+  it("[SR-024/AK2] counts an element with a relation and a reference to it once", async () => {
+    const opened = await open(AFFECTED);
+    const gusts = await read(opened, "requirements/SR-00000000b002.md");
+    await fs.writeFile(
+      opened.fixture.path("requirements/SR-00000000b002.md"),
+      gusts.replace(
+        "The station shows gusts.",
+        "Gusts beside [Show wind speed](logreq:5c0e1d2a-0024-4024-8024-00000000b001?version=n1:0000000000000000).",
+      ),
+    );
+    expect((await update(opened, { ref: SPEED, text: "Speed.\n" })).affected).toBe(2);
+  });
+
+  it("[SR-024/AK2] counts a save of an element whose old version had no normal form as a change", async () => {
+    const model = STANDARD.replace(
+      "  - { key: topic, name: Topic, kind: text }",
+      "  - { key: topic, name: Topic, kind: text }\n  - { key: weight, name: Weight, kind: number, content: true }",
+    ).replace("        topic,\n      ]", "        topic,\n        weight,\n      ]");
+    const opened = await open({ ...AFFECTED, files: { "metamodel/standard-model.yaml": model } });
+    const file = "requirements/SR-00000000b001.md";
+    await fs.writeFile(
+      opened.fixture.path(file),
+      (await read(opened, file)).replace("status: draft", "status: draft\nweight: .inf"),
+    );
+    const out = await update(opened, { ref: SPEED, unset: ["weight"] });
+    expect([out.files, out.affected]).toEqual([[file], 2]);
+  });
+
+  it("[SR-024/AK3] shows no affected elements when only the title or a property outside the content changed", async () => {
+    const opened = await open(AFFECTED);
+    const title = await update(opened, { ref: SPEED, title: "Show the wind speed" });
+    expect([title.files.length, title.affected]).toEqual([1, 0]);
+    // The rationale does not count to the version (D-013, standard model).
+    const rationale = await update(opened, { ref: SPEED, set: { rationale: "Sailors ask for it." } });
+    expect([rationale.files.length, rationale.affected]).toEqual([1, 0]);
+    // Nothing changed at all.
+    const same = await update(opened, { ref: SPEED, title: "Show the wind speed" });
+    expect([same.files, same.affected]).toEqual([[], 0]);
+    // A status changes only through element.setStatus, whose output has no affected elements.
+    const status = await invoke(
+      "element.setStatus",
+      { refs: [SPEED], status: "approved" },
+      { workspace: opened.workspace },
+    );
+    expect(status).toEqual({ files: ["requirements/SR-00000000b001.md"], problems: [] });
   });
 });
 

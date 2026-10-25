@@ -34,6 +34,7 @@ import { findType, metamodelState, requireMeaning, typeForNewElement } from "../
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import { directlyAffectedCount } from "./affected.js";
 import type { NewFileRule } from "./discover.js";
 import { newFileTarget } from "./discover.js";
 import type { ElementRecord } from "./elements.js";
@@ -41,6 +42,7 @@ import { STRUCTURAL_KEYS, classifyFile } from "./elements.js";
 import { fileNameFor } from "./file-name.js";
 import type { ImageMemo } from "./images.js";
 import { embeddedImages, imageMemo } from "./images.js";
+import { incomingFor } from "./incoming.js";
 import { resolveRef } from "./resolve.js";
 import { buildShortIds, shortIdState } from "./short-id.js";
 import type { ShortIds } from "./short-id.js";
@@ -50,7 +52,7 @@ import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
 import type { ExtraFindings } from "./view.js";
-import { elementView, titleKeyOf } from "./view.js";
+import { elementVersion, elementView, titleKeyOf, versionOrRangeError } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
 export interface ElementWriteResult {
@@ -58,6 +60,16 @@ export interface ElementWriteResult {
   /** Written files relative to the workspace root, `/` as separator; empty when nothing changed. */
   readonly files: readonly string[];
   readonly problems: readonly Problem[];
+}
+
+/** What `element.update` returns. */
+export interface UpdateElementResult extends ElementWriteResult {
+  /**
+   * The number of directly affected elements when the save changed the version (SR-024 AK2,
+   * `directlyAffectedCount`); 0 when it did not: a title, a property that does not count to the
+   * version, or no change at all (AK3, D-013).
+   */
+  readonly affected: number;
 }
 
 export interface CreateElementInput {
@@ -271,20 +283,74 @@ const withTargets = async (
     ]),
   );
 
+/** The element as it was before a save, to tell whether the save changed its version (SR-024 AK2). */
+interface Before {
+  /** Its record in the store the save started from. */
+  readonly record: ElementRecord;
+  /** Undefined when it had none (a value that counts without a normal form, ADR-0005). */
+  readonly version: string | undefined;
+}
+
+/**
+ * The version of an element as read (`elementVersion`), with the images its text embeds; undefined
+ * when it has none (as the current versions call it, #259): an embedded image or a folder above it
+ * cannot be read (`file.faulty`), or a value that counts has no normal form (`.inf`, `.nan`,
+ * ADR-0005). A save of such an element counts as a change of its version, so a save that removes a
+ * broken image link or the value still works. Any other error is a bug and passed on.
+ */
+const versionBefore = async (
+  context: Context,
+  repository: RepositoryLocation,
+  read: ReadElement,
+): Promise<string | undefined> => {
+  let images: Awaited<ReturnType<typeof embeddedImages>>;
+  try {
+    images = await embeddedImages(
+      { repository, ignored: ignoredBy(context.layout) },
+      read.record.file,
+      read.file.body,
+      context.images,
+    );
+  } catch (error) {
+    // `file.faulty`; anything else is a bug.
+    if (!(error instanceof CommandError)) {
+      throw error;
+    }
+    return undefined;
+  }
+  const version = versionOrRangeError(() =>
+    elementVersion(read.record, read.file.body, context.metamodel, images),
+  );
+  return version instanceof RangeError ? undefined : version;
+};
+
+/** What `finish` needs besides the workspace, the written element and the context. */
+interface FinishOptions {
+  readonly shortIds: ShortIds;
+  readonly titleKey: string;
+  /** Written files relative to the workspace root; none when nothing was written. */
+  readonly files: readonly string[];
+  readonly extraFindings: ExtraFindings | undefined;
+  /** The snapshot the write replaced; none for a new file. */
+  readonly replaced?: FileSnapshot;
+  /** The element before a save that wrote it (`element.update`): `affected` is counted. */
+  readonly before?: Before;
+}
+
 /**
  * The result of a write; with `files` written, the element store gets the file as written
- * (`replaced`: the snapshot the write replaced, none for a new file; `recordWrites`, #166).
+ * (`replaced`; `recordWrites`, #166). With `before` (a save of an existing element), `affected` is
+ * the number of directly affected elements when the version changed, else 0 (SR-024 AK2, AK3), on
+ * the incoming index of the store before the write: the links of other elements did not change,
+ * and the index is built before `recordWrites`, so the carry of the index (#273) takes it over.
  */
 const finish = async (
   workspace: Workspace,
   written: ReadElement,
   context: Context,
-  shortIds: ShortIds,
-  titleKey: string,
-  files: readonly string[],
-  extraFindings: ExtraFindings | undefined,
-  replaced?: FileSnapshot,
-): Promise<ElementWriteResult> => {
+  options: FinishOptions,
+): Promise<ElementWriteResult & { readonly affected?: number }> => {
+  const { shortIds, titleKey, files, extraFindings, replaced, before } = options;
   const repository = targetRepository(context.layout, written.record.repository);
   const element = elementView({
     ...written,
@@ -302,12 +368,24 @@ const finish = async (
     successionsOf: (element) => successionsFor(workspace, context.store, context.metamodel, element),
     ...(extraFindings === undefined ? {} : { extraFindings }),
   });
+  const affected =
+    before === undefined
+      ? {}
+      : {
+          affected:
+            before.version === element.version
+              ? 0
+              : directlyAffectedCount(
+                  incomingFor(workspace, context.store, context.metamodel),
+                  before.record,
+                ),
+        };
   if (files.length > 0) {
     await recordWrites(workspace, context.layout, [
       { repository: written.record.repository, file: written.file, replaced },
     ]);
   }
-  return { element, files, problems: element.problems };
+  return { element, files, problems: element.problems, ...affected };
 };
 
 const EMPTY_FILE: EditableFile = { frontmatter: "", body: "", eol: "\n", closingEol: "\n", bom: false };
@@ -454,15 +532,12 @@ export const createElement = async (
     await writeFileAtomic(repository.folder, file, decode(bytes), null),
   );
   const shortIds = buildShortIds(withRecord(store, written.record).byId, metamodel);
-  return finish(
-    workspace,
-    written,
-    context,
+  return finish(workspace, written, context, {
     shortIds,
     titleKey,
-    [workspacePath(layout, repository, written.record.file)],
+    files: [workspacePath(layout, repository, written.record.file)],
     extraFindings,
-  );
+  });
 };
 
 /** The edits of `element.update`; `set` holds the values of `input.set` as they are stored. */
@@ -642,12 +717,13 @@ export const writeElementFiles = async (
  * line endings and the file name stay (SR-001 AK2, SR-016 AK2). The UUID, the type and the status
  * are never touched (SR-002 AK2, ADR-0002 rule 6). Refused with `file.changed-on-disk` when the file
  * changed since the element store read it; the store is then read again on the next call.
+ * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
  */
 export const updateElement = async (
   workspace: Workspace,
   input: UpdateElementInput,
   extraFindings?: ExtraFindings,
-): Promise<ElementWriteResult> => {
+): Promise<UpdateElementResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
   const shortIds = await workspace.get(shortIdState);
@@ -678,22 +754,29 @@ export const updateElement = async (
     ...(text === undefined ? {} : { body: text }),
     keyOrder: type.properties,
   });
-  if (!changed) {
-    return finish(workspace, current, context, shortIds, titleKey, [], extraFindings);
+  let result: ElementWriteResult & { readonly affected?: number };
+  if (changed) {
+    const before: Before = {
+      // The record of the store: its own relations to itself are no affected element.
+      record,
+      version: await versionBefore(context, repository, current),
+    };
+    const written = writtenElement(
+      repository.name,
+      bytes,
+      await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
+    );
+    result = await finish(workspace, written, context, {
+      shortIds,
+      titleKey,
+      files: [workspacePath(layout, repository, record.file)],
+      extraFindings,
+      replaced: record.snapshot,
+      before,
+    });
+  } else {
+    result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
-  const written = writtenElement(
-    repository.name,
-    bytes,
-    await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
-  );
-  return finish(
-    workspace,
-    written,
-    context,
-    shortIds,
-    titleKey,
-    [workspacePath(layout, repository, record.file)],
-    extraFindings,
-    record.snapshot,
-  );
+  // Nothing written: nothing affected (AK3).
+  return { ...result, affected: result.affected ?? 0 };
 };

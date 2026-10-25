@@ -111,6 +111,7 @@ export { buildSuccessionIndex, successionIndexState, successionsFor, successions
 export type { Succession, SuccessionIndex } from "./successors.js";
 export { buildIncomingIndex, incomingFor, incomingState, incomingTo, relationPath } from "./incoming.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
+export { directLinks, directlyAffectedCount } from "./affected.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 export { MODEL_CACHE_FILE } from "./model-cache.js";
 export { warmWorkspace } from "./warm.js";
@@ -118,4 +119,10 @@ export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";
 export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
 export { assertElementWritable, createElement, updateElement, writtenElement } from "./write.js";
-export type { CreateElementInput, ElementWriteResult, ReadElement, UpdateElementInput } from "./write.js";
+export type {
+  CreateElementInput,
+  ElementWriteResult,
+  ReadElement,
+  UpdateElementInput,
+  UpdateElementResult,
+} from "./write.js";
