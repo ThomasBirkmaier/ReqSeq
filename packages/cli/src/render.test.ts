@@ -1,6 +1,6 @@
 import { CommandError } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { outcomeExitCode, renderError, renderHuman, renderJson, renderProblem } from "./render.js";
+import { outcomeExitCode, renderError, renderJson, renderProblem, renderYaml } from "./render.js";
 
 const uuid = "6adc6bad-b94e-40cf-bd99-7ef5e126d1e6";
 
@@ -59,9 +59,9 @@ describe("renderProblem", () => {
   });
 });
 
-describe("renderHuman", () => {
+describe("renderYaml", () => {
   it("renders the output as YAML and the problems one per line", () => {
-    const text = renderHuman({
+    const text = renderYaml({
       name: "Weather station",
       repositories: [{ name: "system", available: true }],
       problems: [
@@ -83,21 +83,21 @@ describe("renderHuman", () => {
   });
 
   it("says so when there are no problems", () => {
-    expect(renderHuman({ problems: [] })).toBe("No problems.\n");
-    expect(renderHuman({ ok: true, problems: [] })).toBe("ok: true\nNo problems.\n");
+    expect(renderYaml({ problems: [] })).toBe("No problems.\n");
+    expect(renderYaml({ ok: true, problems: [] })).toBe("ok: true\nNo problems.\n");
   });
 
   it("renders outputs without problems and non-object outputs", () => {
-    expect(renderHuman({ text: "line 1\nline 2" })).toBe("text: |-\n  line 1\n  line 2\n");
-    expect(renderHuman({})).toBe("");
-    expect(renderHuman(undefined)).toBe("");
-    expect(renderHuman(["a", "b"])).toBe("- a\n- b\n");
-    expect(renderHuman({ problems: "not a list" })).toBe("");
+    expect(renderYaml({ text: "line 1\nline 2" })).toBe("text: |-\n  line 1\n  line 2\n");
+    expect(renderYaml({})).toBe("");
+    expect(renderYaml(undefined)).toBe("");
+    expect(renderYaml(["a", "b"])).toBe("- a\n- b\n");
+    expect(renderYaml({ problems: "not a list" })).toBe("");
   });
 
   it("keeps long lines and non-ASCII text unchanged", () => {
     const long = `Größe ${"x".repeat(200)} 測試`;
-    expect(renderHuman({ title: long })).toBe(`title: ${long}\n`);
+    expect(renderYaml({ title: long })).toBe(`title: ${long}\n`);
   });
 });
 

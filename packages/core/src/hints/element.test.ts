@@ -29,10 +29,13 @@ const open = async (options: FixtureOptions, root = ""): Promise<Workspace> => {
   return workspace;
 };
 
-/** A hint without its dates, which `element.get` gives only with `versionDate`, in a stable order. */
+/**
+ * A hint without its dates, which `element.get` gives only with `versionDate`, and without the short
+ * ID of its element, which only `hint.list` adds (the element shows its own), in a stable order.
+ */
 const undated = (hints: readonly Problem[]): Problem[] =>
   hints
-    .map(({ storedDate: _stored, currentDate: _current, ...hint }) => ({
+    .map(({ storedDate: _stored, currentDate: _current, elementShortId: _shown, ...hint }) => ({
       ...hint,
       message: hint.message.replace(/: stored version from .*$/, ""),
     }))

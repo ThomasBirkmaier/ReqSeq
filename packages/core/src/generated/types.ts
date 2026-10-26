@@ -133,6 +133,8 @@ export interface Problem {
   readonly elementRepository?: string;
   /** The file of the element the problem is about, relative to `elementRepository`; given with it. */
   readonly elementFile?: string;
+  /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on the hints of hint.list. */
+  readonly elementShortId?: ShortId;
   readonly targetId?: Uuid;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
@@ -1393,15 +1395,22 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
-  readonly hintIds: readonly string[];
+  /** IDs of hints to confirm (`hintId` of hint.list). */
+  readonly hintIds?: readonly string[];
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references its file stores. */
+  readonly ref?: ElementRef;
+  /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
+  readonly target?: ElementRef;
+  /** Only selected hints with one of these codes (with `ref` or `target`). */
+  readonly kind?: readonly ProblemCode[];
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {

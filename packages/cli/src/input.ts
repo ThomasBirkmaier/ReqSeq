@@ -104,8 +104,9 @@ const resolveLocalPaths = (
 };
 
 /**
- * The command input: `--input` first; positional values fill the positional fields that `--input` does
- * not give, in order; flags override the same field from `--input`; local paths become absolute.
+ * The command input: `--input` first; positional values fill the positional fields that neither
+ * `--input` nor a flag gives, in order; flags override the same field from `--input`; local paths
+ * become absolute.
  */
 export async function buildInput(
   invocation: Invocation,
@@ -114,7 +115,10 @@ export async function buildInput(
 ): Promise<Record<string, unknown>> {
   const input = invocation.input === undefined ? {} : await readInputOption(invocation.input, cwd, stdin);
   const values = invocation.positionals.flatMap(({ value }) => (value === undefined ? [] : [value]));
-  const open = invocation.positionals.map(({ field }) => field).filter((f) => !Object.hasOwn(input, f.name));
+  const flagged = new Set(invocation.flags.filter((f) => f.value !== undefined).map((f) => f.field.name));
+  const open = invocation.positionals
+    .map(({ field }) => field)
+    .filter((f) => !Object.hasOwn(input, f.name) && !flagged.has(f.name));
   values.forEach((value, i) => {
     const field = open[i];
     if (field === undefined) {
@@ -123,7 +127,7 @@ export async function buildInput(
         .filter((name) => !open.some((f) => f.name === name));
       throw new CommandError(
         "input.invalid",
-        `Unexpected argument ${value}: --input already gives ${given.join(", ")}`,
+        `Unexpected argument ${value}: --input or a flag already gives ${given.join(", ")}`,
         { argument: value },
       );
     }

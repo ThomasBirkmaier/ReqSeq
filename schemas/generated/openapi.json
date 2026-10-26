@@ -4018,7 +4018,7 @@
     "/v1/commands/hint.confirm": {
       "post": {
         "operationId": "hint_confirm",
-        "summary": "Confirm hints: writes the current target version into the relation and nothing else (D-042); an ID no open hint has is a warning (exit 0), for example one confirmed already.",
+        "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
         "tags": [
           "hint"
         ],
@@ -4035,18 +4035,32 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "description": "Give `hintIds`, `ref`, `target` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (those with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `kind` narrows only that selection and needs `ref` or `target`. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): each once, `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning.",
                 "properties": {
                   "hintIds": {
                     "type": "array",
+                    "description": "IDs of hints to confirm (`hintId` of hint.list).",
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "ref": {
+                    "$ref": "#/components/schemas/common/$defs/elementRef",
+                    "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references its file stores."
+                  },
+                  "target": {
+                    "$ref": "#/components/schemas/common/$defs/elementRef",
+                    "description": "Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed."
+                  },
+                  "kind": {
+                    "type": "array",
+                    "description": "Only selected hints with one of these codes (with `ref` or `target`).",
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/problemCode"
+                    }
                   }
                 },
-                "additionalProperties": false,
-                "required": [
-                  "hintIds"
-                ]
+                "additionalProperties": false
               }
             }
           }
@@ -8034,6 +8048,10 @@
               "elementFile": {
                 "type": "string",
                 "description": "The file of the element the problem is about, relative to `elementRepository`; given with it."
+              },
+              "elementShortId": {
+                "$ref": "#/components/schemas/common/$defs/shortId",
+                "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on the hints of hint.list."
               },
               "targetId": {
                 "$ref": "#/components/schemas/common/$defs/uuid"

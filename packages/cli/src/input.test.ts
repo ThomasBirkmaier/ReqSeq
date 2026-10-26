@@ -132,6 +132,7 @@ const invocation = (parts: Partial<Invocation>): Invocation => ({
   positionals: [],
   flags: [],
   json: false,
+  yaml: false,
   workspace: undefined,
   input: undefined,
   ...parts,
@@ -203,9 +204,32 @@ describe("buildInput", () => {
     );
     expect(tooMany.toJSON()).toEqual({
       code: "input.invalid",
-      message: "Unexpected argument b: --input already gives kind, target",
+      message: "Unexpected argument b: --input or a flag already gives kind, target",
       details: { argument: "b" },
     });
+  });
+
+  it("fills only the positional fields no flag gives, so `<type> --title x` and `--type t x` both work", async () => {
+    const type = field("type", "string");
+    const title = field("title", "string");
+    const both = (values: readonly (string | undefined)[], flags: Invocation["flags"]): Invocation =>
+      invocation({
+        positionals: [
+          { field: type, value: values[0] },
+          { field: title, value: values[1] },
+        ],
+        flags,
+      });
+    expect(
+      await buildInput(both(["need", undefined], [{ field: title, value: "Wind" }]), fixture.root, noStdin),
+    ).toEqual({ type: "need", title: "Wind" });
+    expect(
+      await buildInput(both(["Wind", undefined], [{ field: type, value: "need" }]), fixture.root, noStdin),
+    ).toEqual({ type: "need", title: "Wind" });
+    // A flag that is not given leaves its field to the arguments.
+    expect(
+      await buildInput(both(["need", "Wind"], [{ field: title, value: undefined }]), fixture.root, noStdin),
+    ).toEqual({ type: "need", title: "Wind" });
   });
 
   it("makes local paths absolute against the current folder, from every source", async () => {

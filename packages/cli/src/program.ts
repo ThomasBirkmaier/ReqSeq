@@ -3,7 +3,7 @@
 import type { CatalogEntry, CommandRuntime } from "@logreq/core";
 import { Command, Option } from "commander";
 import type { InputField } from "./fields.js";
-import { inputFields, kebab } from "./fields.js";
+import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
 
 /** What the command line asked for, before it becomes a command input. */
 export interface Invocation {
@@ -12,10 +12,15 @@ export interface Invocation {
   readonly fields: readonly InputField[];
   /** Positional fields with their values (`undefined` when not given). */
   readonly positionals: readonly { readonly field: InputField; readonly value: string | undefined }[];
-  /** Flag fields with their raw values (`undefined` when not given). */
+  /**
+   * Flag fields with their raw values (`undefined` when not given); positional fields given as a
+   * flag (`--title` next to `<title>`) too.
+   */
   readonly flags: readonly { readonly field: InputField; readonly value: unknown }[];
   /** `--json`. */
   readonly json: boolean;
+  /** `--yaml`: the whole output as YAML instead of the compact form. */
+  readonly yaml: boolean;
   /** `--workspace`, as given. */
   readonly workspace: string | undefined;
   /** `--input`, as given. */
@@ -131,7 +136,18 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   for (const field of positional) {
     command.argument(`[${field.flag}]`, describeField(field));
   }
-  const flagOptions = flags.map((field) => ({ field, ...optionsOf(field) }));
+  // A positional field can also be given as a flag, so `element create <type> --title x` and
+  // `element update <ref> --title x` read alike (#310); a field given so is not filled positionally.
+  const flagOptions = [
+    ...positional
+      .filter((field) => !RESERVED_FLAGS.includes(field.flag))
+      .map((field) => ({
+        field,
+        main: new Option(`--${field.flag} <value>`, `instead of the argument <${field.flag}>`),
+        negation: undefined,
+      })),
+    ...flags.map((field) => ({ field, ...optionsOf(field) })),
+  ];
   for (const { main, negation } of flagOptions) {
     command.addOption(main);
     if (negation !== undefined) {
@@ -141,7 +157,10 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   command
     .option("--input <json|@file|->", "command input as JSON: inline, from a file, or from standard input")
     .option(...WORKSPACE_OPTION)
-    .option("--json", "print exactly the command output as JSON");
+    .option("--json", "print exactly the command output as JSON")
+    .addOption(
+      new Option("--yaml", "print the whole command output as YAML, problems one per line").conflicts("json"),
+    );
   if (inputOnly.length > 0) {
     command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
   }
@@ -153,6 +172,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       positionals: positional.map((field, i) => ({ field, value: text(args[i]) })),
       flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
       json: opts["json"] === true,
+      yaml: opts["yaml"] === true,
       workspace: text(opts["workspace"]),
       input: text(opts["input"]),
     });

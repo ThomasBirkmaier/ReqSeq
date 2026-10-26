@@ -452,3 +452,138 @@ describe("hint.confirm (SR-027)", () => {
     ]);
   });
 });
+
+describe("hint.confirm of one element (#310)", () => {
+  const confirmBy = async (workspace: Workspace, input: Record<string, unknown>): Promise<Confirmed> =>
+    (await invoke("hint.confirm", input, { workspace })) as Confirmed;
+
+  const failure = async (workspace: Workspace, input: Record<string, unknown>): Promise<unknown> =>
+    confirmBy(workspace, input).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+  it("[SR-027/AK2] confirms every open hint about ref, as one call with their IDs does", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const expected = await confirm(open(ws.root), [VALIDITY, DERIVES, LINK]);
+    const other = await fixture();
+    await changeTargets(other);
+    const workspace = open(other.root);
+    expect(await confirmBy(workspace, { ref: A })).toEqual(expected);
+    expect(expected).toEqual({ confirmed: [VALIDITY, DERIVES, LINK], files: [A_FILE], problems: [] });
+    expect(read(other, A_FILE)).toBe(read(ws, A_FILE));
+    // A changed, so B's relation to A is open now: a hint of another element, not confirmed.
+    expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
+  });
+
+  it("[SR-027/AK2] confirms every open hint that points at target, and only those of ref when both are given", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    // N is the target of A's relation and of its inline reference; the validity names V.
+    expect(await confirmBy(workspace, { target: N })).toEqual({
+      confirmed: [DERIVES, LINK],
+      files: [A_FILE],
+      problems: [],
+    });
+    expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([
+      VALIDITY,
+      expect.stringContaining(AT_B),
+    ]);
+    expect(await confirmBy(workspace, { ref: A, target: V })).toMatchObject({ confirmed: [VALIDITY] });
+    expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([expect.stringContaining(AT_B)]);
+  });
+
+  it("[SR-027/AK2] narrows the selection by kind, and joins it with hintIds, each ID once", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    expect(await confirmBy(workspace, { ref: A, kind: ["element.unknown-property"] })).toEqual({
+      confirmed: [],
+      files: [],
+      problems: [
+        {
+          code: "hint.not-found",
+          severity: "warning",
+          message: `No open hint about ${A} of kind element.unknown-property can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+        },
+      ],
+    });
+    expect(await confirmBy(workspace, { hintIds: [LINK], target: N, kind: ["relation.outdated"] })).toEqual({
+      confirmed: [LINK, DERIVES],
+      files: [A_FILE],
+      problems: [],
+    });
+    expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([
+      VALIDITY,
+      expect.stringContaining(AT_B),
+    ]);
+  });
+
+  it("[SR-027/AK2] lists a hint once whose relation is written twice, and writes both items", async () => {
+    const item = `  - { id: ${N}, version: ${N_VERSION}, title: See the wind }`;
+    const ws = await fixture({ files: { [A_FILE]: fromFixture(A_FILE).replace(item, `${item}\n${item}`) } });
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    expect(await confirmBy(workspace, { target: N })).toEqual({
+      confirmed: [DERIVES, LINK],
+      files: [A_FILE],
+      problems: [],
+    });
+    expect(read(ws, A_FILE)).not.toContain(N_VERSION);
+  });
+
+  it("[SR-027/AK2] lists a selected hint once when a given ID names it in another spelling", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const workspace = open(ws.root);
+    // The slash of the file name percent-encoded in lower case (%2f): the same hint as DERIVES.
+    const respelled = DERIVES.replace("%2F", "%2f");
+    expect(respelled).not.toBe(DERIVES);
+    expect(await confirmBy(workspace, { hintIds: [respelled], target: N })).toEqual({
+      confirmed: [respelled, LINK],
+      files: [A_FILE],
+      problems: [],
+    });
+  });
+
+  it("[SR-027/AK2] warns when the selection finds no open hint to confirm, and still answers for the given IDs", async () => {
+    const workspace = open((await fixture()).root);
+    const out = await confirmBy(workspace, { hintIds: [DERIVES], ref: B, target: A });
+    expect(out.confirmed).toEqual([]);
+    expect((out.problems ?? []).map((p) => [p.code, p.message.split(" can be confirmed")[0]])).toEqual([
+      ["hint.not-found", `No open hint about ${B} pointing at ${A}`],
+      ["hint.not-found", expect.stringContaining(DERIVES)],
+    ]);
+    expect((await confirmBy(workspace, { target: N })).problems?.map((p) => p.message)).toEqual([
+      `No open hint pointing at ${N} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+    ]);
+  });
+
+  it("refuses an input that selects no hint, and a ref that names no element", async () => {
+    const workspace = open((await fixture()).root);
+    expect(await failure(workspace, {})).toMatchObject({
+      code: "input.invalid",
+      details: { fields: ["hintIds", "ref", "target"] },
+    });
+    expect(await failure(workspace, { hintIds: [], kind: ["relation.outdated"] })).toMatchObject({
+      code: "input.invalid",
+      details: { fields: ["kind"] },
+    });
+    expect(await failure(workspace, { target: "SR-ffffff" })).toMatchObject({ code: "ref.unknown" });
+    // Empty hintIds alone select nothing, as an empty selection does: a warning, no failure.
+    expect(await confirmBy(workspace, { hintIds: [] })).toEqual({
+      confirmed: [],
+      files: [],
+      problems: [
+        {
+          code: "hint.not-found",
+          severity: "warning",
+          message:
+            "No hint ID is given, so nothing was written (a warning, exit code 0); hint.list gives the open hints",
+        },
+      ],
+    });
+  });
+});

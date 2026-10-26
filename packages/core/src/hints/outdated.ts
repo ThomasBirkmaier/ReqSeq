@@ -96,6 +96,8 @@ export interface OutdatedFinding {
   /** The version the item or link stores, and the current version of the target. */
   readonly stored: string;
   readonly current: string;
+  /** The stable ID of the hint (`hint-id.ts`), as its problem names it (`hintId`). */
+  readonly hintId: string;
   /** Without dates (`datedProblems` adds them); with the line where it is known. */
   readonly problem: Problem;
 }
@@ -246,7 +248,7 @@ const candidateOf = (
     });
     const message = `${link.label} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
     const problem = problemOf(element, target, message, versions, hintId);
-    return { path: link.path, finding: { element, target, stored, current, problem } };
+    return { path: link.path, finding: { element, target, stored, current, hintId, problem } };
   }
   const { repository, occurrence } = link;
   const hintId = hintIdOf({
@@ -259,7 +261,7 @@ const candidateOf = (
   });
   const message = `Reference in the text of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
   const problem = { ...problemOf(element, target, message, versions, hintId), line: link.line };
-  return { finding: { element, target, stored, current, problem } };
+  return { finding: { element, target, stored, current, hintId, problem } };
 };
 
 /** The outdated relations, then references, of `element`, before their lines are looked up, appended to `out`. */

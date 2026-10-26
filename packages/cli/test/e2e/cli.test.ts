@@ -179,6 +179,30 @@ describe("logreq binary", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
+  it("creates an element with the title as argument or as --title, and prints each problem once (#310)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(ws);
+    const created = await logreq(["element", "create", "system-requirement", "--title", "Show gusts"], {
+      cwd: ws.root,
+    });
+    expect([created.code, created.stderr]).toEqual([0, ""]);
+    const lines = created.stdout.split("\n");
+    expect(lines[0]).toMatch(/^SR-[0-9a-f]{6,} {2}draft {2}Show gusts$/);
+    expect(lines[1]).toBe("files:");
+    // Requirement type and acceptance criteria have no value: one line each, not twice.
+    const missing = lines.filter((l) => l.startsWith("warning  element.missing-required  "));
+    expect(missing).toHaveLength(2);
+    expect(lines).toHaveLength(3 + missing.length + 1);
+    const positional = await logreq(["element", "create", "system-requirement", "Show calm", "--json"], {
+      cwd: ws.root,
+    });
+    expect(JSON.parse(positional.stdout)).toMatchObject({ element: { title: "Show calm" } });
+    const shown = await logreq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
+    expect(shown.stdout).toMatch(
+      /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
+    );
+  });
+
   it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, #255)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });
     fixtures.push(ws);

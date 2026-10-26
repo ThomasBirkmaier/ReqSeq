@@ -305,6 +305,27 @@ describe("logreq <group> <action>", () => {
     });
   });
 
+  it("prints the whole output as YAML with --yaml, and refuses --yaml with --json", async () => {
+    const yaml = await run(["test", "findings", "--mode", "warning", "--yaml"]);
+    expect(yaml).toEqual({
+      code: EXIT.ok,
+      stdout: "ok: true\nwarning  file.yaml-warning  a.md  Größe\n",
+      stderr: "",
+    });
+    const both = await run(["test", "findings", "--yaml", "--json"]);
+    expect(both.code).toBe(EXIT.usage);
+    expect(JSON.parse(both.stderr)).toMatchObject({ code: "input.invalid" });
+  });
+
+  it("takes a positional field as a flag too, and fills the other positional fields with the arguments (#310)", async () => {
+    const help = await run(["test", "echo", "--help"]);
+    expect(help.stdout).toMatch(/--name <value>\s+instead of the argument <name>/);
+    const flagged = await run(["test", "echo", ref, "--name", "from flag", "--json"]);
+    expect(JSON.parse(flagged.stdout)).toEqual({ input: { ref, name: "from flag", level: "low" } });
+    const first = await run(["test", "echo", "--ref", ref, "second", "--json"]);
+    expect(JSON.parse(first.stdout)).toEqual({ input: { ref, name: "second", level: "low" } });
+  });
+
   it("exits 0 without error findings and 1 with them or with ok: false", async () => {
     const clean = await run(["test", "findings", "--mode", "clean"]);
     expect(clean).toEqual({ code: EXIT.ok, stdout: "ok: true\nNo problems.\n", stderr: "" });

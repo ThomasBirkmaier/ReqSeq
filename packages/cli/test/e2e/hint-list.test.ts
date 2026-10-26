@@ -68,7 +68,17 @@ describe("logreq hint list (SR-026)", () => {
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const human = await logreq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    expect(human.stdout).toContain("code: variant.superseded-in-validity\n");
+    // One line per hint: element, kind, reason, and the hint ID of a hint that can be confirmed (#310).
+    const lines = human.stdout.split("\n");
+    expect(lines[0]).toBe("hints:");
+    expect(lines).toContain(
+      "  SR-0000b3  variant.superseded-in-validity  Property Validity (validity) of System Requirement SR-0000b3 lists Variant VAR-0000c3, which is superseded (status Obsolete)",
+    );
+    expect(lines.filter((l) => l.startsWith("  SR-0000b1  relation.outdated  "))).toEqual([
+      expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/derives-from\/.*\?version=n1:0{16}$/),
+      expect.stringMatching(/ {2}hint: relation\.outdated\/system\/.*\/@text\/.*&n=1$/),
+    ]);
+    expect(lines).toHaveLength(9);
   });
 
   it("[SR-026/AK2] prints only the hints that pass the filters", async () => {

@@ -20,7 +20,8 @@ import type { InputStream } from "./input.js";
 import { buildInput } from "./input.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
-import { outcomeExitCode, renderError, renderHuman, renderJson } from "./render.js";
+import { renderHuman } from "./present.js";
+import { outcomeExitCode, renderError, renderJson, renderYaml } from "./render.js";
 
 /** Exit codes of `logreq` (ADR-0009). */
 export const EXIT = {
@@ -137,7 +138,13 @@ async function execute(
     options.stderr.write(renderError(error, invocation.json));
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
-  options.stdout.write(invocation.json ? renderJson(output) : renderHuman(output));
+  options.stdout.write(
+    invocation.json
+      ? renderJson(output)
+      : invocation.yaml
+        ? renderYaml(output)
+        : renderHuman(output, invocation.entry.effect === "read"),
+  );
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }
 

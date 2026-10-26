@@ -29,11 +29,22 @@
 //   change in place (a version held by a YAML alias or anchor): that file is not written, the
 //   others are; `hint.not-found` (warning, exit code 0) for an ID of that form that no open hint has
 //   (confirmed already, the target changed again, the relation or the file is gone).
+// - All hints of one element (#310): `ref` selects the open hints its file stores, `target` those
+//   on relations and inline references that point at it (its sources from the incoming index, so
+//   no walk over the store, N-036), both together those of `ref` that point at `target`; `kind`
+//   narrows the selection to some codes. These are the hints `hint.list` gives with a hint ID for
+//   that element, found as an ID is (`outdatedOfShown`). The selected IDs join `hintIds`: one set,
+//   each ID once, confirmed together as AK2 asks ("mehrere ausgewählte Hinweise"); `confirmed`
+//   names the given IDs first, then the selected ones. A selection that finds no open hint to
+//   confirm is a `hint.not-found` warning, and so is an empty `hintIds` alone. No `hintIds`, `ref`
+//   or `target`, or `kind` without `ref` or `target`, is `input.invalid`: a call never confirms
+//   every hint of the workspace by accident. (This rule is not in the input schema: an `anyOf` at
+//   the root of a tool input schema is refused by some MCP clients.)
+//   A selected ID that a given ID names in another spelling is listed once, as given.
 // - Only element files are written: never Git (D-036), never a status (SR-087 AK2), nothing is
 //   deleted (D-045). The command is refused while the workspace is read-only (ADR-0002 rule 5).
-import type { Problem } from "../catalog.js";
-import type { CommandError } from "../catalog.js";
-import { commandErrorOrThrow } from "../catalog.js";
+import type { CommandName, Problem } from "../catalog.js";
+import { CommandError, commandErrorOrThrow } from "../catalog.js";
 import type { FrontmatterEdit } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -45,6 +56,9 @@ import {
   elementVersion,
   embeddedImages,
   ignoredBy,
+  incomingFor,
+  incomingTo,
+  resolveRef,
   shortIdState,
   writtenElement,
 } from "../model/index.js";
@@ -59,9 +73,19 @@ import { hintIdOf, parseHintId } from "./hint-id.js";
 import type { Candidate, ShownContext } from "./outdated.js";
 import { outdatedOfShown } from "./outdated.js";
 
+const COMMAND: CommandName = "hint.confirm";
+
+/** The input `hint.confirm` takes (see the file comment). */
+export interface ConfirmInput {
+  readonly hintIds?: readonly string[];
+  readonly ref?: string;
+  readonly target?: string;
+  readonly kind?: readonly string[];
+}
+
 /** What `hint.confirm` did. */
 export interface ConfirmedHints {
-  /** The IDs confirmed, in the order given, each once. */
+  /** The IDs confirmed, each once: those of `hintIds` in the order given, then those `ref` and `target` selected. */
   readonly confirmed: string[];
   /** The written files, relative to the workspace root, `/` as separator. */
   readonly files: string[];
@@ -269,11 +293,109 @@ const plan = async (
   return { bytes, failed };
 };
 
-/** `hint.confirm`: confirms the hints `hintIds` names (see the file comment). */
-export const confirmHints = async (
-  workspace: Workspace,
-  input: { readonly hintIds: readonly string[] },
-): Promise<ConfirmedHints> => {
+/** `input.invalid` for an input that selects no hint: no IDs, no `ref`, no `target`, or `kind` alone. */
+const assertSelects = (input: ConfirmInput): void => {
+  const byElement = input.ref !== undefined || input.target !== undefined;
+  if (!byElement && input.hintIds === undefined) {
+    throw new CommandError(
+      "input.invalid",
+      "Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)",
+      { command: COMMAND, fields: ["hintIds", "ref", "target"] },
+    );
+  }
+  if (!byElement && input.kind !== undefined) {
+    throw new CommandError("input.invalid", "kind narrows the hints of ref or target: give one of them", {
+      command: COMMAND,
+      fields: ["kind"],
+    });
+  }
+};
+
+/** The elements whose files store relations or inline references to `target`, each once, in index order. */
+const sourcesOf = (context: ShownContext, target: ElementRecord): ElementRecord[] => {
+  const index = incomingFor(context.workspace, context.store, context.metamodel);
+  return [...new Set(incomingTo(index, target.repository, target.id).map((link) => link.source))];
+};
+
+/**
+ * The IDs of the open hints `ref` and `target` select, narrowed by `kind` (see the file comment);
+ * undefined when the input selects by neither. A ref that names no element, or several, fails as
+ * everywhere (`ref.unknown`, `ref.ambiguous`).
+ */
+const selectedIds = async (
+  context: ShownContext,
+  input: ConfirmInput,
+  openOf: (record: ElementRecord) => Promise<Candidate[]>,
+): Promise<string[] | undefined> => {
+  const { store, shortIds } = context;
+  const source = input.ref === undefined ? undefined : resolveRef(store, shortIds, input.ref);
+  const target = input.target === undefined ? undefined : resolveRef(store, shortIds, input.target);
+  const sources =
+    source !== undefined ? [source] : target !== undefined ? sourcesOf(context, target) : undefined;
+  if (sources === undefined) {
+    return undefined;
+  }
+  const kinds = input.kind === undefined ? undefined : new Set(input.kind);
+  const ids: string[] = [];
+  for (const record of sources) {
+    for (const { finding } of await openOf(record)) {
+      if (
+        (target === undefined || finding.target === target) &&
+        (kinds === undefined || kinds.has(finding.problem.code))
+      ) {
+        ids.push(finding.hintId);
+      }
+    }
+  }
+  return ids;
+};
+
+/** The warning for a selection by `ref` or `target` that finds no open hint to confirm, or for no hint ID at all. */
+const nothingSelected = (input: ConfirmInput): Problem => {
+  const about = [
+    input.ref === undefined ? undefined : `about ${input.ref}`,
+    input.target === undefined ? undefined : `pointing at ${input.target}`,
+    input.kind === undefined ? undefined : `of kind ${input.kind.join(", ")}`,
+  ].filter((part) => part !== undefined);
+  return {
+    code: "hint.not-found",
+    severity: "warning",
+    message:
+      about.length === 0
+        ? "No hint ID is given, so nothing was written (a warning, exit code 0); hint.list gives the open hints"
+        : `No open hint ${about.join(" ")} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints`,
+  };
+};
+
+/** The canonical form of a hint ID (`hintIdOf`), or the ID itself when it has no hint ID form. */
+const canonicalOf = (id: string): string => {
+  const target = parseHintId(id);
+  return target === undefined ? id : hintIdOf(target);
+};
+
+/**
+ * The IDs to confirm: `hintIds` as given, then the selected ones (canonical) that no given ID names in
+ * any spelling, so no hint is listed twice in `confirmed`; the warning of an empty selection, or of
+ * an empty `hintIds` without a selection.
+ */
+const idsToConfirm = async (
+  context: ShownContext,
+  input: ConfirmInput,
+  openOf: (record: ElementRecord) => Promise<Candidate[]>,
+): Promise<{ readonly ids: string[]; readonly problems: Problem[] }> => {
+  const given = [...new Set(input.hintIds)];
+  const selected = await selectedIds(context, input, openOf);
+  const named = new Set(given.map(canonicalOf));
+  const empty = selected === undefined ? given.length === 0 : selected.length === 0;
+  return {
+    ids: [...given, ...[...new Set(selected)].filter((id) => !named.has(id))],
+    problems: empty ? [nothingSelected(input)] : [],
+  };
+};
+
+/** `hint.confirm`: confirms the hints `hintIds` names and those `ref` and `target` select (see the file comment). */
+export const confirmHints = async (workspace: Workspace, input: ConfirmInput): Promise<ConfirmedHints> => {
+  assertSelects(input);
   const [layout, metamodel, store, shortIds] = await Promise.all([
     workspace.get(workspaceLayoutState),
     workspace.get(metamodelState),
@@ -281,7 +403,6 @@ export const confirmHints = async (
     workspace.get(shortIdState),
   ]);
   const context: ShownContext = { workspace, layout, metamodel, store, shortIds };
-  const problems: Problem[] = [];
   // The confirmable IDs by their source record, in the order of their first ID; by canonical ID.
   const bySource = new Map<ElementRecord, Map<string, Found>>();
   // The open outdated relations and references of each source, computed once.
@@ -291,7 +412,8 @@ export const confirmHints = async (
     open.set(record, known);
     return known;
   };
-  for (const id of new Set(input.hintIds)) {
+  const { ids, problems } = await idsToConfirm(context, input, openOf);
+  for (const id of ids) {
     const target = parseHintId(id);
     if (target === undefined) {
       problems.push(notConfirmable(id));
@@ -302,9 +424,7 @@ export const confirmHints = async (
       (r) => r.repository === target.sourceRepository && r.file === target.file,
     );
     const candidates =
-      record === undefined
-        ? []
-        : (await openOf(record)).filter((c) => c.finding.problem.hintId === canonical);
+      record === undefined ? [] : (await openOf(record)).filter((c) => c.finding.hintId === canonical);
     const [first] = candidates;
     if (record === undefined || first === undefined) {
       problems.push(notFound(id, target));
@@ -345,7 +465,7 @@ export const confirmHints = async (
   }
   const written = await writeElementFiles(workspace, layout, writes);
   return {
-    confirmed: [...new Set(input.hintIds)].filter((id) => confirmedIds.has(id)),
+    confirmed: ids.filter((id) => confirmedIds.has(id)),
     files: written.map((w) => w.file),
     problems,
   };

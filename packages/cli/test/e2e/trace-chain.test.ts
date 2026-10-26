@@ -55,11 +55,56 @@ describe("logreq trace chain (SR-022)", () => {
       ["CR-00c001", 2, "down"],
       ["CR-00c002", 2, "down"],
     ]);
+    // Readable: an indented tree with the depth in front and the gaps marked (#310).
     const human = await logreq(["trace", "chain", "N-00a001"], ws.root);
-    expect(human.code).toBe(0);
-    expect(human.stdout).toContain("    shortId: CR-00c002\n");
-    expect(human.stdout).toContain("    depth: 2\n");
-    expect(human.stdout.endsWith("No problems.\n")).toBe(true);
+    expect(human).toEqual({
+      code: 0,
+      stdout: [
+        "N-00a001  approved  See the wind",
+        "children:",
+        "  1  SR-00b001  draft  Show wind speed",
+        "  2    CR-00c001  draft  Count anemometer turns  [gap: no evidence]",
+        "  2    CR-00c002  draft  Report a stalled anemometer  [gap: no evidence]",
+        "  1  SR-00b002  draft  Show wind direction  [gap: no evidence]",
+        "total: 5",
+        "No problems.",
+        "",
+      ].join("\n"),
+      stderr: "",
+    });
+    // The whole output as YAML on request.
+    const yaml = await logreq(["trace", "chain", "N-00a001", "--yaml"], ws.root);
+    expect(yaml.stdout).toContain("    shortId: CR-00c002\n    type: component-requirement\n");
+  });
+
+  it("[SR-022/AK1] shows a later page without nesting an element under the wrong parent (#310)", async () => {
+    const ws = await fixture({ fixture: "SR-022/chain" });
+    const page = await logreq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
+    expect(page.stdout.split("\n").slice(0, 3)).toEqual([
+      "children:",
+      `  1  SR-00b002  draft  Show wind direction  [gap: no evidence]  [under ${P}a001]`,
+      // CR-00c001 derives from SR-00b001 (on the first page), not from SR-00b002 above it.
+      `  2  CR-00c001  draft  Count anemometer turns  [gap: no evidence]  [under ${P}b001]`,
+    ]);
+  });
+
+  it("[SR-022/AK4] marks a cycle whose closing edge starts on another page (#310)", async () => {
+    const ws = await fixture({ fixture: "SR-090/cycle" });
+    const page = await logreq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
+    expect(page.code).toBe(0);
+    expect(page.stdout.split("\n").slice(0, 3)).toEqual([
+      "N-a0000000001  approved  See the wind",
+      "children:",
+      "  1  SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000002]",
+    ]);
+    // An edge into the root from another page closes a cycle; the root has no parent in its chain.
+    const up = await logreq(
+      ["trace", "chain", "SR-b0000000001", "--direction", "up", "--limit", "1"],
+      ws.root,
+    );
+    expect(up.stdout.split("\n")[0]).toBe(
+      "SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000003]",
+    );
   });
 
   it("[SR-022/AK2] prints every parent of a component requirement up to the needs", async () => {

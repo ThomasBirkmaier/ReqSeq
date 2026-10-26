@@ -9,13 +9,21 @@ logreq workspace init my-ws "My workspace"   # new workspace with the standard m
 logreq workspace status              # the workspace of the current folder (or of a folder above it)
 logreq element get SR-46fb54         # required string fields are positional
 logreq workspace check --json        # every finding of the workspace; exit code 1 on a warning or error
+logreq trace chain N-46fb54          # the chain as an indented tree, gaps and cycles marked
+logreq hint list                     # one line per open hint: element, kind, reason, hint ID
+logreq hint confirm --target N-46fb54   # confirm every outdated relation to N-46fb54 after a change
+logreq element create need --title "See the wind"   # a positional field can be given as a flag too
 logreq workspace check --severity error   # show errors only; the exit code still counts warnings
 logreq element update SR-46fb54 --input @change.json   # objects only via --input (JSON, @file or - for stdin)
 ```
 
 - Subcommand `logreq <group> <action>`; the action is kebab-case (`element set-status`).
-- Options come after the command: `--json` (exactly the command output), `--workspace <path>`, `--input <json|@file|->`, and one `--<field>` per scalar input field (`--x`/`--no-x` for booleans, repeat the flag for arrays).
-- With `--input`, positional values fill the positional fields that `--input` does not give, in order; flags override fields of `--input`.
+- Output: compact lines by default (ADR-0009, `src/present.ts`), `--yaml` for the whole output as YAML, `--json` for exactly the command output. In the compact form:
+  - an element is one line, `SHORT-ID  status  title`; `element get` adds its details below (`id`, type, `file`, version, properties, relations one line each, text); affected elements carry their distance and how they point at the element before them on their path, `[via derives-from from SR-00b002]` (without `from` at distance 1);
+  - a chain is an indented tree with the depth in front, marked `[gap: no evidence]`, `[gap: no child]`, `[not expanded]`, `[cycle]` and `[listed elsewhere]`; on a later page an element whose parent is on another page is not nested and shows `[under X]`, and edges from another page show as `[cycle from X]` or `[also under X]` (X by short ID when on the page, else UUID);
+  - a hint is one line: element short ID, kind, message, `hint: <id>`; each problem is printed once.
+- Options come after the command: `--json` (exactly the command output), `--yaml`, `--workspace <path>`, `--input <json|@file|->`, and one `--<field>` per scalar input field (`--x`/`--no-x` for booleans, repeat the flag for arrays).
+- With `--input`, positional values fill the positional fields that `--input` does not give, in order; flags override fields of `--input`. A positional field can also be given as `--<field>`; then the arguments fill the other positional fields.
 - Local file and folder fields (`common.schema.json#/$defs/localPath`, e.g. `workspace init <path>`, `evidence enrich-junit <file>`) are relative to the current folder; the CLI passes them on as absolute paths.
 - Workspace: `--workspace`, else the nearest folder upwards with `logreq-workspace.yaml`, else the current folder.
 - Exit codes: `0` no error findings, `1` an error finding or `ok: false` (`workspace check` sets it for any warning or error, shown or not), `2` usage or input error (every error class but `internal`), `3` internal error, `4` a given commit is not available locally (`workspace check --changed-since`, SR-092), `130` aborted (Ctrl-C). See ADR-0009.
@@ -41,7 +49,7 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 - `src/main.ts`: `runCli(options)`: parse, invoke, print, exit code (`EXIT`, `exitCodeFor`). Also exported for in-process callers.
 - `src/program.ts`: the commander tree generated from `runtime.contracts.commands`.
 - `src/fields.ts`: positional, flag or `--input` only, from the JSON Schema of each input field.
-- `src/input.ts`, `src/render.ts`: command input from the arguments; output, errors and the exit code of the output.
+- `src/input.ts`, `src/render.ts`, `src/present.ts`: command input from the arguments; output (`--json`, `--yaml`, and the compact default by the shape of the output), errors and the exit code of the output.
 - `src/argv.ts`: `argvFor(entry, input)`, the arguments for a command input (cross-access test).
 - `src/main.ts` also starts the servers (`serve api`, `mcp`) for the subcommands of `src/program.ts`.
 

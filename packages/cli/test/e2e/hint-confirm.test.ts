@@ -84,6 +84,45 @@ describe("logreq hint confirm (SR-027)", () => {
     expect(again.stdout).toContain("hint.not-found");
   });
 
+  it("[SR-027/AK2] confirms all hints that point at an element, then all hints about one, without their IDs (#310)", async () => {
+    const ws = await changed();
+    const [validity, derives, link] = await hints(ws);
+    const N = "5e025a7d-2b4f-4c61-9d08-0a0000000001";
+    const A = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
+    const target = await logreq(["hint", "confirm", "--target", N, "--kind", "relation.outdated"], ws.root);
+    expect(target).toEqual({
+      code: 0,
+      stdout: [
+        "confirmed:",
+        `  ${derives?.hintId ?? ""}`,
+        `  ${link?.hintId ?? ""}`,
+        "files:",
+        `  ${A_FILE}`,
+        "No problems.",
+        "",
+      ].join("\n"),
+      stderr: "",
+    });
+    const ref = await logreq(["hint", "confirm", "--ref", A, "--json"], ws.root);
+    expect(JSON.parse(ref.stdout) as Confirmed).toEqual({
+      confirmed: [validity?.hintId],
+      files: [A_FILE],
+      problems: [],
+    });
+    // A changed, so the relation of B to A is outdated now: a hint about B, which stays open.
+    expect((await hints(ws)).map((h) => h.hintId)).toEqual([expect.stringContaining("/refines/")]);
+    const none = await logreq(["hint", "confirm", "--ref", A], ws.root);
+    expect([none.code, none.stdout]).toEqual([
+      0,
+      `confirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints\n`,
+    ]);
+    const empty = await logreq(["hint", "confirm"], ws.root);
+    expect([empty.code, empty.stderr]).toEqual([
+      2,
+      "error input.invalid: Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)\n",
+    ]);
+  });
+
   it("[SR-027/AK3] shows the new version as a normal change in Git, only on the line of the relation", async () => {
     const ws = await changed();
     const derives = (await hints(ws))[1];

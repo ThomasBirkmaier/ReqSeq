@@ -316,6 +316,29 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "hint IDs that are not a list", fixture: HINTS, input: { hintIds: "x" }, expect: "error" },
+    {
+      name: "every open hint that points at an element (#310)",
+      fixture: HINTS,
+      input: { target: "N-0000a1" },
+      expect: "output",
+    },
+    {
+      name: "the hints of one element of one kind, together with a given ID (#310)",
+      fixture: HINTS,
+      input: {
+        ref: "SR-0000b1",
+        kind: ["relation.outdated"],
+        hintIds: [`${HINT_AT_B1}/@text/26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000&n=1`],
+      },
+      expect: "output",
+    },
+    {
+      name: "an element without a hint to confirm: a warning (#310)",
+      fixture: HINTS,
+      input: { ref: "N-0000a1" },
+      expect: "output",
+    },
+    { name: "kind without ref or target (#310)", fixture: HINTS, input: { kind: ["x"] }, expect: "error" },
   ],
   "trace.affected": [
     {

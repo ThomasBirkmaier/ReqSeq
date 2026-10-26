@@ -10,9 +10,9 @@
 //   no element (`file.yaml-warning`, `file.skipped`, `metamodel.meaning-unassigned`) are not hints.
 //   The hints of a core change (`variant.core-changed`, SR-045, SR-103) join in stage 5.
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
-//   `repository`, `file`, `line`), the target where it has one (`targetId`) and the reason
-//   (`message`; an outdated relation names both versions and their dates, D-013). Order: the order
-//   of the check.
+//   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310), the target
+//   where it has one (`targetId`) and the reason (`message`; an outdated relation names both
+//   versions and their dates, D-013). Order: the order of the check.
 // - Filters (AK2), combined with AND; within `kind` and `type` any of the values: `kind` the code;
 //   `type` the type of the element or one it extends (SR-012, as the filter language counts
 //   subtypes); `package` the elements whose property with the meaning `packages` lists the package;
@@ -212,31 +212,35 @@ const recordFinder =
 
 /**
  * The hints of `problems` and `outdated` (in this order) that pass `filter`, the outdated ones with
- * the dates of both versions (`datedProblems`, asked only for these).
+ * the dates of both versions (`datedProblems`, asked only for these); each with the short ID of its
+ * element (`elementShortId`) when the element is in the store.
  */
 export const hintsOf = async (
   workspace: Workspace,
-  context: { readonly metamodel: Metamodel; readonly store: ElementStore },
+  context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
   filter: HintFilter,
   problems: Iterable<Problem>,
   outdated: readonly OutdatedFinding[],
 ): Promise<Problem[]> => {
   const recordOf = recordFinder(context.store);
   const byElement = filtersElements(filter);
-  const passes = (problem: Problem): boolean =>
+  const passes = (problem: Problem): problem is Problem & { readonly elementId: string } =>
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
     (!byElement || elementMatches(recordOf(problem), filter, context));
   const hints: Problem[] = [];
   for (const problem of problems) {
     if (passes(problem)) {
-      hints.push(problem);
+      const record = recordOf(problem);
+      hints.push(
+        record === undefined ? problem : { ...problem, elementShortId: context.shortIds.of(record) },
+      );
     }
   }
-  for (const problem of await datedProblems(
-    workspace,
-    outdated.filter((f) => passes(f.problem)),
-  )) {
+  const named = outdated
+    .filter((f) => passes(f.problem))
+    .map((f) => ({ ...f, problem: { ...f.problem, elementShortId: context.shortIds.of(f.element) } }));
+  for (const problem of await datedProblems(workspace, named)) {
     hints.push(problem);
   }
   return hints;
@@ -268,5 +272,8 @@ export const listHints = async (
     }
   }
   const outdated = await workspace.get(outdatedRelationsState);
-  return { hints: await hintsOf(workspace, { metamodel, store }, filter, problems, outdated), incomplete };
+  return {
+    hints: await hintsOf(workspace, { metamodel, store, shortIds }, filter, problems, outdated),
+    incomplete,
+  };
 };

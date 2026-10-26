@@ -1,5 +1,6 @@
-// Output of the CLI. `--json` prints exactly the command output (SR-019 AK3); the default is a generic,
-// readable rendering of the same object. No colors, ever: output stays plain text in pipes and logs.
+// Output of the CLI. `--json` prints exactly the command output (SR-019 AK3), `--yaml` all of it as
+// YAML; the default is the compact form of `present.ts`. No colors, ever: output stays plain text in
+// pipes and logs.
 import type { CommandError } from "@logreq/core";
 import { stringify } from "yaml";
 
@@ -36,8 +37,8 @@ export const renderProblem = (problem: unknown): string => {
     .join("  ")}\n`;
 };
 
-/** The output without `problems` as YAML, then one line per problem. */
-export function renderHuman(output: unknown): string {
+/** `--yaml`: the output without `problems` as YAML, then one line per problem. */
+export function renderYaml(output: unknown): string {
   if (!isRecord(output)) {
     return output === undefined ? "" : stringify(output, { lineWidth: 0 });
   }

@@ -37,7 +37,7 @@ export interface InputField {
 export const LOCAL_PATH_REF = `${SCHEMA_BASE}common.schema.json#/$defs/localPath`;
 
 /** Options of every command; an input field with one of these names is only reachable via `--input`. */
-export const RESERVED_FLAGS: readonly string[] = ["json", "workspace", "input", "help"];
+export const RESERVED_FLAGS: readonly string[] = ["json", "yaml", "workspace", "input", "help"];
 
 /** `setStatus` -> `set-status`, `changedFiles` -> `changed-files`. */
 export const kebab = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

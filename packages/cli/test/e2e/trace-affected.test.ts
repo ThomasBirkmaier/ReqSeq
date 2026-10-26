@@ -62,9 +62,19 @@ describe("logreq trace affected (SR-024)", () => {
     expect([paged.affected.map((a) => a.shortId), paged.total]).toEqual([["SR-00b004"], 3]);
     const human = await logreq(["trace", "affected", "SR-00b001"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
-    expect(human.stdout).toContain("  - id: 5c0e1d2a-0024-4024-8024-00000000b004\n");
-    expect(human.stdout).toContain("    shortId: SR-00b004\n");
-    expect(human.stdout).toContain("    distance: 2\n");
+    // One line per element: distance, short ID, title, and how it points at the one before it on its
+    // path, named unless it is the element asked for (SR-024 AK1 "mit Weg und Abstand", #310).
+    expect(human.stdout).toBe(
+      [
+        "affected:",
+        "  1  SR-00b002  Show gusts  [via derives-from]",
+        "  1  SR-00b003  Show wind direction  [via reference]",
+        "  2  SR-00b004  Warn of storms  [via derives-from from SR-00b002]",
+        "total: 3",
+        "records: none",
+        "",
+      ].join("\n"),
+    );
   });
 
   it("[SR-024/AK1] names an unknown element with exit code 2", async () => {
