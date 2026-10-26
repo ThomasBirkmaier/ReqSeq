@@ -29,12 +29,65 @@ export async function measure<T>(
   run: () => T | Promise<T>,
   options: MeasureOptions,
 ): Promise<{ readonly result: T; readonly measurement: PerfMeasurement }> {
+  const times: number[] = [];
+  const result = await timed(run, times);
+  return { result, measurement: await record(name, Number(times[0]), options) };
+}
+
+/** What `measureMedian` takes: `measure`'s options and how often to run. */
+export interface MeasureMedianOptions extends MeasureOptions {
+  /** Runs, at least 1; the median of an even number is the upper of the two middle times. */
+  readonly runs: number;
+}
+
+/**
+ * Runs `run` `options.runs` times one after the other and records one measurement whose time is the
+ * median of the runs (see `PERF_RESULTS_ENV`): a latency that single runs on a shared machine blur
+ * with pauses of the garbage collector or the scheduler. Gives the result of the last run, the
+ * measurement and every time in run order.
+ */
+export async function measureMedian<T>(
+  name: string,
+  run: () => T | Promise<T>,
+  options: MeasureMedianOptions,
+): Promise<{ readonly result: T; readonly measurement: PerfMeasurement; readonly times: readonly number[] }> {
+  if (!Number.isInteger(options.runs) || options.runs < 1) {
+    throw new Error(`runs must be a whole number from 1: ${String(options.runs)}`);
+  }
+  const times: number[] = [];
+  let result = await timed(run, times);
+  while (times.length < options.runs) {
+    result = await timed(run, times);
+  }
+  const sorted = [...times].sort((a, b) => a - b);
+  const measurement = await record(name, Number(sorted[Math.floor(sorted.length / 2)]), options);
+  return { result, measurement, times };
+}
+
+/**
+ * Records a time that the test took itself, e.g. the slowest of many runs, rounded to 0.1 ms (see
+ * `PERF_RESULTS_ENV`); `measure` would time the call that gives it, not the value.
+ */
+export const recordValue = async (
+  name: string,
+  ms: number,
+  options: MeasureOptions,
+): Promise<PerfMeasurement> => record(name, Math.round(ms * 10) / 10, options);
+
+/** Runs `run` once and appends its time, rounded to 0.1 ms, to `times`. */
+const timed = async <T>(run: () => T | Promise<T>, times: number[]): Promise<T> => {
   const started = performance.now();
   const result = await run();
+  times.push(Math.round((performance.now() - started) * 10) / 10);
+  return result;
+};
+
+/** Records a measurement of `ms` (see `PERF_RESULTS_ENV`). */
+const record = async (name: string, ms: number, options: MeasureOptions): Promise<PerfMeasurement> => {
   const measurement: PerfMeasurement = {
     name,
     basis: options.basis,
-    ms: Math.round((performance.now() - started) * 10) / 10,
+    ms,
     ...(options.thresholdMs === undefined ? {} : { thresholdMs: options.thresholdMs }),
   };
   const file = process.env[PERF_RESULTS_ENV];
@@ -42,8 +95,8 @@ export async function measure<T>(
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.appendFile(file, `${JSON.stringify(measurement)}\n`);
   }
-  return { result, measurement };
-}
+  return measurement;
+};
 
 /**
  * Start of the assertion message of a threshold that a test tagged `[SR-xxx/AKn]` asserts (ADR-0011).

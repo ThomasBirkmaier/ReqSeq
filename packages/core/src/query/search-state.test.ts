@@ -1,6 +1,6 @@
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";
 import type { StoreUpdate } from "../model/store.js";
@@ -89,6 +89,22 @@ describe("search index in the background (ADR-0008, SR-082)", () => {
     release();
     await command;
     expect(workspace.busy).toBe(false);
+  });
+
+  it("builds the arrays of the first search at the end of a server's build, not of another build (SR-098)", async () => {
+    const walks = (index: SearchIndex): boolean => {
+      const ids = (index.engine.mini as unknown as { _documentIds: Map<number, unknown> })._documentIds;
+      const walk = vi.spyOn(ids, Symbol.iterator);
+      searchElements(index, "bulk");
+      const walked = walk.mock.calls.length > 0;
+      walk.mockRestore();
+      return walked;
+    };
+    const server = await loaded();
+    warmSearchIndex(server.workspace, 0);
+    expect(walks(await searchIndex(server.workspace))).toBe(false);
+    const other = await loaded();
+    expect(walks(await searchIndex(other.workspace))).toBe(true);
   });
 
   it("goes on once the command has ended", async () => {

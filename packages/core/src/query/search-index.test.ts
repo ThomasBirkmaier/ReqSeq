@@ -19,6 +19,7 @@ import {
   SearchBuildCancelled,
   buildSearchIndex,
   documentOf,
+  prepareSearchIndex,
   recordKey,
   searchElements,
 } from "./search-index.js";
@@ -128,6 +129,16 @@ const recordOf = (store: ElementStore, id: string, repository = "system"): Eleme
     throw new Error(`no element ${id}`);
   }
   return found;
+};
+
+/** Whether a search of `index` builds the arrays of its documents (`documentsOf`): it walks the document IDs then. */
+const buildsArrays = (index: SearchIndex): boolean => {
+  const documentIds = (index.engine.mini as unknown as { _documentIds: Map<number, unknown> })._documentIds;
+  const walk = vi.spyOn(documentIds, Symbol.iterator);
+  searchElements(index, "the");
+  const walked = walk.mock.calls.length > 0;
+  walk.mockRestore();
+  return walked;
 };
 
 /** The UUIDs of the hits of `query`, best first. */
@@ -295,6 +306,27 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     ]);
   });
 
+  it("gives every page as the part of all hits in order, however small or large (SR-098: the first page only)", async () => {
+    const { workspace } = await open();
+    const index = await searchIndex(workspace);
+    for (const query of ["the", "wind", "s", "station shall", "SR-3f4a5b twin", "copied"]) {
+      for (const combineWith of ["and", "or"] as const) {
+        const all = searchElements(index, query, { combineWith });
+        expect(all.hits).toHaveLength(all.total);
+        for (let offset = 0; offset <= all.total; offset++) {
+          for (let limit = 1; limit <= all.total + 1; limit++) {
+            const page = searchElements(index, query, { combineWith, offset, limit });
+            expect(page, `${query} ${combineWith} ${String(offset)} ${String(limit)}`).toEqual({
+              total: all.total,
+              hits: all.hits.slice(offset, offset + limit),
+            });
+          }
+        }
+      }
+    }
+    expect(searchElements(index, "the").total).toBeGreaterThan(3);
+  });
+
   it("searches only the fields and elements asked for, combines words, and pages hits in a stable order", async () => {
     const { workspace } = await open();
     const index = await searchIndex(workspace);
@@ -317,6 +349,9 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     // Every word (default), or any word.
     expect(ids(index, "temperature mast")).toEqual([S2]);
     expect(ids(index, "temperature mast", { combineWith: "or" })).toEqual([S2, U1]);
+    expect(
+      ids(index, "temperature mast", { combineWith: "or", within: [recordOf(index.store, U1)] }),
+    ).toEqual([U1]);
     expect(ids(index, "temperature nowhere")).toEqual([]);
     expect(ids(index, "nowhere temperature", { combineWith: "or" })).toEqual([U1, S2]);
     // A word with a dash or a dot is several words, all of them.
@@ -472,6 +507,51 @@ describe("carried search index (ADR-0008, #184)", () => {
       ),
     );
   };
+
+  it("builds the arrays of the first search at its end (SR-098)", async () => {
+    const { fixture, workspace } = await open();
+    const first = await searchIndex(workspace);
+    // Without preparation the first search builds them, the next ones do not.
+    expect(buildsArrays(first)).toBe(true);
+    expect(buildsArrays(first)).toBe(false);
+    await updateElement(workspace, { ref: N1, title: "Rain on the display", text: "Drizzle.\n" });
+    const carried = await expectCarried(fixture, workspace, first);
+    expect(buildsArrays(carried)).toBe(false);
+    // The index of the previous store is a distinct index: its arrays are its own.
+    expect(buildsArrays(first)).toBe(true);
+    const { store, layout, metamodel } = await parts(workspace);
+    const built = (await buildSearchIndex(store, layout, metamodel)).index;
+    expect(prepareSearchIndex(built)).toBe(built);
+    expect(buildsArrays(built)).toBe(false);
+  });
+
+  it("counts a change that throws halfway, so that no cache is taken for the object as it now is", async () => {
+    const { fixture, workspace } = await open();
+    const first = await searchIndex(workspace);
+    const { engine } = first;
+    const before = engine.generation;
+    expect(searchElements(first, "wind").total).toBeGreaterThan(0);
+    const addAll = vi.spyOn(engine.mini, "addAll").mockImplementation(() => {
+      throw new Error("out of memory");
+    });
+    await fixture.write(
+      "system/needs/N-545b7b379da2.md",
+      element(N1, "need", ["title: Rain"], "\nDrizzle.\n"),
+    );
+    const layout = await workspace.get(workspaceLayoutState);
+    await applyStoreChange(workspace, (store) =>
+      updateElements(store, layout, new Map([["system", { paths: ["needs/N-545b7b379da2.md"] }]])),
+    );
+    // The failed carry resets the state: the next search builds a new index.
+    await vi.waitFor(() => {
+      expect(addAll).toHaveBeenCalled();
+    });
+    addAll.mockRestore();
+    expect(engine.generation).toBe(before + 1);
+    // The document of the changed file was removed before the throw; a search no longer finds it,
+    // nor does it read the arrays of the generation before.
+    expect(searchElements(first, "wind").total).toBe(0);
+  });
 
   it("equals a fresh build after element.update, element.create and element.setStatus", async () => {
     const { fixture, workspace } = await open();

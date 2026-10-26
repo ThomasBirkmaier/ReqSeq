@@ -5,7 +5,7 @@
 // in the background (compare SR-082 AK3: 200 ms), and carrying it over a save and over a pull of
 // 1,000 files (SR-007 AK2: search current within 10 s). The generated texts are short and use a
 // small vocabulary, so an in-memory index of 50,000 longer texts from a large vocabulary is measured
-// as well. Recorded only: the tagged SR-098 test belongs to `element.search` (#80, #110).
+// as well. Recorded only: the tagged SR-098 test is search-speed.test.ts (#110).
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
 import { randomUUID } from "node:crypto";

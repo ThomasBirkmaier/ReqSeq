@@ -7,7 +7,7 @@
 // - The selection is resolved first, then the index is awaited and searched in the same turn
 //   (`searchIndex`, never the state itself: a command that awaited the state would pause the build it
 //   waits for). A search before the index is ready waits for its build (about 7 s at N-036), so every
-//   access gives the same result; there is no partial result (SR-098 in that window: #110).
+//   access gives the same result; there is no partial result (SR-098 in that window: #388).
 // - The hits are records of the index's store, which may be newer than the selection's when the
 //   store was swapped meanwhile (a save, the watcher): the selection then restricts them by
 //   repository and file (a changed file counts with its new content, a new file not, since the

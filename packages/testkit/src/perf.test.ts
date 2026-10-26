@@ -2,7 +2,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PERF_RESULTS_ENV, THRESHOLD_FAILURE, measure, thresholdMessage } from "./index.js";
+import {
+  PERF_RESULTS_ENV,
+  THRESHOLD_FAILURE,
+  measure,
+  measureMedian,
+  recordValue,
+  thresholdMessage,
+} from "./index.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -41,5 +48,60 @@ describe("measure", () => {
     expect(thresholdMessage({ name: "check", basis: "SR-020 AK1", ms: 61_000, thresholdMs: 60_000 })).toBe(
       `${THRESHOLD_FAILURE} check`,
     );
+  });
+});
+
+describe("measureMedian", () => {
+  it("runs as often as asked and records one line with the median time", async () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-"));
+    const file = path.join(folder, "perf.jsonl");
+    vi.stubEnv(PERF_RESULTS_ENV, file);
+    let calls = 0;
+    const { result, measurement, times } = await measureMedian(
+      "search",
+      async () => {
+        calls += 1;
+        return Promise.resolve(calls);
+      },
+      { basis: "SR-098 AK1", thresholdMs: 300, runs: 4 },
+    );
+    expect(result).toBe(4);
+    expect(times).toHaveLength(4);
+    const sorted = [...times].sort((a, b) => a - b);
+    expect(measurement).toEqual({ name: "search", basis: "SR-098 AK1", ms: sorted[2], thresholdMs: 300 });
+    const lines = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+    expect(lines.map((line) => JSON.parse(line) as unknown)).toEqual([measurement]);
+    fs.rmSync(folder, { recursive: true, force: true });
+  });
+
+  it("takes one run and refuses fewer or a fraction", async () => {
+    vi.stubEnv(PERF_RESULTS_ENV, "");
+    expect((await measureMedian("once", () => "x", { basis: "N-036", runs: 1 })).times).toHaveLength(1);
+    await expect(measureMedian("none", () => "x", { basis: "N-036", runs: 0 })).rejects.toThrow(
+      "runs must be a whole number from 1: 0",
+    );
+    await expect(measureMedian("half", () => "x", { basis: "N-036", runs: 1.5 })).rejects.toThrow("1.5");
+  });
+});
+
+describe("recordValue", () => {
+  it("records the value given, rounded to 0.1 ms, with its threshold, and nothing without a results file", async () => {
+    vi.stubEnv(PERF_RESULTS_ENV, "");
+    expect(await recordValue("none", 12.34, { basis: "N-036" })).toEqual({
+      name: "none",
+      basis: "N-036",
+      ms: 12.3,
+    });
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-"));
+    const file = path.join(folder, "perf.jsonl");
+    vi.stubEnv(PERF_RESULTS_ENV, file);
+    await recordValue("slowest", 321.46, { basis: "SR-098 AK1", thresholdMs: 300 });
+    expect(JSON.parse(fs.readFileSync(file, "utf8")) as unknown).toEqual({
+      name: "slowest",
+      basis: "SR-098 AK1",
+      ms: 321.5,
+      thresholdMs: 300,
+    });
+    fs.rmSync(folder, { recursive: true, force: true });
   });
 });

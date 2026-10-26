@@ -24,7 +24,12 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import { canonicalRoot, workspaceLayoutState } from "../workspace/index.js";
 import { readSearchCache, saveSearchCache, searchDigest } from "./search-cache.js";
 import type { BuildControl, SearchIndex } from "./search-index.js";
-import { SearchBuildCancelled, buildSearchIndex, carrySearchIndex } from "./search-index.js";
+import {
+  SearchBuildCancelled,
+  buildSearchIndex,
+  carrySearchIndex,
+  prepareSearchIndex,
+} from "./search-index.js";
 
 /**
  * The most UUIDs a store change may name (`StoreUpdate.ids`) for the index to be carried over it;
@@ -109,7 +114,9 @@ const createSearchIndex = async (workspace: Workspace, control: BuildControl): P
   ]);
   const folder = servers.has(workspace) ? undefined : usableCacheFolder(workspace, layout);
   if (folder === undefined) {
-    return (await buildSearchIndex(store, layout, metamodel, control)).index;
+    const { index } = await buildSearchIndex(store, layout, metamodel, control);
+    // A server's first search is as fast as the next ones (`prepareSearchIndex`, SR-098).
+    return servers.has(workspace) ? prepareSearchIndex(index) : index;
   }
   const expected = {
     code: codeFingerprint(),

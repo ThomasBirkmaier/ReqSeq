@@ -50,6 +50,8 @@ import type { ElementRecord, ElementStore, RepositoryContents } from "../model/i
 import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
 import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
 import type { StoreUpdate } from "../model/store.js";
+import type { Scored, ScoringOptions } from "./search-scoring.js";
+import { documentKeys, lengthsOf, nextShortId, scoreWords, searchOptionsOf } from "./search-scoring.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 
 /** What a hit was found in. */
@@ -59,8 +61,8 @@ export type SearchField = "title" | "text" | "properties" | "id";
 export const SEARCH_FIELDS: readonly SearchField[] = ["title", "text", "properties", "id"];
 
 /** The fields MiniSearch indexes (words); `id` is compared with the records. */
-type WordField = Exclude<SearchField, "id">;
-const WORD_FIELDS: readonly WordField[] = ["title", "text", "properties"];
+export type WordField = Exclude<SearchField, "id">;
+export const WORD_FIELDS: readonly WordField[] = ["title", "text", "properties"];
 
 /** One MiniSearch document: an element record, keyed by `docKey`. */
 export interface SearchDocument {
@@ -435,21 +437,26 @@ export const carrySearchIndex = async (
   );
   const { engine } = index;
   const { mini, documents: kept } = engine;
-  for (const key of gone) {
-    const old = kept?.get(key);
-    if (old !== undefined) {
-      mini.remove(old);
-      kept?.delete(key);
-    } else if (mini.has(key)) {
-      mini.discard(key);
+  try {
+    for (const key of gone) {
+      const old = kept?.get(key);
+      if (old !== undefined) {
+        mini.remove(old);
+        kept?.delete(key);
+      } else if (mini.has(key)) {
+        mini.discard(key);
+      }
     }
+    mini.addAll(documents);
+    for (const document of documents) {
+      kept?.set(document.key, document);
+    }
+  } finally {
+    // Also after a throw halfway: the caches of the arrays (`documentsOf`, `lengthsOf`) must not
+    // be taken for the object as it now is.
+    engine.generation += 1;
   }
-  mini.addAll(documents);
-  for (const document of documents) {
-    kept?.set(document.key, document);
-  }
-  engine.generation += 1;
-  return { ...index, store: update.to, records };
+  return prepareSearchIndex({ ...index, store: update.to, records });
 };
 
 /** How to search (`searchElements`). */
@@ -595,12 +602,31 @@ const idMatcher = (word: string, index: SearchIndex): IdMatch | undefined => {
     : { test: (record) => named.has(record) || short(record), among: undefined };
 };
 
+/** The position of every record of a store in store order, built once per store. */
+const ranks = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, number>>();
+
+const rankOf = (store: ElementStore): ReadonlyMap<ElementRecord, number> => {
+  let rank = ranks.get(store);
+  if (rank === undefined) {
+    rank = new Map(store.elements.map((record, at) => [record, at]));
+    ranks.set(store, rank);
+  }
+  return rank;
+};
+
+/** What found the words of a document: a result of MiniSearch, or a document of a scoring (`scoreWords`). */
+type WordsMatch = Pick<SearchResult, "match"> | { readonly scored: Scored; readonly doc: number };
+
 /** A document found: its record, the score of its words and what found it. */
 interface Found {
+  /** Its `recordKey`. */
+  readonly key: string;
   readonly element: ElementRecord;
+  /** The position of its record in the index's store (`rankOf`). */
+  readonly rank: number;
   score: number;
-  /** MiniSearch's results that found the document; none for an ID only. */
-  results: readonly SearchResult[];
+  /** What found its words; none for an ID only. Described for the page only (`hitOf`). */
+  readonly matches: readonly WordsMatch[];
   /** Words of the query that matched the ID. */
   ids: number;
 }
@@ -610,8 +636,21 @@ interface Search {
   readonly index: SearchIndex;
   /** Whether the record of `key` is one of the index's store (and of `within`). */
   readonly admit: (record: ElementRecord | undefined, key: string) => record is ElementRecord;
+  readonly scoring: ScoringOptions;
   readonly options: SearchOptions;
 }
+
+/** The scoring options of a search of `searched` (the fields of words), as `SearchElementsOptions.fuzzy` and `prefix` say. */
+export const scoringOf = (
+  searched: readonly WordField[],
+  fuzzy: number,
+  prefix: boolean,
+): ScoringOptions => ({
+  fields: searched,
+  boost: BOOST,
+  fuzzy: (term) => term.length >= MIN_FUZZY && !DIGIT.test(term) && fuzzy,
+  prefix: (term) => term.length >= MIN_PREFIX && prefix,
+});
 
 /** The search of `options` in `searched` (the fields of words). */
 const searchOf = (
@@ -622,41 +661,120 @@ const searchOf = (
   const within = options.within === undefined ? undefined : new Set(Array.from(options.within, recordKey));
   const admit = (record: ElementRecord | undefined, key: string): record is ElementRecord =>
     record !== undefined && (within === undefined || within.has(key));
-  const fuzzy = options.fuzzy ?? 0.2;
-  const prefix = options.prefix ?? true;
-  return {
-    index,
-    admit,
-    options: {
-      fields: [...searched],
-      boost: BOOST,
-      fuzzy: (term) => term.length >= MIN_FUZZY && !DIGIT.test(term) && fuzzy,
-      prefix: (term) => term.length >= MIN_PREFIX && prefix,
-    },
-  };
+  const scoring = scoringOf(searched, options.fuzzy ?? 0.2, options.prefix ?? true);
+  return { index, admit, scoring, options: searchOptionsOf(scoring) };
+};
+
+/** The records, keys and store positions of the documents of an index, by MiniSearch's short ID. */
+interface Documents {
+  readonly generation: number;
+  readonly records: readonly (ElementRecord | undefined)[];
+  readonly keys: readonly (string | undefined)[];
+  readonly ranks: Int32Array;
+}
+
+const documentsCache = new WeakMap<SearchIndex, Documents>();
+
+/**
+ * The `Documents` of `index` as its MiniSearch object is now (`SearchEngine.generation`): built
+ * once per index and change, so that a search looks a document up in arrays, not in maps of
+ * 50,000 keys (SR-098). A document whose record is not in the index's store has none.
+ */
+const documentsOf = (index: SearchIndex): Documents => {
+  const { mini, generation } = index.engine;
+  const known = documentsCache.get(index);
+  if (known?.generation === generation) {
+    return known;
+  }
+  const rank = rankOf(index.store);
+  const records: (ElementRecord | undefined)[] = [];
+  const keys: (string | undefined)[] = [];
+  const ranks = new Int32Array(nextShortId(mini));
+  for (const [doc, key] of documentKeys(mini)) {
+    const record = index.records.get(String(key));
+    if (record !== undefined) {
+      records[doc] = record;
+      keys[doc] = String(key);
+      ranks[doc] = Number(rank.get(record));
+    }
+  }
+  const built = { generation, records, keys, ranks };
+  documentsCache.set(index, built);
+  return built;
 };
 
 /**
- * The documents MiniSearch finds for `queries` (each a word of the user's query, whose parts must
- * all match: `v1.2`), combined with `and` or not, by key. A document whose record is not in this
- * index's store (a carried index shares its MiniSearch object with the next store's,
- * `carrySearchIndex`) is no hit of this index.
+ * Builds what the first search of `index` builds otherwise: the arrays of its documents
+ * (`documentsOf`, `lengthsOf`) and the records by identifier (`identifiedIn`), so that it costs no
+ * more than the next ones (SR-098: 165 to 320 ms instead of 45 ms at N-036). A server does it at the
+ * end of its background build (`warmSearchIndex`), a carry at its end; returns `index`.
  */
-const wordsFound = (search: Search, queries: readonly string[], and: boolean): Map<string, Found> => {
+export const prepareSearchIndex = (index: SearchIndex): SearchIndex => {
+  identifiedIn(index);
+  documentsOf(index);
+  lengthsOf(index.engine.mini, index.engine.generation);
+  return index;
+};
+
+/**
+ * The documents found for `queries` (each a word of the user's query, whose parts must all match:
+ * `v1.2`), combined with `and` or not. A document whose record is not in this index's store (a
+ * carried index shares its MiniSearch object with the next store's, `carrySearchIndex`) is no hit
+ * of this index. With `and` the words are scored as MiniSearch scores them, but in arrays
+ * (`scoreWords`, SR-098); MiniSearch searches itself with `or` and when its index holds words of
+ * discarded documents. A list, not a map by key: a query whose words cannot be IDs needs no
+ * combination.
+ */
+const wordsFound = (search: Search, queries: readonly string[], and: boolean): Found[] => {
+  const { index } = search;
+  const scored = and
+    ? scoreWords(index.engine.mini, index.engine.generation, queries, search.scoring)
+    : undefined;
+  const found: Found[] = [];
+  if (scored !== undefined) {
+    const documents = documentsOf(index);
+    for (let at = 0; at < scored.docs.length; at++) {
+      const doc = Number(scored.docs[at]);
+      const element = documents.records[doc];
+      const key = String(documents.keys[doc]);
+      if (search.admit(element, key)) {
+        const rank = Number(documents.ranks[doc]);
+        found.push({
+          key,
+          element,
+          rank,
+          score: Number(scored.scores[at]),
+          matches: [{ scored, doc }],
+          ids: 0,
+        });
+      }
+    }
+    return found;
+  }
   const query: Query = {
     queries: queries.map((word) => ({ queries: [word], combineWith: "AND" })),
     combineWith: and ? "AND" : "OR",
   };
-  const found = new Map<string, Found>();
-  for (const result of search.index.engine.mini.search(query, search.options)) {
+  const rank = rankOf(index.store);
+  for (const result of index.engine.mini.search(query, search.options)) {
     const key = String(result.id);
-    const element = search.index.records.get(key);
+    const element = index.records.get(key);
     if (search.admit(element, key)) {
-      found.set(key, { element, score: result.score, results: [result], ids: 0 });
+      found.push({
+        key,
+        element,
+        rank: Number(rank.get(element)),
+        score: result.score,
+        matches: [result],
+        ids: 0,
+      });
     }
   }
   return found;
 };
+
+/** `found` by key. */
+const byKey = (found: readonly Found[]): Map<string, Found> => new Map(found.map((one) => [one.key, one]));
 
 /** Marks in `found` (and adds to it) every record of the index that `ids` matches. */
 const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void => {
@@ -665,7 +783,14 @@ const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void
     if (key !== undefined && search.admit(record, key)) {
       const known = found.get(key);
       if (known === undefined) {
-        found.set(key, { element: record, score: 0, results: [], ids: 1 });
+        found.set(key, {
+          key,
+          element: record,
+          rank: Number(rankOf(search.index.store).get(record)),
+          score: 0,
+          matches: [],
+          ids: 1,
+        });
       } else {
         known.ids = 1;
       }
@@ -680,9 +805,11 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
     const other = b.get(key);
     if (other !== undefined) {
       out.set(key, {
+        key,
         element: found.element,
+        rank: found.rank,
         score: found.score + other.score,
-        results: [...found.results, ...other.results],
+        matches: [...found.matches, ...other.matches],
         ids: found.ids + other.ids,
       });
     } else if (!and) {
@@ -699,24 +826,13 @@ const combine = (a: Map<string, Found>, b: ReadonlyMap<string, Found>, and: bool
   return out;
 };
 
-/** The position of every record of a store in store order, built once per store. */
-const ranks = new WeakMap<ElementStore, ReadonlyMap<ElementRecord, number>>();
-
-const rankOf = (store: ElementStore): ReadonlyMap<ElementRecord, number> => {
-  let rank = ranks.get(store);
-  if (rank === undefined) {
-    rank = new Map(store.elements.map((record, at) => [record, at]));
-    ranks.set(store, rank);
-  }
-  return rank;
-};
-
 /** The hit of one document: fields in the order of `SEARCH_FIELDS`, the words that matched. */
-const hitOf = ({ element, score, results, ids }: Found): SearchHit => {
+const hitOf = ({ element, score, matches, ids }: Found): SearchHit => {
   const fields = new Set<string>(ids > 0 ? ["id"] : []);
   const terms = new Set<string>();
-  for (const result of results) {
-    for (const [term, found] of Object.entries(result.match)) {
+  for (const words of matches) {
+    const match = "match" in words ? words.match : words.scored.matchOf(words.doc);
+    for (const [term, found] of Object.entries(match)) {
       terms.add(term);
       for (const field of found) {
         fields.add(field);
@@ -736,31 +852,67 @@ const roundScore = (score: number): number => Number(score.toPrecision(SCORE_DIG
 
 const SCORE_DIGITS = 6;
 
-/** The page of `found`, the best first (see `searchElements`). */
-const pageOf = (
-  store: ElementStore,
-  found: Iterable<Found>,
-  options: SearchElementsOptions,
-): SearchResults => {
-  const rank = rankOf(store);
-  const all = [...found];
-  for (const one of all) {
-    one.score = roundScore(one.score);
+/**
+ * Whether `a` comes before `b` on the pages: more words matched its ID, else a higher score, else
+ * it comes first in the store. A strict total order (no two hits share a position in the store), so
+ * any way of finding the first hits gives the same page.
+ */
+const before = (a: Found, b: Found): boolean =>
+  a.ids !== b.ids ? a.ids > b.ids : a.score !== b.score ? a.score > b.score : a.rank < b.rank;
+
+const order = (a: Found, b: Found): number => (before(a, b) ? -1 : 1);
+
+/**
+ * The first `size` of `hits` in page order (`before`), without sorting the rest: the first ones so
+ * far are kept in order, so a hit after the last of them (most hits, when 50 of 50,000 are asked
+ * for, SR-098) costs one comparison, and one before it a binary search.
+ */
+const firstOf = (hits: Iterable<Found>, size: number): Found[] => {
+  const first: Found[] = [];
+  for (const hit of hits) {
+    const last = first.at(-1);
+    if (first.length < size || (last !== undefined && before(hit, last))) {
+      let low = 0;
+      let high = first.length;
+      while (low < high) {
+        const middle = (low + high) >>> 1;
+        const kept = first[middle];
+        if (kept !== undefined && before(kept, hit)) {
+          low = middle + 1;
+        } else {
+          high = middle;
+        }
+      }
+      first.splice(low, 0, hit);
+      if (first.length > size) {
+        first.pop();
+      }
+    }
   }
-  const sorted = all.sort(
-    (a, b) => b.ids - a.ids || b.score - a.score || Number(rank.get(a.element)) - Number(rank.get(b.element)),
-  );
-  const offset = options.offset ?? 0;
-  const page = sorted.slice(offset, options.limit === undefined ? undefined : offset + options.limit);
-  return { total: sorted.length, hits: page.map(hitOf) };
+  return first;
 };
 
-/** The documents `query` finds in `index`, by key (see `searchElements`); undefined for a query without a word. */
+/** The most hits `firstOf` finds; more are sorted (a binary search and a move per hit would cost more). */
+const MAX_FIRST = 1000;
+
+/** The page of `found`, the best first (see `searchElements`). */
+const pageOf = (found: Iterable<Found>, options: SearchElementsOptions): SearchResults => {
+  const all = Array.from(found, (one) => {
+    one.score = roundScore(one.score);
+    return one;
+  });
+  const offset = options.offset ?? 0;
+  const end = options.limit === undefined ? all.length : offset + options.limit;
+  const first = end <= MAX_FIRST && end < all.length ? firstOf(all, end) : all.sort(order);
+  return { total: all.length, hits: first.slice(offset, end).map(hitOf) };
+};
+
+/** The documents `query` finds in `index`, each once (see `searchElements`); undefined for a query without a word. */
 const foundBy = (
   index: SearchIndex,
   query: string,
   options: SearchElementsOptions,
-): Map<string, Found> | undefined => {
+): Iterable<Found> | undefined => {
   const fields = new Set(options.fields ?? SEARCH_FIELDS);
   const searched = WORD_FIELDS.filter((field) => fields.has(field));
   const and = options.combineWith !== "or";
@@ -780,13 +932,17 @@ const foundBy = (
       plain.push(word);
     }
   }
-  let found = plain.length === 0 ? undefined : wordsFound(search, plain, and);
+  const byWords = plain.length === 0 ? undefined : wordsFound(search, plain, and);
+  if (special.length === 0) {
+    return byWords;
+  }
+  let found = byWords === undefined ? undefined : byKey(byWords);
   for (const { word, text, ids } of special) {
-    const matched = text ? wordsFound(search, [word], true) : new Map<string, Found>();
+    const matched = text ? byKey(wordsFound(search, [word], true)) : new Map<string, Found>();
     idsFound(search, ids, matched);
     found = found === undefined ? matched : combine(found, matched, and);
   }
-  return found;
+  return found?.values();
 };
 
 /**
@@ -797,15 +953,15 @@ const foundBy = (
  * nothing in `options.fields` (punctuation only, or no ID form with only `id`) is left out; a query
  * without a word finds nothing. Only the page (`offset`, `limit`) is described (`fields`, `terms`).
  *
- * The words without an ID form go to MiniSearch in one query (it combines them before it builds a
- * result per document, which costs most at 50,000 elements); a word that may be an ID is searched
- * on its own and joined with the elements whose ID it matches.
+ * The words without an ID form are searched as one query, scored as MiniSearch scores it but in
+ * arrays (`scoreWords`, SR-098); a word that may be an ID is searched on its own and joined with the
+ * elements whose ID it matches. Only the first `offset + limit` hits are put in order.
  */
 export const searchElements = (
   index: SearchIndex,
   query: string,
   options: SearchElementsOptions = {},
-): SearchResults => pageOf(index.store, foundBy(index, query, options)?.values() ?? [], options);
+): SearchResults => pageOf(foundBy(index, query, options) ?? [], options);
 
 /**
  * The keys (`recordKey`) of the elements `searchElements` finds for `query`, all of them, without
@@ -815,4 +971,4 @@ export const matchingKeys = (
   index: SearchIndex,
   query: string,
   options: Omit<SearchElementsOptions, "offset" | "limit"> = {},
-): ReadonlySet<string> => new Set(foundBy(index, query, options)?.keys());
+): ReadonlySet<string> => new Set(Array.from(foundBy(index, query, options) ?? [], (found) => found.key));
