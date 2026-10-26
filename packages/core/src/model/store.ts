@@ -361,6 +361,14 @@ const updateContents = async (
 };
 
 /**
+ * Whether `updateElements` reads `store` in full for `layout`: it has no `repositories`, or they are
+ * not those available in `layout`. Every record of the result is then another object.
+ */
+export const readsInFull = (store: ElementStore, layout: WorkspaceLayout): boolean =>
+  store.repositories === undefined ||
+  JSON.stringify(availableRepositories(layout)) !== JSON.stringify(store.repositories.map((r) => r.location));
+
+/**
  * The store after files changed outside the tool (SR-007): for each repository with changes its
  * Markdown files are listed again (one walk, no reads), files that are gone are dropped, new files
  * are read and the changed ones read again; a file whose snapshot (SHA-256, size, time) is
@@ -376,10 +384,7 @@ export const updateElements = async (
   signal?: AbortSignal,
 ): Promise<ElementStore | undefined> => {
   const before = store.repositories;
-  if (
-    before === undefined ||
-    JSON.stringify(availableRepositories(layout)) !== JSON.stringify(before.map((r) => r.location))
-  ) {
+  if (before === undefined || readsInFull(store, layout)) {
     return loadElements(layout, signal);
   }
   const ignored = ignoredBy(layout);

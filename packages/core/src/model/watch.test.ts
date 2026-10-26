@@ -14,7 +14,7 @@ import type { ElementRecord } from "./elements.js";
 import { shortIdState } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
-import type { WatchFunction, WatcherOptions } from "./watch.js";
+import type { WatchFunction, WatcherOptions, WorkspaceChange, WorkspaceWatcher } from "./watch.js";
 import { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
 
 const NEED = "224dedea-c0ac-4ec8-a228-8beffcbd8c26";
@@ -464,6 +464,28 @@ const folderOf = (layout: { readonly repositories: readonly { readonly folder: s
 
 const NESTED_WORKSPACE =
   "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\n  - { name: gone, url: z, path: ../gone }\nmetamodel: { repository: gone, path: metamodel }\n";
+
+/** State built on the store whose disposal fails. */
+const fragile = defineWorkspaceState("fragile", () => 1, {
+  dependsOn: [elementStoreState],
+  dispose: () => {
+    throw new Error("dispose failed");
+  },
+});
+
+/** Holds the store state on a Promise the test settles, so a batch waits in the middle of its update. */
+const held = async (workspace: Workspace): Promise<() => void> => {
+  const store = workspace.get(elementStoreState);
+  let release: (store: ElementStore) => void = () => undefined;
+  const pending = new Promise<ElementStore>((resolve) => {
+    release = resolve;
+  });
+  expect(await workspace.replace(elementStoreState, store, pending)).toBe(true);
+  const loaded = await store;
+  return () => {
+    release(loaded);
+  };
+};
 
 describe("the watcher's rules (SR-007)", () => {
   it("watches every available repository once, recursively, and the nested one through the outer watcher", async () => {
@@ -945,14 +967,6 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await title(workspace, REQUIREMENT)).toBe("Streamed");
   });
 
-  /** State built on the store whose disposal fails. */
-  const fragile = defineWorkspaceState("fragile", () => 1, {
-    dependsOn: [elementStoreState],
-    dispose: () => {
-      throw new Error("dispose failed");
-    },
-  });
-
   it("reads the store in full on the next use when an update fails", async () => {
     const { fixture, workspace } = await opened();
     await workspace.get(elementStoreState);
@@ -977,20 +991,6 @@ describe("the watcher's rules (SR-007)", () => {
     await watcher.settled();
     expect(workspace.peek(elementStoreState)).toBe(store);
   });
-
-  /** Holds the store state on a Promise the test settles, so a batch waits in the middle of its update. */
-  const held = async (workspace: Workspace): Promise<() => void> => {
-    const store = workspace.get(elementStoreState);
-    let release: (store: ElementStore) => void = () => undefined;
-    const pending = new Promise<ElementStore>((resolve) => {
-      release = resolve;
-    });
-    expect(await workspace.replace(elementStoreState, store, pending)).toBe(true);
-    const loaded = await store;
-    return () => {
-      release(loaded);
-    };
-  };
 
   /** Lets timers of 0 ms that were set before it run first (Node runs timers in order). */
   const afterZeroTimers = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 20));
@@ -1455,5 +1455,376 @@ describe("the watcher and LogReq's own writes (#166)", () => {
     await watcher.settled();
     expect(workspace.peek(elementStoreState)).toBe(store);
     expect(await workspace.get(shortIdState)).toBe(shortIds);
+  });
+});
+
+/** Every change the watcher reports from now on, in order (`onChange`, #331). */
+const changesOf = (watcher: WorkspaceWatcher): WorkspaceChange[] => {
+  const seen: WorkspaceChange[] = [];
+  onTestFinished(
+    watcher.onChange((change) => {
+      seen.push(change);
+    }),
+  );
+  return seen;
+};
+
+const elements = (
+  added: readonly string[] = [],
+  changed: readonly string[] = [],
+  removed: readonly string[] = [],
+): WorkspaceChange["elements"] => ({ added, changed, removed });
+
+/** Every UUID the changes name under `kind`. */
+const named = (changes: readonly WorkspaceChange[], kind: keyof WorkspaceChange["elements"]): Set<string> =>
+  new Set(changes.flatMap((c) => c.elements[kind]));
+
+/** The last list each UUID appears in, over all changes in order. */
+const lastNamed = (changes: readonly WorkspaceChange[]): Map<string, keyof WorkspaceChange["elements"]> => {
+  const last = new Map<string, keyof WorkspaceChange["elements"]>();
+  for (const change of changes) {
+    for (const kind of ["added", "changed", "removed"] as const) {
+      for (const id of change.elements[kind]) {
+        last.set(id, kind);
+      }
+    }
+  }
+  return last;
+};
+
+describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
+  it("[SR-007/AK1] tells a listener within 2 seconds that an element file saved by another editor changed, once the store holds it", async () => {
+    const { fixture, workspace } = await opened();
+    await watching(fixture, workspace);
+    const stores: (Promise<ElementStore> | undefined)[] = [];
+    const changes: WorkspaceChange[] = [];
+    onTestFinished(
+      watchWorkspace(workspace).onChange((change) => {
+        changes.push(change);
+        stores.push(workspace.peek(elementStoreState));
+      }),
+    );
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Told to the app"));
+    const elapsed = await within(SAVE_LIMIT_MS, () =>
+      Promise.resolve(named(changes, "changed").has(REQUIREMENT)),
+    );
+    expect(elapsed).toBeLessThanOrEqual(SAVE_LIMIT_MS);
+    const index = changes.findIndex((c) => c.elements.changed.includes(REQUIREMENT));
+    expect(changes[index]).toEqual({ scope: "elements", elements: elements([], [REQUIREMENT]) });
+    // The listener is called after the new store is in place: what it reads is the saved file.
+    const store = await stores[index];
+    expect(store === undefined ? undefined : records(store, REQUIREMENT)[0]?.data["title"]).toBe(
+      "Told to the app",
+    );
+  });
+
+  it("[SR-007/AK2] names every element a pull of 1,000 files changed or added, in a few batches within 10 seconds", async () => {
+    const count = 1000;
+    const files: Record<string, string> = {};
+    for (let i = 1; i <= count; i++) {
+      files[`pulled/SR-${uuid(i).slice(-12)}.md`] = requirement(uuid(i), `Requirement ${String(i)}`);
+    }
+    const { fixture, workspace } = await opened({ git: true });
+    const before = await fixture.commitFiles(files);
+    const target = uuid(count + 1);
+    const upstreamFiles: Record<string, string> = {
+      [`needs/N-${target.slice(-12)}.md`]: need(target, "Gusts"),
+    };
+    for (let i = 1; i <= count; i++) {
+      upstreamFiles[`pulled/SR-${uuid(i).slice(-12)}.md`] = requirement(
+        uuid(i),
+        `Requirement ${String(i)}`,
+        "approved",
+        target,
+      );
+    }
+    const upstream = await fixture.commitFiles(upstreamFiles, { parent: before, message: "upstream" });
+    await fixture.git(["reset", "--quiet", "--hard", before]);
+    await workspace.get(elementStoreState);
+    await watching(fixture, workspace);
+    const changes = changesOf(watchWorkspace(workspace));
+    await fixture.git(["merge", "--ff-only", upstream]);
+    const pulled = Array.from({ length: count }, (_, i) => uuid(i + 1));
+    // What counts is the last list a UUID appears in: a batch that is due while Git still writes a
+    // file reads it as no element (`removed`), a later one reads it in full (`added`).
+    const shown = (last: ReadonlyMap<string, string>, id: string): boolean =>
+      ["added", "changed"].includes(String(last.get(id)));
+    const elapsed = await within(PULL_LIMIT_MS, async () => {
+      const last = lastNamed(changes);
+      const now = await workspace.get(elementStoreState);
+      return (
+        shown(last, target) &&
+        named(changes, "added").has(target) &&
+        pulled.every((id) => shown(last, id) && records(now, id)[0]?.data["status"] === "approved")
+      );
+    });
+    expect(elapsed).toBeLessThanOrEqual(PULL_LIMIT_MS);
+    await watchWorkspace(workspace).settled();
+    const last = lastNamed(changes);
+    expect(pulled.every((id) => shown(last, id))).toBe(true);
+    // Only the pulled elements are named, and each one removed is added again later.
+    expect([...last.keys()].sort()).toEqual([...pulled, target].sort());
+    // Batched (100 ms after the last event, at most 1 s after the first), not one call per file.
+    expect(changes.length).toBeLessThanOrEqual(count / 10);
+    expect(changes.every((c) => c.scope === "elements")).toBe(true);
+  }, 60_000);
+
+  it("[SR-007/AK3] names an element whose file was deleted outside the tool as removed", async () => {
+    const { fixture, workspace } = await opened();
+    await watching(fixture, workspace);
+    const changes = changesOf(watchWorkspace(workspace));
+    await fs.rm(fixture.path(NEED_FILE));
+    await within(PULL_LIMIT_MS, () => Promise.resolve(named(changes, "removed").has(NEED)));
+    expect(named(changes, "added")).toEqual(new Set());
+    expect(named(changes, "changed")).toEqual(new Set());
+    expect((await workspace.get(elementStoreState)).byId.has(NEED)).toBe(false);
+  });
+
+  it("names added, changed and removed elements of one batch, sorted, and a moved or copied file as changed", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    // One batch: a new element, a changed one, a deleted one.
+    await fixture.write("requirements/SR-0c1d2e3f4a5b.md", requirement(OTHER, "New"));
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Changed"));
+    await fs.rm(fixture.path(NEED_FILE));
+    fake.only().send("requirements/SR-0c1d2e3f4a5b.md");
+    fake.only().send(REQUIREMENT_FILE);
+    fake.only().send(NEED_FILE);
+    await watcher.settled();
+    expect(changes).toEqual([{ scope: "elements", elements: elements([OTHER], [REQUIREMENT], [NEED]) }]);
+    // A file moved to another folder, and a copy with the same UUID: the same UUID, other records.
+    await fs.mkdir(fixture.path("moved"));
+    await fs.rename(
+      fixture.path("requirements/SR-0c1d2e3f4a5b.md"),
+      fixture.path("moved/SR-0c1d2e3f4a5b.md"),
+    );
+    await fs.copyFile(fixture.path(REQUIREMENT_FILE), fixture.path("moved/copy.md"));
+    fake.only().send("requirements/SR-0c1d2e3f4a5b.md");
+    fake.only().send("moved");
+    await watcher.settled();
+    expect(changes[1]).toEqual({ scope: "elements", elements: elements([], [REQUIREMENT, OTHER].sort()) });
+    expect(changes).toHaveLength(2);
+    // Plain frozen data: one object for every listener, and nothing a listener can change.
+    expect(Object.isFrozen(changes[1])).toBe(true);
+    expect(Object.isFrozen(changes[1]?.elements.changed)).toBe(true);
+  });
+
+  it("reports a changed file that is no element with empty lists, and nothing for a batch that changed nothing or a store nobody read", async () => {
+    const { fixture, workspace } = await opened();
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    // The store was not read: nothing was replaced, nobody is told.
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(changes).toEqual([]);
+    await workspace.get(elementStoreState);
+    // Git's folder, other files, a file read again with the same contents: nothing changed.
+    fake.only().send(".git/index");
+    fake.only().send("docs/image.png");
+    fake.only().send(NEED_FILE);
+    await watcher.settled();
+    expect(changes).toEqual([]);
+    // A faulty file and a Markdown file without frontmatter are no elements, but the findings differ.
+    await fixture.write("broken.md", "---\nid: [\n---\n");
+    fake.only().send("broken.md");
+    await watcher.settled();
+    expect(changes).toEqual([{ scope: "elements", elements: elements() }]);
+  });
+
+  it("reports a changed metamodel, with the elements of the same batch", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    fake.only().send("metamodel/model.yaml");
+    await watcher.settled();
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "With a new metamodel"));
+    fake.only().send("metamodel/model.yaml");
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(changes).toEqual([
+      { scope: "metamodel", elements: elements() },
+      { scope: "metamodel", elements: elements([], [REQUIREMENT]) },
+    ]);
+  });
+
+  it("reports a new layout once the new repositories are watched, and a failed update, as a change of the whole workspace", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const first = fake.only();
+    const watchedWhenTold: boolean[] = [];
+    onTestFinished(
+      watcher.onChange(() => {
+        watchedWhenTold.push(first.closed && fake.open().length === 1);
+      }),
+    );
+    const changes = changesOf(watcher);
+    first.send("logreq-workspace.yaml");
+    await watcher.settled();
+    expect(changes).toEqual([{ scope: "workspace", elements: elements() }]);
+    expect(watchedWhenTold).toEqual([true]);
+    // An update that fails resets the store: nothing names what changed.
+    await workspace.get(elementStoreState);
+    workspace.get(fragile);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "After the failure"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(workspace.peek(elementStoreState)).toBeUndefined();
+    expect(changes).toEqual([
+      { scope: "workspace", elements: elements() },
+      { scope: "workspace", elements: elements() },
+    ]);
+  });
+
+  it("stops calling a listener that unsubscribed, goes on past one that throws or rejects, and tells nobody once closed", async () => {
+    const { fixture, workspace } = await opened();
+    const store = workspace.get(elementStoreState);
+    await store;
+    const { fake, watcher } = await watched(workspace);
+    const throwing = vi.fn(() => {
+      throw new Error("listener failed");
+    });
+    const unsubscribeThrowing = watcher.onChange(throwing);
+    // Not awaited, and its rejection is dropped (an unhandled one would fail the test run).
+    const rejecting = vi.fn(() => Promise.reject(new Error("asynchronous listener failed")));
+    onTestFinished(watcher.onChange(rejecting));
+    const later = changesOf(watcher);
+    let calls = 0;
+    const counting = (): void => {
+      calls += 1;
+    };
+    // The same function twice: called twice, each subscription ends on its own.
+    const unsubscribe = watcher.onChange(counting);
+    const twice = watcher.onChange(counting);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Once"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(throwing).toHaveBeenCalledTimes(1);
+    expect(rejecting).toHaveBeenCalledTimes(1);
+    expect(later).toHaveLength(1);
+    expect(calls).toBe(2);
+    unsubscribe();
+    unsubscribeThrowing();
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Twice"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(throwing).toHaveBeenCalledTimes(1);
+    expect(calls).toBe(3);
+    expect(later).toHaveLength(2);
+    expect(await title(workspace, REQUIREMENT)).toBe("Twice");
+    twice();
+    // Closed with a batch running: the store is replaced by nobody, and nobody is told.
+    const release = await held(workspace);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Never told"));
+    fake.only().send(REQUIREMENT_FILE);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const closing = watcher.close();
+    release();
+    await closing;
+    expect(later).toHaveLength(2);
+  });
+
+  it("calls no listener that one before it unsubscribed", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const after = vi.fn();
+    // One that unsubscribes itself is called once.
+    const once = vi.fn(() => {
+      unsubscribeOnce();
+    });
+    const unsubscribeOnce = watcher.onChange(once);
+    let unsubscribeNext: () => void = () => undefined;
+    watcher.onChange(() => {
+      unsubscribeNext();
+    });
+    unsubscribeNext = watcher.onChange(after);
+    const seen = changesOf(watcher);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "First"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    // The second listener unsubscribed the third before its turn; the last one is still called.
+    expect(after).not.toHaveBeenCalled();
+    expect(seen).toHaveLength(1);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Second"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(once).toHaveBeenCalledTimes(1);
+    expect(seen).toHaveLength(2);
+  });
+
+  it("calls no further listener once one of them closed the watcher", async () => {
+    const { fixture, workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    let closing: Promise<void> | undefined;
+    watcher.onChange(() => {
+      closing = watcher.close();
+    });
+    const second = vi.fn();
+    watcher.onChange(second);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Closed by a listener"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    await closing;
+    expect(closing).toBeDefined();
+    expect(second).not.toHaveBeenCalled();
+    // The store was updated before the listeners were told.
+    expect(await title(workspace, REQUIREMENT)).toBe("Closed by a listener");
+  });
+
+  it("reports a store that a batch read in full as a change of the whole workspace", async () => {
+    const { fixture, workspace } = await opened();
+    const store = workspace.get(elementStoreState);
+    const loaded = await store;
+    // A store without what each file contributed: the next batch reads it in full.
+    const { repositories: _dropped, ...bare } = loaded;
+    expect(await workspace.replace(elementStoreState, store, Promise.resolve(bare))).toBe(true);
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    await fixture.write(REQUIREMENT_FILE, requirement(REQUIREMENT, "Read in full"));
+    fake.only().send(REQUIREMENT_FILE);
+    await watcher.settled();
+    expect(changes).toEqual([{ scope: "workspace", elements: elements() }]);
+    expect(await title(workspace, REQUIREMENT)).toBe("Read in full");
+  });
+
+  it("tells nobody about LogReq's own writes when it sees their files (#166)", async () => {
+    const { workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by LogReq" }, { workspace });
+    const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {
+      readonly files: readonly string[];
+    };
+    fake.only().send(REQUIREMENT_FILE, "change");
+    fake.only().send(String(created.files[0]));
+    await watcher.settled();
+    expect(changes).toEqual([]);
+  });
+
+  it("tells nobody when it was closed while a batch read the layout again", async () => {
+    const { workspace } = await opened();
+    await workspace.get(elementStoreState);
+    const { fake, watcher } = await watched(workspace);
+    const changes = changesOf(watcher);
+    // Closed while the batch resets the layout (a state built on it closes the watcher on disposal).
+    let closing: Promise<void> | undefined;
+    const closer = defineWorkspaceState("closes-the-watcher", () => 1, {
+      dependsOn: [workspaceLayoutState],
+      dispose: () => {
+        closing = watcher.close();
+      },
+    });
+    workspace.get(closer);
+    fake.only().send("logreq-workspace.yaml");
+    await watcher.settled();
+    await closing;
+    expect(closing).toBeDefined();
+    expect(changes).toEqual([]);
   });
 });

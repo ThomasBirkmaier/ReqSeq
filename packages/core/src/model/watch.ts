@@ -16,7 +16,9 @@
 //   and replaced (`applyStoreChange`), which carries the state built on it (short IDs, findings)
 //   over the change or resets it (#184). A store nobody has read yet is left alone: the next read
 //   finds the files as they are.
-// An update that fails resets the store, so the next command reads it in full.
+// An update that fails resets the store, so the next command reads it in full. After each batch
+// that changed the model, the listeners of `onChange` hear what changed (#331): the app's core
+// process refreshes its windows with it (no catalog command, see ADR-0008).
 //
 // An event without a file name means the OS dropped the names of a burst: ReadDirectoryChangesW
 // (Windows) overflows its buffer of about 4 KB on a pull of a few hundred files, and libuv then
@@ -42,11 +44,14 @@ import {
 } from "../workspace/index.js";
 import { ELEMENT_FILE_EXTENSION } from "./discover.js";
 import type { RepositoryChanges } from "./store.js";
-import { applyStoreChange, elementStoreState, ignoredBy, updateElements } from "./store.js";
+import { applyStoreChange, elementStoreState, ignoredBy, readsInFull, updateElements } from "./store.js";
+import type { ChangedElements, WorkspaceChange, WorkspaceChangeListener } from "./watch-change.js";
+import { NO_ELEMENTS, changedElements } from "./watch-change.js";
 import type { WatchFunction } from "./watch-tree.js";
 import { FolderTree } from "./watch-tree.js";
 
 export type { WatchFunction } from "./watch-tree.js";
+export type { ChangedElements, WorkspaceChange, WorkspaceChangeListener } from "./watch-change.js";
 
 export interface WatcherOptions {
   readonly watch?: WatchFunction;
@@ -73,9 +78,24 @@ export interface WorkspaceWatcher {
   readonly problems: readonly Problem[];
   /** Resolves once no batch is waiting or running. */
   settled(): Promise<void>;
+  /**
+   * Calls `listener` once per batch that changed the model (`WorkspaceChange`: which elements came,
+   * changed or went; or that the metamodel or everything is read again), after the change is in
+   * place, so a listener that reads the workspace sees it. Batches are debounced (100 ms after the
+   * last event, at most 1 s after the first), so a pull is one or a few calls, and run one after the
+   * other, so calls come in order. None for a batch that changed nothing, none once closed (also not
+   * to the listeners after one that closed it). The watcher does not wait for a listener; one that
+   * throws or rejects stops neither the other listeners nor the watcher. A file read while it is
+   * being written can be `removed` in one call and `added` in a later one (`WorkspaceChange`).
+   * Returns the function that unsubscribes `listener`.
+   */
+  onChange(listener: WorkspaceChangeListener): () => void;
 }
 
 const DEBOUNCE_MS = 100;
+
+/** What `#update` gives when the store was read in full: every element may have changed. */
+const EVERY_ELEMENT = Symbol("every element");
 const MAX_WAIT_MS = 1000;
 
 /** Folders whose content never counts (as in the element walk, discover.ts). */
@@ -267,6 +287,7 @@ class Watcher implements WorkspaceWatcher {
   #work = 0;
   readonly #waiters: (() => void)[] = [];
   #closed = false;
+  readonly #listeners = new Set<WorkspaceChangeListener>();
   /** Counts the starts; a start that is no longer the last one stops. */
   #generation = 0;
 
@@ -292,8 +313,40 @@ class Watcher implements WorkspaceWatcher {
     }
   }
 
+  onChange(listener: WorkspaceChangeListener): () => void {
+    // A wrapper per call: the same function subscribed twice is called twice and unsubscribed once.
+    const call: WorkspaceChangeListener = (change) => listener(change);
+    this.#listeners.add(call);
+    return () => {
+      this.#listeners.delete(call);
+    };
+  }
+
+  /**
+   * Tells the listeners subscribed now. A closed watcher has none (`close` clears them); one that a
+   * listener before it unsubscribed, or closed the watcher, is not called.
+   */
+  #emit(scope: WorkspaceChange["scope"], elements: ChangedElements): void {
+    const change: WorkspaceChange = Object.freeze({ scope, elements });
+    for (const listener of [...this.#listeners]) {
+      if (!this.#listeners.has(listener)) {
+        continue;
+      }
+      try {
+        const result = listener(change);
+        if (result instanceof Promise) {
+          // An asynchronous listener is not awaited; its rejection is dropped like a throw.
+          result.catch(() => undefined);
+        }
+      } catch {
+        // A listener's failure is its own: the watcher has nobody to report it to and goes on.
+      }
+    }
+  }
+
   async close(): Promise<void> {
     this.#closed = true;
+    this.#listeners.clear();
     this.#abort.abort();
     if (this.#timer !== undefined) {
       // The waiting batch never runs.
@@ -524,17 +577,26 @@ class Watcher implements WorkspaceWatcher {
       ) {
         await this.#workspace.reset(workspaceLayoutState);
         await this.#start();
+        this.#emit("workspace", NO_ELEMENTS);
         return;
       }
       if (batch.metamodel) {
         await this.#workspace.reset(metamodelState);
       }
-      await this.#update(batch.elements);
+      const elements = await this.#update(batch.elements);
+      if (elements === EVERY_ELEMENT) {
+        this.#emit("workspace", NO_ELEMENTS);
+      } else if (batch.metamodel) {
+        this.#emit("metamodel", elements ?? NO_ELEMENTS);
+      } else if (elements !== undefined) {
+        this.#emit("elements", elements);
+      }
     } catch {
       if (!this.#abort.signal.aborted) {
         // Whatever went wrong, the next command reads the files in full. A failing disposal of
         // dependent state is that state's to report; the watcher goes on.
         await this.#workspace.reset(elementStoreState).catch(() => undefined);
+        this.#emit("workspace", NO_ELEMENTS);
       }
     }
   }
@@ -550,14 +612,20 @@ class Watcher implements WorkspaceWatcher {
     }
   }
 
-  async #update(elements: ElementChanges | undefined): Promise<void> {
+  /**
+   * Updates the store; gives the elements that changed, `EVERY_ELEMENT` when the store was read in
+   * full, or undefined when no store was replaced.
+   */
+  async #update(
+    elements: ElementChanges | undefined,
+  ): Promise<ChangedElements | typeof EVERY_ELEMENT | undefined> {
     // Events sorted with an older layout are dropped: the store was read again with the new one.
     if (
       elements === undefined ||
       elements.layout !== this.#watched ||
       this.#workspace.peek(elementStoreState) === undefined
     ) {
-      return;
+      return undefined;
     }
     const { layout, repositories } = elements;
     const changes = new Map<string, RepositoryChanges>();
@@ -578,15 +646,21 @@ class Watcher implements WorkspaceWatcher {
       }
     }
     if (changes.size === 0) {
-      return;
+      return undefined;
     }
     const signal = this.#abort.signal;
-    await applyStoreChange(this.#workspace, async (store) => {
+    // Computed for the store the change is applied to; a retry on a newer store computes it again.
+    let changed: ChangedElements | undefined;
+    const installed = await applyStoreChange(this.#workspace, async (store) => {
+      // A store read in full has every record anew: nothing names what changed.
+      const full = readsInFull(store, layout);
       const next = await updateElements(store, layout, changes, signal);
       // A watcher closed during the update replaces nothing.
       signal.throwIfAborted();
+      changed = next === undefined || full ? undefined : changedElements(store, next);
       return next;
     });
+    return installed === undefined ? undefined : (changed ?? EVERY_ELEMENT);
   }
 }
 

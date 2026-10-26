@@ -145,7 +145,14 @@ export { MODEL_CACHE_FILE } from "./model-cache.js";
 export { warmWorkspace } from "./warm.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";
-export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
+export type {
+  ChangedElements,
+  WatchFunction,
+  WatcherOptions,
+  WorkspaceChange,
+  WorkspaceChangeListener,
+  WorkspaceWatcher,
+} from "./watch.js";
 export { addRelation, removeRelation } from "./relation-write.js";
 export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
 export { addAttachment, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
