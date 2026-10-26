@@ -5,6 +5,7 @@ import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, filteredList, listBuffer, searchBuffer } from "./buffers.js";
 import { typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
+import { rank } from "./fuzzy.js";
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -40,6 +41,7 @@ const setup = (
     closeArmed: () => false,
     armClose: (value) => armed.push(value),
     discard: (key) => discarded.push(key),
+    drafted: () => false,
     ...extra,
   };
   return { context, dispatched, asked, echoed, call, armed, discarded };
@@ -72,6 +74,7 @@ describe("the command prompt", () => {
       "Filter list by saved filter",
       "Sort list",
       "Close buffer",
+      "Close all buffers",
     ]);
   });
 
@@ -87,15 +90,19 @@ describe("the command prompt", () => {
   });
 
   it("offers saving and editing the text on an element that has loaded", () => {
-    const element$ = setup([element], {}, true, { element: { save: vi.fn(), edit: vi.fn() } });
+    const element$ = setup([element], {}, true, {
+      element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn() },
+    });
     const items = commandPrompt(element$.context).items;
     expect(items.map((item) => item.name)).toEqual([
       "Go to element or buffer",
       "Search elements",
       "List all elements",
       "Close buffer",
+      "Close all buffers",
       "Save element",
       "Edit text",
+      "Follow reference",
       "Show element ID and version",
     ]);
     expect(items.map((item) => item.hint)).toEqual([
@@ -103,15 +110,17 @@ describe("the command prompt", () => {
       "Ctrl+Shift+F",
       undefined,
       undefined,
+      undefined,
       "Ctrl+S",
       "Enter",
+      "Ctrl+Enter",
       undefined,
     ]);
-    expect(commandPrompt({ ...element$.context, mac: true }).items[4]?.hint).toBe("⌘S");
+    expect(commandPrompt({ ...element$.context, mac: true }).items[5]?.hint).toBe("⌘S");
     // Not while the element has not loaded, and not on a list.
     expect(titles(setup([element]).context)).not.toContain("Save element");
     expect(
-      titles(setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn() } }).context),
+      titles(setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn() } }).context),
     ).not.toContain("Edit text");
   });
 
@@ -129,6 +138,7 @@ describe("the command prompt", () => {
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
       "Ctrl+Shift+F",
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -431,9 +441,98 @@ describe("close buffer with unsaved changes", () => {
   });
 });
 
+describe("close all buffers", () => {
+  const other = elementBuffer("u2", "spec", "SR-037 Other");
+  const closes = (dispatched: BufferAction[]): BufferAction[] =>
+    dispatched.filter((entry) => entry.type === "close");
+  const choices = (prompt: Prompt | undefined) => {
+    if (prompt === undefined) {
+      throw new Error("nothing was asked");
+    }
+    return prompt.items;
+  };
+
+  it("[SR-123/AK1] closes every open buffer and says so", () => {
+    const { context, dispatched, discarded, echoed, asked } = setup([element, other, list]);
+    action("close-all").run(context);
+    expect(closes(dispatched)).toEqual([
+      { type: "close", key: element.key },
+      { type: "close", key: other.key },
+      { type: "close", key: list.key },
+    ]);
+    expect(discarded).toEqual([element.key, other.key, list.key]);
+    expect(echoed).toEqual(["Closed 3 buffers"]);
+    expect(asked).toEqual([]);
+    const one = setup([list]);
+    action("close-all").run(one.context);
+    expect(one.echoed).toEqual(["Closed 1 buffer"]);
+  });
+
+  it("[SR-123/AK2] with unsaved text it asks in the minibuffer: keep the unsaved buffers, or discard and close all", () => {
+    const drafted = (key: string): boolean => key === other.key;
+    const { context, dispatched, discarded, echoed, asked } = setup([element, other, list], {}, true, {
+      drafted,
+    });
+    action("close-all").run(context);
+    // Nothing is closed before a choice; the question is in the minibuffer, not a dialog.
+    expect(dispatched).toEqual([]);
+    expect(echoed).toEqual([]);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.label).toBe("1 buffer with unsaved changes (SR-037 Other)");
+    expect(choices(asked[0]).map((item) => item.name)).toEqual([
+      "Close all but the buffers with unsaved changes",
+      "Close all and discard the unsaved changes",
+    ]);
+    // The first choice is the one Enter takes: it keeps the unsaved text.
+    choices(asked[0])[0]?.run();
+    expect(closes(dispatched)).toEqual([
+      { type: "close", key: element.key },
+      { type: "close", key: list.key },
+    ]);
+    expect(discarded).toEqual([element.key, list.key]);
+    expect(echoed).toEqual(["Closed 2 buffers"]);
+    choices(asked[0])[1]?.run();
+    expect(closes(dispatched).slice(2)).toEqual([
+      { type: "close", key: element.key },
+      { type: "close", key: other.key },
+      { type: "close", key: list.key },
+    ]);
+    expect(discarded.slice(2)).toEqual([element.key, other.key, list.key]);
+    expect(echoed.at(-1)).toBe("Closed 3 buffers");
+  });
+
+  it("names at most three of the buffers with unsaved text", () => {
+    const many = [1, 2, 3, 4, 5].map((n) => elementBuffer(`u${String(n)}`, "spec", `SR-00${String(n)} T`));
+    const { context, asked } = setup(many, {}, true, { drafted: () => true });
+    action("close-all").run(context);
+    expect(asked[0]?.label).toBe("5 buffers with unsaved changes (SR-001 T, SR-002 T, SR-003 T and 2 more)");
+    const three = setup(many.slice(0, 3), {}, true, { drafted: () => true });
+    action("close-all").run(three.context);
+    expect(three.asked[0]?.label).toBe("3 buffers with unsaved changes (SR-001 T, SR-002 T, SR-003 T)");
+  });
+
+  it('[SR-123/AK3] "cab" ranks Close all buffers first in the command prompt', () => {
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
+    const { context } = setup([element, other, filtered], {}, true, { element: controls });
+    const items = commandPrompt(context).items;
+    expect(rank(items, (item) => item.name, "cab")[0]?.item.name).toBe("Close all buffers");
+  });
+
+  it("is offered with buffers only", () => {
+    expect(action("close-all").available(setup([list]).context)).toBe(true);
+    expect(action("close-all").available(setup([]).context)).toBe(false);
+  });
+
+  it("any other action ends a question that Close buffer asked, Close all buffers too", () => {
+    const { context, armed } = setup([element]);
+    runAction(action("close-all"), context);
+    expect(armed).toEqual([undefined]);
+  });
+});
+
 describe("save element and edit text", () => {
   it("save runs the controls with Ctrl/Cmd+S, edit has no shortcut", () => {
-    const controls = { save: vi.fn(), edit: vi.fn() };
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "s" && shortcut.mod)?.id).toBe("save");
     action("save").run(context);
@@ -441,6 +540,22 @@ describe("save element and edit text", () => {
     expect(controls.save).toHaveBeenCalledTimes(1);
     expect(controls.edit).toHaveBeenCalledTimes(1);
     expect(action("edit").shortcut).toBeUndefined();
+  });
+
+  it("follow reference runs the controls with Ctrl/Cmd+Enter, on an element with a loaded text only", () => {
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(actionFor(context, (shortcut) => shortcut.key === "enter" && shortcut.mod)?.id).toBe(
+      "follow-reference",
+    );
+    action("follow-reference").run(context);
+    expect(controls.follow).toHaveBeenCalledTimes(1);
+    expect(action("follow-reference").available(setup([element]).context)).toBe(false);
+    expect(action("follow-reference").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("follow-reference").run(setup([element]).context);
+    expect(controls.follow).toHaveBeenCalledTimes(1);
   });
 
   it("do nothing without controls", () => {

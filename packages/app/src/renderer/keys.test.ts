@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMac, matches, shortcutLabel } from "./keys.js";
+import { isMac, listStep, matches, shortcutLabel } from "./keys.js";
 
 const press = (
   key: string,
@@ -39,5 +39,35 @@ describe("keys", () => {
     expect(shortcutLabel({ mod: true, shift: false, key: "p" }, true)).toBe("⌘P");
     expect(shortcutLabel({ mod: false, shift: false, key: "x" }, false)).toBe("X");
     expect(shortcutLabel({ mod: false, shift: false, key: "x" }, true)).toBe("X");
+  });
+
+  it("writes the Enter key by its name", () => {
+    const follow = { mod: true, shift: false, key: "enter" };
+    expect(shortcutLabel(follow, false)).toBe("Ctrl+Enter");
+    expect(shortcutLabel(follow, true)).toBe("⌘↩");
+  });
+
+  it("[SR-122/AK1] Ctrl+N steps down and Ctrl+P steps up, in either case", () => {
+    expect(listStep(press("n", { ctrlKey: true }))).toBe(1);
+    expect(listStep(press("N", { ctrlKey: true }))).toBe(1);
+    expect(listStep(press("p", { ctrlKey: true }))).toBe(-1);
+    expect(listStep(press("P", { ctrlKey: true }))).toBe(-1);
+  });
+
+  it("[SR-122/AK2] only the physical Ctrl key counts: Cmd+N/P, Alt, Shift or no modifier give no step", () => {
+    expect(listStep(press("n", { metaKey: true }))).toBeUndefined();
+    expect(listStep(press("p", { metaKey: true }))).toBeUndefined();
+    expect(listStep(press("p", { ctrlKey: true, metaKey: true }))).toBeUndefined();
+    expect(listStep(press("p", { ctrlKey: true, altKey: true }))).toBeUndefined();
+    expect(listStep(press("p", { ctrlKey: true, shiftKey: true }))).toBeUndefined();
+    expect(listStep(press("n", {}))).toBeUndefined();
+    expect(listStep(press("x", { ctrlKey: true }))).toBeUndefined();
+  });
+
+  it("[SR-122/AK3] the arrow keys and Tab step as before", () => {
+    expect(listStep(press("ArrowDown"))).toBe(1);
+    expect(listStep(press("Tab"))).toBe(1);
+    expect(listStep(press("ArrowUp"))).toBe(-1);
+    expect(listStep(press("Enter"))).toBeUndefined();
   });
 });

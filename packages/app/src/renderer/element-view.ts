@@ -1,6 +1,7 @@
 // What the element buffer shows of an element: its properties and relations, from the command output as
 // it is. Empty properties are not shown (D-062: only what means something).
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
+import { outdatedKey } from "./editor/references.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
 export const propertyLines = (value: unknown): string[] => {
@@ -51,4 +52,36 @@ export const relationGroups = (relations: readonly DataExportRelation[]): Relati
     groups.set(heading, [...(groups.get(heading) ?? []), relation]);
   }
   return [...groups].map(([heading, grouped]) => ({ heading, relations: grouped }));
+};
+
+// The hint of an inline reference has the place `.../@text/<target>?version=<v>[&repository=<name>]&n=<k>`
+// in its ID (`hintId`); a hint on a relation item has a metamodel key instead of `@text`.
+const TEXT_HINT = /\/@text\/[^/?]+\?(.*)$/;
+
+/**
+ * The outdated inline references of an element for the editor: `outdatedKey` of the target, the stored
+ * version and the repository the link names, to the message of the hint. The hints come from core; the
+ * first one of a reference wins.
+ */
+export const outdatedReferences = (element: DataExportElement): ReadonlyMap<string, string> => {
+  const found = new Map<string, string>();
+  for (const problem of element.problems ?? []) {
+    const query = TEXT_HINT.exec(problem.hintId ?? "")?.[1];
+    if (
+      problem.code === "relation.outdated" &&
+      query !== undefined &&
+      problem.targetId !== undefined &&
+      problem.storedVersion !== undefined
+    ) {
+      const named = query
+        .split("&")
+        .find((entry) => entry.startsWith("repository="))
+        ?.slice("repository=".length);
+      const key = outdatedKey(problem.targetId, problem.storedVersion, named);
+      if (!found.has(key)) {
+        found.set(key, problem.message);
+      }
+    }
+  }
+  return found;
 };

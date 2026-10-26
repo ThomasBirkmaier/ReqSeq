@@ -14,7 +14,9 @@ describe("renderer entry", () => {
           output:
             name === "workspace.status"
               ? { name: "Weather station", readOnly: false }
-              : { elements: [], total: 0 },
+              : name === "metamodel.get"
+                ? { types: [], statuses: [] }
+                : { elements: [], total: 0 },
         }),
       commands: () => Promise.resolve([]),
       on: () => () => undefined,

@@ -49,9 +49,15 @@ export type BufferData =
 
 /**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
- * something. Values are the output's as they are: nothing is computed about a status.
+ * something. Values are the output's as they are: nothing is computed about a status. An element is
+ * named by its ID, its type by its name in the metamodel (else by its key) and its status, in one part
+ * (SR-114 AK1).
  */
-export const bufferView = (buffer: Buffer, data: BufferData | undefined): string[] => {
+export const bufferView = (
+  buffer: Buffer,
+  data: BufferData | undefined,
+  typeNames: ReadonlyMap<string, string> = new Map(),
+): string[] => {
   if (data === undefined) {
     return [bufferName(buffer)];
   }
@@ -60,9 +66,11 @@ export const bufferView = (buffer: Buffer, data: BufferData | undefined): string
     const outdated = element.relations.filter((relation) => relation.outdated === true).length;
     const hints = element.problems?.length ?? 0;
     return [
-      element.identifier ?? element.shortId,
-      element.type,
-      ...(element.status === undefined ? [] : [element.status]),
+      [
+        element.identifier ?? element.shortId,
+        typeNames.get(element.type) ?? element.type,
+        ...(element.status === undefined ? [] : [element.status]),
+      ].join(" · "),
       ...(data.modified === true ? ["modified"] : []),
       ...(element.readOnly === true ? ["read-only"] : []),
       ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),

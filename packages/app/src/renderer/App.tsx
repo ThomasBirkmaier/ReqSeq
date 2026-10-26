@@ -7,6 +7,7 @@ import type { WorkspaceChangeReason } from "../shared/protocol.js";
 import type { LogReqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import { COMMAND_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions.js";
+import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer } from "./buffers.js";
 import { elementBufferOf, listBuffer, reduceBuffers } from "./buffers.js";
@@ -30,7 +31,8 @@ const MESSAGES: Readonly<Record<string, string>> = {
 const modelineParts = (
   current: Buffer | undefined,
   loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
-  drafts: ReadonlyMap<string, string>,
+  drafts: ReadonlyMap<string, Draft>,
+  typeNames: ReadonlyMap<string, string>,
 ): string[] => {
   if (current === undefined) {
     return [];
@@ -39,6 +41,7 @@ const modelineParts = (
   return bufferView(
     current,
     data?.kind === "element" && drafts.has(current.key) ? { ...data, modified: true } : data,
+    typeNames,
   );
 };
 
@@ -60,6 +63,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const serial = useRef(0);
   const sheet = useRef<HTMLElement>(null);
   const stoppedRef = useRef(false);
+  // The names of the types by their key, from the metamodel, for the modeline of an element (SR-114).
+  const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
 
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
@@ -73,6 +78,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
 
   useEffect(() => {
     let mounted = true;
+    // If the metamodel cannot be read, the modeline shows the keys of the types.
+    const loadTypeNames = async (): Promise<void> => {
+      const metamodel = await callOn(bridge)("metamodel.get", {});
+      if (mounted) {
+        setTypeNames(
+          metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
+        );
+      }
+    };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const result = await bridge.invoke("workspace.status", {});
       if (!mounted) {
@@ -89,6 +103,12 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       // The shown buffer asks again, also a list that is the same list of another workspace.
       if (reason !== undefined) {
         setRevision((count) => count + 1);
+      }
+      // The type names come with the workspace; the modeline shows keys until they are there.
+      if (result.ok) {
+        void loadTypeNames();
+      } else {
+        setTypeNames(new Map());
       }
     };
     void refresh(undefined);
@@ -135,6 +155,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     discard: (key) => {
       onDraft(key, undefined);
     },
+    drafted: (key) => drafts.current.has(key),
   };
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
@@ -142,6 +163,10 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   latest.current = context;
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
+      // A key that a control already handled (the minibuffer, the editor, a list) is no shortcut.
+      if (event.defaultPrevented) {
+        return;
+      }
       const now = latest.current;
       if (!now.workspace) {
         return;
@@ -175,18 +200,21 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     setLoaded({ key, data });
   }, []);
 
-  const openTarget = (id: string): void => {
+  const openTarget = (id: string, repository?: string): void => {
     // A relation has no repository, so the element is read once to get it (SR-088: several answers say so).
-    void call("element.get", { ref: id }).then((answer) => {
-      if (answer.ok) {
-        dispatch({ type: "open", buffer: elementBufferOf(answer.output.element) });
-      } else {
-        setEcho(answer.message);
-      }
-    });
+    // A reference names the repository when the link has one.
+    void call("element.get", { ref: id, ...(repository === undefined ? {} : { repository }) }).then(
+      (answer) => {
+        if (answer.ok) {
+          dispatch({ type: "open", buffer: elementBufferOf(answer.output.element) });
+        } else {
+          setEcho(answer.message);
+        }
+      },
+    );
   };
 
-  const parts = modelineParts(current, loaded, drafts.current);
+  const parts = modelineParts(current, loaded, drafts.current, typeNames);
 
   return (
     <div className="shell">

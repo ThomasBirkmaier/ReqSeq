@@ -16,7 +16,7 @@ pnpm --filter @logreq/app test:electron      # install, build and the Playwright
 A white sheet (D-062). The window shows one buffer at a time, the most recent one, above the modeline and the minibuffer; nothing else is permanently visible.
 
 - **Buffers:** the list of elements (`element.list`: filter, sort, derivation tree, pages of 200), a search result (`element.search`, pages of 50) and one element (`element.get`: title, the text in the Markdown editor, the properties that are set and the relations by kind, with a mark for outdated ones, both read-only for now). Opening a buffer again shows the one that is open.
-- **Modeline:** a display, not a control. Left the parts of the shown buffer (a list: its filter, sort and count; an element: ID, type, status, `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
+- **Modeline:** a display, not a control. Left the parts of the shown buffer (a list: its filter, sort and count; an element: one part with the ID, the type by its name in the metamodel and the status, then `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
 - **Minibuffer:** the only control. Idle it is one line with the last message. Asked, it has an input and the candidates rise above the modeline, only while asked.
 - **Fuzzy matching:** names of actions and buffers are ranked with uFuzzy in the renderer (`intraMode: 0`, and one slip per word when that finds nothing). Elements are found by `element.search` in core.
 - **Not shown unless asked:** UUID and version (action "Show element ID and version": the UUID and the date of the version, D-013, not the check value), empty properties, the shortcut of an action (only in the prompt).
@@ -30,18 +30,20 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 | Enter | Open the selected row (in a prompt: run the candidate) |
 | Escape | End the prompt |
 | Tab | In a prompt, the next candidate |
+| Ctrl+N / Ctrl+P (the Ctrl key, also on macOS) | In an open prompt: the next / previous hit, like Down / Up (SR-122). The prompt takes these keys: Ctrl+P is not "Go to" while a prompt is open |
 | Ctrl/Cmd+S | Save the text of the shown element (action "Save element") |
 | Enter | On an element, put the cursor into the text (action "Edit text") |
+| Ctrl/Cmd+Enter | On an element, open the element of the inline reference at the cursor (action "Follow reference") |
 | Escape | In the text, back to the element |
 
 Catalog commands in the command prompt (SR-073 AK2) come with #85.
 
 ## Editor (SR-065)
 
-The text of an element is Markdown source with a live preview (D-061, `src/renderer/editor/`, CodeMirror 6): headings, emphasis (`*em*`, `**strong**`, `~~strike~~`, `` `code` ``), bullet, ordered and task lists, tables, fenced and indented code blocks, quotes and links appear set, and the source shows only on the lines the cursor touches while the editor has the focus. A table shows its source while the cursor is in any of its rows (spec question #420). There is no preview pane, no toolbar and no Markdown rewriting: the preview only decorates, and the file holds exactly what is in the editor (core adds the final line break, ADR-0004). Nothing in the text is interpreted as HTML, and links are not followed.
+The text of an element is Markdown source with a live preview (D-061, `src/renderer/editor/`, CodeMirror 6): headings, emphasis (`*em*`, `**strong**`, `~~strike~~`, `` `code` ``), bullet, ordered and task lists, tables, fenced and indented code blocks, quotes and links appear set, and the source shows only on the lines the cursor touches while the editor has the focus. A table shows its source while the cursor is in any of its rows (spec question #420). There is no preview pane, no toolbar and no Markdown rewriting: the preview only decorates, and the file holds exactly what is in the editor (core adds the final line break, ADR-0004). Nothing in the text is interpreted as HTML. An inline reference (a `logreq:` link) opens its element on a click on its label (Ctrl/Cmd+click on a line that shows its source) and with Ctrl/Cmd+Enter when the cursor is on it (action "Follow reference"); an outdated one (a `relation.outdated` hint of `element.get`) is shown in the accent colour with the word "outdated". Other links are not followed, and a link in a table cell is not clickable yet.
 
 - **Keys:** Enter on the element puts the cursor at the end of the text; Escape comes back to the element; Ctrl/Cmd+S saves with `element.update`; Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo; Enter in a list continues it. After a prompt closes, the focus goes to the element (the article), not to the text, unless the action was "Edit text".
-- **Unsaved text** is a draft the app keeps per buffer while another buffer is shown (the modeline says `modified`). "Close buffer" asks once and discards when repeated. Opening another workspace drops all drafts. Autosave and the rule for a file that changed outside come with #401 and #402; until then a reload keeps the draft and says that saving overwrites the file.
+- **Unsaved text** is a draft the app keeps per buffer while another buffer is shown (the modeline says `modified`). "Close buffer" asks once and discards when repeated. Opening another workspace drops all drafts. "Close all buffers" closes every buffer; with unsaved text it asks in the minibuffer (Enter keeps the buffers with unsaved text, the second choice discards it). A draft keeps the text and the file text it was typed on; autosave and the rule for a file that changed outside come with #401 and #402. Until then, when a buffer with a draft is shown and the file text differs from the one it was typed on, the minibuffer says that saving overwrites the file. A file changed outside the app is seen only then, after a write or after a restart of the core process.
 - **Extension points** (`editor/plugins.ts`) for the following issues: parser extensions and preview rules (formulas and diagrams #108, images #109) and further CodeMirror extensions (`[[` link search #78). Property boxes stay below the text (#400).
 
 ## Processes

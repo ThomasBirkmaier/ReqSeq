@@ -3,15 +3,18 @@
 // read-only (property editing comes with #400). Empty properties are left out; the UUID and the version
 // are shown on request only. The only write is `element.update { ref, text }` (ADR-0002), on the action
 // "Save element"; the unsaved text is a draft that the app keeps while another buffer is shown.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls } from "./actions.js";
 import type { ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import { propertyBoxes, relationGroups } from "./element-view.js";
+import { outdatedReferences, propertyBoxes, relationGroups } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
+import { referenceAt, references } from "./editor/references.js";
+import type { Reference } from "./editor/references.js";
 import { afterSave, dirty, saveInput } from "./editor/save.js";
+import type { Draft } from "./drafts.js";
 import type { BufferData } from "./modeline.js";
 
 export interface ElementViewProps {
@@ -22,15 +25,22 @@ export interface ElementViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
-  /** A relation target is opened: by its UUID, as the relation output has no repository. */
-  readonly onOpenTarget: (id: string) => void;
-  /** The unsaved text this buffer had when it was shown last, if any. */
-  readonly draft: string | undefined;
-  /** The text of the buffer has unsaved changes (`text`), or has none (undefined). */
-  readonly onDraft: (key: string, text: string | undefined) => void;
+  /**
+   * A relation target or the target of an inline reference is opened: by its UUID, and by the repository
+   * the link names (a relation has none: the output has no repository).
+   */
+  readonly onOpenTarget: (id: string, repository?: string) => void;
+  /** The unsaved text this buffer had when it was shown last, if any, with the file text it was typed on. */
+  readonly draft: Draft | undefined;
+  /** The text of the buffer has unsaved changes (the draft), or has none (undefined). */
+  readonly onDraft: (key: string, draft: Draft | undefined) => void;
   /** Gives the app the means to save and edit while the text is shown, and takes them back. */
   readonly register: (controls: ElementControls | undefined) => void;
 }
+
+/** What the minibuffer says when the file differs from the file text that unsaved changes were typed on. */
+const changedOnDisk = (name: string): string =>
+  `${name} changed on disk; your unsaved changes are kept. Saving overwrites the file.`;
 
 type View =
   | { readonly status: "loading" }
@@ -91,12 +101,29 @@ export const ElementView = ({
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
   const baseline = useRef("");
   const loadedOnce = useRef(false);
+  // The draft this buffer was shown with (the app keys this component by buffer).
+  const initialDraft = useRef(draft);
   const saving = useRef(false);
   const [article, setArticle] = useState<HTMLElement | null>(null);
   const readOnly = view.status === "ok" && view.element.readOnly === true;
   // What the callbacks need of the latest render.
-  const now = useRef({ buffer, call, onData, onDraft, onEcho, readOnly, handle });
-  now.current = { buffer, call, onData, onDraft, onEcho, readOnly, handle };
+  const now = useRef({ buffer, call, onData, onDraft, onEcho, onOpenTarget, readOnly, handle });
+  now.current = { buffer, call, onData, onDraft, onEcho, onOpenTarget, readOnly, handle };
+
+  // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
+  // editor is configured again only when the hints about the text change.
+  const outdated = view.status === "ok" ? outdatedReferences(view.element) : undefined;
+  const signature = JSON.stringify([...(outdated ?? [])]);
+  const plugins = useMemo(
+    () =>
+      references({
+        outdated: outdated ?? new Map(),
+        follow: (reference: Reference) => {
+          now.current.onOpenTarget(reference.id, reference.repository);
+        },
+      }),
+    [signature],
+  );
 
   const setBaseline = (next: string): void => {
     baseline.current = next;
@@ -125,15 +152,24 @@ export const ElementView = ({
       if (!saving.current) {
         if (!loadedOnce.current) {
           setBaseline(loaded);
+          const kept = initialDraft.current;
+          if (kept?.text === loaded) {
+            // The file now holds the draft: nothing is unsaved.
+            onDraft(buffer.key, undefined);
+          } else if (kept !== undefined && kept.base !== loaded) {
+            // Interim until the conflict rule of the external-change issues (#401, #402).
+            onEcho(changedOnDisk(buffer.name));
+            onDraft(buffer.key, { text: kept.text, base: loaded });
+          }
         } else if (loaded !== baseline.current) {
           const editor = now.current.handle;
-          const unsaved = editor !== undefined && dirty(editor.doc(), baseline.current);
+          const doc = editor?.doc();
+          const unsaved = doc !== undefined && dirty(doc, baseline.current);
           setBaseline(loaded);
           if (unsaved) {
             // Interim until the conflict rule of the external-change issues (#401, #402).
-            onEcho(
-              `${buffer.name} changed on disk; your unsaved changes are kept. Saving overwrites the file.`,
-            );
+            onEcho(changedOnDisk(buffer.name));
+            onDraft(buffer.key, dirty(doc, loaded) ? { text: doc, base: loaded } : undefined);
           }
         }
         loadedOnce.current = true;
@@ -171,7 +207,7 @@ export const ElementView = ({
         editor.replace(after.replace);
       }
       const rest = editor.doc();
-      draftOf(shown.key, dirty(rest, after.baseline) ? rest : undefined);
+      draftOf(shown.key, dirty(rest, after.baseline) ? { text: rest, base: after.baseline } : undefined);
       setView({ status: "ok", element });
       data(shown.key, { kind: "element", element });
       echo(`Saved ${shown.name}`);
@@ -189,6 +225,15 @@ export const ElementView = ({
       edit: () => {
         handle.focus("end");
       },
+      follow: () => {
+        const state = handle.state();
+        const reference = referenceAt(state, state.selection.main.head);
+        if (reference === undefined) {
+          now.current.onEcho("No element reference at the cursor");
+        } else {
+          now.current.onOpenTarget(reference.id, reference.repository);
+        }
+      },
     });
     return () => {
       register(undefined);
@@ -203,8 +248,16 @@ export const ElementView = ({
       tabIndex={0}
       ref={setArticle}
       onKeyDown={(event) => {
-        // Enter on the buffer itself edits the text; Escape in the editor comes back here.
-        if (event.key === "Enter" && event.target === event.currentTarget) {
+        // Enter on the buffer itself edits the text; Escape in the editor comes back here. Enter with a
+        // modifier is a shortcut ("Follow reference") and goes on to the window.
+        if (
+          event.key === "Enter" &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          !event.shiftKey &&
+          event.target === event.currentTarget
+        ) {
           event.preventDefault();
           handle?.focus("end");
         }
@@ -222,9 +275,13 @@ export const ElementView = ({
             <Editor
               text={text}
               readOnly={readOnly}
-              {...(draft === undefined ? {} : { initial: draft })}
+              plugins={plugins}
+              {...(initialDraft.current === undefined ? {} : { initial: initialDraft.current.text })}
               onChange={(doc) => {
-                onDraft(buffer.key, dirty(doc, baseline.current) ? doc : undefined);
+                onDraft(
+                  buffer.key,
+                  dirty(doc, baseline.current) ? { text: doc, base: baseline.current } : undefined,
+                );
               }}
               onEscape={() => {
                 article?.focus();

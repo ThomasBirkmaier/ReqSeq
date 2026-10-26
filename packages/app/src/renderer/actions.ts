@@ -49,6 +49,8 @@ export interface ElementControls {
   readonly save: () => void;
   /** Gives the text editor the focus (the action "Edit text"). */
   readonly edit: () => void;
+  /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
+  readonly follow: () => void;
 }
 
 export interface ActionContext {
@@ -71,6 +73,8 @@ export interface ActionContext {
   readonly armClose: (key: string | undefined) => void;
   /** Drops the unsaved changes of the buffer with this key. */
   readonly discard: (key: string) => void;
+  /** The buffer with this key has unsaved changes. */
+  readonly drafted: (key: string) => boolean;
 }
 
 export interface Action {
@@ -210,6 +214,51 @@ const filterBy = (by: FilterBy): Action => ({
     });
   }),
 });
+
+const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
+
+/** Closes the buffers, drops their unsaved text and says how many were closed. */
+const closeBuffers = (context: ActionContext, buffers: Buffers): void => {
+  for (const buffer of buffers) {
+    context.discard(buffer.key);
+    context.dispatch({ type: "close", key: buffer.key });
+  }
+  context.echo(`Closed ${plural(buffers.length, "buffer")}`);
+};
+
+/** The names of at most three buffers, then "and N more". */
+const someNames = (buffers: Buffers): string => {
+  const names = buffers.slice(0, 3).map(bufferName);
+  return buffers.length > 3 ? `${names.join(", ")} and ${String(buffers.length - 3)} more` : names.join(", ");
+};
+
+/**
+ * "Close all buffers" (SR-123): buffers without unsaved text close at once. With unsaved text the
+ * minibuffer asks, not a dialog (SR-123 AK2): the first choice, which Enter takes, keeps the buffers that
+ * have unsaved text; the second discards it.
+ */
+const closeAll = (context: ActionContext): void => {
+  const open = context.buffers;
+  const unsaved = open.filter((buffer) => context.drafted(buffer.key));
+  if (unsaved.length === 0) {
+    closeBuffers(context, open);
+    return;
+  }
+  context.ask({
+    label: `${plural(unsaved.length, "buffer")} with unsaved changes (${someNames(unsaved)})`,
+    items: [
+      choice("Close all but the buffers with unsaved changes", () => {
+        closeBuffers(
+          context,
+          open.filter((buffer) => !context.drafted(buffer.key)),
+        );
+      }),
+      choice("Close all and discard the unsaved changes", () => {
+        closeBuffers(context, open);
+      }),
+    ],
+  });
+};
 
 /** The facets of the shown list: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, list: ListBuffer): Promise<Answer<"element.facets">> =>
@@ -379,6 +428,7 @@ export const ACTIONS: readonly Action[] = [
       context.dispatch({ type: "close", key: current.key });
     },
   },
+  { id: "close-all", title: "Close all buffers", available: hasBuffers, run: closeAll },
   {
     id: "save",
     title: "Save element",
@@ -395,6 +445,15 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.edit();
+    },
+  },
+  {
+    id: "follow-reference",
+    title: "Follow reference",
+    shortcut: { mod: true, shift: false, key: "enter" },
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.follow();
     },
   },
   {

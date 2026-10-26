@@ -16,6 +16,8 @@ export interface EditorHandle {
   /** Gives the editor the focus, the cursor at the end of the text when asked. */
   readonly focus: (at?: "end") => void;
   readonly doc: () => string;
+  /** The state of the editor, for the cursor (the element buffer asks what it is on). */
+  readonly state: () => EditorState;
   /** Replaces the document without an undo step (the text of the file after a save). */
   readonly replace: (text: string) => void;
 }
@@ -66,6 +68,10 @@ const theme = EditorView.theme({
     backgroundColor: "var(--select)",
   },
   ".cm-lr-link": { textDecoration: "underline", textDecorationColor: "var(--muted)" },
+  ".cm-lr-ref": { cursor: "pointer" },
+  // The one accent colour, for "outdated" only (D-062).
+  ".cm-lr-outdated": { color: "var(--accent-outdated)", textDecorationColor: "var(--accent-outdated)" },
+  ".cm-lr-outdated-word": { color: "var(--accent-outdated)" },
   ".cm-lr-muted": { color: "var(--muted)" },
   ".cm-lr-bullet, .cm-lr-task": { display: "inline-block", width: "1.1em", color: "var(--muted)" },
   ".cm-lr-quote": { borderLeft: "3px solid var(--rule)", paddingLeft: "0.75rem", color: "var(--muted)" },
@@ -152,6 +158,7 @@ export const Editor = ({
         }
       },
       doc: () => editor.state.doc.toString(),
+      state: () => editor.state,
       replace: (next) => {
         replaceDocument(editor, next);
       },

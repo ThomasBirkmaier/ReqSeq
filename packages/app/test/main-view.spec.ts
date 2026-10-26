@@ -162,8 +162,12 @@ test.describe("the main view on a fixture workspace", () => {
       element: { title: string; shortId: string; type: string; status: string; text?: string };
     }>(running, ["element", "get", "SR-0000b3"]);
     await expect(window.locator("article h1")).toHaveText(got.element.title);
+    // The modeline names the ID, the type by its name in the metamodel and the status (SR-114 AK1).
+    const types = await cliJson<{ types: { key: string; name: string }[] }>(running, ["metamodel", "get"]);
+    const typeName = types.types.find((type) => type.key === got.element.type)?.name;
+    expect(typeName).toBeDefined();
     await expect(window.getByLabel("Modeline")).toContainText(
-      `${got.element.shortId}${got.element.type}${got.element.status}`,
+      `${got.element.shortId} · ${typeName ?? ""} · ${got.element.status}`,
     );
     if (got.element.text !== undefined) {
       await expect(window.locator("article .cm-content")).toHaveText(got.element.text.trim());
@@ -177,6 +181,61 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
     await expect(window.locator('[aria-selected="true"]')).toBeVisible();
+  });
+
+  test("[SR-122/AK1] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt", async () => {
+    const { window } = running;
+    const selected = window.locator('.candidates [role="option"][aria-selected="true"]');
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    const first = await selected.textContent();
+    await window.keyboard.press("Control+N");
+    await expect(selected).not.toHaveText(first ?? "");
+    await window.keyboard.press("Control+N");
+    const third = await selected.textContent();
+    await window.keyboard.press("Control+P");
+    await expect(selected).not.toHaveText(third ?? "");
+    await window.keyboard.press("Control+P");
+    await expect(selected).toHaveText(first ?? "");
+    // Ctrl+P in the prompt moves up; it does not turn the command prompt into "Go to".
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Command");
+    await window.keyboard.press("Escape");
+    // The go-to prompt: hits of element.search, moved with Ctrl+N and Ctrl+P.
+    await window.keyboard.press("Control+P");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
+    await window.keyboard.type("wind");
+    const options = window.locator('.candidates [role="option"]');
+    await expect(options.nth(1)).toBeVisible();
+    await expect(selected).toHaveText(await options.first().innerText());
+    await window.keyboard.press("Control+N");
+    await expect(selected).toHaveText(await options.nth(1).innerText());
+    await window.keyboard.press("Control+P");
+    await expect(selected).toHaveText(await options.first().innerText());
+    await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
+    await window.keyboard.press("Escape");
+  });
+
+  test("[SR-123/AK2] [SR-123/AK3] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text", async () => {
+    const { window } = running;
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toBeVisible();
+    await expect(window.locator("article")).toBeFocused();
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toBeFocused();
+    await window.keyboard.insertText(" ENDE");
+    await expect(window.getByLabel("Modeline")).toContainText("modified");
+    await window.keyboard.press("Escape");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.press("Enter");
+    await runCommand(window, "cab");
+    await expect(window.getByLabel("Minibuffer").locator("label")).toContainText("with unsaved changes");
+    await expect(window.getByRole("dialog")).toHaveCount(0);
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Minibuffer")).toContainText("Closed 1 buffer");
+    await expect(window.getByLabel("Modeline")).toContainText("modified");
+    await runCommand(window, "close all buffers");
+    await window.keyboard.press("Control+N");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("[data-buffer]")).toHaveCount(0);
   });
 
   test("a relation of an element opens the element it points to", async () => {

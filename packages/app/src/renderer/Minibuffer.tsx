@@ -6,6 +6,7 @@ import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import { rank } from "./fuzzy.js";
 import type { Ranked } from "./fuzzy.js";
+import { listStep } from "./keys.js";
 
 export interface MinibufferProps {
   /** The message shown while idle. */
@@ -64,16 +65,16 @@ const PromptLine = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
+    // Down, Up, Tab and Ctrl+N / Ctrl+P (SR-122) move the selection. They go no further: Ctrl+P is
+    // "Go to" in the window, but in an open prompt it only moves the selection, on every platform.
+    const step = listStep(event);
+    if (step !== undefined) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSelected(Math.max(0, Math.min(rows.length - 1, selected + step)));
+      return;
+    }
     switch (event.key) {
-      case "ArrowDown":
-      case "Tab":
-        event.preventDefault();
-        setSelected(Math.max(0, Math.min(rows.length - 1, selected + 1)));
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        setSelected(Math.max(0, selected - 1));
-        break;
       case "Enter":
         event.preventDefault();
         if (current !== undefined) {

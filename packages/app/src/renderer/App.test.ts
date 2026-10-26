@@ -82,7 +82,7 @@ const workspace = (): Record<string, Handler> => ({
     total: 1,
     incomplete: false,
   }),
-  "metamodel.get": () => ({ types: [{ key: "need" }], statuses: [{ key: "draft" }] }),
+  "metamodel.get": () => ({ types: [{ key: "need", name: "Need" }], statuses: [{ key: "draft" }] }),
   "filter.list": () => ({ filters: [] }),
 });
 
@@ -96,6 +96,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   act(() => {
     root.unmount();
   });
@@ -252,7 +253,7 @@ describe("App", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(calls(invoke, "element.get")).toEqual([{ ref: "uuid-2", repository: "spec" }]);
     expect(query("article h1").textContent).toBe("Title 2");
-    expect(text("Modeline")).toBe("SR-000002needdraftWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000002 · Need · draftWeather stationread-only");
     expect(document.activeElement).toBe(query("article"));
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
@@ -262,6 +263,26 @@ describe("App", () => {
     await keyDown(query("input"), "Enter");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
     expect(query('[aria-selected="true"]').id).toBe("row-1");
+  });
+
+  it("[SR-114/AK1] the modeline of an open element names its ID, its type and its status", async () => {
+    const { bridge } = fakeBridge(workspace());
+    await render(bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
+  });
+
+  it("shows the type key in the modeline when the metamodel cannot be read", async () => {
+    const { bridge, handlers, change } = fakeBridge(workspace());
+    await render(bridge);
+    handlers["metamodel.get"] = () => new Error("The metamodel is broken");
+    await change("opened");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(text("Modeline")).toBe("SR-000001 · need · draftWeather stationread-only");
+    // No workspace: no names either.
+    handlers["workspace.status"] = () => NO_WORKSPACE;
+    await change("opened");
+    expect(text("Modeline")).toBe("No workspace");
   });
 
   it("jumps to an element that core finds by its title", async () => {
@@ -439,6 +460,89 @@ describe("App", () => {
     root = createRoot(container);
   });
 
+  it("ignores the answer about the types that comes after it is gone", async () => {
+    let names: (result: InvokeResult) => void = () => undefined;
+    const { bridge, invoke } = fakeBridge(workspace());
+    bridge.invoke = (name, input) =>
+      name === "metamodel.get"
+        ? new Promise((resolve) => {
+            names = resolve;
+          })
+        : invoke(name, input as Record<string, unknown>);
+    await render(bridge);
+    act(() => {
+      root.unmount();
+    });
+    names({ ok: true, output: { types: [{ key: "need", name: "Need" }], statuses: [] } });
+    await Promise.resolve();
+    root = createRoot(container);
+  });
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-122/AK2] on %s, Ctrl+N and Ctrl+P in an open prompt only move the selection",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      const { bridge } = fakeBridge(workspace());
+      await render(bridge);
+      const selected = (): string | undefined =>
+        container.querySelector('.candidates [aria-selected="true"]')?.textContent ?? undefined;
+      // The command prompt: Ctrl+P must not jump.
+      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      const first = selected();
+      await keyDown(query("input"), "n", { ctrlKey: true });
+      expect(selected()).not.toBe(first);
+      expect(query("label").textContent).toBe("Command");
+      await keyDown(query("input"), "p", { ctrlKey: true });
+      expect(selected()).toBe(first);
+      expect(query("label").textContent).toBe("Command");
+      await keyDown(query("input"), "Escape");
+      // The jump prompt: Ctrl+P in it moves the selection and stays "Go to".
+      await keyDown(window, "p", { ctrlKey: true });
+      expect(query("label").textContent).toBe("Go to");
+      await keyDown(query("input"), "p", { ctrlKey: true });
+      expect(query("label").textContent).toBe("Go to");
+    },
+  );
+
+  it("[SR-122/AK1] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
+    const { bridge } = fakeBridge(workspace());
+    await render(bridge);
+    // Two more buffers behind the shown one.
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await keyDown(window, "p", { ctrlKey: true });
+    const selected = (): string | null | undefined =>
+      container.querySelector('.candidates [aria-selected="true"]')?.textContent;
+    const names = [...container.querySelectorAll('.candidates [role="option"]')].map(
+      (option) => option.textContent,
+    );
+    expect(names.length).toBeGreaterThan(1);
+    expect(selected()).toBe(names[0]);
+    await keyDown(query("input"), "n", { ctrlKey: true });
+    expect(selected()).toBe(names[1]);
+    await keyDown(query("input"), "p", { ctrlKey: true });
+    expect(selected()).toBe(names[0]);
+    await keyDown(query("input"), "ArrowDown");
+    expect(selected()).toBe(names[1]);
+  });
+
+  it("a key that a control handled is no shortcut", async () => {
+    const { bridge } = fakeBridge(workspace());
+    await render(bridge);
+    const handled = (event: Event): void => {
+      event.preventDefault();
+    };
+    document.body.addEventListener("keydown", handled);
+    await keyDown(query("main"), "P", { ctrlKey: true, shiftKey: true });
+    document.body.removeEventListener("keydown", handled);
+    expect(container.querySelector("input")).toBeNull();
+    await keyDown(query("main"), "P", { ctrlKey: true, shiftKey: true });
+    expect(query("label").textContent).toBe("Command");
+  });
+
   it("ignores keys that are no shortcut", async () => {
     const { bridge } = fakeBridge(workspace());
     await render(bridge);
@@ -486,13 +590,13 @@ describe("App, the text editor", () => {
   it("shows the text of the element in the editor", async () => {
     await openElement();
     expect(editorView().state.doc.toString()).toBe("Hello");
-    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
   it("shows modified in the modeline while the text has unsaved changes", async () => {
     await openElement();
     await typeText("!");
-    expect(text("Modeline")).toBe("SR-000001needdraftmodifiedWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
   });
 
   it("saves with Ctrl+S or Cmd+S: element.update, Saved in the minibuffer, no modified", async () => {
@@ -501,7 +605,7 @@ describe("App, the text editor", () => {
     await keyDown(query(".cm-content"), "s", { ctrlKey: true });
     expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", text: "Hello!" }]);
     expect(text("Minibuffer")).toBe("Saved SR-000001 Title 1");
-    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
     expect(editorView().state.doc.toString()).toBe("Hello!\n");
     // The write reports itself as a change of the workspace; the message of the save stays.
     await change("written");
@@ -556,7 +660,24 @@ describe("App, the text editor", () => {
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
     expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(text("Modeline")).toBe("SR-000001needdraftmodifiedWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
+  });
+
+  it("keeps the unsaved text and says the file changed on disk when it changed while another buffer was shown", async () => {
+    const { handlers } = await openElement();
+    await typeText("!");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    handlers["element.get"] = (input) => ({
+      element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: "Changed", relations: [] }),
+    });
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(text("Minibuffer")).toBe(
+      "SR-000001 Title 1 changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+    );
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
   });
 
   it("asks before closing a buffer with unsaved text, and discards it when closing is repeated", async () => {
@@ -572,7 +693,7 @@ describe("App, the text editor", () => {
     // Opened again, the element shows its saved text.
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(editorView().state.doc.toString()).toBe("Hello");
-    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
   it("asks again when text was typed after the question, or another action ran", async () => {
@@ -594,6 +715,62 @@ describe("App, the text editor", () => {
     expect(query("article")).not.toBeNull();
   });
 
+  it("[SR-123/AK1] Close all buffers from the command prompt leaves no buffer", async () => {
+    await openElement();
+    await runCommand("search elements");
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    await runCommand("close all buffers");
+    expect(container.querySelector("[data-buffer]")).toBeNull();
+    expect(query("main").childElementCount).toBe(0);
+    expect(text("Minibuffer")).toBe("Closed 3 buffers");
+    expect(text("Modeline")).toBe("Weather stationread-only");
+    // No buffer is left to go to, and the global keys still work.
+    await keyDown(window, "p", { ctrlKey: true });
+    expect(query("label").textContent).toBe("Go to");
+    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(0);
+  });
+
+  it("[SR-123/AK2] asks in the minibuffer about unsaved text, without a dialog; Enter keeps the unsaved buffer", async () => {
+    await openElement();
+    await typeText("!");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    // The element has unsaved text, the list in front of it does not.
+    await runCommand("close all buffers");
+    expect(query("label").textContent).toBe("1 buffer with unsaved changes (SR-000001 Title 1)");
+    expect(
+      [...container.querySelectorAll(".candidates [role=option]")].map((option) => option.textContent),
+    ).toEqual([
+      "Close all but the buffers with unsaved changes",
+      "Close all and discard the unsaved changes",
+    ]);
+    expect(container.querySelector("dialog, [role=dialog], [role=alertdialog], [aria-modal]")).toBeNull();
+    // Escape closes the question and keeps every buffer.
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    await keyDown(window, "p", { ctrlKey: true });
+    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(1);
+    await keyDown(query("input"), "Escape");
+    // Plain Enter takes the first choice: the buffer with unsaved text stays, and is still modified.
+    await runCommand("close all buffers");
+    await keyDown(query("input"), "Enter");
+    expect(text("Minibuffer")).toBe("Closed 1 buffer");
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
+    // The second choice closes everything and drops the unsaved text.
+    await runCommand("close all buffers");
+    await keyDown(query("input"), "ArrowDown");
+    await keyDown(query("input"), "Enter");
+    expect(container.querySelector("[data-buffer]")).toBeNull();
+    expect(text("Minibuffer")).toBe("Closed 1 buffer");
+    await runCommand("go to element");
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello");
+    expect(text("Modeline")).not.toContain("modified");
+  });
+
   it("closes a buffer without unsaved text at once", async () => {
     await openElement();
     await runCommand("close buffer");
@@ -608,6 +785,63 @@ describe("App, the text editor", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(editorView().state.doc.toString()).toBe("Hello");
     expect(text("Modeline")).not.toContain("modified");
+  });
+
+  describe("inline references (#424)", () => {
+    const TARGET = "00000000-0000-4000-8000-000000000002";
+    const withReference = (link: string): Record<string, Handler> => {
+      const handlers = withText();
+      handlers["element.get"] = (input) =>
+        input["ref"] === TARGET || input["ref"] === "uuid-2"
+          ? { element: row(2, { text: "Target", relations: [] }) }
+          : { element: row(1, { text: `${link} tail`, relations: [] }) };
+      return handlers;
+    };
+
+    /** The questions for the element with this UUID. */
+    const asked = (invoke: ReturnType<typeof fakeBridge>["invoke"], ref: string): unknown[] =>
+      calls(invoke, "element.get").filter((input) => (input as { ref: string }).ref === ref);
+
+    it("follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
+      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?version=n1:aa)`));
+      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
+        "Follow referenceCtrl+Enter",
+      );
+      await keyDown(query("input"), "Escape");
+      await keyDown(query("article"), "Enter", { ctrlKey: true });
+      expect(asked(invoke, TARGET)).toEqual([{ ref: TARGET }]);
+      expect(query("article h1").textContent).toBe("Title 2");
+    });
+
+    it("opens a reference that names a repository in that repository", async () => {
+      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?repository=r2)`));
+      await runCommand("follow reference");
+      expect(asked(invoke, TARGET)).toEqual([{ ref: TARGET, repository: "r2" }]);
+    });
+
+    it("says when there is no reference at the cursor", async () => {
+      await openElement(withReference("plain text"));
+      await keyDown(query("article"), "Enter", { metaKey: true });
+      expect(text("Minibuffer")).toBe("No element reference at the cursor");
+    });
+
+    it("says why a reference cannot be opened, and keeps the element", async () => {
+      const { handlers } = await openElement(withReference(`[Two](logreq:${TARGET})`));
+      handlers["element.get"] = () => new Error(`More than one element has the ID "${TARGET}"`);
+      await keyDown(query("article"), "Enter", { ctrlKey: true });
+      expect(text("Minibuffer")).toBe(`More than one element has the ID "${TARGET}"`);
+      expect(query("article h1").textContent).toBe("Title 1");
+    });
+
+    it("Ctrl+Enter in an open prompt runs the candidate only", async () => {
+      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?version=n1:aa)`));
+      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      await type("go to");
+      await keyDown(query("input"), "Enter", { ctrlKey: true });
+      expect(query("label").textContent).toBe("Go to");
+      expect(asked(invoke, TARGET)).toEqual([]);
+    });
   });
 
   it("gives the editor the focus on Enter on the buffer, and the buffer on Escape", async () => {

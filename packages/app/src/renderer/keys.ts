@@ -27,9 +27,38 @@ export const matches = (event: KeyPress, shortcut: Shortcut): boolean =>
 /** Whether `platform` (`navigator.platform`) is macOS. */
 export const isMac = (platform: string): boolean => platform.startsWith("Mac");
 
+/**
+ * The step of a key in a hit list of the minibuffer (SR-122): 1 down, -1 up, else undefined. Down and
+ * Tab, Up, and the physical Ctrl key with N or P (Emacs), on every platform, also on macOS.
+ */
+export const listStep = (event: KeyPress): 1 | -1 | undefined => {
+  if (event.key === "ArrowDown" || event.key === "Tab") {
+    return 1;
+  }
+  if (event.key === "ArrowUp") {
+    return -1;
+  }
+  if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    const key = event.key.toLowerCase();
+    if (key === "n") {
+      return 1;
+    }
+    if (key === "p") {
+      return -1;
+    }
+  }
+  return undefined;
+};
+
+/** How a key is written: letters in upper case, the others by a name. */
+const KEY_NAMES: Readonly<Record<string, { readonly plain: string; readonly mac: string }>> = {
+  enter: { plain: "Enter", mac: "↩" },
+};
+
 /** "Ctrl+Shift+P", or "⌘⇧P" on macOS. */
 export const shortcutLabel = (shortcut: Shortcut, mac: boolean): string => {
-  const key = shortcut.key.toUpperCase();
+  const named = KEY_NAMES[shortcut.key];
+  const key = named === undefined ? shortcut.key.toUpperCase() : mac ? named.mac : named.plain;
   if (mac) {
     return `${shortcut.mod ? "⌘" : ""}${shortcut.shift ? "⇧" : ""}${key}`;
   }

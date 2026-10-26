@@ -14,6 +14,7 @@ import type { ElementControls } from "./actions.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { Minibuffer } from "./Minibuffer.js";
+import type { Draft } from "./drafts.js";
 import type { BufferData } from "./modeline.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -76,9 +77,9 @@ const queryInput = (): HTMLInputElement => {
   return found;
 };
 
-const press = async (target: Element, key: string): Promise<void> => {
+const press = async (target: Element, key: string, init: KeyboardEventInit = {}): Promise<void> => {
   await act(async () => {
-    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init }));
     await Promise.resolve();
   });
   await flush();
@@ -166,7 +167,7 @@ describe("Minibuffer", () => {
     expect(input().getAttribute("aria-activedescendant")).toBeNull();
   });
 
-  it("moves the selection with Down, Up and Tab, and stays inside the list", async () => {
+  it("[SR-122/AK3] moves the selection with Down, Up and Tab, and stays inside the list", async () => {
     await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two"), choice("c", "Three")] });
     const selected = (): string | null | undefined =>
       container.querySelector('[aria-selected="true"]')?.textContent;
@@ -182,6 +183,38 @@ describe("Minibuffer", () => {
     expect(selected()).toBe("Two");
     await press(input(), "x");
     expect(selected()).toBe("Two");
+  });
+
+  it("[SR-122/AK1] moves the selection with Ctrl+N and Ctrl+P, and stays inside the list", async () => {
+    await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two"), choice("c", "Three")] });
+    const selected = (): string | null | undefined =>
+      container.querySelector('[aria-selected="true"]')?.textContent;
+    await press(input(), "p", { ctrlKey: true });
+    expect(selected()).toBe("One");
+    await press(input(), "n", { ctrlKey: true });
+    expect(selected()).toBe("Two");
+    await press(input(), "N", { ctrlKey: true });
+    expect(selected()).toBe("Three");
+    await press(input(), "n", { ctrlKey: true });
+    expect(selected()).toBe("Three");
+    await press(input(), "p", { ctrlKey: true });
+    expect(selected()).toBe("Two");
+    await press(input(), "n", { ctrlKey: true, metaKey: true });
+    expect(selected()).toBe("Two");
+  });
+
+  it("[SR-122/AK2] Ctrl+N and Ctrl+P do not reach the window", async () => {
+    await mount({ label: "Command", items: [choice("a", "One"), choice("b", "Two")] });
+    const reached = vi.fn();
+    window.addEventListener("keydown", reached);
+    const event = new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => {
+      input().dispatchEvent(event);
+      await Promise.resolve();
+    });
+    window.removeEventListener("keydown", reached);
+    expect(reached).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("runs the selected candidate on Enter, after it has closed the prompt", async () => {
@@ -778,11 +811,12 @@ describe("ElementView", () => {
       ...extra,
     }) as DataExportElement;
 
-  const mount = async (call: Call, revision = 0, draft?: string) => {
+  const mount = async (call: Call, revision = 0, draft?: Draft) => {
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
     const targets: string[] = [];
-    const drafts: [string, string | undefined][] = [];
+    const opened: [string, string | undefined][] = [];
+    const drafts: [string, Draft | undefined][] = [];
     const registered: (ElementControls | undefined)[] = [];
     const node = (rev: number) =>
       createElement(ElementView, {
@@ -791,9 +825,12 @@ describe("ElementView", () => {
         revision: rev,
         onData: (key, loaded) => data.push([key, loaded]),
         onEcho: (message) => echoed.push(message),
-        onOpenTarget: (id) => targets.push(id),
+        onOpenTarget: (id, repository) => {
+          targets.push(id);
+          opened.push([id, repository]);
+        },
         draft,
-        onDraft: (key, text) => drafts.push([key, text]),
+        onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
       });
     await render(node(revision));
@@ -801,6 +838,7 @@ describe("ElementView", () => {
       data,
       echoed,
       targets,
+      opened,
       drafts,
       registered,
       controls: (): ElementControls => {
@@ -897,7 +935,9 @@ describe("ElementView", () => {
   it("keeps the text typed as a draft for the app, and drops it when the text is the saved one again", async () => {
     const { drafts } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
     await typeInto("!");
-    expect(drafts).toEqual([["element:spec:uuid-1", "Line one\n<b>not bold</b>!"]]);
+    expect(drafts).toEqual([
+      ["element:spec:uuid-1", { text: "Line one\n<b>not bold</b>!", base: "Line one\n<b>not bold</b>" }],
+    ]);
     await act(async () => {
       editorView().dispatch({ changes: { from: 24, to: 25 } });
       await Promise.resolve();
@@ -906,15 +946,16 @@ describe("ElementView", () => {
   });
 
   it("shows the draft of the app in place of the text, and it stays a draft", async () => {
-    const { drafts } = await mount(
-      asCall(fakeCall({ "element.get": () => ({ element: read() }) })),
-      0,
-      "my draft",
-    );
+    const { drafts } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })), 0, {
+      text: "my draft",
+      base: "Line one\n<b>not bold</b>",
+    });
     expect(editorView().state.doc.toString()).toBe("my draft");
     expect(drafts).toEqual([]);
     await typeInto("!");
-    expect(drafts).toEqual([["element:spec:uuid-1", "my draft!"]]);
+    expect(drafts).toEqual([
+      ["element:spec:uuid-1", { text: "my draft!", base: "Line one\n<b>not bold</b>" }],
+    ]);
   });
 
   it("saves with element.update { ref, text }, says so, and the baseline is what core gives back", async () => {
@@ -994,7 +1035,7 @@ describe("ElementView", () => {
     });
     await flush();
     expect(editorView().state.doc.toString()).toBe("base!?");
-    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", "base!?"]);
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "base!?", base: "base!" }]);
     expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
   });
 
@@ -1055,6 +1096,17 @@ describe("ElementView", () => {
     expect(editorView().hasFocus).toBe(true);
   });
 
+  it("Enter with a modifier on the buffer is a shortcut and does not edit", async () => {
+    await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
+    const article = query("article");
+    for (const init of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }]) {
+      await press(article, "Enter", init);
+      expect(editorView().hasFocus).toBe(false);
+    }
+    await press(article, "Enter");
+    expect(editorView().hasFocus).toBe(true);
+  });
+
   it("ignores Enter on the buffer before the text is shown", async () => {
     await mount(asCall(fakeCall({ "element.get": () => new Error("No element has that ID") })));
     await press(query("article"), "Enter");
@@ -1084,10 +1136,148 @@ describe("ElementView", () => {
     expect(echoed).toEqual([
       "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
     ]);
-    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", "first!"]);
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "first!", base: "changed" }]);
     // The same text again says nothing more.
     await again(2);
     expect(echoed).toHaveLength(1);
+  });
+
+  it("says that the file changed on disk when a draft comes back on another file text, and keeps the draft", async () => {
+    const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello" }) }) });
+    const { echoed, drafts } = await mount(asCall(call), 0, { text: "Hello!", base: "Old" });
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    expect(echoed).toEqual([
+      "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+    ]);
+    // The draft is compared with the new file text from now on: the message is not repeated.
+    expect(drafts).toEqual([["element:spec:uuid-1", { text: "Hello!", base: "Hello" }]]);
+  });
+
+  it("drops a draft that the file now holds", async () => {
+    const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello!" }) }) });
+    const { echoed, drafts } = await mount(asCall(call), 0, { text: "Hello!", base: "Hello" });
+    expect(drafts).toEqual([["element:spec:uuid-1", undefined]]);
+    expect(echoed).toEqual([]);
+  });
+
+  it("says nothing when the base of the draft is the file text", async () => {
+    const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello" }) }) });
+    const { echoed, drafts } = await mount(asCall(call), 0, { text: "Hello!", base: "Hello" });
+    expect(echoed).toEqual([]);
+    expect(drafts).toEqual([]);
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+  });
+
+  it("drops the draft on a reload when the changed file now holds the typed text", async () => {
+    let text = "first";
+    const call = fakeCall({ "element.get": () => ({ element: read({ text }) }) });
+    const { again, echoed, drafts } = await mount(asCall(call));
+    await typeInto("!");
+    text = "first!";
+    await again(1);
+    expect(echoed).toHaveLength(1);
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+  });
+
+  describe("inline references (#424)", () => {
+    const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
+    const SENTENCE = `Nach [D-017](logreq:${TARGET}?version=n1:1aac78aad3b5e6a8) gilt das.`;
+    const outdatedHint = (message = "points to an older version") => ({
+      code: "relation.outdated",
+      severity: "warning",
+      message,
+      targetId: TARGET,
+      storedVersion: "n1:1aac78aad3b5e6a8",
+      hintId: `relation.outdated/spec/a.md/uuid-1/@text/${TARGET}?version=n1:1aac78aad3b5e6a8&n=1`,
+    });
+    const withReference = (problems: object[] = [outdatedHint()]) =>
+      fakeCall({
+        "element.get": () => ({
+          element: read({ text: SENTENCE, problems } as unknown as Partial<DataExportElement>),
+        }),
+      });
+
+    it("shows the label only, marks an outdated reference, and opens its element on a click", async () => {
+      const { opened } = await mount(asCall(withReference()));
+      const content = query(".cm-content").textContent;
+      expect(content).toBe("Nach D-017 outdated gilt das.");
+      expect(content).not.toContain("](logreq:");
+      expect(content).not.toContain("n1:");
+      expect(query(".cm-lr-outdated").title).toBe("points to an older version");
+      await act(async () => {
+        query(".cm-lr-ref").dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+        );
+        await Promise.resolve();
+      });
+      expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("opens a reference that names a repository with it", async () => {
+      const call = fakeCall({
+        "element.get": () => ({
+          element: read({ text: `[x](logreq:${TARGET}?repository=other)` }),
+        }),
+      });
+      const { controls, opened } = await mount(asCall(call));
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 2 } });
+      });
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([[TARGET, "other"]]);
+    });
+
+    it("marks nothing when the element has no such hint, and drops the mark on a reload without it", async () => {
+      let problems: object[] = [outdatedHint()];
+      const call = fakeCall({
+        "element.get": () => ({
+          element: read({ text: SENTENCE, problems } as unknown as Partial<DataExportElement>),
+        }),
+      });
+      const { again } = await mount(asCall(call));
+      expect(container.querySelector(".cm-lr-outdated")).not.toBeNull();
+      problems = [outdatedHint("changed message")];
+      await again(1);
+      expect(query(".cm-lr-outdated").title).toBe("changed message");
+      problems = [];
+      await again(2);
+      expect(container.querySelector(".cm-lr-outdated")).toBeNull();
+      expect(query(".cm-lr-ref").textContent).toBe("D-017");
+    });
+
+    it("Follow reference opens the element at the cursor, or says there is none", async () => {
+      const { controls, opened, echoed } = await mount(asCall(withReference()));
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([]);
+      expect(echoed.at(-1)).toBe("No element reference at the cursor");
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 8 } });
+      });
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("Ctrl+Enter on the buffer itself is left to the shortcut", async () => {
+      await mount(asCall(withReference()));
+      const event = new KeyboardEvent("keydown", {
+        key: "Enter",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      await act(async () => {
+        query("article").dispatchEvent(event);
+        await Promise.resolve();
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(editorView().hasFocus).toBe(false);
+    });
   });
 
   it("reads again after an error, with no editor to ask", async () => {

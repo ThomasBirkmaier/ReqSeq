@@ -61,10 +61,9 @@ describe("bufferView", () => {
     const buffer = elementBuffer("u", "spec", "SR-036 T");
     expect(
       bufferView(buffer, { kind: "element", element: element({ identifier: "SR-036", status: "draft" }) }),
-    ).toEqual(["SR-036", "system-requirement", "draft"]);
+    ).toEqual(["SR-036 · system-requirement · draft"]);
     expect(bufferView(buffer, { kind: "element", element: element() })).toEqual([
-      "SR-000001",
-      "system-requirement",
+      "SR-000001 · system-requirement",
     ]);
     expect(
       bufferView(buffer, {
@@ -94,10 +93,29 @@ describe("bufferView", () => {
           problems: [{ code: "x" }, { code: "y" }],
         }),
       }),
-    ).toEqual(["SR-000001", "system-requirement", "draft", "read-only", "1 outdated", "2 hints"]);
+    ).toEqual(["SR-000001 · system-requirement · draft", "read-only", "1 outdated", "2 hints"]);
     expect(
       bufferView(buffer, { kind: "element", element: element({ problems: [{ code: "x" }] }) }).at(-1),
     ).toBe("1 hint");
+  });
+
+  it("[SR-114/AK1] names the short ID or identifier, the type by its metamodel name and the status of an element", () => {
+    const buffer = elementBuffer("u", "spec", "SR-036 T");
+    const names = new Map([["system-requirement", "System Requirement"]]);
+    expect(
+      bufferView(
+        buffer,
+        { kind: "element", element: element({ identifier: "SR-036", status: "draft" }) },
+        names,
+      ),
+    ).toEqual(["SR-036 · System Requirement · draft"]);
+    expect(bufferView(buffer, { kind: "element", element: element() }, names)).toEqual([
+      "SR-000001 · System Requirement",
+    ]);
+    // A type the metamodel does not name shows its key.
+    expect(bufferView(buffer, { kind: "element", element: element({ type: "need" }) }, names)).toEqual([
+      "SR-000001 · need",
+    ]);
   });
 
   it("shows that the text has unsaved changes, after the status", () => {
@@ -108,10 +126,9 @@ describe("bufferView", () => {
         element: element({ status: "draft", readOnly: false }),
         modified: true,
       }),
-    ).toEqual(["SR-000001", "system-requirement", "draft", "modified"]);
+    ).toEqual(["SR-000001 · system-requirement · draft", "modified"]);
     expect(bufferView(buffer, { kind: "element", element: element(), modified: false })).toEqual([
-      "SR-000001",
-      "system-requirement",
+      "SR-000001 · system-requirement",
     ]);
   });
 

@@ -8,10 +8,20 @@ import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
-import { DEMO_FILE, DEMO_FILES, DEMO_FRONT_MATTER, DEMO_ID, DEMO_TITLE } from "./support/demo.js";
+import {
+  DEMO_FILE,
+  DEMO_FILES,
+  DEMO_FRONT_MATTER,
+  DEMO_ID,
+  DEMO_TITLE,
+  REFERENCE_FILES,
+  REFERENCE_LABEL,
+  REFERENCE_SOURCE_TITLE,
+  REFERENCE_TARGET_TITLE,
+} from "./support/demo.js";
 
 /** 14 elements with a derivation tree (fixtures/README.md), plus the demo element. */
-const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
+const FIXTURE = { fixture: "SR-069/filter", files: { ...DEMO_FILES, ...REFERENCE_FILES } };
 
 const opened = async (window: Page, title: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+P");
@@ -260,6 +270,31 @@ test.describe("the Markdown editor in the element buffer", () => {
     await expect(first).toContainText("Save element");
     await expect(first.locator(".hint")).toHaveText(/^(Ctrl\+S|⌘S)$/);
     await window.keyboard.press("Escape");
+  });
+
+  test("an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
+    const { window } = running;
+    await opened(window, REFERENCE_SOURCE_TITLE);
+    expect(await shown(window)).toContain(`Siehe ${REFERENCE_LABEL}`);
+    expect(await shown(window)).not.toContain("logreq:");
+    expect(await shown(window)).not.toContain("n1:");
+    await expect(window.locator(".cm-lr-outdated")).toBeVisible();
+    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(" outdated");
+    // A click on the label opens the element it refers to.
+    await window.locator(".cm-lr-ref").click();
+    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+    // Back to the text; the cursor inside the label, Ctrl/Cmd+Enter follows the reference as well.
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText(REFERENCE_SOURCE_TITLE);
+    await expect(window.locator("article")).toBeFocused();
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("ControlOrMeta+Home");
+    for (let step = 0; step < 8; step += 1) {
+      await window.keyboard.press("ArrowRight");
+    }
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
   test("the editor makes no request outside the app's own protocols", async () => {

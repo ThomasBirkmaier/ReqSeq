@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorHandle, EditorProps } from "./Editor.js";
 import { Editor } from "./Editor.js";
 import type { PreviewRule } from "./plugins.js";
+import type { Reference } from "./references.js";
+import { focusEffect } from "./preview.js";
+import { followOnMouseDown, outdatedKey, references } from "./references.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -187,5 +190,97 @@ describe("Editor", () => {
   it("sets everything while it has no focus", async () => {
     await render();
     expect(container.querySelector(".cm-content")?.textContent).toBe("Titlebody");
+  });
+
+  it("gives the state of the editor with the handle", async () => {
+    const handle = vi.fn<(handle: EditorHandle | undefined) => void>();
+    await render({ handle });
+    expect(handleOf(handle).state()).toBe(view().state);
+  });
+
+  describe("inline references", () => {
+    const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
+    const TEXT = `Before [D-017](logreq:${ID}?version=n1:aa) after\n\nsecond line`;
+    const follow = vi.fn<(reference: Reference) => void>();
+    const mousedown = (target: Element, init: MouseEventInit = {}): MouseEvent => {
+      const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0, ...init });
+      act(() => {
+        target.dispatchEvent(event);
+      });
+      return event;
+    };
+    const mount = (outdated: ReadonlyMap<string, string> = new Map()) =>
+      render({ text: TEXT, plugins: references({ outdated, follow }) });
+
+    it("follows a reference on a press on its label when the line shows no source", async () => {
+      follow.mockClear();
+      await mount();
+      const label = element(".cm-lr-ref");
+      expect(label.textContent).toBe("D-017");
+      const event = mousedown(label);
+      expect(event.defaultPrevented).toBe(true);
+      expect(follow).toHaveBeenCalledExactlyOnceWith({
+        id: ID,
+        version: "n1:aa",
+        from: 7,
+        to: 7 + `[D-017](logreq:${ID}?version=n1:aa)`.length,
+      });
+    });
+
+    // The handler is called on its own where CodeMirror's own handling of the press would follow.
+    const press = (target: EventTarget, init: MouseEventInit = {}): boolean => {
+      const event = new MouseEvent("mousedown", { cancelable: true, button: 0, ...init });
+      Object.defineProperty(event, "target", { value: target });
+      return followOnMouseDown(follow)(event, view());
+    };
+
+    it("ignores other buttons, presses elsewhere and presses that do not hit an element", async () => {
+      follow.mockClear();
+      await mount();
+      expect(press(element(".cm-lr-ref"), { button: 1 })).toBe(false);
+      expect(press(element(".cm-line"))).toBe(false);
+      expect(press(document)).toBe(false);
+      expect(follow).not.toHaveBeenCalled();
+      expect(press(element(".cm-lr-ref"))).toBe(true);
+      expect(follow).toHaveBeenCalledTimes(1);
+    });
+
+    it("on a line that shows its source, a plain press places the cursor and Ctrl or Cmd with it follows", async () => {
+      follow.mockClear();
+      await mount();
+      act(() => {
+        view().dispatch({ effects: focusEffect.of(true), selection: { anchor: 3 } });
+      });
+      const label = element(".cm-lr-ref");
+      expect(press(label)).toBe(false);
+      expect(follow).not.toHaveBeenCalled();
+      expect(press(label, { ctrlKey: true })).toBe(true);
+      expect(press(label, { metaKey: true })).toBe(true);
+      expect(follow).toHaveBeenCalledTimes(2);
+      // The cursor on another line: the label is set again and a plain press follows.
+      act(() => {
+        view().dispatch({ selection: { anchor: view().state.doc.length } });
+      });
+      expect(press(element(".cm-lr-ref"))).toBe(true);
+      expect(follow).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not follow a label whose position is no reference", async () => {
+      follow.mockClear();
+      await mount();
+      const stray = document.createElement("span");
+      stray.className = "cm-lr-ref";
+      element(".cm-line").append(stray);
+      expect(press(stray)).toBe(false);
+      expect(follow).not.toHaveBeenCalled();
+    });
+
+    it("marks an outdated reference with the accent, the word and the hint on request", async () => {
+      await mount(new Map([[outdatedKey(ID, "n1:aa"), "points to an older version"]]));
+      const label = element(".cm-lr-outdated");
+      expect(label.getAttribute("title")).toBe("points to an older version");
+      expect(element(".cm-lr-outdated-word").textContent).toBe(" outdated");
+      expect(element(".cm-content").textContent).toBe("Before D-017 outdated after" + "second line");
+    });
   });
 });

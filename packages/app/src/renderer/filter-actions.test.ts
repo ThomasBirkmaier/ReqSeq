@@ -65,6 +65,7 @@ const start = (list: ListBuffer, answers: Record<string, unknown> = {}) => {
     closeArmed: () => false,
     armClose: () => undefined,
     discard: () => undefined,
+    drafted: () => false,
   };
   const shown = (): ListBuffer => {
     const [current] = buffers;
