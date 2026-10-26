@@ -135,7 +135,7 @@ const ids = (index: SearchIndex, query: string, options?: SearchElementsOptions)
   searchElements(index, query, options).hits.map((hit) => hit.element.id);
 
 describe("search index documents (ADR-0008, SR-068)", () => {
-  it("indexes the title, the visible text and the values of every property, not relations or fields", async () => {
+  it("indexes the title, the visible text and the values of every property, type and status by name, not relations", async () => {
     const { workspace } = await open();
     const { store, metamodel } = await parts(workspace);
     const n1 = recordOf(store, N1);
@@ -144,10 +144,13 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       title: "Wind speed on the display",
       // The destinations of links and images are left out; labels, alt texts and titles stay.
       text: '\nThe station shall show [the gusts]() and ![a chart]( "Chart").\n',
-      properties: "Pilots need it\nWeather",
+      // Type and status by the names the metamodel gives them (#80).
+      properties: "Need\nDraft\nPilots need it\nWeather",
     });
     const { properties } = documentOf(recordOf(store, S1), "", metamodel);
     expect(properties.split("\n")).toEqual([
+      "System Requirement",
+      "Approved",
       // A choice value also by the name of the choice; a list of them too.
       "performance",
       "Performance",
@@ -169,9 +172,9 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       "calibrated",
       "sealed",
     ]);
-    // Status, relation kinds and relation-valued properties (derives-from, validity) are not
-    // properties of the search; binary data and null have no text.
-    expect(properties).not.toMatch(/approved|Hidden|aGVsbG8|hello|null/);
+    // Relation kinds and relation-valued properties (derives-from, validity) are not properties of
+    // the search, nor is the UUID; binary data and null have no text.
+    expect(properties).not.toMatch(/Hidden|aGVsbG8|hello|null|0b0e6f6c/);
   });
 
   it("has no title without a property with the meaning title, and no text for an invalid date", () => {
@@ -186,12 +189,19 @@ describe("search index documents (ADR-0008, SR-068)", () => {
       bom: false,
       snapshot: { path: "n.md", size: 0, mtimeMs: 0, sha256: "" },
     } as const satisfies ElementRecord;
-    const metamodel = { properties: [], relations: [], meanings: {} } as unknown as Metamodel;
-    expect(documentOf(record, "", metamodel)).toEqual({
+    const metamodel = {
+      properties: [],
+      relations: [],
+      meanings: {},
+      effectiveTypes: [],
+      statuses: [],
+    } as unknown as Metamodel;
+    // A type and status the metamodel does not define are found by their keys only.
+    expect(documentOf({ ...record, data: { ...record.data, status: "gone" } }, "", metamodel)).toEqual({
       key: "system\0n.md",
       title: "",
       text: "",
-      properties: "Kept as a property\nx",
+      properties: "need\nKept as a property\nx\ngone",
     });
   });
 });
@@ -219,6 +229,9 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     expect(ids(index, "temprature")).toEqual([U1, S2]);
     expect(ids(index, "presure")).toEqual([S1]);
     expect(ids(index, "temprature", { fuzzy: 0 })).toEqual([]);
+    // Never in a word with a digit: 1050 is in S1, 1051 is no typo of it (#80).
+    expect(ids(index, "1050")).toEqual([S1]);
+    expect(ids(index, "1051")).toEqual([]);
     // A prefix from two letters; a shorter word only as itself.
     expect(ids(index, "baro")).toEqual([S1]);
     expect(ids(index, "baro", { prefix: false })).toEqual([]);

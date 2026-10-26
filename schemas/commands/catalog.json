@@ -1594,7 +1594,7 @@
     },
     {
       "name": "element.search",
-      "summary": "Full-text search over title, text, properties and IDs, typo tolerant, within a view or filter.",
+      "summary": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-066", "SR-068", "SR-098"],
@@ -1602,16 +1602,33 @@
         "type": "object",
         "properties": {
           "query": {
-            "type": "string"
+            "type": "string",
+            "description": "Words split at spaces; every word must match (in the title, the text, a property value, the type or status name, or an ID). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing."
           },
           "selection": {
-            "$ref": "../common.schema.json#/$defs/selection"
+            "$ref": "../common.schema.json#/$defs/selection",
+            "description": "Search only within it (SR-068 AK3): a view, a filter, a package or IDs."
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["title", "text", "properties", "id"]
+            },
+            "description": "Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all."
           },
           "limit": {
             "type": "integer",
             "minimum": 1,
             "maximum": 500,
             "default": 50
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -1619,6 +1636,7 @@
       },
       "output": {
         "type": "object",
+        "description": "One page of the hits, the best first: ID matches, then relevance, then workspace order. Waits for the search index while it is built.",
         "properties": {
           "hits": {
             "type": "array",
@@ -1628,33 +1646,63 @@
                 "id": {
                   "$ref": "../common.schema.json#/$defs/uuid"
                 },
+                "repository": {
+                  "type": "string",
+                  "description": "Workspace name of the repository of the element."
+                },
                 "shortId": {
                   "$ref": "../common.schema.json#/$defs/shortId"
                 },
-                "title": {
-                  "type": "string"
+                "identifier": {
+                  "type": "string",
+                  "description": "The value of the property with the meaning identifier, when the element has one."
                 },
                 "type": {
                   "$ref": "../common.schema.json#/$defs/key"
                 },
-                "score": {
-                  "type": "number"
+                "status": {
+                  "type": "string",
+                  "description": "The status key as written in the file."
                 },
-                "match": {
-                  "type": "string"
+                "title": {
+                  "type": "string",
+                  "description": "Empty without a title."
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only."
+                },
+                "fields": {
+                  "type": "array",
+                  "description": "What a word of the query was found in.",
+                  "items": {
+                    "type": "string",
+                    "enum": ["title", "text", "properties", "id"]
+                  }
+                },
+                "terms": {
+                  "type": "array",
+                  "description": "The words of the element that matched, in lower case, for highlighting; none for an ID.",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "additionalProperties": false,
-              "required": ["id", "shortId", "title", "score"]
+              "required": ["id", "repository", "shortId", "type", "title", "score", "fields", "terms"]
             }
           },
-          "tookMs": {
+          "total": {
             "type": "integer",
             "minimum": 0
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
           }
         },
         "additionalProperties": false,
-        "required": ["hits"]
+        "required": ["hits", "total", "incomplete"]
       }
     },
     {

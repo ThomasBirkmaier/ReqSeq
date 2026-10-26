@@ -488,7 +488,7 @@ describe("element.list (SR-069)", () => {
 });
 
 describe("element.list refuses what it cannot do yet, and wrong conditions", () => {
-  it("refuses an unknown saved filter, baselines and the conditions text and emergent, naming the field", async () => {
+  it("refuses an unknown saved filter, baselines and the condition emergent, naming the field", async () => {
     const ws = await open();
     expect((await failure(ws, { selection: { filter: "open ones" } })).details?.["fields"]).toEqual([
       "selection.filter",
@@ -496,13 +496,12 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
     expect((await failure(ws, { selection: { baseline: "v1" } })).details?.["fields"]).toEqual([
       "selection.baseline",
     ]);
-    expect(await refused(ws, { any: [{ type: ["need"] }, { text: "wind" }] })).toEqual({
+    expect(await refused(ws, { any: [{ type: ["need"] }, { not: { emergent: true } }] })).toEqual({
       code: "input.invalid",
       message:
-        "selection.where.any[1].text: the condition text comes with the full-text search (SR-068); leave it out",
-      fields: ["selection.where.any[1].text"],
+        "selection.where.any[1].not.emergent: the condition emergent comes with SR-035 (stage 4); leave it out",
+      fields: ["selection.where.any[1].not.emergent"],
     });
-    expect((await refused(ws, { not: { emergent: true } })).fields).toEqual(["selection.where.not.emergent"]);
   });
 
   it("refuses a value that does not fit the operator", async () => {

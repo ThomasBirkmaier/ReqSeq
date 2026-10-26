@@ -143,12 +143,17 @@ describe("search.json (ADR-0008)", () => {
     expect(changed({ ...first, file: "moved.md" })).not.toBe(digest);
     expect(changed({ ...first, repository: "other" })).not.toBe(digest);
     expect(searchDigest({ ...store, elements: rest }, metamodel)).not.toBe(digest);
-    // The title key, the relation keys and the names of the choices; not the rest of the metamodel.
+    // The title key, the relation keys and the names of the choices, types and statuses (#80); not
+    // the rest of the metamodel.
     const renamed = metamodel.properties.map((p) =>
       p.choices === undefined ? p : { ...p, choices: p.choices.map((c) => ({ ...c, name: `${c.name}!` })) },
     );
     expect(searchDigest(store, { ...metamodel, properties: renamed })).not.toBe(digest);
-    expect(searchDigest(store, { ...metamodel, statuses: [] })).toBe(digest);
+    const status = metamodel.statuses.map((s) => (s.key === "draft" ? { ...s, name: "Entwurfzustand" } : s));
+    expect(searchDigest(store, { ...metamodel, statuses: status })).not.toBe(digest);
+    const type = metamodel.effectiveTypes.map((t, i) => (i === 0 ? { ...t, name: `${t.name}!` } : t));
+    expect(searchDigest(store, { ...metamodel, effectiveTypes: type })).not.toBe(digest);
+    expect(searchDigest(store, { ...metamodel, relations: [...metamodel.relations] })).toBe(digest);
     const untitled = metamodel.properties.map((p) =>
       p.meaning === "title" ? { key: p.key, name: p.name, kind: p.kind } : p,
     );

@@ -99,11 +99,11 @@ describe("logreq element list (SR-069)", () => {
   });
 
   it("ends with exit code 2 and the error for a condition that comes later", async () => {
-    const failed = await list({ selection: { where: { text: "wind" } } });
+    const failed = await list({ selection: { where: { emergent: true } } });
     expect([failed.code, failed.stdout]).toEqual([2, ""]);
     expect(JSON.parse(failed.stderr)).toMatchObject({
       code: "input.invalid",
-      details: { fields: ["selection.where.text"] },
+      details: { fields: ["selection.where.emergent"] },
     });
   });
 });

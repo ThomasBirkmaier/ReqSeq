@@ -147,7 +147,10 @@
           "type": "object",
           "required": ["text"],
           "properties": {
-            "text": { "type": "string", "description": "Full-text match as in search (SR-068)." }
+            "text": {
+              "type": "string",
+              "description": "Elements that element.search finds for this query (SR-068): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case. A query without a word matches none."
+            }
           },
           "additionalProperties": false
         },

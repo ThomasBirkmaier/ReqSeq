@@ -12,22 +12,29 @@
 //   ADR-0008), without the destinations of its links and images (`markdownLinks`): what the reader
 //   sees is the label, and the destinations of inline references (`logreq:<UUID>?version=...`) would
 //   add four times the words of the texts at N-036, none of them a word of the text;
-// - `properties`: the values of every other frontmatter key except `id`, `type` and `status` (fields
-//   of their own, D-012) and the keys that hold relations (relation kinds and properties of kind
-//   `relation`, `relationKey`: their values are UUIDs of other elements): text, numbers and
-//   booleans, also inside lists and mappings, and for a value of a choice property also the name
-//   of the choice, which is what the tool shows;
-// - `id`: the UUID and the short ID (D-017), compared with the records of the store, not indexed
-//   (150,000 random tokens would cost about 110 MB and 1 s at N-036): a word that is a short ID as
-//   written (`SR-46fb54`, also with the 12 digits of the file name) finds the elements of a type
-//   with that prefix whose UUID ends with its digits; a word of at least 6 hex digits and dashes
-//   finds the UUIDs that begin or end with it. The short ID the tool shows may grow when another
-//   UUID ends the same way (SR-084); the comparison does not depend on that, so every shown short
-//   ID still finds its element. Matched exactly (in any case), never fuzzy.
+// - `properties`: the values of every other frontmatter key except `id` and the keys that hold
+//   relations (relation kinds and properties of kind `relation`, `relationKey`: their values are
+//   UUIDs of other elements): text, numbers and booleans, also inside lists and mappings, and for a
+//   value of a choice property also the name of the choice, which is what the tool shows; so too
+//   the type and the status (fields of their own, D-012): by the name the metamodel gives them, by
+//   the key as written when it gives none (SR-068 "Properties", #80; the name only, since the key
+//   mostly holds the same words, which would cost the build a fifth more time at N-036);
+// - `id`: the UUID, the short ID (D-017) and the identifier (#305), compared with the records of the
+//   store, not indexed (150,000 random tokens would cost about 110 MB and 1 s at N-036): a word that
+//   is a short ID as written (`SR-46fb54`, also with the 12 digits of the file name) finds the
+//   elements of a type with that prefix whose UUID ends with its digits; a word of at least 6 hex
+//   digits and dashes finds the UUIDs that begin or end with it; a word that is the whole
+//   identifier of an element (the property with the meaning `identifier`, `SR-036`) finds it. The
+//   short ID the tool shows may grow when another UUID ends the same way (SR-084); the comparison
+//   does not depend on that, so every shown short ID still finds its element. Matched exactly (in
+//   any case), never fuzzy. The identifier is a property value too, so its words are also found as
+//   words (`036`).
 // Words are split at every character that is not a letter, a mark or a digit, and compared in
 // Unicode normal form NFC and lower case (SR-068 AK2: "andere Groß- und Kleinschreibung"). A typo
 // is tolerated by fuzzy search (SR-068 AK2: "Tippfehler"): one edit in a word of 4 to 7 letters, two
-// from 8 (MiniSearch's fraction 0.2, rounded), none in a shorter word.
+// from 8 (MiniSearch's fraction 0.2, rounded), none in a shorter query word or in a query word
+// with a digit (a number, a version, a part of an ID: one edit makes it another). The rule is about
+// the word searched for: `sensorx` still finds `Sensor1`, one edit away.
 //
 // Built once per store and metamodel, in the calling thread, in slices with a turn of the event
 // loop between them (as the current versions, ADR-0008), and carried over a change of the store:
@@ -41,7 +48,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { UNKNOWN_TYPE_PREFIX, findType, keyDefinition } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, RepositoryContents } from "../model/index.js";
 import { classifyFile, markdownLinks, relationKey, titleKeyOf } from "../model/index.js";
-import { STRUCTURAL_KEYS } from "../model/elements.js";
+import { identifierKeyOf, identifierMatch, identifierValue } from "../model/identifier-index.js";
 import type { StoreUpdate } from "../model/store.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 
@@ -153,6 +160,26 @@ const valueTexts = (value: unknown, out: string[]): void => {
   }
 };
 
+/**
+ * The name the tool shows for the type or status `value` (`key`), when the metamodel defines it (see
+ * the file comment).
+ */
+const structuralName = (metamodel: Metamodel, key: string, value: unknown): string | undefined =>
+  key === "type"
+    ? findType(metamodel, String(value))?.name
+    : metamodel.statuses.find((status) => status.key === value)?.name;
+
+/** The names of the choices of the property `key` that `value` holds; none for another property. */
+const choiceNames = (metamodel: Metamodel, key: string, value: unknown): readonly string[] => {
+  const defined = keyDefinition(metamodel, key);
+  const choices = defined?.kind === "property" ? defined.definition.choices : undefined;
+  if (choices === undefined) {
+    return [];
+  }
+  const chosen = new Set<unknown>(Array.isArray(value) ? value : [value]);
+  return choices.filter((choice) => chosen.has(choice.key)).map((choice) => choice.name);
+};
+
 /** The text of the `properties` field of `record` (see the file comment). */
 const propertiesText = (
   record: ElementRecord,
@@ -161,15 +188,14 @@ const propertiesText = (
 ): string => {
   const out: string[] = [];
   for (const [key, value] of Object.entries(record.data)) {
-    if (key === titleKey || STRUCTURAL_KEYS.includes(key) || relationKey(metamodel, key) !== undefined) {
+    if (key === titleKey || key === "id" || relationKey(metamodel, key) !== undefined) {
       continue;
     }
-    valueTexts(value, out);
-    const defined = keyDefinition(metamodel, key);
-    const choices = defined?.kind === "property" ? defined.definition.choices : undefined;
-    if (choices !== undefined) {
-      const chosen = new Set<unknown>(Array.isArray(value) ? value : [value]);
-      out.push(...choices.filter((choice) => chosen.has(choice.key)).map((choice) => choice.name));
+    if (key === "type" || key === "status") {
+      valueTexts(structuralName(metamodel, key, value) ?? value, out);
+    } else {
+      valueTexts(value, out);
+      out.push(...choiceNames(metamodel, key, value));
     }
   }
   return out.join("\n");
@@ -453,7 +479,10 @@ export interface SearchElementsOptions {
 export interface SearchHit {
   /** The record of the index's store. */
   readonly element: ElementRecord;
-  /** MiniSearch's relevance of the words (BM25, title counted twice); 0 for a match of the ID only. */
+  /**
+   * MiniSearch's relevance of the words (BM25, title counted twice), rounded to 6 significant digits
+   * (`roundScore`); 0 for a match of the ID only.
+   */
   readonly score: number;
   /** The fields a word of the query was found in, in the order of `SEARCH_FIELDS`. */
   readonly fields: readonly SearchField[];
@@ -471,6 +500,12 @@ export interface SearchResults {
 export const MIN_FUZZY = 4;
 /** Letters a word needs for prefix search. */
 export const MIN_PREFIX = 2;
+/**
+ * A query word with a digit is never matched with a typo: it is a number, a version or a part of an
+ * ID, and one edit would make it another (`0000b3` would find `0000b1`, `2026` would find `2025`).
+ * A word of the index with a digit can still be the typo of a query word without one.
+ */
+const DIGIT = /\p{N}/u;
 
 /** Field weights: a match in the title counts twice. */
 const BOOST: Readonly<Record<WordField, number>> = { title: 2, text: 1, properties: 1 };
@@ -489,10 +524,13 @@ const endsWithDigits = (id: string, digits: string): boolean =>
   digits.length <= UUID_TAIL ? id.endsWith(digits) : id.replaceAll("-", "").endsWith(digits);
 
 /**
- * How one word of a query matches IDs (see the file comment), or undefined when it matches none: a
- * test of a record.
+ * How one word of a query matches UUIDs and short IDs (see the file comment), or undefined when it
+ * matches none: a test of a record.
  */
-const idMatcher = (word: string, metamodel: Metamodel): ((record: ElementRecord) => boolean) | undefined => {
+const shortIdMatcher = (
+  word: string,
+  metamodel: Metamodel,
+): ((record: ElementRecord) => boolean) | undefined => {
   const dash = word.indexOf("-");
   const prefix = word.slice(0, dash).toUpperCase();
   const digits = word.slice(dash + 1).toLowerCase();
@@ -507,6 +545,54 @@ const idMatcher = (word: string, metamodel: Metamodel): ((record: ElementRecord)
     return undefined;
   }
   return (record) => record.id.startsWith(lower) || endsWithDigits(record.id, hex);
+};
+
+/** The records of every index with an identifier, by its `identifierMatch`, built on first use. */
+const identified = new WeakMap<SearchIndex, ReadonlyMap<string, ReadonlySet<ElementRecord>>>();
+
+const identifiedIn = (index: SearchIndex): ReadonlyMap<string, ReadonlySet<ElementRecord>> => {
+  let known = identified.get(index);
+  if (known === undefined) {
+    const key = identifierKeyOf(index.metamodel);
+    const built = new Map<string, Set<ElementRecord>>();
+    for (const record of key === undefined ? [] : index.store.elements) {
+      const value = identifierValue(record, key);
+      if (value !== undefined) {
+        const match = identifierMatch(value);
+        const records = built.get(match) ?? new Set();
+        records.add(record);
+        built.set(match, records);
+      }
+    }
+    identified.set(index, built);
+    known = built;
+  }
+  return known;
+};
+
+/** How one word of a query matches IDs (`idMatcher`). */
+interface IdMatch {
+  /** Whether it matches a record of the index's store. */
+  readonly test: (record: ElementRecord) => boolean;
+  /** The only records it can match, when it is an identifier and no short ID; else every record. */
+  readonly among: Iterable<ElementRecord> | undefined;
+}
+
+const ANY = (): boolean => true;
+
+/**
+ * How one word of a query matches IDs: UUIDs, short IDs and identifiers (see the file comment), or
+ * undefined when it matches none.
+ */
+const idMatcher = (word: string, index: SearchIndex): IdMatch | undefined => {
+  const short = shortIdMatcher(word, index.metamodel);
+  const named = identifiedIn(index).get(identifierMatch(word));
+  if (named === undefined) {
+    return short === undefined ? undefined : { test: short, among: undefined };
+  }
+  return short === undefined
+    ? { test: ANY, among: named }
+    : { test: (record) => named.has(record) || short(record), among: undefined };
 };
 
 /** A document found: its record, the score of its words and what found it. */
@@ -544,7 +630,7 @@ const searchOf = (
     options: {
       fields: [...searched],
       boost: BOOST,
-      fuzzy: (term) => term.length >= MIN_FUZZY && fuzzy,
+      fuzzy: (term) => term.length >= MIN_FUZZY && !DIGIT.test(term) && fuzzy,
       prefix: (term) => term.length >= MIN_PREFIX && prefix,
     },
   };
@@ -573,13 +659,9 @@ const wordsFound = (search: Search, queries: readonly string[], and: boolean): M
 };
 
 /** Marks in `found` (and adds to it) every record of the index that `ids` matches. */
-const idsFound = (
-  search: Search,
-  ids: (record: ElementRecord) => boolean,
-  found: Map<string, Found>,
-): void => {
-  for (const record of search.index.store.elements) {
-    const key = ids(record) ? recordKey(record) : undefined;
+const idsFound = (search: Search, ids: IdMatch, found: Map<string, Found>): void => {
+  for (const record of ids.among ?? search.index.store.elements) {
+    const key = ids.test(record) ? recordKey(record) : undefined;
     if (key !== undefined && search.admit(record, key)) {
       const known = found.get(key);
       if (known === undefined) {
@@ -644,6 +726,16 @@ const hitOf = ({ element, score, results, ids }: Found): SearchHit => {
   return { element, score, fields: SEARCH_FIELDS.filter((field) => fields.has(field)), terms: [...terms] };
 };
 
+/**
+ * A score rounded to 6 significant digits, as hits give it and are sorted by: MiniSearch's scores of
+ * equal documents may differ in the last bits between a fresh build, a cached one and one carried
+ * many times (its average field lengths are kept incrementally), and every access must give the
+ * same hits in the same order (SR-080).
+ */
+const roundScore = (score: number): number => Number(score.toPrecision(SCORE_DIGITS));
+
+const SCORE_DIGITS = 6;
+
 /** The page of `found`, the best first (see `searchElements`). */
 const pageOf = (
   store: ElementStore,
@@ -651,12 +743,50 @@ const pageOf = (
   options: SearchElementsOptions,
 ): SearchResults => {
   const rank = rankOf(store);
-  const sorted = [...found].sort(
+  const all = [...found];
+  for (const one of all) {
+    one.score = roundScore(one.score);
+  }
+  const sorted = all.sort(
     (a, b) => b.ids - a.ids || b.score - a.score || Number(rank.get(a.element)) - Number(rank.get(b.element)),
   );
   const offset = options.offset ?? 0;
   const page = sorted.slice(offset, options.limit === undefined ? undefined : offset + options.limit);
   return { total: sorted.length, hits: page.map(hitOf) };
+};
+
+/** The documents `query` finds in `index`, by key (see `searchElements`); undefined for a query without a word. */
+const foundBy = (
+  index: SearchIndex,
+  query: string,
+  options: SearchElementsOptions,
+): Map<string, Found> | undefined => {
+  const fields = new Set(options.fields ?? SEARCH_FIELDS);
+  const searched = WORD_FIELDS.filter((field) => fields.has(field));
+  const and = options.combineWith !== "or";
+  const search = searchOf(index, searched, options);
+  const plain: string[] = [];
+  const special: {
+    readonly word: string;
+    readonly text: boolean;
+    readonly ids: IdMatch;
+  }[] = [];
+  for (const word of query.split(/\s+/u)) {
+    const text = searched.length > 0 && words(word).some((w) => normalizeWord(w) !== undefined);
+    const ids = fields.has("id") ? idMatcher(word, index) : undefined;
+    if (ids !== undefined) {
+      special.push({ word, text, ids });
+    } else if (text) {
+      plain.push(word);
+    }
+  }
+  let found = plain.length === 0 ? undefined : wordsFound(search, plain, and);
+  for (const { word, text, ids } of special) {
+    const matched = text ? wordsFound(search, [word], true) : new Map<string, Found>();
+    idsFound(search, ids, matched);
+    found = found === undefined ? matched : combine(found, matched, and);
+  }
+  return found;
 };
 
 /**
@@ -675,31 +805,14 @@ export const searchElements = (
   index: SearchIndex,
   query: string,
   options: SearchElementsOptions = {},
-): SearchResults => {
-  const fields = new Set(options.fields ?? SEARCH_FIELDS);
-  const searched = WORD_FIELDS.filter((field) => fields.has(field));
-  const and = options.combineWith !== "or";
-  const search = searchOf(index, searched, options);
-  const plain: string[] = [];
-  const special: {
-    readonly word: string;
-    readonly text: boolean;
-    readonly ids: (r: ElementRecord) => boolean;
-  }[] = [];
-  for (const word of query.split(/\s+/u)) {
-    const text = searched.length > 0 && words(word).some((w) => normalizeWord(w) !== undefined);
-    const ids = fields.has("id") ? idMatcher(word, index.metamodel) : undefined;
-    if (ids !== undefined) {
-      special.push({ word, text, ids });
-    } else if (text) {
-      plain.push(word);
-    }
-  }
-  let found = plain.length === 0 ? undefined : wordsFound(search, plain, and);
-  for (const { word, text, ids } of special) {
-    const matched = text ? wordsFound(search, [word], true) : new Map<string, Found>();
-    idsFound(search, ids, matched);
-    found = found === undefined ? matched : combine(found, matched, and);
-  }
-  return pageOf(index.store, found?.values() ?? [], options);
-};
+): SearchResults => pageOf(index.store, foundBy(index, query, options)?.values() ?? [], options);
+
+/**
+ * The keys (`recordKey`) of the elements `searchElements` finds for `query`, all of them, without
+ * sorting or describing them: the condition `text` of a filter (SR-068, `condition.ts`).
+ */
+export const matchingKeys = (
+  index: SearchIndex,
+  query: string,
+  options: Omit<SearchElementsOptions, "offset" | "limit"> = {},
+): ReadonlySet<string> => new Set(foundBy(index, query, options)?.keys());

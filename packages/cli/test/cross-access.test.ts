@@ -397,10 +397,10 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
-      name: "the condition text before the full-text search (SR-068)",
+      name: "the condition text: what the full-text search finds, with a typo (SR-068)",
       fixture: FILTER,
-      input: { selection: { where: { text: "wind" } } },
-      expect: "error",
+      input: { selection: { where: { all: [{ text: "Mesure" }, { not: { type: ["need"] } }] } } },
+      expect: "output",
     },
     {
       name: "a regular expression that is none",
@@ -497,6 +497,49 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "several replacement kinds fit (relation-ambiguous)",
       fixture: { fixture: "SR-072/supersede", git: true },
       input: { ref: "SR-f6a7b8", status: "obsolete", successor: "SR-a7b8c9" },
+      expect: "error",
+    },
+  ],
+  "element.search": [
+    {
+      name: "a word only in a property, with a typo, in another case (SR-068 AK1, AK2)",
+      fixture: FILTER,
+      input: { query: "SUPLIER" },
+      expect: "output",
+    },
+    {
+      name: "within a view and a filter, one page (SR-068 AK3)",
+      fixture: FILTER,
+      input: {
+        query: "measure",
+        selection: { view: "VAR-0000c1", where: { status: ["approved", "draft"] } },
+        limit: 1,
+        offset: 1,
+      },
+      expect: "output",
+    },
+    {
+      name: "a short ID in lower case, in title and IDs only (SR-068 AK1, SR-066)",
+      fixture: FILTER,
+      input: { query: "sr-0000B2", fields: ["title", "id"] },
+      expect: "output",
+    },
+    {
+      name: "an identifier, first, with the words of its property (#305)",
+      fixture: IDENTIFIERS,
+      input: { query: "sr-036" },
+      expect: "output",
+    },
+    {
+      name: "within a saved filter with its view (SR-068 AK3, SR-070)",
+      fixture: SAVED,
+      input: { query: "measure", selection: { filter: "mountain" } },
+      expect: "output",
+    },
+    {
+      name: "a selection that is not there yet",
+      fixture: FILTER,
+      input: { query: "wind", selection: { baseline: "v1" } },
       expect: "error",
     },
   ],

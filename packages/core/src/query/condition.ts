@@ -13,13 +13,16 @@
 //   reports it, not the filter.
 // - `verification` and `validation` ask the evidence provider (evidence.ts, AK1 "Nachweisstatus"),
 //   and so does a relation condition with the direction `evidence` (relation.ts, AK3).
-// - Not yet: `text` (full-text search, SR-068, #80) and `emergent` (SR-035, stage 4, decides which
-//   value marks an element emergent). Both are refused with `input.invalid`, as `element.get` refuses
-//   a view, so no caller takes an unfiltered list for a filtered one.
+// - `text` (SR-068): the elements `element.search` finds for the query, from the search index of
+//   the workspace (`searchIndex`, which waits for a build that runs), compared by repository and
+//   file, so the store the index was carried to may be newer than the one compiled against.
+// - Not yet: `emergent` (SR-035, stage 4, decides which value marks an element emergent). It is
+//   refused with `input.invalid`, as `element.get` refuses a view, so no caller takes an unfiltered
+//   list for a filtered one.
 //
 // Errors name the field of the input they are about (`details.fields`, the path from `at`).
-// To add an operator (#80: `text`), compile it in `compileLeaf`; the compiler refuses a schema
-// operator without a branch there. A compiled condition is for one run (`CompiledCondition`).
+// To add an operator, compile it in `compileLeaf`; the compiler refuses a schema operator without a
+// branch there. A compiled condition is for one run (`CompiledCondition`).
 import type { ElementRef, FilterCondition, View as ViewInput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
@@ -33,6 +36,8 @@ import type { EvidenceStatuses } from "./evidence.js";
 import { evidenceStatusState } from "./evidence.js";
 import { compileProperty } from "./property.js";
 import { compileRelation } from "./relation.js";
+import { matchingKeys, recordKey } from "./search-index.js";
+import { searchIndex } from "./search-state.js";
 
 const ALWAYS: Predicate = () => true;
 const NEVER: Predicate = () => false;
@@ -165,11 +170,8 @@ const compileLeaf = async (context: CompileContext, condition: Leaf, at: string)
     );
   }
   if ("text" in condition) {
-    throw invalidAt(
-      context,
-      `${at}.text`,
-      "the condition text comes with the full-text search (SR-068); leave it out",
-    );
+    const keys = matchingKeys(await searchIndex(context.workspace), condition.text);
+    return (e) => keys.has(recordKey(e));
   }
   // Every operator of the schema is a branch above; the compiler checks that none is left (#336). Core
   // validates each input first, so only a caller that bypasses it gets here: a bug, not an input error.

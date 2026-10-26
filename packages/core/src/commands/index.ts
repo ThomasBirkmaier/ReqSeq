@@ -12,6 +12,7 @@ import elementCreate from "./element/create.js";
 import elementGet from "./element/get.js";
 import elementList from "./element/list.js";
 import elementResolve from "./element/resolve.js";
+import elementSearch from "./element/search.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
@@ -36,6 +37,7 @@ export const commands: readonly AnyCommand[] = [
   elementGet,
   elementList,
   elementResolve,
+  elementSearch,
   elementSetStatus,
   elementSupersede,
   elementUpdate,

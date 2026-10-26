@@ -265,9 +265,9 @@ describe("filter.save (SR-070)", () => {
       code: "ref.unknown",
       fields: undefined,
     });
-    expect(await refused({ where: { text: "wind" } })).toEqual({
+    expect(await refused({ where: { not: { emergent: true } } })).toEqual({
       code: "input.invalid",
-      fields: ["where.text"],
+      fields: ["where.not.emergent"],
     });
     expect(await refused({ where: { all: [] }, view: "SR-0000b1" })).toEqual({
       code: "input.invalid",

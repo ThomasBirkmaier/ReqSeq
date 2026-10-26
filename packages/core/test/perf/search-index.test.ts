@@ -144,6 +144,30 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
     }
     expect(searchElements(index, title).hits[0]?.element).toBe(record);
     expect(searchElements(index, shortId).hits[0]?.element).toBe(record);
+    // The command (#80): selection, index, search and the output of the first page, through invoke.
+    const variant = store.elements.find((r) => r.type === "variant");
+    const commands: readonly (readonly [string, Record<string, unknown>])[] = [
+      ["one word", { query: "wind" }],
+      ["a typo", { query: "temperatur" }],
+      ["two letters (as-you-type)", { query: "st" }],
+      ["a word of every text", { query: "the" }],
+      ["a short ID, title and IDs only (SR-066)", { query: shortId, fields: ["title", "id"] }],
+      ["one word within a filter", { query: "wind", selection: { where: { type: ["system-requirement"] } } }],
+      ["one word within a variant view", { query: "wind", selection: { view: String(variant?.id) } }],
+    ];
+    for (const [name, input] of commands) {
+      const { result } = await measure(
+        `element.search: ${name} (${JSON.stringify(input["query"])}), the first 50 hits`,
+        () => invoke("element.search", input, { workspace: opened() }),
+        { basis },
+      );
+      expect((result as { total: number }).total, name).toBeGreaterThan(0);
+    }
+    await measure(
+      'element.list with the condition text "wind" (SR-068, SR-082 AK4: 500 ms)',
+      () => invoke("element.list", { selection: { where: { text: "wind" } } }, { workspace: opened() }),
+      { basis: "SR-082 AK4 (recorded)" },
+    );
   });
 
   it("records serialising the index into the cache folder and loading it again", async () => {

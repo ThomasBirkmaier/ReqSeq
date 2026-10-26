@@ -536,7 +536,7 @@ export type FilterCondition =
     readonly source: string;
   }
   | {
-    /** Full-text match as in search (SR-068). */
+    /** Elements that element.search finds for this query (SR-068): every word in the title, text, a property value, the type or status name, or an ID, typo tolerant, in any case. A query without a word matches none. */
     readonly text: string;
   }
   | FilterPropertyCondition
@@ -1544,29 +1544,46 @@ export interface HintConfirmOutput {
 }
 
 /**
- * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs, typo tolerant, within a view or filter.
+ * Input of `element.search` as `run` gets it: validated, properties with a `default` filled in. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
  * Schema: `schemas/commands/catalog.json element.search input`.
  */
 export interface ElementSearchInput {
+  /** Words split at spaces; every word must match (in the title, the text, a property value, the type or status name, or an ID). A word matches words it begins (from 2 letters) and with a typo (1 edit from 4 letters, 2 from 8; none for a query word with a digit), in any case. A short ID, an identifier or at least 6 hex digits of a UUID match that element exactly; ID matches come first. A query without a word finds nothing. */
   readonly query: string;
+  /** Search only within it (SR-068 AK3): a view, a filter, a package or IDs. */
   readonly selection?: ElementSelection;
+  /** Search only these: `title`, `text` (the Markdown text), `properties` (every other value, type and status names; not relations), `id` (UUID, short ID, identifier). Default all. */
+  readonly fields?: readonly ("title" | "text" | "properties" | "id")[];
   readonly limit: number;
+  readonly offset: number;
 }
 
 /**
- * Output of `element.search`. Full-text search over title, text, properties and IDs, typo tolerant, within a view or filter.
+ * Output of `element.search`. Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.
  * Schema: `schemas/commands/catalog.json element.search output`.
  */
 export interface ElementSearchOutput {
   readonly hits: readonly {
     readonly id: Uuid;
+    /** Workspace name of the repository of the element. */
+    readonly repository: string;
     readonly shortId: ShortId;
+    /** The value of the property with the meaning identifier, when the element has one. */
+    readonly identifier?: string;
+    readonly type: Key;
+    /** The status key as written in the file. */
+    readonly status?: string;
+    /** Empty without a title. */
     readonly title: string;
-    readonly type?: Key;
+    /** Relevance of the matched words, rounded to 6 significant digits; 0 for an ID match only. */
     readonly score: number;
-    readonly match?: string;
+    /** What a word of the query was found in. */
+    readonly fields: readonly ("title" | "text" | "properties" | "id")[];
+    /** The words of the element that matched, in lower case, for highlighting; none for an ID. */
+    readonly terms: readonly string[];
   }[];
-  readonly tookMs?: number;
+  readonly total: number;
+  readonly incomplete: Incomplete;
 }
 
 /**

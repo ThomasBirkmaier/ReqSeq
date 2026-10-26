@@ -30,6 +30,7 @@ export {
   buildSearchIndex,
   carrySearchIndex,
   documentOf,
+  matchingKeys,
   recordKey,
   searchElements,
 } from "./search-index.js";
