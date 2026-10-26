@@ -11,7 +11,7 @@ Adapted from the Capybara skill of the same name. Difference: there is no human 
 
 ## Steps
 
-1. **Load the issue.** `gh issue view <n> --json number,title,body,labels`. For an SR issue, also read `spec/system-requirements/SR-xxx.md` (the spec file wins if the issue body differs; then note it in the PR). Skip issues labelled `blocked`, `spec-frage` or `needs-human` unless told otherwise.
+1. **Load the issue.** `gh issue view <n> --json number,title,body,labels`. For an SR issue, also read the SR in the spec: `node packages/cli/dist/bin.js element get SR-xxx --workspace spec` (after `pnpm build`), or the file it names (the spec wins if the issue body differs; then note it in the PR). Skip issues labelled `blocked`, `spec-frage` or `needs-human` unless told otherwise.
 2. **Claim it.** Add label `agent:working`, comment "Started by agent" with the session link. Branch `sr-xxx-<slug>` (or `enabler-<n>-<slug>`) from the latest `main`.
 3. **Plan (Opus subagent, effort high).** Read the issue, the SR, the decisions in `Based on`, relevant ADRs and schemas, and the affected code. Produce: affected packages and files, a test list mapping each acceptance criterion `AKn` to one or more tests, implementation steps, risks, and explicit assumptions. Spec questions go to step 3a.
    - 3a. **Spec question.** If the SR cannot be implemented without guessing something that changes visible behaviour: open an issue with label `spec-frage` (question, options, recommended option), link it, and either continue with the recommended option written as an assumption in the PR, or stop and set label `blocked` if the guess would be expensive to undo.
@@ -28,5 +28,5 @@ Adapted from the Capybara skill of the same name. Difference: there is no human 
 ## Principles
 
 - Opus plans and reviews, Sonnet implements. Do not skip the reviews because the change looks obvious.
-- Never edit `spec/`. Never set a status in spec or evidence files.
+- Never change `spec/` in an implementation PR; a spec change is its own PR made with LogReq (CLAUDE.md). Never set a status in spec or evidence files.
 - Prefer stopping with a clear `spec-frage` over building on a guess that changes behaviour.

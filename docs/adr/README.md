@@ -1,6 +1,6 @@
 # Architecture decision records
 
-ADRs say **how** LogReq is built. Product decisions (**what**) are `spec/decisions/D-*.md`, maintained in Logseq. An ADR never contradicts a decision; if it would have to, the conflict becomes a `spec-frage` issue (D-052).
+ADRs say **how** LogReq is built. Product decisions (**what**) are the decisions in `spec/`, maintained with LogReq itself (D-064). An ADR never contradicts a decision; if it would have to, the conflict becomes a `spec-frage` issue (D-052).
 
 Format: context, decision, consequences, rejected alternatives. Status `Proposed` until the stage 0 pull request is merged, then `Accepted`. A later change is a new ADR that supersedes the old one, in its own pull request announced to the product owner in the stage epic (D-051).
 

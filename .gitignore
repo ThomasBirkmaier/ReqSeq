@@ -9,3 +9,6 @@ issue-backup-*.json
 trace-*.md
 test-results/
 .claude/worktrees/
+
+# Python bytecode of scripts/sr-issues tests
+__pycache__/

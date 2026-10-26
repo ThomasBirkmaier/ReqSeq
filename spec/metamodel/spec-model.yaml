@@ -1,0 +1,208 @@
+# Metamodel of the LogReq specification (enabler #326). It is the standard model (D-037,
+# schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
+# term and the decision statuses are not part of the standard model):
+# - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Stufe-3;
+# - statuses per type (#306): decisions draft, accepted, superseded; glossary terms only obsolete, so a
+#   term without status is current and element.supersede retires it (#344);
+# - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq).
+# LogReq has no command that changes a metamodel: this file is changed by hand in a pull request.
+logreq-metamodel: 1
+
+types:
+  - key: need
+    name: Need
+    prefix: N
+    meaning: need
+    properties: [title, spec-id, rationale, topic]
+    required: [title]
+    statuses: [draft, approved, obsolete]
+  - key: use-case
+    name: Use Case
+    prefix: UC
+    properties: [title, spec-id, rationale]
+    required: [title]
+    statuses: [draft, approved, obsolete]
+  - key: system-requirement
+    name: System Requirement
+    prefix: SR
+    meaning: requirement
+    properties:
+      [
+        title,
+        spec-id,
+        rationale,
+        requirement-type,
+        acceptance-criteria,
+        validity,
+        packages,
+        emergent,
+        verification-method,
+        statement,
+        source,
+        source-identifier,
+        import-date,
+        delivery,
+        topic,
+      ]
+    required: [title, requirement-type, acceptance-criteria]
+    statuses: [draft, approved, obsolete]
+  - key: decision
+    name: Decision
+    prefix: D
+    properties: [title, spec-id, rationale]
+    required: [title]
+    statuses: [draft, accepted, superseded]
+  - key: variant
+    name: Variant
+    prefix: VAR
+    meaning: variant
+    properties: [title, spec-id]
+    required: [title]
+    statuses: [draft, approved, obsolete]
+  - key: package
+    name: Package
+    prefix: PKG
+    meaning: package
+    properties: [title, spec-id]
+    required: [title]
+    statuses: [draft, approved, obsolete]
+  - key: glossary-term
+    name: Glossary Term
+    prefix: GL
+    properties: [title, area, synonyms, do-not-use]
+    required: [title]
+    statuses: [obsolete]
+
+properties:
+  - key: title
+    name: Title
+    kind: text
+    meaning: title
+  - key: spec-id
+    name: Spec ID
+    kind: text
+    meaning: identifier
+  - key: rationale
+    name: Rationale
+    kind: text
+  - key: requirement-type
+    name: Requirement Type
+    kind: choice
+    content: true
+    choices:
+      - { key: functional, name: Functional }
+      - { key: quality, name: Quality }
+      - { key: performance, name: Performance }
+      - { key: interface, name: Interface }
+      - { key: constraint, name: Constraint }
+  - key: acceptance-criteria
+    name: Acceptance Criteria
+    kind: text
+    many: true
+    content: true
+  - key: validity
+    name: Validity
+    kind: relation
+    many: true
+    target-types: [variant]
+    content: true
+    meaning: validity
+  - key: packages
+    name: Package
+    kind: relation
+    many: true
+    target-types: [package]
+    meaning: packages
+  - key: emergent
+    name: Emergent
+    kind: choice
+    content: true
+    meaning: emergent
+    choices:
+      - { key: "yes", name: "Yes" }
+      - { key: "no", name: "No" }
+  - key: verification-method
+    name: Verification Method
+    kind: choice
+    content: true
+    meaning: verification-method
+    choices:
+      - { key: test, name: Test }
+      - { key: analysis, name: Analysis }
+      - { key: inspection, name: Inspection }
+      - { key: demonstration, name: Demonstration }
+  - { key: statement, name: Statement, kind: text, meaning: statement }
+  - { key: source, name: Source, kind: text, meaning: source }
+  - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }
+  - { key: import-date, name: Import Date, kind: date, meaning: import-date }
+  - { key: delivery, name: Delivery, kind: text, meaning: delivery }
+  - { key: topic, name: Topic, kind: text }
+  - key: area
+    name: Area
+    kind: choice
+    choices:
+      - { key: fachlich, name: Fachlich }
+      - { key: tool-entwicklung, name: Tool-Entwicklung }
+  - { key: synonyms, name: Synonyms, kind: text, many: true }
+  - key: do-not-use
+    name: Do not use
+    kind: choice
+    choices:
+      - { key: "yes", name: "Yes" }
+      - { key: "no", name: "No" }
+
+relations:
+  - key: refines
+    name: Refines
+    inverse-name: Refined by
+    meaning: derivation
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [system-requirement]
+    target-types: [need, use-case, system-requirement]
+    meaning: derivation
+  - key: based-on
+    name: Based on
+    inverse-name: Basis for
+    target-types: [decision]
+  - key: supersedes
+    name: Supersedes
+    inverse-name: Superseded by
+    meaning: replacement
+  - key: replaces
+    name: Replaces
+    inverse-name: Replaced by
+    source-types: [system-requirement]
+    target-types: [system-requirement]
+    meaning: replacement
+  - key: excludes
+    name: Excludes
+    inverse-name: Excluded by
+    source-types: [variant]
+    target-types: [system-requirement]
+    meaning: exclusion
+  # Glossary relations (Logseq: Oberbegriff, Abgrenzung, Siehe auch). LogReq has no symmetric relation
+  # kinds; each is stored in the direction the graph had it.
+  - key: broader-term
+    name: Broader term
+    inverse-name: Narrower term
+    source-types: [glossary-term]
+    target-types: [glossary-term]
+  - key: distinct-from
+    name: Distinct from
+    inverse-name: Distinct from
+    source-types: [glossary-term]
+    target-types: [glossary-term]
+  - key: see-also
+    name: See also
+    inverse-name: See also
+    source-types: [glossary-term]
+    target-types: [glossary-term]
+
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
+  - { key: accepted, name: Accepted }
+  - { key: obsolete, name: Obsolete, invalid: true }
+  - { key: superseded, name: Superseded, invalid: true }

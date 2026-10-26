@@ -1,0 +1,9 @@
+logreq-workspace: 1
+name: LogReq specification
+repositories:
+  - name: spec
+    url: ""
+    main: true
+metamodel:
+  repository: spec
+  path: metamodel

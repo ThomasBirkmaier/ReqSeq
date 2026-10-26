@@ -35,9 +35,13 @@ jobs:
     runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))['ubuntu-24.04'] }}
     steps:
       - uses: actions/checkout@v4
+      # trace-check reads the LogReq workspace in spec/ with the `yaml` package (#326).
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Write PR body
         if: github.event_name == 'pull_request'
         env:
@@ -124,6 +128,13 @@ jobs:
       - run: pnpm schemas:check
       - run: pnpm contracts:check
       - run: pnpm licenses:check
+      # scripts/sr-issues (Python, run by the sr-issues skill); the label and reopen rules are unit-tested.
+      # setup-python, because the self-hosted Linux image had no Python before python3 was added to it; the
+      # version is pinned and has builds for Ubuntu 24.04 on x64 (GitHub) and arm64 (the Mac's Linux runners).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14.8"
+      - run: python3 -m unittest discover -s scripts/sr-issues
       - run: pnpm audit --prod --audit-level high
 
   # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems (macOS nightly).
@@ -149,6 +160,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
+      # The spec is a LogReq workspace (D-064, #326): LogReq checks it like any other (exit 1 on errors).
+      # After the unit tests and also when they failed, so that a broken spec never hides a test result.
+      - name: Check the spec with LogReq
+        if: ${{ !cancelled() }}
+        run: pnpm spec:check
       - name: Upload JUnit results (evidence, D-050)
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,4 +1,8 @@
-spec/
+# Element files in spec/ are written by LogReq (D-064); its YAML files are checked like any other.
+spec/**
+!spec/metamodel/
+!spec/metamodel/*.yaml
+!spec/logreq-workspace.yaml
 pnpm-lock.yaml
 scripts/spec-export/raw/
 schemas/generated/

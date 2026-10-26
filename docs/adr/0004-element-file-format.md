@@ -77,7 +77,7 @@ customer-id: WS-0815                          # external ID: a property, here wi
 
 - Files stay readable in any editor and on any Git server (SR-010).
 - Merges of different elements never conflict (SR-001 AK3); merges of the same element conflict only on the changed lines.
-- The spec export (`scripts/spec-export`) currently writes a preliminary format with Logseq IDs (`SR-036`) as `id`. Moving it to this format is a follow-up; the SR ID then becomes a property with the meaning `identifier`, so `SR-036` stays a valid reference (#305).
+- The spec itself is a workspace in this format (`spec/`, #326): the Logseq UUIDs are the element IDs and the SR ID is the property `spec-id` with the meaning `identifier`, so `SR-036` stays a valid reference (#305).
 
 ## Rejected
 

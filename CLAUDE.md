@@ -1,12 +1,13 @@
 # Rules for agents working on LogReq
 
-These rules apply to every session, cloud or local. They follow from decisions D-046 to D-055 in the spec (`spec/decisions/`).
+These rules apply to every session, cloud or local. They follow from decisions D-046 to D-055 and D-064 in the spec (`spec/`); D-064 supersedes D-047 (the spec is no longer exported from Logseq).
 
 ## Sources of truth
 
-- `spec/` is the specification. It is exported from the Logseq graph ReqSeq (D-047). **Never edit `spec/` by hand.** Only the `spec-export` skill changes it, through its own pull request.
+- `spec/` is the specification, a LogReq workspace (D-064; Logseq is no longer the source). Read it with LogReq after `pnpm build`: `node packages/cli/dist/bin.js element get SR-036 --workspace spec` (also `element list`, `element search`, `trace chain`); `spec/README.md` has the layout and the common commands.
+- **`spec/` is changed only with the LogReq CLI or MCP** (`node packages/cli/dist/bin.js mcp --workspace spec`), never by editing element files by hand, and only through a pull request of its own (label `enabler`, then `sr-issues`). New and changed texts are German and are quoted verbatim from what Thomas decided. Status is set only by a person. An agent changes a status in `spec/` only to carry out a decision Thomas stated explicitly (decision card or issue comment), links it in the PR and commit, and never sets `accepted` (or any approving status) on text it wrote. Superseding the predecessor of such a decision is allowed in the same PR. Thomas accepts agent-written successors himself, prompted in the stage epic. LogReq has no command for the metamodel and the workspace file (`spec/metamodel/`, `spec/logreq-workspace.yaml`): they are changed by hand in such a PR. `pnpm spec:check` must pass.
 - The spec is German. Quote it verbatim; do not translate or reinterpret it.
-- Product decisions are `spec/decisions/D-*.md` ("what"). Technical decisions are `docs/adr/` ("how"). An ADR never contradicts a decision.
+- Product decisions are the decisions in `spec/` (type `decision`, `spec/decision/`; "what"). Technical decisions are `docs/adr/` ("how"). An ADR never contradicts a decision.
 - If a system requirement is unclear, incomplete or contradicts another one: open an issue with label `spec-frage`, state the question and your assumption, and continue with other work or with the assumption clearly written in the PR. Never resolve a spec question silently in code.
 - Component requirements are not used for now. Do not create them.
 
@@ -36,11 +37,11 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 - The GitHub project "LogReq" mirrors the issues; the workflow `project-sync` derives its fields from labels. Change labels, never project fields (see `stage-run`).
 - Merge with `github-pr-review-merge`. Agents commit and merge on their own everywhere, including `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` are allowed for trivial fixes; everything else goes through a PR so CI and the SR trail run.
 - Merge only when CI is green and the code review found nothing blocking. Never merge red.
-- Tell Thomas (in the stage epic) about PRs that change schemas, ADRs, agent rules, skills or CI, but do not wait for him. Label `needs-human` means "Thomas must answer something", not a merge gate.
+- Tell the product owner (in the stage epic) about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, but do not wait for an answer. Label `needs-human` means "the product owner must answer something", not a merge gate.
 - Small PRs. One SR per PR unless SRs are inseparable; then name all of them.
 - Before starting a plan, read `docs/architecture/README.md`, the ADRs it names for your area and the schemas you touch. Plans that contradict an ADR are rejected in plan review.
 - New functions start as an entry in `schemas/commands/catalog.json` and one implementation in `packages/core/src/commands/`; never add logic to `cli`, `api`, `mcp` or `app` (ADR-0002).
-- Local checks before a PR: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm contracts:check && pnpm test:coverage && pnpm trace-check`.
+- Local checks before a PR: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm contracts:check && pnpm test:coverage && pnpm trace-check` (and `pnpm build && pnpm spec:check` when `spec/` changed).
 
 ## Product rules that are easy to break
 

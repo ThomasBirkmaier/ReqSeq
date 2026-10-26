@@ -1,6 +1,6 @@
 # LogReq architecture (arc42, short)
 
-Status: stage 0 (D-052). The specification is in `spec/` (German, from Logseq); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters LogReq needs.
+Status: stage 0 (D-052). The specification is the LogReq workspace in `spec/` (German, maintained with LogReq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters LogReq needs.
 
 ## 1. Goals
 
@@ -206,8 +206,8 @@ See [docs/adr](../adr/README.md).
 | Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
-| Spec export still writes the preliminary format | Follow-up: export in the element format with the SR ID as a property with the meaning `identifier`, so `SR-036` stays resolvable (#305). |
+| The spec lies in a subfolder of the code repository | LogReq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (#377). |
 
 ## 11. Glossary
 
-The glossary is part of the spec (`spec/glossary/`). English terms used in code: element, need, requirement, variant, package, baseline, relation, reference (inline link), version (Fassung), evidence record (Datensatz), evidence (Beleg), item (Prüfling), test case, execution (Durchführung), hint (Hinweis), coverage (Abdeckung), verification degree (Nachweisgrad), workspace (Arbeitsbereich), state (Stand), core (Kern), validity (Gültigkeit).
+The glossary is part of the spec (type `glossary-term`, `spec/glossary-term/`). English terms used in code: element, need, requirement, variant, package, baseline, relation, reference (inline link), version (Fassung), evidence record (Datensatz), evidence (Beleg), item (Prüfling), test case, execution (Durchführung), hint (Hinweis), coverage (Abdeckung), verification degree (Nachweisgrad), workspace (Arbeitsbereich), state (Stand), core (Kern), validity (Gültigkeit).
