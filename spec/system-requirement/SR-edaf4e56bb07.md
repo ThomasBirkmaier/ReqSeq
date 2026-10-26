@@ -1,7 +1,7 @@
 ---
 id: e5c9970b-7ba2-4cc6-b6ac-edaf4e56bb07
 type: system-requirement
-status: draft
+status: approved
 title: Nur Aussagekräftiges zeigen
 spec-id: SR-110
 requirement-type: quality

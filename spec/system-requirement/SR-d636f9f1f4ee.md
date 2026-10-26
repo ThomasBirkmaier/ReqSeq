@@ -19,4 +19,4 @@ based-on:
   - { id: 6adc4ee9-4ac6-485f-a1c3-43352a58580f, version: n1:abe889a319b9679b, title: Jedes Element ist eine eigene Markdown-Datei }
 ---
 
-Der Editor muss Bilder einfügen lassen und die Bilddatei in einem Ordner neben der Element-Datei ablegen, der wie die Element-Datei heißt.
+Der Editor muss Bilder einfügen lassen und die Bilddatei in einem Ordner neben der Element-Datei ablegen, der wie die Element-Datei ohne Endung heißt.
