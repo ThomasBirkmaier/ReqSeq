@@ -37,6 +37,8 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 | Enter | On an element, put the cursor into the text (action "Edit text") |
 | Ctrl/Cmd+Enter | On an element, open the element of the inline reference at the cursor (action "Follow reference") |
 | Escape | In the text, back to the element |
+| `/` | In the text, at the start of a line or after a space: the slash menu (SR-129) with the Markdown elements at the caret |
+| (slash menu open) Down, Up, Tab, Ctrl+N / Ctrl+P, Enter, Escape | Choose, take the entry (one undo step), close the menu and leave the `/` as typed |
 
 Catalog commands in the command prompt (SR-073 AK2) come with #85.
 
@@ -46,6 +48,7 @@ The text of an element is Markdown source with a live preview (D-061, `src/rende
 
 - **Keys:** Enter on the element puts the cursor at the end of the text; Escape comes back to the element; Ctrl/Cmd+S saves with `element.update`; Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo; Enter in a list continues it. After a prompt closes, the focus goes to the element (the article), not to the text, unless the action was "Edit text".
 - **Unsaved text** is a draft the app keeps per buffer while another buffer is shown (the modeline says `modified`). "Close buffer" asks once and discards when repeated. Opening another workspace drops all drafts. "Close all buffers" closes every buffer; with unsaved text it asks in the minibuffer (Enter keeps the buffers with unsaved text, the second choice discards it). A draft keeps the text and the file text it was typed on; autosave and the rule for a file that changed outside come with #401 and #402. Until then, when a buffer with a draft is shown and the file text differs from the one it was typed on, the minibuffer says that saving overwrites the file. A file changed outside the app is seen only then, after a write or after a restart of the core process.
+- **Slash menu (SR-129)** (`slash-menu.ts`, `slash-entries.ts`): `/` typed at the start of a line or after white space, outside code, links and addresses, opens a menu at the caret with headings, normal text, lists, task list, quote, code block, table, link, reference to an element, image, math block, diagram, bold and italic (no underline: Markdown has none, D-015). More typing narrows it as the command line does (initials, letters in order, one slip); Down/Up, Tab and Ctrl+N/Ctrl+P choose, Enter takes the entry in one undo step, Escape closes the menu and the `/` stays as typed. "Reference to element" opens the prompt "Insert reference" (the search of "Go to") and writes `[title](logreq:<uuid>)`. The menu only edits the text; whether D-062 allows it is the spec question #453.
 - **Extension points** (`editor/plugins.ts`) for the following issues: parser extensions and preview rules (formulas and diagrams #108, images #109) and further CodeMirror extensions (`[[` link search #78). Property boxes stay below the text (#400).
 
 ## Light and dark (SR-113)

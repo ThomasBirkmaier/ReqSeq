@@ -106,4 +106,21 @@ describe("the colours of the sheet", () => {
     expect(theme).toContain("var(--text)");
     expect(theme).not.toMatch(COLOUR_LITERAL);
   });
+
+  it("[SR-129] overrides every colour of the base theme of the autocomplete tooltip by tokens (the editor theme above has no literal)", () => {
+    const theme = /EditorView\.theme\(\{([\s\S]*?)\n\}\);/.exec(EDITOR)?.[1] ?? "";
+    // The rules of the library that set a colour: the box, the selected entry, the disabled one, the detail.
+    for (const selector of [
+      '".cm-tooltip.cm-tooltip-autocomplete": {',
+      '".cm-tooltip-autocomplete ul li[aria-selected]": {',
+      '".cm-tooltip.cm-tooltip-autocomplete-disabled ul li[aria-selected]": {',
+      '".cm-completionDetail": {',
+      '".cm-tooltip .cm-tooltip-section:not(:first-child)": {',
+    ]) {
+      const rule = theme.slice(theme.indexOf(selector));
+      expect(theme, selector).toContain(selector);
+      expect(rule.slice(0, rule.indexOf("}")), selector).toMatch(/var\(--(text|muted|rule|sheet|select)\)/);
+    }
+    expect(theme).toContain('".cm-completionMatchedText": { textDecoration: "none"');
+  });
 });

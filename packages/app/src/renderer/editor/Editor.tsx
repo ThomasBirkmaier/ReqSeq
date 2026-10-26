@@ -90,6 +90,33 @@ const theme = EditorView.theme({
   ".cm-lr-table": { borderCollapse: "collapse", margin: "0.5rem 0" },
   ".cm-lr-table th, .cm-lr-table td": { border: "1px solid var(--rule)", padding: "0.2rem 0.6rem" },
   ".cm-lr-table th": { fontWeight: "700", textAlign: "left" },
+  // The slash menu (SR-129, `slash-menu.ts`): the tooltip of @codemirror/autocomplete with the look of the
+  // candidates of the minibuffer. The base theme of the library has colour literals (a light grey box, a
+  // blue selection) that would stay in the dark scheme, so every rule that sets one is overridden here by
+  // tokens, with selectors as specific as its own (the theme wins at equal specificity).
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    backgroundColor: "var(--sheet)",
+    color: "var(--text)",
+    border: "1px solid var(--rule)",
+    boxShadow: "0 4px 12px var(--shadow)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: "inherit", fontSize: "13px", maxHeight: "20em" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "1rem",
+    padding: "0.1rem 0.75rem",
+  },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--select)", color: "var(--text)" },
+  ".cm-tooltip.cm-tooltip-autocomplete-disabled ul li[aria-selected]": {
+    backgroundColor: "var(--select)",
+    color: "var(--muted)",
+  },
+  ".cm-tooltip .cm-tooltip-section:not(:first-child)": {
+    borderTop: "1px solid var(--rule)",
+  },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700" },
+  ".cm-completionDetail": { marginLeft: "0", fontStyle: "normal", fontSize: "12px", color: "var(--muted)" },
 });
 
 /** Replaces the document by `text` with the smallest change (the cursor stays), without an undo step. */

@@ -587,6 +587,20 @@ describe("inline references across repositories (D-058, decision on #177 (c))", 
     ]);
   });
 
+  it("sets the version of a reference the app writes with an empty version in front of its repository, so the saved order is version, repository (SR-129)", async () => {
+    const opened = await open();
+    const ctx = await context(opened);
+    const v = versionOf(SENSOR_NEED);
+    expect(
+      await setInlineReferences(
+        ctx,
+        `[N-0e9d7c](logreq:${SENSOR_NEED.id}?version=&repository=sensor)`,
+        "",
+        "system",
+      ),
+    ).toBe(`[N-0e9d7c](logreq:${SENSOR_NEED.id}?version=${v}&repository=sensor)`);
+  });
+
   it("keeps stored references as written, also old ones without repository, and sets a hand-changed repository anew", async () => {
     const stored = [
       `Old [N-0e9d7c](${ref(SENSOR_NEED.id, STORED_NEED)}) and new [N-0e9d7c](${across(SENSOR_NEED.id, "sensor", OTHER)}).`,

@@ -15,4 +15,6 @@ Stage 3 app shell (#322): `react` and `react-dom` (MIT, runtime, bundled into th
 
 SR-100 main view (#112): `@leeoniya/ufuzzy` 1.0.19 (MIT, no dependencies, no network access, bundled into the renderer) ranks the names of app actions and open buffers in the minibuffer.
 
-SR-065 editor (#77): `@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/commands`, `@codemirror/lang-markdown` (with `@codemirror/lang-html` and `@codemirror/autocomplete`), `@lezer/markdown`, `@lezer/common`, `@lezer/highlight` (all MIT, no network access, bundled into the renderer). Dev only: `micromark` and `micromark-extension-gfm` (MIT), the reference parser of the round-trip test for CommonMark with GitHub extensions.
+SR-065 editor (#77): `@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/commands`, `@codemirror/lang-markdown` (with `@codemirror/lang-html`), `@lezer/markdown`, `@lezer/common`, `@lezer/highlight` (all MIT, no network access, bundled into the renderer). Dev only: `micromark` and `micromark-extension-gfm` (MIT), the reference parser of the round-trip test for CommonMark with GitHub extensions.
+
+SR-129 slash menu (#446): `@codemirror/autocomplete` 6.20.4 (MIT, no network access, bundled into the renderer) is a direct dependency of `@logreq/app`; it was a transitive one of `@codemirror/lang-markdown` before. It supplies the list at the caret, the listbox roles and the mouse picking; the entries, the ranking and the keys are our own.

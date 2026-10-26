@@ -17,6 +17,8 @@ export interface Row {
   readonly open: ElementBuffer;
   /** ID shown muted at the left: the identifier, else the short ID. */
   readonly label: string;
+  /** The short ID, for a reference into another repository (D-058). */
+  readonly shortId: string;
   readonly title: string;
   readonly status: string | undefined;
   /** 0 for a root; a list that is not a tree has 0 everywhere. */
@@ -44,6 +46,7 @@ const rowOf = (
   return {
     open: elementBufferOf(element),
     label,
+    shortId: element.shortId,
     title: element.title,
     status: element.status,
     depth,

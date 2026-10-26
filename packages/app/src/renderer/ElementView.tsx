@@ -12,9 +12,12 @@ import type { Call } from "./call.js";
 import { outdatedReferences, propertyBoxes, relationGroups } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
+import { mergePlugins } from "./editor/plugins.js";
 import { referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { afterSave, dirty, saveInput } from "./editor/save.js";
+import { slashMenu } from "./editor/slash-menu.js";
+import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Draft } from "./drafts.js";
 import { ListView } from "./ListView.js";
 import type { BufferData } from "./modeline.js";
@@ -36,6 +39,8 @@ export interface ElementViewProps {
    * the link names (a relation has none: the output has no repository).
    */
   readonly onOpenTarget: (id: string, repository?: string) => void;
+  /** The slash menu's "Reference to element" asks for an element (SR-129): the app opens a prompt. */
+  readonly onPickElement: (request: ReferenceRequest) => void;
   /** The unsaved text this buffer had when it was shown last, if any, with the file text it was typed on. */
   readonly draft: Draft | undefined;
   /** The text of the buffer has unsaved changes (the draft), or has none (undefined). */
@@ -102,6 +107,7 @@ export const ElementView = ({
   onEcho,
   onOpenTarget,
   onOpenRelation,
+  onPickElement,
   draft,
   onDraft,
   register,
@@ -127,22 +133,47 @@ export const ElementView = ({
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const readOnly = view.status === "ok" && view.element.readOnly === true;
   // What the callbacks need of the latest render.
-  const now = useRef({ buffer, call, onData, onDraft, onEcho, onOpenTarget, readOnly, handle });
-  now.current = { buffer, call, onData, onDraft, onEcho, onOpenTarget, readOnly, handle };
+  const now = useRef({
+    buffer,
+    call,
+    onData,
+    onDraft,
+    onEcho,
+    onOpenTarget,
+    onPickElement,
+    readOnly,
+    handle,
+  });
+  now.current = { buffer, call, onData, onDraft, onEcho, onOpenTarget, onPickElement, readOnly, handle };
 
   // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
   // editor is configured again only when the hints about the text change.
   const outdated = view.status === "ok" ? outdatedReferences(view.element) : undefined;
   const signature = JSON.stringify([...(outdated ?? [])]);
+  // The slash menu is created once: it holds state (the `/` typed), which a reconfiguration would keep
+  // only for the same extensions.
+  const slash = useMemo(
+    () =>
+      slashMenu({
+        pickElement: (request) => {
+          now.current.onPickElement(request);
+        },
+        repository: () => now.current.buffer.repository,
+      }),
+    [],
+  );
   const plugins = useMemo(
     () =>
-      references({
-        outdated: outdated ?? new Map(),
-        follow: (reference: Reference) => {
-          now.current.onOpenTarget(reference.id, reference.repository);
-        },
-      }),
-    [signature],
+      mergePlugins(
+        references({
+          outdated: outdated ?? new Map(),
+          follow: (reference: Reference) => {
+            now.current.onOpenTarget(reference.id, reference.repository);
+          },
+        }),
+        slash,
+      ),
+    [signature, slash],
   );
 
   const setBaseline = (next: string): void => {

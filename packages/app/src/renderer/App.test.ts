@@ -875,6 +875,50 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
+  /** Types as the keyboard does, so the slash menu opens, and lets it answer. */
+  const typeKeys = async (insert: string): Promise<void> => {
+    for (const char of insert) {
+      await act(async () => {
+        const head = editorView().state.selection.main.head;
+        editorView().dispatch({
+          changes: { from: head, insert: char },
+          selection: { anchor: head + 1 },
+          userEvent: "input.type",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      });
+    }
+  };
+
+  it("[SR-129/AK4] Reference to element asks Insert reference, finds elements as Go to does, and writes the reference of the pick", async () => {
+    const { invoke } = await openElement();
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" /ref");
+    await keyDown(query(".cm-content"), "Enter");
+    expect(query("label").textContent).toBe("Insert reference");
+    expect(editorView().state.doc.toString()).toBe("Hello /ref");
+    await type("title");
+    expect(calls(invoke, "element.search")).toEqual([{ query: "title", fields: ["id", "title"], limit: 20 }]);
+    await keyDown(query("input"), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello [Title 2](logreq:uuid-2)");
+    expect(container.querySelector("input")).toBeNull();
+    expect(editorView().hasFocus).toBe(true);
+    expect(document.activeElement).toBe(query(".cm-content"));
+  });
+
+  it("[SR-129/AK3] Escape in Insert reference leaves the / as typed and gives the editor the focus", async () => {
+    await openElement();
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" /ref");
+    await keyDown(query(".cm-content"), "Enter");
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    expect(editorView().state.doc.toString()).toBe("Hello /ref");
+    expect(document.activeElement).toBe(query(".cm-content"));
+  });
+
   it("shows modified in the modeline while the text has unsaved changes", async () => {
     await openElement();
     await typeText("!");

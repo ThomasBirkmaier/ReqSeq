@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import type { WorkspaceChangeReason } from "../shared/protocol.js";
 import type { LogReqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
-import { COMMAND_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions.js";
+import { COMMAND_SHORTCUT, actionFor, commandPrompt, referencePrompt, runAction } from "./actions.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
@@ -277,6 +277,9 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onEcho={setEcho}
             onOpenTarget={openTarget}
             onOpenRelation={openRelation}
+            onPickElement={(request) => {
+              ask(referencePrompt(context, request));
+            }}
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
             register={setElementControls}

@@ -26,6 +26,7 @@ describe("listRows", () => {
       ["SR-036", "Title 1", "draft", 0],
       ["SR-000002", "Title 2", undefined, 0],
     ]);
+    expect(rows.map((row) => row.shortId)).toEqual(["SR-000001", "SR-000002"]);
     expect(rows[0]?.open.key).toBe("element:spec:uuid-1");
     expect(rows[0]?.open.name).toBe("SR-036 Title 1");
     expect(rows[0]?.terms).toEqual([]);

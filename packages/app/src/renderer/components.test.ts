@@ -18,6 +18,7 @@ import {
 import type { Call } from "./call.js";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
+import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
@@ -258,6 +259,27 @@ describe("Minibuffer", () => {
     expect(closed).toHaveBeenCalledTimes(1);
     await press(input(), "Escape");
     expect(closed).toHaveBeenCalledTimes(2);
+  });
+
+  it("[SR-129/AK3] tells the prompt that Escape cancelled it, before it closes", async () => {
+    const order: string[] = [];
+    const cancel = vi.fn(() => order.push("cancel"));
+    await mount(
+      { label: "Insert reference", items: [choice("a", "One")], cancel },
+      vi.fn(() => order.push("close")),
+    );
+    await press(input(), "Escape");
+    expect(order).toEqual(["cancel", "close"]);
+  });
+
+  it("[SR-129/AK4] does not tell the prompt it was cancelled when a choice or free text answers it", async () => {
+    const cancel = vi.fn();
+    await mount({ label: "Insert reference", items: [choice("a", "One")], cancel });
+    await press(input(), "Enter");
+    expect(cancel).not.toHaveBeenCalled();
+    await mount({ label: "Search", items: [], text: vi.fn(), cancel });
+    await press(input(), "Enter");
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   it("keeps the selection in range with no candidates", async () => {
@@ -1504,6 +1526,7 @@ describe("ElementView", () => {
     const opened: [string, string | undefined][] = [];
     const drafts: [string, Draft | undefined][] = [];
     const registered: (ElementControls | undefined)[] = [];
+    const picks: ReferenceRequest[] = [];
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
@@ -1515,6 +1538,7 @@ describe("ElementView", () => {
         onOpenTarget: (id, repository) => {
           opened.push([id, repository]);
         },
+        onPickElement: (request) => picks.push(request),
         draft,
         onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
@@ -1530,6 +1554,7 @@ describe("ElementView", () => {
       opened,
       drafts,
       registered,
+      picks,
       controls: (): ElementControls => {
         const found = registered.findLast((c) => c !== undefined);
         if (found === undefined) {
@@ -1866,6 +1891,59 @@ describe("ElementView", () => {
     await again(1);
     expect(echoed).toHaveLength(1);
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+  });
+
+  describe("the slash menu (SR-129)", () => {
+    const typeSlash = async (query: string): Promise<void> => {
+      for (const char of `/${query}`) {
+        await act(async () => {
+          const head = editorView().state.selection.main.head;
+          editorView().dispatch({
+            changes: { from: head, insert: char },
+            selection: { anchor: head + 1 },
+            userEvent: "input.type",
+          });
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        });
+      }
+    };
+
+    it("[SR-129/AK1] opens at the cursor when / is typed in the text of the element", async () => {
+      await mount(asCall(fakeCall({ "element.get": () => ({ element: read({ text: "" }) }) })));
+      await typeSlash("");
+      expect(container.querySelectorAll(".cm-tooltip-autocomplete li").length).toBeGreaterThan(10);
+    });
+
+    it("[SR-129/AK4] asks the app for an element, and writes the reference: the title within the repository of the buffer", async () => {
+      const { picks } = await mount(
+        asCall(fakeCall({ "element.get": () => ({ element: read({ text: "" }) }) })),
+      );
+      await typeSlash("ref");
+      await press(query(".cm-content"), "Enter");
+      expect(picks).toHaveLength(1);
+      act(() => {
+        picks[0]?.insert({
+          id: "uuid-2",
+          title: "Wind",
+          label: "SR-001",
+          shortId: "SR-0002",
+          repository: "spec",
+        });
+      });
+      expect(editorView().state.doc.toString()).toBe("[Wind](logreq:uuid-2)");
+      act(() => {
+        picks[0]?.insert({
+          id: "uuid-3",
+          title: "Wind",
+          label: "SR-001",
+          shortId: "SR-0003",
+          repository: "other",
+        });
+      });
+      expect(editorView().state.doc.toString()).toBe(
+        "[Wind](logreq:uuid-2)[SR-0003](logreq:uuid-3?version=&repository=other)",
+      );
+    });
   });
 
   describe("inline references (#424)", () => {

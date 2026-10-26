@@ -4,8 +4,9 @@
 // - `markdown`: parser extensions. Formulas and diagrams (#108) add their syntax nodes.
 // - `rules`: preview rules after the built-in ones. Formulas and diagrams (#108) and images (#109) draw
 //   their nodes as widgets; a rule only ever returns decorations, the document is never rewritten.
-// - `extensions`: further CodeMirror extensions. The `[[` link search (#78) is an input handler that asks
-//   `element.search` and inserts an inline reference (ADR-0004).
+// - `extensions`: further CodeMirror extensions. The slash menu (SR-129, `slash-menu.ts`) is one; the `[[`
+//   link search (#78) is an input handler that asks `element.search` and inserts an inline reference
+//   (ADR-0004).
 //
 // Autosave (#401) plugs in through `onChange` and `onSave` of the editor component and the pure functions
 // of `save.ts`; the property boxes (#400) stay below the editor in the element buffer.
@@ -35,3 +36,13 @@ export interface EditorPlugins {
   /** Further CodeMirror extensions (`[[` link search #78). */
   readonly extensions?: readonly Extension[];
 }
+
+/**
+ * The plugins of the editor together: the lists of each, in the given order. The element buffer combines
+ * the reference marks (#424) and the slash menu (SR-129) this way.
+ */
+export const mergePlugins = (...plugins: readonly EditorPlugins[]): EditorPlugins => ({
+  markdown: plugins.flatMap((plugin) => plugin.markdown ?? []),
+  rules: plugins.flatMap((plugin) => plugin.rules ?? []),
+  extensions: plugins.flatMap((plugin) => plugin.extensions ?? []),
+});

@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt, runAction } from "./actions.js";
+import {
+  ACTIONS,
+  COMMAND_SHORTCUT,
+  actionFor,
+  commandPrompt,
+  jumpPrompt,
+  referencePrompt,
+  runAction,
+} from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, filteredList, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
@@ -275,6 +283,58 @@ describe("go to element or buffer", () => {
       "element.search": new Error("The search index is not ready"),
     });
     expect(await jumpPrompt(context).find?.("wind")).toEqual([]);
+    expect(echoed).toEqual(["The search index is not ready"]);
+  });
+});
+
+describe("insert reference (SR-129)", () => {
+  const hit = {
+    id: "u1",
+    repository: "other",
+    shortId: "SR-000001",
+    identifier: "SR-036",
+    title: "Wind",
+    type: "t",
+    score: 1,
+    fields: ["title"],
+    terms: ["wind"],
+  };
+
+  it("[SR-129/AK4] finds elements as Go to does, and a pick hands the element to the editor", async () => {
+    const { context, call } = setup([list], {
+      "element.search": { hits: [hit], total: 1, incomplete: false },
+    });
+    const request = { insert: vi.fn(), cancel: vi.fn() };
+    const prompt = referencePrompt(context, request);
+    expect(prompt.label).toBe("Insert reference");
+    expect(prompt.items).toEqual([]);
+    const found = await prompt.find?.("wind");
+    expect(call).toHaveBeenCalledWith("element.search", {
+      query: "wind",
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    expect(found?.map((choice) => choice.name)).toEqual(["SR-036 Wind"]);
+    found?.[0]?.run();
+    expect(request.insert).toHaveBeenCalledExactlyOnceWith({
+      id: "u1",
+      title: "Wind",
+      label: "SR-036",
+      shortId: "SR-000001",
+      repository: "other",
+    });
+    expect(request.cancel).not.toHaveBeenCalled();
+  });
+
+  it("[SR-129/AK3] cancels through the request, and echoes why the search failed", async () => {
+    const { context, echoed } = setup([list], {
+      "element.search": new Error("The search index is not ready"),
+    });
+    const request = { insert: vi.fn(), cancel: vi.fn() };
+    const prompt = referencePrompt(context, request);
+    prompt.cancel?.();
+    expect(request.cancel).toHaveBeenCalledTimes(1);
+    expect(await prompt.find?.("wind")).toEqual([]);
     expect(echoed).toEqual(["The search index is not ready"]);
   });
 });

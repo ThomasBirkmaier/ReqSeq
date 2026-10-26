@@ -17,6 +17,7 @@ import {
   searchBuffer,
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
+import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
 import {
@@ -28,6 +29,7 @@ import {
   typeStep,
 } from "./list-filters.js";
 import { searchRows } from "./rows.js";
+import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
@@ -49,6 +51,8 @@ export interface Prompt {
   readonly find?: (query: string) => Promise<readonly Choice[]>;
   /** Free text: Enter runs it (the search prompt). */
   readonly text?: (text: string) => void;
+  /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
+  readonly cancel?: () => void;
 }
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
@@ -160,17 +164,13 @@ const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[] | undefi
     }),
   );
 
-/** The prompt of Ctrl/Cmd+P: the open buffers (not the shown one), and elements found by `element.search`. */
-export const jumpPrompt = (context: ActionContext): Prompt => ({
-  label: "Go to",
-  items: context.buffers.slice(1).map((buffer) => ({
-    id: buffer.key,
-    name: bufferName(buffer),
-    run: () => {
-      context.dispatch({ type: "switch", key: buffer.key });
-    },
-  })),
-  find: async (query) => {
+/**
+ * The elements `element.search` finds for the typed text, as the choices of a prompt; `run` is what
+ * choosing one does. The prompts "Go to" and "Insert reference" (SR-129) find them the same way.
+ */
+export const findElements =
+  (context: ActionContext, run: (row: Row) => void) =>
+  async (query: string): Promise<readonly Choice[]> => {
     const answer = await context.call("element.search", { query, fields: ["id", "title"], limit: 20 });
     if (!answer.ok) {
       context.echo(answer.message);
@@ -181,10 +181,40 @@ export const jumpPrompt = (context: ActionContext): Prompt => ({
       name: `${row.label} ${row.title}`.trim(),
       terms: row.markLabel ? [...row.terms, row.label.toLowerCase()] : row.terms,
       run: () => {
-        context.dispatch({ type: "open", buffer: row.open });
+        run(row);
       },
     }));
-  },
+  };
+
+/** The prompt of Ctrl/Cmd+P: the open buffers (not the shown one), and elements found by `element.search`. */
+export const jumpPrompt = (context: ActionContext): Prompt => ({
+  label: "Go to",
+  items: context.buffers.slice(1).map((buffer) => ({
+    id: buffer.key,
+    name: bufferName(buffer),
+    run: () => {
+      context.dispatch({ type: "switch", key: buffer.key });
+    },
+  })),
+  find: findElements(context, (row) => {
+    context.dispatch({ type: "open", buffer: row.open });
+  }),
+});
+
+/** The prompt of the slash menu's "Reference to element" (SR-129): an element is picked, the editor writes the reference. */
+export const referencePrompt = (context: ActionContext, request: ReferenceRequest): Prompt => ({
+  label: "Insert reference",
+  items: [],
+  find: findElements(context, (row) => {
+    request.insert({
+      id: row.open.id,
+      title: row.title,
+      label: row.label,
+      shortId: row.shortId,
+      repository: row.open.repository,
+    });
+  }),
+  cancel: request.cancel,
 });
 
 const searchPrompt = (context: ActionContext): Prompt => ({

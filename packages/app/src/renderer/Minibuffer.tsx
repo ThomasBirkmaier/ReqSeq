@@ -116,6 +116,7 @@ const PromptLine = ({
         break;
       case "Escape":
         event.preventDefault();
+        prompt.cancel?.();
         waiting.current = 0;
         onClose();
         break;
