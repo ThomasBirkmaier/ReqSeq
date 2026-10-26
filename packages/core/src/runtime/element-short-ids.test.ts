@@ -8,6 +8,7 @@ import { metamodelState } from "../metamodel/index.js";
 import { elementStoreState, problemElement, requiredProblemsState, shortIdState } from "../model/index.js";
 import { SCHEMA_BASE, loadContracts } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
+import type { ElementNames } from "./element-short-ids.js";
 import { fillElementShortIds, problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { createCommandRuntime, invoke } from "./invoke.js";
 import { Workspace } from "./workspace.js";
@@ -111,8 +112,8 @@ describe("problemLocator", () => {
 
 describe("fillElementShortIds", () => {
   const where = locator({ properties: { problems: PROBLEMS, other: PROBLEMS } }) ?? {};
-  const shortIdOf = (problem: Problem & { readonly elementId: string }): string | undefined =>
-    problem.elementId === N1 ? "N-0000a1" : undefined;
+  const shortIdOf = (problem: Problem & { readonly elementId: string }): ElementNames | undefined =>
+    problem.elementId === N1 ? { elementShortId: "N-0000a1" } : undefined;
 
   it("adds the short ID to the problems that name an element, in a copy", () => {
     const named = about(N1, "needs/N-0000000000a1.md");

@@ -7,6 +7,13 @@ export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
 export { duplicateIdFindings, duplicateIdProblemsState, resolveId } from "./duplicates.js";
+export {
+  allDuplicateIdentifierFindings,
+  duplicateIdentifierFindings,
+  duplicateIdentifierProblemsState,
+} from "./identifiers.js";
+export type { IdentifierContext } from "./identifiers.js";
+export { identifierKeyOf } from "./identifier-index.js";
 export { compileGlob, ignoreMatcher } from "./ignore.js";
 export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";
@@ -93,6 +100,7 @@ export {
   SHORT_ID_MIN_LENGTH,
   UNKNOWN_TYPE_PREFIX,
   buildShortIds,
+  identifierField,
   problemElement,
   shortIdState,
 } from "./short-id.js";

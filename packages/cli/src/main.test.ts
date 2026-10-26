@@ -351,7 +351,7 @@ describe("logreq <group> <action>", () => {
     expect(missing.code).toBe(EXIT.usage);
     expect(missing.stdout).toBe("");
     expect(missing.stderr).toBe("error input.invalid: Invalid input for test.echo: <name> is required\n");
-    const json = await run(["test", "echo", "not a ref", "n", "--count", "x", "--json"]);
+    const json = await run(["test", "echo", " not a ref", "n", "--count", "x", "--json"]);
     expect(json.code).toBe(EXIT.usage);
     const error = JSON.parse(json.stderr) as { code: string; details: { errors: { path: string }[] } };
     expect(error.code).toBe("input.invalid");
@@ -366,12 +366,12 @@ describe("logreq <group> <action>", () => {
   });
 
   it("names each field of an invalid input as it is typed: <argument>, --flag, or its input name (#309)", async () => {
-    const human = await run(["test", "echo", "SR-036", "--count", "-1", "--level", "mid"]);
+    const human = await run(["test", "echo", " SR-036", "--count", "-1", "--level", "mid"]);
     expect(human.code).toBe(EXIT.usage);
     expect(human.stderr).toBe(
       "error input.invalid: Invalid input for test.echo: " +
         "<name> is required; " +
-        '<ref> "SR-036" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0); ' +
+        '<ref> " SR-036" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end); ' +
         '--count must be >= 0, not -1; --level "mid" is not one of: low, high\n',
     );
     expect(human.stderr).not.toMatch(/\(root\)|\^\[/);
@@ -384,21 +384,21 @@ describe("logreq <group> <action>", () => {
       "--tags",
       "a",
       "--input",
-      '{"selection":{"ids":["x"]}}',
+      '{"selection":{"ids":[" x"]}}',
     ]);
     expect(nested.stderr).toBe(
       "error input.invalid: Invalid input for test.echo: " +
-        'selection.ids[0] "x" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)\n',
+        'selection.ids[0] " x" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)\n',
     );
     const item = await run(["test", "echo", ref, "n", "--input", '{"tags":[1]}']);
     expect(item.stderr).toBe(
       "error input.invalid: Invalid input for test.echo: --tags[0] must be text, not 1\n",
     );
     // Rebuilt, never replaced: `$&`, `$$` and `$'` in a value stay as typed.
-    const dollars = await run(["test", "echo", "a$&b$$c$'d", "n"]);
+    const dollars = await run(["test", "echo", "a$&b$$c$'d ", "n"]);
     expect(dollars.stderr).toBe(
       "error input.invalid: Invalid input for test.echo: " +
-        `<ref> "a$&b$$c$'d" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)\n`,
+        `<ref> "a$&b$$c$'d " is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)\n`,
     );
     // --json gives core's error object unchanged.
     const json = await run(["test", "echo", ref, "--json"]);

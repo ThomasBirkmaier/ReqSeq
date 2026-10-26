@@ -51,7 +51,7 @@ export type Uuid = string;
 export type ShortId = string;
 
 /**
- * A reference to an element as given by a person or an external tool: UUID or short ID (SR-060). Any case is accepted: sr-5a8b25 names SR-5a8b25.
+ * UUID, short ID or identifier (e.g. SR-036), any case; several matches give ref.ambiguous.
  * Schema: `schemas/common.schema.json#/$defs/elementRef`.
  */
 export type ElementRef = string;
@@ -159,6 +159,8 @@ export interface Problem {
   readonly elementFile?: string;
   /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements. */
   readonly elementShortId?: ShortId;
+  /** Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one. */
+  readonly elementIdentifier?: string;
   readonly targetId?: Uuid;
   readonly storedVersion?: Version;
   readonly currentVersion?: Version;
@@ -181,6 +183,7 @@ export type ProblemCode =
   | "file.skipped"
   | "element.invalid"
   | "element.duplicate-id"
+  | "element.duplicate-identifier"
   | "element.file-name-clash"
   | "element.unknown-type"
   | "element.unknown-property"
@@ -310,6 +313,8 @@ export interface DataExportFile {
 export interface DataExportElement {
   readonly id: Uuid;
   readonly shortId: ShortId;
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  readonly identifier?: string;
   readonly type: Key;
   /** The status key as written; left out when the element has none (a type without status, #306). */
   readonly status?: Key;
@@ -355,6 +360,8 @@ export interface DataExportRelation {
   readonly id: Uuid;
   /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154). */
   readonly shortId?: ShortId;
+  /** Identifier of the other end (#305), only when it is available locally and has one. */
+  readonly identifier?: string;
   /** Only when the other end is available locally, also across repositories, where the file stores no title (SR-005 AK2, SR-006 AK1). */
   readonly title?: string;
   /** `targetState` is `available`. */
@@ -688,7 +695,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -701,7 +708,8 @@ export type MetamodelPropertyMeaning =
   | "source"
   | "source-identifier"
   | "import-date"
-  | "delivery";
+  | "delivery"
+  | "identifier";
 
 /**
  * Relation kind (Beziehungsart). Stored under its key in the source file. `source-types`/`target-types` restrict where it may be set (SR-012 AK4, SR-067).
@@ -1054,7 +1062,7 @@ export interface ElementGetOutput {
 }
 
 /**
- * Input of `element.resolve` as `run` gets it: validated, properties with a `default` filled in. Resolve a reference from another tool (UUID or short ID, optional version) and tell whether the version is current.
+ * Input of `element.resolve` as `run` gets it: validated, properties with a `default` filled in. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
  * Schema: `schemas/commands/catalog.json element.resolve input`.
  */
 export interface ElementResolveInput {
@@ -1070,7 +1078,7 @@ export interface ElementResolveInput {
 }
 
 /**
- * Output of `element.resolve`. Resolve a reference from another tool (UUID or short ID, optional version) and tell whether the version is current.
+ * Output of `element.resolve`. Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.
  * Schema: `schemas/commands/catalog.json element.resolve output`.
  */
 export interface ElementResolveOutput {
@@ -1303,6 +1311,8 @@ export interface TraceChainOutput {
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    readonly identifier?: string;
     readonly type: string;
     readonly title: string;
     readonly status?: string;
@@ -1350,6 +1360,8 @@ export interface TraceChainOutput {
     /** The other end: the parent the relation names (up), the child that stores it (down). */
     readonly id: Uuid;
     readonly shortId?: ShortId;
+    /** Identifier of the other end (#305), when it is available and has one. */
+    readonly identifier?: string;
     readonly title?: string;
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
@@ -1403,6 +1415,8 @@ export interface TraceAffectedOutput {
   readonly affected: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    readonly identifier?: string;
     readonly type: string;
     readonly title: string;
     readonly repository: string;

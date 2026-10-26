@@ -18,7 +18,8 @@ export const renderJson = (output: unknown): string => `${JSON.stringify(output 
  * `severity  code  repository:file:line  message  (element SR-46fb54)`, parts that are missing left
  * out; the repository only when the problem names one and has a file (e.g. element files of
  * several repositories, metamodel files); the element by its short ID (`elementShortId`, #315), by
- * its UUID when the problem has no short ID.
+ * its UUID when the problem has no short ID, and its identifier when it has one
+ * (`(element SR-3c90b0, identifier SR-036)`, `elementIdentifier`, #305).
  */
 export const renderProblem = (problem: unknown): string => {
   const p = isRecord(problem) ? problem : { message: JSON.stringify(problem) };
@@ -28,7 +29,13 @@ export const renderProblem = (problem: unknown): string => {
   const line = text(p["line"]);
   const location = file !== "" && line !== "" ? `${file}:${line}` : file;
   const shortId = text(p["elementShortId"]);
-  const element = shortId === "" ? text(p["elementId"]) : shortId;
+  const identifier = text(p["elementIdentifier"]);
+  const element =
+    shortId === ""
+      ? text(p["elementId"])
+      : identifier === ""
+        ? shortId
+        : `${shortId}, identifier ${identifier}`;
   return `${[
     text(p["severity"]),
     text(p["code"]),

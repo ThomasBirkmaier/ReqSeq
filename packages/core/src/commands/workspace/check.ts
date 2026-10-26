@@ -44,6 +44,7 @@ import {
   changedFiles,
   currentVersions,
   duplicateIdProblemsState,
+  duplicateIdentifierProblemsState,
   elementStoreState,
   missingTargetProblemsState,
   relationTypeProblemsState,
@@ -77,6 +78,7 @@ export const FINDING_STATES = [
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
   duplicateIdProblemsState, // SR-088
+  duplicateIdentifierProblemsState, // #305
   missingTargetProblemsState, // SR-089
   derivationCycleProblemsState, // SR-090
   outdatedEvidenceProblemsState, // SR-025 AK4

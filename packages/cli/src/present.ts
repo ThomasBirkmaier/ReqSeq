@@ -3,8 +3,9 @@
 // shape of the output, and whether the command reads or writes (its catalog `effect`), so every
 // command of the catalog is covered. `--json` prints the output unchanged, `--yaml` all of it.
 //
-// - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`; a list
-//   of them one such line per element. A read command (element.get) shows the element's details below
+// - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
+//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305); a list of them one
+//   such line per element. A read command (element.get) shows the element's details below
 //   its line, a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked.
@@ -46,6 +47,13 @@ const isProblem = (value: unknown): value is Rec =>
   typeof value["severity"] === "string" &&
   typeof value["message"] === "string";
 
+/**
+ * A short ID with the identifier next to it when there is one (#305): `SR-3c90b0 (SR-036)`; the
+ * short ID alone otherwise.
+ */
+const withIdentifier = (shortId: string, identifier: unknown): string =>
+  text(identifier) === "" ? shortId : `${shortId} (${text(identifier)})`;
+
 /** Names an element by repository and UUID: its short ID when the list has it, else its UUID. */
 type Namer = (repository: string, id: string) => string;
 
@@ -80,7 +88,7 @@ const elementLine = (
   const distance = element["distance"];
   return join(
     typeof distance === "number" ? String(distance) : "",
-    element.shortId,
+    withIdentifier(element.shortId, element["identifier"]),
     text(element["status"]),
     element.title,
     viaText(element, name),
@@ -92,7 +100,7 @@ const relationLine = (r: Rec): string => {
   const state = text(r["targetState"]);
   return join(
     `${r["direction"] === "in" ? "<-" : "->"} ${text(r["kind"])}`,
-    text(r["shortId"]) === "" ? text(r["id"]) : text(r["shortId"]),
+    text(r["shortId"]) === "" ? text(r["id"]) : withIdentifier(text(r["shortId"]), r["identifier"]),
     text(r["title"]),
     state === "available" || state === "" ? "" : `[${state}]`,
   );
@@ -106,6 +114,7 @@ const elementDetails = (element: Rec): string[] => {
   const {
     id,
     shortId: _shortId,
+    identifier: _identifier,
     status: _status,
     title: _title,
     problems: _problems,
@@ -126,9 +135,13 @@ const elementDetails = (element: Rec): string[] => {
   return indent(yamlLines(details));
 };
 
-/** A hint of a list: the element's short ID (else its file), the kind, the message and the hint ID. */
+/**
+ * A hint of a list: the element's short ID with its identifier (else its file), the kind, the
+ * message and the hint ID.
+ */
 const findingLine = (finding: Rec): string => {
-  const element = text(finding["elementShortId"]);
+  const shortId = text(finding["elementShortId"]);
+  const element = shortId === "" ? "" : withIdentifier(shortId, finding["elementIdentifier"]);
   const hintId = text(finding["hintId"]);
   return join(
     element === "" ? text(finding["file"]) : element,
@@ -226,7 +239,7 @@ const unresolvedLine = (item: Rec, chain: Chain): string => {
   return join(
     `${text(item["direction"])} from ${shortIdIn(chain, text(item["fromRepository"]), text(item["from"]))}`,
     text(item["kind"]),
-    other === "" ? text(item["id"]) : other,
+    other === "" ? text(item["id"]) : withIdentifier(other, item["identifier"]),
     text(item["title"]),
     `[${text(item["targetState"])}]`,
   );

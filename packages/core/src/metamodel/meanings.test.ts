@@ -15,7 +15,7 @@ import type {
   RelationMeaning,
   TypeMeaning,
 } from "./index.js";
-import { assignMeanings } from "./meanings.js";
+import { assignMeanings, meaningKindProblems } from "./meanings.js";
 import {
   MEANINGS,
   metamodelState,
@@ -185,6 +185,7 @@ describe("built-in meanings", () => {
       "source-identifier": [],
       "import-date": [],
       delivery: [],
+      identifier: [],
       derivation: ["satisfies"],
       replacement: [],
       exclusion: [],
@@ -207,6 +208,7 @@ describe("built-in meanings", () => {
       "source-identifier": "properties",
       "import-date": "properties",
       delivery: "properties",
+      identifier: "properties",
       derivation: "relations",
       replacement: "relations",
       exclusion: "relations",
@@ -361,6 +363,30 @@ describe("built-in meanings", () => {
     expect(assigned.problems).toHaveLength(1);
   });
 
+  it("reports the meaning identifier on another kind than text, without a line when the place is not known (#305)", () => {
+    const at = (definition: MetamodelProperty): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: () => undefined,
+    });
+    expect(
+      meaningKindProblems([
+        at({ key: "a", name: "A", kind: "text", meaning: "identifier" }),
+        at({ key: "b", name: "B", kind: "text", many: false, meaning: "identifier" }),
+        at({ key: "c", name: "C", kind: "date", meaning: "identifier" }),
+        at({ key: "d", name: "D", kind: "number", meaning: "title" }),
+      ]),
+    ).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        message:
+          "Property c has the meaning identifier, which needs kind text without many (one text per element), not kind date",
+        file: "model/properties.yaml",
+      },
+    ]);
+  });
+
   it("reports a second key without a line when its definition has no place in a file", () => {
     const at = (key: string): Located<MetamodelProperty> => ({
       definition: { key, name: key, kind: "text", meaning: "title" },
@@ -393,7 +419,9 @@ describe("built-in meanings", () => {
     const metamodel = await open(ws.root).get(metamodelState);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
-      const expected = meaning === "derivation" || meaning === "replacement" ? 2 : 1;
+      // `identifier` (#305) is no meaning of D-012; the standard model has no property with it.
+      const expected =
+        meaning === "derivation" || meaning === "replacement" ? 2 : meaning === "identifier" ? 0 : 1;
       expect(keys, meaning).toHaveLength(expected);
     }
   });

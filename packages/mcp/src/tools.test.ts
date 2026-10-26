@@ -8,12 +8,45 @@ import { catalogTools, serverTools, toolName } from "./tools.js";
 
 const generated = path.join(import.meta.dirname, "..", "..", "..", "schemas", "generated", "mcp-tools.json");
 
+/** Every `pattern` of a JSON document, for the check that external clients can compile them. */
+const patternsOf = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap(patternsOf);
+  }
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+  return Object.entries(value).flatMap(([key, inner]) =>
+    key === "pattern" && typeof inner === "string" ? [inner] : patternsOf(inner),
+  );
+};
+
 describe("catalogTools", () => {
   it("gives exactly the tool list of schemas/generated/mcp-tools.json for the product catalog", async () => {
     const file = JSON.parse(await fs.readFile(generated, "utf8")) as Record<string, unknown>;
     const list = catalogTools(loadContracts());
     expect(list.tools).toEqual(file["tools"]);
     expect(list.$defs).toEqual(file["$defs"]);
+  });
+
+  it("publishes only patterns a client compiles without the Unicode flag (D-029, #305)", async () => {
+    const published = JSON.parse(await fs.readFile(generated, "utf8")) as {
+      $defs: { common: { $defs: { elementRef: { pattern: string } } } };
+    };
+    const patterns = patternsOf(published);
+    expect(patterns.length).toBeGreaterThan(0);
+    for (const pattern of patterns) {
+      // Without the u flag, as many clients compile them: \p{...} would be literal text.
+      expect(() => new RegExp(pattern)).not.toThrow();
+      expect(pattern).not.toMatch(/\\[pP]\{/);
+    }
+    const elementRef = new RegExp(published.$defs.common.$defs.elementRef.pattern);
+    for (const ref of ["SR-3c90b0", "SR-036", "sr-5a8b25", "Stufe 2 – Spec-ID ä"]) {
+      expect(elementRef.test(ref)).toBe(true);
+    }
+    for (const ref of ["", " SR-036", "SR-036 ", "SR-\u0007036", "a\tb", "SR-036\u0085"]) {
+      expect(elementRef.test(ref)).toBe(false);
+    }
   });
 
   it("refuses a $ref it cannot rewrite", () => {

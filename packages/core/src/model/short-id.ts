@@ -2,12 +2,21 @@
 // a dash and the last hex digits of the UUID without dashes: at least 6, more until no other element
 // of the workspace has a UUID that ends the same way. Only the display grows; the file name keeps the
 // prefix and the 12 digits it got when the element was created and never changes (D-056, SR-084 AK3).
-// Computing short IDs reads nothing and writes nothing.
+// Computing short IDs reads nothing and writes nothing. The identifiers of the elements (#305,
+// `identifier-index.ts`) are kept with them: people name elements by both, and both are built from
+// the same states and carried over a change of the store the same way (#184).
 import type { Problem } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { UNKNOWN_TYPE_PREFIX, findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
+import type { IdentifierIndex } from "./identifier-index.js";
+import {
+  buildIdentifierIndex,
+  elementsWithIdentifier,
+  identifierValue,
+  updateIdentifierIndex,
+} from "./identifier-index.js";
 import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 import { normalizeRef } from "./uuid.js";
@@ -50,6 +59,16 @@ export interface ShortIds {
    * may be outdated (SR-060, #275).
    */
   withTail(shortId: string): readonly ElementRecord[];
+  /**
+   * The identifier of `element` (#305): its text value of the property with the meaning
+   * `identifier`; undefined when it has none or no property has the meaning.
+   */
+  identifierOf(element: Pick<ElementRecord, "data">): string | undefined;
+  /**
+   * The elements whose identifier is `value` in any case (#305), by repository, then file; of every
+   * type (an identifier is unique per type only). None when no property has the meaning.
+   */
+  withIdentifier(value: string): readonly ElementRecord[];
 }
 
 /** `common.schema.json#/$defs/shortId`. */
@@ -70,6 +89,8 @@ interface Index {
   /** Digits a UUID shares at the end with its closest other UUID, for UUIDs not alone in their group. */
   readonly shared: ReadonlyMap<string, number>;
   readonly metamodel: Metamodel;
+  /** The identifiers of the elements (#305). */
+  readonly identifiers: IdentifierIndex;
 }
 
 /** The index of each `ShortIds` that `buildShortIds` or `updateShortIds` made. */
@@ -129,7 +150,7 @@ const link = (group: Entry[], shared: Map<string, number>): void => {
 
 /** The short IDs of an index; `of` and `find` take constant time on average. */
 const shortIdsOf = (index: Index): ShortIds => {
-  const { groups, shared, metamodel } = index;
+  const { groups, shared, metamodel, identifiers } = index;
 
   const tailOf = (id: string): string => {
     const group = groups.get(groupKey(id));
@@ -187,9 +208,23 @@ const shortIdsOf = (index: Index): ShortIds => {
     tail,
     find,
     withTail,
+    identifierOf: (element) => identifierValue(element, identifiers.key),
+    withIdentifier: (value) => elementsWithIdentifier(identifiers, value),
   };
   indexes.set(ids, index);
   return ids;
+};
+
+/**
+ * `{ identifier }` of `element` for an output that names it next to its short ID (#305), `{}` when
+ * it has none.
+ */
+export const identifierField = (
+  shortIds: ShortIds,
+  element: Pick<ElementRecord, "data">,
+): { readonly identifier?: string } => {
+  const identifier = shortIds.identifierOf(element);
+  return identifier === undefined ? {} : { identifier };
 };
 
 /**
@@ -218,7 +253,7 @@ export const buildShortIds = (
   for (const group of groups.values()) {
     link(group, shared);
   }
-  return shortIdsOf({ groups, shared, metamodel });
+  return shortIdsOf({ groups, shared, metamodel, identifiers: buildIdentifierIndex(byId, metamodel) });
 };
 
 /**
@@ -226,8 +261,9 @@ export const buildShortIds = (
  * store before it: only the groups of the UUIDs in `ids` (every UUID whose records changed, came
  * or went) are built again from `byId`, every other group is taken over. The same as
  * `buildShortIds(byId, metamodel)` when every other UUID has the same records in both stores, as
- * `StoreUpdate` guarantees; `old` itself is not changed, so a command that still holds it keeps a
- * consistent view. `old` must come from `buildShortIds` or `updateShortIds`.
+ * `StoreUpdate` guarantees, also for the identifiers (`updateIdentifierIndex`); `old` itself is not
+ * changed, so a command that still holds it keeps a consistent view. `old` must come from
+ * `buildShortIds` or `updateShortIds`.
  */
 export const updateShortIds = (
   old: ShortIds,
@@ -239,7 +275,11 @@ export const updateShortIds = (
     throw new Error("updateShortIds needs short IDs from buildShortIds or updateShortIds");
   }
   const changed = new Map<string, Set<string>>();
-  for (const id of ids) {
+  const changedIds = [...ids];
+  // The records of a changed UUID before the change, for the identifiers: its entry in `index`.
+  const recordsBefore = (id: string): readonly ElementRecord[] =>
+    index.groups.get(groupKey(id))?.find((entry) => entry.id === id)?.elements ?? [];
+  for (const id of changedIds) {
     const key = groupKey(id);
     changed.set(key, (changed.get(key) ?? new Set()).add(id));
   }
@@ -264,7 +304,12 @@ export const updateShortIds = (
       groups.set(key, group);
     }
   }
-  return shortIdsOf({ groups, shared, metamodel: index.metamodel });
+  return shortIdsOf({
+    groups,
+    shared,
+    metamodel: index.metamodel,
+    identifiers: updateIdentifierIndex(index.identifiers, byId, changedIds, recordsBefore),
+  });
 };
 
 /**

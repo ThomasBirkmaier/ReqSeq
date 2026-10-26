@@ -15,9 +15,10 @@
       "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
     },
     "elementRef": {
-      "description": "A reference to an element as given by a person or an external tool: UUID or short ID (SR-060). Any case is accepted: sr-5a8b25 names SR-5a8b25.",
+      "description": "UUID, short ID or identifier (e.g. SR-036), any case; several matches give ref.ambiguous.",
       "type": "string",
-      "pattern": "^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|[A-Za-z][A-Za-z0-9]*-[0-9a-fA-F]{6,32})$"
+      "maxLength": 256,
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
     },
     "uuidRef": {
       "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).",
@@ -161,6 +162,10 @@
           "$ref": "#/$defs/shortId",
           "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements."
         },
+        "elementIdentifier": {
+          "type": "string",
+          "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one."
+        },
         "targetId": {
           "$ref": "#/$defs/uuid"
         },
@@ -196,6 +201,7 @@
         "file.skipped",
         "element.invalid",
         "element.duplicate-id",
+        "element.duplicate-identifier",
         "element.file-name-clash",
         "element.unknown-type",
         "element.unknown-property",

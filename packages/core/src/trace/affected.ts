@@ -27,7 +27,7 @@
 import type { TraceAffectedOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, IncomingLink, ShortIds } from "../model/index.js";
-import { directLinks, incomingTo, titleKeyOf } from "../model/index.js";
+import { directLinks, identifierField, incomingTo, titleKeyOf } from "../model/index.js";
 import type { DerivationGraph } from "./graph.js";
 
 /** An evidence record as `trace.affected` lists it (SR-024 AK4, `data-export.schema.json#/$defs/evidenceRecord`). */
@@ -173,6 +173,7 @@ export const affectedOutput = (
       entries.push({
         id: element.id,
         shortId: shortIds.of(element),
+        ...identifierField(shortIds, element),
         type: element.type,
         title: typeof title === "string" ? title : "",
         repository: element.repository,

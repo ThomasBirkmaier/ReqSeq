@@ -17,6 +17,26 @@ export const defaultStandardModelFile: string = fileURLToPath(
   new URL("../../../schemas/examples/metamodel/standard-model.yaml", import.meta.url),
 );
 
+/** The identifier property the generator adds to the metamodel it writes (#305), as the LogReq spec has it. */
+export const SPEC_ID_KEY = "spec-id";
+
+const TOP_PROPERTIES = "\nproperties:\n";
+
+/**
+ * `model` (metamodel file text) with the property `spec-id` of meaning `identifier` (#305) added to
+ * the property list and first to every type's `properties`, so that the elements the generator
+ * writes carry a spec ID such as `SR-036` and the performance runs cover identifiers. Unchanged
+ * when the text has no top-level `properties:` list or a property with that meaning already.
+ */
+export const withSpecIdProperty = (model: string): string => {
+  const at = model.indexOf(TOP_PROPERTIES);
+  if (at < 0 || model.includes("meaning: identifier")) {
+    return model;
+  }
+  const types = model.slice(0, at).replace(/(\bproperties:\s*\[\s*)/g, `$1${SPEC_ID_KEY}, `);
+  return `${types}${TOP_PROPERTIES}  - { key: ${SPEC_ID_KEY}, name: Spec ID, kind: text, meaning: identifier }\n${model.slice(at + TOP_PROPERTIES.length)}`;
+};
+
 /** Default seed of the performance runs (N-036). */
 export const DEFAULT_SEED = 36;
 /** Element and relation counts of N-036, SR-020 and SR-082. */
@@ -339,7 +359,7 @@ const propertiesFor = (spec: TypeSpec, title: string, random: Random): Record<st
   return properties;
 };
 
-const draftsFor = (elements: number, random: Random): Pools => {
+const draftsFor = (elements: number, random: Random, specIds: boolean): Pools => {
   const offset = BigInt(random.below(2 ** 32));
   const pools: Pools = {
     need: [],
@@ -379,6 +399,8 @@ const draftsFor = (elements: number, random: Random): Pools => {
           type: spec.key,
           status: random.next() < 0.7 ? "draft" : "approved",
           title,
+          // A spec ID unique per type (#305); no random draw, so everything else stays as it was.
+          ...(specIds ? { [SPEC_ID_KEY]: `${spec.prefix}-${String(position + 1).padStart(3, "0")}` } : {}),
           ...propertiesFor(spec, title, random),
         },
         relations: new Map(),
@@ -542,7 +564,8 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
     );
   }
   const random = new Random(seed);
-  const pools = draftsFor(count, random);
+  const metamodel = withSpecIdProperty(options.metamodel ?? readFileSync(defaultStandardModelFile, "utf8"));
+  const pools = draftsFor(count, random, metamodel.includes(`key: ${SPEC_ID_KEY},`));
   const drafts = TYPES.flatMap((spec) => pools[spec.pool]);
   addRelations(drafts, pools, options.relations ?? DEFAULT_RELATIONS, random);
   // Relation-valued properties point at variants and packages only, which come before every element
@@ -561,10 +584,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
   // written once every version is known.
   const files = new Map<string, string>([
     ["system/logreq-workspace.yaml", workspaceFile(seed)],
-    [
-      "system/metamodel/standard-model.yaml",
-      options.metamodel ?? readFileSync(defaultStandardModelFile, "utf8"),
-    ],
+    ["system/metamodel/standard-model.yaml", metamodel],
     ...drafts.map((draft) => [`${draft.repository}/${draft.file}`, elementFile(draft)] as const),
   ]);
   const sorted = new Map([...files].sort(([a], [b]) => Number(a > b) - Number(a < b)));

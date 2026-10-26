@@ -62,6 +62,7 @@ export const MEANINGS: { readonly [M in Meaning]: MeaningList<M> } = {
   "source-identifier": "properties",
   "import-date": "properties",
   delivery: "properties",
+  identifier: "properties",
   derivation: "relations",
   replacement: "relations",
   exclusion: "relations",
@@ -153,6 +154,29 @@ export const assignMeanings = (lists: {
   assign("relations", lists.relations);
   return { meanings, problems };
 };
+
+/**
+ * `metamodel.invalid` errors for a property whose meaning needs another value kind (#305): the
+ * meaning `identifier` names an element by one text, so its property is of kind `text` without
+ * `many`. Each with the file and the line of its `kind` (or `many`).
+ */
+export const meaningKindProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
+  properties.flatMap(({ definition, file, lineOf }): Problem[] => {
+    const { key, kind, many, meaning } = definition;
+    if (meaning !== "identifier" || (kind === "text" && many !== true)) {
+      return [];
+    }
+    const line = lineOf([kind === "text" ? "many" : "kind"]);
+    return [
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        message: `Property ${key} has the meaning identifier, which needs kind text without many (one text per element), not ${kind === "text" ? "a list" : `kind ${kind}`}`,
+        file,
+        ...(line === undefined ? {} : { line }),
+      },
+    ];
+  });
 
 /**
  * The effective types with this meaning, own or inherited (SR-012), in metamodel order: e.g. all

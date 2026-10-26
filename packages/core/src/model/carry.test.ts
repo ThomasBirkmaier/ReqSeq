@@ -14,6 +14,7 @@ import { supersededValidityProblemsState } from "../variants/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { carryProblems } from "./carry.js";
 import { duplicateIdProblemsState } from "./duplicates.js";
+import { duplicateIdentifierProblemsState } from "./identifiers.js";
 import { incomingFor, incomingState } from "./incoming.js";
 import { missingTargetProblemsState } from "./missing-targets.js";
 import { relationTypeProblemsState } from "./relation-types.js";
@@ -45,6 +46,7 @@ const CARRIED: readonly WorkspaceState<Promise<readonly Problem[]>>[] = [
   valueKindProblemsState,
   relationTypeProblemsState,
   duplicateIdProblemsState,
+  duplicateIdentifierProblemsState,
 ];
 
 /** The finding states without one: reset by a change of the store, as before. */

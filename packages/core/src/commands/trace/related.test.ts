@@ -389,8 +389,9 @@ describe("trace.related (SR-023)", () => {
       "ref.unknown",
     );
     expect((await relatedError(opened, { refs: ["SR-0000"], direction: "parents" })).code).toBe(
-      "input.invalid",
+      "ref.unknown",
     );
+    expect((await relatedError(opened, { refs: [""], direction: "parents" })).code).toBe("input.invalid");
     expect(await related(opened, { refs: [], direction: "children" })).toEqual({
       elements: [],
       total: 0,
@@ -451,6 +452,13 @@ describe("trace.related (SR-023)", () => {
         Y,
         C,
         Z,
+        D,
+      ]);
+      // `core` in any case, as element references (#305).
+      expect(ids(await related(opened, { refs: [N1], direction: "children", view: "Core" }))).toEqual([
+        A,
+        B,
+        C,
         D,
       ]);
       // The selection is walked from as given, also when it is not in the view.

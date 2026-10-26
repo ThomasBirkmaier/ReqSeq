@@ -242,6 +242,86 @@ describe("renderHuman: one element", () => {
   });
 });
 
+describe("renderHuman: identifiers (#305)", () => {
+  it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
+    const element = {
+      id: "u1",
+      shortId: "SR-0b0036",
+      identifier: "SR-036",
+      type: "system-requirement",
+      status: "draft",
+      title: "Accept identifiers",
+      repository: "spec",
+      file: "SR-0b0036.md",
+      properties: { "spec-id": "SR-036" },
+      relations: [
+        {
+          kind: "derives-from",
+          direction: "out",
+          id: "u2",
+          shortId: "N-0a0001",
+          identifier: "N-001",
+          title: "Name",
+        },
+      ],
+    };
+    expect(renderHuman({ element })).toBe(
+      lines(
+        "SR-0b0036 (SR-036)  draft  Accept identifiers",
+        "  id: u1",
+        "  type: system-requirement",
+        "  file: spec:SR-0b0036.md",
+        "  properties:",
+        "    spec-id: SR-036",
+        "  relations:",
+        "    - -> derives-from  N-0a0001 (N-001)  Name",
+      ),
+    );
+    expect(
+      renderHuman({
+        hints: [
+          {
+            code: "element.duplicate-identifier",
+            severity: "warning",
+            message: "Also on SR-x.md",
+            elementShortId: "SR-0b0036",
+            elementIdentifier: "SR-036",
+          },
+        ],
+      }),
+    ).toBe(lines("hints:", "  SR-0b0036 (SR-036)  element.duplicate-identifier  Also on SR-x.md"));
+    expect(
+      renderHuman({
+        root: "r",
+        nodes: [node("r", "N-0a0001", 0, undefined, { identifier: "N-001" })],
+        total: 1,
+        edges: [],
+        gaps: [],
+        unresolved: [
+          {
+            direction: "down",
+            from: "r",
+            fromRepository: "system",
+            kind: "derives-from",
+            id: "c",
+            shortId: "SR-0b0037",
+            identifier: "SR-037",
+            title: "Child",
+            targetState: "ambiguous",
+          },
+        ],
+      }),
+    ).toBe(
+      lines(
+        "N-0a0001 (N-001)  draft  Title N-0a0001",
+        "unresolved:",
+        "  down from N-0a0001  derives-from  SR-0b0037 (SR-037)  Child  [ambiguous]",
+        "total: 1",
+      ),
+    );
+  });
+});
+
 describe("renderHuman: a chain", () => {
   /** A chain output, its keys in the order of trace.chain. */
   const chain = (extra: Record<string, unknown>) => ({

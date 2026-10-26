@@ -433,7 +433,7 @@
     },
     {
       "name": "element.resolve",
-      "summary": "Resolve a reference from another tool (UUID or short ID, optional version) and tell whether the version is current.",
+      "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-060"],
@@ -1036,6 +1036,10 @@
                 "shortId": {
                   "$ref": "../common.schema.json#/$defs/shortId"
                 },
+                "identifier": {
+                  "type": "string",
+                  "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+                },
                 "type": {
                   "type": "string"
                 },
@@ -1166,6 +1170,10 @@
                 },
                 "shortId": {
                   "$ref": "../common.schema.json#/$defs/shortId"
+                },
+                "identifier": {
+                  "type": "string",
+                  "description": "Identifier of the other end (#305), when it is available and has one."
                 },
                 "title": {
                   "type": "string"
@@ -1298,6 +1306,10 @@
                 },
                 "shortId": {
                   "$ref": "../common.schema.json#/$defs/shortId"
+                },
+                "identifier": {
+                  "type": "string",
+                  "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
                 },
                 "type": {
                   "type": "string"

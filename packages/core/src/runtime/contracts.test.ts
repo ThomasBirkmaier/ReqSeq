@@ -59,7 +59,10 @@ describe("loadContracts", () => {
     });
     const valid = contracts.validator("test.ref", "input");
     expect(valid({ id: "SR-825b7146fb54" })).toBe(true);
-    expect(valid({ id: "not an id" })).toBe(false);
+    // An identifier may be any text (#305), but not empty or with spaces at either end.
+    expect(valid({ id: "SR-036" })).toBe(true);
+    expect(valid({ id: " SR-036" })).toBe(false);
+    expect(valid({ id: "" })).toBe(false);
     expect(valid.schema).toMatchObject({ $id: `${SCHEMA_BASE}commands/test.ref.input.json` });
   });
 

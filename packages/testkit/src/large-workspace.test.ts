@@ -7,7 +7,9 @@ import type { GeneratedElement, GeneratedWorkspace, LargeFixtureWorkspace, Versi
 import {
   DEFAULT_ELEMENTS,
   DEFAULT_RELATIONS,
+  SPEC_ID_KEY,
   defaultStandardModelFile,
+  withSpecIdProperty,
   generateLargeWorkspace,
   writeLargeWorkspace,
 } from "./index.js";
@@ -247,7 +249,7 @@ describe("generateLargeWorkspace", () => {
   it("writes the workspace file and the standard model, or the metamodel given", () => {
     const generated = small();
     expect(generated.files.get("system/metamodel/standard-model.yaml")).toBe(
-      fs.readFileSync(defaultStandardModelFile, "utf8"),
+      withSpecIdProperty(fs.readFileSync(defaultStandardModelFile, "utf8")),
     );
     const workspace = generated.files.get("system/logreq-workspace.yaml") ?? "";
     expect(workspace).toContain("main: true");
@@ -262,6 +264,24 @@ describe("generateLargeWorkspace", () => {
       metamodel: "x: 1\n",
     });
     expect(own.files.get("system/metamodel/standard-model.yaml")).toBe("x: 1\n");
+    expect([...own.files.values()].some((text) => text.includes(`\n${SPEC_ID_KEY}: `))).toBe(false);
+  });
+
+  it("adds a spec ID property to the metamodel and a spec ID unique per type to every element (#305)", () => {
+    const model = withSpecIdProperty(fs.readFileSync(defaultStandardModelFile, "utf8"));
+    expect(model).toContain(
+      "\nproperties:\n  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\n",
+    );
+    expect(model).toContain("properties: [spec-id, title, rationale, topic]");
+    expect(model).toContain("[\n        spec-id, title,");
+    expect(withSpecIdProperty(model)).toBe(model);
+    const generated = small();
+    const ids = [...generated.files]
+      .filter(([file]) => file.endsWith(".md"))
+      .map(([, text]) => /\ntype: (\S+)\n[\s\S]*?\nspec-id: (\S+)\n/.exec(text)?.slice(1, 3).join(" "));
+    expect(ids.every((id) => id !== undefined)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain("need N-001");
   });
 
   it("quotes emergent values and writes choices and lists as plain YAML", () => {

@@ -144,7 +144,8 @@ export const resolveView = (
 ): View => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
-  if (view === "core") {
+  // In any case, as element references are (#309, #305).
+  if (view.toLowerCase() === "core") {
     return { kind: "core" };
   }
   requireMeaning(metamodel, "variant", command);

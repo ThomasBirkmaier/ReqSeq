@@ -73,6 +73,8 @@ const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise
 ]);
 
 /** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
+/** Spec IDs in a property with the meaning identifier (#305). */
+const IDENTIFIERS: FixtureOptions = { fixture: "enabler-305/identifiers", git: true };
 const MISSING_TARGETS: FixtureOptions = { fixture: "SR-089/missing-targets", git: ["system", "sensor"] };
 /** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
 const WITH_VAULT =
@@ -157,8 +159,31 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
     { name: "one element by a short ID in lower case (#309)", input: { ref: "sr-E88FB3" }, expect: "output" },
     {
-      name: "a reference that is neither UUID nor short ID (#309)",
+      name: "a reference that names no element: no identifier SR-036 here (#305)",
       input: { ref: "SR-036" },
+      expect: "error",
+    },
+    {
+      name: "a malformed reference: spaces at its end (#309)",
+      input: { ref: "SR-e88fb3 " },
+      expect: "error",
+    },
+    {
+      name: "one element by its identifier, in any case, with the identifiers it names (#305)",
+      fixture: IDENTIFIERS,
+      input: { ref: "sr-036" },
+      expect: "output",
+    },
+    {
+      name: "a short ID of one element that is the identifier of another is ambiguous (#305)",
+      fixture: {
+        ...IDENTIFIERS,
+        files: {
+          "decisions/D-0000000c0048.md":
+            "---\nid: 30500000-0000-4000-8000-0000000c0048\ntype: decision\nstatus: draft\ntitle: Clash\nspec-id: SR-0b0037\n---\n",
+        },
+      },
+      input: { ref: "SR-0b0037" },
       expect: "error",
     },
     {
@@ -499,6 +524,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "trace.chain": [
     {
+      name: "the chain of a need named by its identifier, each node with its identifier (#305)",
+      fixture: IDENTIFIERS,
+      input: { ref: "N-001" },
+      expect: "output",
+    },
+    {
       name: "a need down to its component requirements, with gaps (SR-022)",
       fixture: CHAIN,
       input: { ref: "N-00a001" },
@@ -681,6 +712,18 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
   "workspace.check": [
+    {
+      name: "duplicate identifiers within a type, with the identifier of each element (#305)",
+      fixture: {
+        ...IDENTIFIERS,
+        files: {
+          "requirements/SR-0000000b0038.md":
+            "---\nid: 30500000-0000-4000-8000-0000000b0038\ntype: system-requirement\nstatus: draft\ntitle: Twin\nspec-id: SR-036\n---\n",
+        },
+      },
+      input: {},
+      expect: "output",
+    },
     {
       name: "one finding of each kind",
       fixture: { fixture: "SR-019/findings", git: true },

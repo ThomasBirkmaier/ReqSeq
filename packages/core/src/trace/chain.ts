@@ -40,7 +40,7 @@ import type { Metamodel } from "../metamodel/index.js";
 import { meaningUnassignedMessage, typesWithMeaning } from "../metamodel/index.js";
 import { isUuid } from "../model/elements.js";
 import type { ElementRecord, ShortIds } from "../model/index.js";
-import { UNKNOWN_TYPE_PREFIX, elementLabel, titleKeyOf } from "../model/index.js";
+import { UNKNOWN_TYPE_PREFIX, elementLabel, identifierField, titleKeyOf } from "../model/index.js";
 import type { DerivationGraph, DerivationLink } from "./graph.js";
 import { cycleNames } from "./cycles.js";
 import { childrenOf, parentsOf } from "./graph.js";
@@ -310,6 +310,7 @@ const addUnresolvedOf = (
         kind: link.key,
         id: link.source.id,
         shortId: shortIds.of(link.source),
+        ...identifierField(shortIds, link.source),
         title: titleOf(link.source),
         targetState: state.kind,
       });
@@ -373,6 +374,7 @@ export const chainOutput = (
     return {
       id: element.id,
       shortId: shortIds.of(element),
+      ...identifierField(shortIds, element),
       type: element.type,
       title: titleOf(element),
       ...(typeof status === "string" ? { status } : {}),

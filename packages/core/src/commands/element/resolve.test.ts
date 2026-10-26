@@ -97,16 +97,19 @@ describe("element.resolve", () => {
       expect((await resolve(opened, { ref })).element).toEqual(expected);
     }
     const unknown = await resolveError(opened, { ref: "sr-ffffff" });
-    expect([unknown.code, unknown.message]).toEqual(["ref.unknown", "No element has the short ID sr-ffffff"]);
+    expect([unknown.code, unknown.message]).toEqual([
+      "ref.unknown",
+      'No element has the short ID or identifier "sr-ffffff"',
+    ]);
   });
 
   it("[SR-060/AK3] refuses a malformed reference with a message that says what a reference looks like (#309)", async () => {
     const opened = await open(TWO);
-    const error = await resolveError(opened, { ref: "SR-036" });
+    const error = await resolveError(opened, { ref: " SR-036" });
     expect(error.toJSON()).toEqual({
       code: "input.invalid",
       message:
-        'Invalid input for element.resolve: ref "SR-036" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)',
+        'Invalid input for element.resolve: ref " SR-036" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)',
       details: {
         command: "element.resolve",
         errors: [
@@ -115,12 +118,18 @@ describe("element.resolve", () => {
             field: "ref",
             keyword: "pattern",
             message:
-              'ref "SR-036" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)',
+              'ref " SR-036" is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)',
             params: {},
           },
         ],
       },
     });
+    // Any other text may be an identifier (#305); without one it names no element.
+    const unknown = await resolveError(opened, { ref: "SR-036" });
+    expect([unknown.code, unknown.message]).toEqual([
+      "ref.unknown",
+      'No element has the identifier "SR-036"',
+    ]);
   });
 
   it("[SR-060/AK1] resolves a short ID another tool stored before the display grew, when the prefix leaves one element", async () => {

@@ -136,9 +136,10 @@
           "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
         },
         "elementRef": {
-          "description": "A reference to an element as given by a person or an external tool: UUID or short ID (SR-060). Any case is accepted: sr-5a8b25 names SR-5a8b25.",
+          "description": "UUID, short ID or identifier (e.g. SR-036), any case; several matches give ref.ambiguous.",
           "type": "string",
-          "pattern": "^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|[A-Za-z][A-Za-z0-9]*-[0-9a-fA-F]{6,32})$"
+          "maxLength": 256,
+          "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
         },
         "uuidRef": {
           "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).",
@@ -298,6 +299,10 @@
               "$ref": "#/$defs/shortId",
               "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements."
             },
+            "elementIdentifier": {
+              "type": "string",
+              "description": "Identifier of the element `elementId` names (the value of its property with the meaning `identifier`, #305), for display next to `elementShortId`; given with it when the element has one."
+            },
             "targetId": {
               "$ref": "#/$defs/uuid"
             },
@@ -339,6 +344,7 @@
             "file.skipped",
             "element.invalid",
             "element.duplicate-id",
+            "element.duplicate-identifier",
             "element.file-name-clash",
             "element.unknown-type",
             "element.unknown-property",
@@ -573,6 +579,10 @@
             "shortId": {
               "$ref": "common.schema.json#/$defs/shortId"
             },
+            "identifier": {
+              "type": "string",
+              "description": "The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`."
+            },
             "type": {
               "$ref": "common.schema.json#/$defs/key"
             },
@@ -716,6 +726,10 @@
             "shortId": {
               "$ref": "common.schema.json#/$defs/shortId",
               "description": "Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154)."
+            },
+            "identifier": {
+              "type": "string",
+              "description": "Identifier of the other end (#305), only when it is available locally and has one."
             },
             "title": {
               "type": "string",
@@ -1607,7 +1621,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057).",
+          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.",
           "enum": [
             "title",
             "validity",
@@ -1618,7 +1632,8 @@
             "source",
             "source-identifier",
             "import-date",
-            "delivery"
+            "delivery",
+            "identifier"
           ]
         },
         "relationKind": {
@@ -2647,7 +2662,7 @@
       },
       {
         "name": "element.resolve",
-        "summary": "Resolve a reference from another tool (UUID or short ID, optional version) and tell whether the version is current.",
+        "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.",
         "effect": "read",
         "stage": 2,
         "implements": [
@@ -3371,6 +3386,10 @@
                   "shortId": {
                     "$ref": "../common.schema.json#/$defs/shortId"
                   },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+                  },
                   "type": {
                     "type": "string"
                   },
@@ -3526,6 +3545,10 @@
                   },
                   "shortId": {
                     "$ref": "../common.schema.json#/$defs/shortId"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Identifier of the other end (#305), when it is available and has one."
                   },
                   "title": {
                     "type": "string"
@@ -3695,6 +3718,10 @@
                   },
                   "shortId": {
                     "$ref": "../common.schema.json#/$defs/shortId"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
                   },
                   "type": {
                     "type": "string"

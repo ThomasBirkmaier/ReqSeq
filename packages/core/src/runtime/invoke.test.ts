@@ -180,7 +180,7 @@ describe("invoke", () => {
   it("rejects input that does not match the schema, before run", async () => {
     const run = vi.spyOn(echo, "run");
     try {
-      const err = await rejection(runtime().invoke("test.echo", { ref: "nope", limit: 0, extra: 1 }, ctx));
+      const err = await rejection(runtime().invoke("test.echo", { ref: " nope", limit: 0, extra: 1 }, ctx));
       expect(err.code).toBe("input.invalid");
       expect(err.message).toMatch(/^Invalid input for test\.echo: /);
       expect(err.details).toMatchObject({ command: "test.echo" });

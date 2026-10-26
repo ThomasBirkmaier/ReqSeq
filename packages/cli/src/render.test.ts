@@ -50,6 +50,19 @@ describe("renderProblem", () => {
     ).toBe("warning  element.unknown-property  requirements/SR-825b7146fb54.md  m  (element SR-46fb54)\n");
   });
 
+  it("names the identifier of the element next to its short ID (#305)", () => {
+    expect(
+      renderProblem({
+        severity: "warning",
+        code: "relation.outdated",
+        message: "m",
+        elementId: "u1",
+        elementShortId: "SR-0b0036",
+        elementIdentifier: "SR-036",
+      }),
+    ).toBe("warning  relation.outdated  m  (element SR-0b0036, identifier SR-036)\n");
+  });
+
   it("names the repository of the file when the problem has one", () => {
     expect(
       renderProblem({

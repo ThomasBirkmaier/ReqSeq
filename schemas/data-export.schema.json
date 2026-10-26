@@ -63,6 +63,10 @@
         "shortId": {
           "$ref": "common.schema.json#/$defs/shortId"
         },
+        "identifier": {
+          "type": "string",
+          "description": "The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`."
+        },
         "type": {
           "$ref": "common.schema.json#/$defs/key"
         },
@@ -185,6 +189,10 @@
         "shortId": {
           "$ref": "common.schema.json#/$defs/shortId",
           "description": "Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154)."
+        },
+        "identifier": {
+          "type": "string",
+          "description": "Identifier of the other end (#305), only when it is available locally and has one."
         },
         "title": {
           "type": "string",

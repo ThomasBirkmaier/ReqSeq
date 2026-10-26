@@ -375,7 +375,10 @@ describe("element.list (SR-069)", () => {
     ).toEqual([B1]);
     expect(ids(await list(ws, { selection: { ids: [] } }))).toEqual([]);
     const unknown = await failure(ws, { selection: { ids: ["SR-0000b1", "SR-ffffff"] } });
-    expect([unknown.code, unknown.message]).toEqual(["ref.unknown", "No element has the short ID SR-ffffff"]);
+    expect([unknown.code, unknown.message]).toEqual([
+      "ref.unknown",
+      'No element has the short ID or identifier "SR-ffffff"',
+    ]);
   });
 
   it("selects a package as a selection: exactly its elements (SR-048 AK3)", async () => {

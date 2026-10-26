@@ -22,11 +22,13 @@ const SHORT_ID_FORM = "prefix, dash, at least 6 hex characters, for example SR-3
 
 /** What a value of a shared definition must look like, after "is" / "is not". */
 const DEF_MESSAGES: Readonly<Record<string, string>> = {
-  "common.schema.json#/$defs/elementRef": `is neither a UUID nor a short ID (${SHORT_ID_FORM})`,
+  "common.schema.json#/$defs/elementRef":
+    "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)",
   "common.schema.json#/$defs/uuid": "is not a UUID (for example 6adc6d27-b7a2-49dd-9b02-2b572655ebad)",
   "common.schema.json#/$defs/uuidRef": "is not a UUID (for example 6adc6d27-b7a2-49dd-9b02-2b572655ebad)",
   "common.schema.json#/$defs/shortId": `is not a short ID (${SHORT_ID_FORM})`,
-  "common.schema.json#/$defs/view": `is neither core nor a UUID or short ID of a variant (${SHORT_ID_FORM})`,
+  "common.schema.json#/$defs/view":
+    "is neither core nor a reference to a variant (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)",
   "common.schema.json#/$defs/key":
     "is not a key (lower case letters and digits, words joined by single dashes, for example system-requirement)",
   "common.schema.json#/$defs/version": "is not a version (for example n1:9f86d081884c7d65)",

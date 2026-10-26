@@ -1,7 +1,8 @@
-// The short ID of the element a problem names (`elementShortId`, SR-002 AK3, #315), added in one
-// place for every command: where its output leaves the runtime (`invoke`). Which parts of an output
-// hold problems follows from the command's output schema alone (`problemLocator`: every place that
-// references `common.schema.json#/$defs/problem`), never from the command name (ADR-0002 rule 3).
+// The short ID of the element a problem names (`elementShortId`, SR-002 AK3, #315), and its
+// identifier when it has one (`elementIdentifier`, #305), added in one place for every command:
+// where its output leaves the runtime (`invoke`). Which parts of an output hold problems follows
+// from the command's output schema alone (`problemLocator`: every place that references
+// `common.schema.json#/$defs/problem`), never from the command name (ADR-0002 rule 3).
 //
 // Cost (ADR-0008): the short IDs come from the states the command left, and nothing is read. A
 // command that names an element in a problem has read the element store and the metamodel, and
@@ -125,7 +126,13 @@ export const problemLocator = (
 /** A problem that names an element. */
 type NamingProblem = Problem & { readonly elementId: string };
 
-type ShortIdOf = (problem: NamingProblem) => string | undefined;
+/** What a problem that names an element gets: its short ID and, when it has one, its identifier. */
+export interface ElementNames {
+  readonly elementShortId: string;
+  readonly elementIdentifier?: string;
+}
+
+type ShortIdOf = (problem: NamingProblem) => ElementNames | undefined;
 
 /** Whether `value` is a problem that names an element and has no short ID yet. */
 const needsShortId = (value: unknown): value is NamingProblem =>
@@ -151,8 +158,9 @@ const fillProperties = (
 };
 
 /**
- * `value` with `elementShortId` added to each problem at the places of `locator` that names an
- * element (`elementId`) and has none yet, as `shortIdOf` gives it (undefined: left out). Changes
+ * `value` with `elementShortId` (and `elementIdentifier`) added to each problem at the places of
+ * `locator` that names an element (`elementId`) and has none yet, as `shortIdOf` gives them
+ * (undefined: left out). Changes
  * nothing in place: a changed value is a copy, an unchanged one is `value` itself, so problems kept
  * in workspace states stay as they are.
  */
@@ -162,8 +170,8 @@ export const fillElementShortIds = (
   shortIdOf: ShortIdOf,
 ): unknown => {
   if (locator.problem === true && needsShortId(value)) {
-    const shortId = shortIdOf(value);
-    return shortId === undefined ? value : { ...value, elementShortId: shortId };
+    const names = shortIdOf(value);
+    return names === undefined ? value : { ...value, ...names };
   }
   const { items, properties } = locator;
   if (items !== undefined && Array.isArray(value)) {
@@ -174,8 +182,8 @@ export const fillElementShortIds = (
 };
 
 /**
- * `output` of a command with the short ID of each element its problems name (see the file
- * comment): from the short IDs of `workspace` when they are built, else from its element store and
+ * `output` of a command with the short ID (and identifier) of each element its problems name (see
+ * the file comment): from the short IDs of `workspace` when they are built, else from its element store and
  * metamodel when both are; left out when the element is not in the store or the store is not there.
  */
 export const withElementShortIds = async (
@@ -205,6 +213,13 @@ export const withElementShortIds = async (
   const shortIds = (await settledValue(workspace.peek(shortIdState))) ?? buildShortIds(store.byId, metamodel);
   return fillElementShortIds(output, locator, (problem) => {
     const element = problemElement(store, problem);
-    return element === undefined ? undefined : shortIds.of(element);
+    if (element === undefined) {
+      return undefined;
+    }
+    const identifier = shortIds.identifierOf(element);
+    return {
+      elementShortId: shortIds.of(element),
+      ...(identifier === undefined ? {} : { elementIdentifier: identifier }),
+    };
   });
 };

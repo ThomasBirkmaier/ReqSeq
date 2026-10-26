@@ -541,6 +541,8 @@ describe("updateShortIds (#184)", () => {
       tail: () => "",
       find: () => ({ kind: "unknown" }),
       withTail: () => [],
+      identifierOf: () => undefined,
+      withIdentifier: () => [],
     };
     expect(() => updateShortIds(foreign, new Map(), [])).toThrow("needs short IDs from buildShortIds");
   });

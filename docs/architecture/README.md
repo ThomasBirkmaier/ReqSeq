@@ -206,7 +206,7 @@ See [docs/adr](../adr/README.md).
 | Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
-| Spec export still writes the preliminary format | Follow-up: export in the element format with the SR ID as property. |
+| Spec export still writes the preliminary format | Follow-up: export in the element format with the SR ID as a property with the meaning `identifier`, so `SR-036` stays resolvable (#305). |
 
 ## 11. Glossary
 

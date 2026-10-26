@@ -179,13 +179,19 @@ describe("standard model", () => {
       "source-identifier": ["source-identifier"],
       "import-date": ["import-date"],
       delivery: ["delivery"],
+      // Not a meaning of D-012 (#305): the spec defines no property for IDs from other sources yet,
+      // so the standard model has none; a workspace adds one with `meaning: identifier`.
+      identifier: [],
       derivation: ["refines", "derives-from"],
       replacement: ["supersedes", "replaces"],
       exclusion: ["excludes"],
     };
     expect(metamodel.meanings).toEqual(expected);
-    // Every meaning the tool knows (MEANINGS follows metamodel.schema.json) has a key.
+    // Every meaning of D-012 the tool knows (MEANINGS follows metamodel.schema.json) has a key.
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
+      if (meaning === "identifier") {
+        continue;
+      }
       if (MEANINGS[meaning as Meaning] === "relations") {
         expect(keys.length, meaning).toBeGreaterThanOrEqual(1);
       } else {

@@ -27,12 +27,13 @@ import { targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import { statusFindings } from "./status-findings.js";
 import type { ShortIds } from "./short-id.js";
-import { UNKNOWN_TYPE_PREFIX } from "./short-id.js";
+import { UNKNOWN_TYPE_PREFIX, identifierField } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import type { Succession } from "./successors.js";
 import { supersededFindingsOf } from "./superseded.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
+import { duplicateIdentifierFindings } from "./identifiers.js";
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
@@ -83,6 +84,7 @@ const relationsUnder = (
         direction: "out",
         id,
         ...(shortId === undefined ? {} : { shortId }),
+        ...(target === undefined ? {} : identifierField(shortIds, target)),
         ...(typeof title === "string" ? { title } : {}),
         accessible: target !== undefined,
         targetState: state.kind,
@@ -136,7 +138,9 @@ const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
       meaning: "replacement",
       direction: "in",
       id: source.id,
-      ...(available ? { shortId: input.shortIds.of(source) } : {}),
+      ...(available
+        ? { shortId: input.shortIds.of(source), ...identifierField(input.shortIds, source) }
+        : {}),
       ...(available && typeof title === "string" ? { title } : {}),
       accessible: available,
       targetState: state.kind,
@@ -291,6 +295,7 @@ export const listedElement = (input: ListedElementInput, version: string | undef
   return {
     id: record.id,
     shortId: shortIds.of(record),
+    ...identifierField(shortIds, record),
     type: record.type,
     ...(status === "" ? {} : { status }),
     title: text(record.data[titleKey]),
@@ -305,7 +310,8 @@ export const listedElement = (input: ListedElementInput, version: string | undef
 /**
  * The element as `listedElement` gives it, with its text, its version (ADR-0005, with the embedded
  * images of `input.images`) and the hints with their lines: unknown type and properties (SR-016),
- * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085),
+ * required properties without a value (SR-015, SR-064), values of the wrong kind (SR-085), an
+ * identifier another element of its type has (#305),
  * relations between types the metamodel does not allow (SR-086), then relations to superseded
  * elements (SR-072 AK2); no hints while the metamodel is not valid (#208, #220 option 1). The
  * successor relations are relations, not hints, so they are listed also then. Other relations
@@ -326,6 +332,7 @@ export const elementView = (
         ...requiredFindings(record, metamodel),
         ...statusFindings(record, metamodel),
         ...valueFindings(record, metamodel),
+        ...duplicateIdentifierFindings(record, { metamodel, shortIds }),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
         ...(input.extraFindings ?? []),
@@ -341,12 +348,13 @@ export const elementView = (
   if (computed instanceof RangeError) {
     problems.push(noVersionProblem(record, notComputableMessage(record, computed)));
   }
-  const { id, shortId, type, status, title, ...rest } = listedElement(input, version);
+  const { id, shortId, identifier, type, status, title, ...rest } = listedElement(input, version);
   // The text after the title, as the element files and the schema order it; without the blank line
   // after the frontmatter, so element.update takes it back unchanged (#308).
   return {
     id,
     shortId,
+    ...(identifier === undefined ? {} : { identifier }),
     type,
     ...(status === undefined ? {} : { status }),
     title,

@@ -37,6 +37,7 @@ import {
 import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import {
   currentVersions,
+  duplicateIdentifierProblemsState,
   elementStoreState,
   problemElement,
   relationKey,
@@ -80,6 +81,7 @@ export const HINT_STATES = [
   supersededValidityProblemsState, // SR-040
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
+  duplicateIdentifierProblemsState, // #305
   derivationCycleProblemsState, // SR-090
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;

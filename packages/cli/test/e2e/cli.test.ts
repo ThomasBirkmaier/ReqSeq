@@ -203,16 +203,50 @@ describe("logreq binary", () => {
     );
   });
 
+  it("names elements by their spec ID and shows it next to the short ID (#305)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "enabler-305/identifiers" });
+    fixtures.push(ws);
+    const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+    const shown = await run("element", "get", "sr-036");
+    expect([shown.code, shown.stderr]).toEqual([0, ""]);
+    expect(shown.stdout.split("\n")[0]).toBe("SR-0b0036 (SR-036)  draft  Accept identifiers as references");
+    expect(shown.stdout).toContain(
+      "    - -> derives-from  N-0a0001 (N-001)  Name elements by their spec ID\n",
+    );
+    const chain = await run("trace", "chain", "N-001");
+    expect(chain.stdout).toBe(
+      [
+        "N-0a0001 (N-001)  draft  Name elements by their spec ID",
+        "children:",
+        "  1  SR-0b0036 (SR-036)  draft  Accept identifiers as references",
+        "  2    SR-0b0037 (SR-037)  draft  Show identifiers next to short IDs  [gap: no evidence]",
+        "total: 3",
+        "No problems.",
+        "",
+      ].join("\n"),
+    );
+    const resolved = await run("element", "resolve", "D-047", "--json");
+    expect(JSON.parse(resolved.stdout)).toMatchObject({
+      element: { shortId: "D-0c0047", identifier: "D-047" },
+    });
+  });
+
   it("[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (#309)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
     fixtures.push(ws);
     const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
     const REF_FORM =
-      "is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)";
-    const malformed = await run("element", "get", "SR-036");
+      "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)";
+    // SR-036 may be an identifier (#305); this workspace has none, so it names no element.
+    const unknown = await run("element", "get", "SR-036");
+    expect([unknown.code === 0, unknown.stderr]).toEqual([
+      false,
+      'error ref.unknown: No element has the identifier "SR-036"\n',
+    ]);
+    const malformed = await run("element", "get", " SR-036");
     expect([malformed.code, malformed.stderr]).toEqual([
       2,
-      `error input.invalid: Invalid input for element.get: <ref> "SR-036" ${REF_FORM}\n`,
+      `error input.invalid: Invalid input for element.get: <ref> " SR-036" ${REF_FORM}\n`,
     ]);
     const lower = await run("element", "get", "n-D4E5F6");
     expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([0, "N-d4e5f6  approved  See the wind"]);
@@ -224,9 +258,9 @@ describe("logreq binary", () => {
       2,
       "error input.invalid: Approved is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)\n",
     ]);
-    const pkg = await run("hint", "list", "--package", "Stufe 2");
+    const pkg = await run("hint", "list", "--package", "Stufe 2 ");
     expect(pkg.stderr).toBe(
-      `error input.invalid: Invalid input for hint.list: --package "Stufe 2" ${REF_FORM}\n`,
+      `error input.invalid: Invalid input for hint.list: --package "Stufe 2 " ${REF_FORM}\n`,
     );
     const init = await logreq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
     expect([init.code, init.stderr]).toEqual([
@@ -457,10 +491,10 @@ describe("logreq with test commands", () => {
       message: "No element SR-46fb54",
       details: { ref: "SR-46fb54" },
     });
-    const invalid = await logreq(["element", "get", "not a ref"], { cwd: ws.root, testCommands: true });
+    const invalid = await logreq(["element", "get", "not a ref "], { cwd: ws.root, testCommands: true });
     expect(invalid.code).toBe(2);
     expect(invalid.stderr).toMatch(
-      /^error input\.invalid: Invalid input for element\.get: <ref> "not a ref" is neither /,
+      /^error input\.invalid: Invalid input for element\.get: <ref> "not a ref " is not a reference /,
     );
   });
 
