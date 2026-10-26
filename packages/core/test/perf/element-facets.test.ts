@@ -62,6 +62,7 @@ describe("element.facets with 50,000 elements (#425, N-036)", () => {
       runs: RUNS,
     });
     expect(result.total).toBe(ELEMENTS);
+    expect(result.types.reduce((sum, t) => sum + t.count, 0)).toBe(ELEMENTS);
     expect(result.properties.length).toBeGreaterThan(0);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });

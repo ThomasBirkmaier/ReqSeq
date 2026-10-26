@@ -1,4 +1,4 @@
-// element.facets (#425, SR-069, SR-101): the statuses and the values of the properties of the
+// element.facets (#425, SR-069, SR-101, SR-118): the types, the statuses and the values of the properties of the
 // elements of a selection (query/selection.ts) with counts, so a caller can offer the values a
 // filter can take: the app's "Filter list by property" asks it for the list it is on, and CLI, API
 // and MCP give the same answer (D-029). Free text (a title, acceptance criteria) gives no values;

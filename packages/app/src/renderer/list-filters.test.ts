@@ -15,6 +15,7 @@ import {
 
 const facets: ElementFacetsOutput = {
   total: 5,
+  types: [{ key: "system-requirement", name: "System Requirement", count: 5 }],
   statuses: [
     { key: "draft", count: 3 },
     { key: "approved", count: 2 },

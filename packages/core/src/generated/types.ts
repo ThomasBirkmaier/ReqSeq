@@ -1138,7 +1138,7 @@ export interface ElementListOutput {
 }
 
 /**
- * Input of `element.facets` as `run` gets it: validated, properties with a `default` filled in. Statuses and property values of the elements of a selection, with counts, to choose a filter from.
+ * Input of `element.facets` as `run` gets it: validated, properties with a `default` filled in. Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.
  * Schema: `schemas/commands/catalog.json element.facets input`.
  */
 export interface ElementFacetsInput {
@@ -1149,12 +1149,18 @@ export interface ElementFacetsInput {
 }
 
 /**
- * Output of `element.facets`. Statuses and property values of the elements of a selection, with counts, to choose a filter from.
+ * Output of `element.facets`. Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.
  * Schema: `schemas/commands/catalog.json element.facets output`.
  */
 export interface ElementFacetsOutput {
   /** Elements in the selection. */
   readonly total: number;
+  /** The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118). */
+  readonly types: readonly {
+    readonly key: string;
+    readonly name: string;
+    readonly count: number;
+  }[];
   /** The statuses of the selected elements as written in the files, with the number of elements: statuses of the metamodel in metamodel order, then other values in store order. Elements without status are not counted. */
   readonly statuses: readonly {
     readonly key: string;

@@ -1,4 +1,4 @@
-// The facets of a selection (`element.facets`, #425): which statuses and which values of which
+// The facets of a selection (`element.facets`, #425): which types, statuses and which values of which
 // properties the selected elements have, with counts, so a caller (the app's "Filter list by
 // property") can offer values that select something without counting them itself (ADR-0002).
 //
@@ -7,6 +7,9 @@
 //   whatever type (`eq` and `missing` do not look at the type); an element counts a value once.
 //   The properties listed are those a type of a selected element has (metamodel order of the
 //   definitions); an element of a type without it counts by the value its file holds (usually none).
+// - The types are counted as written in the file, exactly: `element.type`, an element of a subtype is
+//   not counted under its parent (SR-118: the lines of an overview add up to the total). A type the
+//   metamodel does not know is counted like any other, under its key as written (name = key).
 // - Every value given is one that `{ property, op: "eq", value }` selects, and selects exactly the
 //   elements counted: a relation property gives the short ID of its available targets (the items are
 //   read with `validityTarget`, as `eq` reads them), a choice only the values `eq` maps to
@@ -151,7 +154,12 @@ const tally = (
   properties: readonly MetamodelProperty[],
   few: ReadonlySet<string>,
   maxValues: number,
-): { readonly statuses: ReadonlyMap<string, number>; readonly tallies: readonly Tally[] } => {
+): {
+  readonly types: ReadonlyMap<string, number>;
+  readonly statuses: ReadonlyMap<string, number>;
+  readonly tallies: readonly Tally[];
+} => {
+  const types = new Map<string, number>();
   const statuses = new Map<string, number>();
   const tallies: Tally[] = properties.map((definition) => ({
     definition,
@@ -163,6 +171,7 @@ const tally = (
     targets: new Map(),
   }));
   for (const element of selected.elements) {
+    types.set(element.type, (types.get(element.type) ?? 0) + 1);
     const status = element.data["status"];
     if (typeof status === "string") {
       statuses.set(status, (statuses.get(status) ?? 0) + 1);
@@ -177,7 +186,7 @@ const tally = (
       countValues(selected, element, t, stored, maxValues);
     }
   }
-  return { statuses, tallies };
+  return { types, statuses, tallies };
 };
 
 /** Texts ignoring case, ties by code units; the texts compared are different. */
@@ -264,20 +273,26 @@ const facetOf = (selected: Selected, t: Tally, few: ReadonlySet<string>, maxValu
 };
 
 /**
- * The statuses and property facets of `selected` (see the file comment); `maxValues` is the
+ * The types, statuses and property facets of `selected` (see the file comment); `maxValues` is the
  * threshold of the free-text rule.
  */
 export const facetsOf = (
   selected: Selected,
   maxValues: number,
-): Pick<ElementFacetsOutput, "statuses" | "properties"> => {
+): Pick<ElementFacetsOutput, "types" | "statuses" | "properties"> => {
   const { metamodel, store, elements } = selected;
   const properties = listedProperties(metamodel, elements);
   const few = fewShared(store.elements, properties, maxValues);
-  const { statuses, tallies } = tally(selected, properties, few, maxValues);
+  const { types, statuses, tallies } = tally(selected, properties, few, maxValues);
   const order = new Map(metamodel.statuses.map((s, i) => [s.key, i]));
   const rank = (key: string): number => order.get(key) ?? order.size;
+  const typeOrder = new Map(metamodel.types.map((t, i) => [t.key, i]));
+  const typeRank = (key: string): number => typeOrder.get(key) ?? typeOrder.size;
   return {
+    // Metamodel order with the type's name, then other type keys in store order (name = key).
+    types: [...types]
+      .map(([key, count]) => ({ key, name: findType(metamodel, key)?.name ?? key, count }))
+      .sort((a, b) => typeRank(a.key) - typeRank(b.key)),
     // Metamodel order, then the other statuses in store order (the sort is stable).
     statuses: [...statuses].map(([key, count]) => ({ key, count })).sort((a, b) => rank(a.key) - rank(b.key)),
     properties: tallies.map((t) => facetOf(selected, t, few, maxValues)),

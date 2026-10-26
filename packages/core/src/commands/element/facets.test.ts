@@ -84,6 +84,16 @@ const facet = (output: Output, key: string): Facet => {
   return found;
 };
 
+// The fixture's types in metamodel order (the software model is read first); use-case has no element.
+const TYPES: Output["types"] = [
+  { key: "software-requirement", name: "Software Requirement", count: 2 },
+  { key: "need", name: "Need", count: 2 },
+  { key: "system-requirement", name: "System Requirement", count: 5 },
+  { key: "decision", name: "Decision", count: 1 },
+  { key: "variant", name: "Variant", count: 2 },
+  { key: "package", name: "Package", count: 2 },
+];
+
 const SYSTEM = { selection: { where: { type: ["system-requirement"] } } };
 
 const STANDARD_MODEL = fileURLToPath(
@@ -107,6 +117,66 @@ describe("element.facets (#425)", () => {
       { key: "obsolete", count: 1 },
       { key: "review", count: 1 },
     ]);
+  });
+
+  it("counts the elements of each type: metamodel types in metamodel order with their name, then other keys as written", async () => {
+    const ws = await open();
+    const plain = await facets(ws);
+    expect(plain.types).toEqual(TYPES);
+    const model = (await invoke("metamodel.get", {}, { workspace: ws })) as CommandOutput<"metamodel.get">;
+    const order = model.types.map((t) => t.key);
+    expect(plain.types.map((t) => t.key)).toEqual(order.filter((key) => TYPES.some((t) => t.key === key)));
+    expect(plain.types.reduce((sum, t) => sum + t.count, 0)).toBe(plain.total);
+    // A type the metamodel does not know, also one that is no valid key, is counted under its key, in store order (by path).
+    const odd = await facets(
+      await open({
+        ...FILTER,
+        files: {
+          "requirements/MYS-0000000000e9.md": `---\nid: ${P}e9\ntype: mystery\ntitle: Unknown type\n---\n`,
+          "requirements/CUS-0000000000ea.md": `---\nid: ${P}ea\ntype: Custom Type\ntitle: Unknown type\n---\n`,
+          "requirements/MYS-0000000000eb.md": `---\nid: ${P}eb\ntype: mystery\ntitle: Unknown type\n---\n`,
+        },
+      }),
+    );
+    expect(odd.types).toEqual([
+      ...TYPES,
+      { key: "Custom Type", name: "Custom Type", count: 1 },
+      { key: "mystery", name: "mystery", count: 2 },
+    ]);
+    expect(odd.total).toBe(plain.total + 3);
+  });
+
+  it("counts only the types of the selected elements and leaves out a type without one", async () => {
+    const ws = await open();
+    expect((await facets(ws, SYSTEM)).types).toEqual([
+      { key: "software-requirement", name: "Software Requirement", count: 2 },
+      { key: "system-requirement", name: "System Requirement", count: 5 },
+    ]);
+    expect((await facets(ws, { selection: { where: { type: ["nope"] } } })).types).toEqual([]);
+  });
+
+  it("counts a type exactly: the count equals the list of exactly that type, a subtype is not counted under its parent", async () => {
+    const ws = await open();
+    const { types, total } = await facets(ws);
+    let sum = 0;
+    for (const { key, count } of types) {
+      const list = (await invoke(
+        "element.list",
+        { selection: { where: { type: [key], subtypes: false } }, limit: 1 },
+        { workspace: ws },
+      )) as CommandOutput<"element.list">;
+      expect([key, list.total]).toEqual([key, count]);
+      sum += count;
+    }
+    expect(sum).toBe(total);
+    // software-requirement extends system-requirement: the list by type alone would add its two.
+    const parent = (await invoke(
+      "element.list",
+      { selection: { where: { type: ["system-requirement"] } }, limit: 1 },
+      { workspace: ws },
+    )) as CommandOutput<"element.list">;
+    expect(parent.total).toBe(7);
+    expect(types.find((t) => t.key === "system-requirement")?.count).toBe(5);
   });
 
   it("gives only the properties a type of the selection has, in the order of the metamodel", async () => {
@@ -330,7 +400,7 @@ describe("element.facets (#425)", () => {
 
   it("counts an empty selection as nothing", async () => {
     const out = await facets(await open(), { selection: { where: { type: ["nope"] } } });
-    expect(out).toEqual({ total: 0, statuses: [], properties: [], incomplete: false });
+    expect(out).toEqual({ total: 0, types: [], statuses: [], properties: [], incomplete: false });
   });
 
   it("refuses a selection it cannot resolve like element.list", async () => {

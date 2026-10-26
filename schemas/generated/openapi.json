@@ -1695,7 +1695,7 @@
     "/v1/commands/element.facets": {
       "post": {
         "operationId": "element_facets",
-        "summary": "Statuses and property values of the elements of a selection, with counts, to choose a filter from.",
+        "summary": "Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.",
         "tags": [
           "element"
         ],
@@ -1703,7 +1703,8 @@
         "x-logreq-stage": 3,
         "x-logreq-implements": [
           "SR-069",
-          "SR-124"
+          "SR-124",
+          "SR-118"
         ],
         "requestBody": {
           "required": true,
@@ -1741,6 +1742,32 @@
                       "type": "integer",
                       "minimum": 0,
                       "description": "Elements in the selection."
+                    },
+                    "types": {
+                      "type": "array",
+                      "description": "The types of the selected elements as written in the files, with the number of elements of exactly this type (an element of a subtype is not counted under its parent): types of the metamodel in metamodel order with their name, then other type keys in store order (name = key). Types without a selected element are not listed (SR-118).",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "statuses": {
                       "type": "array",
@@ -1860,6 +1887,7 @@
                   "additionalProperties": false,
                   "required": [
                     "total",
+                    "types",
                     "statuses",
                     "properties",
                     "incomplete"
