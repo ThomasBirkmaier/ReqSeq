@@ -18,7 +18,8 @@
 //   a view, so no caller takes an unfiltered list for a filtered one.
 //
 // Errors name the field of the input they are about (`details.fields`, the path from `at`).
-// To add an operator (#80: `text`), compile it in `compileLeaf`; nothing else changes.
+// To add an operator (#80: `text`), compile it in `compileLeaf`; the compiler refuses a schema
+// operator without a branch there. A compiled condition is for one run (`CompiledCondition`).
 import type { ElementRef, FilterCondition, View as ViewInput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
@@ -163,11 +164,17 @@ const compileLeaf = async (context: CompileContext, condition: Leaf, at: string)
       "the condition emergent comes with SR-035 (stage 4); leave it out",
     );
   }
-  throw invalidAt(
-    context,
-    `${at}.text`,
-    "the condition text comes with the full-text search (SR-068); leave it out",
-  );
+  if ("text" in condition) {
+    throw invalidAt(
+      context,
+      `${at}.text`,
+      "the condition text comes with the full-text search (SR-068); leave it out",
+    );
+  }
+  // Every operator of the schema is a branch above; the compiler checks that none is left (#336). Core
+  // validates each input first, so only a caller that bypasses it gets here: a bug, not an input error.
+  const unknown: never = condition;
+  throw new Error(`no compiler for the condition ${JSON.stringify(unknown)}`);
 };
 
 /** Compiles one condition (see the file comment); `at` is the path of its field in the input. */
@@ -195,15 +202,20 @@ const compileCondition = async (
   return compileLeaf(context, condition, at);
 };
 
-/** A compiled condition and the notes it writes while it is applied. */
+/**
+ * A compiled condition and the notes it writes while it is applied. It belongs to one run: it holds the
+ * states it was compiled against (store, short IDs, incoming index, evidence provider, views) and its
+ * `notes` only ever gain `incomplete`. So compile again for every run (#336): a saved filter (#82) or
+ * a bulk update (#83) keeps the condition, never the compiled one.
+ */
 export interface CompiledCondition {
   readonly predicate: Predicate;
   readonly notes: QueryNotes;
 }
 
 /**
- * Compiles `condition` for `context` (see the file comment). `at` is the path of the condition in
- * the input, e.g. `selection.where`, for the messages.
+ * Compiles `condition` for `context` (see the file comment), for one run (`CompiledCondition`). `at`
+ * is the path of the condition in the input, e.g. `selection.where`, for the messages.
  */
 export const compileWhere = async (
   context: QueryContext,

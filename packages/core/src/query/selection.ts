@@ -18,7 +18,10 @@
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
 //   whose elements may belong to the selection too, or a condition met a target in a repository the
 //   workspace file does not list (relation.ts).
-// Cost: the conditions are compiled once, then one pass over the store (N-036).
+// Cost: the conditions are compiled once per call, then one pass over the store (N-036). Compile per
+// run (#336): a compiled condition holds the states of the store it was compiled against and keeps
+// its `notes` (condition.ts, `CompiledCondition`), so a caller that runs a selection again (a saved
+// filter, #82; a bulk update, #83) calls `resolveSelection` again and never keeps a compiled one.
 import type { CommandName } from "../catalog.js";
 import type { ElementSelection } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";

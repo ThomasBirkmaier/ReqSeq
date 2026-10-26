@@ -466,7 +466,7 @@ export interface FilterFile {
 }
 
 /**
- * Combinable condition (SR-069). Exactly one operator per object.
+ * Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold.
  * Schema: `schemas/filter.schema.json#/$defs/condition`.
  */
 export type FilterCondition =
@@ -480,11 +480,13 @@ export type FilterCondition =
     readonly not: FilterCondition;
   }
   | {
+    /** Type keys; an element of a subtype matches too unless `subtypes` is false. */
     readonly type: FilterKeys;
     /** Include subtypes of the type. Absent means true (no `default` keyword: defaults inside `oneOf` are not applied). */
     readonly subtypes?: boolean;
   }
   | {
+    /** Status keys as written in the files. */
     readonly status: FilterKeys;
   }
   | {
@@ -492,12 +494,15 @@ export type FilterCondition =
     readonly invalid: boolean;
   }
   | {
+    /** Elements assigned to this package. */
     readonly package: ElementRef;
   }
   | {
+    /** Elements that apply in this view by their validity. */
     readonly validFor: View;
   }
   | {
+    /** Verification status in `variant`, else in the view of the selection, else in the core. */
     readonly verification: readonly VerificationStatus[];
     readonly variant?: View;
   }
@@ -521,7 +526,10 @@ export type FilterCondition =
 /** Schema: `schemas/filter.schema.json#/$defs/keys`. */
 export type FilterKeys = readonly Key[];
 
-/** Schema: `schemas/filter.schema.json#/$defs/propertyCondition`. */
+/**
+ * Condition on the values of any property: none when it is absent, `null` or `[]`, else the items of a list or the one value. `exists`: some value, `missing`: none (both without `value`). `eq`: some value equals `value` (1 is not "1"), `ne`: not `eq`, `in`: some value equals an item of the list `value`. `contains`: some text contains `value`, ignoring case. `lt`, `le`, `gt`, `ge`: numbers with numbers, texts with texts by code units (ISO dates compare as dates). `matches`: some text matches the JavaScript regular expression `value` (flag u). A choice may be given by its display name. A key that holds relations takes element references, with `eq`, `ne`, `in`, `exists` and `missing` only.
+ * Schema: `schemas/filter.schema.json#/$defs/propertyCondition`.
+ */
 export interface FilterPropertyCondition {
   readonly property: Key;
   readonly op:
@@ -540,14 +548,16 @@ export interface FilterPropertyCondition {
 }
 
 /**
- * Condition on relations, e.g. without child: {relation: {meaning: derivation, direction: down}, exists: false} (SR-069 AK3). Evidence is a relation direction too.
+ * Condition on relations, e.g. without child: {relation: {meaning: derivation, direction: down}, exists: false} (SR-069 AK3). Evidence is a relation direction too. `exists: true` without `to` counts a relation also when its target is not available; with `to`, only an available other end that meets it.
  * Schema: `schemas/filter.schema.json#/$defs/relationCondition`.
  */
 export interface FilterRelationCondition {
   readonly relation: {
+    /** A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it. */
     readonly kind?: Key;
+    /** Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind. */
     readonly meaning?: "derivation" | "replacement" | "exclusion";
-    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element. Absent: up or down. */
+    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element (no `kind`, `meaning` or `to`). Absent: up or down. */
     readonly direction?: "up" | "down" | "evidence";
     /** Condition the other end must meet. */
     readonly to?: FilterCondition;
@@ -1071,6 +1081,7 @@ export interface ElementListInput {
   /** Every part given must hold (SR-101 AK2). */
   readonly selection?: ElementSelection;
   readonly sort?: readonly FilterSortKeyWithDefaults[];
+  /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
   readonly limit: number;
   readonly offset: number;

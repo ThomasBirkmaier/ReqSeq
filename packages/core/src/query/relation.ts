@@ -9,8 +9,10 @@
 //   that kind must have it), neither takes every relation kind. A kind the metamodel does not have
 //   is `input.invalid`; a meaning no relation kind has is `metamodel.meaning-unassigned` (SR-013 AK3).
 // - `up`: the element's own relations, the items under those keys that name a target (`hasId`; a
-//   list's items, or the one value). With `to`, the target is looked up where the item names it
-//   (`targetState`, D-058) and must be available and meet `to`. A target in a repository that the
+//   list's items, or the one value). Without `to`, every such item counts, also one whose target is
+//   missing or not available (#336: the relation is there, which is what `exists` asks). With `to`,
+//   the target is looked up where the item names it (`targetState`, D-058) and must be available and
+//   meet `to`, so `to: {all: []}` counts only available targets. A target in a repository that the
 //   workspace file does not list marks the result incomplete (as in the chain, spec question #193);
 //   one in a listed repository that is not on this machine does too, through the selection, which
 //   is incomplete whenever such a repository exists (selection.ts).

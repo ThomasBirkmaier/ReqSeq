@@ -39,11 +39,69 @@ const catalog = {
 };
 
 /**
- * Upper bounds of the product `tools/list` result and of one tool in it, in bytes of JSON (#303). Raise them
- * only on purpose, when the catalog grows: an agent puts the whole list into its context.
+ * Upper bounds of the product `tools/list` result, in bytes of JSON (#303, #336; ADR-0009). An agent puts the
+ * whole list into its context, so raise them only on purpose, with the reason in the PR.
+ *
+ * The selection part of a tool is the `$defs` its input schema reaches from `common.selection` or, in a tool
+ * that takes a condition without a selection (`filter.save`), from `filter.condition`: the selection,
+ * the recursive filter condition with the short semantics of each operator (agents learn them from these
+ * descriptions only) and the definitions they use. It is the same in every tool with a selection, and every
+ * such tool repeats it, because MCP has no `$defs` shared across tools and ADR-0009 makes each input schema
+ * self-contained. So it has its own bound (6.6 KB with #336), and the rest of each tool keeps the bound of #303.
  */
-const TOOLS_LIST_MAX_BYTES = 48 * 1024;
+const SELECTION_MAX_BYTES = 7 * 1024;
+/** Where the selection part starts (see above). */
+const SELECTION_ROOTS = ["common.selection", "filter.condition"];
+/** Each tool without its selection part. */
 const TOOL_MAX_BYTES = 6 * 1024;
+/**
+ * The tools that carry the selection part, exactly. A new selection tool fails the test until it is named
+ * here, which raises the bound of the whole list by one selection part: the deliberate raise (ADR-0009).
+ */
+const SELECTION_TOOLS: readonly string[] = ["element_list"];
+/** The list of #303, plus one selection part per selection tool. */
+const TOOLS_LIST_MAX_BYTES = 48 * 1024 + SELECTION_TOOLS.length * SELECTION_MAX_BYTES;
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value));
+
+/** Names of the `$defs` of `defs` that `start` reaches, `start` included (flat `#/$defs/<name>` refs). */
+const reached = (defs: Readonly<Record<string, unknown>>, start: string): Set<string> => {
+  const names = new Set<string>();
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+    } else if (isObject(node)) {
+      for (const [key, value] of Object.entries(node)) {
+        const name =
+          key === "$ref" && typeof value === "string" ? /^#\/\$defs\/(.+)$/.exec(value)?.[1] : undefined;
+        if (name !== undefined && !names.has(name)) {
+          names.add(name);
+          visit(defs[name]);
+        }
+        visit(value);
+      }
+    }
+  };
+  visit({ $ref: `#/$defs/${start}` });
+  return names;
+};
+
+/** A listed tool split into its selection part (empty without a selection) and the rest. */
+const sizesOf = (tool: { readonly inputSchema: unknown }): { selection: number; rest: number } => {
+  const schema = isObject(tool.inputSchema) ? tool.inputSchema : {};
+  const defs = isObject(schema["$defs"]) ? schema["$defs"] : {};
+  const roots = SELECTION_ROOTS.filter((name) => name in defs);
+  if (roots.length === 0) {
+    return { selection: 0, rest: bytes(tool) };
+  }
+  const part = new Set(roots.flatMap((root) => [...reached(defs, root)]));
+  const kept = Object.entries(defs).filter(([name]) => !part.has(name));
+  const selection = bytes(Object.fromEntries(Object.entries(defs).filter(([name]) => part.has(name))));
+  return { selection, rest: bytes({ ...tool, inputSchema: { ...schema, $defs: Object.fromEntries(kept) } }) };
+};
 
 let waitAborted: (() => void) | undefined;
 let waitStarted: (() => void) | undefined;
@@ -276,13 +334,12 @@ describe("callTool", () => {
     const listed = await client.listTools();
     expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
     // #303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
-    // into its context. Each tool now carries only the definitions it uses.
-    expect(Buffer.byteLength(JSON.stringify(listed))).toBeLessThan(TOOLS_LIST_MAX_BYTES);
-    for (const tool of listed.tools) {
-      expect([tool.name, Buffer.byteLength(JSON.stringify(tool)) < TOOL_MAX_BYTES]).toEqual([
-        tool.name,
-        true,
-      ]);
+    // into its context. Each tool now carries only the definitions it uses (bounds above, #336).
+    expect(bytes(listed)).toBeLessThan(TOOLS_LIST_MAX_BYTES);
+    const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
+    expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
+    for (const { name, selection, rest } of sizes) {
+      expect([name, selection < SELECTION_MAX_BYTES, rest < TOOL_MAX_BYTES]).toEqual([name, true, true]);
     }
     expect(client.getInstructions()).toContain("workspace_status");
     toServer.end();

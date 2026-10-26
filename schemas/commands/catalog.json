@@ -508,7 +508,8 @@
             }
           },
           "withText": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again)."
           },
           "limit": {
             "type": "integer",

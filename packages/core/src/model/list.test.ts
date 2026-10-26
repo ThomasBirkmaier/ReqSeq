@@ -25,5 +25,8 @@ describe("textNow", () => {
     // A write in between: the version of the record is no longer the file's.
     await fs.appendFile(fixture.path(record.file), "More.\n");
     expect(textNow(folders, record)).toEqual({});
+    // A file that is gone: no text either, and nothing fails.
+    await fs.rm(fixture.path(record.file));
+    expect(textNow(folders, record)).toEqual({});
   });
 });

@@ -12,6 +12,7 @@ export {
   readElementFile,
   readElementFrontmatterSync,
   readElementFileSync,
+  readElementTextSync,
   readElementFiles,
   readFileSha256,
   readFileStat,

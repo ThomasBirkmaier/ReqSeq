@@ -12,9 +12,11 @@
 //   warning in its `problems` that says why. One such element never fails the list (ADR-0008
 //   "Current versions").
 // - `withText` (element.list): each element with a version also gets its text, read from its file
-//   again (the store keeps no text, ADR-0008) without parsing the YAML again: the file still has the
-//   bytes of the element listed, so text and version agree. An element without a version has none.
-import { elementText, readElementBodySync } from "../files/index.js";
+//   again (the store keeps no text, ADR-0008) without parsing the YAML: while the file still has the
+//   bytes of the element listed, so text and version agree. An element without a version has none,
+//   and neither has one whose file changed between its version and its text (a write in between);
+//   the input description of `withText` says so, and the next list gives it.
+import { readElementTextSync } from "../files/index.js";
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -43,12 +45,13 @@ export interface ListOptions {
 /**
  * The text of `record` from its file, which must still have the bytes of `record` (its snapshot,
  * whose version the list gives); none when the repository is not in `folders` or the file changed
- * since (a write in between: the next list gives it).
+ * since or cannot be read (a write in between: the next list gives it). A changed file is not
+ * parsed: its text would not belong to the version listed.
  */
 export const textNow = (folders: ReadonlyMap<string, string>, record: ElementRecord): { text?: string } => {
   const folder = folders.get(record.repository);
-  const read = folder === undefined ? undefined : readElementBodySync(folder, record.file, record.snapshot);
-  return read?.kind === "same" ? { text: elementText(read.body) } : {};
+  const text = folder === undefined ? undefined : readElementTextSync(folder, record.file, record.snapshot);
+  return text === undefined ? {} : { text };
 };
 
 /** `records`, in their order and each once, as list commands give them (see the file comment). */

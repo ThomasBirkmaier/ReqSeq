@@ -475,6 +475,12 @@ describe("element.list (SR-069)", () => {
         all: [{ property: "title", op: "eq", value: "Elsewhere" }, derivation("up", true)],
       }),
     ).toEqual([`${P}b9`]);
+    // With `to`, even one that every element meets, only an available target counts (#336).
+    expect(await where(missing, { all: [named, derivation("up", true, { all: [] })] })).toEqual([]);
+    expect(await where(missing, { all: [named, derivation("up", false, { all: [] })] })).toEqual([
+      `${P}b8`,
+      `${P}b9`,
+    ]);
   });
 });
 

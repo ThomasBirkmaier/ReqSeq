@@ -1502,7 +1502,8 @@
                     }
                   },
                   "withText": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again)."
                   },
                   "limit": {
                     "type": "integer",
@@ -8850,7 +8851,7 @@
         "additionalProperties": false,
         "$defs": {
           "condition": {
-            "description": "Combinable condition (SR-069). Exactly one operator per object.",
+            "description": "Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold.",
             "oneOf": [
               {
                 "type": "object",
@@ -8901,7 +8902,8 @@
                 ],
                 "properties": {
                   "type": {
-                    "$ref": "#/components/schemas/filter/$defs/keys"
+                    "$ref": "#/components/schemas/filter/$defs/keys",
+                    "description": "Type keys; an element of a subtype matches too unless `subtypes` is false."
                   },
                   "subtypes": {
                     "type": "boolean",
@@ -8917,7 +8919,8 @@
                 ],
                 "properties": {
                   "status": {
-                    "$ref": "#/components/schemas/filter/$defs/keys"
+                    "$ref": "#/components/schemas/filter/$defs/keys",
+                    "description": "Status keys as written in the files."
                   }
                 },
                 "additionalProperties": false
@@ -8942,7 +8945,8 @@
                 ],
                 "properties": {
                   "package": {
-                    "$ref": "#/components/schemas/common/$defs/elementRef"
+                    "$ref": "#/components/schemas/common/$defs/elementRef",
+                    "description": "Elements assigned to this package."
                   }
                 },
                 "additionalProperties": false
@@ -8954,7 +8958,8 @@
                 ],
                 "properties": {
                   "validFor": {
-                    "$ref": "#/components/schemas/common/$defs/view"
+                    "$ref": "#/components/schemas/common/$defs/view",
+                    "description": "Elements that apply in this view by their validity."
                   }
                 },
                 "additionalProperties": false
@@ -8969,7 +8974,8 @@
                     "type": "array",
                     "items": {
                       "$ref": "#/components/schemas/common/$defs/verificationStatus"
-                    }
+                    },
+                    "description": "Verification status in `variant`, else in the view of the selection, else in the core."
                   },
                   "variant": {
                     "$ref": "#/components/schemas/common/$defs/view"
@@ -9046,6 +9052,7 @@
             }
           },
           "propertyCondition": {
+            "description": "Condition on the values of any property: none when it is absent, `null` or `[]`, else the items of a list or the one value. `exists`: some value, `missing`: none (both without `value`). `eq`: some value equals `value` (1 is not \"1\"), `ne`: not `eq`, `in`: some value equals an item of the list `value`. `contains`: some text contains `value`, ignoring case. `lt`, `le`, `gt`, `ge`: numbers with numbers, texts with texts by code units (ISO dates compare as dates). `matches`: some text matches the JavaScript regular expression `value` (flag u). A choice may be given by its display name. A key that holds relations takes element references, with `eq`, `ne`, `in`, `exists` and `missing` only.",
             "type": "object",
             "required": [
               "property",
@@ -9075,7 +9082,7 @@
             "additionalProperties": false
           },
           "relationCondition": {
-            "description": "Condition on relations, e.g. without child: {relation: {meaning: derivation, direction: down}, exists: false} (SR-069 AK3). Evidence is a relation direction too.",
+            "description": "Condition on relations, e.g. without child: {relation: {meaning: derivation, direction: down}, exists: false} (SR-069 AK3). Evidence is a relation direction too. `exists: true` without `to` counts a relation also when its target is not available; with `to`, only an available other end that meets it.",
             "type": "object",
             "required": [
               "relation",
@@ -9086,14 +9093,16 @@
                 "type": "object",
                 "properties": {
                   "kind": {
-                    "$ref": "#/components/schemas/common/$defs/key"
+                    "$ref": "#/components/schemas/common/$defs/key",
+                    "description": "A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it."
                   },
                   "meaning": {
                     "enum": [
                       "derivation",
                       "replacement",
                       "exclusion"
-                    ]
+                    ],
+                    "description": "Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind."
                   },
                   "direction": {
                     "enum": [
@@ -9101,7 +9110,7 @@
                       "down",
                       "evidence"
                     ],
-                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element. Absent: up or down."
+                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element (no `kind`, `meaning` or `to`). Absent: up or down."
                   },
                   "to": {
                     "$ref": "#/components/schemas/filter/$defs/condition",

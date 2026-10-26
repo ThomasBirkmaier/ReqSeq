@@ -20,4 +20,4 @@ The MCP server of LogReq (ADR-0009) for AI agents: stdio only, one tool per comm
 
 ## Tests
 
-`src/*.test.ts`: no network module and no socket during a session (`[SR-079/AK1]`), the tool list equals `schemas/generated/mcp-tools.json`, schemas are self-contained and pruned, `tools/list` stays below its size bound, results and tool errors over an SDK client. The cross-access test (`packages/cli/test/cross-access.test.ts`) compares MCP with core, CLI and API (SR-080).
+`src/*.test.ts`: no network module and no socket during a session (`[SR-079/AK1]`), the tool list equals `schemas/generated/mcp-tools.json`, schemas are self-contained and pruned, `tools/list` stays within its size bounds (each tool without its selection part, the selection part, the whole list; ADR-0009), results and tool errors over an SDK client. The cross-access test (`packages/cli/test/cross-access.test.ts`) compares MCP with core, CLI and API (SR-080).
