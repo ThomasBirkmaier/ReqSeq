@@ -347,6 +347,114 @@ describe("deleted elements and repositories without Git (SR-092)", () => {
   });
 });
 
+describe("a workspace in a subfolder of a Git repository (#377)", () => {
+  /**
+   * fixtures/SR-025/outdated two folders below the top level of a Git work tree (`docs/` with
+   * `.gitignore` as `ignore` gives it), with `top.md` and `docs/readme.md` outside it, all
+   * committed.
+   */
+  const inSubfolder = async (ignore?: string): Promise<{ outer: FixtureWorkspace; ws: FixtureWorkspace }> => {
+    const outer = await fixture({
+      files: {
+        "top.md": "top\n",
+        "docs/readme.md": "readme\n",
+        ...(ignore === undefined ? {} : { ".gitignore": ignore }),
+      },
+      git: true,
+    });
+    const ws = await fixture({ fixture: "SR-025/outdated", tempDir: outer.path("docs") });
+    await outer.commit();
+    return { outer, ws };
+  };
+
+  it("restricts the check to the changes in the folder, with paths relative to it", async () => {
+    const { outer, ws } = await inSubfolder();
+    await append(ws, N_FILE, "Changed in the merge request.\n");
+    await outer.write("top.md", "changed outside\n");
+    const out = await check(open(ws.root), { changedSince: "HEAD", failOn: "warning" });
+    expect(brief(out.problems)).toEqual([
+      ["relation.outdated", A, N],
+      ["relation.outdated", A, N],
+    ]);
+    expect(out.problems.map((p) => [p.repository, p.file])).toEqual([
+      ["system", A_FILE],
+      ["system", A_FILE],
+    ]);
+    // The version dates come from the repository above.
+    expect(out.problems.every((p) => typeof p.storedDate === "string" && p.currentDate === null)).toBe(true);
+    expect([out.ok, out.checkedElements]).toEqual([false, 1]);
+    // A change outside the folder only changes nothing here.
+    await outer.commit();
+    await outer.write("docs/readme.md", "changed outside\n");
+    expect(await check(open(ws.root), { changedSince: "HEAD" })).toEqual({
+      ok: true,
+      problems: [],
+      checkedElements: 0,
+    });
+  });
+
+  it("does not look at a folder of which Git sees no file, never a check of nothing", async () => {
+    // A work tree that ignores the folder, as a home folder under Git with `*` in `.gitignore`.
+    const { ws } = await inSubfolder("docs/*/\n");
+    await append(ws, N_FILE, "Changed.\n");
+    await expect(check(open(ws.root), { changedSince: "HEAD" })).rejects.toMatchObject({
+      code: "git.unavailable",
+      message:
+        "Git sees the files of no repository of the workspace on this machine; the check cannot be restricted to changes since a commit",
+    });
+    // Beside a repository Git sees: an `info` problem for the one it does not, the others are checked.
+    const two = await fixture({
+      fixture: "SR-089/missing-targets",
+      files: { ".gitignore": "sensor/\n" },
+      git: ["."],
+    });
+    await append(two, "system/needs/N-0a1b2c3d4e5f.md", "Changed.\n");
+    const out = await check(open(two.path("system")), { changedSince: "HEAD" });
+    expect(out.problems.filter((p) => p.code.startsWith("git."))).toEqual([
+      {
+        code: "git.unavailable",
+        severity: "info",
+        message:
+          "Repository sensor lies in a Git work tree that sees none of its files (it ignores the folder, or the folder holds none): its changes since HEAD are not looked at",
+        repository: "sensor",
+      },
+    ]);
+    expect(out.checkedElements).toBe(1);
+  });
+
+  it("treats a folder as no Git repository where git does not use the .git entry above it", async () => {
+    // `sensor` lies below a `.git` entry that `workTreeOf` finds, but git does not search that far.
+    const ws = await fixture({ fixture: "SR-089/missing-targets", git: ["system"] });
+    await ws.git(["init", "--quiet"]);
+    await append(ws, "system/needs/N-0a1b2c3d4e5f.md", "Changed.\n");
+    vi.stubEnv("GIT_CEILING_DIRECTORIES", ws.root);
+    onTestFinished(() => void vi.unstubAllEnvs());
+    const out = await check(open(ws.path("system")), { changedSince: "HEAD" });
+    expect(out.problems.filter((p) => p.code.startsWith("git."))).toEqual([
+      {
+        code: "git.unavailable",
+        severity: "info",
+        message: "Repository sensor is no Git repository: its changes since HEAD are not looked at",
+        repository: "sensor",
+      },
+    ]);
+    expect(out.checkedElements).toBe(1);
+  });
+
+  it("fails with git.unavailable when Git cannot tell whether it sees the folder", async () => {
+    const { ws } = await inSubfolder();
+    vi.mocked(reader.openObjectReader).mockImplementationOnce(() => ({
+      info: () => Promise.resolve({ known: false, reason: "timeout", detail: "slow" }),
+      read: () => Promise.resolve({ known: false, reason: "timeout", detail: "slow" }),
+      close: () => undefined,
+    }));
+    await expect(check(open(ws.root), { changedSince: "HEAD" })).rejects.toMatchObject({
+      code: "git.unavailable",
+      details: { repository: "system", reason: "timeout" },
+    });
+  });
+});
+
 describe("a restriction that cannot be made (SR-092)", () => {
   it("[SR-092/AK2] fails with git.commit-not-found when no repository has the commit", async () => {
     const ws = await outdatedFixture();

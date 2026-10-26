@@ -231,6 +231,26 @@ describe("workspace.status", () => {
     });
   });
 
+  it("reports the commit of a repository folder in a subfolder of a Git repository (#377)", async () => {
+    const outer = await fixture({ files: { "top.md": "top\n" }, git: true });
+    const ws = await fixture({ fixture: "SR-001/two-elements", tempDir: outer.root });
+    // The commit has a tree at the folder only once the workspace is committed.
+    await outer.commit();
+    const out = await status(open(ws.root));
+    expect(out.repositories).toEqual([
+      { name: "system", available: true, path: ".", commit: await outer.head(), ...writable },
+    ]);
+  });
+
+  it("leaves the commit out where the Git repository above tracks nothing in the folder (#377)", async () => {
+    // A work tree that ignores the folder, as a home folder under Git with `*` ignored.
+    const outer = await fixture({ files: { "top.md": "top\n", ".gitignore": "*/\n" }, git: true });
+    const ws = await fixture({ fixture: "SR-001/two-elements", tempDir: outer.root });
+    const out = await status(open(ws.root));
+    expect(out.repositories).toEqual([{ name: "system", available: true, path: ".", ...writable }]);
+    expect(out.problems).toEqual([]);
+  });
+
   it("reads the commit on every call", async () => {
     const ws = await fixture({ fixture: "SR-004/one-repository", git: true });
     const workspace = open(ws.root);

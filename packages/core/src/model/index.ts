@@ -137,7 +137,7 @@ export {
   outgoingLinks,
   relationPath,
 } from "./incoming.js";
-export { changedFiles, restrictTo } from "./changed.js";
+export { changedFiles, restrictTo, treeAt } from "./changed.js";
 export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";

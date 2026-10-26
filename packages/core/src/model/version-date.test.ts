@@ -3,6 +3,7 @@
 // processes (slow Windows runners, #206, #226).
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace, HistoryCommitSpec, MadeCommit } from "@logreq/testkit";
@@ -482,6 +483,47 @@ describe("version date", () => {
     // Then the files can tell again: same commit, same walk.
     expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "one")]);
     expect(fileHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("dates the versions of a workspace in a subfolder of a Git repository (#377)", async () => {
+    const outer = await createFixtureWorkspace();
+    onTestFinished(() => outer.cleanup());
+    await outer.git(["init", "--quiet", "--initial-branch=main"]);
+    // The workspace two folders below the top level of the work tree.
+    const inner = await createFixtureWorkspace({ fixture: "SR-001/two-elements", tempDir: outer.root });
+    onTestFinished(() => inner.cleanup());
+    const prefix = path.relative(outer.root, inner.root).split(path.sep).join("/");
+    const made = await outer.commitHistory(
+      [
+        { name: "one", files: { [`${prefix}/${FILE}`]: element("One."), "top.md": "1\n" } },
+        { name: "two", files: { [`${prefix}/${FILE}`]: element("Two.![d](d.png)") } },
+        { name: "image", files: { [`${prefix}/requirements/d.png`]: "d\n" } },
+        { name: "outside", files: { "top.md": "2\n", [FILE]: element("Outside.") } },
+      ],
+      { branch: "main" },
+    );
+    await outer.git(["reset", "--hard", "--quiet"]);
+    const workspace = new Workspace(inner.root);
+    onTestFinished(() => workspace.close());
+    vi.clearAllMocks();
+    const date = (name: string): string => String(made[name]?.date.toISOString().replace(".000Z", "Z"));
+    // The image counts from the commit that added it; the commit outside the folder does not.
+    expect((await get(workspace)).versionDate).toBe(date("image"));
+    expect(
+      await dates(workspace, [
+        { version: await versionOf(workspace, element("One.")) },
+        { version: await versionOf(workspace, element("Two.![d](d.png)"), { "d.png": null }) },
+        // The text of the file of the same path at the top level is no version of this element here.
+        { version: await versionOf(workspace, element("Outside.")) },
+      ]),
+    ).toEqual([date("one"), date("two"), null]);
+    expect(headCommit).not.toHaveBeenCalled();
+    // HEAD from rev-parse where the files of the Git folder cannot tell.
+    const fresh = new Workspace(inner.root);
+    onTestFinished(() => fresh.close());
+    vi.mocked(headFiles).mockResolvedValueOnce(undefined);
+    expect((await get(fresh)).versionDate).toBe(date("image"));
+    expect(headCommit).toHaveBeenCalledTimes(1);
   });
 
   it("reads the history once when the caller gives the current text with its images", async () => {

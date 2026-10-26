@@ -4,6 +4,7 @@ import type * as ChildProcess from "node:child_process";
 import type { ExecFileOptions, SpawnOptions } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterAll, afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -16,6 +17,7 @@ import {
   headFiles,
   openObjectReader,
   resolveCommit,
+  workTreeOf,
 } from "./reader.js";
 
 interface Call {
@@ -183,6 +185,7 @@ describe("git reader", () => {
       "isRevision",
       "openObjectReader",
       "resolveCommit",
+      "workTreeOf",
     ]);
   });
 
@@ -214,14 +217,11 @@ describe("git reader", () => {
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
   });
 
-  it("knows no commit for a subfolder of a repository", async () => {
+  it("reads the HEAD commit of the repository a subfolder lies in (#377)", async () => {
     const ws = await fixture(["."]);
-    expect(await headCommit(ws.path("repo"))).toEqual({
-      known: false,
-      reason: "not-a-repository",
-      detail: "not the top level of a repository",
-    });
-    expect(await headCommit(ws.root)).toEqual({ known: true, commit: await ws.head(), shallow: false });
+    const head = { known: true, commit: await ws.head(), shallow: false };
+    expect(await headCommit(ws.path("repo"))).toEqual(head);
+    expect(await headCommit(ws.root)).toEqual(head);
   });
 
   it("knows no commit for a repository without commits", async () => {
@@ -230,10 +230,14 @@ describe("git reader", () => {
     expect(await headCommit(ws.path("plain"))).toMatchObject({ known: false, reason: "not-a-repository" });
   });
 
-  it("knows no commit when git prints a top level that does not exist", async () => {
+  it("knows no commit when git prints something else", async () => {
     const ws = await fixture(["repo"]);
-    mock.fake = { stdout: `${ws.path("gone")}\n${"a".repeat(40)}\n` };
-    expect(await headCommit(ws.path("repo"))).toMatchObject({ known: false, reason: "not-a-repository" });
+    mock.fake = { stdout: `${ws.path("repo")}\n${"a".repeat(40)}\n` };
+    expect(await headCommit(ws.path("repo"))).toEqual({
+      known: false,
+      reason: "not-a-repository",
+      detail: `unexpected output of git rev-parse: ${ws.path("repo")}\n${"a".repeat(40)}\n`,
+    });
   });
 
   it("knows no commit when the git program is missing", async () => {
@@ -344,6 +348,16 @@ describe("HEAD from the files of the Git folder", () => {
     const { ws, first } = await repository();
     await ws.git(["worktree", "add", "--quiet", "../linked", "side"], "repo");
     expect(await headFiles(ws.path("linked"))).toMatchObject({ commit: first, shallow: false });
+  });
+
+  it("resolves the relative gitdir of a .git file below the top level from the file's folder", async () => {
+    const { ws } = await repository();
+    const head = await headFiles(ws.path("repo"));
+    // As a submodule has it: `gitdir: ../.git/modules/x`, relative to the folder of the file.
+    await fs.mkdir(ws.path("outer/sub"), { recursive: true });
+    await fs.writeFile(ws.path("outer/.git"), "gitdir: ../repo/.git\n");
+    expect(head?.commit).toBeDefined();
+    expect(await headFiles(ws.path("outer/sub"))).toMatchObject({ commit: head?.commit, shallow: false });
   });
 
   it("cannot tell without a Git folder, for a reftable repository, an odd HEAD or a symbolic branch", async () => {
@@ -492,7 +506,7 @@ describe("file history", () => {
     expect(await fileHistory(h.folder, id(h, "other"), [])).toEqual({ known: true, commits: [] });
     expect(mock.calls).toEqual([]);
     await expect(fileHistory(h.folder, "HEAD", ["a.md"])).rejects.toThrow(/commit ID/);
-    for (const bad of ["a\nb.md", "/a.md", " a.md", "a.md\r", ""]) {
+    for (const bad of ["a\nb.md", "/a.md", " a.md", "a.md\r", "", "../a.md", "img/../../a.md"]) {
       await expect(fileHistory(h.folder, id(h, "other"), [bad])).rejects.toThrow(/cannot pass/);
     }
   });
@@ -500,7 +514,9 @@ describe("file history", () => {
   it("runs log with the fixed command line and the paths on standard input", async () => {
     const h = await madeHistory();
     await fileHistory(h.folder, id(h, "other"), ["a.md"]);
-    expect(mock.calls.map((c) => [c.args, (c.options as ExecFileOptions).timeout])).toEqual([
+    // The prefix of the folder is asked beside it, always (the next tests).
+    const logs = mock.calls.filter((c) => c.args.includes("log"));
+    expect(logs.map((c) => [c.args, (c.options as ExecFileOptions).timeout])).toEqual([
       [
         [
           ...FIXED,
@@ -512,6 +528,7 @@ describe("file history", () => {
           "--full-history",
           "--cc",
           "--name-only",
+          "--no-relative",
           "-z",
           "--parents",
           "--format=%H %cI %P%x00",
@@ -662,6 +679,7 @@ describe("object reader", () => {
       "HEAD:a.md",
       `${id(h, "first")}:`,
       `${id(h, "first")}:/a.md`,
+      `${id(h, "first")}:../a.md`,
       "abc",
       `${id(h, "first")}:a\nb`,
     ]) {
@@ -995,5 +1013,185 @@ describe("commits and changes since a commit (SR-092)", () => {
         : undefined;
     expect(await changedPaths(folder, first)).toMatchObject({ known: false, reason: "timeout" });
     await expect(changedPaths(folder, "HEAD")).rejects.toThrow(/needs a commit ID/);
+  });
+});
+
+describe("a repository folder below the top level of its work tree (#377)", () => {
+  /**
+   * A repository whose folder `docs/spec` holds `a.md` and `deep/b.md`, beside `top.md` and
+   * `docs/other.md` outside it: `a.md` and `top.md` changed on main and on a side branch and both
+   * resolved by a merge, then a commit that changed only files outside the folder. Checked out at
+   * that last commit.
+   */
+  const nested = async (): Promise<{
+    ws: FixtureWorkspace;
+    folder: string;
+    made: Readonly<Record<string, MadeCommit>>;
+  }> => {
+    const ws = await createFixtureWorkspace();
+    onTestFinished(() => ws.cleanup());
+    await ws.git(["init", "--quiet", "--initial-branch=main"]);
+    const made = await ws.commitHistory(
+      [
+        {
+          name: "first",
+          files: {
+            "top.md": "t1\n",
+            "docs/other.md": "o1\n",
+            "docs/spec/a.md": "a1\n",
+            "docs/spec/deep/b.md": "b1\n",
+          },
+        },
+        { name: "second", files: { "docs/spec/a.md": "a2\n", "top.md": "t2\n" } },
+        { name: "side", parents: ["first"], files: { "docs/spec/a.md": "side\n", "top.md": "side\n" } },
+        {
+          name: "merge",
+          parents: ["second", "side"],
+          files: { "docs/spec/a.md": "merged\n", "top.md": "merged\n" },
+        },
+        { name: "outside", files: { "top.md": "t3\n", "docs/other.md": "o2\n" } },
+      ],
+      { branch: "main" },
+    );
+    await ws.git(["reset", "--hard", "--quiet"]);
+    mock.calls.length = 0;
+    // Built with the separator of the platform (`\` on Windows), as the workspace layout gives it.
+    return { ws, folder: path.join(ws.root, "docs", "spec"), made };
+  };
+
+  const commitOf = (made: Readonly<Record<string, MadeCommit>>, name: string): string =>
+    String(made[name]?.id);
+
+  it("finds the nearest .git entry at or above the folder, without git", async () => {
+    const { ws, folder } = await nested();
+    expect(await workTreeOf(folder)).toEqual({ topLevel: ws.root, depth: 2 });
+    expect(await workTreeOf(`${folder}${path.sep}`)).toEqual({ topLevel: ws.root, depth: 2 });
+    expect(await workTreeOf(ws.root)).toEqual({ topLevel: ws.root, depth: 0 });
+    // A nested repository keeps its own Git.
+    await ws.git(["init", "--quiet"], "docs/spec/deep");
+    expect(await workTreeOf(path.join(folder, "deep"))).toEqual({
+      topLevel: path.join(folder, "deep"),
+      depth: 0,
+    });
+    expect(await workTreeOf(path.join(ws.root, "gone"))).toBeUndefined();
+    const plain = await fixture();
+    expect(await workTreeOf(plain.path("plain"))).toBeUndefined();
+    expect(mock.calls).toEqual([]);
+  });
+
+  it("reads HEAD from git and from the files of the Git folder above", async () => {
+    const { ws, folder, made } = await nested();
+    const head = commitOf(made, "outside");
+    expect(await headCommit(folder)).toEqual({ known: true, commit: head, shallow: false });
+    expect(await headFiles(folder)).toEqual(await headFiles(ws.root));
+    expect(await headFiles(folder)).toMatchObject({ commit: head, shallow: false });
+    // The nearest `.git` entry counts, also an empty one that names no HEAD: only git can tell.
+    await fs.mkdir(path.join(folder, "deep", ".git"));
+    expect(await headFiles(path.join(folder, "deep"))).toBeUndefined();
+  });
+
+  it("lists the history with paths relative to the folder, also those of a merge", async () => {
+    const { folder, made } = await nested();
+    const commit = (name: string, parents: readonly string[], paths: readonly string[]): unknown => ({
+      commit: commitOf(made, name),
+      date: String(made[name]?.date.toISOString().replace(".000Z", "Z")),
+      parents: parents.map((p) => commitOf(made, p)),
+      paths,
+    });
+    // The combined diff of a merge (`--cc`) names its paths from the top level even with
+    // `--relative`; the reader takes the prefix off every path.
+    expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"])).toEqual({
+      known: true,
+      commits: [
+        commit("merge", ["second", "side"], ["a.md"]),
+        commit("side", ["first"], ["a.md"]),
+        commit("second", ["first"], ["a.md"]),
+        commit("first", [], ["a.md", "deep/b.md"]),
+      ],
+    });
+    // Both run at once, in the folder.
+    expect(
+      mock.calls.map((c) => [
+        c.args.slice(FIXED.length, FIXED.length + 2),
+        (c.options as ExecFileOptions).timeout,
+        c.options.cwd,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [["rev-parse", "--show-prefix"], 10_000, folder],
+        [["log", "--no-show-signature"], 60_000, folder],
+      ]),
+    );
+    expect(mock.calls).toHaveLength(2);
+  });
+
+  it("lists the same history with diff.relative=true in the configuration of the user", async () => {
+    const { ws, folder, made } = await nested();
+    const before = await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"]);
+    expect(before).toHaveProperty("commits.3");
+    // Without `--no-relative`, the commits would name their paths relative to the folder and the
+    // merge from the top level, and the prefix would be taken off twice.
+    await ws.git(["config", "diff.relative", "true"]);
+    expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"])).toEqual(before);
+  });
+
+  it("takes the prefix from git where the folder holds a .git entry that git skips", async () => {
+    const { folder, made } = await nested();
+    const before = await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"]);
+    // An empty folder is no Git folder: git goes on to the one above, so the prefix is not empty.
+    await fs.mkdir(path.join(folder, ".git"));
+    expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"])).toEqual(before);
+  });
+
+  it("is unknown when git cannot tell the prefix of the folder or the history", async () => {
+    const { folder, made } = await nested();
+    mock.fake = (args) =>
+      args.includes("--show-prefix") ? { error: execError("Command failed", { killed: true }) } : undefined;
+    expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md"])).toMatchObject({
+      known: false,
+      reason: "timeout",
+    });
+    mock.fake = undefined;
+    // A commit the repository does not have: the prefix is known, the history is not.
+    expect(await fileHistory(folder, "0".repeat(40), ["a.md"])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+    // Outside a work tree, git fails for the prefix as for the history.
+    const plain = await fixture();
+    expect(await fileHistory(plain.path("plain"), commitOf(made, "outside"), ["b.md"])).toMatchObject({
+      known: false,
+      reason: "not-a-repository",
+    });
+  });
+
+  it("reads objects by paths relative to the folder, and the folder itself as `.`", async () => {
+    const { folder, made } = await nested();
+    const at = (file: string): string => `${commitOf(made, "outside")}:${file}`;
+    const objects = open(folder);
+    const { result, bytes } = await contents(objects, [
+      at("a.md"),
+      at("deep/b.md"),
+      at("top.md"),
+      at("docs/spec/a.md"),
+    ]);
+    expect(result).toMatchObject({ known: true, objects: [{ type: "blob" }, { type: "blob" }, null, null] });
+    expect(bytes).toEqual([Buffer.from("merged\n"), Buffer.from("b1\n"), null, null]);
+    expect(await objects.info([at("."), at("deep")])).toMatchObject({
+      known: true,
+      objects: [{ type: "tree" }, { type: "tree" }],
+    });
+    await expect(objects.info([at("../other.md")])).rejects.toThrow(/object name/);
+  });
+
+  it("lists the changed and untracked files below the folder, relative to it", async () => {
+    const { ws, folder, made } = await nested();
+    await ws.write("docs/spec/a.md", "changed\n");
+    await ws.write("docs/spec/deep/new.md", "new\n");
+    await ws.write("top.md", "changed\n");
+    await ws.write("docs/other.md", "changed\n");
+    await ws.write("docs/untracked.md", "new\n");
+    const since = await changedPaths(folder, commitOf(made, "first"));
+    expect(since.known ? [...since.paths].sort() : since).toEqual(["a.md", "deep/new.md"]);
   });
 });

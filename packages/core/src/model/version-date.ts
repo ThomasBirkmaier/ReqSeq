@@ -15,14 +15,21 @@
 // relations to one target cost one walk. All files of one call share the git processes of their
 // repository: one `log` (once more when an old text embeds an image the current one does not) and
 // one `cat-file` for every object, whatever the number of commits or files. HEAD is read from the
-// files of the Git folder (`headFiles`); `rev-parse` only where they cannot tell.
+// files of the Git folder (`headFiles`); `rev-parse` only where they cannot tell. A repository folder
+// may lie below the top level of its Git work tree (#377); every path stays relative to the
+// repository folder, the reader takes care of the prefix.
 import { createHash } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
-import { fileHistory, headCommit, headFiles, isGitPath, openObjectReader } from "../git/reader.js";
+import {
+  fileHistory,
+  headCommit,
+  headFiles,
+  isGitPath,
+  openObjectReader,
+  workTreeOf,
+} from "../git/reader.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -562,13 +569,6 @@ const answer = async (round: Round, queries: readonly Query[]): Promise<void> =>
   }
 };
 
-/** Whether `folder` holds a `.git` entry; without one it is no repository and no process starts. */
-export const hasGitEntry = async (folder: string): Promise<boolean> =>
-  fs.lstat(path.join(folder, ".git")).then(
-    () => true,
-    () => false,
-  );
-
 /**
  * The walks of `folder` at its HEAD, or undefined when Git cannot tell (not a repository, no
  * commit, git missing) or the repository is a shallow clone. HEAD is what `headFiles` names, and
@@ -636,7 +636,12 @@ const repositoryWalks = async (
   name: string,
 ): Promise<{ readonly source: ImageSource; readonly walks: RepositoryWalks } | undefined> => {
   const repository = context.layout.repositories.find((r) => r.name === name);
-  if (repository === undefined || !repository.available || !(await hasGitEntry(repository.folder))) {
+  // Without a `.git` entry in the folder or above it, the folder is in no repository and no git starts.
+  if (
+    repository === undefined ||
+    !repository.available ||
+    (await workTreeOf(repository.folder)) === undefined
+  ) {
     return undefined;
   }
   const walks = await currentWalks(cache, repository.folder);

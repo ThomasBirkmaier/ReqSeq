@@ -3,9 +3,9 @@
 // workspace is read-only.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { headCommit } from "../../git/reader.js";
+import { headCommit, workTreeOf } from "../../git/reader.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
-import { watcherProblems } from "../../model/index.js";
+import { treeAt, watcherProblems } from "../../model/index.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../../workspace/index.js";
 
@@ -33,6 +33,15 @@ const checkRepository = async (repository: RepositoryLocation): Promise<Checked>
   const located = { name: repository.name, available: true, path: repository.path };
   const readOnly = writable === undefined ? {} : { readOnly: !writable };
   if (head.known) {
+    // Below the top level of its work tree, the folder has the commit of the repository above only
+    // where that commit has a tree at the folder: a stray repository that tracks nothing there
+    // (a home folder under Git with `*` ignored) is none of the folder's.
+    if ((await workTreeOf(repository.folder))?.depth !== 0) {
+      const seen = await treeAt(repository.folder, head.commit);
+      if (!seen.known || !seen.tree) {
+        return { status: { ...located, ...readOnly } };
+      }
+    }
     return { status: { ...located, commit: head.commit, ...readOnly } };
   }
   const status = { ...located, ...readOnly };

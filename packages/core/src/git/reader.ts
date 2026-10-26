@@ -8,6 +8,12 @@
 // line. There is no way to pass another subcommand or argument. Add commands from ADR-0006's list
 // as SRs need them. `headFiles` reads the few small files of the Git folder that name HEAD itself,
 // so that opening an element needs no `rev-parse` (ADR-0006).
+//
+// A repository folder may lie below the top level of its Git work tree (#377): a workspace in
+// `spec/` of a code repository. Every path in and out of this module is relative to the folder git
+// runs in, never to the top level: `log` gets its paths from there and its answer has the prefix
+// taken off, object names are sent as `<commit>:./<path>`, and `diff` and `ls-files` list relative
+// to it anyway.
 import type { ChildProcessByStdio } from "node:child_process";
 import { execFile, spawn } from "node:child_process";
 import fs from "node:fs/promises";
@@ -16,8 +22,13 @@ import type { Readable, Writable } from "node:stream";
 
 /** Every command line LogReq runs, after the fixed options of `run`. Read-only, no network. */
 const COMMANDS = {
-  /** Top level of the repository, whether it is a shallow clone, and its HEAD commit. */
+  /**
+   * Top level of the work tree (git fails outside one, for example inside a Git folder), whether
+   * the repository is a shallow clone, and its HEAD commit.
+   */
   head: ["rev-parse", "--show-toplevel", "--is-shallow-repository", "--verify", "HEAD"],
+  /** The path of the folder git runs in from the top level of its work tree, with `/` after each name. */
+  prefix: ["rev-parse", "--show-prefix"],
   /**
    * The commits from a given commit that changed one of the paths on standard input, and every
    * merge (`--full-history`: no history simplification, so the list of one path never depends on
@@ -25,7 +36,8 @@ const COMMANDS = {
    * (`--parents` rewrites them past the commits left out) and the paths it changed (`-z`: NUL after
    * every name). Renames are neither followed nor detected, a merge names the paths that differ
    * from every parent (`--cc`), the root commit names its paths (`--root`), and no signature is
-   * checked.
+   * checked. `--no-relative` (git 2.28 and newer): a user's `diff.relative=true` would name the paths
+   * of a normal commit relative to the folder, but those of a merge from the top level.
    */
   history: [
     "log",
@@ -36,6 +48,7 @@ const COMMANDS = {
     "--full-history",
     "--cc",
     "--name-only",
+    "--no-relative",
     "-z",
     "--parents",
     "--format=%H %cI %P%x00",
@@ -202,7 +215,7 @@ const run = async (cwd: string, command: GitCommand, options: RunOptions = {}): 
         env: gitEnv(),
         encoding: "buffer",
         maxBuffer: MAX_OUTPUT,
-        timeout: command === "head" ? TIMEOUT_MS : READ_TIMEOUT_MS,
+        timeout: command === "head" || command === "prefix" ? TIMEOUT_MS : READ_TIMEOUT_MS,
         killSignal: "SIGKILL",
         windowsHide: true,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -226,12 +239,44 @@ const unknown = (result: { readonly reason: GitUnknownReason; readonly detail: s
   detail: result.detail,
 });
 
-/** True when both name the same folder after following links (git prints `C:/...` on Windows). */
-const sameFolder = async (a: string, b: string): Promise<boolean> =>
-  Promise.all([fs.realpath(path.resolve(a)), fs.realpath(path.resolve(b))]).then(
-    ([realA, realB]) => path.relative(realA, realB) === "",
+/** Whether `folder` holds a `.git` entry (a folder, or the file of a linked worktree or submodule). */
+const holdsGitEntry = async (folder: string): Promise<boolean> =>
+  fs.lstat(path.join(folder, ".git")).then(
+    () => true,
     () => false,
   );
+
+/** Where a folder lies in a Git work tree (`workTreeOf`). */
+export interface WorkTree {
+  /** The folder that holds the `.git` entry, links followed. */
+  readonly topLevel: string;
+  /** How many folders the folder lies below `topLevel`: 0 at the top level. */
+  readonly depth: number;
+}
+
+/**
+ * The work tree `folder` lies in: the nearest folder at or above it (after following links, as git
+ * does) that holds a `.git` entry, as git looks for one (#377). The nearest wins, so a nested
+ * repository keeps its own Git. Undefined where there is none or `folder` does not exist; no
+ * process starts. git may still refuse such a folder (`safe.directory`, `GIT_CEILING_DIRECTORIES`,
+ * a file system boundary); what it would tell is then unknown.
+ */
+export const workTreeOf = async (folder: string): Promise<WorkTree | undefined> => {
+  let current = await fs.realpath(folder).then(
+    (real): string | undefined => real,
+    () => undefined,
+  );
+  let depth = 0;
+  while (current !== undefined) {
+    if (await holdsGitEntry(current)) {
+      return { topLevel: current, depth };
+    }
+    const parent = path.dirname(current);
+    current = parent === current ? undefined : parent;
+    depth += 1;
+  }
+  return undefined;
+};
 
 /** A full object ID: SHA-1 (40 hex digits) or SHA-256 (64). */
 const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -246,10 +291,12 @@ const isObjectId = (text: string): boolean => OBJECT_ID.test(text);
 const isLine = (name: string): boolean => name !== "" && !/[\n\r\0]/.test(name) && name.trim() === name;
 
 /**
- * Whether `file` (relative to the top level, `/` as separator) can be passed to `fileHistory`, or
- * after `<commit ID>:` to an object reader.
+ * Whether `file` (relative to the folder git runs in, `/` as separator) can be passed to
+ * `fileHistory`, or after `<commit ID>:` to an object reader: one line, not absolute, and no `..`
+ * name, so it never leaves the folder.
  */
-export const isGitPath = (file: string): boolean => isLine(file) && !file.startsWith("/");
+export const isGitPath = (file: string): boolean =>
+  isLine(file) && !file.startsWith("/") && !file.split("/").includes("..");
 
 /** An object name for an object reader: an object ID, or `<commit ID>:<path>`. */
 const isObjectName = (name: string): boolean => {
@@ -263,19 +310,25 @@ export type HeadCommit =
   { readonly known: true; readonly commit: string; readonly shallow: boolean } | GitUnknown;
 
 /**
- * The HEAD commit of the repository whose top level is `folder`, and whether the repository is a
- * shallow clone (its history then ends early). Unknown when git is missing, refuses the
- * repository, times out, or `folder` is not a repository (or only a subfolder of one) or has no
- * commit yet.
+ * The HEAD commit of the repository whose work tree holds `folder` (its top level or a folder below
+ * it, #377), and whether the repository is a shallow clone (its history then ends early). Unknown
+ * when git is missing, refuses the repository, times out, or `folder` is in no work tree or the
+ * repository has no commit yet.
  */
 export const headCommit = async (folder: string, options: ReadOptions = {}): Promise<HeadCommit> => {
   const result = await run(folder, "head", options);
   if (!result.ok) {
     return unknown(result);
   }
-  const [topLevel = "", shallow = "", commit = ""] = result.stdout.toString("utf8").trim().split(/\r?\n/);
-  if (!(await sameFolder(topLevel, folder))) {
-    return { known: false, reason: "not-a-repository", detail: "not the top level of a repository" };
+  const output = result.stdout.toString("utf8");
+  // The top level comes first; only its presence matters (git fails outside a work tree).
+  const [shallow = "", commit = ""] = output.trim().split(/\r?\n/).slice(1);
+  if (!isObjectId(commit)) {
+    return {
+      known: false,
+      reason: "not-a-repository",
+      detail: `unexpected output of git rev-parse: ${output}`,
+    };
   }
   return { known: true, commit, shallow: shallow === "true" };
 };
@@ -312,10 +365,10 @@ const packedRef = (packed: string | undefined, ref: string): string | undefined 
     .find(([id, name]) => name === ref && isObjectId(String(id)))?.[0];
 
 /**
- * HEAD of the repository whose top level is `folder` as the files of its Git folder name it,
- * without starting git (ADR-0006): `HEAD` names a commit or a branch, whose commit is in the branch
- * file or else in `packed-refs` (of the main worktree's Git folder for a linked worktree), and
- * `shallow` lists the commits a shallow clone ends at. The stamp covers each of these files by
+ * HEAD of the repository whose work tree holds `folder` (`workTreeOf`) as the files of its Git
+ * folder name it, without starting git (ADR-0006): `HEAD` names a commit or a branch, whose commit
+ * is in the branch file or else in `packed-refs` (of the main worktree's Git folder for a linked
+ * worktree), and `shallow` lists the commits a shallow clone ends at. The stamp covers each of these files by
  * content or by identity, size and change time. Undefined where only git can tell (no Git folder,
  * a reftable repository, a HEAD that names no branch or commit, a symbolic branch): ask
  * `headCommit` then.
@@ -349,8 +402,8 @@ export const headFiles = async (folder: string): Promise<HeadFiles | undefined> 
 };
 
 /**
- * The Git folder of the repository in `folder`, its common folder (of the main worktree), the text
- * of HEAD and the branch it names; undefined where `headFiles` cannot tell.
+ * The Git folder of the work tree `folder` lies in, its common folder (of the main worktree), the
+ * text of HEAD and the branch it names; undefined where `headFiles` cannot tell.
  */
 const gitFolders = async (
   folder: string,
@@ -358,14 +411,18 @@ const gitFolders = async (
   | { readonly gitDir: string; readonly commonDir: string; readonly head: string; readonly branch?: string }
   | undefined
 > => {
-  const entry = path.join(folder, ".git");
+  const tree = await workTreeOf(folder);
+  if (tree === undefined) {
+    return undefined;
+  }
+  const entry = path.join(tree.topLevel, ".git");
   // A linked worktree or a submodule has a `.git` file that names its Git folder.
   const link = await readSmall(entry);
   const linked = link === undefined ? entry : /^gitdir: (.+?)\r?\n?$/.exec(link)?.[1];
   if (linked === undefined) {
     return undefined;
   }
-  const gitDir = path.resolve(folder, linked);
+  const gitDir = path.resolve(tree.topLevel, linked);
   const head = await readSmall(path.join(gitDir, "HEAD"));
   // A branch name never holds `..` (git check-ref-format), so the branch file is inside the folder.
   const branch =
@@ -390,7 +447,10 @@ export interface HistoryCommit {
   readonly date: string;
   /** Its parents among the commits of the history (rewritten past the others); none for a first commit. */
   readonly parents: readonly string[];
-  /** The paths of the request this commit changed, as Git stores them (also in another Unicode form). */
+  /**
+   * The paths of the request this commit changed, relative to the folder of the call, as Git
+   * stores them (also in another Unicode form).
+   */
   readonly paths: readonly string[];
 }
 
@@ -404,9 +464,11 @@ const utcDate = (date: string): string => new Date(date).toISOString().replace(/
 
 /**
  * The commits of `history`: each header ends with two NULs (one of the format, one of `-z`); a
- * merge has one more before its names; the first name of a commit starts with a line break.
+ * merge has one more before its names; the first name of a commit starts with a line break. Git
+ * names paths from the top level, so the first `depth` names of each (the prefix of the folder) are
+ * taken off: every listed path matches a path of the request, and so lies below the folder.
  */
-const parseHistory = (output: string): HistoryCommit[] => {
+const parseHistory = (output: string, depth: number): HistoryCommit[] => {
   // Every token ends with a NUL, so the last piece is empty.
   const tokens = output.split("\0").slice(0, -1);
   const commits: { commit: string; date: string; parents: string[]; paths: string[] }[] = [];
@@ -429,20 +491,34 @@ const parseHistory = (output: string): HistoryCommit[] => {
     if (current === undefined) {
       throw new Error(`unexpected output of git log: ${token}`);
     }
-    current.paths.push(token.startsWith("\n") ? token.slice(1) : token);
+    const name = token.startsWith("\n") ? token.slice(1) : token;
+    current.paths.push(depth === 0 ? name : name.split("/").slice(depth).join("/"));
   }
   return commits;
 };
 
 /**
- * The commits reachable from `head` that changed one of `files` (paths relative to the top level
- * of the repository in `folder`, as `isGitPath` allows; literal, no globs; a folder ending in `/`
- * takes every file below it), and every merge reachable from `head`, newest first, with their
- * committer dates, their parents among them (one parent where all lead to the same commit) and the
- * paths below `files` each one changed. No history simplification (`--full-history`): both sides
- * of every merge are listed, so what is listed for one path does not depend on the other paths of
- * the call. Unknown when git fails. A programming error when `head` is not an object ID or a path
- * cannot be passed.
+ * How many names the prefix of `folder` in its work tree has, as `rev-parse --show-prefix` says
+ * (one `/` after each name). Always asked of git: it skips a `.git` entry that is not valid, so the
+ * folder's own entry (`holdsGitEntry`) does not tell the top level.
+ */
+const prefixDepth = async (
+  folder: string,
+  options: ReadOptions,
+): Promise<{ readonly ok: true; readonly depth: number } | Exclude<RunResult, { ok: true }>> => {
+  const result = await run(folder, "prefix", options);
+  return result.ok ? { ok: true, depth: result.stdout.toString("utf8").split("/").length - 1 } : result;
+};
+
+/**
+ * The commits reachable from `head` that changed one of `files` (paths relative to `folder`, which
+ * may lie below the top level of its work tree, as `isGitPath` allows; literal, no globs; a folder
+ * ending in `/` takes every file below it), and every merge reachable from `head`, newest first,
+ * with their committer dates, their parents among them (one parent where all lead to the same
+ * commit) and the paths below `files` each one changed, relative to `folder`. No history
+ * simplification (`--full-history`): both sides of every merge are listed, so what is listed for
+ * one path does not depend on the other paths of the call. Unknown when git fails. A programming
+ * error when `head` is not an object ID or a path cannot be passed.
  */
 export const fileHistory = async (
   folder: string,
@@ -461,16 +537,20 @@ export const fileHistory = async (
     // `log` without paths would list every commit.
     return { known: true, commits: [] };
   }
-  const result = await run(folder, "history", {
-    ...options,
-    revision: head,
-    input: `--\n${files.join("\n")}\n`,
-  });
+  // git reads the paths relative to the folder it runs in, but names them from the top level, also
+  // with `--relative`, which the combined diff of a merge (`--cc`) does not follow.
+  const [prefix, result] = await Promise.all([
+    prefixDepth(folder, options),
+    run(folder, "history", { ...options, revision: head, input: `--\n${files.join("\n")}\n` }),
+  ]);
+  if (!prefix.ok) {
+    return unknown(prefix);
+  }
   if (!result.ok) {
     return unknown(result);
   }
   try {
-    return { known: true, commits: parseHistory(result.stdout.toString("utf8")) };
+    return { known: true, commits: parseHistory(result.stdout.toString("utf8"), prefix.depth) };
   } catch (error) {
     return { known: false, reason: "not-a-repository", detail: (error as Error).message };
   }
@@ -493,9 +573,10 @@ export type ObjectSink = (chunk: Buffer) => void;
 /**
  * Reads objects of one repository in rounds, with one git process for all of them where git
  * allows (2.36 and newer; before, one process per round). Names are object IDs or
- * `<commit ID>:<path>` with the path relative to the top level as Git stores it (exactly, no other
- * Unicode form); another kind of name is a programming error. An object Git does not have (no such
- * path in that commit, a path below a submodule, an unknown ID) is null. Unknown when git fails;
+ * `<commit ID>:<path>` with the path relative to the folder of the reader, as Git stores it
+ * (exactly, no other Unicode form), `.` for the folder itself; another kind of name is a
+ * programming error. An object Git does not have (no such path in that commit, a path below a
+ * submodule, an unknown ID) is null. Unknown when git fails;
  * the reader then answers nothing more. `close` ends the process; call it when done.
  */
 export interface ObjectReader {
@@ -705,17 +786,22 @@ const answers = async (catFile: CatFile): Promise<ObjectInfos> =>
     catFile.wake();
   });
 
-/** Checks the object names; a name git cannot take is a programming error. */
-const checkNames = (names: readonly string[]): void => {
+/**
+ * The names as git takes them: a path after `<commit ID>:` with `./` before it, so that git reads
+ * it relative to the folder it runs in, not to the top level (#377). A name git cannot take is a
+ * programming error.
+ */
+const gitNames = (names: readonly string[]): string[] => {
   const bad = names.find((n) => !isObjectName(n));
   if (bad !== undefined) {
     throw new Error(`git cat-file cannot read the object name ${JSON.stringify(bad)}`);
   }
+  return names.map((name) => name.replace(":", ":./"));
 };
 
 /**
- * An `ObjectReader` for the repository whose top level is `folder` (see there). Starts no process
- * before the first round.
+ * An `ObjectReader` for the repository whose work tree holds `folder`, with paths relative to
+ * `folder` (see there). Starts no process before the first round.
  */
 export const openObjectReader = (folder: string, options: ReadOptions = {}): ObjectReader => {
   let session: CatFile | undefined;
@@ -775,20 +861,16 @@ export const openObjectReader = (folder: string, options: ReadOptions = {}): Obj
   };
 
   return {
-    info: async (names) => {
-      checkNames(names);
-      return queued(
-        names.map((name) => ({ name, open: undefined })),
+    info: async (names) =>
+      queued(
+        gitNames(names).map((name) => ({ name, open: undefined })),
         false,
-      );
-    },
-    read: async (names, open) => {
-      checkNames(names);
-      return queued(
-        names.map((name, index) => ({ name, open: (info: ObjectInfo) => open(info, index) })),
+      ),
+    read: async (names, open) =>
+      queued(
+        gitNames(names).map((name, index) => ({ name, open: (info: ObjectInfo) => open(info, index) })),
         true,
-      );
-    },
+      ),
     close: () => {
       session?.child.stdin.end();
       session = undefined;
@@ -843,8 +925,8 @@ const zList = (stdout: Buffer): string[] => stdout.toString("utf8").split("\0").
 /**
  * The files of the working copy in `folder` that differ from `commit` (committed since, staged or
  * not), deleted ones included, and the files Git neither tracks nor ignores (SR-092): paths
- * relative to `folder` with `/`, only below it, as Git stores them (also in another Unicode form
- * than the file system's, ADR-0006). Unknown when git fails. A programming error when `commit` is
+ * relative to `folder` (the top level of its work tree or a folder below it) with `/`, only below
+ * it, as Git stores them (also in another Unicode form than the file system's, ADR-0006). Unknown when git fails. A programming error when `commit` is
  * not an object ID (`resolveCommit` gives one).
  */
 export const changedPaths = async (

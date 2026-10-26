@@ -5,7 +5,11 @@
 //   not staged and untracked files, read through the git reader (ADR-0006), never written (D-036).
 //   The revision is looked up in every available repository; one without it, or one that is no Git
 //   repository, adds nothing and gets an `info` problem, so a pipeline sees what was not looked at.
-//   Only when none has it is it `git.commit-not-found` (CLI exit code 4, ADR-0009). Any failure of
+//   Only when none has it is it `git.commit-not-found` (CLI exit code 4, ADR-0009). A repository
+//   folder may lie below the top level of its Git work tree (#377): the paths stay relative to the
+//   folder. Where git then lists nothing and the commit has no tree at the folder, Git sees none of
+//   its files (the work tree ignores the folder, as a home folder under Git with `*` in
+//   `.gitignore` may): it is not looked at either, never a check of nothing. Any failure of
 //   git in a repository is `git.unavailable`: never a check of less than asked. `changedFiles` names
 //   files directly (`localPath`, no folders); with both, both count. Paths compare in NFC (ADR-0006).
 // - An element file deleted since the commit, or one whose UUID changed, leaves the relations of
@@ -24,8 +28,15 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
-import type { GitUnknown } from "../git/reader.js";
-import { changedPaths, isGitPath, isRevision, openObjectReader, resolveCommit } from "../git/reader.js";
+import type { GitUnknown, ReadOptions } from "../git/reader.js";
+import {
+  changedPaths,
+  isGitPath,
+  isRevision,
+  openObjectReader,
+  resolveCommit,
+  workTreeOf,
+} from "../git/reader.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import type { CurrentVersions } from "./current-versions.js";
@@ -36,7 +47,6 @@ import { resolveReference } from "./references.js";
 import type { TargetState } from "./relations.js";
 import { targetState } from "./relations.js";
 import type { ElementStore } from "./store.js";
-import { hasGitEntry } from "./version-date.js";
 
 /** What a check is restricted to, as `workspace.check` takes it. */
 export interface ChangedInput {
@@ -192,10 +202,30 @@ const idsAt = async (
   }
 };
 
+/**
+ * Whether Git sees `folder` at `commit`: the commit has a tree there (`.` names the
+ * folder itself).
+ */
+export const treeAt = async (
+  folder: string,
+  commit: string,
+  options: ReadOptions = {},
+): Promise<{ readonly known: true; readonly tree: boolean } | GitUnknown> => {
+  const reader = openObjectReader(folder, options);
+  try {
+    const info = await reader.info([`${commit}:.`]);
+    return info.known ? { known: true, tree: info.objects[0]?.type === "tree" } : info;
+  } finally {
+    reader.close();
+  }
+};
+
+/** Why a repository's changes are not looked at: no Git, no such commit, or Git sees none of its files. */
+type NotLookedAt = "no-git" | "no-commit" | "unseen";
+
 /** What changed in one repository since a revision. */
 type RepositoryChange =
-  | { readonly kind: "no-git" }
-  | { readonly kind: "no-commit" }
+  | { readonly kind: NotLookedAt }
   | { readonly kind: "changed"; readonly paths: readonly string[]; readonly ids: readonly string[] };
 
 const changeOf = async (
@@ -203,12 +233,20 @@ const changeOf = async (
   revision: string,
   signal: AbortSignal,
 ): Promise<RepositoryChange> => {
-  // As for version dates: without a `.git` entry the folder is no repository, and no git starts.
-  if (!(await hasGitEntry(repository.folder))) {
+  // As for version dates: without a `.git` entry in the folder or above it, the folder is in no
+  // repository, and no git starts.
+  const tree = await workTreeOf(repository.folder);
+  if (tree === undefined) {
     return { kind: "no-git" };
   }
   // In a repository, every failure of git makes the restriction unknown: never a check of less.
   const resolved = await resolveCommit(repository.folder, revision, { signal });
+  // Below the top level, `workTreeOf` may name a `.git` entry that git does not use
+  // (`GIT_CEILING_DIRECTORIES`, a file system boundary): git then says it is no repository, as for
+  // a folder without any.
+  if (!resolved.known && tree.depth > 0 && resolved.reason === "not-a-repository") {
+    return { kind: "no-git" };
+  }
   if (!resolved.known) {
     throw unavailable(repository.name, resolved.reason);
   }
@@ -219,6 +257,16 @@ const changeOf = async (
   if (!paths.known) {
     throw unavailable(repository.name, paths.reason);
   }
+  // Below the top level, nothing listed may mean that Git sees none of the folder's files.
+  if (tree.depth > 0 && paths.paths.length === 0) {
+    const seen = await treeAt(repository.folder, resolved.commit, { signal });
+    if (!seen.known) {
+      throw unavailable(repository.name, seen.reason);
+    }
+    if (!seen.tree) {
+      return { kind: "unseen" };
+    }
+  }
   const old = await idsAt(repository.folder, resolved.commit, paths.paths, signal);
   if (!old.known) {
     throw unavailable(repository.name, old.reason);
@@ -226,14 +274,21 @@ const changeOf = async (
   return { kind: "changed", paths: paths.paths, ids: old.ids };
 };
 
+/** Why a repository's changes are not looked at, as the `info` problem says it. */
+const NOT_LOOKED_AT: Readonly<Record<NotLookedAt, (repository: string, revision: string) => string>> = {
+  "no-git": (repository, revision) =>
+    `Repository ${repository} is no Git repository: its changes since ${revision} are not looked at`,
+  "no-commit": (repository, revision) =>
+    `Repository ${repository} has no commit ${revision}: its changes are not looked at`,
+  unseen: (repository, revision) =>
+    `Repository ${repository} lies in a Git work tree that sees none of its files (it ignores the folder, or the folder holds none): its changes since ${revision} are not looked at`,
+};
+
 /** The `info` problem of a repository whose changes are not looked at (#291 point 3). */
-const notLookedAt = (repository: string, revision: string, kind: "no-git" | "no-commit"): Problem => ({
-  code: kind === "no-git" ? "git.unavailable" : "git.revision-missing",
+const notLookedAt = (repository: string, revision: string, kind: NotLookedAt): Problem => ({
+  code: kind === "no-commit" ? "git.revision-missing" : "git.unavailable",
   severity: "info",
-  message:
-    kind === "no-git"
-      ? `Repository ${repository} is no Git repository: its changes since ${revision} are not looked at`
-      : `Repository ${repository} has no commit ${revision}: its changes are not looked at`,
+  message: NOT_LOOKED_AT[kind](repository, revision),
   repository,
 });
 
@@ -277,7 +332,9 @@ const filesSince = async (
         )
       : new CommandError(
           "git.unavailable",
-          "No repository of the workspace on this machine is a Git repository; the check cannot be restricted to changes since a commit",
+          results.some(({ change }) => change.kind === "unseen")
+            ? "Git sees the files of no repository of the workspace on this machine; the check cannot be restricted to changes since a commit"
+            : "No repository of the workspace on this machine is a Git repository; the check cannot be restricted to changes since a commit",
           { command: "workspace.check" },
         );
   }
