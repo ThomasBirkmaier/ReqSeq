@@ -8,7 +8,14 @@
 // for argument entry.
 import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
 import type { BufferAction, Buffers, FilterStep, ListBuffer } from "./buffers.js";
-import { bufferName, filteredList, listBuffer, searchBuffer } from "./buffers.js";
+import {
+  bufferName,
+  filteredList,
+  listBuffer,
+  onlyOverview,
+  overviewBuffer,
+  searchBuffer,
+} from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
@@ -106,7 +113,10 @@ const isFiltered = (context: ActionContext): boolean => (currentList(context)?.s
 const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
-const hasBuffers = (context: ActionContext): boolean => context.buffers.length > 0;
+/** A buffer is open that can be closed: the lone overview cannot, it comes back (SR-118). */
+const hasBuffers = (context: ActionContext): boolean =>
+  context.buffers.length > 0 && !onlyOverview(context.buffers);
+const isOverview = (context: ActionContext): boolean => context.buffers[0]?.kind === "overview";
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
 
@@ -220,8 +230,12 @@ const filterBy = (by: FilterBy): Action => ({
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
-/** Closes the buffers, drops their unsaved text and says how many were closed. */
-const closeBuffers = (context: ActionContext, buffers: Buffers): void => {
+/**
+ * Closes the buffers, drops their unsaved text and says how many were closed. The overview is not counted
+ * and not closed: it is what remains (SR-118).
+ */
+const closeBuffers = (context: ActionContext, all: Buffers): void => {
+  const buffers = all.filter((buffer) => buffer.kind !== "overview");
   for (const buffer of buffers) {
     context.discard(buffer.key);
     context.dispatch({ type: "close", key: buffer.key });
@@ -241,7 +255,7 @@ const someNames = (buffers: Buffers): string => {
  * have unsaved text; the second discards it.
  */
 const closeAll = (context: ActionContext): void => {
-  const open = context.buffers;
+  const open = context.buffers.filter((buffer) => buffer.kind !== "overview");
   const unsaved = open.filter((buffer) => context.drafted(buffer.key));
   if (unsaved.length === 0) {
     closeBuffers(context, open);
@@ -279,6 +293,14 @@ export const ACTIONS: readonly Action[] = [
     available: hasWorkspace,
     run: (context: ActionContext): void => {
       context.ask(jumpPrompt(context));
+    },
+  },
+  {
+    id: "overview",
+    title: "Show overview",
+    available: (context) => hasWorkspace(context) && !isOverview(context),
+    run: (context: ActionContext): void => {
+      context.dispatch({ type: "open", buffer: overviewBuffer() });
     },
   },
   {

@@ -7,12 +7,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Choice, Prompt } from "./actions.js";
 import type { Buffer, BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { nth } from "./lists.js";
-import { elementBuffer, listBuffer, reduceBuffers, searchBuffer } from "./buffers.js";
+import {
+  bufferName,
+  elementBuffer,
+  listBuffer,
+  overviewBuffer,
+  reduceBuffers,
+  searchBuffer,
+} from "./buffers.js";
 import type { Call } from "./call.js";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
+import { OverviewView, useOverview } from "./OverviewView.js";
+import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
 import type { Draft } from "./drafts.js";
 import type { BufferData } from "./modeline.js";
@@ -326,6 +335,132 @@ describe("Minibuffer", () => {
     });
     expect(texts('[role="option"]')).toEqual(["Newer"]);
   });
+
+  describe("Enter before the hits have arrived (SR-119 AK1)", () => {
+    /** A `find` whose answers the test gives, one per question, in the order they were asked. */
+    const deferred = () => {
+      const asked: { text: string; answer: (choices: Choice[]) => void }[] = [];
+      const find = (text: string): Promise<Choice[]> =>
+        new Promise<Choice[]>((resolve) => {
+          asked.push({ text, answer: resolve });
+        });
+      const answer = async (text: string, choices: Choice[]): Promise<void> => {
+        await act(async () => {
+          asked.find((question) => question.text === text)?.answer(choices);
+          await Promise.resolve();
+        });
+        await flush();
+      };
+      return { find, answer };
+    };
+
+    it("[SR-119/AK1] opens the first hit as soon as the hits of the typed text arrive", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("e1", "SR-118 Calm start");
+      await type(input(), "SR-118");
+      await press(input(), "Enter");
+      expect(hit.run).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      await answer("SR-118", [hit, choice("e2", "SR-119 Other")]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("[SR-119/AK1] opens the hit of the full text, not the hit of an earlier prefix", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const stale = choice("old", "S-001 Starts with S");
+      const wanted = choice("new", "SR-118 Calm start");
+      await type(input(), "S");
+      await answer("S", [stale]);
+      expect(texts('[role="option"]')).toEqual(["S-001 Starts with S"]);
+      await type(input(), "SR-118");
+      // The rows still hold the hits of "S": Enter must wait, not open one of them.
+      await press(input(), "Enter");
+      expect(stale.run).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      await answer("SR-118", [wanted]);
+      expect(wanted.run).toHaveBeenCalledTimes(1);
+      expect(stale.run).not.toHaveBeenCalled();
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the selected buffer at once, without waiting for the hits", async () => {
+      const { find } = deferred();
+      const buffer = choice("list", "All elements");
+      const { closed } = await mount({ label: "Go to", items: [buffer], find });
+      await type(input(), "all");
+      await press(input(), "Enter");
+      expect(buffer.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the first matching buffer before the hits when a hit was selected while waiting", async () => {
+      const { find, answer } = deferred();
+      const buffer = choice("list", "All elements");
+      const { closed } = await mount({ label: "Go to", items: [buffer], find });
+      const old = choice("old", "Older hit");
+      await type(input(), "a");
+      await answer("a", [old]);
+      await type(input(), "al");
+      await press(input(), "ArrowDown");
+      await press(input(), "Enter");
+      expect(closed).not.toHaveBeenCalled();
+      await answer("al", [choice("new", "Newer hit")]);
+      expect(buffer.run).toHaveBeenCalledTimes(1);
+      expect(old.run).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the hits of the text are none", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      await type(input(), "nothing");
+      await press(input(), "Enter");
+      await answer("nothing", []);
+      expect(closed).not.toHaveBeenCalled();
+      // Waiting ended with the answer: a hit that comes later is not opened.
+      expect(container.querySelector("input")).not.toBeNull();
+    });
+
+    it("stops waiting when more is typed", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const first = choice("a", "A hit");
+      const second = choice("b", "B hit");
+      await type(input(), "a");
+      await press(input(), "Enter");
+      await type(input(), "ab");
+      await answer("a", [first]);
+      await answer("ab", [second]);
+      expect(first.run).not.toHaveBeenCalled();
+      expect(second.run).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      await press(input(), "Enter");
+      expect(second.run).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops waiting on Escape, and when the prompt is gone", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("a", "A hit");
+      await type(input(), "a");
+      await press(input(), "Enter");
+      await press(input(), "Escape");
+      expect(closed).toHaveBeenCalledTimes(1);
+      await answer("a", [hit]);
+      expect(hit.run).not.toHaveBeenCalled();
+      const later = deferred();
+      const gone = await mount({ label: "Go to", items: [], find: later.find });
+      const other = choice("b", "B hit");
+      await type(input(), "b");
+      await press(input(), "Enter");
+      await mount(undefined);
+      await later.answer("b", [other]);
+      expect(other.run).not.toHaveBeenCalled();
+      expect(gone.closed).not.toHaveBeenCalled();
+    });
+  });
 });
 
 /** A list buffer in a real buffer state, as the app has it, and what was opened from it. */
@@ -341,8 +476,8 @@ const listHarness = async (
   const Harness = ({ revision }: { revision: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial]);
     const current = buffers[0];
-    if (current === undefined || current.kind === "element") {
-      return createElement("p", { id: "elsewhere" }, current?.name ?? "none");
+    if (current === undefined || current.kind === "element" || current.kind === "overview") {
+      return createElement("p", { id: "elsewhere" }, current === undefined ? "none" : bufferName(current));
     }
     return createElement(ListView, {
       call,
@@ -686,6 +821,253 @@ describe("ListView, a list", () => {
     answer({ ok: true, output: { elements: rowsOf(1, 3), total: 2 } });
     await Promise.resolve();
     root = createRoot(container);
+  });
+});
+
+describe("OverviewView", () => {
+  const FACETS = {
+    total: 4,
+    types: [
+      { key: "need", name: "Need", count: 1 },
+      { key: "system-requirement", name: "System Requirement", count: 3 },
+    ],
+    incomplete: false,
+  };
+  const element = (n: number) => ({
+    id: `uuid-${String(n)}`,
+    repository: "spec",
+    shortId: `SR-${String(n)}`,
+    title: `Title ${String(n)}`,
+  });
+  const entry = (n: number): RecentEntry => ({ id: `uuid-${String(n)}`, repository: "spec" });
+  const handlers = (): Record<string, (input: Record<string, unknown>) => unknown> => ({
+    "element.facets": () => FACETS,
+    "element.get": (input: Record<string, unknown>) => ({
+      element: element(Number(String(input["ref"]).replace("uuid-", ""))),
+    }),
+  });
+
+  /** The overview as the app uses it: the loading hook, the view, and what it reported. */
+  const mount = async (call: Call, initial: { recent?: RecentEntry[]; active?: boolean } = {}) => {
+    const opened: Buffer[] = [];
+    const data: [string, BufferData | undefined][] = [];
+    const echoed: string[] = [];
+    const actions: BufferAction[] = [];
+    const echo = (message: string): void => {
+      echoed.push(message);
+    };
+    let setRevision: (revision: number) => void = () => undefined;
+    let setRecent: (recent: RecentEntry[]) => void = () => undefined;
+    let setActive: (active: boolean) => void = () => undefined;
+    const Harness = (): React.ReactElement => {
+      const [revision, changeRevision] = useReducer((_: number, next: number) => next, 0);
+      const [recent, changeRecent] = useReducer(
+        (_: RecentEntry[], next: RecentEntry[]) => next,
+        initial.recent ?? [],
+      );
+      const [active, changeActive] = useReducer((_: boolean, next: boolean) => next, initial.active ?? true);
+      setRevision = changeRevision;
+      setRecent = changeRecent;
+      setActive = changeActive;
+      const [buffers, dispatch] = useReducer(reduceBuffers, [overviewBuffer()]);
+      const overview = useOverview(call, revision, recent, active, echo);
+      const [shown] = buffers;
+      if (shown?.kind !== "overview") {
+        return createElement("p", { id: "elsewhere" }, shown === undefined ? "none" : bufferName(shown));
+      }
+      return createElement(OverviewView, {
+        buffer: shown,
+        data: overview.data,
+        recents: overview.recents,
+        dispatch: (action) => {
+          actions.push(action);
+          if (action.type === "open") {
+            opened.push(action.buffer);
+          }
+          dispatch(action);
+        },
+        onData: (key, loaded) => data.push([key, loaded]),
+      });
+    };
+    await render(createElement(Harness));
+    const change = async (apply: () => void): Promise<void> => {
+      await act(async () => {
+        apply();
+        await Promise.resolve();
+      });
+      await flush();
+    };
+    return {
+      opened,
+      data,
+      echoed,
+      actions,
+      revision: (next: number) =>
+        change(() => {
+          setRevision(next);
+        }),
+      recent: (next: RecentEntry[]) =>
+        change(() => {
+          setRecent(next);
+        }),
+      active: (next: boolean) =>
+        change(() => {
+          setActive(next);
+        }),
+    };
+  };
+  const options = (): string[] => texts('[role="option"]');
+  const listbox = (): HTMLElement => query('[role="listbox"]');
+
+  it("[SR-118/AK1] shows a line per type with its count, one text with a space: Need 1", async () => {
+    await mount(asCall(fakeCall(handlers())));
+    expect(options()).toEqual(["Need 1", "System Requirement 3"]);
+    expect(listbox().getAttribute("aria-label")).toBe("Overview");
+    expect(container.querySelector("[data-buffer]")).toBe(listbox());
+    expect(query('[role="option"]').getAttribute("aria-label")).toBe("Need 1");
+    expect(query(".count").textContent).toBe("1");
+  });
+
+  it("is an empty listbox while the counts load, and reports no data to the modeline", async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const call = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    const view = await mount(call as unknown as Call);
+    expect(options()).toEqual([]);
+    expect(listbox().getAttribute("aria-activedescendant")).toBeNull();
+    expect(view.data.at(-1)).toEqual(["overview", undefined]);
+    await act(async () => {
+      answers[0]?.({ ok: true, output: FACETS });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(options()).toHaveLength(2);
+    expect(view.data.at(-1)).toEqual(["overview", { kind: "overview", total: 4, incomplete: false }]);
+  });
+
+  it("reads the recent elements with their repository, newest first, and leaves out one that cannot be read", async () => {
+    const h = handlers();
+    const get = h["element.get"];
+    h["element.get"] = (input) => (input["ref"] === "uuid-2" ? new Error("gone") : get?.(input));
+    const call = fakeCall(h);
+    await mount(call as unknown as Call, { recent: [entry(3), entry(2), entry(1)] });
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "SR-3Title 3", "SR-1Title 1"]);
+    expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-3", repository: "spec" });
+    expect(texts(".group")).toEqual(["Recent"]);
+  });
+
+  it("asks for the counts once per revision and for the recent elements when they change", async () => {
+    const call = fakeCall(handlers());
+    const view = await mount(call as unknown as Call);
+    const asked = (name: string): number => call.mock.calls.filter(([called]) => called === name).length;
+    expect(asked("element.facets")).toBe(1);
+    await view.recent([entry(1)]);
+    expect(asked("element.facets")).toBe(1);
+    expect(options()).toHaveLength(3);
+    await view.revision(1);
+    expect(asked("element.facets")).toBe(2);
+    expect(asked("element.get")).toBe(2);
+  });
+
+  it("asks for nothing while it is not shown, and shows what it has at once when it is shown again", async () => {
+    const call = fakeCall(handlers());
+    const view = await mount(call as unknown as Call, { active: false, recent: [entry(1)] });
+    expect(call).not.toHaveBeenCalled();
+    await view.active(true);
+    expect(call).toHaveBeenCalledTimes(2);
+    await view.active(false);
+    await view.active(true);
+    // The counts of this revision are there; only the recent elements are read again.
+    expect(call.mock.calls.filter(([called]) => called === "element.facets")).toHaveLength(1);
+    expect(options()).toEqual(["Need 1", "System Requirement 3", "SR-1Title 1"]);
+  });
+
+  it("drops the answers that come after it was left or the workspace changed", async () => {
+    const pending: { name: string; resolve: (value: unknown) => void }[] = [];
+    const call = vi.fn(
+      (name: string) =>
+        new Promise((resolve) => {
+          pending.push({ name, resolve });
+        }),
+    );
+    const view = await mount(call as unknown as Call, { recent: [entry(1)] });
+    await view.active(false);
+    await act(async () => {
+      for (const { name, resolve } of pending) {
+        resolve({
+          ok: true,
+          output: name === "element.facets" ? FACETS : { element: element(1) },
+        });
+      }
+      await Promise.resolve();
+    });
+    await view.active(true);
+    expect(options()).toEqual([]);
+    expect(call).toHaveBeenCalledTimes(4);
+  });
+
+  it("echoes why the counts could not be read", async () => {
+    const view = await mount(
+      asCall(fakeCall({ "element.facets": () => new Error("The workspace is not valid") })),
+    );
+    expect(view.echoed).toEqual(["The workspace is not valid"]);
+    expect(options()).toEqual([]);
+  });
+
+  it("moves the selection with the arrow keys, Home and End, inside the lines, and keeps Ctrl+P for the window", async () => {
+    const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    const selected = (): string => query('[aria-selected="true"]').id;
+    expect(selected()).toBe("overview-0");
+    await press(listbox(), "ArrowDown");
+    await press(listbox(), "ArrowDown");
+    await press(listbox(), "ArrowDown");
+    expect(selected()).toBe("overview-2");
+    await press(listbox(), "ArrowUp");
+    expect(selected()).toBe("overview-1");
+    await press(listbox(), "Home");
+    expect(selected()).toBe("overview-0");
+    await press(listbox(), "ArrowUp");
+    expect(selected()).toBe("overview-0");
+    await press(listbox(), "End");
+    expect(selected()).toBe("overview-2");
+    const keys = view.actions.length;
+    const event = new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => {
+      listbox().dispatchEvent(event);
+      await Promise.resolve();
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(view.actions).toHaveLength(keys);
+  });
+
+  it("opens the list of a type line and the element of a recent line on Enter, and a clicked line", async () => {
+    const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    await press(listbox(), "ArrowDown");
+    await press(listbox(), "Enter");
+    expect(view.opened[0]).toMatchObject({ kind: "list", label: "type: system-requirement" });
+    expect(query("#elsewhere").textContent).toBe("type: system-requirement");
+  });
+
+  it("opens an element on a click, and does nothing on Enter without lines", async () => {
+    const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    await click(nth([...container.querySelectorAll('[role="option"]')], 2));
+    expect(view.opened[0]).toMatchObject({ kind: "element", id: "uuid-1" });
+    const empty = await mount(asCall(fakeCall({ "element.facets": () => new Error("x") })));
+    await press(listbox(), "Enter");
+    await press(listbox(), "End");
+    expect(empty.opened).toEqual([]);
+  });
+
+  it("keeps the selection on a line when the lines became fewer", async () => {
+    const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    await press(listbox(), "End");
+    expect(query('[aria-selected="true"]').id).toBe("overview-2");
+    await view.recent([]);
+    expect(query('[aria-selected="true"]').id).toBe("overview-1");
   });
 });
 

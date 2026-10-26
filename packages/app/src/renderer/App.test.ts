@@ -2,6 +2,8 @@
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
@@ -85,12 +87,21 @@ const workspace = (): Record<string, Handler> => ({
   }),
   "metamodel.get": () => ({ types: [{ key: "need", name: "Need" }], statuses: [{ key: "draft" }] }),
   "filter.list": () => ({ filters: [] }),
+  "element.facets": () => ({
+    total: 3,
+    types: [{ key: "need", name: "Need", count: 3 }],
+    statuses: [{ key: "draft", count: 3 }],
+    properties: [],
+    incomplete: false,
+  }),
 });
 
 let container: HTMLElement;
 let root: Root;
 
 beforeEach(() => {
+  // The recent elements of the overview are kept in the local storage, which the tests share.
+  window.localStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -171,6 +182,19 @@ const runCommand = async (name: string): Promise<void> => {
   await keyDown(query("input"), "Enter");
 };
 
+/** Opens the full list: the app starts with the overview, the list only on request (SR-118 AK4). */
+const listAll = async (): Promise<void> => {
+  await runCommand("List all elements");
+};
+
+const renderList = async (bridge: LogReqBridge): Promise<void> => {
+  await render(bridge);
+  await listAll();
+};
+
+const texts = (selector: string): string[] =>
+  [...container.querySelectorAll(selector)].map((element) => element.textContent);
+
 const calls = (invoke: ReturnType<typeof fakeBridge>["invoke"], name: string): unknown[] =>
   invoke.mock.calls.filter(([called]) => called === name).map(([, input]) => input);
 
@@ -193,14 +217,14 @@ describe("App", () => {
       answer({ ok: true, output: STATUS });
       await Promise.resolve();
     });
-    // The list is asked for; until it answers, the modeline names the buffer.
-    expect(text("Modeline")).toBe("All elementsWeather stationread-only");
+    // The overview is asked for; until it answers, the modeline names the buffer.
+    expect(text("Modeline")).toBe("OverviewWeather stationread-only");
     expect(document.title).toBe("Weather station - LogReq");
   });
 
   it("shows the list of all elements, its count in the modeline, and gives the list the focus", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     expect(calls(invoke, "element.list")).toEqual([{ limit: 200, offset: 0 }]);
     expect([...container.querySelectorAll(".row .title")].map((title) => title.textContent)).toEqual([
       "Title 1",
@@ -226,7 +250,7 @@ describe("App", () => {
 
   it("opens the command prompt with Ctrl+Shift+P or Cmd+Shift+P, lists what applies and closes it with Escape", async () => {
     const { bridge } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     expect(query("label").textContent).toBe("Command");
     expect(
@@ -249,7 +273,7 @@ describe("App", () => {
 
   it("opens an element from the list, shows it with its modeline, and Ctrl+P Enter goes back with the selection kept", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(calls(invoke, "element.get")).toEqual([{ ref: "uuid-2", repository: "spec" }]);
@@ -260,6 +284,7 @@ describe("App", () => {
     expect(query("label").textContent).toBe("Go to");
     expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
       "All elements",
+      "Overview",
     ]);
     await keyDown(query("input"), "Enter");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
@@ -268,16 +293,17 @@ describe("App", () => {
 
   it("[SR-114/AK1] the modeline of an open element names its ID, its type and its status", async () => {
     const { bridge } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
   it("shows the type key in the modeline when the metamodel cannot be read", async () => {
     const { bridge, handlers, change } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     handlers["metamodel.get"] = () => new Error("The metamodel is broken");
     await change("opened");
+    await listAll();
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(text("Modeline")).toBe("SR-000001 · need · draftWeather stationread-only");
     // No workspace: no names either.
@@ -309,7 +335,7 @@ describe("App", () => {
 
   it("opens the target of a relation in its repository, without reading it by UUID alone (#416)", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     await click(query('[role="link"]'));
     const reads = calls(invoke, "element.get");
@@ -320,7 +346,7 @@ describe("App", () => {
 
   it("echoes why the target of a relation cannot be read, and shows it in the opened buffer", async () => {
     const { bridge, handlers } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     const read = handlers["element.get"];
     handlers["element.get"] = (input) =>
@@ -333,7 +359,7 @@ describe("App", () => {
 
   it("filters the list by a type through the command prompt", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await runCommand("filter list by type");
     expect(query("label").textContent).toBe("Type");
     await keyDown(query("input"), "Enter");
@@ -348,7 +374,7 @@ describe("App", () => {
 
   it("echoes the UUID and the date of the version on request, never the check value", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     await runCommand("show element id");
     expect(calls(invoke, "element.get").at(-1)).toEqual({
@@ -361,7 +387,7 @@ describe("App", () => {
 
   it("clears the last message when a prompt opens", async () => {
     const { bridge, handlers } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     handlers["metamodel.get"] = () => new Error("The metamodel is not valid");
     await runCommand("filter list by type");
     expect(text("Minibuffer")).toBe("The metamodel is not valid");
@@ -372,7 +398,7 @@ describe("App", () => {
 
   it("asks again for what it shows when files were written or the core process restarted", async () => {
     const { bridge, invoke, change } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(calls(invoke, "element.get")).toHaveLength(1);
     await change("written");
@@ -385,36 +411,42 @@ describe("App", () => {
     expect(query("article h1").textContent).toBe("Title 1");
   });
 
-  it("starts again with the list when another workspace is opened, and drops the prompt", async () => {
+  it("starts again with the overview when another workspace is opened, and drops the prompt", async () => {
     const { bridge, invoke, handlers, change } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
     handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
     await change("opened");
     expect(container.querySelector("input")).toBeNull();
-    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
-    expect(text("Modeline")).toBe("All elements3 elementsOther");
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    expect(text("Modeline")).toBe("Overview3 elementsOther");
     expect(document.title).toBe("Other - LogReq");
     expect(invoke).toHaveBeenCalled();
   });
 
-  it("asks for the list again when another workspace is opened while the list is shown", async () => {
+  it("shows the overview of another workspace that is opened while the list is shown", async () => {
     const { bridge, handlers, change } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     expect(text("Modeline")).toBe("All elements3 elementsWeather stationread-only");
     handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
-    handlers["element.list"] = () => ({ elements: [row(9)], total: 1 });
+    handlers["element.facets"] = () => ({
+      total: 1,
+      types: [{ key: "need", name: "Need", count: 1 }],
+      statuses: [],
+      properties: [],
+      incomplete: false,
+    });
     await change("opened");
-    expect([...container.querySelectorAll(".row .title")].map((title) => title.textContent)).toEqual([
-      "Title 9",
+    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+      "Need 1",
     ]);
-    expect(text("Modeline")).toBe("All elements1 elementOther");
+    expect(text("Modeline")).toBe("Overview1 elementOther");
   });
 
   it("does not show the count of the list before a filter when the new list fails", async () => {
     const { bridge, handlers } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     expect(text("Modeline")).toContain("3 elements");
     handlers["element.list"] = () => new Error("The metamodel is not valid");
     await runCommand("filter list by type");
@@ -434,7 +466,7 @@ describe("App", () => {
 
   it("keeps the buffers and sends nothing more when the core process has stopped for good", async () => {
     const { bridge, invoke, handlers, change } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     const before = invoke.mock.calls.length;
     await change("stopped");
@@ -451,7 +483,7 @@ describe("App", () => {
     );
     handlers["workspace.status"] = () => ({ name: "Again", readOnly: false });
     await change("opened");
-    expect(text("Modeline")).toBe("All elements3 elementsAgain");
+    expect(text("Modeline")).toBe("Overview3 elementsAgain");
   });
 
   it("stops listening and ignores late answers once it is gone", async () => {
@@ -518,7 +550,7 @@ describe("App", () => {
 
   it("[SR-122/AK1] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
     const { bridge } = fakeBridge(workspace());
-    await render(bridge);
+    await renderList(bridge);
     // Two more buffers behind the shown one.
     await keyDown(query('[role="listbox"]'), "Enter");
     await keyDown(window, "p", { ctrlKey: true });
@@ -564,6 +596,240 @@ describe("App", () => {
   });
 });
 
+describe("App, the overview (SR-118)", () => {
+  const options = (): string[] =>
+    [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+  const TWO_TYPES = {
+    total: 5,
+    types: [
+      { key: "need", name: "Need", count: 2 },
+      { key: "system-requirement", name: "System Requirement", count: 3 },
+    ],
+    statuses: [{ key: "draft", count: 5 }],
+    properties: [],
+    incomplete: false,
+  };
+  const twoTypes = (): Record<string, Handler> => ({ ...workspace(), "element.facets": () => TWO_TYPES });
+  const KEY = (name = STATUS.name): string => `logreq.recent.v1\n${name}`;
+  const seed = (entries: object[]): void => {
+    window.localStorage.setItem(KEY(), JSON.stringify(entries));
+  };
+  const known = (n: number) => ({ id: `uuid-${String(n)}`, repository: "spec" });
+
+  it("[SR-118/AK1] the first buffer of an opened workspace is the overview, one line per type with its count", async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    expect(options()).toEqual(["Need 2", "System Requirement 3"]);
+    expect(calls(invoke, "element.facets")).toEqual([{}]);
+    expect(text("Modeline")).toBe("Overview5 elementsWeather stationread-only");
+    expect(document.activeElement).toBe(query('[role="listbox"]'));
+    // No heading and no empty line for the recent elements before one was opened (D-062).
+    expect(container.querySelector(".group")).toBeNull();
+  });
+
+  it("[SR-118/AK1] below the types the overview shows at most five recently opened elements, newest first", async () => {
+    seed([1, 2, 3, 4, 5, 6, 7].map(known));
+    const handlers = twoTypes();
+    const get = handlers["element.get"];
+    // The element of the second entry is gone, so its row is left out silently.
+    handlers["element.get"] = (input) => (input["ref"] === "uuid-2" ? new Error("gone") : get?.(input));
+    const { bridge } = fakeBridge(handlers);
+    await render(bridge);
+    expect(options()).toEqual([
+      "Need 2",
+      "System Requirement 3",
+      "SR-000001Title 1",
+      "SR-000003Title 3",
+      "SR-000004Title 4",
+      "SR-000005Title 5",
+      "SR-000006Title 6",
+    ]);
+    expect(query(".group").textContent).toBe("Recent");
+    expect(text("Minibuffer")).toBe("");
+  });
+
+  it("[SR-118/AK1] remembers the elements that were shown, newest first, and shows them again on the overview", async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await runCommand("list all elements");
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await runCommand("show overview");
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "SR-000002Title 2", "SR-000001Title 1"]);
+    // Only the UUID and the repository are kept, under the key of the workspace.
+    expect(JSON.parse(window.localStorage.getItem(KEY()) ?? "null")).toEqual([known(2), known(1)]);
+    // The counts of the workspace are not asked for again when nothing changed.
+    expect(calls(invoke, "element.facets")).toHaveLength(1);
+  });
+
+  it("[SR-118/AK1] keeps the recent elements for the next start of the app", async () => {
+    const first = fakeBridge(twoTypes());
+    await render(first.bridge);
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await render(fakeBridge(twoTypes()).bridge);
+    expect(options().slice(2)).toEqual(["SR-000001Title 1"]);
+  });
+
+  it("[SR-118/AK1] keeps the recent elements of each workspace apart, and none for a workspace that failed", async () => {
+    seed([known(1)]);
+    const { bridge, handlers, change } = fakeBridge(twoTypes());
+    await render(bridge);
+    expect(options().slice(2)).toEqual(["SR-000001Title 1"]);
+    handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
+    await change("opened");
+    expect(options()).toEqual(["Need 2", "System Requirement 3"]);
+    handlers["workspace.status"] = () => NO_WORKSPACE;
+    await change("opened");
+    expect(container.querySelector("[data-buffer]")).toBeNull();
+  });
+
+  it("[SR-118/AK1] counts again when the workspace changed, and not when the overview is only shown again", async () => {
+    const { bridge, invoke, handlers, change } = fakeBridge(twoTypes());
+    await render(bridge);
+    await listAll();
+    await runCommand("show overview");
+    expect(calls(invoke, "element.facets")).toHaveLength(1);
+    handlers["element.facets"] = () => ({
+      ...TWO_TYPES,
+      total: 6,
+      types: [{ key: "need", name: "Need", count: 6 }],
+    });
+    await change("written");
+    expect(calls(invoke, "element.facets")).toHaveLength(2);
+    expect(options()).toEqual(["Need 6"]);
+    expect(text("Modeline")).toBe("Overview6 elementsWeather stationread-only");
+  });
+
+  it("[SR-118/AK1] says when a repository is missing, so that the counts are partial", async () => {
+    const handlers = twoTypes();
+    handlers["element.facets"] = () => ({ ...TWO_TYPES, incomplete: true });
+    await render(fakeBridge(handlers).bridge);
+    expect(text("Modeline")).toBe(
+      "Overview5 elementsincomplete: a repository is missingWeather stationread-only",
+    );
+  });
+
+  it("[SR-118/AK2] Enter on a type line opens the list of the elements of that type", async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: system-requirement");
+    expect(calls(invoke, "element.list")).toEqual([
+      { selection: { where: { type: ["system-requirement"], subtypes: false } }, limit: 200, offset: 0 },
+    ]);
+  });
+
+  it("[SR-118/AK2] a click on a type line opens its list, a click on a recent element the element", async () => {
+    seed([known(3)]);
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await click(container.querySelectorAll('[role="option"]')[0] ?? container);
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: need");
+    expect(calls(invoke, "element.list")).toHaveLength(1);
+    await runCommand("show overview");
+    await click(container.querySelectorAll('[role="option"]')[2] ?? container);
+    expect(query("article h1").textContent).toBe("Title 3");
+  });
+
+  it("[SR-118/AK3] Ctrl+P right after the workspace opened finds a requirement by its short ID or its title", async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await keyDown(window, "p", { ctrlKey: true });
+    expect(query("label").textContent).toBe("Go to");
+    await type("SR-000002");
+    expect(calls(invoke, "element.search")).toEqual([
+      { query: "SR-000002", fields: ["id", "title"], limit: 20 },
+    ]);
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 2");
+    await keyDown(window, "p", { ctrlKey: true });
+    await type("Title 2");
+    expect(calls(invoke, "element.search").at(-1)).toEqual({
+      query: "Title 2",
+      fields: ["id", "title"],
+      limit: 20,
+    });
+  });
+
+  it("[SR-118/AK4] the overview shows no list of all elements and asks for none", async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    expect(calls(invoke, "element.list")).toEqual([]);
+    expect(options()).toHaveLength(2);
+    expect(container.querySelector(".row .title")).toBeNull();
+  });
+
+  it('[SR-118/AK4] "List all elements" opens the full list from the overview', async () => {
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await listAll();
+    expect(calls(invoke, "element.list")).toEqual([{ limit: 200, offset: 0 }]);
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
+  });
+
+  it("[SR-118/AK5] the recent elements go to the storage of the app, and no write command is called", async () => {
+    const setItem = vi.spyOn(window.localStorage, "setItem");
+    const { bridge, invoke } = fakeBridge(twoTypes());
+    await render(bridge);
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await runCommand("show overview");
+    expect(setItem).toHaveBeenCalledWith(KEY(), JSON.stringify([known(1)]));
+    const catalog = JSON.parse(
+      readFileSync(join(import.meta.dirname, "../../../../schemas/commands/catalog.json"), "utf8"),
+    ) as { commands: { name: string; effect: string }[] };
+    const called = new Set(invoke.mock.calls.map(([name]) => name));
+    expect(called.size).toBeGreaterThan(3);
+    for (const name of called) {
+      expect(catalog.commands.find((command) => command.name === name)?.effect).toBe("read");
+    }
+  });
+
+  it("does not remember anything, and still works, when the storage of the app cannot be used", async () => {
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    await render(fakeBridge(twoTypes()).bridge);
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await runCommand("show overview");
+    // The element was shown but not remembered in the storage; the overview still has it for this session.
+    expect(options()).toEqual(["Need 2", "System Requirement 3", "SR-000001Title 1"]);
+  });
+
+  it("echoes why the counts could not be read, and shows no lines", async () => {
+    const handlers = twoTypes();
+    handlers["element.facets"] = () => new Error("The workspace file is not valid");
+    await render(fakeBridge(handlers).bridge);
+    expect(text("Minibuffer")).toBe("The workspace file is not valid");
+    expect(options()).toEqual([]);
+    expect(text("Modeline")).toBe("OverviewWeather stationread-only");
+  });
+
+  it("[SR-118/AK1] closing the last buffer shows the overview again; the lone overview cannot be closed", async () => {
+    const { bridge } = fakeBridge(twoTypes());
+    await render(bridge);
+    await listAll();
+    await runCommand("close buffer");
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+    expect(options()).toEqual(["Need 2", "System Requirement 3"]);
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    const offered = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+    expect(offered.some((name) => name.startsWith("Close"))).toBe(false);
+    expect(offered.some((name) => name.startsWith("Show overview"))).toBe(false);
+  });
+});
+
 describe("App, the text editor", () => {
   /** A workspace whose elements have a text, and that saves it with a final line break. */
   const withText = (): Record<string, Handler> => {
@@ -594,7 +860,7 @@ describe("App, the text editor", () => {
   };
   const openElement = async (handlers = withText()) => {
     const fake = fakeBridge(handlers);
-    await render(fake.bridge);
+    await renderList(fake.bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     return fake;
   };
@@ -727,17 +993,17 @@ describe("App, the text editor", () => {
     expect(query("article")).not.toBeNull();
   });
 
-  it("[SR-123/AK1] Close all buffers from the command prompt leaves no buffer", async () => {
+  it("[SR-123/AK1] Close all buffers from the command prompt closes them all; the overview is what remains", async () => {
     await openElement();
     await runCommand("search elements");
     await type("title");
     await keyDown(query("input"), "Enter");
     await runCommand("close all buffers");
-    expect(container.querySelector("[data-buffer]")).toBeNull();
-    expect(query("main").childElementCount).toBe(0);
+    expect(query("[data-buffer]").getAttribute("aria-label")).toBe("Overview");
+    expect(container.querySelectorAll("[data-buffer]")).toHaveLength(1);
     expect(text("Minibuffer")).toBe("Closed 3 buffers");
-    expect(text("Modeline")).toBe("Weather stationread-only");
-    // No buffer is left to go to, and the global keys still work.
+    expect(text("Modeline")).toBe("Overview3 elementsWeather stationread-only");
+    // No other buffer is left to go to, and the global keys still work.
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
     expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(0);
@@ -762,7 +1028,7 @@ describe("App, the text editor", () => {
     await keyDown(query("input"), "Escape");
     expect(container.querySelector("input")).toBeNull();
     await keyDown(window, "p", { ctrlKey: true });
-    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(1);
+    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(2);
     await keyDown(query("input"), "Escape");
     // Plain Enter takes the first choice: the buffer with unsaved text stays, and is still modified.
     await runCommand("close all buffers");
@@ -774,7 +1040,7 @@ describe("App, the text editor", () => {
     await runCommand("close all buffers");
     await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
-    expect(container.querySelector("[data-buffer]")).toBeNull();
+    expect(query("[data-buffer]").getAttribute("aria-label")).toBe("Overview");
     expect(text("Minibuffer")).toBe("Closed 1 buffer");
     await runCommand("go to element");
     await type("title");
@@ -794,6 +1060,7 @@ describe("App, the text editor", () => {
     await typeText("!");
     handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
     await change("opened");
+    await listAll();
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(editorView().state.doc.toString()).toBe("Hello");
     expect(text("Modeline")).not.toContain("modified");

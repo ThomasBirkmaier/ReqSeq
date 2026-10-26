@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE, REFERENCE_FILES, REFERENCE_SOURCE_TITLE } from "./support/demo.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
@@ -21,7 +21,7 @@ const prepare = async (running: RunningApp): Promise<(name: string) => Promise<B
   await running.app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
   });
-  await expect(running.window.locator(".row").first()).toBeVisible();
+  await listAll(running.window);
   return (name) => running.window.screenshot({ path: path.join(OUT, `${name}.png`) });
 };
 

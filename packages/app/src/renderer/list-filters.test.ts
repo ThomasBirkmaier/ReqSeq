@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 import {
+  exactTypeStep,
   hasSavedFilter,
   missingStep,
   propertyChoices,
@@ -162,5 +163,13 @@ describe("the property prompt (SR-124)", () => {
     expect(textStep("wind")).toEqual({ label: "text: wind", selection: { where: { text: "wind" } } });
     expect(hasSavedFilter([typeStep("need")])).toBe(false);
     expect(hasSavedFilter([typeStep("need"), savedStep("open")])).toBe(true);
+  });
+
+  it("[SR-118/AK2] the step of a type line takes the elements of exactly that type, the type filter its subtypes too", () => {
+    expect(exactTypeStep("need")).toEqual({
+      label: "type: need",
+      selection: { where: { type: ["need"], subtypes: false } },
+    });
+    expect(typeStep("need").selection).toEqual({ where: { type: ["need"] } });
   });
 });

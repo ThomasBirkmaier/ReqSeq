@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt, runAction } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, filteredList, listBuffer, searchBuffer } from "./buffers.js";
+import { elementBuffer, filteredList, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
 import { typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
@@ -86,6 +86,7 @@ describe("the command prompt", () => {
   it("offers on a list: search and filter and sort, not what needs an element or a filter", () => {
     expect(titles(setup([list]).context)).toEqual([
       "Go to element or buffer",
+      "Show overview",
       "Search elements",
       "List all elements",
       "Filter list by type",
@@ -118,6 +119,7 @@ describe("the command prompt", () => {
     const items = commandPrompt(element$.context).items;
     expect(items.map((item) => item.name)).toEqual([
       "Go to element or buffer",
+      "Show overview",
       "Search elements",
       "List all elements",
       "Close buffer",
@@ -130,6 +132,7 @@ describe("the command prompt", () => {
     ]);
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
+      undefined,
       "Ctrl+Shift+F",
       undefined,
       undefined,
@@ -140,7 +143,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
     ]);
-    expect(commandPrompt({ ...element$.context, mac: true }).items[5]?.hint).toBe("⌘S");
+    expect(commandPrompt({ ...element$.context, mac: true }).items[6]?.hint).toBe("⌘S");
     // Not while the element has not loaded, and not on a list.
     expect(titles(setup([element]).context)).not.toContain("Save element");
     expect(
@@ -152,6 +155,7 @@ describe("the command prompt", () => {
     expect(titles(setup([], {}, false).context)).toEqual([]);
     expect(titles(setup([]).context)).toEqual([
       "Go to element or buffer",
+      "Show overview",
       "Search elements",
       "List all elements",
       "Toggle dark mode",
@@ -162,6 +166,7 @@ describe("the command prompt", () => {
     const items = commandPrompt(setup([list]).context).items;
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
+      undefined,
       "Ctrl+Shift+F",
       undefined,
       undefined,
@@ -185,6 +190,17 @@ describe("the command prompt", () => {
       .items.find((item) => item.name === "Close buffer")
       ?.run();
     expect(dispatched).toEqual([{ type: "close", key: "list" }]);
+  });
+});
+
+describe("Show overview", () => {
+  it("[SR-118/AK1] opens the overview, and is offered when it is not the shown buffer", () => {
+    const { context, dispatched } = setup([list, overviewBuffer()]);
+    expect(action("overview").available(context)).toBe(true);
+    runAction(action("overview"), context);
+    expect(dispatched).toEqual([{ type: "open", buffer: overviewBuffer() }]);
+    expect(action("overview").available(setup([overviewBuffer(), list]).context)).toBe(false);
+    expect(action("overview").available(setup([list], {}, false).context)).toBe(false);
   });
 });
 
@@ -547,6 +563,25 @@ describe("close all buffers", () => {
   it("is offered with buffers only", () => {
     expect(action("close-all").available(setup([list]).context)).toBe(true);
     expect(action("close-all").available(setup([]).context)).toBe(false);
+  });
+
+  it("[SR-118/AK1] leaves the overview open and out of the count; the lone overview has nothing to close", () => {
+    const overview = overviewBuffer();
+    const { context, dispatched, discarded, echoed } = setup([element, overview]);
+    action("close-all").run(context);
+    expect(closes(dispatched)).toEqual([{ type: "close", key: element.key }]);
+    expect(discarded).toEqual([element.key]);
+    expect(echoed).toEqual(["Closed 1 buffer"]);
+    const lone = setup([overview]).context;
+    expect(action("close-all").available(lone)).toBe(false);
+    expect(action("close").available(lone)).toBe(false);
+    expect(action("close").available(setup([element, overview]).context)).toBe(true);
+    // With unsaved text only the other buffers are asked about and closed.
+    const drafted = setup([element, other, overview], {}, true, { drafted: (key) => key === other.key });
+    action("close-all").run(drafted.context);
+    expect(drafted.asked[0]?.label).toBe("1 buffer with unsaved changes (SR-037 Other)");
+    choices(drafted.asked[0])[0]?.run();
+    expect(closes(drafted.dispatched)).toEqual([{ type: "close", key: element.key }]);
   });
 
   it("any other action ends a question that Close buffer asked, Close all buffers too", () => {

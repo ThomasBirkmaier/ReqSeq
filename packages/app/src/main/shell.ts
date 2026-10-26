@@ -104,7 +104,13 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
   // killed after STOP_TIMEOUT_MS).
   let closing = false;
   app.on("will-quit", (event) => {
-    if (closing || !core.running) {
+    if (closing) {
+      return;
+    }
+    // The recent elements of the overview (SR-118) are in the web storage of the window: written to disk
+    // now, as Chromium flushes it lazily.
+    electron.session.defaultSession.flushStorageData();
+    if (!core.running) {
       return;
     }
     event.preventDefault();

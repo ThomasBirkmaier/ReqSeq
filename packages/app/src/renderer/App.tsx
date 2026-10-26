@@ -10,7 +10,7 @@ import { COMMAND_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
-import { elementBufferOf, listBuffer, reduceBuffers } from "./buffers.js";
+import { elementBufferOf, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import { ElementView } from "./ElementView.js";
@@ -20,6 +20,9 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { bufferView, workspaceView } from "./modeline.js";
+import { OverviewView, useOverview } from "./OverviewView.js";
+import type { RecentEntry, RecentStorage } from "./recent.js";
+import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
@@ -27,6 +30,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
   restarted: "The core process stopped and was started again.",
   stopped: STOPPED,
 };
+
+/** The app's local storage, where the recent elements are kept (SR-118 AK5); read when needed, it may throw. */
+const appStorage = (): RecentStorage => window.localStorage;
 
 /** The parts of the modeline for the shown buffer: what it loaded, and `modified` for unsaved text. */
 const modelineParts = (
@@ -67,6 +73,10 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // The names of the types by their key, from the metamodel, for the modeline of an element (SR-114).
   const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
+  // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
+  const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
+  const recentRef = useRef<readonly RecentEntry[]>([]);
+  const scope = useRef<string | undefined>(undefined);
 
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
   const call = useMemo<Call>(() => {
@@ -99,7 +109,14 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       if (reason === undefined || reason === "opened") {
         resetDrafts();
         setPrompt(undefined);
-        dispatch({ type: "reset", ...(result.ok ? { buffer: listBuffer("All elements") } : {}) });
+        // The first buffer is the calm overview, not the list of all elements (SR-118).
+        dispatch({ type: "reset", ...(result.ok ? { buffer: overviewBuffer() } : {}) });
+      }
+      const key = recentKey(result);
+      if (key !== scope.current) {
+        scope.current = key;
+        recentRef.current = key === undefined ? [] : loadRecent(appStorage, key);
+        setRecent(recentRef.current);
       }
       // The shown buffer asks again, also a list that is the same list of another workspace.
       if (reason !== undefined) {
@@ -205,6 +222,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     }
   }, [prompt, current?.key]);
 
+  // An element that is shown (opened or switched to) is the newest of the recent elements.
+  useEffect(() => {
+    if (current?.kind === "element" && scope.current !== undefined) {
+      recentRef.current = remember(recentRef.current, { id: current.id, repository: current.repository });
+      setRecent(recentRef.current);
+      saveRecent(appStorage, scope.current, recentRef.current);
+    }
+  }, [current?.key]);
+
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
     setLoaded({ key, data });
   }, []);
@@ -222,6 +248,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       },
     );
   };
+
+  const overview = useOverview(call, revision, recent, current?.kind === "overview", setEcho);
 
   // A relation names the repository of its target (#416): its buffer is opened at once.
   const openRelation = (buffer: ElementBuffer): void => {
@@ -246,6 +274,14 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
             register={setElementControls}
+          />
+        ) : current.kind === "overview" ? (
+          <OverviewView
+            buffer={current}
+            data={overview.data}
+            recents={overview.recents}
+            dispatch={dispatch}
+            onData={onData}
           />
         ) : (
           <ListView

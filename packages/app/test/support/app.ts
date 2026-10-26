@@ -49,6 +49,12 @@ const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
   return { root, cleanup: () => fs.rm(top, { recursive: true, force: true, maxRetries: 3 }) };
 };
 
+/** What a later start of the app on the same workspace and the same user data needs (the app restarts). */
+export interface Kept {
+  readonly home: string;
+  readonly workspace: FixtureWorkspace | undefined;
+}
+
 export interface RunningApp {
   readonly app: ElectronApplication;
   readonly window: Page;
@@ -60,7 +66,10 @@ export interface RunningApp {
   cli(
     argv: readonly string[],
   ): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
-  close(): Promise<void>;
+  /** Ends the app. With `keep` the workspace copy and the user data stay, for `launchApp(..., kept)`. */
+  close(options?: { readonly keep?: boolean }): Promise<void>;
+  /** The workspace copy and the user data, to start the app on them again after `close({ keep: true })`. */
+  readonly kept: Kept;
 }
 
 export interface LaunchOptions {
@@ -69,21 +78,28 @@ export interface LaunchOptions {
    * Default `light`, as Playwright's; `null` leaves it to the system (Electron's nativeTheme).
    */
   readonly colorScheme?: "light" | "dark" | null;
+  /** The workspace and the user data of an earlier start (`close({ keep: true })`): the app restarts. */
+  readonly kept?: Kept;
 }
 
-/** Starts the app on a new fixture workspace (`undefined`: without a workspace). */
+/** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
   options: LaunchOptions = {},
 ): Promise<RunningApp> => {
-  const workspace = fixture === undefined ? undefined : await copyFixture(fixture);
-  // The OS cache folder (model cache, ADR-0008) lies in a temporary folder on every OS.
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-"));
+  const { kept } = options;
+  const workspace =
+    kept === undefined ? (fixture === undefined ? undefined : await copyFixture(fixture)) : kept.workspace;
+  // The OS cache folder (model cache, ADR-0008) and the user data of Electron (its local storage, where
+  // the recent elements of the overview are, SR-118) lie in a temporary folder on every OS.
+  const home = kept === undefined ? await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")) : kept.home;
   const env = {
     ...process.env,
     HOME: home,
     USERPROFILE: home,
     XDG_CACHE_HOME: home,
+    XDG_CONFIG_HOME: home,
+    APPDATA: home,
     LOCALAPPDATA: home,
     LOGREQ_VALIDATE_OUTPUT: "1",
   };
@@ -118,10 +134,23 @@ export const launchApp = async (
         return { code: failed.code, stdout: failed.stdout, stderr: failed.stderr };
       }
     },
-    close: async () => {
+    kept: { home, workspace },
+    close: async (options) => {
       await app.close();
-      await workspace?.cleanup();
-      await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
+      if (options?.keep !== true) {
+        await workspace?.cleanup();
+        await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
+      }
     },
   };
+};
+
+/** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */
+export const listAll = async (window: Page): Promise<void> => {
+  // Keys count once the workspace is open and its first buffer is shown.
+  await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type("List all elements");
+  await window.keyboard.press("Enter");
+  await window.locator(".row").first().waitFor();
 };

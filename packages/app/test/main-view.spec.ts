@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -34,7 +34,7 @@ test.describe("the main view on a fixture workspace", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
-    await expect(running.window.locator(".row").first()).toBeVisible();
+    await listAll(running.window);
   });
   test.afterEach(async () => {
     await running.close();
@@ -235,7 +235,10 @@ test.describe("the main view on a fixture workspace", () => {
     await runCommand(window, "close all buffers");
     await window.keyboard.press("Control+N");
     await window.keyboard.press("Enter");
-    await expect(window.locator("[data-buffer]")).toHaveCount(0);
+    // Every buffer is closed; the overview is what remains (SR-118), and the unsaved text is gone.
+    await expect(window.locator("[data-buffer]")).toHaveCount(1);
+    await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Overview");
+    await expect(window.getByLabel("Modeline")).not.toContainText("modified");
   });
 
   test("a relation of an element opens the element it points to", async () => {

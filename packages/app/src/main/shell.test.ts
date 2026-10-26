@@ -66,6 +66,7 @@ const fakeElectron = (dark = false) => {
         setDevicePermissionHandler: vi.fn(),
         setSpellCheckerDictionaryDownloadURL: vi.fn(),
         on: vi.fn(),
+        flushStorageData: vi.fn(),
       },
     },
     BrowserWindow: class {
@@ -227,5 +228,16 @@ describe("startShell", () => {
     const event = { preventDefault: vi.fn() };
     appHandlers.get("will-quit")?.(event);
     expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("writes the web storage (the recent elements of the overview) to disk when the app quits", async () => {
+    const { electron, appHandlers } = await start(["electron", ".", "--workspace=/ws"]);
+    appHandlers.get("will-quit")?.({ preventDefault: vi.fn() });
+    expect(electron.session.defaultSession.flushStorageData).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(electron.app.quit).toHaveBeenCalledOnce();
+    });
+    appHandlers.get("will-quit")?.({ preventDefault: vi.fn() });
+    expect(electron.session.defaultSession.flushStorageData).toHaveBeenCalledOnce();
   });
 });

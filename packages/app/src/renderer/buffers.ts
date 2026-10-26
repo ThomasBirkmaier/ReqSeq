@@ -41,7 +41,15 @@ export interface ElementBuffer {
   readonly name: string;
 }
 
-export type Buffer = ListBuffer | SearchBuffer | ElementBuffer;
+/** The calm start (SR-118): one line per element type with its count, then the elements opened last. */
+export interface OverviewBuffer {
+  readonly kind: "overview";
+  readonly key: "overview";
+  /** Index of the selected row. */
+  readonly cursor: number;
+}
+
+export type Buffer = ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer;
 
 /** Open buffers, the most recent first; the first one is shown. */
 export type Buffers = readonly Buffer[];
@@ -51,7 +59,7 @@ export type BufferAction =
   | { readonly type: "open"; readonly buffer: Buffer }
   /** Shows the open buffer with this key. */
   | { readonly type: "switch"; readonly key: string }
-  /** Closes the buffer; the next most recent one is shown. */
+  /** Closes the buffer; the next most recent one is shown, or the overview when none is left. */
   | { readonly type: "close"; readonly key: string }
   /** The workspace was opened: only `buffer` is open, or none. */
   | { readonly type: "reset"; readonly buffer?: Buffer }
@@ -62,6 +70,14 @@ export type BufferAction =
 export const MAX_BUFFERS = 30;
 
 export const LIST_KEY = "list";
+
+export const OVERVIEW_KEY = "overview";
+
+export const overviewBuffer = (): OverviewBuffer => ({ kind: "overview", key: OVERVIEW_KEY, cursor: 0 });
+
+/** Exactly one buffer is open and it is the overview: there is nothing to close. */
+export const onlyOverview = (buffers: Buffers): boolean =>
+  buffers.length === 1 && buffers[0]?.kind === "overview";
 
 const makeList = (
   label: string,
@@ -189,6 +205,8 @@ export const bufferName = (buffer: Buffer): string => {
       return `Search: ${buffer.query}`;
     case "element":
       return buffer.name;
+    case "overview":
+      return "Overview";
   }
 };
 
@@ -208,8 +226,18 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
     }
     case "switch":
       return front(buffers, action.key);
-    case "close":
-      return buffers.filter((buffer) => buffer.key !== action.key);
+    case "close": {
+      const rest = buffers.filter((buffer) => buffer.key !== action.key);
+      if (rest.length === buffers.length) {
+        return buffers;
+      }
+      if (rest.length > 0) {
+        return rest;
+      }
+      // The last buffer closed: the window shows the overview, never an empty sheet (SR-118). The lone
+      // overview stays as it is.
+      return onlyOverview(buffers) ? buffers : [overviewBuffer()];
+    }
     case "reset":
       return action.buffer === undefined ? [] : [action.buffer];
     case "cursor":

@@ -1,6 +1,6 @@
 import type { DataExportElement } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer, listBuffer, searchBuffer } from "./buffers.js";
+import { elementBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
 import { bufferView, workspaceView } from "./modeline.js";
 
 describe("workspaceView", () => {
@@ -115,6 +115,20 @@ describe("bufferView", () => {
     // A type the metamodel does not name shows its key.
     expect(bufferView(buffer, { kind: "element", element: element({ type: "need" }) }, names)).toEqual([
       "SR-000001 · need",
+    ]);
+  });
+
+  it("[SR-118/AK1] names the overview with the number of all elements, and says when the counts are partial", () => {
+    const overview = overviewBuffer();
+    expect(bufferView(overview, undefined)).toEqual(["Overview"]);
+    expect(bufferView(overview, { kind: "overview", total: 14, incomplete: false })).toEqual([
+      "Overview",
+      "14 elements",
+    ]);
+    expect(bufferView(overview, { kind: "overview", total: 1, incomplete: true })).toEqual([
+      "Overview",
+      "1 element",
+      "incomplete: a repository is missing",
     ]);
   });
 

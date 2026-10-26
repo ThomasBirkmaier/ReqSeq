@@ -45,6 +45,7 @@ export const workspaceView = (result: InvokeResult): WorkspaceView => {
 /** What a buffer has loaded, for its part of the modeline. */
 export type BufferData =
   | { readonly kind: "list" | "search"; readonly total: number; readonly incomplete: boolean }
+  | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
 /**
@@ -79,7 +80,7 @@ export const bufferView = (
   }
   return [
     bufferName(buffer),
-    plural(data.total, data.kind === "list" ? "element" : "hit"),
+    plural(data.total, data.kind === "search" ? "hit" : "element"),
     ...(data.incomplete ? ["incomplete: a repository is missing"] : []),
   ];
 };

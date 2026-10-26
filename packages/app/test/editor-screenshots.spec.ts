@@ -36,7 +36,7 @@ test("screenshots of the editor on a demo element", async () => {
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
     });
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(window.getByRole("listbox")).toBeVisible();
     await openByTitle(window, DEMO_TITLE);
     const content = window.locator(".cm-content");
 
@@ -78,7 +78,7 @@ test("screenshot of the editor on a decision of the specification", async () => 
     await running.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
     });
-    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(window.getByRole("listbox")).toBeVisible();
     await openByTitle(window, "Live-Vorschau", "Text als Markdown mit Live-Vorschau");
     // The inline references read as their text, underlined; the source is not shown.
     await expect(window.locator(".cm-content .cm-lr-link").first()).toBeVisible();

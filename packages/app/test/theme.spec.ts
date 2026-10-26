@@ -9,7 +9,7 @@
 // verification/SR-113.md.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -49,7 +49,7 @@ for (const [scheme, colours] of [
     const running = await launchApp(FIXTURE, { colorScheme: scheme });
     const { window } = running;
     try {
-      await expect(window.locator(".row").first()).toBeVisible();
+      await listAll(window);
       expect(await sheet(window)).toBe(colours.sheet);
       expect(await textColour(window)).toBe(colours.text);
       expect(await chosen(window)).toBeUndefined();
@@ -65,7 +65,7 @@ test("[SR-113/AK1] without a choice the app follows a change of the system setti
   const running = await launchApp(FIXTURE, { colorScheme: null });
   const { window } = running;
   try {
-    await expect(window.locator(".row").first()).toBeVisible();
+    await listAll(window);
     await running.app.evaluate(({ nativeTheme }) => {
       nativeTheme.themeSource = "dark";
     });
@@ -84,7 +84,7 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
   const running = await launchApp(FIXTURE, { colorScheme: "light" });
   const { window } = running;
   try {
-    await expect(window.locator(".row").first()).toBeVisible();
+    await listAll(window);
     await opened(window, DEMO_TITLE);
     // Unsaved text, and a marker on the page: neither survives a restart or a reload.
     await window.locator(".cm-content").click();

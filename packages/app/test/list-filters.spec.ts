@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 /** The filter fixture plus two more draft requirements in the package Sensors, on the topics Timing and Wind, so that the topics are shared and the last step narrows. */
@@ -52,7 +52,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
-    await expect(running.window.locator(".row").first()).toBeVisible();
+    await listAll(running.window);
   });
   test.afterEach(async () => {
     await running.close();

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_BUFFERS,
+  OVERVIEW_KEY,
   bufferName,
   elementBuffer,
   elementBufferOf,
   filteredList,
   listBuffer,
+  onlyOverview,
+  overviewBuffer,
   reduceBuffers,
   relationBuffer,
   searchBuffer,
@@ -85,13 +88,32 @@ describe("buffers", () => {
     expect(reduceBuffers(buffers, { type: "switch", key: "gone" })).toBe(buffers);
   });
 
-  it("closes a buffer: the next most recent one is shown; the last one leaves the sheet empty", () => {
+  it("closes a buffer: the next most recent one is shown; the last one gives the overview", () => {
     expect(reduceBuffers([b, a, list], { type: "close", key: b.key }).map((buffer) => buffer.key)).toEqual([
       a.key,
       list.key,
     ]);
     expect(reduceBuffers([b, a, list], { type: "close", key: a.key })[0]).toBe(b);
-    expect(reduceBuffers([list], { type: "close", key: list.key })).toEqual([]);
+    expect(reduceBuffers([list], { type: "close", key: list.key })).toEqual([overviewBuffer()]);
+    // The lone overview stays, and a key that is not open changes nothing.
+    const only = [overviewBuffer()];
+    expect(reduceBuffers(only, { type: "close", key: OVERVIEW_KEY })).toBe(only);
+    expect(reduceBuffers([b, list], { type: "close", key: "nothing" })).toEqual([b, list]);
+    expect(reduceBuffers([], { type: "close", key: "nothing" })).toEqual([]);
+  });
+
+  it("names the overview and finds out whether it is the only buffer", () => {
+    expect(bufferName(overviewBuffer())).toBe("Overview");
+    expect(onlyOverview([overviewBuffer()])).toBe(true);
+    expect(onlyOverview([overviewBuffer(), list])).toBe(false);
+    expect(onlyOverview([list])).toBe(false);
+    expect(onlyOverview([])).toBe(false);
+  });
+
+  it("moves the cursor of the overview", () => {
+    expect(reduceBuffers([overviewBuffer()], { type: "cursor", key: OVERVIEW_KEY, cursor: 2 })).toEqual([
+      { ...overviewBuffer(), cursor: 2 },
+    ]);
   });
 
   it("resets to one buffer, or to none", () => {

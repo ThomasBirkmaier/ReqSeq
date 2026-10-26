@@ -127,6 +127,54 @@ body,
   white-space: nowrap;
 }
 
+/* The overview: a line per type with its count, and the recent elements below. Greys only. */
+.overview {
+  padding: 0.5rem 0;
+}
+
+.overview .line {
+  padding: 0.1rem 0.75rem;
+  cursor: default;
+}
+
+.overview .line[aria-selected="true"] {
+  background: var(--select);
+}
+
+.overview .recent {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.overview .recent .id,
+.overview .count,
+.overview .group {
+  color: var(--muted);
+}
+
+.overview .recent .id {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview .recent .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview .count {
+  font-variant-numeric: tabular-nums;
+}
+
+.overview .group {
+  margin-top: 1rem;
+  padding: 0.1rem 0.75rem;
+  font-size: 12px;
+}
+
 mark {
   background: none;
   color: inherit;

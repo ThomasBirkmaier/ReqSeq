@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
@@ -31,7 +31,16 @@ test("screenshots of the main view on the specification workspace", async () => 
       total: number;
     };
     await expect(window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
+    // The first buffer is the calm overview (SR-118): a line per type with its count.
+    await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Overview");
+    await expect(window.getByRole("option", { name: /^System Requirement \d+$/ })).toBeVisible();
+    await shot("overview-start");
+    // A type line opens the list of that type.
+    await window.getByRole("option", { name: /^System Requirement \d+$/ }).click();
+    await expect(window.getByLabel("Modeline")).toContainText("type: system-requirement");
     await expect(window.locator(".row").first()).toBeVisible();
+    await shot("overview-type-list");
+    await listAll(window);
     await shot("main-view-list");
 
     await window.keyboard.press("ControlOrMeta+Shift+P");

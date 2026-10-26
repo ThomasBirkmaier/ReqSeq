@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { launchApp, listAll } from "./support/app.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -59,7 +59,7 @@ test.describe("the Markdown editor in the element buffer", () => {
         consoleProblems.push(message.text());
       }
     });
-    await expect(running.window.locator(".row").first()).toBeVisible();
+    await listAll(running.window);
   });
   test.afterEach(async () => {
     expect(consoleProblems).toEqual([]);

@@ -1,6 +1,6 @@
 // The minibuffer: the one control of the window. Idle it is a single line with the last message; asked
 // (a prompt) it is an input with the candidates rising above the modeline, not a dialog, only while asked.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Choice, Prompt } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
@@ -34,6 +34,18 @@ const PromptLine = ({
   const [found, setFound] = useState<readonly Choice[]>([]);
   // The newest question to core; an older answer that arrives later is dropped.
   const latest = useRef(0);
+  // The question whose answer `found` holds: Enter before it arrives must not open an older answer's hit.
+  const answered = useRef(0);
+  // The question Enter waits for (SR-119 AK1: "Ctrl+P, text, Enter" typed fast); 0: Enter waits for none.
+  const waiting = useRef(0);
+
+  useEffect(
+    () => () => {
+      // A late answer must not open anything after the prompt closed.
+      waiting.current = 0;
+    },
+    [],
+  );
 
   const ranked = rank(prompt.items, (choice) => choice.name, query);
   const known = new Set(ranked.map(({ item }) => item.id));
@@ -43,25 +55,40 @@ const PromptLine = ({
   ];
   const current = rows[selected];
 
+  const choose = (choice: Choice): void => {
+    onClose();
+    choice.run();
+  };
+
   const change = (value: string): void => {
     setQuery(value);
     setSelected(0);
     latest.current += 1;
     const mine = latest.current;
+    waiting.current = 0;
     if (prompt.find === undefined || value.trim() === "") {
+      answered.current = mine;
       setFound([]);
     } else {
       void prompt.find(value).then((choices) => {
-        if (mine === latest.current) {
-          setFound(choices);
+        if (mine !== latest.current) {
+          return;
+        }
+        answered.current = mine;
+        setFound(choices);
+        if (waiting.current === mine) {
+          // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
+          waiting.current = 0;
+          const [first] = [
+            ...rank(prompt.items, (item) => item.name, value).map(({ item }) => item),
+            ...choices,
+          ];
+          if (first !== undefined) {
+            choose(first);
+          }
         }
       });
     }
-  };
-
-  const choose = (choice: Choice): void => {
-    onClose();
-    choice.run();
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
@@ -77,7 +104,10 @@ const PromptLine = ({
     switch (event.key) {
       case "Enter":
         event.preventDefault();
-        if (current !== undefined) {
+        if (answered.current !== latest.current && selected >= ranked.length) {
+          // The hits shown belong to an older text: wait for the answer to this one.
+          waiting.current = latest.current;
+        } else if (current !== undefined) {
           choose(current.item);
         } else if (prompt.text !== undefined) {
           onClose();
@@ -86,6 +116,7 @@ const PromptLine = ({
         break;
       case "Escape":
         event.preventDefault();
+        waiting.current = 0;
         onClose();
         break;
     }

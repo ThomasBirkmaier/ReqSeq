@@ -14,6 +14,16 @@ export const typeStep = (key: string): FilterStep => ({
   selection: { where: { type: [key] } },
 });
 
+/**
+ * The step of a type line of the overview (SR-118 AK2): the elements of exactly this type, as the count of
+ * the line counts them (`element.facets`), without the elements of its subtypes. "Filter list by type"
+ * keeps `typeStep`, which takes the subtypes along.
+ */
+export const exactTypeStep = (key: string): FilterStep => ({
+  label: `type: ${key}`,
+  selection: { where: { type: [key], subtypes: false } },
+});
+
 export const statusStep = (key: string): FilterStep => ({
   label: `status: ${key}`,
   selection: { where: { status: [key] } },
