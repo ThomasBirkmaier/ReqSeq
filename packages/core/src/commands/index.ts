@@ -15,6 +15,8 @@ import elementResolve from "./element/resolve.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
+import filterList from "./filter/list.js";
+import filterSave from "./filter/save.js";
 import hintConfirm from "./hint/confirm.js";
 import hintList from "./hint/list.js";
 import metamodelGet from "./metamodel/get.js";
@@ -37,6 +39,8 @@ export const commands: readonly AnyCommand[] = [
   elementSetStatus,
   elementSupersede,
   elementUpdate,
+  filterList,
+  filterSave,
   hintConfirm,
   hintList,
   metamodelGet,

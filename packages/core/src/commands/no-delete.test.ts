@@ -65,6 +65,13 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, status: "obsolete" },
     { ref: WIND, status: "draft" },
   ],
+  // Saving under an existing name replaces the filter in its own file; a key left out is removed from
+  // the file, never the file (filters are no elements, D-056, but nothing is deleted either).
+  "filter.save": [
+    { name: "Drafts", description: "Open work", where: { status: ["draft"] } },
+    { name: "drafts", where: { status: ["draft", "obsolete"] } },
+    { name: "Unknown package", where: { package: "SR-ffffff" } },
+  ],
   "hint.confirm": [
     {
       hintIds: [

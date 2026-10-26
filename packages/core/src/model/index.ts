@@ -156,7 +156,13 @@ export type {
 export { addRelation, removeRelation } from "./relation-write.js";
 export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
 export { addAttachment, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
-export { assertElementWritable, createElement, updateElement, writtenElement } from "./write.js";
+export {
+  assertElementWritable,
+  createElement,
+  updateElement,
+  workspacePath,
+  writtenElement,
+} from "./write.js";
 export { bulkUpdateElements } from "./bulk-update.js";
 export type {
   BulkOperation,

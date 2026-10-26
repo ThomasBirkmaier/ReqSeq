@@ -493,7 +493,7 @@
       "summary": "Elements of a selection, sorted; optionally as derivation tree.",
       "effect": "read",
       "stage": 3,
-      "implements": ["SR-043", "SR-048", "SR-069", "SR-075", "SR-101"],
+      "implements": ["SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101"],
       "input": {
         "type": "object",
         "properties": {
@@ -503,7 +503,7 @@
           },
           "sort": {
             "type": "array",
-            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`.",
+            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`.",
             "items": {
               "$ref": "../filter.schema.json#/$defs/sortKey"
             }
@@ -1659,7 +1659,7 @@
     },
     {
       "name": "filter.list",
-      "summary": "Saved filters of the workspace.",
+      "summary": "Saved filters of the workspace, with their definitions.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-070"],
@@ -1677,18 +1677,42 @@
               "type": "object",
               "properties": {
                 "name": {
-                  "type": "string"
+                  "$ref": "../filter.schema.json#/$defs/name"
                 },
                 "file": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "The filter file, relative to the workspace root."
                 },
                 "description": {
                   "type": "string"
+                },
+                "view": {
+                  "$ref": "../common.schema.json#/$defs/view"
+                },
+                "where": {
+                  "$ref": "../filter.schema.json#/$defs/condition"
+                },
+                "sort": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../filter.schema.json#/$defs/sortKey"
+                  }
                 }
               },
               "additionalProperties": false,
-              "required": ["name", "file"]
-            }
+              "required": ["name", "file", "where"]
+            },
+            "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/problem"
+            },
+            "description": "Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file."
+          },
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
           }
         },
         "additionalProperties": false,
@@ -1697,7 +1721,7 @@
     },
     {
       "name": "filter.save",
-      "summary": "Save a named filter as YAML in the repository.",
+      "summary": "Save a named filter as YAML in the repository; an existing name replaces that filter.",
       "effect": "write-files",
       "stage": 3,
       "implements": ["SR-070"],
@@ -1705,7 +1729,7 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "$ref": "../filter.schema.json#/$defs/name"
           },
           "description": {
             "type": "string"
@@ -1714,10 +1738,12 @@
             "$ref": "../common.schema.json#/$defs/view"
           },
           "where": {
-            "$ref": "../filter.schema.json#/$defs/condition"
+            "$ref": "../filter.schema.json#/$defs/condition",
+            "description": "Checked as in a selection; element references are written as UUIDs."
           },
           "sort": {
             "type": "array",
+            "description": "Order of element.list with this filter when its input gives no sort.",
             "items": {
               "$ref": "../filter.schema.json#/$defs/sortKey"
             }

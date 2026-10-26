@@ -5,9 +5,9 @@
 // The chain is `trace.chain` (SR-022) through the catalog, of the need with the largest chain, as
 // its first page (spec-frage #290): the first after the start (the start builds the incoming
 // relation index, `warmWorkspace`, #227), again, and right after a save (the index is carried
-// over, #267). The whole chain is recorded without a threshold. Stage 1 has no filter language
-// (SR-070, stage 3), so the filter runs on the in-memory store (#127, option 1). The tests are
-// tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
+// over, #267). The whole chain is recorded without a threshold. The filter is a saved filter
+// (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, #228). The
+// tests are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
 import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@logreq/testkit";
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import fs from "node:fs/promises";
@@ -32,7 +32,6 @@ import {
   incomingState,
   resolveTarget,
   shortIdState,
-  titleKeyOf,
 } from "../../src/model/index.js";
 import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
@@ -226,22 +225,38 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 
-  it("[SR-082/AK4] applies a filter within 500 ms", async () => {
-    const titleKey = titleKeyOf(metamodel) ?? "title";
-    const title = (record: ElementRecord): string => {
-      const value = record.data[titleKey];
-      return typeof value === "string" ? value : "";
-    };
+  it("[SR-082/AK4] applies a saved filter through the catalog within 500 ms (SR-070, #228)", async () => {
+    // A saved filter as a team keeps it (SR-070): the system requirements still in draft, by title.
+    const saved = (await invoke(
+      "filter.save",
+      {
+        name: "Draft system requirements",
+        where: { all: [{ type: ["system-requirement"] }, { status: ["draft"] }] },
+        sort: [{ by: "title" }],
+      },
+      { workspace: opened() },
+    )) as CommandOutput<"filter.save">;
+    expect(saved.files).toEqual(["filters/draft-system-requirements.yaml"]);
+    // Applied by name, as every access calls it (SR-080): read the filter file, compile, one pass over
+    // the store, sort, build the first page.
     const { result: found, measurement } = await measure(
-      "filter: system requirements with status draft, sorted by title",
-      () =>
-        store.elements
-          .filter((e) => e.type === "system-requirement" && e.data["status"] === "draft")
-          .sort((a, b) => title(a).localeCompare(title(b))),
-      { basis: "SR-082 AK4 (core: filter over the in-memory store; #127)", thresholdMs: RESULT_MS },
+      "filter: a saved filter by name (system requirements with status draft, sorted by title), first page",
+      async () =>
+        (await invoke(
+          "element.list",
+          { selection: { filter: "Draft system requirements" } },
+          { workspace: opened() },
+        )) as CommandOutput<"element.list">,
+      {
+        basis: "SR-082 AK4 (element.list with selection.filter through the catalog)",
+        thresholdMs: RESULT_MS,
+      },
     );
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every((e) => e.type === "system-requirement")).toBe(true);
+    expect(found.total).toBe(
+      store.elements.filter((e) => e.type === "system-requirement" && e.data["status"] === "draft").length,
+    );
+    expect(found.total).toBeGreaterThan(found.elements.length);
+    expect(found.elements.every((e) => e.type === "system-requirement")).toBe(true);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 

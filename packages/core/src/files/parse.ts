@@ -241,7 +241,8 @@ export const parseFileBytes = (file: string, bytes: Uint8Array): ParseOutcome =>
 
 /** The content of a whole-file YAML document (metamodel, workspace, baseline, filter, mapping). */
 export interface ParsedYaml {
-  /** Parsed with source tokens, for in-place edits. */
+  /** The text of the file without the byte order mark, for in-place edits (`editYamlDocument`). */
+  readonly text: string;
   readonly document: Document;
   readonly data: unknown;
   readonly bom: boolean;
@@ -266,5 +267,8 @@ export const parseYamlFileBytes = (file: string, bytes: Uint8Array): YamlParseOu
     return yaml;
   }
   const { document, data, warnings, lines } = yaml;
-  return { kind: "parsed", content: { document, data, bom: decoded.bom, warnings, lines } };
+  return {
+    kind: "parsed",
+    content: { text: decoded.text, document, data, bom: decoded.bom, warnings, lines },
+  };
 };

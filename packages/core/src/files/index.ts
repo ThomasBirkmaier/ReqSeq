@@ -37,6 +37,8 @@ export { removePrivateFile, writePrivateFile } from "./private.js";
 export { isTempFile, TEMP_FILE_PATTERN, writeFileAtomic } from "./write.js";
 export type { FileKind, WriteOptions } from "./write.js";
 export { editElementFile } from "./edit.js";
+export { editYamlDocument, renderYamlDocument } from "./yaml-document.js";
+export type { EditableYaml, YamlEditResult, YamlKeyEdit } from "./yaml-document.js";
 export { bodyForText, elementText } from "./text.js";
 export type { EditableFile, FileEditRequest, FileEditResult, FrontmatterEdit } from "./edit.js";
 export type { FlowMappingValue, ItemValue, PropertyValue, ScalarValue } from "./yaml-text.js";

@@ -1,5 +1,6 @@
-// element.list (SR-069, SR-101, SR-048 AK3, SR-043 with the validity of SR-040, SR-075): the elements
-// of a selection (query/selection.ts), sorted (query/sort.ts), as list commands give them
+// element.list (SR-069, SR-101, SR-048 AK3, SR-043 with the validity of SR-040, SR-075, SR-070): the
+// elements of a selection (query/selection.ts), sorted (query/sort.ts; without `sort`, by the sort of
+// the saved filter the selection names), as list commands give them
 // (model/list.ts), one page at a time; `total` counts every match and `incomplete` follows SR-006
 // AK2. Only the page is built, so a filter over the 50,000 elements of N-036 reads the files of the
 // page only. Sorted by `hierarchy` (SR-075 AK2), the list is the derivation tree depth first and
@@ -10,7 +11,7 @@ import type { ElementListOutput } from "../../generated/types.js";
 import type { ElementRecord } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { TreePlace } from "../../query/index.js";
-import { resolveSelection, sortElements } from "../../query/index.js";
+import { inSavedFilter, resolveSelection, savedSort, sortElements } from "../../query/index.js";
 
 type TreeEntry = NonNullable<ElementListOutput["tree"]>[number];
 
@@ -30,7 +31,14 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
-    const sorted = sortElements({ ...selected, command }, selected.elements, input.sort ?? []);
+    // Without `sort`, a saved filter's own (SR-070 AK3: the same elements in the same order).
+    const { filter } = selected;
+    const sorted =
+      input.sort === undefined && filter !== undefined
+        ? inSavedFilter(filter, () =>
+            sortElements({ ...selected, command }, selected.elements, savedSort(filter)),
+          )
+        : sortElements({ ...selected, command }, selected.elements, input.sort ?? []);
     const end = input.offset + input.limit;
     const page = sorted.elements.slice(input.offset, end);
     const elements = await listElements(ctx.workspace, selected, page, { withText: input.withText === true });

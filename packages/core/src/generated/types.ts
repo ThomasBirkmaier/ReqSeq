@@ -207,6 +207,8 @@ export type ProblemCode =
   | "evidence.unknown-element"
   | "evidence.invalid-record"
   | "evidence.outdated"
+  | "filter.invalid"
+  | "filter.duplicate-name"
   | "metamodel.invalid"
   | "metamodel.meaning-unassigned"
   | "workspace.repository-missing"
@@ -462,18 +464,25 @@ export interface EvidenceRecordFile {
 }
 
 /**
- * A named filter saved as YAML in the repository (D-056, SR-070). The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3).
+ * A named filter saved as YAML in the repository (D-056, SR-070): a `*.yaml` file directly in the `filters` folder of the workspace file. The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3). Element references may take any form (`resolveRef`); `filter.save` writes UUIDs.
  * Schema: `schemas/filter.schema.json#`.
  */
 export interface FilterFile {
   readonly "logreq-filter": 1;
-  /** Unique in the workspace; used to call the filter by name. */
-  readonly name: string;
+  readonly name: FilterName;
   readonly description?: string;
+  /** Elements that apply in this view; also the view of its `verification` conditions without `variant`. */
   readonly view?: View;
   readonly where: FilterCondition;
+  /** Order of `element.list` when its input gives no `sort`. */
   readonly sort?: readonly FilterSortKey[];
 }
+
+/**
+ * Name of a saved filter, unique in the workspace ignoring case (spec-frage #363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.
+ * Schema: `schemas/filter.schema.json#/$defs/name`.
+ */
+export type FilterName = string;
 
 /**
  * Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold.
@@ -1097,7 +1106,7 @@ export interface ElementResolveOutput {
 export interface ElementListInput {
   /** Every part given must hold (SR-101 AK2). */
   readonly selection?: ElementSelection;
-  /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. */
+  /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
@@ -1561,37 +1570,47 @@ export interface ElementSearchOutput {
 }
 
 /**
- * Input of `filter.list` as `run` gets it: validated, properties with a `default` filled in. Saved filters of the workspace.
+ * Input of `filter.list` as `run` gets it: validated, properties with a `default` filled in. Saved filters of the workspace, with their definitions.
  * Schema: `schemas/commands/catalog.json filter.list input`.
  */
 export type FilterListInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `filter.list`. Saved filters of the workspace.
+ * Output of `filter.list`. Saved filters of the workspace, with their definitions.
  * Schema: `schemas/commands/catalog.json filter.list output`.
  */
 export interface FilterListOutput {
+  /** In the order of their files. A faulty file is not listed; it is one of `problems`. */
   readonly filters: readonly {
-    readonly name: string;
+    readonly name: FilterName;
+    /** The filter file, relative to the workspace root. */
     readonly file: string;
     readonly description?: string;
+    readonly view?: View;
+    readonly where: FilterCondition;
+    readonly sort?: readonly FilterSortKey[];
   }[];
+  /** Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file. */
+  readonly problems?: readonly Problem[];
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `filter.save` as `run` gets it: validated, properties with a `default` filled in. Save a named filter as YAML in the repository.
+ * Input of `filter.save` as `run` gets it: validated, properties with a `default` filled in. Save a named filter as YAML in the repository; an existing name replaces that filter.
  * Schema: `schemas/commands/catalog.json filter.save input`.
  */
 export interface FilterSaveInput {
-  readonly name: string;
+  readonly name: FilterName;
   readonly description?: string;
   readonly view?: View;
+  /** Checked as in a selection; element references are written as UUIDs. */
   readonly where: FilterCondition;
+  /** Order of element.list with this filter when its input gives no sort. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
 }
 
 /**
- * Output of `filter.save`. Save a named filter as YAML in the repository.
+ * Output of `filter.save`. Save a named filter as YAML in the repository; an existing name replaces that filter.
  * Schema: `schemas/commands/catalog.json filter.save output`.
  */
 export interface FilterSaveOutput {

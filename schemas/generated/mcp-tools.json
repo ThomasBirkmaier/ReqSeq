@@ -362,6 +362,8 @@
             "evidence.unknown-element",
             "evidence.invalid-record",
             "evidence.outdated",
+            "filter.invalid",
+            "filter.duplicate-name",
             "metamodel.invalid",
             "metamodel.meaning-unassigned",
             "workspace.repository-missing",
@@ -1010,7 +1012,7 @@
     },
     "filter": {
       "title": "Saved filter file",
-      "description": "A named filter saved as YAML in the repository (D-056, SR-070). The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3).",
+      "description": "A named filter saved as YAML in the repository (D-056, SR-070): a `*.yaml` file directly in the `filters` folder of the workspace file. The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3). Element references may take any form (`resolveRef`); `filter.save` writes UUIDs.",
       "type": "object",
       "required": [
         "logreq-filter",
@@ -1022,15 +1024,14 @@
           "const": 1
         },
         "name": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Unique in the workspace; used to call the filter by name."
+          "$ref": "#/$defs/filter/$defs/name"
         },
         "description": {
           "type": "string"
         },
         "view": {
-          "$ref": "#/$defs/common/$defs/view"
+          "$ref": "#/$defs/common/$defs/view",
+          "description": "Elements that apply in this view; also the view of its `verification` conditions without `variant`."
         },
         "where": {
           "$ref": "#/$defs/filter/$defs/condition"
@@ -1039,11 +1040,18 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/filter/$defs/sortKey"
-          }
+          },
+          "description": "Order of `element.list` when its input gives no `sort`."
         }
       },
       "additionalProperties": false,
       "$defs": {
+        "name": {
+          "description": "Name of a saved filter, unique in the workspace ignoring case (spec-frage #363); used to call it (`selection.filter`). Saving under an existing name replaces that filter.",
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
+        },
         "condition": {
           "description": "Combinable condition (SR-069). Exactly one operator per object. `all`: every condition holds (`[]` holds), `any`: some holds (`[]` does not), `not`: it does not hold.",
           "oneOf": [
@@ -2602,7 +2610,7 @@
           },
           "sort": {
             "type": "array",
-            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`.",
+            "description": "Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. Without sort, the sort of the saved filter in `selection.filter`.",
             "items": {
               "$ref": "#/$defs/filter/$defs/sortKey"
             }
@@ -3972,7 +3980,7 @@
     },
     {
       "name": "filter_list",
-      "description": "Saved filters of the workspace.",
+      "description": "Saved filters of the workspace, with their definitions.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -3992,21 +4000,46 @@
               "type": "object",
               "properties": {
                 "name": {
-                  "type": "string"
+                  "$ref": "#/$defs/filter/$defs/name"
                 },
                 "file": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "The filter file, relative to the workspace root."
                 },
                 "description": {
                   "type": "string"
+                },
+                "view": {
+                  "$ref": "#/$defs/common/$defs/view"
+                },
+                "where": {
+                  "$ref": "#/$defs/filter/$defs/condition"
+                },
+                "sort": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/filter/$defs/sortKey"
+                  }
                 }
               },
               "additionalProperties": false,
               "required": [
                 "name",
-                "file"
+                "file",
+                "where"
               ]
-            }
+            },
+            "description": "In the order of their files. A faulty file is not listed; it is one of `problems`."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            },
+            "description": "Filter files that cannot be read, do not match filter.schema.json, or repeat the name of an earlier file."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
           }
         },
         "additionalProperties": false,
@@ -4017,7 +4050,7 @@
     },
     {
       "name": "filter_save",
-      "description": "Save a named filter as YAML in the repository.",
+      "description": "Save a named filter as YAML in the repository; an existing name replaces that filter.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -4027,7 +4060,7 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "$ref": "#/$defs/filter/$defs/name"
           },
           "description": {
             "type": "string"
@@ -4036,10 +4069,12 @@
             "$ref": "#/$defs/common/$defs/view"
           },
           "where": {
-            "$ref": "#/$defs/filter/$defs/condition"
+            "$ref": "#/$defs/filter/$defs/condition",
+            "description": "Checked as in a selection; element references are written as UUIDs."
           },
           "sort": {
             "type": "array",
+            "description": "Order of element.list with this filter when its input gives no sort.",
             "items": {
               "$ref": "#/$defs/filter/$defs/sortKey"
             }

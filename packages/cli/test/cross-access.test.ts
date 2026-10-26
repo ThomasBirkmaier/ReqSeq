@@ -50,6 +50,19 @@ const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements, variants and packages to filter (SR-069). */
 const FILTER: FixtureOptions = { fixture: "SR-069/filter", git: true };
+/** SR-069/filter with saved filters, one written by hand with short IDs and comments, one faulty (SR-070). */
+const SAVED: FixtureOptions = {
+  fixture: "SR-069/filter",
+  files: {
+    "filters/sensor-drafts.yaml":
+      "# Drafts of the sensor package\nlogreq-filter: 1\nname: Sensor drafts\nwhere:\n  all:\n" +
+      "    - { package: PKG-0000d1 }   # Sensors\n    - { status: [draft] }\nsort: [{ by: title, order: desc }]\n",
+    "filters/mountain.yaml":
+      "logreq-filter: 1\nname: Mountain\nview: VAR-0000c2\nwhere: { type: [system-requirement] }\n",
+    "filters/broken.yaml": "logreq-filter: 1\nname: Broken\nwhere: { nope: 1 }\n",
+  },
+  git: true,
+};
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
@@ -360,6 +373,30 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
+      name: "a saved filter by name, in any case, with its sort (SR-070 AK3)",
+      fixture: SAVED,
+      input: { selection: { filter: "sensor DRAFTS" } },
+      expect: "output",
+    },
+    {
+      name: "a saved filter with its view, and another part of the selection (SR-070 AK3, SR-101 AK2)",
+      fixture: SAVED,
+      input: { selection: { filter: "Mountain", where: { status: ["approved"] } }, sort: [{ by: "id" }] },
+      expect: "output",
+    },
+    {
+      name: "a saved filter that is not there (SR-070)",
+      fixture: SAVED,
+      input: { selection: { filter: "Nope" } },
+      expect: "error",
+    },
+    {
+      name: "a saved filter in a faulty file (SR-070)",
+      fixture: SAVED,
+      input: { selection: { filter: "broken" } },
+      expect: "error",
+    },
+    {
       name: "the condition text before the full-text search (SR-068)",
       fixture: FILTER,
       input: { selection: { where: { text: "wind" } } },
@@ -507,6 +544,43 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: AFFECTED,
       input: { ref: "SR-00b001", text: "Changed.\n" },
       expect: "output",
+    },
+  ],
+  "filter.list": [
+    {
+      name: "hand-written filters with their definitions, and a faulty file (SR-070 AK2)",
+      fixture: SAVED,
+      input: {},
+      expect: "output",
+    },
+  ],
+  "filter.save": [
+    {
+      name: "a new filter as a YAML file, its references as UUIDs (SR-070 AK1)",
+      fixture: SAVED,
+      input: {
+        name: "Coastal drafts",
+        description: "Open work near the coast",
+        view: "var-0000c1",
+        where: { all: [{ status: ["draft"] }, { package: "pkg-0000d1" }] },
+        sort: [{ by: "title" }],
+      },
+      expect: "output",
+    },
+    {
+      name: "an existing name replaces that filter in its own file, keeping its comments (SR-070 AK1)",
+      fixture: SAVED,
+      input: {
+        name: "SENSOR DRAFTS",
+        where: { all: [{ package: "PKG-0000d1" }, { status: ["draft", "approved"] }] },
+      },
+      expect: "output",
+    },
+    {
+      name: "a condition that is wrong",
+      fixture: SAVED,
+      input: { name: "Wrong", where: { package: "SR-0000b1" } },
+      expect: "error",
     },
   ],
   "hint.list": [

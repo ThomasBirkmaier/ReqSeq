@@ -108,6 +108,13 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: WIND, unset: ["status"] },
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
+  "filter.list": [{}, { extra: true }],
+  "filter.save": [
+    { name: "Drafts", where: { status: ["draft"] }, sort: [{ by: "status" }] },
+    { name: "drafts", where: { any: [{ status: ["retired"] }, { invalid: true }] } },
+    { name: "Retired", where: { status: ["retired"] } },
+    { name: "Unknown", where: { package: "SR-ffffff" } },
+  ],
   "hint.confirm": [
     { hintIds: [hintId("requirements/SR-1d2e3f4a5b6c.md", GUSTS, WIND)] },
     {

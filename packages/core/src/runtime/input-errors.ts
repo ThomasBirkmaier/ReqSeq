@@ -37,6 +37,8 @@ const DEF_MESSAGES: Readonly<Record<string, string>> = {
     "is not a relative path (forward slashes, no leading slash, no drive letter, no .. segment)",
   "common.schema.json#/$defs/date": "is not a date YYYY-MM-DD",
   "common.schema.json#/$defs/dateTime": "is not a date and time (for example 2026-10-26T09:30:00Z)",
+  "filter.schema.json#/$defs/name":
+    "is not a filter name (at most 200 characters, without control characters or spaces at either end)",
   "element.schema.json#/$defs/inputValue":
     "is not a property value (text, a number, true or false, a list of these, a relation target { id } or a list of them)",
 };

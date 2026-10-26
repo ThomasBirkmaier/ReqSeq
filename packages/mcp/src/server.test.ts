@@ -58,7 +58,7 @@ const TOOL_MAX_BYTES = 6 * 1024;
  * The tools that carry the selection part, exactly. A new selection tool fails the test until it is named
  * here, which raises the bound of the whole list by one selection part: the deliberate raise (ADR-0009).
  */
-const SELECTION_TOOLS: readonly string[] = ["element_list", "element_bulkUpdate"];
+const SELECTION_TOOLS: readonly string[] = ["element_list", "element_bulkUpdate", "filter_save"];
 /** The list of #303, plus one selection part per selection tool. */
 const TOOLS_LIST_MAX_BYTES = 48 * 1024 + SELECTION_TOOLS.length * SELECTION_MAX_BYTES;
 
