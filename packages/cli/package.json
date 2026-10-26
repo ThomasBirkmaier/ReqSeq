@@ -29,6 +29,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@logreq/app": "workspace:*",
     "@logreq/testkit": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1"
   }

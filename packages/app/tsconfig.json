@@ -4,8 +4,10 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo",
-    "lib": ["ES2023", "DOM"]
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node", "electron"],
+    "jsx": "react-jsx"
   },
   "include": ["src"],
-  "references": [{ "path": "../core" }]
+  "references": [{ "path": "../core" }, { "path": "../testkit" }]
 }

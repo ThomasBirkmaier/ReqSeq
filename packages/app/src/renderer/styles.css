@@ -1,0 +1,53 @@
+/* A white sheet: only what means something is visible (D-061..D-063, pending). The modeline and the
+   one-line minibuffer sit at the bottom, as in Emacs. */
+:root {
+  --text: #1f2328;
+  --muted: #6e7781;
+  --rule: #e6e8eb;
+  --sheet: #ffffff;
+  --line: 1.6rem;
+  color: var(--text);
+  background: var(--sheet);
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.shell {
+  display: grid;
+  grid-template-rows: 1fr var(--line) var(--line);
+  height: 100%;
+}
+
+.sheet {
+  overflow: auto;
+}
+
+.modeline,
+.minibuffer {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 0.75rem;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.modeline {
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.modeline .name {
+  color: var(--text);
+}

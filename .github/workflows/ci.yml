@@ -200,7 +200,65 @@ jobs:
           path: test-results/junit-e2e.xml
           if-no-files-found: ignore
 
+  # ADR-0010, ADR-0011: the Electron tests (packages/app/test/) start the built app with Playwright
+  # (`_electron.launch`): it shows the status of a fixture workspace, an invoke gives what the CLI gives
+  # (SR-080), the session cancels every request that is not local (SR-078), the renderer is sandboxed.
+  # On Linux under xvfb with Chromium's sandbox on (no --no-sandbox; the runner user is not root).
+  electron:
+    name: electron (${{ matrix.os }})
+    # A normal run takes a few minutes (install, build, about 20 s of tests); this only ends a hang.
+    timeout-minutes: 20
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS and Windows only on the nightly and manual runs; pull requests and pushes to main use Linux only.
+        os: ${{ fromJSON(contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) && '["ubuntu-24.04","macos-14","windows-2025"]' || '["ubuntu-24.04"]') }}
+    needs: runners
+    runs-on: ${{ fromJSON(needs.runners.outputs.map || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}'))[matrix.os] }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Core (the app loads it in its core process) and the CLI (the tests compare with it).
+      - run: pnpm build
+      - name: Display server and libraries for Electron (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # The image of the self-hosted runners has no X libraries; GitHub's image has most of them.
+          packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
+          if ! dpkg -s $packages >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
+          fi
+          # Chromium's sandbox needs unprivileged user namespaces, which AppArmor blocks on Ubuntu 24.04.
+          # If they are still blocked, the app does not start and the step after fails: never skipped silently.
+          if ! unshare -r true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      # `test:electron` downloads the Electron binary (pnpm runs no install scripts), builds the app with
+      # electron-vite and runs Playwright.
+      - name: Electron tests (xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm --filter @logreq/app test:electron
+      - name: Electron tests
+        if: runner.os != 'Linux'
+        run: pnpm --filter @logreq/app test:electron
+      - name: Upload JUnit results (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-electron-${{ matrix.os }}
+          path: |
+            test-results/junit-electron.xml
+            test-results/electron/
+          if-no-files-found: ignore
+
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `test` on all
-  # three systems; `e2e` also runs `logreq serve api` and `logreq mcp` as processes (servers.test.ts).
-  # Added with the stage that needs it (ADR-0011): Electron/Playwright under xvfb (stage 3).
+  # three systems, the app's IPC included (its bridge and core side, without Electron); `e2e` also runs
+  # `logreq serve api` and `logreq mcp` as processes (servers.test.ts).
   # The performance suite with 50,000 elements runs apart, nightly and on PRs labelled `perf`: perf.yml.

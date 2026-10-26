@@ -1,13 +1,18 @@
 // SR-099 (D-045): the command line, the local API and the MCP server offer no delete of an element. Each
 // offers exactly the catalog commands (ADR-0002 rule 3), and the catalog has none
 // (packages/core/src/commands/no-delete.test.ts). A delete that is not in the catalog is refused by each
-// adapter and leaves the element file as it was. The app has no UI before stage 3 (#127 option 1).
+// adapter and leaves the element file as it was. The app offers the same through its preload bridge, which is
+// generic over the catalog (ADR-0010); the Electron tests check the bridge in the app itself.
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
+import type { MessagePort } from "node:worker_threads";
+import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@logreq/api";
+import type { IpcRendererLike } from "@logreq/app";
+import { createBridge, createCoreHost } from "@logreq/app";
 import { Workspace, createCommandRuntime } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -205,6 +210,61 @@ describe("the MCP server offers no delete (SR-099)", () => {
       await served;
       await client.close();
       await workspace.close();
+    }
+    expect(await elementFile()).toBe(original);
+  });
+});
+
+describe("the app offers no delete (SR-099)", () => {
+  /** The core side of the app's IPC on one end of a Node MessageChannel (Electron's port in the app). */
+  const connect = (workspace: Workspace) => {
+    const host = createCoreHost({ runtime, workspace });
+    const { port1, port2 } = new MessageChannel();
+    const port: MessagePort = port1;
+    host.connect({
+      post: (message) => {
+        port.postMessage(message);
+      },
+      onMessage: (listener) => {
+        port.on("message", listener);
+      },
+      onClose: (listener) => {
+        port.on("close", listener);
+      },
+      close: () => {
+        port.close();
+      },
+    });
+    let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
+    const bridge = createBridge({
+      on: (_channel, listener) => {
+        deliver = listener;
+      },
+    });
+    deliver?.({ ports: [port2] }, { open: true });
+    return { bridge, close: () => host.close() };
+  };
+
+  it("[SR-099/AK1] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
+    const app = connect(new Workspace(fixture.root));
+    try {
+      expect(Object.keys(app.bridge).sort()).toEqual(["commands", "invoke", "on"]);
+      const listed = (await app.bridge.commands()).map((c) => c.name);
+      expect(listed).toEqual(catalogNames);
+      expect(listed.filter((name) => DELETE_LIKE.test(name.slice(name.indexOf(".") + 1)))).toEqual([
+        RELATION_REMOVE,
+      ]);
+      for (const name of ["element.delete", "element.remove"]) {
+        expect([name, await app.bridge.invoke(name, { ref: REF })]).toEqual([
+          name,
+          {
+            ok: false,
+            error: { code: "input.invalid", message: `Unknown command: ${name}`, details: { command: name } },
+          },
+        ]);
+      }
+    } finally {
+      await app.close();
     }
     expect(await elementFile()).toBe(original);
   });

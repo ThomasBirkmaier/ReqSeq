@@ -1,0 +1,223 @@
+// The core side of the app's IPC (ADR-0010): it runs in the core process (a utility process), holds the
+// one open workspace and answers the windows' requests by calling the command catalog, nothing else
+// (ADR-0002). Outputs and error objects go back unchanged, so the app gives what CLI, API and MCP give
+// (SR-080 AK2). Transport only: which command runs and with which input is the renderer's choice, and
+// every check is core's.
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
+import { CommandError } from "@logreq/core";
+import type { CommandListing, FileAnswer, InvokeResult, PortMessage } from "../shared/protocol.js";
+import { decodedPath, isInside } from "../shared/paths.js";
+import { portRequest } from "../shared/protocol.js";
+
+/** One window's end of a port, whatever kind of port it is (Electron's MessagePortMain, Node's MessagePort). */
+export interface Channel {
+  post(message: PortMessage): void;
+  onMessage(listener: (data: unknown) => void): void;
+  onClose(listener: () => void): void;
+  close(): void;
+}
+
+export interface CoreHost {
+  /**
+   * Serves the requests of one window until its port closes. A closed port aborts the window's running
+   * read commands; a write command runs to its end, so no write is cut off.
+   */
+  connect(channel: Channel): void;
+  /** A file of the workspace for the `logreq-file:` protocol (`logreq-file://workspace/<repository>/<path>`). */
+  file(url: string): Promise<FileAnswer>;
+  /**
+   * Aborts the running read commands, waits for the running write commands, then closes every port and
+   * the workspace. The main process kills the core process when this takes too long (STOP_TIMEOUT_MS).
+   */
+  close(): Promise<void>;
+}
+
+export interface CoreHostOptions {
+  readonly runtime: CommandRuntime;
+  readonly workspace: Workspace;
+}
+
+/**
+ * Images only: the renderer shows files of the workspace as images (CSP `img-src logreq-file:`), and
+ * nothing else may leave the workspace through the protocol.
+ */
+const IMAGE_TYPES: Readonly<Record<string, string>> = {
+  ".apng": "image/apng",
+  ".avif": "image/avif",
+  ".bmp": "image/bmp",
+  ".gif": "image/gif",
+  ".ico": "image/x-icon",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+const NOT_FOUND: FileAnswer = { status: 404 };
+
+/**
+ * The host of every `logreq-file:` URL. The repository is the first name of the path, because Chromium
+ * changes hosts such as `1.2` or `0x1f` into IPv4 addresses and refuses `a..b`.
+ */
+export const FILE_HOST = "workspace";
+
+/**
+ * The file `relative` names in `folder`, decided on the names alone, before the file system is asked:
+ * no `\`, `:` or NUL (a UNC path or a drive on Windows would open a network share), and inside the
+ * folder (a path through `/net` on macOS would mount one). Undefined otherwise.
+ */
+export const lexicalTarget = (
+  folder: string,
+  relative: string,
+  paths: path.PlatformPath = path,
+): string | undefined => {
+  if (/[\\:\0]/.test(relative)) {
+    return undefined;
+  }
+  const target = paths.resolve(folder, relative);
+  return isInside(folder, target, paths) ? target : undefined;
+};
+
+/** The repository and the path below it of a `logreq-file:` URL, or undefined. */
+const fileOf = (url: string): { readonly repository: string; readonly relative: string } | undefined => {
+  const parsed = URL.parse(url);
+  const decoded =
+    parsed?.protocol === "logreq-file:" && parsed.host === FILE_HOST ? decodedPath(parsed) : undefined;
+  const slash = decoded?.indexOf("/") ?? -1;
+  return decoded === undefined || slash < 1
+    ? undefined
+    : { repository: decoded.slice(0, slash), relative: decoded.slice(slash + 1) };
+};
+
+/** The error object of a failed call; `invoke` gives a CommandError for every failure. */
+const errorObject = (error: unknown): CommandErrorObject =>
+  error instanceof CommandError ? error.toJSON() : { code: "internal", message: "Internal error in the app" };
+
+export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHost => {
+  const entries = new Map<string, CatalogEntry>(runtime.contracts.commands.map((e) => [e.name, e]));
+  const channels = new Map<Channel, AbortController>();
+  /** The requests being answered, so that close waits for the writes among them. */
+  const running = new Set<Promise<void>>();
+  let folders: Promise<ReadonlyMap<string, string>> | undefined;
+
+  /** The folders of the available repositories by name, from `workspace.status`; kept until a write. */
+  const repositoryFolders = (): Promise<ReadonlyMap<string, string>> => {
+    if (folders === undefined) {
+      const loading = (async () => {
+        const status = (await runtime.invoke("workspace.status", {}, { workspace })) as {
+          readonly repositories: readonly { name: string; available: boolean; path?: string }[];
+        };
+        return new Map(
+          status.repositories.flatMap((r) =>
+            r.available && r.path !== undefined
+              ? [[r.name, path.resolve(workspace.root, r.path)] as const]
+              : [],
+          ),
+        );
+      })();
+      // A failed status (no workspace file) is asked again on the next request.
+      loading.catch(() => {
+        folders = undefined;
+      });
+      folders = loading;
+    }
+    return folders;
+  };
+
+  const broadcast = (message: PortMessage): void => {
+    for (const channel of channels.keys()) {
+      channel.post(message);
+    }
+  };
+
+  const isWrite = (name: string): boolean => entries.get(name)?.effect === "write-files";
+
+  const invoke = async (name: string, input: unknown, signal: AbortSignal): Promise<InvokeResult> => {
+    // A write gets no abort signal: it runs to its end even when its window goes away.
+    const context = isWrite(name) ? { workspace } : { workspace, signal };
+    try {
+      return { ok: true, output: await runtime.invoke(name, input, context) };
+    } catch (error) {
+      return { ok: false, error: errorObject(error) };
+    }
+  };
+
+  const answer = async (channel: Channel, data: unknown, signal: AbortSignal): Promise<void> => {
+    const request = portRequest(data);
+    if (request === undefined) {
+      return;
+    }
+    if (request.kind === "commands") {
+      const commands: CommandListing[] = runtime.contracts.commands.map((entry) => ({
+        ...entry,
+        implemented: runtime.commands.has(entry.name),
+      }));
+      channel.post({ id: request.id, commands });
+      return;
+    }
+    const result = await invoke(request.name, request.input, signal);
+    // A closed port has nobody to answer; the files a write changed are still news for the other windows.
+    if (!signal.aborted) {
+      channel.post({ id: request.id, result });
+    }
+    if (result.ok && isWrite(request.name)) {
+      folders = undefined;
+      broadcast({ event: "workspace-changed", change: { reason: "written" } });
+    }
+  };
+
+  return {
+    connect: (channel) => {
+      const controller = new AbortController();
+      channels.set(channel, controller);
+      channel.onClose(() => {
+        controller.abort();
+        channels.delete(channel);
+      });
+      channel.onMessage((data) => {
+        const task = answer(channel, data, controller.signal);
+        running.add(task);
+        void task.then(() => running.delete(task));
+      });
+    },
+
+    file: async (url) => {
+      const file = fileOf(url);
+      const mimeType =
+        file === undefined ? undefined : IMAGE_TYPES[path.extname(file.relative).toLowerCase()];
+      if (file === undefined || mimeType === undefined) {
+        return NOT_FOUND;
+      }
+      try {
+        const folder = (await repositoryFolders()).get(file.repository);
+        const lexical = folder === undefined ? undefined : lexicalTarget(folder, file.relative);
+        if (folder === undefined || lexical === undefined) {
+          return NOT_FOUND;
+        }
+        // Only now the file system: links inside the folder may still point outside it.
+        const [root, target] = await Promise.all([fs.realpath(folder), fs.realpath(lexical)]);
+        if (!isInside(root, target) || !(await fs.stat(target)).isFile()) {
+          return NOT_FOUND;
+        }
+        return { status: 200, mimeType, data: new Uint8Array(await fs.readFile(target)) };
+      } catch {
+        return NOT_FOUND;
+      }
+    },
+
+    close: async () => {
+      for (const controller of channels.values()) {
+        controller.abort();
+      }
+      await Promise.all(running);
+      for (const channel of channels.keys()) {
+        channel.close();
+      }
+      channels.clear();
+      await workspace.close();
+    },
+  };
+};

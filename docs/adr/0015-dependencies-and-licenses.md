@@ -10,3 +10,5 @@ Status: Proposed · Based on: N-046, N-047, D-051
 - Every new runtime dependency is named in the PR body with license and reason.
 
 Pinned now (stage 0, dev only): TypeScript, typescript-eslint, ESLint, Prettier, Vitest, Ajv, ajv-formats, yaml, @types/node. Planned with their stage: `yaml`, `ajv`, `minisearch`, `micromark` family (stage 1–3), `commander`, `@modelcontextprotocol/server` (stage 1; the v2 package of the official MCP SDK, instead of the v1 `@modelcontextprotocol/sdk`, ADR-0009), `electron`, `electron-vite`, `react`, `@codemirror/*`, `katex`, `mermaid`, `@playwright/test`, `electron-builder` (stage 3), `fast-xml-parser`, `hast-util-*` (stage 6).
+
+Stage 3 app shell (#322): `react` and `react-dom` (MIT, runtime, bundled into the renderer); dev only: `electron` (MIT), `electron-vite` and `vite` (MIT), `@playwright/test` (Apache-2.0), `@types/react` and `@types/react-dom` (MIT), and `happy-dom` (MIT, a DOM for the unit tests of the renderer). pnpm does not run Electron's install script. `pnpm --filter @logreq/app electron:install` downloads the binary where it is needed (Electron tests, later packaging).

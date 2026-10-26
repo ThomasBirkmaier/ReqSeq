@@ -1,6 +1,8 @@
 // Cross-access test (ADR-0002 rule 8, ADR-0011, SR-080): every catalog command runs through core `invoke`,
-// the CLI, the local API and the MCP server on the same fixture workspace, and all four give the same
-// result: the same output or the same error object, and the same files on disk afterwards. New catalog
+// the CLI, the local API, the MCP server and the app on the same fixture workspace, and all five give the
+// same result: the same output or the same error object, and the same files on disk afterwards. The app is
+// its preload bridge and the core side of its IPC over a MessageChannel, the path every call of the
+// renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
 // commands join automatically with a default scenario (input `{}`); add explicit scenarios below when a
 // command is implemented.
 import fs from "node:fs/promises";
@@ -8,7 +10,11 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
+import type { MessagePort } from "node:worker_threads";
+import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@logreq/api";
+import type { Channel, IpcRendererLike } from "@logreq/app";
+import { WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
 import type { CatalogEntry, CommandName } from "@logreq/core";
 import { CommandError, Workspace, createCommandRuntime } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
@@ -862,6 +868,53 @@ const viaMcp = async (
   }
 };
 
+/** The core side of the app's IPC on one end of a Node MessageChannel (Electron's port in the app). */
+const nodeChannel = (port: MessagePort): Channel => ({
+  post: (message) => {
+    port.postMessage(message);
+  },
+  onMessage: (listener) => {
+    port.on("message", listener);
+  },
+  onClose: (listener) => {
+    port.on("close", listener);
+  },
+  close: () => {
+    port.close();
+  },
+});
+
+/**
+ * The app on `workspace` without Electron: its preload bridge, connected to the core side of its IPC as
+ * the main process connects them (a port per window). `close` closes the ports and the workspace.
+ */
+const connectApp = (
+  workspace: Workspace,
+): { bridge: ReturnType<typeof createBridge>; close: () => Promise<void> } => {
+  const host = createCoreHost({ runtime, workspace });
+  const { port1, port2 } = new MessageChannel();
+  host.connect(nodeChannel(port1));
+  let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
+  const bridge = createBridge({
+    on: (channel, listener) => {
+      expect(channel).toBe(WORKSPACE_CHANNEL);
+      deliver = listener;
+    },
+  });
+  deliver?.({ ports: [port2] }, { open: true });
+  return { bridge, close: () => host.close() };
+};
+
+const viaApp = async (root: string, entry: CatalogEntry, input: object): Promise<Outcome> => {
+  const app = connectApp(new Workspace(root));
+  try {
+    const result = await app.bridge.invoke(entry.name, input);
+    return result.ok ? { output: result.output } : { error: result.error };
+  } finally {
+    await app.close();
+  }
+};
+
 /** Absolute paths in the copy of the fixture as `<copy>/...`, so results of separate copies compare equal. */
 const normalized = (value: unknown, top: string): unknown => {
   const text = JSON.stringify(value);
@@ -969,7 +1022,7 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
  */
 const TEST_TIMEOUT = 30_000;
 
-const ACCESSES = ["core", "cli", "api", "mcp"] as const;
+const ACCESSES = ["core", "cli", "api", "mcp", "app"] as const;
 
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
@@ -978,7 +1031,7 @@ interface Result {
 }
 
 /**
- * Run a scenario through all four accesses. A write command gets a fresh copy per access, so each one starts
+ * Run a scenario through all five accesses. A write command gets a fresh copy per access, so each one starts
  * from the same files. A read command, and a command without an implementation (it cannot write), share one
  * copy. Either way, the files of the copy are compared after each access.
  */
@@ -998,7 +1051,9 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
           ? await viaCli(root, entry, input)
           : access === "api"
             ? await viaApi(root, entry, input, cache)
-            : await viaMcp(root, entry, input);
+            : access === "mcp"
+              ? await viaMcp(root, entry, input)
+              : await viaApp(root, entry, input);
     const result = normalized({ outcome, files: await filesOf(top) }, top) as Result;
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
@@ -1031,30 +1086,34 @@ const maskNewElement = (result: Result): Result => {
 
 const DEFAULT: Scenario = { name: "default input {}", input: {}, expect: "output" };
 
-describe("cross-access: same result through core, CLI, API and MCP", { timeout: TEST_TIMEOUT }, () => {
-  for (const entry of runtime.contracts.commands) {
-    const explicit = SCENARIOS[entry.name as CommandName] ?? [];
-    for (const scenario of [DEFAULT, ...explicit]) {
-      it(`[SR-080/AK2] ${entry.name}, ${scenario.name}`, async () => {
-        const results = await runAll(entry, scenario);
-        const core = results["core"];
-        if (scenario !== DEFAULT) {
-          expect(Object.keys(core?.outcome ?? {})).toEqual([scenario.expect]);
-        }
-        expect(Object.keys(core?.files ?? {}).length).toBeGreaterThan(0);
-        expect(results).toEqual({ core, cli: core, api: core, mcp: core });
-      });
+describe(
+  "cross-access: same result through core, CLI, API, MCP and the app",
+  { timeout: TEST_TIMEOUT },
+  () => {
+    for (const entry of runtime.contracts.commands) {
+      const explicit = SCENARIOS[entry.name as CommandName] ?? [];
+      for (const scenario of [DEFAULT, ...explicit]) {
+        it(`[SR-080/AK2] ${entry.name}, ${scenario.name}`, async () => {
+          const results = await runAll(entry, scenario);
+          const core = results["core"];
+          if (scenario !== DEFAULT) {
+            expect(Object.keys(core?.outcome ?? {})).toEqual([scenario.expect]);
+          }
+          expect(Object.keys(core?.files ?? {}).length).toBeGreaterThan(0);
+          expect(results).toEqual({ core, cli: core, api: core, mcp: core, app: core });
+        });
+      }
     }
-  }
 
-  it("has scenarios only for catalog commands", () => {
-    const names = new Set(runtime.contracts.commands.map((e) => e.name));
-    expect(Object.keys(SCENARIOS).filter((name) => !names.has(name))).toEqual([]);
-  });
-});
+    it("has scenarios only for catalog commands", () => {
+      const names = new Set(runtime.contracts.commands.map((e) => e.name));
+      expect(Object.keys(SCENARIOS).filter((name) => !names.has(name))).toEqual([]);
+    });
+  },
+);
 
 describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () => {
-  it("[SR-080/AK1] is a CLI subcommand, an API route and, once implemented, an MCP tool (the app follows in stage 3)", async () => {
+  it("[SR-080/AK1] is a CLI subcommand, an API route, once implemented an MCP tool, and listed by the app", async () => {
     const { root } = await copy(DEFAULT);
     const names = runtime.contracts.commands.map((e) => e.name);
     for (const entry of runtime.contracts.commands) {
@@ -1115,6 +1174,9 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     });
     expect((listed as { commands: { name: string }[] }).commands.map((c) => c.name)).toEqual(names);
     await server.close();
-    await workspace.close();
+    // The app's bridge lists the catalog for the command palette (SR-073 AK2), as the API does.
+    const app = connectApp(workspace);
+    expect((await app.bridge.commands()).map((c) => c.name)).toEqual(names);
+    await app.close();
   });
 });
