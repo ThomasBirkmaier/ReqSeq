@@ -60,10 +60,43 @@ describe("inputFields", () => {
       "number:flag",
       "boolean:flag",
       "complex:input-only",
-      "complex:input-only",
+      "string:flag",
       "complex:input-only",
       "complex:input-only",
     ]);
+  });
+
+  it("keeps the form of a scalar that may also be null; null itself goes via --input (#343)", () => {
+    const f = fieldsOf(
+      {
+        typeList: { type: ["string", "null"] },
+        anyNull: { anyOf: [{ $ref: "../common.schema.json#/$defs/keyOrName" }, { type: "null" }] },
+        oneNull: { oneOf: [{ type: "integer" }, { const: null }] },
+        enumNull: { enum: ["a", "b", null] },
+        onlyNull: { type: "null" },
+        constNull: { const: null },
+        anyOnlyNull: { anyOf: [{ type: "null" }, { const: null }] },
+        objectOrNull: { type: ["object", "null"] },
+        nullItems: { type: "array", items: { type: "null" } },
+        nullableItems: { type: "array", items: { type: ["string", "null"] } },
+        plain: { type: "string" },
+      },
+      ["anyNull"],
+    );
+    expect(Object.values(f).map((field) => `${shape(field)}${field.nullable ? "?" : ""}`)).toEqual([
+      "string:flag?",
+      "string:positional?",
+      "number:flag?",
+      "string:flag?",
+      "complex:input-only",
+      "complex:input-only",
+      "complex:input-only",
+      "complex:input-only",
+      "complex:input-only",
+      "string[]:flag",
+      "string:flag",
+    ]);
+    expect(f["enumNull"]?.choices).toEqual(["a", "b"]);
   });
 
   it("classifies const, enum, anyOf, oneOf and allOf", () => {

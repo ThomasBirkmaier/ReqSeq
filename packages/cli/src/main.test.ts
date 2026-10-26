@@ -43,6 +43,7 @@ const catalog = {
         level: { enum: ["low", "high"], default: "low" },
         selection: { $ref: "../common.schema.json#/$defs/selection" },
         file: { $ref: "../common.schema.json#/$defs/localPath" },
+        note: { type: ["string", "null"] },
       },
       required: ["ref", "name"],
     }),
@@ -208,6 +209,7 @@ describe("logreq help and version", () => {
     expect(result.stdout).toMatch(/--no-verbose\s+set verbose to false/);
     expect(result.stdout).toMatch(/--tags <value>\s+repeatable/);
     expect(result.stdout).toMatch(/--level <value>\s+one of: low, high; default: "low"/);
+    expect(result.stdout).toMatch(/--note <value>\s+null only via --input/);
     expect(result.stdout).toMatch(/--input <json\|@file\|->/);
     expect(result.stdout).toMatch(/--workspace <path>/);
     expect(result.stdout).toMatch(/--json\s/);

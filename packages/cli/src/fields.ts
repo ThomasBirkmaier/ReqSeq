@@ -5,7 +5,8 @@ import { SCHEMA_BASE, contractsBundle } from "@logreq/core";
 
 /** Values the command line can carry directly. Anything else is `complex` and only reachable via `--input`. */
 export type ScalarKind = "string" | "number" | "boolean";
-type Kind = ScalarKind | "complex" | "any";
+/** `null`: a schema that allows only `null`; next to another kind it leaves that kind (#343). */
+type Kind = ScalarKind | "complex" | "any" | "null";
 
 /** How a field is given: positional argument, `--<flag>`, or only inside `--input`. */
 export type FieldUse = "positional" | "flag" | "input-only";
@@ -24,6 +25,11 @@ export interface InputField {
   readonly description: string | undefined;
   /** Allowed values when the schema lists them (for the help text). */
   readonly choices: readonly string[] | undefined;
+  /**
+   * The schema also allows `null` (`type: [X, "null"]`, an `anyOf` branch `{ type: "null" }`): the
+   * field keeps the form of its other kind, and `null` itself is given with `--input` (#343).
+   */
+  readonly nullable: boolean;
   /** `default` of the schema (for the help text; core fills it in). */
   readonly defaultValue: unknown;
   /**
@@ -55,19 +61,35 @@ interface Located {
 const MAX_DEPTH = 16;
 
 const scalarOf = (value: unknown): Kind => {
+  if (value === null) {
+    return "null";
+  }
   const type = typeof value;
   return type === "string" || type === "number" || type === "boolean" ? type : "complex";
 };
 
-/** One kind when all agree on the same scalar kind, else `complex`. */
-const combine = (kinds: readonly Kind[]): Kind => {
+/**
+ * One kind when all agree on the same scalar kind, else `complex`. A `null` kind next to others is
+ * left out (a nullable scalar keeps its form) unless `keepNull`; only `null` is `null`.
+ */
+const combine = (all: readonly Kind[], keepNull: boolean): Kind => {
+  const kinds = keepNull ? all : all.filter((k) => k !== "null");
+  if (kinds.length === 0 && all.length > 0) {
+    return "null";
+  }
   const [first] = kinds;
   return first !== undefined && first !== "complex" && first !== "any" && kinds.every((k) => k === first)
     ? first
     : "complex";
 };
 
-const typeKind = (type: unknown): Kind => {
+const typeKind = (type: unknown, keepNull: boolean): Kind => {
+  if (Array.isArray(type)) {
+    return combine(
+      type.map((t) => typeKind(t, keepNull)),
+      keepNull,
+    );
+  }
   switch (type) {
     case "string":
       return "string";
@@ -76,6 +98,8 @@ const typeKind = (type: unknown): Kind => {
       return "number";
     case "boolean":
       return "boolean";
+    case "null":
+      return "null";
     case undefined:
       return "any";
     default:
@@ -83,7 +107,11 @@ const typeKind = (type: unknown): Kind => {
   }
 };
 
-type Shape = Pick<InputField, "kind" | "array" | "choices" | "localPath">;
+/** A scalar kind as it is; `any`, `null` (a field that is only ever null) and `complex` are `complex`. */
+const scalarOrComplex = (kind: Kind): ScalarKind | "complex" =>
+  kind === "any" || kind === "null" ? "complex" : kind;
+
+type Shape = Pick<InputField, "kind" | "array" | "choices" | "localPath" | "nullable">;
 
 /** Reads field schemas; `$ref`s resolve only against `schemas` (identifiers, never fetched). */
 const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Shape) => {
@@ -124,7 +152,8 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
     return target !== undefined && isLocalPath(target, depth + 1);
   };
 
-  const kindOf = (start: Located, depth = 0): Kind => {
+  /** The kind of a schema; with `keepNull`, one that also allows `null` is `complex` (see `nullable`). */
+  const kindOf = (start: Located, depth = 0, keepNull = false): Kind => {
     const located = depth > MAX_DEPTH ? undefined : dereference(start);
     if (located === undefined) {
       return "complex";
@@ -135,43 +164,56 @@ const schemaReader = (schemas: readonly JsonSchema[]): ((located: Located) => Sh
     }
     const values = schema["enum"];
     if (Array.isArray(values)) {
-      return combine(values.map(scalarOf));
+      return combine(values.map(scalarOf), keepNull);
     }
     const branchKinds = (key: string): Kind[] | undefined => {
       const branches = schema[key];
       return Array.isArray(branches)
-        ? branches.map((b: unknown) => (isSchema(b) ? kindOf({ schema: b, base }, depth + 1) : "complex"))
+        ? branches.map((b: unknown) =>
+            isSchema(b) ? kindOf({ schema: b, base }, depth + 1, keepNull) : "complex",
+          )
         : undefined;
     };
     const either = branchKinds("anyOf") ?? branchKinds("oneOf");
     if (either !== undefined) {
-      return combine(either);
+      return combine(either, keepNull);
     }
     const all = branchKinds("allOf");
     if (all !== undefined) {
       // Every branch must hold; branches without a type (e.g. `not`) only narrow the value.
-      return combine([typeKind(schema["type"]), ...all].filter((k) => k !== "any"));
+      return combine(
+        [typeKind(schema["type"], keepNull), ...all].filter((k) => k !== "any"),
+        keepNull,
+      );
     }
-    return typeKind(schema["type"]);
+    return typeKind(schema["type"], keepNull);
+  };
+
+  /** The shape of an array field: repeatable scalars, else `complex`. */
+  const arrayShape = (located: Located): Shape => {
+    const items = located.schema["items"];
+    const itemSchema = isSchema(items) ? { schema: items, base: located.base } : undefined;
+    const item = itemSchema === undefined ? "complex" : scalarOrComplex(kindOf(itemSchema));
+    return itemSchema === undefined || item === "complex"
+      ? { kind: "complex", array: false, choices: undefined, localPath: false, nullable: false }
+      : { kind: item, array: true, choices: undefined, localPath: isLocalPath(itemSchema), nullable: false };
   };
 
   return (field) => {
     const located = dereference(field);
     if (located?.schema["type"] === "array") {
-      const items = located.schema["items"];
-      const itemSchema = isSchema(items) ? { schema: items, base: located.base } : undefined;
-      const item = itemSchema === undefined ? "complex" : kindOf(itemSchema);
-      return itemSchema === undefined || item === "complex" || item === "any"
-        ? { kind: "complex", array: false, choices: undefined, localPath: false }
-        : { kind: item, array: true, choices: undefined, localPath: isLocalPath(itemSchema) };
+      return arrayShape(located);
     }
-    const kind = kindOf(field);
+    const kind = scalarOrComplex(kindOf(field));
     const values = located?.schema["enum"];
+    const strings = kind === "string";
     return {
-      kind: kind === "any" ? "complex" : kind,
+      kind,
       array: false,
-      choices: kind === "string" && Array.isArray(values) ? values.map(String) : undefined,
-      localPath: kind === "string" && isLocalPath(field),
+      choices: strings && Array.isArray(values) ? values.filter((v) => v !== null).map(String) : undefined,
+      localPath: strings && isLocalPath(field),
+      // A scalar whose kind does not hold once `null` counts as a kind of its own allows `null`.
+      nullable: kind !== "complex" && kindOf(field, 0, true) !== kind,
     };
   };
 };

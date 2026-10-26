@@ -419,7 +419,7 @@ describe("statuses per type (#306)", () => {
     ]);
   });
 
-  it("gives no warning for a type with only invalid statuses, also not for statuses: [] below one (#344, #350)", async () => {
+  it("gives no warning for a type with only invalid statuses, also not for statuses: [] below one, only an info note (#344, #350, #343)", async () => {
     const ws = await fixture({
       files: {
         "model/z-gone.yaml":
@@ -428,8 +428,22 @@ describe("statuses per type (#306)", () => {
     });
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(true);
-    // Their status is optional: an element without one is current, withdrawn retires it.
-    expect(metamodel.problems).toEqual([]);
+    // Their status is optional: an element without one is current, withdrawn retires it. Each type
+    // that has elements says so in an info note (#343): not the abstract one, an inherited list on
+    // the type, its own list on that line.
+    expect(metamodel.problems.map((p) => [p.severity, p.line, p.message])).toEqual(
+      [
+        [4, "gone-item"],
+        [8, "gone-empty"],
+      ].map(([line, key]) => [
+        "info",
+        line,
+        `Type ${String(key)} has an optional status (only invalid statuses: withdrawn): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+      ]),
+    );
+    expect(
+      metamodel.problems.every((p) => p.code === "metamodel.invalid" && p.file === "model/z-gone.yaml"),
+    ).toBe(true);
     expect(
       metamodel.effectiveTypes.filter((t) => t.key.startsWith("gone-")).map((t) => [t.key, t.statuses]),
     ).toEqual([

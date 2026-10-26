@@ -90,6 +90,7 @@ const describeField = (field: InputField): string =>
     field.choices === undefined ? undefined : `one of: ${field.choices.join(", ")}`,
     field.defaultValue === undefined ? undefined : `default: ${JSON.stringify(field.defaultValue)}`,
     field.array ? "repeatable" : undefined,
+    field.nullable ? "null only via --input" : undefined,
   ]
     .filter((part) => part !== undefined)
     .join("; ");

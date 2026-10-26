@@ -25,6 +25,7 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
   - a hint is one line: element short ID, kind, message, `hint: <id>`; each problem is printed once, as `severity  code  repository:file:line  message  (element SR-46fb54)`, the element by its short ID (by its UUID only when core gives none) and its identifier when it has one (`(element SR-0b0036, identifier SR-036)`).
 - Element arguments take a UUID, a short ID or an identifier such as `SR-036` (#305), in any case: `logreq element get SR-036`.
 - Options come after the command: `--json` (exactly the command output), `--yaml`, `--workspace <path>`, `--input <json|@file|->`, and one `--<field>` per scalar input field (`--x`/`--no-x` for booleans, repeat the flag for arrays).
+- A field that may also be `null` keeps its scalar form; `null` itself only via `--input` (`logreq element set-status --refs T-1a2b3c --input @status-null.json` with `{"status": null}` removes a status line, #343).
 - With `--input`, positional values fill the positional fields that `--input` does not give, in order; flags override fields of `--input`. A positional field can also be given as `--<field>`; then the arguments fill the other positional fields.
 - Local file and folder fields (`common.schema.json#/$defs/localPath`, e.g. `workspace init <path>`, `evidence enrich-junit <file>`) are relative to the current folder; the CLI passes them on as absolute paths.
 - Workspace: `--workspace`, else the nearest folder upwards with `logreq-workspace.yaml`, else the current folder.

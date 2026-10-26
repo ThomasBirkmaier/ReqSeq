@@ -1154,17 +1154,17 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus input`.
  */
 export interface ElementSetStatusInput {
   readonly refs: readonly ElementRef[];
-  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306). */
-  readonly status: KeyOrName;
+  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306). null removes the status line, only from an element whose type has an optional status: no status, or only statuses marked invalid (#343); else input.invalid with reason status-required. */
+  readonly status: KeyOrName | null;
 }
 
 /**
- * Output of `element.setStatus`. Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus output`.
  */
 export interface ElementSetStatusOutput {

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
-import type { CommandOutput } from "../../catalog.js";
+import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -52,7 +52,7 @@ const create = async (opened: Opened, type: string): Promise<CommandOutput<"elem
     { workspace: opened.workspace },
   )) as CommandOutput<"element.create">;
 
-const setStatus = (opened: Opened, refs: readonly string[], status: string): Promise<unknown> =>
+const setStatus = (opened: Opened, refs: readonly string[], status: string | null): Promise<unknown> =>
   invoke("element.setStatus", { refs, status }, { workspace: opened.workspace });
 
 const supersede = (opened: Opened, input: Record<string, unknown>): Promise<unknown> =>
@@ -64,9 +64,9 @@ const fixtureModel = (): Promise<string> =>
     "utf8",
   );
 
-const metamodelProblems = async (opened: Opened): Promise<CommandOutput<"metamodel.get">["problems"]> =>
+const metamodelProblems = async (opened: Opened): Promise<readonly Problem[]> =>
   ((await invoke("metamodel.get", {}, { workspace: opened.workspace })) as CommandOutput<"metamodel.get">)
-    .problems;
+    .problems ?? [];
 
 const statusHints = async (opened: Opened): Promise<readonly string[]> =>
   (
@@ -106,8 +106,11 @@ describe("element.create with statuses per type (#306)", () => {
           "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: archived, name: Archived }\n",
         ),
     });
-    // A type with only invalid statuses is no metamodel problem any more (#344, option 1).
-    expect(await metamodelProblems(opened)).toEqual([]);
+    // A type with only invalid statuses is no metamodel problem any more (#344, option 1), only an
+    // info note (#343).
+    expect(
+      (await metamodelProblems(opened)).map((p) => `${p.severity} ${p.message.split(" (")[0] ?? ""}`),
+    ).toEqual(["info Type tombstone has an optional status"]);
     const ruling = await create(opened, "ruling");
     expect(ruling.element.status).toBe("archived");
     const tombstone = await create(opened, "tombstone");
@@ -276,9 +279,19 @@ const openRetirable = async (): Promise<Opened> =>
   });
 
 describe("a type whose statuses are all marked invalid (#344, option 1)", () => {
-  it("is no metamodel problem, and an element of it without status gets no hint", async () => {
+  it("is no metamodel problem but an info note (#343), and an element of it without status gets no hint", async () => {
     const opened = await openRetirable();
-    expect(await metamodelProblems(opened)).toEqual([]);
+    expect(await metamodelProblems(opened)).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "info",
+        repository: "system",
+        message:
+          "Type glossary-term has an optional status (only invalid statuses: retired): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again",
+        file: "metamodel/model.yaml",
+        line: 33,
+      },
+    ]);
     // The hints of the fixture itself, none for the glossary term.
     expect(await statusHints(opened)).toEqual([
       "element.status-not-allowed elements/D-000000ddd002.md",
@@ -333,7 +346,7 @@ describe("an initial status that is marked invalid (#350)", () => {
 
   it("is a metamodel warning on its invalid line", async () => {
     const opened = await openInvalidInitial();
-    expect(await metamodelProblems(opened)).toEqual([
+    expect((await metamodelProblems(opened)).filter((p) => p.severity !== "info")).toEqual([
       {
         code: "metamodel.invalid",
         severity: "warning",
@@ -355,5 +368,99 @@ describe("an initial status that is marked invalid (#350)", () => {
     const gone = await create(opened, "gone-only");
     expect(gone.element).not.toHaveProperty("status");
     expect(await read(opened, gone.element.file)).not.toContain("status:");
+  });
+});
+
+describe("removing a status with element.setStatus and status null (#343)", () => {
+  const TERM_DRAFT = "elements/T-000000eee002.md";
+  const RETIRED = "elements/GT-000000fff002.md";
+  const RETIRED_TEXT =
+    "---\nid: 6f6f6f6f-6666-4666-8666-000000fff002\ntype: glossary-term\nstatus: retired\ntitle: Retired by mistake\n---\nText\n";
+  const LEFTOVER = "elements/GT-000000fff003.md";
+  const LEFTOVER_TEXT =
+    "---\nid: 6f6f6f6f-6666-4666-8666-000000fff003\ntype: glossary-term\nstatus: draft\ntitle: Migrated\n---\n";
+
+  it("removes a leftover status from an element of a type without status: only the status line goes", async () => {
+    const opened = await open();
+    expect(await statusHints(opened)).toContain(`element.status-not-allowed ${TERM_DRAFT}`);
+    const out = await setStatus(opened, ["T-eee002"], null);
+    expect(out).toEqual({ files: [TERM_DRAFT], problems: [] });
+    expect(await read(opened, TERM_DRAFT)).toBe(
+      "---\nid: 5e5e5e5e-5555-4555-8555-000000eee002\ntype: term\ntitle: Term with a status\n---\n",
+    );
+    expect((await statusHints(opened)).filter((h) => h.includes("T-000000eee"))).toEqual([]);
+  });
+
+  it("makes a retired element of a retire-only type current again and clears a leftover working status (#344)", async () => {
+    const opened = await open({
+      "metamodel/model.yaml": (await fixtureModel())
+        .replace("properties:\n  - key: title", RETIRABLE.type)
+        .replace("  - { key: superseded, name: Superseded, invalid: true }\n", RETIRABLE.status),
+      [RETIRED]: RETIRED_TEXT,
+      [LEFTOVER]: LEFTOVER_TEXT,
+    });
+    expect((await statusHints(opened)).filter((h) => h.includes("GT-"))).toEqual([
+      `element.status-not-allowed ${LEFTOVER}`,
+    ]);
+    const out = await setStatus(opened, ["GT-fff002", "GT-fff003"], null);
+    expect(out).toEqual({ files: [RETIRED, LEFTOVER], problems: [] });
+    expect(await read(opened, RETIRED)).toBe(RETIRED_TEXT.replace("status: retired\n", ""));
+    expect(await read(opened, LEFTOVER)).toBe(LEFTOVER_TEXT.replace("status: draft\n", ""));
+    expect((await statusHints(opened)).filter((h) => h.includes("GT-"))).toEqual([]);
+    const view = (await invoke("element.get", { ref: "GT-fff002" }, { workspace: opened.workspace })) as {
+      element: Record<string, unknown>;
+    };
+    expect(view.element).not.toHaveProperty("status");
+  });
+
+  it("is lossless: comments, other keys, the text and CRLF line endings stay byte for byte (ADR-0007)", async () => {
+    const text =
+      "---\r\nid: 5e5e5e5e-5555-4555-8555-000000eee002\r\n# the type\r\ntype: term\r\nstatus: draft # from Logseq\r\n# about the title\r\ntitle: 'Term with a status'\r\n---\r\nSome *text*.\r\n";
+    const opened = await open({ [TERM_DRAFT]: text });
+    await setStatus(opened, ["T-eee002"], null);
+    expect(await read(opened, TERM_DRAFT)).toBe(text.replace("status: draft # from Logseq\r\n", ""));
+  });
+
+  it("refuses it on a type that requires a status, before any file is written", async () => {
+    const opened = await open();
+    const files = [TERM_DRAFT, SR_DRAFT, NEED];
+    const before = await Promise.all(files.map((f) => read(opened, f)));
+    const error = await errorOf(() => setStatus(opened, ["T-eee002", "SR-bbb001"], null));
+    expect(error.toJSON()).toEqual({
+      code: "input.invalid",
+      message:
+        "Type Requirement (requirement) of SR-bbb001 requires a status, so it cannot be removed; its statuses are: draft (Draft), obsolete (Obsolete)",
+      details: {
+        ref: "SR-bbb001",
+        type: "requirement",
+        status: null,
+        allowed: ["draft", "obsolete"],
+        reason: "status-required",
+      },
+    });
+    // A type without a list has every status, so it requires one too.
+    const need = await errorOf(() => setStatus(opened, ["N-aaa001"], null));
+    expect(need.details).toMatchObject({ reason: "status-required", type: "need" });
+    expect(await Promise.all(files.map((f) => read(opened, f)))).toEqual(before);
+  });
+
+  it("writes no file for an element without a status line, and removes an empty one", async () => {
+    const empty = "---\nid: 5e5e5e5e-5555-4555-8555-000000eee002\ntype: term\nstatus:\ntitle: Empty\n---\n";
+    const opened = await open({ [TERM_DRAFT]: empty });
+    const before = await read(opened, TERM);
+    expect(await setStatus(opened, ["T-eee001", "T-eee001"], null)).toEqual({ files: [], problems: [] });
+    expect(await read(opened, TERM)).toBe(before);
+    expect(await setStatus(opened, ["T-eee002"], null)).toEqual({ files: [TERM_DRAFT], problems: [] });
+    expect(await read(opened, TERM_DRAFT)).toBe(empty.replace("status:\n", ""));
+  });
+
+  it("still needs the status field: leaving it out is no removal", async () => {
+    const opened = await open();
+    const before = await read(opened, TERM_DRAFT);
+    const error = await errorOf(() =>
+      invoke("element.setStatus", { refs: ["T-eee002"] }, { workspace: opened.workspace }),
+    );
+    expect(error.code).toBe("input.invalid");
+    expect(await read(opened, TERM_DRAFT)).toBe(before);
   });
 });

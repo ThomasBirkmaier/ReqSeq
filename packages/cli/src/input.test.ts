@@ -116,6 +116,7 @@ const field = (
   choices: undefined,
   defaultValue: undefined,
   localPath: options.localPath ?? false,
+  nullable: false,
 });
 
 const invocation = (parts: Partial<Invocation>): Invocation => ({

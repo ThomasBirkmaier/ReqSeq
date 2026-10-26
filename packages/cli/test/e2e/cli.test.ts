@@ -106,6 +106,9 @@ describe("logreq binary", () => {
     expect(help.stdout).not.toContain("\u001b[");
     const group = await logreq(["element", "--help"], { cwd: ws.root });
     expect(group.stdout).toMatch(/set-status <status> \[options\]/);
+    // status: null removes the status line (#343); the command line gives null with --input.
+    const setStatus = await logreq(["element", "set-status", "--help"], { cwd: ws.root });
+    expect(setStatus.stdout).toMatch(/null only via\s+--input/);
   });
 
   it("exits 2 for usage errors and for commands that are not implemented yet", async () => {

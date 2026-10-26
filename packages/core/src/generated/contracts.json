@@ -2947,7 +2947,7 @@
       },
       {
         "name": "element.setStatus",
-        "summary": "Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
+        "summary": "Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
         "effect": "write-files",
         "stage": 1,
         "implements": [
@@ -2964,8 +2964,15 @@
               }
             },
             "status": {
-              "$ref": "../common.schema.json#/$defs/keyOrName",
-              "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306)."
+              "anyOf": [
+                {
+                  "$ref": "../common.schema.json#/$defs/keyOrName"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306). null removes the status line, only from an element whose type has an optional status: no status, or only statuses marked invalid (#343); else input.invalid with reason status-required."
             }
           },
           "additionalProperties": false,

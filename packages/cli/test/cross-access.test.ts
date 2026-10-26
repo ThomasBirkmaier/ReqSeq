@@ -77,6 +77,8 @@ const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise
 /** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
 /** Spec IDs in a property with the meaning identifier (#305). */
 const IDENTIFIERS: FixtureOptions = { fixture: "enabler-305/identifiers", git: true };
+/** Statuses per type (#306): glossary terms have no status, requirements require one. */
+const STATUSES_PER_TYPE: FixtureOptions = { fixture: "enabler-306/statuses-per-type", git: true };
 const MISSING_TARGETS: FixtureOptions = { fixture: "SR-089/missing-targets", git: ["system", "sensor"] };
 /** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
 const WITH_VAULT =
@@ -426,6 +428,18 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     {
       name: "status not in the metamodel",
       input: { refs: ["SR-e88fb3"], status: "released" },
+      expect: "error",
+    },
+    {
+      name: "remove a leftover status with status null: CLI via --input (#343)",
+      fixture: STATUSES_PER_TYPE,
+      input: { refs: ["T-eee002"], status: null },
+      expect: "output",
+    },
+    {
+      name: "remove the status of an element whose type requires one (#343)",
+      fixture: STATUSES_PER_TYPE,
+      input: { refs: ["SR-bbb001"], status: null },
       expect: "error",
     },
   ],

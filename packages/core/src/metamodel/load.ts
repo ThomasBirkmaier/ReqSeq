@@ -8,7 +8,8 @@
 // relation kind (ADR-0004, while merging); after all files, every type in `source-types`/
 // `target-types` is defined and exactly one status is initial; an initial status marked invalid is
 // a warning (#350). No type uses the prefix that short IDs of elements of an unknown type use
-// (#154).
+// (#154). A type whose statuses are all marked invalid gets an info note that its status is
+// optional (#343), so a metamodel that marks them all invalid by mistake does not go unnoticed.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -337,6 +338,38 @@ const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): 
       ),
     );
 
+/**
+ * An info note for every type, not abstract, whose statuses are all marked invalid (#343): its
+ * status is optional (#344, option 1), as `hasWorkingStatus` decides for its elements. On the type's
+ * `statuses` line, else (an inherited list, or no list and every status invalid) on the type.
+ */
+const optionalStatusNotes = (
+  types: readonly Located<MetamodelType>[],
+  effectiveTypes: readonly EffectiveType[],
+  statuses: readonly Located<MetamodelStatus>[],
+): Problem[] => {
+  const invalid = new Set(statuses.filter((s) => s.definition.invalid === true).map((s) => s.definition.key));
+  return types.flatMap((type, index) => {
+    const effective = effectiveTypes[index];
+    if (
+      effective === undefined ||
+      effective.abstract ||
+      effective.statuses.length === 0 ||
+      !effective.statuses.every((key) => invalid.has(key))
+    ) {
+      return [];
+    }
+    return [
+      problem(
+        "info",
+        `Type ${effective.key} has an optional status (only invalid statuses: ${effective.statuses.join(", ")}): an element of it without status is current, element.supersede retires it, and element.setStatus with status null makes it current again`,
+        type.file,
+        type.lineOf(["statuses"]),
+      ),
+    ];
+  });
+};
+
 type Listing =
   | { readonly kind: "names"; readonly names: readonly string[] }
   | { readonly kind: "error"; readonly reason: string };
@@ -453,6 +486,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
     ...initialStatusProblems(statuses, folderName, complete),
     ...invalidInitialProblems(statuses),
+    ...optionalStatusNotes(types, resolved.types, statuses),
   );
   const definitions = <T>(located: readonly Located<T>[]): T[] => located.map((l) => l.definition);
   return {
