@@ -7,7 +7,12 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import type * as files from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
+import { editElementFile } from "../files/index.js";
+import { workspaceLayoutState } from "../workspace/index.js";
 import { setElementStatus } from "./status.js";
+import { elementStoreState } from "./store.js";
+import type { ElementFileWrite } from "./write.js";
+import { readUnchanged, writeElementFiles } from "./write.js";
 
 interface Control {
   /** Called before each write with its 1-based number; may throw to make that write fail. */
@@ -121,5 +126,47 @@ describe("writeElementFiles rolls back the files it wrote", () => {
     // Writes: 1 WIND, 2 GUSTS (does not read back); restores: 3 GUSTS, 4 WIND. BARE is never written.
     expect(control.calls).toBe(4);
     expect(await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read))).toEqual(before);
+  });
+
+  it("writes several files at a time on request, and reports the first of several failures", async () => {
+    const { workspace, read } = await open();
+    const before = await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read));
+    const layout = await workspace.get(workspaceLayoutState);
+    const store = await workspace.get(elementStoreState);
+    const writes: ElementFileWrite[] = [];
+    for (const element of [WIND, GUSTS, BARE]) {
+      const record = store.elements.find((e) => e.id === element.id);
+      if (record === undefined) {
+        throw new Error(`no element ${element.id}`);
+      }
+      const read = await readUnchanged(workspace, layout, record);
+      writes.push({ ...read, bytes: editElementFile(read.current.file, { body: "Changed.\n" }).bytes });
+    }
+    // Writes 1 WIND and 2 GUSTS start together and both fail; BARE is never written.
+    control.before = (call) => {
+      if (call === 1) {
+        throw new CommandError("file.read-only", "Not written: first");
+      }
+      if (call === 2) {
+        throw new CommandError("file.read-only", "Not written: second");
+      }
+    };
+    const error = await writeElementFiles(workspace, layout, writes, { concurrency: 2 }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(CommandError);
+    expect((error as CommandError).message).toBe("Not written: first");
+    expect(control.calls).toBe(2);
+    expect(await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read))).toEqual(before);
+    // Without a failure every file is written, in the order of the writes.
+    control.before = () => undefined;
+    const fresh = await workspace.get(elementStoreState);
+    const again: ElementFileWrite[] = [];
+    for (const record of fresh.elements.filter((e) => [WIND.id, GUSTS.id, BARE.id].includes(e.id))) {
+      const read = await readUnchanged(workspace, layout, record);
+      again.push({ ...read, bytes: editElementFile(read.current.file, { body: "Changed.\n" }).bytes });
+    }
+    const written = await writeElementFiles(workspace, layout, again, { concurrency: 3 });
+    expect(written.map((w) => w.written.record.id)).toEqual(again.map((w) => w.current.record.id));
   });
 });

@@ -113,6 +113,57 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "element.bulkUpdate": [
+    {
+      name: "a preview: the number of affected elements and the skipped ones, nothing written (SR-071 AK2, AK3)",
+      fixture: FILTER,
+      input: { selection: {}, property: "priority", operation: "set", value: 4 },
+      expect: "output",
+    },
+    {
+      name: "add a package to a selection, confirmed with the count of the preview (SR-071 AK1, AK2)",
+      fixture: FILTER,
+      input: {
+        selection: { where: { type: ["system-requirement"] } },
+        property: "packages",
+        operation: "add",
+        value: { id: "69069069-0000-4000-8000-0000000000d2" },
+        confirm: true,
+        expected: 5,
+      },
+      expect: "output",
+    },
+    {
+      name: "remove a property from elements named by short ID",
+      fixture: FILTER,
+      input: {
+        selection: { ids: ["SR-0000b1", "SR-0000b2"] },
+        property: "topic",
+        operation: "remove",
+        confirm: true,
+      },
+      expect: "output",
+    },
+    {
+      name: "a confirmation whose count no longer holds (a choice by its display name)",
+      fixture: FILTER,
+      input: {
+        selection: { ids: ["SR-0000b1"] },
+        property: "verification-method",
+        operation: "set",
+        value: "Analysis",
+        confirm: true,
+        expected: 3,
+      },
+      expect: "error",
+    },
+    {
+      name: "the status is never a bulk change (D-030)",
+      fixture: FILTER,
+      input: { selection: {}, property: "status", operation: "set", value: "approved", confirm: true },
+      expect: "error",
+    },
+  ],
   "element.create": [
     {
       name: "new element in a new folder",

@@ -93,3 +93,14 @@ export const locateFindings = async (
   findings: readonly LocatableFinding[],
   options: LocateOptions = {},
 ): Promise<readonly Problem[]> => findings.map(await findingLocator(layout, findings, options));
+
+/**
+ * The problems of `findings` with the line of each in `file`, the file at hand that the findings
+ * were made on (a file just written, or the bytes a preview would write); a finding whose path is
+ * not found keeps its problem without a line.
+ */
+export const locateIn = (file: ParsedFile, findings: readonly LocatableFinding[]): Problem[] =>
+  findings.map((finding) => {
+    const line = findingLine(file, finding);
+    return line === undefined ? finding.problem : { ...finding.problem, line };
+  });

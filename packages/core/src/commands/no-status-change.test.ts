@@ -68,6 +68,20 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: RETIRED, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/.keep" },
   ],
+  "element.bulkUpdate": [
+    { selection: {}, property: "rationale", operation: "set", value: "Changed together", confirm: true },
+    { selection: { where: { type: ["need"] } }, property: "topic", operation: "set", value: "Wind" },
+    {
+      selection: { ids: [WIND, OBSOLETE] },
+      property: "acceptance-criteria",
+      operation: "add",
+      value: "New",
+      confirm: true,
+    },
+    { selection: {}, property: "rationale", operation: "remove", confirm: true },
+    { selection: {}, property: "status", operation: "set", value: "approved", confirm: true },
+    { selection: { ids: [RETIRED] }, property: "status", operation: "remove", confirm: true },
+  ],
   "element.create": [
     { type: "system-requirement", title: "Show gusts", folder: "requirements" },
     { type: "need", title: "New need", folder: "needs" },

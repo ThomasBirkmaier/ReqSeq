@@ -3010,7 +3010,7 @@
       },
       {
         "name": "element.bulkUpdate",
-        "summary": "Set, add to or remove a property for all elements of a selection. Without `confirm` only previews.",
+        "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).",
         "effect": "write-files",
         "stage": 3,
         "implements": [
@@ -3037,21 +3037,30 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "description": "A property of the metamodel; not the title key, not a relation kind."
             },
             "operation": {
               "enum": [
                 "set",
                 "add",
                 "remove"
-              ]
+              ],
+              "description": "set: replace the value. add: append the items an element does not hold yet (a property with many). remove: without value the property, with value these items (many)."
             },
             "value": {
-              "$ref": "../element.schema.json#/$defs/value"
+              "$ref": "../element.schema.json#/$defs/inputValue",
+              "description": "For set and add. A choice by key or name; relation targets as for element.update."
             },
             "confirm": {
               "type": "boolean",
-              "default": false
+              "default": false,
+              "description": "Write the change; without it nothing is written."
+            },
+            "expected": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements."
             }
           },
           "additionalProperties": false,
@@ -3064,28 +3073,68 @@
         "output": {
           "type": "object",
           "properties": {
+            "applied": {
+              "type": "boolean",
+              "description": "True when the files were written (confirm)."
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of affected elements (SR-071 AK2)."
+            },
             "affected": {
               "type": "array",
-              "items": {
-                "$ref": "../common.schema.json#/$defs/uuid"
-              }
-            },
-            "skipped": {
-              "type": "array",
+              "description": "The elements whose file the change rewrites, in store order.",
               "items": {
                 "type": "object",
                 "properties": {
                   "id": {
                     "$ref": "../common.schema.json#/$defs/uuid"
                   },
+                  "shortId": {
+                    "$ref": "../common.schema.json#/$defs/shortId"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "shortId"
+                ]
+              }
+            },
+            "unchanged": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Elements of the selection that have the result already."
+            },
+            "skipped": {
+              "type": "array",
+              "description": "Elements left out because the metamodel does not allow the property for them (SR-071 AK3).",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  },
+                  "shortId": {
+                    "$ref": "../common.schema.json#/$defs/shortId"
+                  },
                   "reason": {
+                    "enum": [
+                      "not-a-property",
+                      "unknown-type"
+                    ]
+                  },
+                  "message": {
                     "type": "string"
                   }
                 },
                 "additionalProperties": false,
                 "required": [
                   "id",
-                  "reason"
+                  "shortId",
+                  "reason",
+                  "message"
                 ]
               }
             },
@@ -3093,16 +3142,29 @@
               "type": "array",
               "items": {
                 "type": "string"
-              }
+              },
+              "description": "Written files relative to the workspace root; empty in a preview."
             },
-            "applied": {
-              "type": "boolean"
+            "problems": {
+              "type": "array",
+              "items": {
+                "$ref": "../common.schema.json#/$defs/problem"
+              },
+              "description": "Hints at the property in the affected elements after the change: value kind (SR-085), target types (SR-086)."
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete"
             }
           },
           "additionalProperties": false,
           "required": [
+            "applied",
+            "count",
             "affected",
-            "skipped"
+            "unchanged",
+            "skipped",
+            "files",
+            "problems"
           ]
         }
       },

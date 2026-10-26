@@ -1179,29 +1179,51 @@ export interface ElementSupersedeOutput {
 }
 
 /**
- * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove a property for all elements of a selection. Without `confirm` only previews.
+ * Input of `element.bulkUpdate` as `run` gets it: validated, properties with a `default` filled in. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
  * Schema: `schemas/commands/catalog.json element.bulkUpdate input`.
  */
 export interface ElementBulkUpdateInput {
   readonly selection: ElementSelection;
+  /** A property of the metamodel; not the title key, not a relation kind. */
   readonly property: Key;
+  /** set: replace the value. add: append the items an element does not hold yet (a property with many). remove: without value the property, with value these items (many). */
   readonly operation: "set" | "add" | "remove";
-  readonly value?: ElementValue;
+  /** For set and add. A choice by key or name; relation targets as for element.update. */
+  readonly value?: ElementInputValue;
+  /** Write the change; without it nothing is written. */
   readonly confirm: boolean;
+  /** The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. */
+  readonly expected?: number;
 }
 
 /**
- * Output of `element.bulkUpdate`. Set, add to or remove a property for all elements of a selection. Without `confirm` only previews.
+ * Output of `element.bulkUpdate`. Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).
  * Schema: `schemas/commands/catalog.json element.bulkUpdate output`.
  */
 export interface ElementBulkUpdateOutput {
-  readonly affected: readonly Uuid[];
+  /** True when the files were written (confirm). */
+  readonly applied: boolean;
+  /** Number of affected elements (SR-071 AK2). */
+  readonly count: number;
+  /** The elements whose file the change rewrites, in store order. */
+  readonly affected: readonly {
+    readonly id: Uuid;
+    readonly shortId: ShortId;
+  }[];
+  /** Elements of the selection that have the result already. */
+  readonly unchanged: number;
+  /** Elements left out because the metamodel does not allow the property for them (SR-071 AK3). */
   readonly skipped: readonly {
     readonly id: Uuid;
-    readonly reason: string;
+    readonly shortId: ShortId;
+    readonly reason: "not-a-property" | "unknown-type";
+    readonly message: string;
   }[];
-  readonly files?: readonly string[];
-  readonly applied?: boolean;
+  /** Written files relative to the workspace root; empty in a preview. */
+  readonly files: readonly string[];
+  /** Hints at the property in the affected elements after the change: value kind (SR-085), target types (SR-086). */
+  readonly problems: readonly Problem[];
+  readonly incomplete?: Incomplete;
 }
 
 /**

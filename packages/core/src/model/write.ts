@@ -23,6 +23,7 @@ import {
   elementText,
   parseFileBytes,
   readElementFile,
+  readElementFiles,
   resolveInRoot,
   writeFileAtomic,
 } from "../files/index.js";
@@ -177,7 +178,7 @@ const checkPropertyKeys = (
  * a command never writes a choice value that is no key; a hand-written file is still read as it is
  * (SR-085 AK2). Values of the other kinds are kept as given (a wrong kind gives the hint of SR-085).
  */
-const withChoiceKeys = (
+export const withChoiceKeys = (
   metamodel: Metamodel,
   entries: readonly (readonly [string, ElementInputValue])[],
   field: string,
@@ -285,11 +286,13 @@ const readElement = async (
   file: string,
 ): Promise<ReadElement | undefined> => {
   const read = await readElementFile(repository.folder, file);
-  if (read.kind !== "parsed") {
-    return undefined;
-  }
-  const classified = classifyFile(repository.name, read.file);
-  return classified.kind === "element" ? { file: read.file, record: classified.element } : undefined;
+  return read.kind === "parsed" ? asElement(repository.name, read.file) : undefined;
+};
+
+/** A parsed file with the element it is; undefined when it is no element. */
+const asElement = (repository: string, file: ParsedFile): ReadElement | undefined => {
+  const classified = classifyFile(repository, file);
+  return classified.kind === "element" ? { file, record: classified.element } : undefined;
 };
 
 /**
@@ -689,7 +692,16 @@ export const readUnchanged = async (
 ): Promise<UnchangedElement> => {
   // The store found the element there, so the repository is known and available.
   const repository = targetRepository(layout, record.repository);
-  const current = await readElement(repository, record.file);
+  return unchanged(workspace, record, repository, await readElement(repository, record.file));
+};
+
+/** `current` (the file of `record` as read now) when it is unchanged; see `readUnchanged`. */
+const unchanged = async (
+  workspace: Workspace,
+  record: ElementRecord,
+  repository: RepositoryLocation,
+  current: ReadElement | undefined,
+): Promise<UnchangedElement> => {
   if (current?.file.snapshot.sha256 !== record.snapshot.sha256) {
     await workspace.reset(elementStoreState);
     throw new CommandError(
@@ -699,6 +711,42 @@ export const readUnchanged = async (
     );
   }
   return { repository, current };
+};
+
+/**
+ * `readUnchanged` for the records of many items at once, in their order, for a command that changes many
+ * elements (`element.bulkUpdate`): the files of each repository are read `readElementFiles` style,
+ * several at a time, and then checked one by one, so the first file that changed on disk throws
+ * `file.changed-on-disk` (and resets the element store) as `readUnchanged` does.
+ */
+export const readAllUnchanged = async <T extends { readonly record: ElementRecord }>(
+  workspace: Workspace,
+  layout: WorkspaceLayout,
+  items: readonly T[],
+): Promise<(T & UnchangedElement)[]> => {
+  const records = items.map((item) => item.record);
+  const placeOf = (repository: string, file: string): string => JSON.stringify([repository, file]);
+  const read = new Map<string, ParsedFile>();
+  for (const name of new Set(records.map((r) => r.repository))) {
+    const repository = targetRepository(layout, name);
+    const files = await readElementFiles(
+      repository.folder,
+      records.filter((r) => r.repository === name).map((r) => r.file),
+    );
+    for (const file of files.files) {
+      read.set(placeOf(name, file.path), file);
+    }
+  }
+  const out: (T & UnchangedElement)[] = [];
+  for (const item of items) {
+    const { record } = item;
+    const repository = targetRepository(layout, record.repository);
+    // Gone, faulty or no longer an element: changed on disk.
+    const file = read.get(placeOf(record.repository, record.file));
+    const current = file === undefined ? undefined : asElement(record.repository, file);
+    out.push({ ...item, ...(await unchanged(workspace, record, repository, current)) });
+  }
+  return out;
 };
 
 /** One planned change of an existing element file: the file as read with `readUnchanged`, and its new bytes. */
@@ -742,9 +790,20 @@ const restore = async ({ write, snapshot }: DoneWrite): Promise<boolean> => {
   }
 };
 
+export interface WriteFilesOptions {
+  /**
+   * Files written at the same time; default 1, one after the other. Each write syncs the file and
+   * its folder to disk (`writeFileAtomic`), so a command that writes many files (`element.bulkUpdate`)
+   * writes several at once; the rollback is the same.
+   */
+  readonly concurrency?: number;
+}
+
 /**
  * Writes several existing element files, for commands that change more than one element
- * (`element.setStatus`; later `element.supersede` and `element.bulkUpdate`). Every check must be
+ * (`element.setStatus`, `element.supersede`, `element.bulkUpdate`), one at a time or, with
+ * `options.concurrency`, several at a time; after the first failure no further write starts and
+ * the writes in flight end before the rollback. Every check must be
  * done before. A write can still be refused (`file.read-only`, a file changed in the meantime, a
  * disk error), or written bytes may not read back as an element (`internal`); then every file
  * this call has written is written back with its bytes as read (best effort; nothing is deleted)
@@ -757,28 +816,43 @@ export const writeElementFiles = async (
   workspace: Workspace,
   layout: WorkspaceLayout,
   writes: readonly ElementFileWrite[],
+  options: WriteFilesOptions = {},
 ): Promise<WrittenElementFile[]> => {
   const done: DoneWrite[] = [];
   const results: WrittenElementFile[] = [];
-  try {
-    for (const write of writes) {
-      const { repository, current, bytes } = write;
-      const snapshot = await writeFileAtomic(
-        repository.folder,
-        current.record.file,
-        decode(bytes),
-        current.file.snapshot,
-      );
-      const file = workspacePath(layout, repository, current.record.file);
-      // Recorded before the bytes are checked, so a file that does not read back is restored too.
-      done.push({ write, snapshot, file });
-      results.push({
-        written: writtenElement(repository.name, bytes, snapshot),
-        replaced: current.file.snapshot,
-        file,
-      });
+  // The first failure; once there is one, no further write starts.
+  let failure: { readonly error: unknown } | undefined;
+  const queue = writes.entries();
+  const worker = async (): Promise<void> => {
+    for (const [index, write] of queue) {
+      if (failure !== undefined) {
+        return;
+      }
+      try {
+        const { repository, current, bytes } = write;
+        const snapshot = await writeFileAtomic(
+          repository.folder,
+          current.record.file,
+          decode(bytes),
+          current.file.snapshot,
+        );
+        const file = workspacePath(layout, repository, current.record.file);
+        // Recorded before the bytes are checked, so a file that does not read back is restored too.
+        done.push({ write, snapshot, file });
+        results[index] = {
+          written: writtenElement(repository.name, bytes, snapshot),
+          replaced: current.file.snapshot,
+          file,
+        };
+      } catch (error) {
+        // Several writes can fail at once; the first is reported.
+        failure ??= { error };
+      }
     }
-  } catch (error) {
+  };
+  await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 1, writes.length) }, worker));
+  if (failure !== undefined) {
+    const { error } = failure;
     const kept: string[] = [];
     for (const written of done.reverse()) {
       if (!(await restore(written))) {

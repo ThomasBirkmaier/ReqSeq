@@ -40,6 +40,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/missing.png" },
   ],
+  "element.bulkUpdate": [
+    { selection: {}, property: "rationale", operation: "remove", confirm: true },
+    { selection: {}, property: "acceptance-criteria", operation: "remove", value: "x", confirm: true },
+    { selection: { ids: [WIND] }, property: "status", operation: "remove", confirm: true },
+  ],
   "element.create": [
     { type: "system-requirement", title: "Show gusts", folder: "requirements" },
     { type: "need", title: "New need", folder: "needs/new" },
