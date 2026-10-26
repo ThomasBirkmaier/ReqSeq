@@ -1,6 +1,13 @@
 import { CommandError } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { outcomeExitCode, renderError, renderJson, renderProblem, renderYaml } from "./render.js";
+import {
+  outcomeExitCode,
+  problemsEnd,
+  renderError,
+  renderJson,
+  renderProblem,
+  renderYaml,
+} from "./render.js";
 
 const uuid = "6adc6bad-b94e-40cf-bd99-7ef5e126d1e6";
 
@@ -100,6 +107,17 @@ describe("renderYaml", () => {
     expect(renderYaml({ ok: true, problems: [] })).toBe("ok: true\nNo problems.\n");
   });
 
+  it("says how many findings the output left out instead of No problems (#304)", () => {
+    const hidden = { below: "error", warning: 3, info: 0 };
+    expect(renderYaml({ ok: true, problems: [], hidden })).toBe(
+      "ok: true\nhidden:\n  below: error\n  warning: 3\n  info: 0\nNo problems at or above error; 3 warnings not shown.\n",
+    );
+    const problem = { code: "file.invalid-yaml", severity: "error", message: "Bad" };
+    expect(renderYaml({ problems: [problem], hidden: { below: "error", warning: 1, info: 2 } })).toBe(
+      "hidden:\n  below: error\n  warning: 1\n  info: 2\nerror  file.invalid-yaml  Bad\n1 warning and 2 info below error not shown.\n",
+    );
+  });
+
   it("renders outputs without problems and non-object outputs", () => {
     expect(renderYaml({ text: "line 1\nline 2" })).toBe("text: |-\n  line 1\n  line 2\n");
     expect(renderYaml({})).toBe("");
@@ -111,6 +129,28 @@ describe("renderYaml", () => {
   it("keeps long lines and non-ASCII text unchanged", () => {
     const long = `Größe ${"x".repeat(200)} 測試`;
     expect(renderYaml({ title: long })).toBe(`title: ${long}\n`);
+  });
+});
+
+describe("problemsEnd", () => {
+  it("is No problems. when nothing is shown or left out, and nothing after shown problems", () => {
+    expect(problemsEnd({}, 0)).toBe("No problems.\n");
+    expect(problemsEnd({}, 2)).toBe("");
+  });
+
+  it("counts the findings left out by severity (#304)", () => {
+    expect(problemsEnd({ hidden: { below: "warning", warning: 0, info: 1 } }, 0)).toBe(
+      "No problems at or above warning; 1 info not shown.\n",
+    );
+    expect(problemsEnd({ hidden: { below: "error", warning: 2, info: 3 } }, 1)).toBe(
+      "2 warnings and 3 info below error not shown.\n",
+    );
+  });
+
+  it("ignores a hidden that leaves nothing out or has another shape", () => {
+    expect(problemsEnd({ hidden: { below: "error", warning: 0, info: 0 } }, 0)).toBe("No problems.\n");
+    expect(problemsEnd({ hidden: { below: "error", warning: "3", info: 0 } }, 0)).toBe("No problems.\n");
+    expect(problemsEnd({ hidden: "3 warnings" }, 1)).toBe("");
   });
 });
 

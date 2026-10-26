@@ -483,7 +483,8 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       check,
       { basis: "SR-082 AK3 (the states the save carries over; no threshold of its own)" },
     );
-    expect(checked.ok).toBe(false);
+    // Only warnings (outdated relations): ok by default (failOn error, #304).
+    expect(checked.ok).toBe(true);
     expect(checked.checkedElements).toBe(ELEMENTS);
     expect(checked.problems.length).toBeGreaterThan(0);
     // Exactly the relations and references to it (17 = 10 + 7 in the generated workspace).

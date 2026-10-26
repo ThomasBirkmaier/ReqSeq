@@ -256,6 +256,7 @@ describe("inputFields", () => {
       "element.get:view": "string:flag",
       "workspace.check:changedFiles": "string[]:flag",
       "workspace.check:changedSince": "string:flag",
+      "workspace.check:failOn": "string:flag",
       "workspace.check:severity": "string:flag",
       "element.update:ref": "string:positional",
       "element.update:title": "string:flag",

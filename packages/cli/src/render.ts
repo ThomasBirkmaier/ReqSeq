@@ -40,6 +40,48 @@ export const renderProblem = (problem: unknown): string => {
     .join("  ")}\n`;
 };
 
+/** Findings an output left out of `problems`, by severity (`hidden` of workspace.check, #304). */
+interface Hidden {
+  readonly below: string;
+  readonly warning: number;
+  readonly info: number;
+}
+
+/** `hidden` of an output when it has that shape. */
+export const hiddenOf = (output: Readonly<Record<string, unknown>>): Hidden | undefined => {
+  const hidden = output["hidden"];
+  return isRecord(hidden) &&
+    typeof hidden["below"] === "string" &&
+    typeof hidden["warning"] === "number" &&
+    typeof hidden["info"] === "number"
+    ? { below: hidden["below"], warning: hidden["warning"], info: hidden["info"] }
+    : undefined;
+};
+
+/**
+ * The line after the problems: `No problems.` when there are none at all; when the output left
+ * findings out (`hidden`), how many, so that no line shown never reads as no findings (#304):
+ * `No problems at or above error; 3 warnings and 1 info not shown.`, or after shown problems
+ * `3 warnings and 1 info below error not shown.`.
+ */
+export const problemsEnd = (output: Readonly<Record<string, unknown>>, shown: number): string => {
+  const hidden = hiddenOf(output);
+  const counts = [
+    hidden === undefined || hidden.warning === 0
+      ? ""
+      : `${String(hidden.warning)} warning${hidden.warning === 1 ? "" : "s"}`,
+    hidden === undefined || hidden.info === 0 ? "" : `${String(hidden.info)} info`,
+  ]
+    .filter((part) => part !== "")
+    .join(" and ");
+  if (hidden === undefined || counts === "") {
+    return shown === 0 ? "No problems.\n" : "";
+  }
+  return shown === 0
+    ? `No problems at or above ${hidden.below}; ${counts} not shown.\n`
+    : `${counts} below ${hidden.below} not shown.\n`;
+};
+
 /** `--yaml`: the output without `problems` as YAML, then one line per problem. */
 export function renderYaml(output: unknown): string {
   if (!isRecord(output)) {
@@ -51,7 +93,7 @@ export function renderYaml(output: unknown): string {
     parts.push(stringify(rest, { lineWidth: 0 }));
   }
   if (Array.isArray(problems)) {
-    parts.push(problems.length === 0 ? "No problems.\n" : problems.map(renderProblem).join(""));
+    parts.push(problems.map(renderProblem).join(""), problemsEnd(output, problems.length));
   }
   return parts.join("");
 }

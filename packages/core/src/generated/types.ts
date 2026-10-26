@@ -931,7 +931,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. CLI exits 1 on findings.
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
@@ -939,18 +939,27 @@ export interface WorkspaceCheckInput {
   readonly changedFiles?: readonly LocalPath[];
   /** Git revision, e.g. the target commit of a merge request: restrict the check to the elements whose files (or embedded images) in the working copy differ from it, untracked files included, and their targets (SR-092). Looked up in every repository of the workspace; a repository without it, or without Git, adds nothing and gets an info problem (git.revision-missing, git.unavailable). The relations to an element file deleted since, or whose UUID changed, are kept. Error git.commit-not-found (CLI exit code 4) when no repository has it. */
   readonly changedSince?: string;
-  /** Lowest severity of the problems shown; does not change ok or the exit code. */
+  /** Lowest severity of the problems shown; does not change ok or the exit code. Findings left out are counted in hidden. */
   readonly severity: "error" | "warning" | "info";
+  /** Lowest severity of a finding that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check. */
+  readonly failOn: "error" | "warning" | "info";
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. CLI exits 1 on findings.
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
-  /** False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps. */
+  /** False when the workspace has a finding at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps. */
   readonly ok: boolean;
   readonly problems: readonly Problem[];
+  /** The findings that severity leaves out of problems, by severity; only when it leaves out at least one, so that no problems shown does not read as no findings. */
+  readonly hidden?: {
+    /** The severity given: the findings counted are below it. */
+    readonly below: "error" | "warning";
+    readonly warning: number;
+    readonly info: number;
+  };
   /** Number of elements checked: all of the workspace, or in a restricted check the changed elements and their targets (SR-092). */
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */

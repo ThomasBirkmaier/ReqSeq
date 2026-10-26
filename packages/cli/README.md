@@ -8,12 +8,13 @@ logreq element --help                # commands of a group; not yet implemented 
 logreq workspace init my-ws "My workspace"   # new workspace with the standard model in the existing folder my-ws
 logreq workspace status              # the workspace of the current folder (or of a folder above it)
 logreq element get SR-46fb54         # required string fields are positional
-logreq workspace check --json        # every finding of the workspace; exit code 1 on a warning or error
+logreq workspace check --json        # every finding of the workspace; exit code 1 on an error
 logreq trace chain N-46fb54          # the chain as an indented tree, gaps and cycles marked
 logreq hint list                     # one line per open hint: element, kind, reason, hint ID
 logreq hint confirm --target N-46fb54   # confirm every outdated relation to N-46fb54 after a change
 logreq element create need --title "See the wind"   # a positional field can be given as a flag too
-logreq workspace check --severity error   # show errors only; the exit code still counts warnings
+logreq workspace check --fail-on warning  # exit code 1 on a warning too (default: error; info is the lowest)
+logreq workspace check --severity error   # show errors only and count the rest; the exit code is --fail-on's
 logreq element update SR-46fb54 --input @change.json   # objects only via --input (JSON, @file or - for stdin)
 ```
 
@@ -26,7 +27,7 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 - With `--input`, positional values fill the positional fields that `--input` does not give, in order; flags override fields of `--input`. A positional field can also be given as `--<field>`; then the arguments fill the other positional fields.
 - Local file and folder fields (`common.schema.json#/$defs/localPath`, e.g. `workspace init <path>`, `evidence enrich-junit <file>`) are relative to the current folder; the CLI passes them on as absolute paths.
 - Workspace: `--workspace`, else the nearest folder upwards with `logreq-workspace.yaml`, else the current folder.
-- Exit codes: `0` no error findings, `1` an error finding or `ok: false` (`workspace check` sets it for any warning or error, shown or not), `2` usage or input error (every error class but `internal`), `3` internal error, `4` a given commit is not available locally (`workspace check --changed-since`, SR-092), `130` aborted (Ctrl-C). See ADR-0009.
+- Exit codes: `0` no error findings, `1` an error finding or `ok: false` (`workspace check` sets it for a finding at or above `--fail-on`, default `error`, shown or not), `2` usage or input error (every error class but `internal`), `3` internal error, `4` a given commit is not available locally (`workspace check --changed-since`, SR-092), `130` aborted (Ctrl-C). See ADR-0009.
 - While the metamodel is faulty or missing, `workspace check` reports its errors, the file findings and duplicate IDs only, not the findings that need the metamodel (unknown or missing properties, values, relations); they return once the metamodel is fixed.
 - `--input -` reads standard input to its end and does not watch the abort signal: Ctrl-C while the CLI waits for input ends the process through the second-signal path (exit code 130).
 - Output is UTF-8 without colors. Problems go to stdout, errors to stderr. A closed pipe (`logreq ... | head`) ends quietly.

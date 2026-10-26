@@ -10,8 +10,9 @@
 //   edges that found the cycle name the target, so both always agree. The message names every
 //   element of the cycle by type name and short ID (SR-084), the first `CYCLE_NAMES_SHOWN` of a
 //   longer one, so that the output stays linear in the size of a cycle.
-// - Severity `warning`: SR-022 AK4 calls a cycle a "Hinweis", and SR-019 AK2 ends the check with
-//   exit code 1 for it, which a warning does (`ok` false, ADR-0009). No status changes.
+// - Severity `warning`: SR-022 AK4 calls a cycle a "Hinweis". SR-019 AK2 ends the check with exit
+//   code 1 for it, which a warning does with `failOn: warning` (#304; `ok` false, ADR-0009). No status
+//   changes.
 // - Order: the cycles by their first element in store order, the elements of each in store order.
 // - What the derivation edges leave out cannot close a cycle: a target that is missing (SR-089),
 //   ambiguous (SR-088) or in a repository that is not on this machine (SR-006), inline references

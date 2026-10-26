@@ -78,9 +78,10 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(13);
   });
 
-  it("[SR-019/AK2] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok", async () => {
+  it("[SR-019/AK2] reports every element of a cycle in the derivations (SR-090) with kind, file and element, and is not ok with failOn warning", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
-    const out = await check(open(ws.root));
+    // Cycles are warnings: since #304 they fail the check only with failOn warning.
+    const out = await check(open(ws.root), { failOn: "warning" });
     const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
     expect(out.ok).toBe(false);
     expect(kinds(out)).toEqual([
@@ -91,11 +92,69 @@ describe("workspace.check", () => {
     expect(out.checkedElements).toBe(5);
   });
 
-  it("[SR-019/AK2] is not ok for warnings alone, since they are findings too", async () => {
+  it("[SR-019/AK2] is not ok for warnings alone with failOn warning, since they are findings too", async () => {
+    // Before #304 this was the default; the product owner decision of 2026-10-26 (option 1) made warnings pass
+    // by default, so the exit code 1 of SR-019 AK2 for warnings needs failOn warning (--fail-on warning).
     const ws = await fixture({ fixture: "SR-085/value-kinds" });
-    const out = await check(open(ws.path("system")));
+    const out = await check(open(ws.path("system")), { failOn: "warning" });
     expect(out.ok).toBe(false);
     expect(new Set(out.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
+  });
+
+  it("is ok by default with warnings alone: only an error fails the check (#304)", async () => {
+    const ws = await fixture({ fixture: "SR-085/value-kinds" });
+    const workspace = open(ws.path("system"));
+    const out = await check(workspace);
+    expect(out.ok).toBe(true);
+    expect(out.problems.length).toBeGreaterThan(0);
+    expect(new Set(out.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
+    expect(await check(workspace, { failOn: "error" })).toEqual(out);
+    // An error fails it whatever failOn says (error is the highest severity).
+    const findings = await fixture({ fixture: "SR-019/findings" });
+    expect((await check(open(findings.root), { failOn: "error" })).ok).toBe(false);
+  });
+
+  it("is not ok for info with failOn info, such as a repository that is not on this machine (#304)", async () => {
+    const ws = await fixture({ fixture: "SR-089/missing-targets" });
+    const workspace = open(ws.path("system"));
+    expect((await check(workspace, { failOn: "warning" })).ok).toBe(true);
+    const out = await check(workspace, { failOn: "info" });
+    expect(out.ok).toBe(false);
+    expect(out.problems.map((p) => p.severity)).toEqual(["info", "info"]);
+  });
+
+  it("counts the findings that severity leaves out in hidden, and keeps failOn apart from severity (#304)", async () => {
+    const ws = await fixture({ fixture: "SR-019/findings" });
+    const workspace = open(ws.root);
+    const errors = await check(workspace, { severity: "error" });
+    // Five errors shown; the six warnings of FINDINGS left out and counted.
+    expect(errors.problems.every((p) => p.severity === "error")).toBe(true);
+    expect(errors.hidden).toEqual({ below: "error", warning: 6, info: 0 });
+    // Nothing left out: no hidden.
+    expect((await check(workspace)).hidden).toBeUndefined();
+    expect((await check(workspace, { severity: "warning" })).hidden).toBeUndefined();
+    const missing = await fixture({ fixture: "SR-089/missing-targets" });
+    const info = open(missing.path("system"));
+    // Only info, all left out: ok unless failOn info, whatever severity shows.
+    expect(await check(info, { severity: "warning" })).toEqual({
+      ok: true,
+      problems: [],
+      hidden: { below: "warning", warning: 0, info: 2 },
+      checkedElements: 4,
+    });
+    expect(await check(info, { severity: "error", failOn: "info" })).toEqual({
+      ok: false,
+      problems: [],
+      hidden: { below: "error", warning: 0, info: 2 },
+      checkedElements: 4,
+    });
+    // A clean workspace hides nothing.
+    const clean = await fixture({ fixture: "SR-072/supersede" });
+    expect(await check(open(clean.root), { severity: "error" })).toEqual({
+      ok: true,
+      problems: [],
+      checkedElements: 5,
+    });
   });
 
   it("[SR-019/AK2] shows only problems at or above the given severity, and ok stays about all findings", async () => {
@@ -112,10 +171,12 @@ describe("workspace.check", () => {
     ]);
     expect(kinds(await check(workspace, { severity: "warning" }))).toEqual(FINDINGS);
     const values = await fixture({ fixture: "SR-085/value-kinds" });
-    // Only warnings, none shown: still not ok, since the workspace has findings (exit code 1).
-    expect(await check(open(values.path("system")), { severity: "error" })).toEqual({
+    // Only warnings, none shown: with failOn warning still not ok, since the workspace has findings
+    // (exit code 1); they are counted as hidden.
+    expect(await check(open(values.path("system")), { severity: "error", failOn: "warning" })).toEqual({
       ok: false,
       problems: [],
+      hidden: { below: "error", warning: 5, info: 0 },
       checkedElements: 4,
     });
     const missing = await fixture({ fixture: "SR-089/missing-targets" });
@@ -128,7 +189,9 @@ describe("workspace.check", () => {
     const need = "needs/N-0a0000000001.md";
     await ws.write(need, `${fs.readFileSync(ws.path(need), "utf8")}Changed.\n`);
     const workspace = open(ws.root);
-    const before = await check(workspace);
+    // failOn warning: the outdated relations are warnings, so `ok` tells whether one is left (#304).
+    const failOn = { failOn: "warning" };
+    const before = await check(workspace, failOn);
     expect(before.ok).toBe(false);
     const [derives, link] = before.problems;
     expect([derives?.code, derives?.line, link?.code, link?.line]).toEqual([
@@ -138,14 +201,14 @@ describe("workspace.check", () => {
       15,
     ]);
     await invoke("hint.confirm", { hintIds: [derives?.hintId] }, { workspace });
-    const after = await check(workspace);
+    const after = await check(workspace, failOn);
     expect([after.ok, after.problems]).toEqual([false, [link]]);
     // The reference changes A's text, so B's refinement of A is outdated now (ADR-0004); confirm both.
     await invoke("hint.confirm", { hintIds: [link?.hintId] }, { workspace });
-    const refines = (await check(workspace)).problems.map((p) => p.hintId);
+    const refines = (await check(workspace, failOn)).problems.map((p) => p.hintId);
     expect(refines).toHaveLength(1);
     await invoke("hint.confirm", { hintIds: refines }, { workspace });
-    expect(await check(workspace)).toEqual({ ok: true, problems: [], checkedElements: 4 });
+    expect(await check(workspace, failOn)).toEqual({ ok: true, problems: [], checkedElements: 4 });
   });
 
   it("[SR-019/AK2] checks again after the element store is read again", async () => {

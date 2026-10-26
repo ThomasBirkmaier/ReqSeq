@@ -139,10 +139,10 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
         },
       );
       expect(run.stderr).toBe("");
-      // Outdated relations are warnings: not ok (ADR-0009).
-      expect(run.code).toBe(1);
+      // Outdated relations are warnings: ok, exit code 0, by default (failOn error, #304).
+      expect(run.code).toBe(0);
       const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
-      expect(out.ok).toBe(false);
+      expect(out.ok).toBe(true);
       expect(out.checkedElements).toBe(ELEMENTS);
       expect(out.problems).toHaveLength(storedVersions(tree.files));
       expect(out.problems.filter((p) => p.code !== "relation.outdated" || p.line === undefined)).toEqual([]);
@@ -185,10 +185,11 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
         { basis: "SR-092, SR-020 (command line, from process start to exit; recorded only, #293)" },
       );
       expect(run.stderr).toBe("");
-      expect(run.code).toBe(1);
+      // Only warnings (outdated relations): exit code 0 by default (#304).
+      expect(run.code).toBe(0);
       const out = JSON.parse(run.stdout) as { ok: boolean; problems: Problem[]; checkedElements: number };
       const ids = new Set(changed.map((e) => e.id));
-      expect(out.ok).toBe(false);
+      expect(out.ok).toBe(true);
       expect(out.checkedElements).toBeLessThan(100);
       expect(out.problems.some((p) => p.targetId !== undefined && ids.has(p.targetId))).toBe(true);
     } finally {

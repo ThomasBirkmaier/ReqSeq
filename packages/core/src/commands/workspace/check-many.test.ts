@@ -30,7 +30,11 @@ describe("workspace.check with many findings", () => {
     onTestFinished(() => fixture.cleanup());
     const workspace = new Workspace(fixture.root);
     onTestFinished(() => workspace.close());
-    const out = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    const out = (await invoke(
+      "workspace.check",
+      { failOn: "warning" },
+      { workspace },
+    )) as CommandOutput<"workspace.check">;
     expect(out.ok).toBe(false);
     expect(out.problems).toHaveLength(MANY);
     expect(out.problems.at(-1)?.message).toBe(`finding ${String(MANY - 1)}`);

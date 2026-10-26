@@ -170,7 +170,7 @@ sequenceDiagram
   participant L as logreq CLI
   participant T as Test tool
   P->>L: logreq workspace check --changed-since origin/main --json
-  L-->>P: problems as JSON, exit 1 if errors (SR-019, SR-025)
+  L-->>P: problems as JSON, exit 1 if errors (warnings too with --fail-on warning; SR-019, SR-025)
   P->>T: run tests (names contain [SR-46fb54])
   T-->>P: results.xml (JUnit)
   P->>L: logreq evidence enrich-junit results.xml --item build-512

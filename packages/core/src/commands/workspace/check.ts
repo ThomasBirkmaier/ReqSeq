@@ -4,12 +4,15 @@
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
 // reset, so a second check of an unchanged workspace reads no file again.
 //
-// - `ok` is false when the workspace has a finding of severity `warning` or `error`: SR-019 AK2
-//   ends the check with exit code 1 for findings of SR-015, SR-016, SR-085, SR-086 and SR-090,
-//   which are warnings ("Hinweis" blocks nothing, so they stay warnings in every access, SR-080).
-//   Info, such as a repository that is not on this machine (SR-006), keeps `ok` true (AK1).
+// - `ok` is false when the workspace has a finding at or above `failOn`, shown or not; the default
+//   `error` lets warnings and info pass (#304, product owner decision, 2026-10-26, option 1): a correct
+//   workspace keeps hints that cannot be confirmed (the superseded targets of SR-072 AK2), so warnings
+//   failing the check meant it never passed. `failOn: warning` gives the exit code 1 that SR-019 AK2
+//   and SR-025 AK2 ask for warnings (they get a new version after the spec moves into LogReq). The
+//   choice is an input of the command, so `ok` is the same on every access (SR-080).
 // - `severity` is the lowest severity shown. It only filters `problems`; `ok` is about all findings,
-//   so the exit code never depends on it (the spec has no such option).
+//   so the exit code never depends on it. The findings it leaves out are counted in `hidden`, so that
+//   no problem shown never reads as a workspace without findings.
 // - Findings are appended one by one: spreading a state into `push` passes every problem as an
 //   argument and overflows the stack at some 100,000 problems (N-036: 50,000 elements).
 // - While the metamodel is not valid (SR-011 AK3), every state that checks against it is empty
@@ -77,9 +80,31 @@ export const FINDING_STATES = [
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 
+type Output = CommandOutput<"workspace.check">;
+
+/**
+ * The problems at or above `severity`, and the findings below it counted by severity as `hidden`,
+ * only when it leaves out at least one (an error is never left out).
+ */
+const shownOf = (findings: readonly Problem[], severity: Severity): Pick<Output, "problems" | "hidden"> => {
+  const problems: Problem[] = [];
+  const left: Record<Severity, number> = { error: 0, warning: 0, info: 0 };
+  for (const problem of findings) {
+    if (RANK[problem.severity] >= RANK[severity]) {
+      problems.push(problem);
+    } else {
+      left[problem.severity] += 1;
+    }
+  }
+  // `severity === "info"` only narrows the type of `below`: at info nothing is left out.
+  return left.warning + left.info === 0 || severity === "info"
+    ? { problems }
+    : { problems, hidden: { below: severity, warning: left.warning, info: left.info } };
+};
+
 export default defineCommand({
   name: "workspace.check",
-  run: async (ctx, input): Promise<CommandOutput<"workspace.check">> => {
+  run: async (ctx, input): Promise<Output> => {
     const layout = await ctx.workspace.get(workspaceLayoutState);
     const metamodel = await ctx.workspace.get(metamodelState);
     const store = await ctx.workspace.get(elementStoreState);
@@ -111,8 +136,8 @@ export default defineCommand({
       findings.push(problem);
     }
     return {
-      ok: !findings.some((p) => RANK[p.severity] >= RANK.warning),
-      problems: findings.filter((p) => RANK[p.severity] >= lowest),
+      ok: !findings.some((p) => RANK[p.severity] >= RANK[input.failOn]),
+      ...shownOf(findings, input.severity),
       checkedElements: restriction?.selected.length ?? store.elements.length,
     };
   },

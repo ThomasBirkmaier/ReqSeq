@@ -86,7 +86,8 @@ describe("outdated relations in workspace.check with 50,000 elements and 200,000
       async () => (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">,
       { basis: "SR-020, SR-025 in process (the store is loaded)", thresholdMs: 60_000 },
     );
-    expect(out.ok).toBe(false);
+    // Only warnings: ok by default (failOn error, #304).
+    expect(out.ok).toBe(true);
     const expected = storedTargets(tree, changed);
     expect(expected).toBeGreaterThan(changed.size);
     expect(out.problems.filter((p) => p.code !== "relation.outdated")).toEqual([]);
@@ -242,7 +243,8 @@ describe("every relation outdated, with Git (SR-025 worst case, N-036)", () => {
     } finally {
       await fresh.close();
     }
-    expect(kept.ok).toBe(false);
+    // Only warnings: ok by default (failOn error, #304).
+    expect(kept.ok).toBe(true);
     // Every finding is of a changed element or one of its targets, or a relation to a changed element.
     expect(kept.problems.length).toBeGreaterThan(0);
     expect(kept.problems.some((p) => p.targetId !== undefined && ids.has(p.targetId))).toBe(true);

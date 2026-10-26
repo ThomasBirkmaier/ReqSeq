@@ -99,8 +99,11 @@ const cycles = (workspace: Workspace): Promise<readonly Problem[]> =>
 const members = (problems: readonly Problem[]): (readonly [string | undefined, string | undefined])[] =>
   problems.map((p) => [p.elementId, p.targetId] as const);
 
-const check = async (workspace: Workspace): Promise<CommandOutput<"workspace.check">> =>
-  (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+const check = async (
+  workspace: Workspace,
+  input: Readonly<Record<string, unknown>> = {},
+): Promise<CommandOutput<"workspace.check">> =>
+  (await invoke("workspace.check", input, { workspace })) as CommandOutput<"workspace.check">;
 
 describe("cycles in the derivations (SR-090)", () => {
   it("[SR-090/AK1] reports the cycle of A, B and C with every element of it, and no element outside it", async () => {
@@ -147,8 +150,9 @@ describe("cycles in the derivations (SR-090)", () => {
       },
     ]);
     expect(problems.map((p) => p.elementId)).not.toContain(NEED);
-    // The check reports them (SR-019) and is not ok: the CLI ends with exit code 1 (ADR-0009).
-    const out = await check(workspace);
+    // The check reports them (SR-019); they are warnings, so it is not ok with failOn warning: then the
+    // CLI ends with exit code 1 (ADR-0009, #304).
+    const out = await check(workspace, { failOn: "warning" });
     expect(out.ok).toBe(false);
     // With the short ID of each element (#315), as the messages name them.
     const shortIds = new Map([

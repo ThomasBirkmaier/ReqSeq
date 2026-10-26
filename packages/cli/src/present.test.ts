@@ -34,6 +34,33 @@ const edge = (child: string, parent: string, direction: "up" | "down", cyclic = 
   cyclic,
 });
 
+describe("renderHuman: findings left out (#304)", () => {
+  it("says how many findings severity left out instead of No problems, and does not show hidden as YAML", () => {
+    expect(
+      renderHuman({
+        ok: true,
+        problems: [],
+        hidden: { below: "error", warning: 4, info: 1 },
+        checkedElements: 9,
+      }),
+    ).toBe(
+      lines(
+        "ok: true",
+        "checkedElements: 9",
+        "No problems at or above error; 4 warnings and 1 info not shown.",
+      ),
+    );
+    const problem = { code: "trace.cycle", severity: "warning", message: "Cycle" };
+    expect(
+      renderHuman({ ok: true, problems: [problem], hidden: { below: "warning", warning: 0, info: 2 } }),
+    ).toBe(lines("ok: true", "warning  trace.cycle  Cycle", "2 info below warning not shown."));
+  });
+
+  it("shows a field named hidden of another shape as YAML", () => {
+    expect(renderHuman({ hidden: true, problems: [] })).toBe(lines("hidden: true", "No problems."));
+  });
+});
+
 describe("renderHuman: values", () => {
   it("renders scalars and other values as YAML, and non-object outputs whole", () => {
     expect(renderHuman({ ok: true, checkedElements: 0, problems: [] })).toBe(

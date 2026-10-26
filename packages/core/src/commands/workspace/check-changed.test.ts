@@ -104,7 +104,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
   it("[SR-092/AK1] reports the relations to an old version of a changed element, and no other finding", async () => {
     const ws = await outdatedFixture();
     await append(ws, N_FILE, "Changed in the merge request.\n");
-    const out = await check(open(ws.root), { changedSince: "HEAD" });
+    const out = await check(open(ws.root), { changedSince: "HEAD", failOn: "warning" });
     // N has no relations of its own: only the derivation and the reference of A to its old version.
     expect(brief(out.problems)).toEqual([
       ["relation.outdated", A, N],
@@ -119,7 +119,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
     await append(ws, N_FILE, "Changed after the commit.\n");
     const workspace = open(ws.root);
     // B refines A: A is its target, so A's outdated relations to N count.
-    const viaB = await check(workspace, { changedFiles: [B_FILE] });
+    const viaB = await check(workspace, { changedFiles: [B_FILE], failOn: "warning" });
     expect(brief(viaB.problems)).toEqual([
       ["relation.outdated", A, N],
       ["relation.outdated", A, N],
@@ -204,8 +204,18 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
   it("shows only the severities asked for, and asks Git for no date then", async () => {
     const ws = await outdatedFixture();
     await append(ws, N_FILE, "Changed.\n");
-    const out = await check(open(ws.root), { changedSince: "HEAD", severity: "error" });
-    expect(out).toEqual({ ok: false, problems: [], checkedElements: 1 });
+    const workspace = open(ws.root);
+    const out = await check(workspace, { changedSince: "HEAD", severity: "error" });
+    // The two outdated relations of A to N are warnings: hidden, and ok by default (#304).
+    expect(out).toEqual({
+      ok: true,
+      problems: [],
+      hidden: { below: "error", warning: 2, info: 0 },
+      checkedElements: 1,
+    });
+    expect((await check(workspace, { changedSince: "HEAD", severity: "error", failOn: "warning" })).ok).toBe(
+      false,
+    );
   });
 
   it("takes every element a target names: copies of a UUID; none for a missing target", async () => {
@@ -542,7 +552,7 @@ describe("SR-092 AK1 on a generated workspace", () => {
 
     const workspace = open(fx.workspaceRoot);
     const full = await check(workspace);
-    const restricted = await check(workspace, { changedSince: "main" });
+    const restricted = await check(workspace, { changedSince: "main", failOn: "warning" });
     const belongs = (p: Problem): boolean =>
       p.elementId === undefined
         ? true

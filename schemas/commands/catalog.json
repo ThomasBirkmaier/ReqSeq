@@ -131,7 +131,7 @@
     },
     {
       "name": "workspace.check",
-      "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. CLI exits 1 on findings.",
+      "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
       "effect": "read",
       "stage": 1,
       "implements": [
@@ -166,7 +166,12 @@
           "severity": {
             "enum": ["error", "warning", "info"],
             "default": "info",
-            "description": "Lowest severity of the problems shown; does not change ok or the exit code."
+            "description": "Lowest severity of the problems shown; does not change ok or the exit code. Findings left out are counted in hidden."
+          },
+          "failOn": {
+            "enum": ["error", "warning", "info"],
+            "default": "error",
+            "description": "Lowest severity of a finding that makes ok false (CLI exit code 1), shown or not; independent of severity. With the default, warnings and info never fail the check."
           }
         },
         "additionalProperties": false
@@ -176,13 +181,33 @@
         "properties": {
           "ok": {
             "type": "boolean",
-            "description": "False when the workspace has a finding of severity warning or error, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps."
+            "description": "False when the workspace has a finding at or above failOn, shown or not (CLI exit code 1, ADR-0009). In a restricted check, of the findings the restriction keeps."
           },
           "problems": {
             "type": "array",
             "items": {
               "$ref": "../common.schema.json#/$defs/problem"
             }
+          },
+          "hidden": {
+            "type": "object",
+            "description": "The findings that severity leaves out of problems, by severity; only when it leaves out at least one, so that no problems shown does not read as no findings.",
+            "properties": {
+              "below": {
+                "enum": ["error", "warning"],
+                "description": "The severity given: the findings counted are below it."
+              },
+              "warning": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "info": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": ["below", "warning", "info"]
           },
           "checkedElements": {
             "type": "integer",

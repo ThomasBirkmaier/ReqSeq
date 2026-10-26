@@ -72,8 +72,8 @@ const open = (root: string): Workspace => {
   return workspace;
 };
 
-const check = async (workspace: Workspace): Promise<Output> =>
-  (await invoke("workspace.check", {}, { workspace })) as Output;
+const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
+  (await invoke("workspace.check", input, { workspace })) as Output;
 
 /** The committer date of HEAD as ADR-0005 writes a version date. */
 const headDate = async (ws: FixtureWorkspace): Promise<string> =>
@@ -140,8 +140,12 @@ describe("outdated relations and references (SR-025)", () => {
     const ws = await fixture({ git: true });
     const stored = await headDate(ws);
     await changeTargets(ws);
-    const out = await check(open(ws.root));
+    const workspace = open(ws.root);
+    // "Exit-Code ungleich 0" for an outdated relation, a warning: with failOn warning (#304, option 1;
+    // SR-025 AK2 gets a new version after the spec moves into LogReq). By default it is ok.
+    const out = await check(workspace, { failOn: "warning" });
     expect(out.ok).toBe(false);
+    expect(await check(workspace)).toEqual({ ...out, ok: true });
     const problems = outdated(out);
     expect(problems).toEqual([
       {
@@ -434,12 +438,13 @@ describe("outdated relations and references (SR-025)", () => {
     await changeTargets(ws);
     const out = (await invoke(
       "workspace.check",
-      { severity: "error" },
+      { severity: "error", failOn: "warning" },
       { workspace: open(ws.root) },
     )) as Output;
-    // Not ok for the warnings, which the filter leaves out.
+    // Not ok for the warnings with failOn warning, though the filter leaves them out; counted as hidden.
     expect(out.ok).toBe(false);
     expect(out.problems).toEqual([]);
+    expect(out.hidden).toEqual({ below: "error", warning: 3, info: 0 });
   });
 
   it("does not report a target whose current version is unknown (its file no longer holds it)", async () => {

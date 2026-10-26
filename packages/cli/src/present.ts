@@ -11,9 +11,9 @@
 // - A list of findings other than `problems` (the hints of hint.list) is one line per finding: the
 //   element's short ID, the kind, the message and the hint ID when it has one.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
-//   at an element it shows.
+//   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 import { stringify } from "yaml";
-import { renderProblem } from "./render.js";
+import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 
 type Rec = Readonly<Record<string, unknown>>;
 
@@ -383,6 +383,10 @@ export function renderHuman(output: unknown, details = true): string {
     lines.push(...chainLines(rest));
   }
   const shown = chain ? new Set(["root", "nodes", "edges", "gaps", "unresolved"]) : new Set<string>();
+  // The findings left out are said after the problems (`problemsEnd`).
+  if (hiddenOf(rest) !== undefined) {
+    shown.add("hidden");
+  }
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
       lines.push(...valueLines(key, value, details, lifted));
@@ -404,8 +408,6 @@ export function renderHuman(output: unknown, details = true): string {
     return first;
   });
   const out = lines.map((line) => `${line}\n`).join("");
-  if (all.length > 0) {
-    return `${out}${all.map(renderProblem).join("")}`;
-  }
-  return Array.isArray(problems) ? `${out}No problems.\n` : out;
+  const end = Array.isArray(problems) ? problemsEnd(rest, all.length) : "";
+  return `${out}${all.map(renderProblem).join("")}${end}`;
 }

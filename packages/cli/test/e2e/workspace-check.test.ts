@@ -28,6 +28,7 @@ interface Problem {
 interface Output {
   readonly ok: boolean;
   readonly problems: readonly Problem[];
+  readonly hidden?: { readonly below: string; readonly warning: number; readonly info: number };
   readonly checkedElements: number;
 }
 
@@ -42,12 +43,22 @@ const fixture = async (name: string, git = false): Promise<FixtureWorkspace> => 
   return ws;
 };
 
-/** Runs the check in `folder` of the fixture, as lines and as JSON. */
-const checkBoth = async (cwd: string): Promise<{ human: Run; json: Run; output: Output }> => {
-  const human = await logreq(["workspace", "check"], cwd);
-  const json = await logreq(["workspace", "check", "--json"], cwd);
+/** Runs the check in `folder` of the fixture, as lines and as JSON, with `args` added. */
+const checkBoth = async (
+  cwd: string,
+  args: readonly string[] = [],
+): Promise<{ human: Run; json: Run; output: Output }> => {
+  const human = await logreq(["workspace", "check", ...args], cwd);
+  const json = await logreq(["workspace", "check", ...args, "--json"], cwd);
   return { human, json, output: JSON.parse(json.stdout) as Output };
 };
+
+/**
+ * Warnings end the check with exit code 1 only with `--fail-on warning` (#304, product owner
+ * decision, 2026-10-26, option 1). The tests below that ask SR-019 AK2 or SR-025 AK2 for exit code 1 on
+ * warnings pass it; both AKs get a new version after the spec moves into LogReq.
+ */
+const FAIL_ON_WARNING = ["--fail-on", "warning"] as const;
 
 /** Kind, file and element of each problem (SR-019 AK2). */
 const kinds = (output: Output): (readonly [string, string | undefined, string | undefined])[] =>
@@ -129,9 +140,9 @@ describe("logreq workspace check (SR-019)", () => {
     expect(human.stdout).toContain("error  relation.missing-target  system:requirements/SR-c4d5e6f7a8b9.md:");
   });
 
-  it("[SR-019/AK2] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 (SR-090)", async () => {
+  it("[SR-019/AK2] reports every element of a cycle in the derivations with kind, file and element and ends with exit code 1 with --fail-on warning (SR-090)", async () => {
     const ws = await fixture("SR-090/cycle");
-    const { human, json, output } = await checkBoth(ws.root);
+    const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
     expect(kinds(output)).toEqual([
       ["trace.cycle", "requirements/SR-0b0000000001.md", `${CYCLE}1`],
@@ -145,13 +156,23 @@ describe("logreq workspace check (SR-019)", () => {
     ).toHaveLength(3);
   });
 
-  it("[SR-019/AK2] shows only errors with --severity error, and still ends with exit code 1 for warnings", async () => {
+  it("[SR-019/AK2] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
     const ws = await fixture("SR-085/value-kinds");
-    const result = await logreq(["workspace", "check", "--severity", "error", "--json"], ws.path("system"));
+    const args = ["workspace", "check", "--severity", "error", ...FAIL_ON_WARNING];
+    const result = await logreq([...args, "--json"], ws.path("system"));
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({ ok: false, problems: [], checkedElements: 4 });
-    const human = await logreq(["workspace", "check", "--severity", "error"], ws.path("system"));
-    expect(human).toEqual({ code: 1, stdout: "ok: false\ncheckedElements: 4\nNo problems.\n", stderr: "" });
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: false,
+      problems: [],
+      hidden: { below: "error", warning: 5, info: 0 },
+      checkedElements: 4,
+    });
+    const human = await logreq(args, ws.path("system"));
+    expect(human).toEqual({
+      code: 1,
+      stdout: "ok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+      stderr: "",
+    });
   });
 
   it("[SR-019/AK3] gives all findings as JSON, exactly the command output", async () => {
@@ -170,8 +191,8 @@ describe("logreq workspace check (SR-019)", () => {
 describe("findings handed over to workspace check", () => {
   it("[SR-085/AK3] reports a value of the wrong kind as a finding with code, file and element", async () => {
     const ws = await fixture("SR-085/value-kinds");
-    const { human, json, output } = await checkBoth(ws.path("system"));
-    // SR-019 AK2: findings of SR-085 end the check with exit code 1.
+    const { human, json, output } = await checkBoth(ws.path("system"), FAIL_ON_WARNING);
+    // SR-019 AK2: findings of SR-085 end the check with exit code 1 (warnings: with --fail-on warning).
     expect([human.code, json.code]).toEqual([1, 1]);
     expect(kinds(output)).toEqual([
       ["element.wrong-value-kind", "requirements/SR-9b0f1826503d.md", "234ae95e-f9e5-4d31-9ab2-9b0f1826503d"],
@@ -187,7 +208,7 @@ describe("findings handed over to workspace check", () => {
 
   it("[SR-086/AK2] workspace check reports a relation between types that are not allowed as a finding", async () => {
     const ws = await fixture("SR-086/relation-types");
-    const { human, json, output } = await checkBoth(ws.path("system"));
+    const { human, json, output } = await checkBoth(ws.path("system"), FAIL_ON_WARNING);
     expect([human.code, json.code]).toEqual([1, 1]);
     const relations = output.problems.filter((p) => p.code === "relation.not-allowed");
     expect(relations.map((p) => [p.repository, p.file, p.elementId, p.targetId])).toEqual([
@@ -238,9 +259,11 @@ describe("findings handed over to workspace check", () => {
     );
   });
 
-  it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle", async () => {
+  it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle with --fail-on warning", async () => {
     const ws = await fixture("SR-090/cycle");
-    const { human, json, output } = await checkBoth(ws.root);
+    // A cycle is a warning: exit code 0 by default (#304), 1 with --fail-on warning.
+    expect((await logreq(["workspace", "check"], ws.root)).code).toBe(0);
+    const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code]).toEqual([1, 1]);
     expect(output.ok).toBe(false);
     // Only the cycle's own findings, so the exit code comes from them.
@@ -254,7 +277,7 @@ describe("findings handed over to workspace check", () => {
         "{ id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001, version: n1:3e5f74ee1859b526 }",
       ),
     );
-    const fixed = await logreq(["workspace", "check"], ws.root);
+    const fixed = await logreq(["workspace", "check", ...FAIL_ON_WARNING], ws.root);
     expect(fixed.code).toBe(0);
   });
 });
@@ -289,7 +312,9 @@ describe("outdated relations in workspace check (SR-025)", () => {
     }
     await ws.commit();
     const current = await headDate(ws);
-    const { human, json, output } = await checkBoth(ws.root);
+    // "der Exit-Code ist ungleich 0": the outdated relations are warnings, so with --fail-on warning.
+    expect((await logreq(["workspace", "check"], ws.root)).code).toBe(0);
+    const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
     expect(output.ok).toBe(false);
     expect(
@@ -334,7 +359,8 @@ describe("outdated relations in workspace check (SR-025)", () => {
     // The need gets a new text after A's derivation and reference to it were set.
     const need = "needs/N-0a0000000001.md";
     await fs.writeFile(ws.path(need), `${await fs.readFile(ws.path(need), "utf8")}Changed.\n`);
-    const first = await checkBoth(ws.root);
+    // With --fail-on warning, so that the exit code tells whether a hint is left (#304).
+    const first = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([first.human.code, first.json.code]).toEqual([1, 1]);
     const [derives, link] = first.output.problems;
     expect([derives?.line, link?.line]).toEqual([12, 15]);
@@ -344,26 +370,99 @@ describe("outdated relations in workspace check (SR-025)", () => {
       ws.root,
     );
     expect([confirmed.code, confirmed.stderr]).toEqual([0, ""]);
-    const second = await checkBoth(ws.root);
+    const second = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([second.human.code, second.json.code]).toEqual([1, 1]);
     expect(second.output.problems.map((p) => p.hintId)).toEqual([link?.hintId]);
     expect(second.human.stdout).not.toContain("SR-0b0000000001.md:12");
     expect(second.human.stdout).toContain("SR-0b0000000001.md:15");
     // Confirm the reference too: A's text changes, so B's refinement of A is outdated now (ADR-0004).
     await logreq(["hint", "confirm", "--hint-ids", link?.hintId ?? ""], ws.root);
-    const third = await checkBoth(ws.root);
+    const third = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect(third.output.problems.map((p) => [p.elementId, p.targetId])).toEqual([
       ["5e025a7d-2b4f-4c61-9d08-0b0000000002", A_ID],
     ]);
     // Confirm that one as well: nothing is left, and the check ends with exit code 0.
     await logreq(["hint", "confirm", "--hint-ids", third.output.problems[0]?.hintId ?? ""], ws.root);
-    const last = await checkBoth(ws.root);
+    const last = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([last.human.code, last.json.code, last.output]).toEqual([
       0,
       0,
       { ok: true, problems: [], checkedElements: 4 },
     ]);
     expect(last.human.stdout).toBe("ok: true\ncheckedElements: 4\nNo problems.\n");
+  });
+});
+
+describe("which findings fail the check: --fail-on, apart from --severity (#304)", () => {
+  it("ends with exit code 0 for warnings by default, and with 1 from --fail-on warning on", async () => {
+    const ws = await fixture("SR-085/value-kinds");
+    const cwd = ws.path("system");
+    const warnings = await checkBoth(cwd);
+    expect([warnings.human.code, warnings.json.code, warnings.output.ok]).toEqual([0, 0, true]);
+    expect(warnings.human.stdout.split("\n").slice(0, 2)).toEqual(["ok: true", "checkedElements: 4"]);
+    expect(warnings.output.problems.map((p) => p.severity)).toEqual(Array(5).fill("warning"));
+    expect((await logreq(["workspace", "check", "--fail-on", "error"], cwd)).code).toBe(0);
+    expect((await logreq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(1);
+    expect((await logreq(["workspace", "check", "--fail-on", "info"], cwd)).code).toBe(1);
+  });
+
+  it("ends with exit code 1 for info only from --fail-on info on", async () => {
+    const ws = await fixture("SR-089/missing-targets");
+    const cwd = ws.path("system");
+    expect((await logreq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(0);
+    const info = await logreq(["workspace", "check", "--fail-on", "info", "--severity", "warning"], cwd);
+    expect(info).toEqual({
+      code: 1,
+      stdout: "ok: false\ncheckedElements: 4\nNo problems at or above warning; 2 info not shown.\n",
+      stderr: "",
+    });
+  });
+
+  it("does not say No problems. with --severity error while warnings are left out", async () => {
+    const ws = await fixture("SR-085/value-kinds");
+    const human = await logreq(["workspace", "check", "--severity", "error"], ws.path("system"));
+    expect(human).toEqual({
+      code: 0,
+      stdout: "ok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
+      stderr: "",
+    });
+    const yaml = await logreq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
+    expect(yaml.stdout.endsWith("No problems at or above error; 5 warnings not shown.\n")).toBe(true);
+    // After shown errors, the warnings left out are counted as well.
+    const findings = await fixture("SR-019/findings");
+    const errors = await logreq(["workspace", "check", "--severity", "error"], findings.root);
+    expect(errors.code).toBe(1);
+    expect(errors.stdout.endsWith("\n6 warnings below error not shown.\n")).toBe(true);
+  });
+
+  it("ends with exit code 0 after a supersede with a successor, whose own relation gets a hint", async () => {
+    // The issue's steps 2 and 3: the successor's replacement relation points at a superseded element,
+    // a hint that cannot be confirmed (SR-072 AK2); it must not fail a correct workspace.
+    const ws = await fixture("SR-072/supersede");
+    const supersede = await logreq(
+      [
+        "element",
+        "supersede",
+        "7a1e0c2b-4d3f-4a5b-8c6d-a1b2c3d4e5f6",
+        "obsolete",
+        "--successor",
+        "7a1e0c2b-4d3f-4a5b-8c6d-b2c3d4e5f6a7",
+      ],
+      ws.root,
+    );
+    expect(supersede.code).toBe(0);
+    const { human, json, output } = await checkBoth(ws.root);
+    expect([human.code, json.code, output.ok]).toEqual([0, 0, true]);
+    expect(output.problems.map((p) => p.code)).toContain("relation.target-superseded");
+    expect(new Set(output.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
+    expect((await logreq(["workspace", "check", ...FAIL_ON_WARNING], ws.root)).code).toBe(1);
+  });
+
+  it("refuses an unknown --fail-on value with exit code 2", async () => {
+    const ws = await fixture("SR-072/supersede");
+    const result = await logreq(["workspace", "check", "--fail-on", "hint"], ws.root);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toMatch(/^error input\.invalid: .*--fail-on/);
   });
 });
 
@@ -389,7 +488,12 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
     ]);
-    const json = await logreq(["workspace", "check", "--changed-since", "target", "--json"], ws.root);
+    // The outdated relations are warnings: exit code 0 by default (#304), 1 with --fail-on warning.
+    expect((await logreq(["workspace", "check", "--changed-since", "target"], ws.root)).code).toBe(0);
+    const json = await logreq(
+      ["workspace", "check", "--changed-since", "target", ...FAIL_ON_WARNING, "--json"],
+      ws.root,
+    );
     expect([json.code, json.stderr]).toEqual([1, ""]);
     const output = JSON.parse(json.stdout) as Output;
     expect(output.problems.map((p) => [p.code, p.elementId, p.targetId])).toEqual([

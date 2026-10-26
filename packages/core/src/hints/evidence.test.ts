@@ -35,8 +35,8 @@ const withRecords = async (
   return workspace;
 };
 
-const check = async (workspace: Workspace): Promise<Output> =>
-  (await invoke("workspace.check", {}, { workspace })) as Output;
+const check = async (workspace: Workspace, input: Readonly<Record<string, unknown>> = {}): Promise<Output> =>
+  (await invoke("workspace.check", input, { workspace })) as Output;
 
 const record = (
   element: string,
@@ -52,7 +52,9 @@ describe("outdated evidence (SR-025 AK4)", () => {
       record(A, OLD, "2026-01-02T10:00:00Z", { repository: "system", file: "evidence/results.xml", line: 7 }),
     ]);
     const out = await check(workspace);
-    expect(out.ok).toBe(false);
+    // A warning: the check is ok by default and fails with failOn warning (#304).
+    expect(out.ok).toBe(true);
+    expect((await check(workspace, { failOn: "warning" })).ok).toBe(false);
     expect(out.problems).toEqual([
       {
         code: "evidence.outdated",
