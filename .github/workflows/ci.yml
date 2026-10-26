@@ -63,13 +63,14 @@ jobs:
   # `github-runners: true` uses GitHub's runners for Linux and macOS when Thomas wants that.
   # Pull requests from forks never run there. Windows always runs on GitHub. The weekly reference run
   # (Sunday 04:00 UTC) uses GitHub's runners only, so that SR-076's macOS 14 and Ubuntu 24.04 (x64) stay covered.
-  # When GitHub cannot start hosted jobs (spending limit), this job fails within seconds; the jobs that need it
-  # still run (`!cancelled()`) and fall back to the Mac runners (the literal map in their `runs-on`, #251),
+  # This job runs on the Mac too (#365: the spending limit was reached on 2026-10-26 and GitHub refused to start
+  # it); only pull requests from forks use a GitHub runner for it. If it fails, the jobs that need it still
+  # run (`!cancelled()`) and fall back to the Mac runners (the literal map in their `runs-on`, #251),
   # except for pull requests from forks, which never run on the Mac.
-  # Windows has no self-hosted runner and stays red then.
+  # Windows has no self-hosted runner and stays red while GitHub cannot start hosted jobs.
   runners:
     name: pick runners
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"' || '["self-hosted","logreq-linux"]') }}
     outputs:
       map: ${{ steps.pick.outputs.map }}
     steps:
