@@ -6,7 +6,7 @@ title: "Bilder einfügen"
 spec-id: "SR-097"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein Bild wird eingefügt, wenn gespeichert wird, dann liegt die Bilddatei neben der Element-Datei und der Text verweist relativ darauf."
+  - Gegeben ein Bild wird eingefügt, wenn gespeichert wird, dann liegt die Bilddatei in einem Ordner neben der Element-Datei, der wie die Element-Datei ohne Endung heißt, und der Text verweist relativ darauf.
   - "Gegeben ein eingefügtes Bild, wenn die Datei in einem Texteditor oder auf dem Git-Server angezeigt wird, dann wird das Bild gefunden."
 verification-method: test
 topic: "Bearbeiten und Finden"
@@ -19,4 +19,4 @@ based-on:
   - { id: 6adc4ee9-4ac6-485f-a1c3-43352a58580f, version: n1:abe889a319b9679b, title: Jedes Element ist eine eigene Markdown-Datei }
 ---
 
-Der Editor muss Bilder einfügen lassen und die Bilddatei neben der Element-Datei ablegen.
+Der Editor muss Bilder einfügen lassen und die Bilddatei in einem Ordner neben der Element-Datei ablegen, der wie die Element-Datei heißt.

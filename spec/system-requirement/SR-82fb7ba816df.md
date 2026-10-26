@@ -19,4 +19,4 @@ based-on:
   - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n1:67ca4cb7dced527a, title: Statuswerte kommen aus dem Metamodell }
 ---
 
-Das Tool muss eine Property für eine Auswahl von Elementen in einem Schritt setzen, ergänzen oder entfernen lassen.
+Das Tool muss eine Property für eine Auswahl von Elementen in einem Schritt setzen, ergänzen oder entfernen lassen. Ergänzen fügt einer Property mit mehreren Werten die genannten Werte hinzu. Entfernen ohne Wert entfernt die Property, mit Werten nur diese Werte.

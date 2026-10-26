@@ -7,7 +7,7 @@ spec-id: "SR-075"
 requirement-type: functional
 acceptance-criteria:
   - "Gegeben eine Liste von Elementen, wenn nach einer Property sortiert wird, dann ordnet das Tool die Liste auf- oder absteigend danach."
-  - "Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen."
+  - Gegeben eine Liste, wenn die Hierarchie gewählt wird, dann zeigt das Tool die Elemente als Baum nach ihren Ableitungen. Jedes Element erscheint einmal, unter einem Parent der Liste mit der kürzesten Tiefe; ein Parent außerhalb der Liste zählt nicht, und Kreise werden wie in der Kette abgeschnitten.
   - "Gegeben eine Sortierung, wenn Elemente angelegt werden, dann speichert das Tool keine feste Reihenfolge in den Dateien."
 verification-method: test
 topic: "Bearbeiten und Finden"
