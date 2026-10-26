@@ -542,6 +542,17 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { query: "wind", selection: { baseline: "v1" } },
       expect: "error",
     },
+    {
+      name: "a target of a chosen relation kind: only its target types (SR-067 AK2)",
+      fixture: FILTER,
+      input: {
+        query: "draft",
+        selection: {
+          where: { type: ["software-requirement", "need", "use-case", "system-requirement"] },
+        },
+      },
+      expect: "output",
+    },
   ],
   "element.update": [
     {
@@ -825,6 +836,33 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { refs: ["N-ffffff"], direction: "children" },
       expect: "error",
     },
+  ],
+  "relation.options": [
+    {
+      name: "the kinds a system requirement may get, with their target types (SR-067 AK1)",
+      fixture: FILTER,
+      input: { ref: "SR-0000b1" },
+      expect: "output",
+    },
+    {
+      name: "one chosen kind, by a short ID in lower case (SR-067 AK2)",
+      fixture: FILTER,
+      input: { ref: "swr-0000f1", kind: "derives-from" },
+      expect: "output",
+    },
+    {
+      name: "a kind the type does not allow: none (SR-067 AK1)",
+      fixture: FILTER,
+      input: { ref: "N-0000a1", kind: "derives-from" },
+      expect: "output",
+    },
+    {
+      name: "a key that is no relation kind",
+      fixture: FILTER,
+      input: { ref: "N-0000a1", kind: "nope" },
+      expect: "error",
+    },
+    { name: "unknown reference", fixture: FILTER, input: { ref: "SR-ffffff" }, expect: "error" },
   ],
   "relation.add": [
     {

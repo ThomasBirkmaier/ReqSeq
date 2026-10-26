@@ -3277,7 +3277,7 @@
       },
       {
         "name": "relation.options",
-        "summary": "Relation kinds and target types the metamodel allows for an element (SR-067).",
+        "summary": "Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.",
         "effect": "read",
         "stage": 3,
         "implements": [
@@ -3288,10 +3288,12 @@
           "type": "object",
           "properties": {
             "ref": {
-              "$ref": "../common.schema.json#/$defs/elementRef"
+              "$ref": "../common.schema.json#/$defs/elementRef",
+              "description": "The element that gets the relation (its source)."
             },
             "kind": {
-              "$ref": "../common.schema.json#/$defs/key"
+              "$ref": "../common.schema.json#/$defs/key",
+              "description": "Only this relation kind: none when the type of the element does not allow it."
             }
           },
           "additionalProperties": false,
@@ -3304,6 +3306,7 @@
           "properties": {
             "kinds": {
               "type": "array",
+              "description": "In metamodel order: every relation kind whose source-types allow the type of the element (subtypes count) and whose target-types allow some type; none for an element of a type the metamodel does not know (SR-016 AK3). These are the kinds relation.add accepts.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -3311,10 +3314,12 @@
                     "$ref": "../common.schema.json#/$defs/key"
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Display name of the relation kind."
                   },
                   "targetTypes": {
                     "type": "array",
+                    "description": "Every type of the metamodel a target may have, subtypes included, in metamodel order; relation.add refuses a target of another known type.",
                     "items": {
                       "$ref": "../common.schema.json#/$defs/key"
                     }
@@ -3323,6 +3328,7 @@
                 "additionalProperties": false,
                 "required": [
                   "kind",
+                  "name",
                   "targetTypes"
                 ]
               }

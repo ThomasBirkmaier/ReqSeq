@@ -1273,22 +1273,27 @@ export interface ElementAddAttachmentOutput {
 }
 
 /**
- * Input of `relation.options` as `run` gets it: validated, properties with a `default` filled in. Relation kinds and target types the metamodel allows for an element (SR-067).
+ * Input of `relation.options` as `run` gets it: validated, properties with a `default` filled in. Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.
  * Schema: `schemas/commands/catalog.json relation.options input`.
  */
 export interface RelationOptionsInput {
+  /** The element that gets the relation (its source). */
   readonly ref: ElementRef;
+  /** Only this relation kind: none when the type of the element does not allow it. */
   readonly kind?: Key;
 }
 
 /**
- * Output of `relation.options`. Relation kinds and target types the metamodel allows for an element (SR-067).
+ * Output of `relation.options`. Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.
  * Schema: `schemas/commands/catalog.json relation.options output`.
  */
 export interface RelationOptionsOutput {
+  /** In metamodel order: every relation kind whose source-types allow the type of the element (subtypes count) and whose target-types allow some type; none for an element of a type the metamodel does not know (SR-016 AK3). These are the kinds relation.add accepts. */
   readonly kinds: readonly {
     readonly kind: Key;
-    readonly name?: string;
+    /** Display name of the relation kind. */
+    readonly name: string;
+    /** Every type of the metamodel a target may have, subtypes included, in metamodel order; relation.add refuses a target of another known type. */
     readonly targetTypes: readonly Key[];
   }[];
 }

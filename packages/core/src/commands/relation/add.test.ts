@@ -239,7 +239,7 @@ describe("relation.add stores UUID and current version of the target in the sour
 });
 
 describe("relation.add sets only relations the metamodel allows (SR-067 AK1, SR-086)", () => {
-  it("refuses a relation from a source type the kind does not allow, with source, target and kind", async () => {
+  it("[SR-067/AK1] refuses a relation from a source type the kind does not allow, with source, target and kind", async () => {
     const opened = await open();
     const before = await read(opened, NEED.file);
     const error = await addError(opened, { source: NEED.id, kind: "derives-from", target: WIND.id });

@@ -141,6 +141,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: RETIRED, kind: "refines", target: WIND },
     { source: APPROVED, kind: "derives-from", target: GUSTS },
   ],
+  "relation.options": [{ ref: WIND }, { ref: RETIRED, kind: "refines" }, { ref: "SR-ffffff" }],
   "relation.remove": [
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: APPROVED, kind: "refines", target: RETIRED },

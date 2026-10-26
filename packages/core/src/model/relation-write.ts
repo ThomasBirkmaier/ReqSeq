@@ -28,9 +28,8 @@ import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FrontmatterEdit } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
-import type { MetamodelEffectiveType, MetamodelRelationKind } from "../generated/types.js";
-import type { Metamodel } from "../metamodel/index.js";
-import { allowsType, keyDefinition, metamodelState } from "../metamodel/index.js";
+import type { MetamodelRelationKind } from "../generated/types.js";
+import { metamodelState, relationKindFor } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -85,35 +84,6 @@ export interface RemovedRelation {
 const invalid = (message: string, details: Record<string, unknown>): CommandError =>
   new CommandError("input.invalid", message, details);
 
-/**
- * The relation kind `key` names (`keyDefinition`: a property of the same key wins, as in every
- * check). A property is `reason: "property"`; any other key is `reason: "unknown-relation"` with
- * the relation kinds the metamodel allows from the source's type as `allowed`.
- */
-const relationKindOf = (
-  metamodel: Metamodel,
-  key: string,
-  sourceType: MetamodelEffectiveType,
-): MetamodelRelationKind => {
-  const found = keyDefinition(metamodel, key);
-  if (found?.kind === "relation") {
-    return found.definition;
-  }
-  if (found?.kind === "property") {
-    throw invalid(`${key} is a property, not a relation kind; set it with element.update`, {
-      kind: key,
-      reason: "property",
-    });
-  }
-  const allowed = metamodel.relations
-    .filter((r) => allowsType(r["source-types"], sourceType.key, metamodel))
-    .map((r) => r.key);
-  throw invalid(
-    `The metamodel has no relation kind ${key}; relation kinds from ${sourceType.name}: ${allowed.length === 0 ? "none" : allowed.join(", ")}`,
-    { kind: key, reason: "unknown-relation", allowed },
-  );
-};
-
 /** The items under a relation kind's key: a list (ADR-0004); an absent key holds none. */
 const itemsUnder = (source: ElementRecord, key: string): readonly unknown[] => {
   const value = source.data[key];
@@ -152,7 +122,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
   const { layout, metamodel, store, shortIds } = await stateOf(workspace);
   const source = resolveRef(store, shortIds, input.source);
   const sourceType = assertElementWritable(metamodel, source);
-  const kind = relationKindOf(metamodel, input.kind, sourceType);
+  const kind = relationKindFor(metamodel, input.kind, sourceType.key);
   const target = resolveRef(store, shortIds, input.target);
   const items = itemsUnder(source, kind.key);
   const namesTarget = (item: unknown): item is Readonly<Record<string, unknown>> =>
@@ -262,7 +232,7 @@ export const removeRelation = async (
   const { layout, metamodel, store, shortIds } = state;
   const source = resolveRef(store, shortIds, input.source);
   const sourceType = assertElementWritable(metamodel, source);
-  const kind = relationKindOf(metamodel, input.kind, sourceType);
+  const kind = relationKindFor(metamodel, input.kind, sourceType.key);
   const target = removalTarget(state, input.target, input.repository);
   const items = itemsUnder(source, kind.key);
   const indexes: number[] = [];
