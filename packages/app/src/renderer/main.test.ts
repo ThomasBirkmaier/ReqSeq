@@ -8,7 +8,14 @@ import type { LogReqBridge } from "../shared/protocol.js";
 describe("renderer entry", () => {
   it("renders the app into #root on the preload bridge", async () => {
     const bridge: LogReqBridge = {
-      invoke: () => Promise.resolve({ ok: true, output: { name: "Weather station", readOnly: false } }),
+      invoke: (name) =>
+        Promise.resolve({
+          ok: true,
+          output:
+            name === "workspace.status"
+              ? { name: "Weather station", readOnly: false }
+              : { elements: [], total: 0 },
+        }),
       commands: () => Promise.resolve([]),
       on: () => () => undefined,
     };
@@ -17,7 +24,7 @@ describe("renderer entry", () => {
     await act(async () => {
       await import("./main.js");
     });
-    expect(document.querySelector('[aria-label="Modeline"]')?.textContent).toBe("Weather station");
+    expect(document.querySelector('[aria-label="Modeline"]')?.textContent).toContain("Weather station");
   });
 
   it("fails without #root", async () => {

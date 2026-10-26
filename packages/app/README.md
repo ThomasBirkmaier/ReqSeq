@@ -1,14 +1,37 @@
 # @logreq/app
 
-The LogReq desktop app (ADR-0010). It is an Electron shell over the command catalog of `@logreq/core` (ADR-0002) and has no logic of its own. Every call of the renderer is one `invoke` in the core process, so the app gives the same results as CLI, API and MCP (SR-080). So far it shows only the shell: an empty white sheet, the modeline with the open workspace (`workspace.status`) and a one-line minibuffer. The editor, the main view and the command palette come with their SRs.
+The LogReq desktop app (ADR-0010). It is an Electron shell over the command catalog of `@logreq/core` (ADR-0002) and has no logic of its own. Every call of the renderer is one `invoke` in the core process, so the app gives the same results as CLI, API and MCP (SR-080).
 
 ```sh
 pnpm build                                   # core and the other packages (tsc)
 pnpm --filter @logreq/app electron:install   # downloads the Electron binary (pnpm runs no install scripts)
 pnpm --filter @logreq/app build:electron     # electron-vite: out/main, out/preload, out/renderer
 pnpm --filter @logreq/app start -- --workspace ../../fixtures/SR-004/one-repository
+pnpm --filter @logreq/app start -- --workspace ../../spec   # the specification of LogReq itself
 pnpm --filter @logreq/app test:electron      # install, build and the Playwright tests (Linux: under xvfb-run)
 ```
+
+## Main view (SR-100)
+
+A white sheet (D-062). The window shows one buffer at a time, the most recent one, above the modeline and the minibuffer; nothing else is permanently visible.
+
+- **Buffers:** the list of elements (`element.list`: filter, sort, derivation tree, pages of 200), a search result (`element.search`, pages of 50) and one element, read-only (`element.get`: title, text as plain text, the properties that are set, relations by kind, with a mark for outdated ones). Opening a buffer again shows the one that is open. Editing comes with the editor (SR-065).
+- **Modeline:** a display, not a control. Left the parts of the shown buffer (a list: its filter, sort and count; an element: ID, type, status, `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
+- **Minibuffer:** the only control. Idle it is one line with the last message. Asked, it has an input and the candidates rise above the modeline, only while asked.
+- **Fuzzy matching:** names of actions and buffers are ranked with uFuzzy in the renderer (`intraMode: 0`, and one slip per word when that finds nothing). Elements are found by `element.search` in core.
+- **Not shown unless asked:** UUID and version (action "Show element ID and version": the UUID and the date of the version, D-013, not the check value), empty properties, the shortcut of an action (only in the prompt).
+
+| Keys (Ctrl, or Cmd on macOS) | |
+| --- | --- |
+| Ctrl/Cmd+Shift+P | Command prompt: the app's actions that apply to the shown buffer (filter, sort, close, ...) |
+| Ctrl/Cmd+P | Go to an open buffer (the most recent first, so Enter goes back) or to an element |
+| Ctrl/Cmd+Shift+F | Search elements |
+| Up, Down, Page Up, Page Down, Home, End | Select a row |
+| Enter | Open the selected row (in a prompt: run the candidate) |
+| Escape | End the prompt |
+| Tab | In a prompt, the next candidate |
+
+Catalog commands in the command prompt (SR-073 AK2) come with #85.
 
 ## Processes
 
@@ -56,4 +79,6 @@ The bridge offers nothing else, and in particular no delete (SR-099).
   - without a workspace, the app says how to open one.
 
   The JUnit file is `test-results/junit-electron.xml` (CI job `electron`, under `xvfb-run` on Linux).
+- `test/main-view.spec.ts` runs the main view on `fixtures/SR-069/filter` and compares it with the CLI: the list, the tree, a filter, the search and an element (`[SR-100/AK1]` checks that nothing but the buffer, the modeline and the minibuffer is permanently visible; the SR is verified by inspection, `verification/SR-100.md`).
+- `test/screenshots.spec.ts` takes the screenshots of `verification/SR-100/` on a copy of the repository's `spec/` workspace (`test-results/electron/screenshots/`, or the folder in `LOGREQ_SCREENSHOTS`).
 - The cross-access and no-delete tests in `packages/cli/test/` run the app's bridge and core side over a `MessageChannel` for every catalog command.

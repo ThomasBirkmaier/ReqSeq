@@ -1,0 +1,390 @@
+import { describe, expect, it, vi } from "vitest";
+import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt } from "./actions.js";
+import type { ActionContext, Prompt } from "./actions.js";
+import type { BufferAction, Buffers } from "./buffers.js";
+import { elementBuffer, listBuffer, searchBuffer } from "./buffers.js";
+import type { Call } from "./call.js";
+
+const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** A context over `buffers`, with the commands answered by `answers` and what the actions did recorded. */
+const setup = (buffers: Buffers, answers: Record<string, unknown> = {}, workspace = true) => {
+  const dispatched: BufferAction[] = [];
+  const asked: Prompt[] = [];
+  const echoed: string[] = [];
+  const call = vi.fn((name: string) => {
+    const output = answers[name];
+    return Promise.resolve(
+      output instanceof Error
+        ? { ok: false, code: "x.failed", message: output.message }
+        : { ok: true, output },
+    );
+  });
+  const context: ActionContext = {
+    workspace,
+    buffers,
+    mac: false,
+    call: call as unknown as Call,
+    dispatch: (action) => dispatched.push(action),
+    ask: (prompt) => asked.push(prompt),
+    echo: (message) => echoed.push(message),
+  };
+  return { context, dispatched, asked, echoed, call };
+};
+
+const action = (id: string) => {
+  const found = ACTIONS.find((candidate) => candidate.id === id);
+  if (found === undefined) {
+    throw new Error(`no action ${id}`);
+  }
+  return found;
+};
+
+const list = listBuffer("All elements");
+const filtered = listBuffer("type: need", { where: { type: ["need"] } }, [{ by: "title", order: "asc" }]);
+const element = elementBuffer("u1", "spec", "SR-036 Title");
+
+const titles = (context: ActionContext): string[] => commandPrompt(context).items.map((item) => item.name);
+
+describe("the command prompt", () => {
+  it("offers on a list: search and filter and sort, not what needs an element or a filter", () => {
+    expect(titles(setup([list]).context)).toEqual([
+      "Go to element or buffer",
+      "Search elements",
+      "List all elements",
+      "Filter list by type",
+      "Filter list by status",
+      "Filter list by saved filter",
+      "Sort list",
+      "Close buffer",
+    ]);
+  });
+
+  it("offers to clear the filter of a filtered list", () => {
+    expect(titles(setup([filtered]).context)).toContain("Clear list filter");
+  });
+
+  it("offers the version on an element, and no list action", () => {
+    const names = titles(setup([element, list]).context);
+    expect(names).toContain("Show element ID and version");
+    expect(names).not.toContain("Sort list");
+    expect(names).not.toContain("Filter list by type");
+  });
+
+  it("offers nothing without a workspace and nothing to close without a buffer", () => {
+    expect(titles(setup([], {}, false).context)).toEqual([]);
+    expect(titles(setup([]).context)).toEqual([
+      "Go to element or buffer",
+      "Search elements",
+      "List all elements",
+    ]);
+  });
+
+  it("shows the shortcut of an action as the platform writes it, and none for one without", () => {
+    const items = commandPrompt(setup([list]).context).items;
+    expect(items.map((item) => item.hint)).toEqual([
+      "Ctrl+P",
+      "Ctrl+Shift+F",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(commandPrompt({ ...setup([list]).context, mac: true }).items[0]?.hint).toBe("⌘P");
+    expect(titles(setup([list]).context)).not.toContain("Command");
+    expect(COMMAND_SHORTCUT).toEqual({ mod: true, shift: true, key: "p" });
+  });
+
+  it("runs the chosen action", () => {
+    const { context, dispatched } = setup([list]);
+    commandPrompt(context)
+      .items.find((item) => item.name === "Close buffer")
+      ?.run();
+    expect(dispatched).toEqual([{ type: "close", key: "list" }]);
+  });
+});
+
+describe("the action of a shortcut", () => {
+  it("is the one that applies now", () => {
+    const { context } = setup([list]);
+    expect(actionFor(context, (shortcut) => shortcut.key === "p")?.id).toBe("go-to");
+    expect(actionFor(context, (shortcut) => shortcut.key === "f")?.id).toBe("search");
+    expect(actionFor(context, () => false)).toBeUndefined();
+    expect(actionFor(setup([list], {}, false).context, (shortcut) => shortcut.key === "p")).toBeUndefined();
+  });
+});
+
+describe("go to element or buffer", () => {
+  it("lists the open buffers but the shown one, recent first; Enter switches", () => {
+    const search = searchBuffer("wind");
+    const { context, dispatched } = setup([element, search, list]);
+    action("go-to").run(context);
+    const prompt = jumpPrompt(context);
+    expect(prompt.label).toBe("Go to");
+    expect(prompt.items.map((item) => item.name)).toEqual(["Search: wind", "All elements"]);
+    prompt.items[0]?.run();
+    expect(dispatched).toEqual([{ type: "switch", key: search.key }]);
+  });
+
+  it("finds elements by `element.search` on the ID and the title", async () => {
+    const hits = {
+      hits: [
+        {
+          id: "u1",
+          repository: "spec",
+          shortId: "SR-000001",
+          identifier: "SR-036",
+          title: "Wind",
+          type: "t",
+          score: 1,
+          fields: ["id", "title"],
+          terms: ["wind"],
+        },
+        {
+          id: "u2",
+          repository: "spec",
+          shortId: "SR-000002",
+          title: "Windy",
+          type: "t",
+          score: 1,
+          fields: ["title"],
+          terms: ["windy"],
+        },
+      ],
+      total: 2,
+      incomplete: false,
+    };
+    const { context, dispatched, call, asked } = setup([list], { "element.search": hits });
+    action("go-to").run(context);
+    const found = await asked[0]?.find?.("wind");
+    expect(call).toHaveBeenCalledWith("element.search", {
+      query: "wind",
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    expect(found?.map((choice) => [choice.id, choice.name, choice.terms])).toEqual([
+      ["element:spec:u1", "SR-036 Wind", ["wind", "sr-036"]],
+      ["element:spec:u2", "SR-000002 Windy", ["windy"]],
+    ]);
+    found?.[0]?.run();
+    expect(dispatched).toEqual([{ type: "open", buffer: elementBuffer("u1", "spec", "SR-036 Wind") }]);
+  });
+
+  it("echoes why the search failed and finds nothing", async () => {
+    const { context, echoed } = setup([list], {
+      "element.search": new Error("The search index is not ready"),
+    });
+    expect(await jumpPrompt(context).find?.("wind")).toEqual([]);
+    expect(echoed).toEqual(["The search index is not ready"]);
+  });
+});
+
+describe("search elements", () => {
+  it("asks for text and opens a search buffer with it", () => {
+    const { context, asked, dispatched } = setup([list]);
+    action("search").run(context);
+    const prompt = asked[0];
+    expect(prompt?.label).toBe("Search");
+    expect(prompt?.items).toEqual([]);
+    prompt?.text?.("  wind speed ");
+    prompt?.text?.("   ");
+    expect(dispatched).toEqual([{ type: "open", buffer: searchBuffer("wind speed") }]);
+  });
+});
+
+describe("list actions", () => {
+  it("list all elements keeps the sort, and from an element starts without one", () => {
+    const first = setup([filtered]);
+    action("list-all").run(first.context);
+    expect(first.dispatched).toEqual([
+      { type: "open", buffer: listBuffer("All elements", undefined, [{ by: "title", order: "asc" }]) },
+    ]);
+    const second = setup([element]);
+    action("list-all").run(second.context);
+    expect(second.dispatched).toEqual([{ type: "open", buffer: listBuffer("All elements") }]);
+  });
+
+  it("filters by a type of the metamodel and keeps the sort", async () => {
+    const { context, asked, dispatched, call } = setup([filtered], {
+      "metamodel.get": {
+        types: [{ key: "need" }, { key: "system-requirement" }],
+        statuses: [{ key: "draft" }],
+      },
+    });
+    action("filter-type").run(context);
+    await flush();
+    expect(call).toHaveBeenCalledWith("metamodel.get", {});
+    expect(asked[0]?.label).toBe("Type");
+    expect(asked[0]?.items.map((item) => item.name)).toEqual(["need", "system-requirement"]);
+    asked[0]?.items[1]?.run();
+    expect(dispatched).toEqual([
+      {
+        type: "open",
+        buffer: listBuffer("type: system-requirement", { where: { type: ["system-requirement"] } }, [
+          { by: "title", order: "asc" },
+        ]),
+      },
+    ]);
+  });
+
+  it("filters by a status of the metamodel", async () => {
+    const { context, asked, dispatched } = setup([list], {
+      "metamodel.get": { types: [], statuses: [{ key: "draft" }, { key: "accepted" }] },
+    });
+    action("filter-status").run(context);
+    await flush();
+    expect(asked[0]?.items.map((item) => item.name)).toEqual(["draft", "accepted"]);
+    asked[0]?.items[0]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: listBuffer("status: draft", { where: { status: ["draft"] } }) },
+    ]);
+  });
+
+  it("filters by a saved filter", async () => {
+    const { context, asked, dispatched, call } = setup([list], {
+      "filter.list": { filters: [{ name: "open-needs" }] },
+    });
+    action("filter-saved").run(context);
+    await flush();
+    expect(call).toHaveBeenCalledWith("filter.list", {});
+    asked[0]?.items[0]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: listBuffer("filter: open-needs", { filter: "open-needs" }) },
+    ]);
+  });
+
+  it("says why there is nothing to choose from", async () => {
+    const empty = setup([list], {
+      "metamodel.get": { types: [], statuses: [] },
+      "filter.list": { filters: [] },
+    });
+    action("filter-type").run(empty.context);
+    action("filter-status").run(empty.context);
+    action("filter-saved").run(empty.context);
+    await flush();
+    expect(empty.asked).toEqual([]);
+    expect(empty.echoed).toEqual([
+      "The metamodel has no types.",
+      "The metamodel has no statuses.",
+      "The workspace has no saved filters.",
+    ]);
+    const failing = setup([list], {
+      "metamodel.get": new Error("The metamodel is not valid"),
+      "filter.list": new Error("No filters"),
+    });
+    action("filter-type").run(failing.context);
+    action("filter-status").run(failing.context);
+    action("filter-saved").run(failing.context);
+    await flush();
+    expect(failing.echoed).toEqual([
+      "The metamodel is not valid",
+      "The metamodel is not valid",
+      "No filters",
+    ]);
+  });
+
+  it("clears the filter and keeps the sort", () => {
+    const { context, dispatched } = setup([filtered]);
+    expect(action("clear-filter").available(setup([list]).context)).toBe(false);
+    expect(action("clear-filter").available(context)).toBe(true);
+    action("clear-filter").run(context);
+    expect(dispatched).toEqual([
+      { type: "open", buffer: listBuffer("All elements", undefined, [{ by: "title", order: "asc" }]) },
+    ]);
+  });
+
+  it("sorts by ID, title, type, status or hierarchy, or back to the workspace order, and keeps the filter", () => {
+    const { context, asked, dispatched } = setup([filtered]);
+    action("sort").run(context);
+    const names = asked[0]?.items.map((item) => item.name);
+    expect(names).toEqual([
+      "Workspace order",
+      "ID ascending",
+      "ID descending",
+      "Title ascending",
+      "Title descending",
+      "Type ascending",
+      "Type descending",
+      "Status ascending",
+      "Status descending",
+      "Hierarchy (tree)",
+    ]);
+    asked[0]?.items[0]?.run();
+    asked[0]?.items[9]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: listBuffer("type: need", { where: { type: ["need"] } }, undefined) },
+      {
+        type: "open",
+        buffer: listBuffer("type: need", { where: { type: ["need"] } }, [{ by: "hierarchy", order: "asc" }]),
+      },
+    ]);
+  });
+
+  it("do nothing when the shown buffer is no list", async () => {
+    const { context, asked, dispatched, echoed, call } = setup([element]);
+    for (const id of ["filter-type", "filter-status", "filter-saved", "clear-filter", "sort"]) {
+      expect(action(id).available(context)).toBe(false);
+      action(id).run(context);
+    }
+    await flush();
+    expect([asked, dispatched, echoed, call.mock.calls]).toEqual([[], [], [], []]);
+  });
+});
+
+describe("close buffer", () => {
+  it("closes the shown buffer, and does nothing without one", () => {
+    const { context, dispatched } = setup([element, list]);
+    action("close").run(context);
+    expect(dispatched).toEqual([{ type: "close", key: element.key }]);
+    const none = setup([]);
+    action("close").run(none.context);
+    expect(none.dispatched).toEqual([]);
+  });
+});
+
+describe("show element ID and version", () => {
+  const read = (versionDate?: string | null) => ({
+    element: {
+      id: "uuid-1",
+      repository: "spec",
+      file: "a/b.md",
+      version: "n1:abcd",
+      ...(versionDate === undefined ? {} : { versionDate }),
+    },
+  });
+
+  it("echoes the UUID and the date of the version, never the check value (D-013)", async () => {
+    const { context, echoed, call } = setup([element], { "element.get": read("2026-10-24T10:00:00Z") });
+    action("version").run(context);
+    await flush();
+    expect(call).toHaveBeenCalledWith("element.get", { ref: "u1", repository: "spec", versionDate: true });
+    expect(echoed).toEqual(["uuid-1 · version of 2026-10-24T10:00:00Z · spec:a/b.md"]);
+    expect(echoed.join("")).not.toContain("n1:");
+  });
+
+  it("says that the date is unknown when Git does not tell", async () => {
+    for (const date of [null, undefined]) {
+      const { context, echoed } = setup([element], { "element.get": read(date) });
+      action("version").run(context);
+      await flush();
+      expect(echoed).toEqual(["uuid-1 · version of unknown date · spec:a/b.md"]);
+    }
+  });
+
+  it("echoes why the element could not be read", async () => {
+    const { context, echoed } = setup([element], { "element.get": new Error("No such element") });
+    action("version").run(context);
+    await flush();
+    expect(echoed).toEqual(["No such element"]);
+  });
+
+  it("is available on an element only", () => {
+    expect(action("version").available(setup([list]).context)).toBe(false);
+    expect(action("version").available(setup([]).context)).toBe(false);
+    const { context, call } = setup([list]);
+    action("version").run(context);
+    expect(call).not.toHaveBeenCalled();
+  });
+});

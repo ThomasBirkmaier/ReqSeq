@@ -20,6 +20,7 @@
     "test:electron": "pnpm electron:install && pnpm build:electron && playwright test --config test/playwright.config.ts"
   },
   "dependencies": {
+    "@leeoniya/ufuzzy": "1.0.19",
     "@logreq/core": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1"

@@ -59,7 +59,7 @@ test.describe("on a fixture workspace", () => {
   });
 
   test("starts and shows the status of the workspace", async () => {
-    await expect(running.window.getByLabel("Modeline")).toHaveText("Weather station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     await expect(running.window).toHaveTitle("Weather station - LogReq");
     await expect(running.window.getByLabel("Minibuffer")).toHaveText("");
   });
@@ -110,7 +110,7 @@ test.describe("on a fixture workspace", () => {
   });
 
   test("the session cancels every request that is not local, and the app makes none (SR-078)", async () => {
-    await expect(running.window.getByLabel("Modeline")).toHaveText("Weather station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     // The app itself asked for nothing outside its own protocols while it started and loaded the workspace.
     expect(running.stderr()).not.toContain("Blocked a request");
     const fromMain = await running.app.evaluate(async ({ session }) => {
@@ -155,7 +155,7 @@ test.describe("on a fixture workspace", () => {
   });
 
   test("navigation and new windows are denied", async () => {
-    await expect(running.window.getByLabel("Modeline")).toHaveText("Weather station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     await running.window.evaluate(() => {
       window.open("app://logreq/index.html");
       window.open("https://example.com/");
@@ -170,11 +170,11 @@ test.describe("on a fixture workspace", () => {
     expect(windows).toEqual(["app://logreq/index.html"]);
     expect(
       await running.window.evaluate(() => document.querySelector('[aria-label="Modeline"]')?.textContent),
-    ).toBe("Weather station");
+    ).toContain("Weather station");
   });
 
   test("a core process that stops is started again on the same workspace", async () => {
-    await expect(running.window.getByLabel("Modeline")).toHaveText("Weather station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     const pid = await running.app.evaluate(
       ({ app }) => app.getAppMetrics().find((m) => m.name === "LogReq core")?.pid,
     );
@@ -183,7 +183,7 @@ test.describe("on a fixture workspace", () => {
     await expect(running.window.getByLabel("Minibuffer")).toHaveText(
       "The core process stopped and was started again.",
     );
-    await expect(running.window.getByLabel("Modeline")).toHaveText("Weather station");
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     expect((await invoke(running, "element.get", { ref: "SR-e88fb3" })).ok).toBe(true);
   });
 });

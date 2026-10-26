@@ -21,11 +21,13 @@ const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
 /** The Electron binary of this package (`pnpm electron:install`). */
 const ELECTRON = createRequire(import.meta.url)("electron") as string;
 
-/** A copy of a case folder of `fixtures/`, plus `files` (relative path to content), in a temporary folder. */
-export interface Fixture {
-  readonly fixture: string;
+/**
+ * A copy of a case folder of `fixtures/` (`fixture`) or of any workspace folder (`folder`, an absolute
+ * path), plus `files` (relative path to content), in a temporary folder.
+ */
+export type Fixture = ({ readonly fixture: string } | { readonly folder: string }) & {
   readonly files?: Readonly<Record<string, string | Uint8Array>>;
-}
+};
 
 /** The copied workspace: its root (links resolved) and how to remove it. */
 export interface FixtureWorkspace {
@@ -33,10 +35,12 @@ export interface FixtureWorkspace {
   cleanup(): Promise<void>;
 }
 
-const copyFixture = async ({ fixture, files = {} }: Fixture): Promise<FixtureWorkspace> => {
+const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
+  const { files = {} } = source;
+  const from = "folder" in source ? source.folder : path.join(FIXTURES, ...source.fixture.split("/"));
   const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-fixture-")));
   const root = path.join(top, "workspace");
-  await fs.cp(path.join(FIXTURES, ...fixture.split("/")), root, { recursive: true });
+  await fs.cp(from, root, { recursive: true });
   for (const [relative, content] of Object.entries(files)) {
     const file = path.join(root, ...relative.split("/"));
     await fs.mkdir(path.dirname(file), { recursive: true });

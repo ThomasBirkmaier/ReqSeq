@@ -1,6 +1,6 @@
 # ADR-0010: Electron app: process model and security
 
-Status: Proposed · Based on: D-003, D-004, D-019, D-029 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082
+Status: Proposed · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082, SR-100
 
 ## Decision
 
@@ -22,12 +22,12 @@ Status: Proposed · Based on: D-003, D-004, D-019, D-029 · SRs: SR-065, SR-066,
 - `session.webRequest.onBeforeRequest` cancels every request that is not `app:`, `logreq-file:` or `devtools:` (SR-078).
 - No auto-updater, no crash reporter upload, no telemetry (SR-078). Electron fuses: `runAsNode` only for the bundled CLI entry (ADR-0014), `EnableNodeCliInspectArguments` off.
 
-**UI**
-- React with TypeScript, bundled with `electron-vite`. Minimal chrome: list, element, search (SR-073 AK3); a command palette (`Ctrl/Cmd+K`) lists every catalog command and app action by name (SR-073 AK2); every action has a keyboard path (SR-073 AK1).
-- Editor: **CodeMirror 6** on the Markdown text with live preview (micromark render), KaTeX for formulas and Mermaid for diagrams, all bundled locally (SR-065). `[[` opens element search and inserts an inline reference (SR-066, ADR-0004).
-- All UI text English, no i18n framework (D-019, SR-074).
-
-Pending: the UI part above (palette shortcut, chrome, editor) is being revised by D-061..D-063 (Markdown live preview in CodeMirror 6, "white sheet", a minibuffer with Ctrl+Shift+P and Ctrl+P, a modeline, buffers instead of tabs). The shell of #322 has only the white sheet, the modeline and the minibuffer, and it changes nothing in this section.
+**UI** (D-061..D-063)
+- React with TypeScript, bundled with `electron-vite`. A white sheet (D-062): the window shows one buffer (a list, a search result or an element; later a graph, D-063), a quiet modeline (a display, not a control) and the minibuffer. There is no tab bar, no permanent sidebar or tree, no form and no modal dialog (SR-100 AK1). Colour only for meaning: greys, and one accent for "outdated".
+- Minibuffer: the only control. Ctrl/Cmd+Shift+P opens the command prompt, Ctrl/Cmd+P jumps to an open buffer or to an element, Ctrl/Cmd+Shift+F searches; each entry shows its shortcut. Every action has a keyboard path (SR-073 AK1). The prompt finds every function by its name (SR-073 AK2). So far it lists the actions of the app that apply to the shown buffer; the catalog commands follow with #85, because they need argument entry. Names of actions and open buffers are ranked with uFuzzy in the renderer (UI only); elements are found by `element.search` in core (ADR-0002). Lists come from `element.list` (filter, sort, derivation tree) in pages of 200, search results in pages of 50.
+- Editor (SR-065): CodeMirror 6 in live-preview mode (D-061): the Markdown source shows only on the cursor line; KaTeX and Mermaid are bundled locally; properties are boxes below the text. `[[` opens element search and inserts an inline reference (SR-066, ADR-0004). Until then the element buffer shows the text as plain text.
+- Graph (D-063): the current element and what hangs on it, in layers, with an existing library (licence check per ADR-0015 when it comes).
+- All UI text is English, no i18n framework (D-019, SR-074).
 
 ## Consequences
 

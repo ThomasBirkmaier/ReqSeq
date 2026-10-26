@@ -1,10 +1,13 @@
-/* A white sheet: only what means something is visible (D-061..D-063, pending). The modeline and the
-   one-line minibuffer sit at the bottom, as in Emacs. */
+/* A white sheet: only what means something is visible (D-061..D-063). One buffer, the modeline (a
+   display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for everything; one
+   accent colour, for "outdated" only. */
 :root {
   --text: #1f2328;
   --muted: #6e7781;
   --rule: #e6e8eb;
   --sheet: #ffffff;
+  --select: #eef0f2;
+  --accent-outdated: #b54708;
   --line: 1.6rem;
   color: var(--text);
   background: var(--sheet);
@@ -24,12 +27,20 @@ body,
 
 .shell {
   display: grid;
-  grid-template-rows: 1fr var(--line) var(--line);
+  grid-template-rows: minmax(0, 1fr) var(--line) var(--line);
   height: 100%;
 }
 
 .sheet {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.buffer {
+  height: 100%;
   overflow: auto;
+  box-sizing: border-box;
+  outline: none;
 }
 
 .modeline,
@@ -38,16 +49,196 @@ body,
   align-items: center;
   gap: 1.5rem;
   padding: 0 0.75rem;
-  overflow: hidden;
   white-space: nowrap;
   font-size: 12px;
 }
 
 .modeline {
+  justify-content: space-between;
+  overflow: hidden;
   border-top: 1px solid var(--rule);
   color: var(--muted);
 }
 
+.modeline .parts,
+.modeline .workspace {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.modeline .parts span:first-child {
+  color: var(--text);
+}
+
 .modeline .name {
   color: var(--text);
+}
+
+.minibuffer {
+  position: relative;
+}
+
+.minibuffer .echo {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The list and the search result: ID, title, status. */
+.list {
+  padding: 0.5rem 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.1rem 0.75rem;
+  cursor: default;
+}
+
+.row[aria-selected="true"] {
+  background: var(--select);
+}
+
+.row .id,
+.row .status {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+mark {
+  background: none;
+  color: inherit;
+  font-weight: 700;
+}
+
+.quiet {
+  margin: 1rem 0.75rem;
+  color: var(--muted);
+}
+
+/* The element: a centred column. */
+.element {
+  padding: 2rem 0.75rem 4rem;
+}
+
+.element .column {
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.element h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.element h2 {
+  margin: 1.5rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.element .text {
+  margin: 0 0 1.5rem;
+  white-space: pre-wrap;
+}
+
+.element .box {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.35rem 0.75rem;
+  border-top: 1px solid var(--rule);
+}
+
+.element .box .key {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.element .box .line {
+  display: block;
+}
+
+.element ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.element .relation [role="link"] {
+  cursor: pointer;
+}
+
+.element .relation [role="link"]:hover,
+.element .relation [role="link"]:focus-visible {
+  text-decoration: underline;
+}
+
+.element .unavailable,
+.element .state {
+  color: var(--muted);
+}
+
+.element .outdated {
+  color: var(--accent-outdated);
+}
+
+/* The prompt: an input in the minibuffer; the candidates rise above the modeline. */
+.prompt-label {
+  color: var(--muted);
+}
+
+.prompt-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.candidates {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--line));
+  max-height: calc(var(--line) * 10);
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--sheet);
+  border-top: 1px solid var(--rule);
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
+  font-size: 13px;
+}
+
+.candidates li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0.75rem;
+}
+
+.candidates li[aria-selected="true"] {
+  background: var(--select);
+}
+
+.candidates .hint {
+  color: var(--muted);
+  font-size: 12px;
 }

@@ -1,0 +1,224 @@
+// The main view (SR-100, #112): one buffer (list, search result or element), the modeline and the
+// minibuffer, on the built app. What the app shows is compared with what the CLI gives for the same
+// workspace (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
+import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import type { RunningApp } from "./support/app.js";
+import { launchApp } from "./support/app.js";
+
+/** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
+const FIXTURE = { fixture: "SR-069/filter" };
+
+interface Listed {
+  readonly elements: readonly { readonly title: string; readonly shortId: string }[];
+  readonly total: number;
+  readonly tree?: readonly { readonly depth: number }[];
+}
+
+const cliJson = async <T>(running: RunningApp, argv: readonly string[]): Promise<T> => {
+  const result = await running.cli(argv);
+  expect([argv.join(" "), result.code]).toEqual([argv.join(" "), 0]);
+  return JSON.parse(result.stdout) as T;
+};
+
+const rowTitles = (window: Page): Promise<string[]> => window.locator(".row .title").allTextContents();
+
+/** Opens the command prompt, types `command` and runs the first candidate. */
+const runCommand = async (window: Page, command: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type(command);
+  await window.keyboard.press("Enter");
+};
+
+test.describe("the main view on a fixture workspace", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp(FIXTURE);
+    await expect(running.window.locator(".row").first()).toBeVisible();
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-100/AK1] the main view shows only the list, the element and the search line", async () => {
+    const { window } = running;
+    // Nothing that can be operated, besides the buffer itself and the minibuffer, is permanently visible.
+    const permanent = async (): Promise<void> => {
+      for (const role of [
+        "button",
+        "tab",
+        "tablist",
+        "navigation",
+        "complementary",
+        "dialog",
+        "form",
+        "menu",
+        "menubar",
+        "toolbar",
+        "tree",
+        "combobox",
+        "textbox",
+        "searchbox",
+      ] as const) {
+        expect([role, await window.getByRole(role).count()]).toEqual([role, 0]);
+      }
+      expect(await window.locator("button, input, textarea, select, form, nav, aside, dialog").count()).toBe(
+        0,
+      );
+      // The window has the sheet, the modeline and the minibuffer, nothing else.
+      expect(
+        await window.locator(".shell > *").evaluateAll((all) => all.map((e) => e.getAttribute("aria-label"))),
+      ).toEqual(["Sheet", "Modeline", "Minibuffer"]);
+      // The sheet holds exactly one buffer.
+      expect(await window.locator('[aria-label="Sheet"] > *').count()).toBe(1);
+    };
+    // With the list open ...
+    await expect(window.getByRole("listbox")).toBeVisible();
+    await permanent();
+    // ... and with an element open.
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article")).toBeVisible();
+    await permanent();
+    // The prompt, which is the search line, is there only while it is asked for.
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await expect(window.getByRole("combobox")).toBeVisible();
+    await window.keyboard.press("Escape");
+    await expect(window.getByRole("combobox")).toHaveCount(0);
+    await permanent();
+  });
+
+  test("the list shows what `element list` gives: titles in order and the total in the modeline", async () => {
+    const listed = await cliJson<Listed>(running, ["element", "list"]);
+    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
+    await expect(running.window.getByLabel("Modeline")).toContainText("All elements");
+  });
+
+  test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {
+    await runCommand(running.window, "sort list");
+    await expect(running.window.getByLabel("Minibuffer").locator("label")).toHaveText("Sort by");
+    await running.window.keyboard.type("hierarchy");
+    await running.window.keyboard.press("Enter");
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ sort: [{ by: "hierarchy" }] }),
+    ]);
+    await expect(running.window.getByLabel("Modeline")).toContainText("All elements · tree");
+    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    const indents = await running.window
+      .locator(".row .title")
+      .evaluateAll((all) => all.map((e) => (e as HTMLElement).style.paddingLeft));
+    expect(indents).toEqual((listed.tree ?? []).map((t) => `${String(t.depth * 1.25)}rem`));
+    expect(Math.max(...(listed.tree ?? []).map((t) => t.depth))).toBeGreaterThan(0);
+  });
+
+  test("filtering by type through the command prompt gives the list of the CLI for the same condition", async () => {
+    await runCommand(running.window, "filter list by type");
+    await expect(running.window.getByLabel("Minibuffer").locator("label")).toHaveText("Type");
+    await running.window.keyboard.type("need");
+    await running.window.keyboard.press("Enter");
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ selection: { where: { type: ["need"] } } }),
+    ]);
+    await expect(running.window.getByLabel("Modeline")).toContainText("type: need");
+    await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
+    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    expect(listed.total).toBeLessThan(14);
+  });
+
+  test("the command prompt finds an action by an abbreviation with a typo, and shows its shortcut and what matched", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("srch elem");
+    const options = window.locator('.candidates [role="option"]');
+    await expect(options.first()).toContainText("Search elements");
+    const first = await options.allTextContents();
+    expect(first.slice(0, 3).some((text) => text.startsWith("Search elements"))).toBe(true);
+    await expect(options.first().locator(".hint")).toHaveText(/^(Ctrl\+Shift\+F|⌘⇧F)$/);
+    expect(await options.first().locator("mark").allTextContents()).toEqual(["S", "rch", "elem"]);
+    await window.keyboard.press("Escape");
+    await expect(window.getByRole("combobox")).toHaveCount(0);
+  });
+
+  test("Ctrl+P finds an element by a word of its title and opens it, read-only, with what `element get` gives", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("icing");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Survive icing");
+    await window.keyboard.press("Enter");
+    const got = await cliJson<{
+      element: { title: string; shortId: string; type: string; status: string; text?: string };
+    }>(running, ["element", "get", "SR-0000b3"]);
+    await expect(window.locator("article h1")).toHaveText(got.element.title);
+    await expect(window.getByLabel("Modeline")).toContainText(
+      `${got.element.shortId}${got.element.type}${got.element.status}`,
+    );
+    if (got.element.text !== undefined) {
+      await expect(window.locator("article .text")).toHaveText(got.element.text);
+    }
+    await expect(window.locator("article input, article textarea, article [contenteditable]")).toHaveCount(0);
+    // Ctrl+P, Enter goes back to the list.
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
+    await expect(window.locator('[aria-selected="true"]')).toBeVisible();
+  });
+
+  test("a relation of an element opens the element it points to", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Survive icing");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Survive icing");
+    await window.keyboard.press("Enter");
+    const link = window.getByRole("link").first();
+    const target = (await link.textContent()) ?? "";
+    await link.click();
+    await expect(window.locator("article h1")).toBeVisible();
+    expect(target).not.toBe("");
+    await expect(window.getByLabel("Modeline")).not.toContainText("SR-0000b3");
+  });
+
+  test("the search buffer shows the hits of `element search` in the same order", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("wind");
+    await window.keyboard.press("Enter");
+    const searched = await cliJson<{ hits: { title: string }[]; total: number }>(running, [
+      "element",
+      "search",
+      "--input",
+      JSON.stringify({ query: "wind" }),
+    ]);
+    await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Search: wind");
+    expect(await rowTitles(window)).toEqual(searched.hits.map((h) => h.title));
+    await expect(window.getByLabel("Modeline")).toContainText(`${String(searched.total)} hits`);
+    expect(await window.locator(".row mark").count()).toBeGreaterThan(0);
+  });
+
+  test("Show element ID and version says the UUID and the date of the version, not the check value (D-013)", async () => {
+    const { window } = running;
+    await window.keyboard.press("Enter");
+    await runCommand(window, "show element id");
+    const echo = window.getByLabel("Minibuffer");
+    await expect(echo).toContainText("69069069-0000-4000-8000-");
+    await expect(echo).toContainText("version of");
+    await expect(echo).not.toContainText("n1:");
+  });
+
+  test("the app makes no request outside its own protocols while it is used (SR-078)", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+F");
+    await window.keyboard.type("wind");
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.press("Enter");
+    await expect(window.getByRole("listbox")).toBeVisible();
+    expect(running.stderr()).not.toContain("Blocked a request");
+  });
+});
