@@ -24,7 +24,7 @@ These rules apply to every session, cloud or local. They follow from decisions D
 
 ## GitHub access
 
-GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh pr ...` subcommands use GraphQL and fail with HTTP 403. Use the GitHub MCP tools (`mcp__github__*`) or the REST API via `gh api repos/ThomasBirkmaier/logreq/...` instead. Auto-merge: `PUT /repos/{owner}/{repo}/pulls/{n}/ccr/auto_merge`. Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`. The `gh ...` lines in the skills describe the intent; translate them.
+GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh pr ...` subcommands use GraphQL and fail with HTTP 403. Use the GitHub MCP tools (`mcp__github__*`) or the REST API via `gh api repos/ThomasBirkmaier/logreq/...` instead. Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`. The `gh ...` lines in the skills describe the intent; translate them.
 
 ## Language
 
@@ -35,9 +35,13 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 
 - Implement an issue with the `github-issue-workflow` skill: plan (Opus), plan review (second Opus agent), tests from acceptance criteria first, implementation (Sonnet), quality gates, code review (Opus), PR.
 - Effort of helper agents (Thomas, 2026-10-24): agents for planning, plan review, architecture questions and code review run with effort `high`; routine implementation (writing tests and code from an approved plan, fixing gate failures) runs with normal effort.
+- Token budget (Thomas, 2026-10-26, #392): Sonnet writes tests and code and fixes findings; Opus only plans and reviews. A second or later review round reviews only the diff since the last review: the open findings are resolved, and the new code gets the full checks of round 1. Bundle small follow-ups and nitpicks into one issue per area instead of one per PR. Agent reports to the lead stay short (PR, state, findings, follow-up issues).
+- Reading: do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator or a `contracts:check` diff (hidden from search by `.ignore`; regenerate with `pnpm contracts:generate`). In `packages/core`, read the README and only the block files under `packages/core/docs/` you work on. Run single test files while you work (`pnpm vitest run <path>`); the full gates once at the end.
 - The GitHub project "LogReq" mirrors the issues; the workflow `project-sync` derives its fields from labels. Change labels, never project fields (see `stage-run`).
 - Merge with `github-pr-review-merge`. Agents commit and merge on their own everywhere, including `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` are allowed for trivial fixes; everything else goes through a PR so CI and the SR trail run.
 - Merge only when CI is green and the code review found nothing blocking. Never merge red.
+- Merge without waiting (Thomas, 2026-10-26): GitHub auto-merge is not available here (`allow_auto_merge` is off and `main` has no required checks, so it would not wait for CI). Instead, subscribe to the PR's activity and merge as soon as CI is green: every check run of the head commit has completed with success or skipped (`GET /repos/ThomasBirkmaier/logreq/commits/{sha}/check-runs`; one green workflow is not enough), the last review found nothing blocking, and no unreviewed push came after it. A push after the review needs a review of the new diff first (a conflict resolved by hand counts; `pnpm merge:main` resolving only generated files does not).
+- Merge `main` into a branch with `pnpm merge:main`: it regenerates conflicting generated files instead of resolving them by hand.
 - Tell the product owner (in the stage epic) about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, but do not wait for an answer. Label `needs-human` means "the product owner must answer something", not a merge gate.
 - Small PRs. One SR per PR unless SRs are inseparable; then name all of them.
 - Before starting a plan, read `docs/architecture/README.md`, the ADRs it names for your area and the schemas you touch. Plans that contradict an ADR are rejected in plan review.

@@ -32,7 +32,8 @@ export default defineConfig({
     hookTimeout: 30_000,
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
     env: { LOGREQ_VALIDATE_OUTPUT: "1" },
-    reporters: ["default", ["junit", { outputFile: "test-results/junit.xml", addFileAttribute: true }]],
+    // `agent` prints only failures and the summary: short logs for agents and CI (#392).
+    reporters: ["agent", ["junit", { outputFile: "test-results/junit.xml", addFileAttribute: true }]],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.{ts,tsx}"],

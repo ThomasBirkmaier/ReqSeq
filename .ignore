@@ -1,0 +1,6 @@
+# Read by ripgrep (and so by agent searches), not by git or the tools.
+# Generated contracts are ~850 KB; one search hit floods an agent's context.
+# Regenerate them with `pnpm contracts:generate`; read the source in
+# schemas/commands/catalog.json and schemas/*.schema.json instead.
+schemas/generated/
+packages/core/src/generated/

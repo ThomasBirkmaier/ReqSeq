@@ -18,6 +18,7 @@
     "contracts:generate": "node scripts/contracts/generate.mjs",
     "contracts:check": "node scripts/contracts/generate.mjs --check",
     "licenses:check": "node scripts/licenses/check.mjs",
+    "merge:main": "node scripts/git/merge-main.mjs",
     "trace-check": "node scripts/trace-check/trace-check.mjs",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
