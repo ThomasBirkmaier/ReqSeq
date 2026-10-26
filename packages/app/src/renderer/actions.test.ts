@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt, runAction } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, listBuffer, searchBuffer } from "./buffers.js";
+import { elementBuffer, filteredList, listBuffer, searchBuffer } from "./buffers.js";
+import { typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -66,6 +67,8 @@ describe("the command prompt", () => {
       "List all elements",
       "Filter list by type",
       "Filter list by status",
+      "Filter list by property",
+      "Filter list by text search",
       "Filter list by saved filter",
       "Sort list",
       "Close buffer",
@@ -126,6 +129,8 @@ describe("the command prompt", () => {
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
       "Ctrl+Shift+F",
+      undefined,
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -263,19 +268,27 @@ describe("list actions", () => {
     expect(dispatched).toEqual([
       {
         type: "open",
-        buffer: listBuffer("type: system-requirement", { where: { type: ["system-requirement"] } }, [
-          { by: "title", order: "asc" },
-        ]),
+        // The list was filtered by type need already: the new step narrows it (SR-124 AK1).
+        buffer: filteredList(
+          [typeStep("need"), typeStep("system-requirement")],
+          [{ by: "title", order: "asc" }],
+        ),
       },
     ]);
   });
 
-  it("filters by a status of the metamodel", async () => {
-    const { context, asked, dispatched } = setup([list], {
-      "metamodel.get": { types: [], statuses: [{ key: "draft" }, { key: "accepted" }] },
+  it("filters by a status the elements of the list have", async () => {
+    const { context, asked, dispatched, call } = setup([list], {
+      "element.facets": {
+        statuses: [
+          { key: "draft", count: 3 },
+          { key: "accepted", count: 1 },
+        ],
+      },
     });
     action("filter-status").run(context);
     await flush();
+    expect(call).toHaveBeenCalledWith("element.facets", {});
     expect(asked[0]?.items.map((item) => item.name)).toEqual(["draft", "accepted"]);
     asked[0]?.items[0]?.run();
     expect(dispatched).toEqual([
@@ -298,7 +311,8 @@ describe("list actions", () => {
 
   it("says why there is nothing to choose from", async () => {
     const empty = setup([list], {
-      "metamodel.get": { types: [], statuses: [] },
+      "metamodel.get": { types: [] },
+      "element.facets": { statuses: [] },
       "filter.list": { filters: [] },
     });
     action("filter-type").run(empty.context);
@@ -308,22 +322,19 @@ describe("list actions", () => {
     expect(empty.asked).toEqual([]);
     expect(empty.echoed).toEqual([
       "The metamodel has no types.",
-      "The metamodel has no statuses.",
+      "The elements of this list have no status.",
       "The workspace has no saved filters.",
     ]);
     const failing = setup([list], {
       "metamodel.get": new Error("The metamodel is not valid"),
+      "element.facets": new Error("The facets failed"),
       "filter.list": new Error("No filters"),
     });
     action("filter-type").run(failing.context);
     action("filter-status").run(failing.context);
     action("filter-saved").run(failing.context);
     await flush();
-    expect(failing.echoed).toEqual([
-      "The metamodel is not valid",
-      "The metamodel is not valid",
-      "No filters",
-    ]);
+    expect(failing.echoed).toEqual(["The metamodel is not valid", "The facets failed", "No filters"]);
   });
 
   it("clears the filter and keeps the sort", () => {
@@ -365,7 +376,16 @@ describe("list actions", () => {
 
   it("do nothing when the shown buffer is no list", async () => {
     const { context, asked, dispatched, echoed, call } = setup([element]);
-    for (const id of ["filter-type", "filter-status", "filter-saved", "clear-filter", "sort"]) {
+    for (const id of [
+      "filter-type",
+      "filter-status",
+      "filter-property",
+      "filter-text",
+      "filter-saved",
+      "clear-filter",
+      "clear-filters",
+      "sort",
+    ]) {
       expect(action(id).available(context)).toBe(false);
       action(id).run(context);
     }

@@ -1138,6 +1138,58 @@ export interface ElementListOutput {
 }
 
 /**
+ * Input of `element.facets` as `run` gets it: validated, properties with a `default` filled in. Statuses and property values of the elements of a selection, with counts, to choose a filter from.
+ * Schema: `schemas/commands/catalog.json element.facets input`.
+ */
+export interface ElementFacetsInput {
+  /** Every part given must hold (SR-101 AK2). Without it, every element. */
+  readonly selection?: ElementSelection;
+  /** A property of kind text, number or date gives its values only when it has at most this many distinct values in the whole workspace and at least one of them is shared by two elements; otherwise it is free text, found with element.search (SR-068). Choice and relation properties always give their values. */
+  readonly maxValues: number;
+}
+
+/**
+ * Output of `element.facets`. Statuses and property values of the elements of a selection, with counts, to choose a filter from.
+ * Schema: `schemas/commands/catalog.json element.facets output`.
+ */
+export interface ElementFacetsOutput {
+  /** Elements in the selection. */
+  readonly total: number;
+  /** The statuses of the selected elements as written in the files, with the number of elements: statuses of the metamodel in metamodel order, then other values in store order. Elements without status are not counted. */
+  readonly statuses: readonly {
+    readonly key: string;
+    readonly count: number;
+  }[];
+  /** Every property that a type of a selected element has, in the order of the property definitions of the metamodel. Keys no type has (SR-016) are not listed. The counts and values are those of all selected elements, as the filter conditions read them (any type, SR-069): an element whose type lacks the property counts by the value its file holds (usually none). */
+  readonly properties: readonly {
+    readonly key: Key;
+    readonly name: string;
+    readonly kind: "text" | "number" | "date" | "choice" | "relation";
+    /** Selected elements that have some value. */
+    readonly count: number;
+    /** Selected elements that have no value (absent, null or []); the elements `{ property, op: "missing" }` selects. */
+    readonly missing: number;
+    /** Distinct values the property can be filtered on (for a relation property: distinct available targets). Free text without values counts only up to maxValues + 1, see distinctCapped. */
+    readonly distinct: number;
+    /** Only for free text: there are more distinct values than maxValues, and `distinct` stopped counting at maxValues + 1. */
+    readonly distinctCapped?: true;
+    /** Left out for free text (see maxValues). Choices: in metamodel order, then other values as written. Relation targets: by title ignoring case, then short ID. Others: numbers ascending, then texts ignoring case, then booleans. Each value is what a property condition takes with op eq and selects exactly the elements counted: for a relation target its short ID; a choice stored under a name the condition would map to another key, or one that names several choices, is not given. Targets that are not available are left out (a condition cannot name them). */
+    readonly values?: readonly {
+      readonly value: string | number | boolean;
+      /** Selected elements that have this value. */
+      readonly count: number;
+      /** Display name of a choice. */
+      readonly name?: string;
+      /** Title of a relation target; left out when it has none. */
+      readonly title?: string;
+      /** Identifier of a relation target, when it has one. */
+      readonly identifier?: string;
+    }[];
+  }[];
+  readonly incomplete: Incomplete;
+}
+
+/**
  * Input of `element.update` as `run` gets it: validated, properties with a `default` filled in. Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.
  * Schema: `schemas/commands/catalog.json element.update input`.
  */
@@ -2101,6 +2153,7 @@ export interface CommandTypes {
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
   readonly "element.resolve": { readonly input: ElementResolveInput; readonly output: ElementResolveOutput };
   readonly "element.list": { readonly input: ElementListInput; readonly output: ElementListOutput };
+  readonly "element.facets": { readonly input: ElementFacetsInput; readonly output: ElementFacetsOutput };
   readonly "element.update": { readonly input: ElementUpdateInput; readonly output: ElementUpdateOutput };
   readonly "element.setStatus": { readonly input: ElementSetStatusInput; readonly output: ElementSetStatusOutput };
   readonly "element.supersede": { readonly input: ElementSupersedeInput; readonly output: ElementSupersedeOutput };

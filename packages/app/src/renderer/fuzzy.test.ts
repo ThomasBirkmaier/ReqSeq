@@ -7,8 +7,11 @@ const ACTIONS = [
   "List all elements",
   "Filter list by type",
   "Filter list by status",
+  "Filter list by property",
+  "Filter list by text search",
   "Filter list by saved filter",
   "Clear list filter",
+  "Create relation",
   "Sort list",
   "Close buffer",
   "Show element ID and version",
@@ -43,8 +46,38 @@ describe("rank", () => {
     expect(names("sotr")[0]).toBe("Sort list");
   });
 
-  it("finds nothing across words without a space, and for a query without a word", () => {
-    expect(names("gote")).toEqual([]);
+  it("[SR-121/AK1] finds an action by the beginnings of its words, skipping words", () => {
+    expect(names("lae")[0]).toBe("List all elements");
+    expect(names("flp")).toEqual(["Filter list by property"]);
+    expect(names("crel")).toEqual(["Create relation"]);
+    expect(names("fls")).toEqual([
+      "Filter list by status",
+      "Filter list by text search",
+      "Filter list by saved filter",
+    ]);
+    // The beginnings of words in the given order come before the other matches.
+    expect(names("fil").slice(0, 3)).toEqual([
+      "Filter list by type",
+      "Filter list by status",
+      "Filter list by property",
+    ]);
+    expect(rank(ACTIONS, (name) => name, "flp")[0]?.ranges).toEqual([
+      [0, 1],
+      [7, 8],
+      [15, 16],
+    ]);
+  });
+
+  it("matches the beginnings of words from the first word on, in order, and not for a single letter", () => {
+    expect(names("ael")).toEqual([]);
+    expect(names("lp")).toEqual([]);
+    expect(names("l")).toContain("List all elements");
+    expect(names("fl by")).not.toContain("Sort list");
+    // "go" is the beginning of "Go", "t" of "to" and "e" of "element".
+    expect(names("gote")).toEqual(["Go to element or buffer"]);
+  });
+
+  it("finds nothing for a query without a word", () => {
     expect(names("!!")).toEqual([]);
     expect(names("zzzz")).toEqual([]);
   });

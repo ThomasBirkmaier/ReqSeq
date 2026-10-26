@@ -9,6 +9,7 @@ import type { AnyCommand } from "../catalog.js";
 import elementAddAttachment from "./element/addAttachment.js";
 import elementBulkUpdate from "./element/bulkUpdate.js";
 import elementCreate from "./element/create.js";
+import elementFacets from "./element/facets.js";
 import elementGet from "./element/get.js";
 import elementList from "./element/list.js";
 import elementResolve from "./element/resolve.js";
@@ -36,6 +37,7 @@ export const commands: readonly AnyCommand[] = [
   elementAddAttachment,
   elementBulkUpdate,
   elementCreate,
+  elementFacets,
   elementGet,
   elementList,
   elementResolve,

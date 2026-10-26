@@ -2,12 +2,21 @@
 // A buffer is a list, a search result or an element. This module is the model and the reducer, no React.
 import type { ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
 
+/** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
+export interface FilterStep {
+  readonly label: string;
+  readonly selection: Pick<ElementSelection, "where" | "filter">;
+}
+
 /** The list of elements of the workspace: one buffer, changed in place when filtered or sorted. */
 export interface ListBuffer {
   readonly kind: "list";
   readonly key: string;
-  /** What the list holds: "All elements", "type: need", "status: draft", "filter: <name>". */
+  /** What the list holds: "All elements", or the labels of the steps joined by " · " ("type: need · status: draft"). */
   readonly label: string;
+  /** The filter steps, each narrowing the list of the one before (SR-124 AK1); none: every element. */
+  readonly steps: readonly FilterStep[];
+  /** What the steps select together, the input of `element.list` (`selectionOf`). */
   readonly selection?: ElementSelection;
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Index of the selected row. */
@@ -54,18 +63,58 @@ export const MAX_BUFFERS = 30;
 
 export const LIST_KEY = "list";
 
-export const listBuffer = (
+const makeList = (
   label: string,
-  selection?: ElementSelection,
-  sort?: readonly FilterSortKeyWithDefaults[],
+  steps: readonly FilterStep[],
+  selection: ElementSelection | undefined,
+  sort: readonly FilterSortKeyWithDefaults[] | undefined,
 ): ListBuffer => ({
   kind: "list",
   key: LIST_KEY,
   label,
+  steps,
   cursor: 0,
   ...(selection === undefined ? {} : { selection }),
   ...(sort === undefined ? {} : { sort }),
 });
+
+/** A list with one step: the selection under its label (or every element, without a selection). */
+export const listBuffer = (
+  label: string,
+  selection?: ElementSelection,
+  sort?: readonly FilterSortKeyWithDefaults[],
+): ListBuffer => makeList(label, selection === undefined ? [] : [{ label, selection }], selection, sort);
+
+/**
+ * What the steps select together (SR-124 AK1): the conditions of all steps in order, one alone as it
+ * is, several as `all`, and the saved filter of the step that has one; undefined without steps. This
+ * only builds the input of `element.list`; the core applies it (ADR-0002).
+ */
+export const selectionOf = (steps: readonly FilterStep[]): ElementSelection | undefined => {
+  const conditions = steps.flatMap((step) =>
+    step.selection.where === undefined ? [] : [step.selection.where],
+  );
+  const filter = steps.find((step) => step.selection.filter !== undefined)?.selection.filter;
+  const [only] = conditions;
+  const where = conditions.length > 1 ? { all: conditions } : only;
+  const selection: ElementSelection = {
+    ...(filter === undefined ? {} : { filter }),
+    ...(where === undefined ? {} : { where }),
+  };
+  return Object.keys(selection).length === 0 ? undefined : selection;
+};
+
+/** The list the steps give: "All elements" without steps, else the step labels joined by " · ". */
+export const filteredList = (
+  steps: readonly FilterStep[],
+  sort?: readonly FilterSortKeyWithDefaults[],
+): ListBuffer =>
+  makeList(
+    steps.length === 0 ? "All elements" : steps.map((step) => step.label).join(" · "),
+    steps,
+    selectionOf(steps),
+    sort,
+  );
 
 export const searchBuffer = (query: string): SearchBuffer => ({
   kind: "search",

@@ -4,12 +4,14 @@ import {
   bufferName,
   elementBuffer,
   elementBufferOf,
+  filteredList,
   listBuffer,
   reduceBuffers,
   searchBuffer,
+  selectionOf,
   sortLabel,
 } from "./buffers.js";
-import type { Buffers } from "./buffers.js";
+import type { Buffers, FilterStep } from "./buffers.js";
 
 const a = elementBuffer("id-a", "repo", "SR-1 Alpha");
 const b = elementBuffer("id-b", "repo", "SR-2 Beta");
@@ -98,5 +100,54 @@ describe("buffers", () => {
     }
     expect(buffers).toHaveLength(MAX_BUFFERS);
     expect(buffers[0]?.key).toBe(`element:r:id-${String(MAX_BUFFERS + 4)}`);
+  });
+});
+
+const TYPE: FilterStep = {
+  label: "type: system-requirement",
+  selection: { where: { type: ["system-requirement"] } },
+};
+const STATUS: FilterStep = { label: "status: draft", selection: { where: { status: ["draft"] } } };
+const TOPIC: FilterStep = {
+  label: "topic: Bearbeiten und Finden",
+  selection: { where: { property: "topic", op: "eq", value: "Bearbeiten und Finden" } },
+};
+const SAVED: FilterStep = { label: "filter: open", selection: { filter: "open" } };
+
+describe("the steps of a list filter (SR-124)", () => {
+  it("[SR-124/AK1] a list without steps is the list of all elements", () => {
+    const sort = [{ by: "title", order: "asc" }] as const;
+    expect(filteredList([], sort)).toEqual(listBuffer("All elements", undefined, sort));
+    expect(filteredList([]).steps).toEqual([]);
+  });
+
+  it("[SR-124/AK1] one step selects its own condition, several select all of theirs, a saved filter stays a filter", () => {
+    expect(selectionOf([])).toBeUndefined();
+    expect(selectionOf([TYPE])).toEqual({ where: { type: ["system-requirement"] } });
+    expect(selectionOf([TYPE, STATUS, TOPIC])).toEqual({
+      where: { all: [TYPE.selection.where, STATUS.selection.where, TOPIC.selection.where] },
+    });
+    expect(selectionOf([SAVED])).toEqual({ filter: "open" });
+    expect(selectionOf([SAVED, TYPE])).toEqual({ filter: "open", where: { type: ["system-requirement"] } });
+    expect(selectionOf([TYPE, SAVED, STATUS])).toEqual({
+      filter: "open",
+      where: { all: [TYPE.selection.where, STATUS.selection.where] },
+    });
+  });
+
+  it("[SR-124/AK1] the label shows the chain of steps", () => {
+    const chain = filteredList([TYPE, STATUS, TOPIC], [{ by: "title", order: "asc" }]);
+    expect(chain.label).toBe("type: system-requirement · status: draft · topic: Bearbeiten und Finden");
+    expect(bufferName(chain)).toBe(
+      "type: system-requirement · status: draft · topic: Bearbeiten und Finden · sorted by title",
+    );
+    expect(chain.steps).toEqual([TYPE, STATUS, TOPIC]);
+    expect(chain.cursor).toBe(0);
+  });
+
+  it("a list built with a selection is one step", () => {
+    const selection = { where: { type: ["need"] } };
+    expect(listBuffer("type: need", selection).steps).toEqual([{ label: "type: need", selection }]);
+    expect(filteredList([{ label: "type: need", selection }])).toEqual(listBuffer("type: need", selection));
   });
 });

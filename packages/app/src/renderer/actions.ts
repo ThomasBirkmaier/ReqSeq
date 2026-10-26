@@ -1,22 +1,32 @@
 // The app's own actions, which the command prompt (Ctrl/Cmd+Shift+P) lists by name and runs, and the
 // prompts they open. Only what applies to the shown buffer is offered. Every datum comes from a catalog
-// command, shown as it is (ADR-0002); filter and sort only build the input of `element.list`.
+// command, shown as it is (ADR-0002); filter and sort only build the input of `element.list`. Each filter
+// is a step that narrows the list the one before gave (SR-124 AK1, `list-filters.ts`): the conditions are
+// ANDed in the selection; the values of "Filter list by property" come from `element.facets`.
 //
 // The prompt finds the app's actions. Catalog commands come with #85: they need arguments, so they wait
 // for argument entry.
-import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
-import type { BufferAction, Buffers, ListBuffer } from "./buffers.js";
-import { bufferName, listBuffer, searchBuffer } from "./buffers.js";
-import type { Call } from "./call.js";
+import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
+import type { BufferAction, Buffers, FilterStep, ListBuffer } from "./buffers.js";
+import { bufferName, filteredList, listBuffer, searchBuffer } from "./buffers.js";
+import type { Answer, Call } from "./call.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
+import {
+  hasSavedFilter,
+  propertyChoices,
+  savedStep,
+  statusStep,
+  textStep,
+  typeStep,
+} from "./list-filters.js";
 import { searchRows } from "./rows.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
 export interface Choice {
   readonly id: string;
   readonly name: string;
-  /** Shown right-aligned in muted text: the shortcut. */
+  /** Shown right-aligned in muted text: the shortcut, or a count (the values of a property). */
   readonly hint?: string;
   /** Lower case words of `name` to mark (element hits). */
   readonly terms?: readonly string[];
@@ -85,7 +95,8 @@ const currentList = (context: ActionContext): ListBuffer | undefined => {
 };
 
 const isList = (context: ActionContext): boolean => currentList(context) !== undefined;
-const isFiltered = (context: ActionContext): boolean => currentList(context)?.selection !== undefined;
+const isFiltered = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 0;
+const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
 const hasBuffers = (context: ActionContext): boolean => context.buffers.length > 0;
@@ -162,19 +173,26 @@ type Names =
 interface FilterBy {
   readonly id: string;
   readonly title: string;
-  /** The label of the prompt, and the text before the name in the list's label ("type: need"). */
+  /** The label of the prompt. */
   readonly label: string;
   readonly nothing: string;
-  readonly names: (call: Call) => Promise<Names>;
-  readonly selection: (name: string) => ElementSelection;
+  /** Without it, whenever a list is shown. */
+  readonly available?: (context: ActionContext) => boolean;
+  readonly names: (call: Call, list: ListBuffer) => Promise<Names>;
+  readonly step: (name: string) => FilterStep;
 }
+
+/** The list the steps of `list` give with one more, which keeps the sort. */
+const addStep = (context: ActionContext, list: ListBuffer, step: FilterStep): void => {
+  context.dispatch({ type: "open", buffer: filteredList([...list.steps, step], list.sort) });
+};
 
 const filterBy = (by: FilterBy): Action => ({
   id: by.id,
   title: by.title,
-  available: isList,
+  available: by.available ?? isList,
   run: onList((context, list) => {
-    void by.names(context.call).then((found) => {
+    void by.names(context.call, list).then((found) => {
       if (!found.ok) {
         context.echo(found.message);
       } else if (found.names.length === 0) {
@@ -184,10 +202,7 @@ const filterBy = (by: FilterBy): Action => ({
           label: by.label,
           items: found.names.map((name) =>
             choice(name, () => {
-              context.dispatch({
-                type: "open",
-                buffer: listBuffer(`${by.label.toLowerCase()}: ${name}`, by.selection(name), list.sort),
-              });
+              addStep(context, list, by.step(name));
             }),
           ),
         });
@@ -195,6 +210,10 @@ const filterBy = (by: FilterBy): Action => ({
     });
   }),
 });
+
+/** The facets of the shown list: what its elements have, from the core (`element.facets`). */
+const facetsOf = (call: Call, list: ListBuffer): Promise<Answer<"element.facets">> =>
+  call("element.facets", list.selection === undefined ? {} : { selection: list.selection });
 
 /** The line of "Show element ID and version": the UUID and the date of the version (D-013). */
 const versionLine = (element: DataExportElement): string =>
@@ -239,36 +258,90 @@ export const ACTIONS: readonly Action[] = [
       const answer = await call("metamodel.get", {});
       return answer.ok ? { ok: true, names: answer.output.types.map((type) => type.key) } : answer;
     },
-    selection: (name: string): ElementSelection => ({ where: { type: [name] } }),
+    step: typeStep,
   }),
   filterBy({
     id: "filter-status",
     title: "Filter list by status",
     label: "Status",
-    nothing: "The metamodel has no statuses.",
-    names: async (call: Call): Promise<Names> => {
-      const answer = await call("metamodel.get", {});
+    nothing: "The elements of this list have no status.",
+    names: async (call: Call, list: ListBuffer): Promise<Names> => {
+      const answer = await facetsOf(call, list);
       return answer.ok ? { ok: true, names: answer.output.statuses.map((status) => status.key) } : answer;
     },
-    selection: (name: string): ElementSelection => ({ where: { status: [name] } }),
+    step: statusStep,
   }),
+  {
+    id: "filter-property",
+    title: "Filter list by property",
+    available: isList,
+    run: onList((context, list) => {
+      void facetsOf(context.call, list).then((answer) => {
+        if (!answer.ok) {
+          context.echo(answer.message);
+          return;
+        }
+        const items = propertyChoices(
+          answer.output,
+          (step) => {
+            addStep(context, list, step);
+          },
+          context.ask,
+        );
+        if (items.length === 0) {
+          context.echo("No property of the elements in this list has values to choose from.");
+        } else {
+          context.ask({ label: "Property", items });
+        }
+      });
+    }),
+  },
+  {
+    id: "filter-text",
+    title: "Filter list by text search",
+    available: isList,
+    run: onList((context, list) => {
+      context.ask({
+        label: "Text",
+        items: [],
+        text: (text) => {
+          const query = text.trim();
+          if (query !== "") {
+            addStep(context, list, textStep(query));
+          }
+        },
+      });
+    }),
+  },
   filterBy({
     id: "filter-saved",
     title: "Filter list by saved filter",
     label: "Filter",
     nothing: "The workspace has no saved filters.",
+    available: (context) => {
+      const list = currentList(context);
+      return list !== undefined && !hasSavedFilter(list.steps);
+    },
     names: async (call: Call): Promise<Names> => {
       const answer = await call("filter.list", {});
       return answer.ok ? { ok: true, names: answer.output.filters.map((filter) => filter.name) } : answer;
     },
-    selection: (name: string): ElementSelection => ({ filter: name }),
+    step: savedStep,
   }),
   {
     id: "clear-filter",
     title: "Clear list filter",
     available: isFiltered,
     run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: listBuffer("All elements", undefined, list.sort) });
+      context.dispatch({ type: "open", buffer: filteredList(list.steps.slice(0, -1), list.sort) });
+    }),
+  },
+  {
+    id: "clear-filters",
+    title: "Clear all list filters",
+    available: isChained,
+    run: onList((context, list) => {
+      context.dispatch({ type: "open", buffer: filteredList([], list.sort) });
     }),
   },
   {
@@ -280,7 +353,7 @@ export const ACTIONS: readonly Action[] = [
         label: "Sort by",
         items: SORTS.map(([name, sort]) =>
           choice(name, () => {
-            context.dispatch({ type: "open", buffer: listBuffer(list.label, list.selection, sort) });
+            context.dispatch({ type: "open", buffer: filteredList(list.steps, sort) });
           }),
         ),
       });

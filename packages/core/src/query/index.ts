@@ -7,6 +7,7 @@ export { compileWhere } from "./condition.js";
 export type { CompiledCondition } from "./condition.js";
 export type { CompileContext, Predicate, QueryContext, QueryNotes } from "./context.js";
 export { evidenceStatusState } from "./evidence.js";
+export { facetsOf } from "./facets.js";
 export type { EvidenceStatuses } from "./evidence.js";
 export {
   FILTER_FILE_EXTENSION,

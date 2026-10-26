@@ -60,6 +60,7 @@ const TOOL_MAX_BYTES = 6 * 1024;
  */
 const SELECTION_TOOLS: readonly string[] = [
   "element_list",
+  "element_facets",
   "element_bulkUpdate",
   "element_search",
   "filter_save",

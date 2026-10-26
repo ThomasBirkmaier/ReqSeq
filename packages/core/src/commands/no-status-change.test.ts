@@ -88,6 +88,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { type: "decision", title: "New decision", folder: "new" },
     { type: "nope", title: "Unknown type" },
   ],
+  "element.facets": [
+    {},
+    { selection: { where: { status: ["retired"] } } },
+    { selection: { ids: ["SR-ffffff"] } },
+  ],
   "element.get": [{ ref: WIND }, { ref: OBSOLETE }, { ref: RETIRED }, { ref: "SR-ffffff" }],
   "element.list": [
     {},
