@@ -139,6 +139,8 @@ export const resolveView = (
   command: CommandName,
   /** The input field that names the view, for `input.invalid` (`hint.list` names it `variant`). */
   field = "view",
+  /** Whether the field takes `core` too, as `view` does; the message says so. */
+  takesCore = field === "view",
 ): View => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
@@ -150,7 +152,7 @@ export const resolveView = (
   if (!variantTypes(metamodel).has(variant.type)) {
     throw new CommandError(
       "input.invalid",
-      `${view} is no variant: ${field} takes ${field === "view" ? "core or " : ""}a variant, an element whose type has the meaning variant`,
+      `${view} is no variant: ${field} takes ${takesCore ? "core or " : ""}a variant, an element whose type has the meaning variant`,
       { command, fields: [field] },
     );
   }

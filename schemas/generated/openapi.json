@@ -1456,7 +1456,8 @@
                 "type": "object",
                 "properties": {
                   "selection": {
-                    "$ref": "#/components/schemas/common/$defs/selection"
+                    "$ref": "#/components/schemas/common/$defs/selection",
+                    "description": "Every part given must hold (SR-101 AK2)."
                   },
                   "sort": {
                     "type": "array",
@@ -9061,7 +9062,7 @@
                       "down",
                       "evidence"
                     ],
-                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element."
+                    "description": "`up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element. Absent: up or down."
                   },
                   "to": {
                     "$ref": "#/components/schemas/filter/$defs/condition",

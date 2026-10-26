@@ -15,6 +15,7 @@ export type { Named, NamedMatch } from "./named.js";
 export type { KeyDefinition } from "./lookup.js";
 export {
   MEANINGS,
+  meaningUnassigned,
   meaningUnassignedMessage,
   propertyWithMeaning,
   relationKindsWithMeaning,

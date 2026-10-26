@@ -42,6 +42,8 @@ const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: 
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
+/** Needs, requirements, variants and packages to filter (SR-069). */
+const FILTER: FixtureOptions = { fixture: "SR-069/filter", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
@@ -182,6 +184,59 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: { fixture: "SR-088/copied-file", git: true },
       root: "system",
       input: { ref: "948a10f1-05c3-4212-bd19-00606ccf2661", file: "needs/N-00606ccf2661.md" },
+      expect: "error",
+    },
+  ],
+  "element.list": [
+    {
+      name: "requirements without child, combined, one page with text (SR-069 AK1 to AK3)",
+      fixture: FILTER,
+      input: {
+        selection: {
+          where: {
+            all: [
+              { type: ["system-requirement"] },
+              { not: { status: ["obsolete"] } },
+              { relation: { meaning: "derivation", direction: "down" }, exists: false },
+            ],
+          },
+        },
+        offset: 1,
+        limit: 2,
+        withText: true,
+      },
+      expect: "output",
+    },
+    {
+      name: "a package, a filter on a property and a variant at once (SR-101 AK2)",
+      fixture: FILTER,
+      input: {
+        selection: {
+          package: "PKG-0000d1",
+          view: "VAR-0000c1",
+          where: {
+            any: [{ property: "requirement-type", op: "eq", value: "Performance" }, { status: ["approved"] }],
+          },
+        },
+      },
+      expect: "output",
+    },
+    {
+      name: "short IDs in any case (SR-101 AK3)",
+      fixture: FILTER,
+      input: { selection: { ids: ["SR-0000b3", "sr-0000B1"] } },
+      expect: "output",
+    },
+    {
+      name: "the condition text before the full-text search (SR-068)",
+      fixture: FILTER,
+      input: { selection: { where: { text: "wind" } } },
+      expect: "error",
+    },
+    {
+      name: "a regular expression that is none",
+      fixture: FILTER,
+      input: { selection: { where: { property: "title", op: "matches", value: "(" } } },
       expect: "error",
     },
   ],

@@ -1,6 +1,6 @@
 // Elements as list commands give them (`data-export.schema.json#/$defs/element`, text left out):
-// `trace.related` (SR-023) now, `element.list` and the data export later. Each element is the one of
-// `element.get` without text, hints and `readOnly` (`listedElement`), with its current version
+// `trace.related` (SR-023) and `element.list` (SR-069) now, the data export later. Each element is
+// the one of `element.get` without text, hints and `readOnly` (`listedElement`), with its current version
 // (`currentVersionsOf`: the version of its file as it is now, ADR-0005). Only the files of the
 // listed elements are read, unless the workspace keeps the versions or the list is a large share of
 // the store.
@@ -11,6 +11,10 @@
 //   read, a counted value has no normal form) is listed without `version`, with one `file.faulty`
 //   warning in its `problems` that says why. One such element never fails the list (ADR-0008
 //   "Current versions").
+// - `withText` (element.list): each element with a version also gets its text, read from its file
+//   again (the store keeps no text, ADR-0008) without parsing the YAML again: the file still has the
+//   bytes of the element listed, so text and version agree. An element without a version has none.
+import { elementText, readElementBodySync } from "../files/index.js";
 import type { DataExportElement } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
@@ -30,13 +34,33 @@ export interface ListContext {
   readonly shortIds: ShortIds;
 }
 
+/** How a list gives its elements. */
+export interface ListOptions {
+  /** Also give the text of each element (see the file comment). Default: false. */
+  readonly withText?: boolean;
+}
+
+/**
+ * The text of `record` from its file, which must still have the bytes of `record` (its snapshot,
+ * whose version the list gives); none when the repository is not in `folders` or the file changed
+ * since (a write in between: the next list gives it).
+ */
+export const textNow = (folders: ReadonlyMap<string, string>, record: ElementRecord): { text?: string } => {
+  const folder = folders.get(record.repository);
+  const read = folder === undefined ? undefined : readElementBodySync(folder, record.file, record.snapshot);
+  return read?.kind === "same" ? { text: elementText(read.body) } : {};
+};
+
 /** `records`, in their order and each once, as list commands give them (see the file comment). */
 export const listElements = async (
   workspace: Workspace,
   context: ListContext,
   records: readonly ElementRecord[],
+  options: ListOptions = {},
 ): Promise<DataExportElement[]> => {
   const { layout, metamodel, store, shortIds } = context;
+  const folders = new Map(layout.repositories.map((r) => [r.name, r.folder]));
+  const text = options.withText === true ? (record: ElementRecord) => textNow(folders, record) : () => ({});
   const versions = await currentVersionsOf(workspace, records);
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
   const titleKey = titleKeyOf(metamodel) ?? "";
@@ -49,8 +73,11 @@ export const listElements = async (
     const input = { record, metamodel, store, shortIds, titleKey, layout, successionsOf };
     elements.push(
       version.kind === "version"
-        ? listedElement(input, version.version)
-        : { ...listedElement(input, undefined), problems: [noVersionProblem(stored, version.message)] },
+        ? { ...listedElement(input, version.version), ...text(record) }
+        : {
+            ...listedElement(input, undefined),
+            problems: [noVersionProblem(stored, version.message)],
+          },
     );
   }
   return elements;

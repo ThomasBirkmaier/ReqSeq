@@ -547,7 +547,7 @@ export interface FilterRelationCondition {
   readonly relation: {
     readonly kind?: Key;
     readonly meaning?: "derivation" | "replacement" | "exclusion";
-    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element. */
+    /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = records pointing at the element. Absent: up or down. */
     readonly direction?: "up" | "down" | "evidence";
     /** Condition the other end must meet. */
     readonly to?: FilterCondition;
@@ -1059,6 +1059,7 @@ export interface ElementResolveOutput {
  * Schema: `schemas/commands/catalog.json element.list input`.
  */
 export interface ElementListInput {
+  /** Every part given must hold (SR-101 AK2). */
   readonly selection?: ElementSelection;
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   readonly withText?: boolean;

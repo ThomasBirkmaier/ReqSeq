@@ -473,7 +473,8 @@
         "type": "object",
         "properties": {
           "selection": {
-            "$ref": "../common.schema.json#/$defs/selection"
+            "$ref": "../common.schema.json#/$defs/selection",
+            "description": "Every part given must hold (SR-101 AK2)."
           },
           "sort": {
             "type": "array",
