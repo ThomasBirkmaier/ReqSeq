@@ -69,6 +69,7 @@ const workspace = (): Record<string, Handler> => ({
           kind: "derives-from",
           direction: "out",
           id: "uuid-3",
+          repository: "spec",
           shortId: "SR-000003",
           title: "Title 3",
           accessible: true,
@@ -306,17 +307,28 @@ describe("App", () => {
     expect(text("Modeline")).toBe("Search: title1 hitWeather stationread-only");
   });
 
-  it("opens the target of a relation, and echoes why it cannot be opened", async () => {
-    const { bridge, invoke, handlers } = fakeBridge(workspace());
+  it("opens the target of a relation in its repository, without reading it by UUID alone (#416)", async () => {
+    const { bridge, invoke } = fakeBridge(workspace());
     await render(bridge);
     await keyDown(query('[role="listbox"]'), "Enter");
     await click(query('[role="link"]'));
-    expect(calls(invoke, "element.get")).toContainEqual({ ref: "uuid-3" });
+    const reads = calls(invoke, "element.get");
+    expect(reads).toContainEqual({ ref: "uuid-3", repository: "spec" });
+    expect(reads).not.toContainEqual({ ref: "uuid-3" });
     expect(query("article h1").textContent).toBe("Title 3");
-    handlers["element.get"] = () => new Error('More than one element has the ID "uuid-3"');
+  });
+
+  it("echoes why the target of a relation cannot be read, and shows it in the opened buffer", async () => {
+    const { bridge, handlers } = fakeBridge(workspace());
+    await render(bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    const read = handlers["element.get"];
+    handlers["element.get"] = (input) =>
+      input["ref"] === "uuid-3" ? new Error('The element "uuid-3" is gone') : (read?.(input) ?? {});
     await click(query('[role="link"]'));
-    expect(text("Minibuffer")).toBe('More than one element has the ID "uuid-3"');
-    expect(query("article h1").textContent).toBe("Title 3");
+    expect(text("Minibuffer")).toBe('The element "uuid-3" is gone');
+    expect(query("article .quiet").textContent).toBe('The element "uuid-3" is gone');
+    expect(container.querySelector("article h1")).toBeNull();
   });
 
   it("filters the list by a type through the command prompt", async () => {

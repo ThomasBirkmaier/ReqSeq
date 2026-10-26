@@ -86,6 +86,18 @@ export const targetState = (
   }
 };
 
+/**
+ * The workspace name of the repository a target state looked in (#416, `data-export.schema.json#/$defs/relation`
+ * `repository`): the found element's for `available`, else the one the state names; undefined only for an
+ * `unknown-repository` whose stored `repository` is not text.
+ */
+export const targetRepository = (state: TargetState): string | undefined =>
+  state.kind === "available"
+    ? state.element.repository
+    : typeof state.repository === "string"
+      ? state.repository
+      : undefined;
+
 /** The targets a computation reached, and whether some it had to follow could not be read. */
 export interface FollowedTargets {
   /** The elements of the `available` targets, in the order of the targets. */

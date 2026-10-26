@@ -774,6 +774,7 @@ describe("ElementView", () => {
           kind: "derives-from",
           direction: "out",
           id: "n1",
+          repository: "spec",
           shortId: "N-000001",
           identifier: "N-1",
           title: "Need",
@@ -785,6 +786,7 @@ describe("ElementView", () => {
           kind: "derives-from",
           direction: "out",
           id: "n2",
+          repository: "vault",
           shortId: "N-000002",
           accessible: false,
           targetState: "inaccessible",
@@ -793,6 +795,7 @@ describe("ElementView", () => {
           kind: "derives-from",
           direction: "in",
           id: "r1",
+          repository: "platform",
           shortId: "SR-000009",
           title: "Child",
           accessible: true,
@@ -803,6 +806,7 @@ describe("ElementView", () => {
           property: true,
           direction: "out",
           id: "p",
+          repository: "spec",
           accessible: true,
           targetState: "available",
           title: "Stage 3",
@@ -825,8 +829,8 @@ describe("ElementView", () => {
         revision: rev,
         onData: (key, loaded) => data.push([key, loaded]),
         onEcho: (message) => echoed.push(message),
+        onOpenRelation: (target) => targets.push(target.key),
         onOpenTarget: (id, repository) => {
-          targets.push(id);
           opened.push([id, repository]);
         },
         draft,
@@ -1309,7 +1313,7 @@ describe("ElementView", () => {
     await click(nth(links, 0));
     await press(nth(links, 1), "Enter");
     await press(nth(links, 1), "x");
-    expect(targets).toEqual(["n1", "r1"]);
+    expect(targets).toEqual(["element:spec:n1", "element:platform:r1"]);
   });
 
   it("shows a target that is not available muted with its state, and no link", async () => {

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls } from "./actions.js";
 import type { ElementBuffer } from "./buffers.js";
+import { relationBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { outdatedReferences, propertyBoxes, relationGroups } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
@@ -25,6 +26,8 @@ export interface ElementViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A relation target is opened: its element buffer, by UUID and repository (#416). */
+  readonly onOpenRelation: (target: ElementBuffer) => void;
   /**
    * A relation target or the target of an inline reference is opened: by its UUID, and by the repository
    * the link names (a relation has none: the output has no repository).
@@ -49,26 +52,26 @@ type View =
 
 const Relation = ({
   relation,
-  onOpenTarget,
+  onOpenRelation,
 }: {
   readonly relation: DataExportRelation;
-  readonly onOpenTarget: (id: string) => void;
+  readonly onOpenRelation: (target: ElementBuffer) => void;
 }): React.JSX.Element => {
-  const available = relation.targetState === "available";
+  const target = relation.targetState === "available" ? relationBuffer(relation) : undefined;
   const label = `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim();
   return (
-    <li className={available ? "relation" : "relation unavailable"}>
-      {available ? (
+    <li className={target !== undefined ? "relation" : "relation unavailable"}>
+      {target !== undefined ? (
         <span
           role="link"
           tabIndex={0}
           onClick={() => {
-            onOpenTarget(relation.id);
+            onOpenRelation(target);
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              onOpenTarget(relation.id);
+              onOpenRelation(target);
             }
           }}
         >
@@ -91,6 +94,7 @@ export const ElementView = ({
   onData,
   onEcho,
   onOpenTarget,
+  onOpenRelation,
   draft,
   onDraft,
   register,
@@ -305,7 +309,7 @@ export const ElementView = ({
                 <h2>{group.heading}</h2>
                 <ul>
                   {group.relations.map((relation, at) => (
-                    <Relation key={at} relation={relation} onOpenTarget={onOpenTarget} />
+                    <Relation key={at} relation={relation} onOpenRelation={onOpenRelation} />
                   ))}
                 </ul>
               </section>

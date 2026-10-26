@@ -3,7 +3,13 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
-import { isRelationTarget, isUnavailableRepository, resolveTarget, targetState } from "./relations.js";
+import {
+  isRelationTarget,
+  isUnavailableRepository,
+  resolveTarget,
+  targetRepository,
+  targetState,
+} from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
@@ -110,5 +116,28 @@ describe("target states (D-058, SR-006)", () => {
     expect(isUnavailableRepository(layout, "sensor")).toBe(true);
     expect(isUnavailableRepository(layout, "system")).toBe(false);
     expect(isUnavailableRepository(layout, "elsewhere")).toBe(false);
+  });
+
+  it("gives the repository of the target state: the element's when available, else the one looked in (#416)", async () => {
+    const s = await store();
+    const element = need(s);
+    const copy = { ...element, file: "needs/copy.md" };
+    const shared: ElementStore = { ...s, byId: new Map([[NEED, [element, copy]]]) };
+    expect(targetRepository(targetState(layout, s, "system", { id: NEED }))).toBe(element.repository);
+    expect(targetRepository(targetState(layout, s, "system", { id: NEED, repository: "sensor" }))).toBe(
+      "sensor",
+    );
+    expect(targetRepository(targetState(layout, s, "system", { id: OTHER }))).toBe("system");
+    expect(targetRepository(targetState(layout, shared, "system", { id: NEED }))).toBe("system");
+    for (const [named, expected] of [
+      ["elsewhere", "elsewhere"],
+      ["", ""],
+      [7, undefined],
+      [null, undefined],
+    ] as const) {
+      expect(targetRepository(targetState(layout, s, "system", { id: NEED, repository: named }))).toBe(
+        expected,
+      );
+    }
   });
 });

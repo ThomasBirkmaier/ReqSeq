@@ -9,7 +9,7 @@ import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import { COMMAND_SHORTCUT, actionFor, commandPrompt, runAction } from "./actions.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
-import type { Buffer } from "./buffers.js";
+import type { Buffer, ElementBuffer } from "./buffers.js";
 import { elementBufferOf, listBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
@@ -201,7 +201,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   }, []);
 
   const openTarget = (id: string, repository?: string): void => {
-    // A relation has no repository, so the element is read once to get it (SR-088: several answers say so).
+    // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
     // A reference names the repository when the link has one.
     void call("element.get", { ref: id, ...(repository === undefined ? {} : { repository }) }).then(
       (answer) => {
@@ -212,6 +212,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         }
       },
     );
+  };
+
+  // A relation names the repository of its target (#416): its buffer is opened at once.
+  const openRelation = (buffer: ElementBuffer): void => {
+    dispatch({ type: "open", buffer });
   };
 
   const parts = modelineParts(current, loaded, drafts.current, typeNames);
@@ -228,6 +233,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onData={onData}
             onEcho={setEcho}
             onOpenTarget={openTarget}
+            onOpenRelation={openRelation}
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
             register={setElementControls}

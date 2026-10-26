@@ -360,6 +360,8 @@ export interface DataExportRelation {
   readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
+  /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the successor's (the other end). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
+  readonly repository?: string;
   /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154). */
   readonly shortId?: ShortId;
   /** Identifier of the other end (#305), only when it is available locally and has one. */

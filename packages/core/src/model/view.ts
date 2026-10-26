@@ -23,7 +23,7 @@ import { findingLine } from "./locate.js";
 import type { RelationKey } from "./relation-keys.js";
 import { hasId, relationItems } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
-import { targetState } from "./relations.js";
+import { targetRepository, targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
 import { statusFindings } from "./status-findings.js";
 import type { ShortIds } from "./short-id.js";
@@ -54,7 +54,7 @@ export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
  * repositories, where the file stores no title (SR-005 AK2). A target in a repository that is not
  * on this machine shows only its short ID (SR-006 AK1): the tail of its UUID with the prefix
  * `UNKNOWN`, since its type is not known (assumption until spec questions #154 and #193 are
- * answered).
+ * answered). Each target also names the repository it is looked up in (`targetRepository`, #416).
  */
 const relationsUnder = (
   input: ListedElementInput,
@@ -67,8 +67,9 @@ const relationsUnder = (
     if (!hasId(item) || !isUuid(item.id)) {
       return [];
     }
-    const { id, version, repository } = item;
-    const state = targetState(layout, store, record.repository, { id, repository });
+    const { id, version, repository: stored } = item;
+    const state = targetState(layout, store, record.repository, { id, repository: stored });
+    const repository = targetRepository(state);
     const target = state.kind === "available" ? state.element : undefined;
     const title = target?.data[titleKey];
     const shortId =
@@ -83,6 +84,7 @@ const relationsUnder = (
         ...extra,
         direction: "out",
         id,
+        ...(repository === undefined ? {} : { repository }),
         ...(shortId === undefined ? {} : { shortId }),
         ...(target === undefined ? {} : identifierField(shortIds, target)),
         ...(typeof title === "string" ? { title } : {}),
@@ -125,8 +127,8 @@ const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
  * `direction: "in"`. The other end is the successor, with its `targetState` (D-058): `available`
  * when its repository has exactly one element with its UUID, then also with its short ID and
  * title, also across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088).
- * `storedVersion` is the version the successor stores, when it is one. The superseded element
- * itself has no relation to its successor (D-045).
+ * It names the successor's repository (#416). `storedVersion` is the version the successor stores,
+ * when it is one. The superseded element itself has no relation to its successor (D-045).
  */
 const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
   input.successionsOf(input.record).map(({ source, kind, item }): DataExportRelation => {
@@ -138,6 +140,7 @@ const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
       meaning: "replacement",
       direction: "in",
       id: source.id,
+      repository: source.repository,
       ...(available
         ? { shortId: input.shortIds.of(source), ...identifierField(input.shortIds, source) }
         : {}),

@@ -1,6 +1,6 @@
 // The buffers of the main view (D-062): the window shows one buffer at a time, the most recent one.
 // A buffer is a list, a search result or an element. This module is the model and the reducer, no React.
-import type { ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
+import type { DataExportRelation, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
 export interface FilterStep {
@@ -144,6 +144,22 @@ export const elementBufferOf = (element: {
     element.repository,
     `${element.identifier ?? element.shortId} ${element.title}`.trim(),
   );
+
+/**
+ * The buffer of the element a relation points at (#416): its UUID in the repository of the target, named as
+ * the relation shows it; undefined when the relation names no repository (a stored `repository` that is
+ * not text).
+ */
+export const relationBuffer = (
+  relation: Pick<DataExportRelation, "id" | "repository" | "shortId" | "identifier" | "title">,
+): ElementBuffer | undefined =>
+  relation.repository === undefined
+    ? undefined
+    : elementBuffer(
+        relation.id,
+        relation.repository,
+        `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim(),
+      );
 
 const SORT_WORDS: Readonly<Record<string, string>> = {
   id: "ID",

@@ -193,6 +193,7 @@ describe("element.update", () => {
         meaning: "derivation",
         direction: "out",
         id: WIND.id,
+        repository: "system",
         shortId: "SR-e88fb3",
         title: "Show wind speed",
         accessible: true,

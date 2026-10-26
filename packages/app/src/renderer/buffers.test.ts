@@ -7,6 +7,7 @@ import {
   filteredList,
   listBuffer,
   reduceBuffers,
+  relationBuffer,
   searchBuffer,
   selectionOf,
   sortLabel,
@@ -43,6 +44,23 @@ describe("buffers", () => {
       "SR-0000b1",
     );
     expect(elementBuffer("u", "r", "x").key).not.toBe(elementBuffer("u", "other", "x").key);
+  });
+
+  it("opens a relation target by UUID and the repository of the target (#416)", () => {
+    expect(
+      relationBuffer({
+        id: "u",
+        repository: "platform",
+        shortId: "N-0000b1",
+        identifier: "N-001",
+        title: "Need",
+      }),
+    ).toEqual(elementBuffer("u", "platform", "N-001 Need"));
+    expect(relationBuffer({ id: "u", repository: "platform", shortId: "N-0000b1" })).toEqual(
+      elementBuffer("u", "platform", "N-0000b1"),
+    );
+    expect(relationBuffer({ id: "u", repository: "platform" })).toEqual(elementBuffer("u", "platform", "u"));
+    expect(relationBuffer({ id: "u" })).toBeUndefined();
   });
 
   it("opens a new buffer in front, and an open one moves to the front, replaced", () => {

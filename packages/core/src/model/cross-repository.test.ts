@@ -166,6 +166,7 @@ describe("relations across repositories (SR-005)", () => {
         meaning: "derivation",
         direction: "out",
         id: NEED.id,
+        repository: "platform",
         shortId: "N-9c0d1e",
         title: NEED.title,
         accessible: true,
@@ -199,6 +200,49 @@ describe("relations across repositories (SR-005)", () => {
     ]);
   });
 
+  it("gives the repository of every relation target: the one it names or the source's own, in every target state (#416)", async () => {
+    const opened = await open({
+      "system/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "System copy"),
+      "platform-checkout/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "Platform copy"),
+      [`system/${SOURCE.file}`]: sourceDerivingFrom(
+        `{ id: ${SHARED}, version: ${STORED_NEED}, repository: platform }`,
+        `{ id: ${SHARED}, version: ${STORED_NEED} }`,
+        `{ id: ${SYSTEM_ONLY}, version: ${STORED_NEED}, repository: platform }`,
+        `{ id: ${NEED.id}, version: ${STORED_NEED} }`,
+        `{ id: ${NEED.id}, version: ${STORED_NEED}, repository: elsewhere }`,
+        `{ id: ${NEED.id}, version: ${STORED_NEED}, repository: 7 }`,
+      ),
+    });
+    const relations = (await relationsOfSource(opened)) as readonly Record<string, unknown>[];
+    expect(relations.map((r) => [r["targetState"], r["repository"]])).toEqual([
+      ["available", "platform"],
+      ["available", "system"],
+      ["missing", "platform"],
+      ["missing", "system"],
+      ["unknown-repository", "elsewhere"],
+      ["unknown-repository", undefined],
+    ]);
+    expect(relations[5]).not.toHaveProperty("repository");
+  });
+
+  it("opens a relation target exactly with the repository the relation gives, where its UUID is in two repositories (#416)", async () => {
+    const opened = await open({
+      "system/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "System copy"),
+      "platform-checkout/needs/N-5f4e3d2c1b0a.md": element(SHARED, "need", "Platform copy"),
+      [`system/${SOURCE.file}`]: sourceDerivingFrom(
+        `{ id: ${SHARED}, version: ${STORED_NEED}, repository: platform }`,
+      ),
+    });
+    const source = (await run(opened, "element.get", { ref: SOURCE.id })).element;
+    const [relation] = source.relations;
+    expect(relation).toMatchObject({ id: SHARED, repository: "platform" });
+    const target = await run(opened, "element.get", { ref: SHARED, repository: relation?.repository });
+    expect(target.element.title).toBe("Platform copy");
+    await expect(run(opened, "element.get", { ref: SHARED })).rejects.toMatchObject({
+      code: "ref.ambiguous",
+    });
+  });
+
   it("[SR-005/AK2] shows the title and short ID of validity and packages targets in another repository that are available locally", async () => {
     const opened = await open({ [`system/${SOURCE.file}`]: sourceWithPropertyTargets() });
     const out = await run(opened, "element.update", {
@@ -211,6 +255,7 @@ describe("relations across repositories (SR-005)", () => {
         property: true,
         direction: "out",
         id: VAR.id,
+        repository: "platform",
         shortId: "VAR-3b5c7d",
         title: VAR.title,
         accessible: true,
@@ -222,6 +267,7 @@ describe("relations across repositories (SR-005)", () => {
         property: true,
         direction: "out",
         id: PKG.id,
+        repository: "platform",
         shortId: "PKG-8a0b1c",
         title: PKG.title,
         accessible: true,
@@ -290,6 +336,7 @@ describe("missing access (SR-006)", () => {
         meaning: "derivation",
         direction: "out",
         id: NEED.id,
+        repository: "platform",
         shortId: "UNKNOWN-9c0d1e",
         accessible: false,
         targetState: "inaccessible",
@@ -307,6 +354,7 @@ describe("missing access (SR-006)", () => {
         property: true,
         direction: "out",
         id: VAR.id,
+        repository: "platform",
         shortId: "UNKNOWN-3b5c7d",
         accessible: false,
         targetState: "inaccessible",
@@ -317,12 +365,19 @@ describe("missing access (SR-006)", () => {
         property: true,
         direction: "out",
         id: PKG.id,
+        repository: "platform",
         shortId: "UNKNOWN-8a0b1c",
         accessible: false,
         targetState: "inaccessible",
         storedVersion: STORED_NEED,
       },
     ]);
+  });
+
+  it("gives the repository of a target whose repository is not on this machine (#416)", async () => {
+    const opened = await openWithoutPlatform();
+    const [relation] = (await relationsOfSource(opened)) as readonly Record<string, unknown>[];
+    expect(relation).toMatchObject({ targetState: "inaccessible", repository: "platform" });
   });
 
   it("[SR-006/AK1] tells a target in a repository not on this machine from a missing target and an unknown repository", async () => {

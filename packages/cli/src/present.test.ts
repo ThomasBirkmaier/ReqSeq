@@ -241,6 +241,7 @@ describe("renderHuman: one element", () => {
         kind: "derives-from",
         direction: "out",
         id: "u2",
+        repository: "platform",
         shortId: "N-2",
         title: "Wind",
         targetState: "available",
