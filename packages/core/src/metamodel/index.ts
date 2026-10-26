@@ -10,6 +10,8 @@ export type { EffectiveType, Located, LocatedType, ResolvedTypes } from "./inher
 export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
 export { allowsType, findType, keyDefinition, typeForNewElement } from "./lookup.js";
+export { findNamed, listNamed } from "./named.js";
+export type { Named, NamedMatch } from "./named.js";
 export type { KeyDefinition } from "./lookup.js";
 export {
   MEANINGS,

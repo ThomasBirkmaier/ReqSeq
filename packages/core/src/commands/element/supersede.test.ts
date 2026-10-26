@@ -339,8 +339,14 @@ describe("element.supersede sets the chosen invalid status and on request a rela
       ]);
     }
     expect((await supersedeError(opened, { ref: N_OLD.id, status: "draft" })).message).toBe(
-      "draft is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete",
+      "draft is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)",
     );
+    // A display name names its status (#309): Draft is the status draft, which is not invalid.
+    expect((await supersedeError(opened, { ref: N_OLD.id, status: "Draft" })).details).toEqual({
+      status: "Draft",
+      reason: "not-invalid",
+      allowed: ["obsolete"],
+    });
     expect(await readAll(opened)).toEqual(before);
 
     const noInvalid = await open({
@@ -351,6 +357,28 @@ describe("element.supersede sets the chosen invalid status and on request a rela
       "obsolete is not marked invalid in the metamodel, so it cannot supersede an element; the metamodel marks no status invalid",
       { status: "obsolete", reason: "not-invalid", allowed: [] },
     ]);
+  });
+
+  it("[SR-072/AK1] takes the display name of the invalid status in any case and writes its key (#309)", async () => {
+    const opened = await open();
+    const out = await supersede(opened, { ref: N_OLD.id, status: "OBSOLETE" });
+    expect(out.files).toEqual([N_OLD.file]);
+    expect(await read(opened, N_OLD.file)).toContain("\nstatus: obsolete\n");
+  });
+
+  it("[SR-072/AK1] refuses a name that two statuses share, as element.setStatus does (#309)", async () => {
+    const opened = await open({
+      files: { [MODEL]: await changedModel((text) => text.replace("name: Draft", "name: Obsolete")) },
+    });
+    const before = await readAll(opened);
+    const error = await supersedeError(opened, { ref: N_OLD.id, status: "Obsolete" });
+    expect(error.details).toEqual({
+      status: "Obsolete",
+      reason: "ambiguous-status",
+      allowed: ["draft", "approved", "obsolete"],
+      candidates: ["draft", "obsolete"],
+    });
+    expect(await readAll(opened)).toEqual(before);
   });
 
   it("[SR-072/AK1] refuses the element as its own successor and an unknown successor", async () => {

@@ -43,7 +43,7 @@ import { shortIdState } from "./short-id.js";
 import { elementStoreState } from "./store.js";
 import { elementLabel } from "./superseded.js";
 import { currentTarget } from "./targets.js";
-import { isUuid } from "./uuid.js";
+import { isUuid, normalizeRef } from "./uuid.js";
 import { assertElementWritable, readUnchanged, writeElementFiles } from "./write.js";
 
 /** The input of `relation.add` and `relation.remove`: source and target as UUID or short ID, the kind's key. */
@@ -228,10 +228,11 @@ const removalTarget = (
   ref: string,
   repository: string | undefined,
 ): { readonly id: string; readonly repository?: string } => {
-  // As given: `isUuid` narrows `ref` to nothing on the other branch.
+  // As given, for the message; a UUID in any case is the lower-case UUID (#309).
   const given: string = ref;
-  if (isUuid(ref)) {
-    return repository === undefined ? { id: ref } : { id: ref, repository };
+  const id = normalizeRef(ref);
+  if (isUuid(id)) {
+    return repository === undefined ? { id } : { id, repository };
   }
   const record = resolveRef(state.store, state.shortIds, ref);
   if (repository !== undefined && repository !== record.repository) {

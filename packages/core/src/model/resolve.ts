@@ -7,6 +7,7 @@ import type { ElementMatch, ElementRecord } from "./elements.js";
 import { isUuid } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
+import { normalizeRef } from "./uuid.js";
 
 /**
  * Which of the elements a reference names is meant: the repository and/or the file (relative to the
@@ -58,7 +59,8 @@ const narrow = (
  * it, and `ref.ambiguous` when several do: a short ID shorter than the one shown, or two files with
  * the same UUID (a copied file, SR-088), which `details.candidates` lists. With `copy`, only the
  * elements `ref` names in that repository and/or file count; when it fits none of them, `ref.unknown`
- * lists them as `details.candidates`. `copy` never finds an element `ref` does not name.
+ * lists them as `details.candidates`. `copy` never finds an element `ref` does not name. A UUID or
+ * short ID in any case names the same element (`normalizeRef`, #309); messages show `ref` as given.
  */
 export const resolveRef = (
   store: ElementStore,
@@ -66,14 +68,15 @@ export const resolveRef = (
   ref: string,
   copy: ElementCopy = {},
 ): ElementRecord => {
-  const match = narrow(isUuid(ref) ? resolveId(store.byId, ref) : shortIds.find(ref), copy);
+  const canonical = normalizeRef(ref);
+  const match = narrow(isUuid(canonical) ? resolveId(store.byId, canonical) : shortIds.find(canonical), copy);
   switch (match.kind) {
     case "found":
       return match.element;
     case "unknown":
       throw new CommandError(
         "ref.unknown",
-        `No element has the ${isUuid(ref) ? "UUID" : "short ID"} ${ref}`,
+        `No element has the ${isUuid(canonical) ? "UUID" : "short ID"} ${ref}`,
         {
           ref,
         },

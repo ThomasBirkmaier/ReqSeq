@@ -90,6 +90,39 @@ describe("element.resolve", () => {
     expect(await resolve(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
   });
 
+  it("[SR-060/AK1] resolves a short ID and a UUID in any case to the same element (#309, spec question #316)", async () => {
+    const opened = await open(TWO);
+    const expected = (await resolve(opened, { ref: "SR-e88fb3" })).element;
+    for (const ref of ["sr-e88fb3", "Sr-E88FB3", "sr-6328CEE88FB3", WIND.id.toUpperCase()]) {
+      expect((await resolve(opened, { ref })).element).toEqual(expected);
+    }
+    const unknown = await resolveError(opened, { ref: "sr-ffffff" });
+    expect([unknown.code, unknown.message]).toEqual(["ref.unknown", "No element has the short ID sr-ffffff"]);
+  });
+
+  it("[SR-060/AK3] refuses a malformed reference with a message that says what a reference looks like (#309)", async () => {
+    const opened = await open(TWO);
+    const error = await resolveError(opened, { ref: "SR-036" });
+    expect(error.toJSON()).toEqual({
+      code: "input.invalid",
+      message:
+        'Invalid input for element.resolve: ref "SR-036" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)',
+      details: {
+        command: "element.resolve",
+        errors: [
+          {
+            path: "/ref",
+            field: "ref",
+            keyword: "pattern",
+            message:
+              'ref "SR-036" is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)',
+            params: {},
+          },
+        ],
+      },
+    });
+  });
+
   it("[SR-060/AK1] resolves a short ID another tool stored before the display grew, when the prefix leaves one element", async () => {
     const opened = await open(SHARED_ENDS);
     // SR-abc123 fits two system requirements, N-abc123 only the need.

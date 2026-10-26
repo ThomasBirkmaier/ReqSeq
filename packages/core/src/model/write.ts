@@ -32,7 +32,15 @@ import type {
   MetamodelEffectiveType,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, metamodelState, requireMeaning, typeForNewElement } from "../metamodel/index.js";
+import {
+  findNamed,
+  findType,
+  keyDefinition,
+  listNamed,
+  metamodelState,
+  requireMeaning,
+  typeForNewElement,
+} from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -158,6 +166,51 @@ const checkPropertyKeys = (
     }
   }
 };
+
+/**
+ * The given values with each value of a choice property as its key (#309, spec question #316): a
+ * value (or each item of a list) is the key or the display name of a choice, in any case, and the file
+ * gets the key (SR-012 AK3). A value that names no choice, or more than one, is refused with
+ * `input.invalid` (`reason: unknown-choice`, `ambiguous-choice`) and the choices as `key (Name)`, so
+ * a command never writes a choice value that is no key; a hand-written file is still read as it is
+ * (SR-085 AK2). Values of the other kinds are kept as given (a wrong kind gives the hint of SR-085).
+ */
+const withChoiceKeys = (
+  metamodel: Metamodel,
+  entries: readonly (readonly [string, ElementInputValue])[],
+  field: string,
+): [string, ElementInputValue][] =>
+  entries.map(([key, value]): [string, ElementInputValue] => {
+    const definition = keyDefinition(metamodel, key);
+    if (definition?.kind !== "property" || definition.definition.kind !== "choice") {
+      return [key, value];
+    }
+    const property = definition.definition;
+    const choices = property.choices ?? [];
+    const keyOf = (item: unknown): unknown => {
+      const match = typeof item === "string" ? findNamed(choices, item) : ({ kind: "unknown" } as const);
+      if (match.kind === "found") {
+        return match.key;
+      }
+      const shown = typeof item === "string" ? item : JSON.stringify(item);
+      throw invalid(
+        match.kind === "ambiguous"
+          ? `${field}.${key}: ${shown} names more than one value of ${property.name} (${match.keys.join(", ")}); give the key. The values are: ${listNamed(choices)}`
+          : `${field}.${key}: ${shown} is not a value of ${property.name}; the values are: ${listNamed(choices)}`,
+        {
+          key,
+          value: item,
+          reason: match.kind === "ambiguous" ? "ambiguous-choice" : "unknown-choice",
+          allowed: choices.map((c) => c.key),
+          ...(match.kind === "ambiguous" ? { candidates: [...match.keys] } : {}),
+        },
+      );
+    };
+    return [
+      key,
+      (Array.isArray(value) ? value.map(keyOf) : value === null ? null : keyOf(value)) as ElementInputValue,
+    ];
+  });
 
 /** The one status with `initial: true` (D-030); the tool never picks one itself. */
 const initialStatus = (metamodel: Metamodel): string => {
@@ -492,7 +545,11 @@ export const createElement = async (
   const properties = await withTargets(
     context,
     repository.name,
-    Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
+    withChoiceKeys(
+      metamodel,
+      Object.entries(input.properties ?? {}).filter(([, value]) => !isEmpty(value)),
+      "properties",
+    ),
     {},
   );
   const given = folderOf(input.folder ?? type.key);
@@ -750,13 +807,10 @@ export const updateElement = async (
   if (both !== undefined) {
     throw invalid(`${both} is in both set and unset`, { key: both, reason: "set-and-unset" });
   }
+  // Before the file is read: a choice value that is no choice is refused at once.
+  const given = withChoiceKeys(metamodel, Object.entries(input.set ?? {}), "set");
   const { repository, current } = await readUnchanged(workspace, layout, record);
-  const set = await withTargets(
-    context,
-    record.repository,
-    Object.entries(input.set ?? {}),
-    current.record.data,
-  );
+  const set = await withTargets(context, record.repository, given, current.record.data);
   const text =
     input.text === undefined
       ? undefined

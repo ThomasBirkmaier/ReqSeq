@@ -50,7 +50,7 @@ describe("serverTools", () => {
         input: {
           type: "object",
           properties: {
-            ref: { $ref: "../common.schema.json#/$defs/elementRef" },
+            ref: { $ref: "../common.schema.json#/$defs/view" },
             all: { $ref: "../common.schema.json" },
           },
         },
@@ -88,14 +88,14 @@ describe("serverTools", () => {
   it("attaches only the definitions a schema reaches, one by one and flat, so every $ref resolves", () => {
     const [read] = serverTools(runtime);
     const defs = read?.inputSchema["$defs"] as Record<string, Record<string, unknown>>;
-    expect(Object.keys(defs)).toEqual(["common", "common.elementRef", "common.shortId", "common.uuid"]);
+    expect(Object.keys(defs)).toEqual(["common", "common.elementRef", "common.view"]);
     expect(read?.inputSchema["properties"]).toEqual({
-      ref: { $ref: "#/$defs/common.elementRef" },
+      ref: { $ref: "#/$defs/common.view" },
       all: { $ref: "#/$defs/common" },
     });
-    expect(defs["common.elementRef"]?.["anyOf"]).toEqual([
-      { $ref: "#/$defs/common.uuid" },
-      { $ref: "#/$defs/common.shortId" },
+    expect(defs["common.view"]?.["anyOf"]).toEqual([
+      { const: "core" },
+      { $ref: "#/$defs/common.elementRef" },
     ]);
     // A whole file without its definitions: those are entries of their own.
     expect(defs["common"]?.["$defs"]).toBeUndefined();

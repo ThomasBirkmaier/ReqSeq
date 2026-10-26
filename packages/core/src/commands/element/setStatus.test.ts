@@ -22,6 +22,10 @@ const FILES = [WIND.file, GUSTS.file, BARE.file];
 /** The statuses of the fixture's metamodel, in metamodel order; none of the standard model's. */
 const OWN_STATUSES = ["proposed", "in-review", "released", "in-change", "withdrawn"];
 
+/** The statuses as a refusal lists them: key and display name (#309). */
+const OWN_LISTED =
+  "proposed (Proposed), in-review (In Review), released (Released), in-change (In Change), withdrawn (Withdrawn)";
+
 interface Opened {
   readonly fixture: FixtureWorkspace;
   readonly workspace: Workspace;
@@ -89,14 +93,55 @@ describe("element.setStatus offers only the statuses of the metamodel (SR-017)",
         { status, reason: "unknown-status", allowed: OWN_STATUSES },
       ]);
       expect(error.message).toBe(
-        `${status} is not a status of the metamodel; the statuses are: ${OWN_STATUSES.join(", ")}`,
+        `${status} is not a status of the metamodel; the statuses are: ${OWN_LISTED}`,
       );
     }
-    // The name of a status is no key: the input schema already refuses it.
-    expect((await setStatusError(opened, { refs: [WIND.id], status: "Released" })).code).toBe(
+    expect(await readAll(opened, FILES)).toEqual(before);
+  });
+
+  it("[SR-017/AK1] takes the display name of a status in any case and writes its key (#309)", async () => {
+    const opened = await open();
+    for (const [given, key] of [
+      ["Released", "released"],
+      ["in review", "in-review"],
+      ["IN CHANGE", "in-change"],
+      ["Withdrawn", "withdrawn"],
+      ["PROPOSED", "proposed"],
+    ] as const) {
+      await setStatus(opened, { refs: [WIND.id], status: given });
+      expect((await statuses(opened))[WIND.id]).toBe(key);
+      expect(await read(opened, WIND.file)).toContain(`\nstatus: ${key}\n`);
+    }
+  });
+
+  it("[SR-017/AK1] refuses a name that two statuses share, with the statuses to choose from (#309)", async () => {
+    const opened = await open();
+    const model = opened.fixture.path("metamodel/model.yaml");
+    await fs.writeFile(
+      model,
+      (await fs.readFile(model, "utf8")).replace(
+        "{ key: in-change, name: In Change }",
+        "{ key: in-change, name: Released }",
+      ),
+    );
+    const before = await readAll(opened, FILES);
+    const error = await setStatusError(opened, { refs: [WIND.id], status: "RELEASED" });
+    expect([error.code, error.details]).toEqual([
       "input.invalid",
+      {
+        status: "RELEASED",
+        reason: "ambiguous-status",
+        allowed: OWN_STATUSES,
+        candidates: ["released", "in-change"],
+      },
+    ]);
+    expect(error.message).toMatch(
+      /^RELEASED names more than one status of the metamodel \(released, in-change\); give the key\./,
     );
     expect(await readAll(opened, FILES)).toEqual(before);
+    // The key itself is never ambiguous.
+    await setStatus(opened, { refs: [WIND.id], status: "released" });
+    expect((await statuses(opened))[WIND.id]).toBe("released");
   });
 
   it("offers the standard model's statuses in a workspace with the standard model", async () => {

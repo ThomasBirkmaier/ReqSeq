@@ -5,7 +5,7 @@
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState } from "../metamodel/index.js";
+import { findNamed, listNamed, metamodelState } from "../metamodel/index.js";
 import { editElementFile } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -37,20 +37,34 @@ export interface SetStatusResult {
  */
 export const statusValues = (metamodel: Metamodel): readonly string[] => metamodel.statuses.map((s) => s.key);
 
-/** Throws `input.invalid` with `reason: unknown-status` and the allowed values unless `status` is one. */
-const checkStatus = (metamodel: Metamodel, status: string): void => {
-  const allowed = statusValues(metamodel);
-  if (!allowed.includes(status)) {
-    throw new CommandError(
-      "input.invalid",
-      `${status} is not a status of the metamodel; the statuses are: ${allowed.join(", ")}`,
-      { status, reason: "unknown-status", allowed: [...allowed] },
-    );
+/**
+ * The key of the status `given` names: its key, or its display name in any case (#309, spec
+ * question #316); the file always gets the key (SR-012 AK3). Throws `input.invalid` with the
+ * statuses as `key (Name)` in the message and their keys as `details.allowed`: `reason:
+ * unknown-status` when it names none, `ambiguous-status` (with `details.candidates`) when it names
+ * more than one.
+ */
+export const statusKey = (metamodel: Metamodel, given: string): string => {
+  const match = findNamed(metamodel.statuses, given);
+  if (match.kind === "found") {
+    return match.key;
   }
+  const allowed = [...statusValues(metamodel)];
+  const list = listNamed(metamodel.statuses);
+  throw new CommandError(
+    "input.invalid",
+    match.kind === "unknown"
+      ? `${given} is not a status of the metamodel; the statuses are: ${list}`
+      : `${given} names more than one status of the metamodel (${match.keys.join(", ")}); give the key. The statuses are: ${list}`,
+    match.kind === "unknown"
+      ? { status: given, reason: "unknown-status", allowed }
+      : { status: given, reason: "ambiguous-status", allowed, candidates: [...match.keys] },
+  );
 };
 
 /**
- * `element.setStatus` (SR-017, SR-087): sets `input.status`, a status of the metamodel, on every
+ * `element.setStatus` (SR-017, SR-087): sets `input.status`, a status of the metamodel (its key or
+ * display name, `statusKey`), on every
  * element of `input.refs`. Every check comes before the first write: the status, each reference,
  * that each element may be written (SR-016 AK3) and that no file changed on disk since the element
  * store read it (`file.changed-on-disk`; the store is then read again on the next call). A write
@@ -64,7 +78,7 @@ export const setElementStatus = async (
   input: SetStatusInput,
 ): Promise<SetStatusResult> => {
   const metamodel = await workspace.get(metamodelState);
-  checkStatus(metamodel, input.status);
+  const status = statusKey(metamodel, input.status);
   const layout = await workspace.get(workspaceLayoutState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
@@ -78,7 +92,7 @@ export const setElementStatus = async (
   for (const record of records.values()) {
     const { repository, current } = await readUnchanged(workspace, layout, record);
     const { bytes, changed } = editElementFile(current.file, {
-      edits: [{ kind: "set", key: "status", value: input.status }],
+      edits: [{ kind: "set", key: "status", value: status }],
       keyOrder: STRUCTURAL_KEYS,
     });
     if (changed) {
@@ -87,7 +101,7 @@ export const setElementStatus = async (
   }
   const files = (await writeElementFiles(workspace, layout, writes)).map((w) => w.file);
   // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, #84).
-  const problems = invalidStatuses(metamodel).has(input.status)
+  const problems = invalidStatuses(metamodel).has(status)
     ? await supersededTargetProblems(workspace, [...records.values()])
     : [];
   return { files, problems };

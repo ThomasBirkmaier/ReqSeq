@@ -141,7 +141,7 @@
             "required": ["view", "status"],
             "properties": {
               "view": {
-                "$ref": "common.schema.json#/$defs/view"
+                "$ref": "common.schema.json#/$defs/viewId"
               },
               "status": {
                 "$ref": "common.schema.json#/$defs/verificationStatus"

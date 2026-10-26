@@ -1,7 +1,7 @@
 // CLI end-to-end tests (ADR-0011): spawn the built `logreq` on fixture workspaces.
 // Run after `pnpm build` with `pnpm test:e2e`; on Linux CI also inside `unshare -rn` (no network).
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -201,6 +201,62 @@ describe("logreq binary", () => {
     expect(shown.stdout).toMatch(
       /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
     );
+  });
+
+  it("[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (#309)", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
+    fixtures.push(ws);
+    const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+    const REF_FORM =
+      "is neither a UUID nor a short ID (prefix, dash, at least 6 hex characters, for example SR-3c90b0)";
+    const malformed = await run("element", "get", "SR-036");
+    expect([malformed.code, malformed.stderr]).toEqual([
+      2,
+      `error input.invalid: Invalid input for element.get: <ref> "SR-036" ${REF_FORM}\n`,
+    ]);
+    const lower = await run("element", "get", "n-D4E5F6");
+    expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([0, "N-d4e5f6  approved  See the wind"]);
+    const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");
+    expect([named.code, named.stderr]).toEqual([0, ""]);
+    expect(readFileSync(ws.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toContain("\nstatus: obsolete\n");
+    const notInvalid = await run("element", "supersede", "N-e5f6a7", "Approved");
+    expect([notInvalid.code, notInvalid.stderr]).toEqual([
+      2,
+      "error input.invalid: Approved is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)\n",
+    ]);
+    const pkg = await run("hint", "list", "--package", "Stufe 2");
+    expect(pkg.stderr).toBe(
+      `error input.invalid: Invalid input for hint.list: --package "Stufe 2" ${REF_FORM}\n`,
+    );
+    const init = await logreq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
+    expect([init.code, init.stderr]).toEqual([
+      2,
+      "error input.invalid: Invalid input for workspace.init: <path> is required; <name> is required\n",
+    ]);
+    const choice = await run(
+      "element",
+      "create",
+      "system-requirement",
+      "Show gusts",
+      "--input",
+      '{"properties":{"requirement-type":"Functionall"}}',
+    );
+    expect([choice.code, choice.stdout]).toEqual([2, ""]);
+    expect(choice.stderr).toMatch(
+      /^error input\.invalid: properties\.requirement-type: Functionall is not a value of Requirement Type; the values are: functional \(Functional\), /,
+    );
+    const created = await run(
+      "element",
+      "create",
+      "system-requirement",
+      "Show gusts",
+      "--input",
+      '{"properties":{"requirement-type":"Functional"}}',
+      "--json",
+    );
+    expect(JSON.parse(created.stdout)).toMatchObject({
+      element: { properties: { "requirement-type": "functional" } },
+    });
   });
 
   it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, #255)", async () => {
@@ -403,7 +459,9 @@ describe("logreq with test commands", () => {
     });
     const invalid = await logreq(["element", "get", "not a ref"], { cwd: ws.root, testCommands: true });
     expect(invalid.code).toBe(2);
-    expect(invalid.stderr).toMatch(/^error input\.invalid: Invalid input for element\.get: \/ref /);
+    expect(invalid.stderr).toMatch(
+      /^error input\.invalid: Invalid input for element\.get: <ref> "not a ref" is neither /,
+    );
   });
 
   it("exits 3 for internal errors without their original text", async () => {

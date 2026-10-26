@@ -11,13 +11,21 @@ import { CommandError } from "../catalog.js";
 import { editElementFile } from "../files/index.js";
 import type { MetamodelEffectiveType, MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { allowsType, metamodelState, relationKindsWithMeaning, requireMeaning } from "../metamodel/index.js";
+import {
+  allowsType,
+  findNamed,
+  listNamed,
+  metamodelState,
+  relationKindsWithMeaning,
+  requireMeaning,
+} from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS } from "./elements.js";
 import { resolveRef } from "./resolve.js";
 import { shortIdState } from "./short-id.js";
+import { statusKey } from "./status.js";
 import { elementStoreState } from "./store.js";
 import { invalidStatuses, supersededTargetProblems } from "./superseded.js";
 import { currentTarget } from "./targets.js";
@@ -42,23 +50,36 @@ export interface SupersedeResult {
 const invalid = (message: string, details: Record<string, unknown>): CommandError =>
   new CommandError("input.invalid", message, details);
 
-/** Throws `input.invalid` unless `status` is a status of the metamodel marked invalid (D-044). */
-const checkInvalidStatus = (metamodel: Metamodel, status: string): void => {
-  const allowed = [...invalidStatuses(metamodel).keys()];
-  if (allowed.includes(status)) {
-    return;
-  }
-  const known = metamodel.statuses.some((s) => s.key === status);
+/**
+ * The key of the status `given` names (`statusKey`: key or display name, #309), which must be one the
+ * metamodel marks invalid (D-044); else `input.invalid` with the invalid statuses as `key (Name)`.
+ */
+const invalidStatusKey = (metamodel: Metamodel, given: string): string => {
+  const invalidOnes = invalidStatuses(metamodel);
+  const allowed = [...invalidOnes.keys()];
   const list =
     allowed.length === 0
       ? "the metamodel marks no status invalid"
-      : `the invalid statuses are: ${allowed.join(", ")}`;
-  throw invalid(
-    known
-      ? `${status} is not marked invalid in the metamodel, so it cannot supersede an element; ${list}`
-      : `${status} is not a status of the metamodel; ${list}`,
-    { status, reason: known ? "not-invalid" : "unknown-status", allowed },
-  );
+      : `the invalid statuses are: ${listNamed([...invalidOnes.values()])}`;
+  const match = findNamed(metamodel.statuses, given);
+  if (match.kind === "ambiguous") {
+    // The same refusal as element.setStatus gives, with every status to choose from.
+    statusKey(metamodel, given);
+  }
+  if (match.kind !== "found") {
+    throw invalid(`${given} is not a status of the metamodel; ${list}`, {
+      status: given,
+      reason: "unknown-status",
+      allowed,
+    });
+  }
+  if (!invalidOnes.has(match.key)) {
+    throw invalid(
+      `${given} is not marked invalid in the metamodel, so it cannot supersede an element; ${list}`,
+      { status: given, reason: "not-invalid", allowed },
+    );
+  }
+  return match.key;
 };
 
 /**
@@ -149,7 +170,7 @@ export const supersedeElement = async (
   input: SupersedeInput,
 ): Promise<SupersedeResult> => {
   const metamodel = await workspace.get(metamodelState);
-  checkInvalidStatus(metamodel, input.status);
+  const statusValue = invalidStatusKey(metamodel, input.status);
   const layout = await workspace.get(workspaceLayoutState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
@@ -176,7 +197,7 @@ export const supersedeElement = async (
   const writes: ElementFileWrite[] = [];
   const old = await readUnchanged(workspace, layout, record);
   const status = editElementFile(old.current.file, {
-    edits: [{ kind: "set", key: "status", value: input.status }],
+    edits: [{ kind: "set", key: "status", value: statusValue }],
     keyOrder: STRUCTURAL_KEYS,
   });
   if (status.changed) {

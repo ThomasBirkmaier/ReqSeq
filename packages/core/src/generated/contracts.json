@@ -136,7 +136,17 @@
           "pattern": "^[A-Z][A-Z0-9]*-[0-9a-f]{6,32}$"
         },
         "elementRef": {
-          "description": "A reference to an element as given by a person or an external tool: UUID or short ID (SR-060).",
+          "description": "A reference to an element as given by a person or an external tool: UUID or short ID (SR-060). Any case is accepted: sr-5a8b25 names SR-5a8b25.",
+          "type": "string",
+          "pattern": "^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|[A-Za-z][A-Za-z0-9]*-[0-9a-fA-F]{6,32})$"
+        },
+        "uuidRef": {
+          "description": "A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).",
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        },
+        "elementId": {
+          "description": "A reference to an element as the tool writes it in outputs: UUID or short ID in their canonical form.",
           "anyOf": [
             {
               "$ref": "#/$defs/uuid"
@@ -156,6 +166,11 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
           "maxLength": 64
+        },
+        "keyOrName": {
+          "description": "A metamodel value as a person gives it: its key or its display name, in any case (`Obsolete` names the status obsolete). The tool stores the key (SR-012 AK3).",
+          "type": "string",
+          "minLength": 1
         },
         "relationTarget": {
           "description": "Target of a relation as stored in the source file (D-013, D-058, SR-005, SR-021). Within the same repository: `id`, `version`, `title`. Across repositories: `id`, `version`, `repository` (workspace name of the target's repository), never title or text (D-058). Written as one flow mapping per line (SR-102, ADR-0004).",
@@ -195,7 +210,7 @@
           ],
           "properties": {
             "id": {
-              "$ref": "#/$defs/uuid"
+              "$ref": "#/$defs/uuidRef"
             },
             "version": {
               "$ref": "#/$defs/version"
@@ -211,10 +226,12 @@
           "additionalProperties": false
         },
         "date": {
+          "description": "A calendar date YYYY-MM-DD (RFC 3339 full-date).",
           "type": "string",
           "format": "date"
         },
         "dateTime": {
+          "description": "A date and time with time zone (RFC 3339 date-time), for example 2026-10-26T09:30:00Z.",
           "type": "string",
           "format": "date-time"
         },
@@ -429,6 +446,17 @@
           },
           "additionalProperties": false
         },
+        "viewId": {
+          "description": "A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).",
+          "anyOf": [
+            {
+              "const": "core"
+            },
+            {
+              "$ref": "#/$defs/elementId"
+            }
+          ]
+        },
         "view": {
           "description": "`core`, a variant ID, or absent for all elements (SR-043).",
           "anyOf": [
@@ -618,7 +646,7 @@
                 ],
                 "properties": {
                   "view": {
-                    "$ref": "common.schema.json#/$defs/view"
+                    "$ref": "common.schema.json#/$defs/viewId"
                   },
                   "status": {
                     "$ref": "common.schema.json#/$defs/verificationStatus"
@@ -2813,7 +2841,8 @@
               }
             },
             "status": {
-              "$ref": "../common.schema.json#/$defs/key"
+              "$ref": "../common.schema.json#/$defs/keyOrName",
+              "description": "Key or display name of a status of the metamodel, in any case; the key is written."
             }
           },
           "additionalProperties": false,
@@ -2862,7 +2891,8 @@
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "status": {
-              "$ref": "../common.schema.json#/$defs/key"
+              "$ref": "../common.schema.json#/$defs/keyOrName",
+              "description": "Key or display name of a status of the metamodel, in any case; the key is written."
             },
             "successor": {
               "$ref": "../common.schema.json#/$defs/elementRef"

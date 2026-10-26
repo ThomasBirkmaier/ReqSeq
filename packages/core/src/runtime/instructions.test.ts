@@ -16,7 +16,7 @@ describe("agentInstructions", () => {
     const start = lines.indexOf("Start with:");
     expect(lines.slice(start + 1, start + 1 + first.length)).toEqual(first);
     expect(text).toContain(
-      "- `ref`: A reference to an element as given by a person or an external tool: UUID or short ID.\n",
+      "- `ref`: A reference to an element as given by a person or an external tool: UUID or short ID. Any case is accepted: sr-5a8b25 names SR-5a8b25.\n",
     );
     expect(text).toContain("- `shortId`: Display ID: type prefix, dash, the trailing hex characters");
     expect(text).toContain("- `id`: Element ID: random UUID version 4, lower case, never changes.\n");

@@ -161,7 +161,9 @@ describe.each([
   it("equal a fresh build after element.create and element.setStatus", async () => {
     const { fixture, workspace } = await open();
     await buildAll(workspace, indexed);
-    await createElement(workspace, { type: "need", title: "A new need", properties: { priority: "urgent" } });
+    // A list where one value belongs: a wrong kind that create writes and reports (SR-085); the
+    // display name High is written as its key (#309).
+    await createElement(workspace, { type: "need", title: "A new need", properties: { priority: ["High"] } });
     expectCarried(workspace);
     await expectFresh(fixture, workspace);
     await setElementStatus(workspace, { refs: [`${NEED}1`, `${SR}1`], status: "approved" });

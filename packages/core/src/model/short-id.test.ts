@@ -394,6 +394,16 @@ describe("ShortIds.find", () => {
     expect(shortIds.withTail(PAIR_1)).toEqual([]);
   });
 
+  it("[SR-060/AK1] finds a short ID in any case (#309)", async () => {
+    const { shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
+    const found = shortIds.find("SR-1abc123");
+    expect(found.kind).toBe("found");
+    for (const ref of ["sr-1abc123", "SR-1ABC123", "sR-1AbC123"]) {
+      expect(shortIds.find(ref)).toEqual(found);
+      expect(shortIds.withTail(ref)).toEqual(shortIds.withTail("SR-1abc123"));
+    }
+  });
+
   it("reports a wrong prefix, an unknown tail and a malformed short ID as unknown", async () => {
     const { shortIds } = await shortIdsOf([PAIR_1, PAIR_2]);
     for (const ref of [
@@ -401,8 +411,6 @@ describe("ShortIds.find", () => {
       "SR-9abc123",
       "SR-fedcba",
       "SR-abc12",
-      "sr-1abc123",
-      "SR-1ABC123",
       "1abc123",
       "SR-1abc123-",
       `SR-0${PAIR_1.replaceAll("-", "")}`,

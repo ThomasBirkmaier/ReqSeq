@@ -51,10 +51,22 @@ export type Uuid = string;
 export type ShortId = string;
 
 /**
- * A reference to an element as given by a person or an external tool: UUID or short ID (SR-060).
+ * A reference to an element as given by a person or an external tool: UUID or short ID (SR-060). Any case is accepted: sr-5a8b25 names SR-5a8b25.
  * Schema: `schemas/common.schema.json#/$defs/elementRef`.
  */
 export type ElementRef = string;
+
+/**
+ * A UUID version 4 as a caller gives it, in any case; the tool stores it in lower case (spec question #316).
+ * Schema: `schemas/common.schema.json#/$defs/uuidRef`.
+ */
+export type UuidRef = string;
+
+/**
+ * A reference to an element as the tool writes it in outputs: UUID or short ID in their canonical form.
+ * Schema: `schemas/common.schema.json#/$defs/elementId`.
+ */
+export type ElementId = string;
 
 /**
  * Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
@@ -67,6 +79,12 @@ export type Version = string;
  * Schema: `schemas/common.schema.json#/$defs/key`.
  */
 export type Key = string;
+
+/**
+ * A metamodel value as a person gives it: its key or its display name, in any case (`Obsolete` names the status obsolete). The tool stores the key (SR-012 AK3).
+ * Schema: `schemas/common.schema.json#/$defs/keyOrName`.
+ */
+export type KeyOrName = string;
 
 /**
  * Target of a relation as stored in the source file (D-013, D-058, SR-005, SR-021). Within the same repository: `id`, `version`, `title`. Across repositories: `id`, `version`, `repository` (workspace name of the target's repository), never title or text (D-058). Written as one flow mapping per line (SR-102, ADR-0004).
@@ -85,17 +103,23 @@ export interface RelationTarget {
  * Schema: `schemas/common.schema.json#/$defs/relationTargetInput`.
  */
 export interface RelationTargetInput {
-  readonly id: Uuid;
+  readonly id: UuidRef;
   readonly version?: Version;
   readonly title?: string;
   /** Workspace name of the target's repository; absent for the source's own repository. */
   readonly repository?: string;
 }
 
-/** Schema: `schemas/common.schema.json#/$defs/date`. */
+/**
+ * A calendar date YYYY-MM-DD (RFC 3339 full-date).
+ * Schema: `schemas/common.schema.json#/$defs/date`.
+ */
 export type IsoDate = string;
 
-/** Schema: `schemas/common.schema.json#/$defs/dateTime`. */
+/**
+ * A date and time with time zone (RFC 3339 date-time), for example 2026-10-26T09:30:00Z.
+ * Schema: `schemas/common.schema.json#/$defs/dateTime`.
+ */
 export type IsoDateTime = string;
 
 /**
@@ -240,6 +264,12 @@ export interface ElementSelection {
 }
 
 /**
+ * A view as the tool writes it in outputs: `core` or the canonical UUID or short ID of a variant (SR-043).
+ * Schema: `schemas/common.schema.json#/$defs/viewId`.
+ */
+export type ViewId = ElementId;
+
+/**
  * `core`, a variant ID, or absent for all elements (SR-043).
  * Schema: `schemas/common.schema.json#/$defs/view`.
  */
@@ -301,7 +331,7 @@ export interface DataExportElement {
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly {
-    readonly view: View;
+    readonly view: ViewId;
     readonly status: VerificationStatus;
     /** SR-034 AK2. */
     readonly missingChildren?: readonly Uuid[];
@@ -1077,7 +1107,8 @@ export interface ElementUpdateOutput {
  */
 export interface ElementSetStatusInput {
   readonly refs: readonly ElementRef[];
-  readonly status: Key;
+  /** Key or display name of a status of the metamodel, in any case; the key is written. */
+  readonly status: KeyOrName;
 }
 
 /**
@@ -1095,7 +1126,8 @@ export interface ElementSetStatusOutput {
  */
 export interface ElementSupersedeInput {
   readonly ref: ElementRef;
-  readonly status: Key;
+  /** Key or display name of a status of the metamodel, in any case; the key is written. */
+  readonly status: KeyOrName;
   readonly successor?: ElementRef;
   /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
   readonly relation?: Key;

@@ -92,9 +92,39 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       newElement: true,
     },
     { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
+    {
+      name: "choice values by display name, in any case, written as keys (#309)",
+      input: {
+        type: "system-requirement",
+        title: "Show gusts",
+        properties: { "requirement-type": "Functional", "verification-method": "TEST" },
+      },
+      expect: "output",
+      newElement: true,
+    },
+    {
+      name: "a choice value that is no choice is refused (#309, spec question #316)",
+      input: {
+        type: "system-requirement",
+        title: "Show gusts",
+        properties: { "requirement-type": "sometimes" },
+      },
+      expect: "error",
+    },
+    {
+      name: "malformed input: readable messages, no regular expression (#309)",
+      input: { type: "System Requirement", title: 3 },
+      expect: "error",
+    },
   ],
   "element.get": [
     { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
+    { name: "one element by a short ID in lower case (#309)", input: { ref: "sr-E88FB3" }, expect: "output" },
+    {
+      name: "a reference that is neither UUID nor short ID (#309)",
+      input: { ref: "SR-036" },
+      expect: "error",
+    },
     {
       name: "an element with an outdated relation and reference, with dates (SR-026 AK3)",
       fixture: HINTS,
@@ -203,6 +233,11 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.setStatus": [
     { name: "approve one element", input: { refs: ["SR-e88fb3"], status: "approved" }, expect: "output" },
+    {
+      name: "a status by its display name, in any case (#309)",
+      input: { refs: ["sr-e88fb3"], status: "APPROVED" },
+      expect: "output",
+    },
     {
       name: "status not in the metamodel",
       input: { refs: ["SR-e88fb3"], status: "released" },

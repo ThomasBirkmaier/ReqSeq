@@ -185,9 +185,13 @@ const isLookupError = (error: unknown): boolean =>
 export const setRelationTargets = async (
   context: TargetContext,
   sourceRepository: string,
-  value: ElementInputValue,
+  given: ElementInputValue,
   stored: unknown,
 ): Promise<ElementValue> => {
+  // A UUID given in any case is stored in lower case (`uuidRef`, #309, spec question #316).
+  const lower = (item: unknown): unknown =>
+    isTargetInput(item) ? { ...item, id: item.id.toLowerCase() } : item;
+  const value = (Array.isArray(given) ? (given as unknown[]).map(lower) : lower(given)) as ElementInputValue;
   const storedItems = (Array.isArray(stored) ? (stored as unknown[]) : [stored]).filter(isTargetInput);
   const set = async (item: unknown): Promise<unknown> => {
     if (!isTargetInput(item)) {
@@ -212,14 +216,14 @@ export const setRelationTargets = async (
   if (!Array.isArray(value)) {
     return (await set(value)) as ElementValue;
   }
-  const given = new Set<string>();
+  const seen = new Set<string>();
   const once = (value as unknown[]).filter((item) => {
     if (!isTargetInput(item)) {
       return true;
     }
     const key = targetKey(item, sourceRepository);
-    const first = !given.has(key);
-    given.add(key);
+    const first = !seen.has(key);
+    seen.add(key);
     return first;
   });
   return (await Promise.all(once.map(set))) as ElementValue;

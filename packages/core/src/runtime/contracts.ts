@@ -54,7 +54,8 @@ export interface ContractsBundle {
 /** The schemas and the catalog of this version of LogReq. */
 export const contractsBundle = bundle as unknown as ContractsBundle;
 
-const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[]): Ajv2020 => {
+// `verbose` (input only) gives each error its schema, which `inputViolations` reads for readable messages.
+const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[], verbose = false): Ajv2020 => {
   const ajv = new Ajv2020({
     allErrors: true,
     strict: true,
@@ -62,6 +63,7 @@ const createAjv = (useDefaults: boolean, schemas: readonly JsonSchema[]): Ajv202
     strictTypes: false,
     allowUnionTypes: true,
     useDefaults,
+    verbose,
   });
   addFormats.default(ajv);
   for (const schema of schemas) {
@@ -107,7 +109,7 @@ export function fileSchemaValidator(file: string): ValidateFunction {
  */
 export function loadContracts(options: LoadContractsOptions = {}): Contracts {
   const catalog = options.catalog ?? contractsBundle.catalog;
-  const inputAjv = createAjv(true, contractsBundle.schemas);
+  const inputAjv = createAjv(true, contractsBundle.schemas, true);
   const outputAjv = createAjv(false, contractsBundle.schemas);
   const checkCatalog = outputAjv.compile(contractsBundle.catalogMeta);
   if (!checkCatalog(catalog)) {

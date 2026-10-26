@@ -8,6 +8,7 @@ import { UNKNOWN_TYPE_PREFIX, findType, metamodelState } from "../metamodel/inde
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
+import { normalizeRef } from "./uuid.js";
 
 /** Digits of the UUID a short ID shows at least (D-017, D-056, SR-084 AK1). */
 export const SHORT_ID_MIN_LENGTH = 6;
@@ -36,7 +37,8 @@ export interface ShortIds {
    * its prefix. Every short ID that `of` returns finds its element, and so does a longer tail such
    * as the 12 digits of the file name. A tail shorter than the one shown fits more than one UUID: it
    * is ambiguous unless the prefix leaves one element. Two files with the same UUID (SR-088) are
-   * ambiguous; a wrong prefix or a malformed short ID is unknown.
+   * ambiguous; a wrong prefix or a malformed short ID is unknown. Any case is accepted
+   * (`normalizeRef`, #309).
    */
   find(shortId: string): ShortIdMatch;
   /**
@@ -156,7 +158,8 @@ const shortIdsOf = (index: Index): ShortIds => {
   const prefixOf = (element: ElementRecord): string =>
     findType(metamodel, element.type)?.prefix ?? UNKNOWN_TYPE_PREFIX;
 
-  const withTail = (shortId: string): readonly ElementRecord[] => {
+  const withTail = (given: string): readonly ElementRecord[] => {
+    const shortId = normalizeRef(given);
     if (!SHORT_ID_PATTERN.test(shortId)) {
       return [];
     }
@@ -166,7 +169,8 @@ const shortIdsOf = (index: Index): ShortIds => {
       .flatMap((entry) => entry.elements);
   };
 
-  const find = (shortId: string): ShortIdMatch => {
+  const find = (given: string): ShortIdMatch => {
+    const shortId = normalizeRef(given);
     const prefix = shortId.slice(0, shortId.indexOf("-"));
     const matches = withTail(shortId).filter((element) => prefixOf(element) === prefix);
     const [first, ...others] = matches;

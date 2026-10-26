@@ -313,6 +313,18 @@ describe("element.create", () => {
     expect(await filesBelow(opened.root)).toEqual(before);
   });
 
+  it("stores the UUID of a relation target given in upper case in lower case (#309, spec question #316)", async () => {
+    const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
+    const id = "3f1757ed-26d9-478e-8fdc-ea6fe2e123a9";
+    const out = await create(opened, {
+      type: "system-requirement",
+      title: "Gusts",
+      properties: { "parent-item": { id: id.toUpperCase() } },
+    });
+    expect(out.element.properties["parent-item"]).toMatchObject({ id });
+    expect(await read(opened, out.files[0] ?? "")).toContain(`parent-item: { id: ${id}, `);
+  });
+
   it("leaves empty properties out and writes relation-valued and single relation target values", async () => {
     const opened = await open({ fixture: "SR-085/value-kinds" }, "system");
     const target = {
@@ -343,12 +355,100 @@ describe("element.create", () => {
     expect(out.element.properties).toEqual({ weight: 2, "parent-item": stored });
   });
 
-  it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
+  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
     const opened = await standard();
     const out = await create(opened, {
       type: "system-requirement",
+      title: "Named",
+      properties: { "requirement-type": "Functional", "verification-method": "INSPECTION" },
+    });
+    const text = await read(opened, out.files[0] ?? "");
+    expect(text).toContain("\nrequirement-type: functional\n");
+    expect(text).toContain("\nverification-method: inspection\n");
+    expect(out.element.properties).toEqual({
+      "requirement-type": "functional",
+      "verification-method": "inspection",
+    });
+    expect((out.problems ?? []).filter((p) => p.code === "element.wrong-value-kind")).toEqual([]);
+  });
+
+  it("refuses a choice value that names no choice and writes no file (#309, spec question #316)", async () => {
+    const opened = await standard();
+    const before = await filesBelow(opened.root);
+    for (const value of ["sometimes", 5, ["functional", "Sometimes"]]) {
+      const error = await createError(opened, {
+        type: "system-requirement",
+        title: "Wrong",
+        properties: { "requirement-type": value },
+      });
+      expect([error.code, error.details]).toEqual([
+        "input.invalid",
+        {
+          key: "requirement-type",
+          value: Array.isArray(value) ? "Sometimes" : value,
+          reason: "unknown-choice",
+          allowed: ["functional", "quality", "performance", "interface", "constraint"],
+        },
+      ]);
+    }
+    expect(
+      (
+        await createError(opened, {
+          type: "system-requirement",
+          title: "Wrong",
+          properties: { "requirement-type": "sometimes" },
+        })
+      ).message,
+    ).toBe(
+      "properties.requirement-type: sometimes is not a value of Requirement Type; the values are: functional (Functional), quality (Quality), performance (Performance), interface (Interface), constraint (Constraint)",
+    );
+    expect(await filesBelow(opened.root)).toEqual(before);
+  });
+
+  it("refuses a choice name that fits two values; the exact key always wins (#309)", async () => {
+    const opened = await standard({
+      "metamodel/extra.yaml":
+        "logreq-metamodel: 1\nproperties:\n  - key: urgency\n    name: Urgency\n    kind: choice\n    choices:\n      - { key: low, name: Soon }\n      - { key: soon, name: Later }\n  - { key: mood, name: Mood, kind: choice }\ntypes:\n  - { key: note, name: Note, prefix: NOTE, properties: [title, urgency, mood] }\n",
+    });
+    const note = async (urgency: string): Promise<unknown> =>
+      (await create(opened, { type: "note", title: "A note", properties: { urgency } })).element.properties[
+        "urgency"
+      ];
+    expect(await note("soon")).toBe("soon");
+    expect(await note("later")).toBe("soon");
+    const error = await createError(opened, {
+      type: "note",
+      title: "A note",
+      properties: { urgency: "SOON" },
+    });
+    expect([error.code, error.details]).toEqual([
+      "input.invalid",
+      {
+        key: "urgency",
+        value: "SOON",
+        reason: "ambiguous-choice",
+        allowed: ["low", "soon"],
+        candidates: ["low", "soon"],
+      },
+    ]);
+    expect(error.message).toBe(
+      "properties.urgency: SOON names more than one value of Urgency (low, soon); give the key. The values are: low (Soon), soon (Later)",
+    );
+    // A choice property without values takes none.
+    const none = await createError(opened, { type: "note", title: "A note", properties: { mood: "calm" } });
+    expect([none.message, none.details]).toEqual([
+      "properties.mood: calm is not a value of Mood; the values are: none",
+      { key: "mood", value: "calm", reason: "unknown-choice", allowed: [] },
+    ]);
+  });
+
+  it("stores a value of the wrong kind and reports it with its line (SR-085)", async () => {
+    const opened = await standard();
+    // One text where the metamodel wants a list of texts; a choice value that is no choice is refused (#309).
+    const out = await create(opened, {
+      type: "system-requirement",
       title: "Wrong",
-      properties: { "requirement-type": "sometimes", "acceptance-criteria": ["Shows it"] },
+      properties: { "requirement-type": "functional", "acceptance-criteria": "Shows it" },
     });
     expect(out.problems).toEqual([
       expect.objectContaining({
@@ -356,7 +456,7 @@ describe("element.create", () => {
         severity: "warning",
         repository: "system",
         file: out.element.file,
-        line: 6,
+        line: 7,
         elementId: out.element.id,
       }),
     ]);

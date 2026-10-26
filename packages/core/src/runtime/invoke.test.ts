@@ -186,8 +186,11 @@ describe("invoke", () => {
       expect(err.details).toMatchObject({ command: "test.echo" });
       const errors = (err.details as { errors: { path: string; keyword: string }[] }).errors;
       expect(errors.map((e) => `${e.path} ${e.keyword}`)).toEqual(
-        expect.arrayContaining([" additionalProperties", "/limit minimum", "/ref anyOf"]),
+        expect.arrayContaining([" additionalProperties", "/limit minimum", "/ref pattern"]),
       );
+      // Readable, the field named by its input name, no regular expression, no "(root)" (#309).
+      expect(err.message).not.toMatch(/\(root\)|\^|\$"/);
+      expect(err.message).toContain("extra is not an input of this command");
       expect(run).not.toHaveBeenCalled();
     } finally {
       run.mockRestore();

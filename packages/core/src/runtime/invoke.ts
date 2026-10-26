@@ -7,6 +7,7 @@ import { commands as productCommands } from "../commands/index.js";
 import { assertWritable } from "../metamodel/index.js";
 import type { Contracts } from "./contracts.js";
 import { describeViolations, loadContracts, schemaViolations } from "./contracts.js";
+import { describeInputViolations, inputViolations } from "./input-errors.js";
 import type { Workspace } from "./workspace.js";
 
 /** What an adapter passes per call. */
@@ -113,11 +114,15 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     }
     const validInput = contracts.validator(name, "input");
     if (!validInput(checked)) {
-      const errors = schemaViolations(validInput.errors);
-      throw new CommandError("input.invalid", `Invalid input for ${name}: ${describeViolations(errors)}`, {
-        command: name,
-        errors,
-      });
+      const errors = inputViolations(validInput.errors, { input: checked, schemas: contracts.schemas });
+      throw new CommandError(
+        "input.invalid",
+        `Invalid input for ${name}: ${describeInputViolations(errors)}`,
+        {
+          command: name,
+          errors,
+        },
+      );
     }
     const signal = ctx.signal ?? new AbortController().signal;
     let output: unknown;

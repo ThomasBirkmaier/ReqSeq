@@ -357,6 +357,33 @@ describe("element.update", () => {
     expect(await read(opened, GUSTS.file)).toBe(before);
   });
 
+  it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
+    const opened = await open();
+    const out = await update(opened, { ref: GUSTS.id, set: { "requirement-type": "performance" } });
+    expect(out.element.properties["requirement-type"]).toBe("performance");
+    await update(opened, { ref: GUSTS.id, set: { "requirement-type": "Quality" } });
+    expect(await read(opened, GUSTS.file)).toContain("\nrequirement-type: quality\n");
+    await update(opened, { ref: GUSTS.id, set: { "requirement-type": "interface" } });
+    expect(await read(opened, GUSTS.file)).toContain("\nrequirement-type: interface\n");
+    // An empty value is no choice to look up.
+    await update(opened, { ref: GUSTS.id, set: { "requirement-type": null } });
+    expect(await read(opened, GUSTS.file)).not.toContain("requirement-type: interface");
+  });
+
+  it("refuses a choice value that names no choice and leaves the file as it is (#309, spec question #316)", async () => {
+    const opened = await open();
+    const before = await read(opened, GUSTS.file);
+    const error = await updateError(opened, { ref: GUSTS.id, set: { "requirement-type": "Sometimes" } });
+    expect([error.code, error.details]).toMatchObject([
+      "input.invalid",
+      { key: "requirement-type", reason: "unknown-choice" },
+    ]);
+    expect(error.message).toMatch(
+      /^set\.requirement-type: Sometimes is not a value of Requirement Type; the values are: functional \(Functional\), /,
+    );
+    expect(await read(opened, GUSTS.file)).toBe(before);
+  });
+
   it("refuses a file that changed on disk since it was read and works again on the next call", async () => {
     const opened = await open();
     await opened.workspace.get(elementStoreState);

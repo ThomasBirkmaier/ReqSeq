@@ -304,6 +304,24 @@ describe("element.get", () => {
     expect(hint?.message).toMatch(/low.*medium.*high/);
   });
 
+  it("[SR-085/AK2] keeps a display name written by hand in a file as it is and gives the hint (SR-012 AK3, #309)", async () => {
+    const file = "requirements/SR-00000000c309.md";
+    const text =
+      "---\nid: 0b7c6e1a-1111-4222-8333-00000000c309\ntype: system-requirement\nstatus: draft\ntitle: By hand\nrequirement-type: Functional\n---\n\nText.\n";
+    const opened = await open({ fixture: "SR-001/two-elements", files: { [file]: text } });
+    const element = await get(opened, { ref: "SR-00c309" });
+    // Reading is lenient: the name is not mapped to its key, neither in the view nor in the file.
+    expect(element.properties["requirement-type"]).toBe("Functional");
+    expect(hints(element).filter((p) => p.code === "element.wrong-value-kind")).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        line: 6,
+        message: expect.stringContaining("functional (Functional)") as string,
+      }),
+    ]);
+    expect(await fs.readFile(opened.fixture.path(file), "utf8")).toBe(text);
+  });
+
   it("[SR-086/AK1] gives a hint with source, target and relation kind for a relation between types that are not allowed", async () => {
     const opened = await open({ fixture: "SR-086/relation-types" }, "system");
     const element = await get(opened, { ref: "22a972fd-f4f1-4b95-ba1d-e3e85234824e" });

@@ -21,7 +21,7 @@ import { buildInput } from "./input.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
-import { outcomeExitCode, renderError, renderJson, renderYaml } from "./render.js";
+import { outcomeExitCode, renderError, renderJson, renderYaml, spelledMessage } from "./render.js";
 
 /** Exit codes of `logreq` (ADR-0009). */
 export const EXIT = {
@@ -135,7 +135,7 @@ async function execute(
     output = await call(invocation, options, runtime);
   } catch (caught) {
     const error = asCommandError(caught);
-    options.stderr.write(renderError(error, invocation.json));
+    options.stderr.write(renderError(error, invocation.json, spelledMessage(error, invocation.entry)));
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
   options.stdout.write(
