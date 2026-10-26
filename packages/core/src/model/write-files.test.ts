@@ -8,6 +8,7 @@ import { CommandError } from "../catalog.js";
 import type * as files from "../files/index.js";
 import { Workspace } from "../runtime/workspace.js";
 import { editElementFile } from "../files/index.js";
+import { metamodelState } from "../metamodel/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { setElementStatus } from "./status.js";
 import { elementStoreState } from "./store.js";
@@ -133,6 +134,7 @@ describe("writeElementFiles rolls back the files it wrote", () => {
     const before = await Promise.all([WIND.file, GUSTS.file, BARE.file].map(read));
     const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
+    const metamodel = await workspace.get(metamodelState);
     const writes: ElementFileWrite[] = [];
     for (const element of [WIND, GUSTS, BARE]) {
       const record = store.elements.find((e) => e.id === element.id);
@@ -151,9 +153,10 @@ describe("writeElementFiles rolls back the files it wrote", () => {
         throw new CommandError("file.read-only", "Not written: second");
       }
     };
-    const error = await writeElementFiles(workspace, layout, writes, { concurrency: 2 }).catch(
-      (e: unknown) => e,
-    );
+    const error = await writeElementFiles(workspace, layout, writes, {
+      concurrency: 2,
+      titles: { metamodel, store },
+    }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(CommandError);
     expect((error as CommandError).message).toBe("Not written: first");
     expect(control.calls).toBe(2);
@@ -166,7 +169,10 @@ describe("writeElementFiles rolls back the files it wrote", () => {
       const read = await readUnchanged(workspace, layout, record);
       again.push({ ...read, bytes: editElementFile(read.current.file, { body: "Changed.\n" }).bytes });
     }
-    const written = await writeElementFiles(workspace, layout, again, { concurrency: 3 });
+    const written = await writeElementFiles(workspace, layout, again, {
+      concurrency: 3,
+      titles: { metamodel, store: fresh },
+    });
     expect(written.map((w) => w.written.record.id)).toEqual(again.map((w) => w.current.record.id));
   });
 });

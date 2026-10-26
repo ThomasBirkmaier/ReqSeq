@@ -708,4 +708,27 @@ describe("set-scalar: one scalar replaced in place (SR-027 AK1, SR-102 AK1)", ()
       message: "Cannot change c: a scalar in it and the whole key in one write",
     });
   });
+
+  it("with ifPlain leaves a value it cannot change in place, also an anchored one, and changes the others in one pass", () => {
+    const text = `---\na: { v: 1, w: &w x, y: *w, z: old }\nb: |\n  block\nc: plain\n---\n`;
+    const plain = (key: string, path: readonly (string | number)[]): FrontmatterEdit => ({
+      kind: "set-scalar",
+      key,
+      path,
+      value: "new",
+      ifPlain: true,
+    });
+    const edits = [
+      plain("a", ["v"]),
+      plain("a", ["w"]),
+      plain("a", ["y"]),
+      plain("a", ["nope"]),
+      plain("a", ["z"]),
+      plain("b", []),
+      plain("c", ["v"]),
+      plain("d", []),
+      plain("c", []),
+    ];
+    expect(edit(text, { edits })).toBe(text.replace("z: old", "z: new").replace("c: plain", "c: new"));
+  });
 });

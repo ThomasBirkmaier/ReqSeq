@@ -65,6 +65,8 @@ import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
 import { setInlineReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
+import type { TitleContext } from "./relation-titles.js";
+import { withCurrentTitles } from "./relation-titles.js";
 import type { ElementHints } from "./get.js";
 import { elementContent, elementView, titleKeyOf } from "./view.js";
 
@@ -785,6 +787,11 @@ const restore = async ({ write, snapshot }: DoneWrite): Promise<boolean> => {
 
 export interface WriteFilesOptions {
   /**
+   * The metamodel and the element store the command read and checked its writes against: the
+   * stored titles of relation targets are refreshed from them (`withCurrentTitles`).
+   */
+  readonly titles: TitleContext;
+  /**
    * Files written at the same time; default 1, one after the other. Each write syncs the file and
    * its folder to disk (`writeFileAtomic`), so a command that writes many files (`element.bulkUpdate`)
    * writes several at once; the rollback is the same.
@@ -796,11 +803,13 @@ export interface WriteFilesOptions {
  * Writes several existing element files, for commands that change more than one element
  * (`element.setStatus`, `element.supersede`, `element.bulkUpdate`), one at a time or, with
  * `options.concurrency`, several at a time; after the first failure no further write starts and
- * the writes in flight end before the rollback. Every check must be
- * done before. A write can still be refused (`file.read-only`, a file changed in the meantime, a
- * disk error), or written bytes may not read back as an element (`internal`); then every file
- * this call has written is written back with its bytes as read (best effort; nothing is deleted)
- * and the error is thrown again with its code. `details.written` lists the files not restored
+ * the writes in flight end before the rollback. Every check must be done before. Each planned
+ * file that changes also gets the current titles of its same-repository relation targets
+ * (`withCurrentTitles`, decision on #307): only those title values change. A write can still be
+ * refused (`file.read-only`, a file changed in the meantime, a disk error), or written bytes may
+ * not read back as an element (`internal`); then every file this call has written is written back
+ * with its bytes as read (best effort; nothing is deleted) and the error is thrown again with its
+ * code. `details.written` lists the files not restored
  * (relative to the workspace root); it is absent when every file was restored. After the writes
  * the element store gets all written files in place (`recordWrites`, #166); after a failure it is
  * reset, so the next read finds the files as they are.
@@ -809,13 +818,15 @@ export const writeElementFiles = async (
   workspace: Workspace,
   layout: WorkspaceLayout,
   writes: readonly ElementFileWrite[],
-  options: WriteFilesOptions = {},
+  options: WriteFilesOptions,
 ): Promise<WrittenElementFile[]> => {
   const done: DoneWrite[] = [];
   const results: WrittenElementFile[] = [];
   // The first failure; once there is one, no further write starts.
   let failure: { readonly error: unknown } | undefined;
-  const queue = writes.entries();
+  // The stored titles of same-repository targets follow their targets (decision on #307).
+  const titled = withCurrentTitles(options.titles, writes);
+  const queue = titled.entries();
   const worker = async (): Promise<void> => {
     for (const [index, write] of queue) {
       if (failure !== undefined) {
@@ -843,7 +854,7 @@ export const writeElementFiles = async (
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 1, writes.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(options.concurrency ?? 1, titled.length) }, worker));
   if (failure !== undefined) {
     const { error } = failure;
     const kept: string[] = [];
@@ -878,7 +889,9 @@ export const writeElementFiles = async (
  * lines of changed keys and the text are rewritten; unknown keys, comments, quoting, key order,
  * line endings and the file name stay (SR-001 AK2, SR-016 AK2). The UUID, the type and the status
  * are never touched (SR-002 AK2, ADR-0002 rule 6). Refused with `file.changed-on-disk` when the file
- * changed since the element store read it; the store is then read again on the next call.
+ * changed since the element store read it; the store is then read again on the next call. A save
+ * that writes the file also sets the stored titles of its same-repository relation targets to their
+ * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
  * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
  */
 export const updateElement = async (
@@ -908,13 +921,18 @@ export const updateElement = async (
     input.text === undefined
       ? undefined
       : await setInlineReferences(context, input.text, elementText(current.file.body), record.repository);
-  const { bytes, changed } = editElementFile(current.file, {
+  const edited = editElementFile(current.file, {
     edits: updateEdits(input, set, titleKey),
     ...(text === undefined ? {} : { body: bodyForText(current.file.body, text) }),
     keyOrder: type.properties,
   });
   let result: ElementWriteResult & { readonly affected?: number };
-  if (changed) {
+  if (edited.changed) {
+    // The stored titles of same-repository targets follow their targets (decision on #307).
+    let { bytes } = edited;
+    for (const titled of withCurrentTitles(context, [{ repository, current, bytes }])) {
+      ({ bytes } = titled);
+    }
     const before: Before = {
       // The record of the store: its own relations to itself are no affected element.
       record,

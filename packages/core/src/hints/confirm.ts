@@ -1,17 +1,20 @@
 // Confirming hints (SR-027, D-042): "Wenn ein Mensch einen Hinweis auf eine geänderte Fassung
 // bestätigt, muss das Tool die neue Fassung in die betroffene Datei schreiben." `hint.confirm`
 // takes hint IDs (`hint-id.ts`, SR-025) and writes the current version of each target into the
-// relation item or inline reference the ID names, and nothing else (AK1, SR-102 AK1).
+// relation item or inline reference the ID names (AK1, SR-102 AK1), and nothing else but the
+// current titles of the same-repository relation targets of the written file (decision on spec
+// question #307: `writeElementFiles` refreshes them on every write, `withCurrentTitles`).
 //
 // - Which hints: an ID is confirmed when the open outdated relations and references of its source
 //   (`outdatedOfShown`, by the rules of the check, SR-025) have its canonical form (`hintIdOf` of
 //   the parsed ID, so parameter order and percent-encoding do not matter). The source is the record
 //   of the element store with the repository, file and UUID the ID names. Items of one list that
 //   share the ID (the same target written twice by hand) are confirmed together.
-// - What is written: a relation item gets only the text of its `version` scalar replaced, in its
-//   own quoting (`set-scalar` of `files/edit.ts`); title, other keys, comments and layout stay. This
-//   works for relation kinds and for relation-valued properties (validity, packages; ADR-0004), as
-//   a list or a single target. An inline reference gets only the value of its first `version=`
+// - What is written: a relation item gets the text of its `version` scalar replaced, in its own
+//   quoting (`set-scalar` of `files/edit.ts`), and its `title` set to the target's current title
+//   when the target is in the same repository (`withCurrentTitles`, decision on #307); other keys,
+//   comments and layout stay. This works for relation kinds and for relation-valued properties
+//   (validity, packages; ADR-0004), as a list or a single target. An inline reference gets only the value of its first `version=`
 //   parameter replaced; label and other parameters stay.
 // - Several hints (AK2), each as if confirmed on its own: a write can change the version of its
 //   source (ADR-0005: the text counts), so a hint of the same call whose target is such a source
@@ -463,7 +466,7 @@ export const confirmHints = async (workspace: Workspace, input: ConfirmInput): P
       );
     }
   }
-  const written = await writeElementFiles(workspace, layout, writes);
+  const written = await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } });
   return {
     confirmed: ids.filter((id) => confirmedIds.has(id)),
     files: written.map((w) => w.file),

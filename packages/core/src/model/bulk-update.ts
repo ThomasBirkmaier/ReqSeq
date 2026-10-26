@@ -14,7 +14,8 @@
 //   disk (`readAllUnchanged`, `readUnchanged` for many), only that key's lines are edited
 //   (`editElementFile`, SR-102), and the files are written atomically with a rollback on a failure
 //   (`writeElementFiles`, several at a time), which also gives the store, the versions and the hints
-//   the files as written.
+//   the files as written, and refreshes the stored titles of their same-repository relation targets
+//   (decision on #307; the preview does not show that).
 // - Cost (N-036, perf suite): one pass over the selection, the files of the candidates read 32 at a
 //   time, then per file the lossless writer (about 1 to 3 ms) and, with `confirm`, an atomic write
 //   that syncs to disk.
@@ -370,7 +371,10 @@ export const bulkUpdateElements = async (
     );
   }
   const written = input.confirm
-    ? await writeElementFiles(workspace, layout, planned, { concurrency: WRITE_CONCURRENCY })
+    ? await writeElementFiles(workspace, layout, planned, {
+        concurrency: WRITE_CONCURRENCY,
+        titles: { metamodel, store },
+      })
     : [];
   // A preview checks that every planned file reads back as an element, as the write does.
   const results = input.confirm

@@ -166,7 +166,9 @@ export const setElementStatus = async (
       writes.push({ repository, current, bytes });
     }
   }
-  const files = (await writeElementFiles(workspace, layout, writes)).map((w) => w.file);
+  const files = (await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } })).map(
+    (w) => w.file,
+  );
   // An invalid status supersedes the elements, whichever command sets it (SR-072 AK2, #84).
   const problems =
     status !== undefined && invalidStatuses(metamodel).has(status)

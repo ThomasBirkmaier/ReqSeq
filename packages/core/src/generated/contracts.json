@@ -3108,7 +3108,7 @@
             "confirm": {
               "type": "boolean",
               "default": false,
-              "description": "Write the change; without it nothing is written."
+              "description": "Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on #307), which the preview does not show."
             },
             "expected": {
               "type": "integer",
@@ -4005,7 +4005,7 @@
       },
       {
         "name": "hint.confirm",
-        "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
+        "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
         "effect": "write-files",
         "stage": 2,
         "implements": [

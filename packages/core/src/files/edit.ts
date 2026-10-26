@@ -38,13 +38,17 @@ export type FrontmatterEdit =
    * Replaces the text of one string scalar at `path` inside the value of `key`, for example the
    * stored version of one relation target (SR-027 AK1): only that scalar's source range is
    * rewritten, in its own quoting; every other byte of the file stays. The key may have no other
-   * kind of edit in the same request.
+   * kind of edit in the same request. With `ifPlain`, a value at `path` that is not a string scalar
+   * on one line without an anchor (an alias, a block scalar, an anchored scalar that an alias may
+   * repeat, a missing path) is left as it is instead of refusing the request, so many such edits
+   * (the stored titles of relation targets, decision on #307) go in one pass.
    */
   | {
       readonly kind: "set-scalar";
       readonly key: string;
       readonly path: readonly (string | number)[];
       readonly value: string;
+      readonly ifPlain?: boolean;
     };
 
 /** The edits that work on the state of a whole key. */
@@ -465,12 +469,15 @@ const scalarSplice = (originals: ReadonlyMap<string, Original>, edit: ScalarEdit
   const value = originals.get(edit.key)?.pair.value;
   const node: unknown =
     edit.path.length === 0 ? value : isCollection(value) ? value.getIn(edit.path, true) : undefined;
-  if (
-    !isScalar(node) ||
-    typeof node.value !== "string" ||
-    node.type === Scalar.BLOCK_LITERAL ||
-    node.type === Scalar.BLOCK_FOLDED
-  ) {
+  const oneLine =
+    isScalar(node) &&
+    typeof node.value === "string" &&
+    node.type !== Scalar.BLOCK_LITERAL &&
+    node.type !== Scalar.BLOCK_FOLDED;
+  if (edit.ifPlain === true && (!oneLine || node.anchor !== undefined)) {
+    return undefined;
+  }
+  if (!oneLine) {
     throw invalid(`Cannot change ${[edit.key, ...edit.path].join(".")}: it is no text on one line`);
   }
   if (node.value === edit.value) {

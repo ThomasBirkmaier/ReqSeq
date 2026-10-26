@@ -251,6 +251,8 @@ export const supersedeElement = async (
       writes.push({ ...next, bytes });
     }
   }
-  const files = (await writeElementFiles(workspace, layout, writes)).map((w) => w.file);
+  const files = (await writeElementFiles(workspace, layout, writes, { titles: { metamodel, store } })).map(
+    (w) => w.file,
+  );
   return { files, problems: [...(await supersededTargetProblems(workspace, [record]))] };
 };

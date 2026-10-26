@@ -97,9 +97,20 @@ const tree = (folder: string): Record<string, string> =>
   );
 
 describe("hint.confirm (SR-027)", () => {
-  it("[SR-027/AK1] writes the current version of the target into the relation and changes nothing else in the file", async () => {
+  it("[SR-027/AK1] writes the current version and title of the confirmed target into its relation; besides, only the other stale titles of the file change (decision on #307)", async () => {
     const ws = await fixture();
     await changeTargets(ws);
+    // N and V are renamed too. Since the decision on #307 the confirmed relation gets the current
+    // title with the version, and the write refreshes the stale title of V (not its version);
+    // every other byte of the file stays.
+    await ws.write(
+      N_FILE,
+      need("The operator sees wind speed and direction at a glance.").replace(
+        "title: See the wind",
+        "title: See the gusts",
+      ),
+    );
+    await ws.write(V_FILE, fs.readFileSync(ws.path(V_FILE), "utf8").replace("title: Pro", "title: Pro 2"));
     const workspace = open(ws.root);
     const hints = await outdated(workspace);
     expect(hints.map((h) => h.hintId)).toEqual([VALIDITY, DERIVES, LINK]);
@@ -112,7 +123,12 @@ describe("hint.confirm (SR-027)", () => {
     });
     const line = `  - { id: ${N}, version: ${N_VERSION}, title: See the wind }`;
     expect(before).toContain(line);
-    expect(read(ws, A_FILE)).toBe(before.replace(line, line.replace(N_VERSION, current)));
+    const variant = `  - { id: ${V}, version: ${V_VERSION}, title: Pro }`;
+    expect(read(ws, A_FILE)).toBe(
+      before
+        .replace(line, line.replace(N_VERSION, current).replace("See the wind }", "See the gusts }"))
+        .replace(variant, variant.replace("Pro }", "Pro 2 }")),
+    );
     // The other two are still open; only the confirmed one is gone.
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([VALIDITY, LINK]);
   });

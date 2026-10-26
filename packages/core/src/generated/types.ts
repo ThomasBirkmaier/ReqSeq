@@ -1206,7 +1206,7 @@ export interface ElementBulkUpdateInput {
   readonly operation: "set" | "add" | "remove";
   /** For set and add. A choice by key or name; relation targets as for element.update. */
   readonly value?: ElementInputValue;
-  /** Write the change; without it nothing is written. */
+  /** Write the change; without it nothing is written. A written file also gets the current titles of its same-repository relation targets (decision on #307), which the preview does not show. */
   readonly confirm: boolean;
   /** The count of the preview: with confirm, refused (nothing written) when the change now affects another number of elements. */
   readonly expected?: number;
@@ -1510,7 +1510,7 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
@@ -1525,7 +1525,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation and nothing else (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {

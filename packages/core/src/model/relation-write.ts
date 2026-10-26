@@ -190,7 +190,9 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     ],
     keyOrder: sourceType.properties,
   });
-  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }]);
+  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }], {
+    titles: { metamodel, store },
+  });
   const sources = written.map((w) => w.written.record);
   const index = unversioned < 0 ? items.length : unversioned;
   const added: Problem = {
@@ -305,6 +307,8 @@ export const removeRelation = async (
       ? [{ kind: "remove", key: kind.key }]
       : indexes.toReversed().map((index) => ({ kind: "remove-item", key: kind.key, index }));
   const { bytes } = editElementFile(unchanged.current.file, { edits });
-  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }]);
+  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }], {
+    titles: { metamodel, store },
+  });
   return { files: written.map((w) => w.file), problems: [] };
 };
