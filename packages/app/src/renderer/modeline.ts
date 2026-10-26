@@ -48,6 +48,9 @@ export type BufferData =
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
+/** What a list says when a repository is missing for its answer. */
+export const INCOMPLETE = "incomplete: a repository is missing";
+
 /**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
  * something. Values are the output's as they are: nothing is computed about a status. An element is
@@ -81,6 +84,6 @@ export const bufferView = (
   return [
     bufferName(buffer),
     plural(data.total, data.kind === "search" ? "hit" : "element"),
-    ...(data.incomplete ? ["incomplete: a repository is missing"] : []),
+    ...(data.incomplete ? [INCOMPLETE] : []),
   ];
 };

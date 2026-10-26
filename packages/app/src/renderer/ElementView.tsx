@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls } from "./actions.js";
-import type { ElementBuffer } from "./buffers.js";
+import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { relationBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { outdatedReferences, propertyBoxes, relationGroups } from "./element-view.js";
@@ -16,7 +16,10 @@ import { referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { afterSave, dirty, saveInput } from "./editor/save.js";
 import type { Draft } from "./drafts.js";
+import { ListView } from "./ListView.js";
 import type { BufferData } from "./modeline.js";
+import type { MemberCount, PackageModel } from "./package-page.js";
+import { memberCount, memberList, memberSummary, packageOf, packageSelection } from "./package-page.js";
 
 export interface ElementViewProps {
   readonly call: Call;
@@ -39,6 +42,10 @@ export interface ElementViewProps {
   readonly onDraft: (key: string, draft: Draft | undefined) => void;
   /** Gives the app the means to save and edit while the text is shown, and takes them back. */
   readonly register: (controls: ElementControls | undefined) => void;
+  /** The types that are packages (SR-112); an element of one shows the elements that name it. */
+  readonly packages: PackageModel | undefined;
+  /** For the list of the elements of a package page: its selected row, and opening one of them. */
+  readonly dispatch: (action: BufferAction) => void;
 }
 
 /** What the minibuffer says when the file differs from the file text that unsaved changes were typed on. */
@@ -98,6 +105,8 @@ export const ElementView = ({
   draft,
   onDraft,
   register,
+  packages,
+  dispatch,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<View>({ status: "loading" });
   // The text as last loaded or saved: what the document is compared with.
@@ -109,6 +118,13 @@ export const ElementView = ({
   const initialDraft = useRef(draft);
   const saving = useRef(false);
   const [article, setArticle] = useState<HTMLElement | null>(null);
+  // The package page (SR-112): the elements that name this one, below its text. The count is local to
+  // this page; the modeline keeps the element. The selection keeps its identity, or the list would ask
+  // again after every render.
+  const [members, setMembers] = useState<MemberCount | undefined>(undefined);
+  const selection = useMemo(() => packageSelection(buffer.id), [buffer.id]);
+  const returning = useRef(buffer.memberCursor !== undefined);
+  const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const readOnly = view.status === "ok" && view.element.readOnly === true;
   // What the callbacks need of the latest render.
   const now = useRef({ buffer, call, onData, onDraft, onEcho, onOpenTarget, readOnly, handle });
@@ -229,6 +245,7 @@ export const ElementView = ({
       edit: () => {
         handle.focus("end");
       },
+      members: packageModel !== undefined,
       follow: () => {
         const state = handle.state();
         const reference = referenceAt(state, state.selection.main.head);
@@ -242,7 +259,7 @@ export const ElementView = ({
     return () => {
       register(undefined);
     };
-  }, [handle, register]);
+  }, [handle, register, packageModel !== undefined]);
 
   return (
     <article
@@ -253,17 +270,21 @@ export const ElementView = ({
       ref={setArticle}
       onKeyDown={(event) => {
         // Enter on the buffer itself edits the text; Escape in the editor comes back here. Enter with a
-        // modifier is a shortcut ("Follow reference") and goes on to the window.
-        if (
-          event.key === "Enter" &&
+        // modifier is a shortcut ("Follow reference") and goes on to the window. Keys of a control inside
+        // the buffer (the editor, the list of a package page) are not for the buffer.
+        const plain =
           !event.ctrlKey &&
           !event.metaKey &&
           !event.altKey &&
           !event.shiftKey &&
-          event.target === event.currentTarget
-        ) {
+          event.target === event.currentTarget;
+        if (plain && event.key === "Enter") {
           event.preventDefault();
           handle?.focus("end");
+        } else if (plain && event.key === "ArrowDown" && (members?.total ?? 0) > 0) {
+          // Down on the page of a package goes into its elements; Escape and Up on the first row come back.
+          event.preventDefault();
+          event.currentTarget.querySelector<HTMLElement>(".members .list")?.focus();
         }
       }}
     >
@@ -314,6 +335,31 @@ export const ElementView = ({
                 </ul>
               </section>
             ))}
+            {packageModel === undefined ? null : (
+              <section className="members" hidden={members?.total === 0}>
+                {members !== undefined && members.total > 0 ? (
+                  <h2>
+                    ← {packageModel.key}{" "}
+                    <span className="count">{memberSummary(members, buffer.memberSort)}</span>
+                  </h2>
+                ) : null}
+                <ListView
+                  part
+                  call={call}
+                  buffer={memberList(buffer, selection)}
+                  revision={revision}
+                  dispatch={dispatch}
+                  onData={(_key, data) => {
+                    setMembers(memberCount(data));
+                  }}
+                  onEcho={onEcho}
+                  onLeave={() => {
+                    article?.focus({ preventScroll: true });
+                  }}
+                  focusOnLoad={returning.current}
+                />
+              </section>
+            )}
           </>
         ) : null}
       </div>

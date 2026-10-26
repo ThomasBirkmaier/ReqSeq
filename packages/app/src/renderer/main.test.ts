@@ -15,7 +15,7 @@ describe("renderer entry", () => {
             name === "workspace.status"
               ? { name: "Weather station", readOnly: false }
               : name === "metamodel.get"
-                ? { types: [], statuses: [] }
+                ? { types: [], statuses: [], meanings: {} }
                 : name === "element.facets"
                   ? { total: 0, types: [], statuses: [], properties: [], incomplete: false }
                   : { elements: [], total: 0 },

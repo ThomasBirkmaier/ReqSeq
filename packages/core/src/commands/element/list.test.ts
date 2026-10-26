@@ -624,3 +624,49 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
     expect(await where(ws, { any: [{ verification: ["open"] }, { validation: ["open"] }] })).toEqual([]);
   });
 });
+
+describe("element.list, the elements of a package in several repositories (SR-112, D-058)", () => {
+  const PACKAGE = "7e3a5c9b-1d2f-4e6a-8b0c-2d4e6f8a0b1c";
+  const NAMES = "2d4f6a8c-0e1b-4c3d-9a5b-7c9e1f3a5b7d";
+  const SILENT = "3e5a7b9d-1f2c-4d4e-8b6c-8d0f2a4b6c8e";
+
+  /** A system requirement of the repository `system` whose entry for the package is `entry`. */
+  const requirement = (id: string, entry: string): string =>
+    [
+      "---",
+      `id: ${id}`,
+      "type: system-requirement",
+      "status: draft",
+      `title: Names the package ${id.slice(0, 4)}`,
+      "requirement-type: functional",
+      "acceptance-criteria:",
+      "  - Given a gust, when it is measured, then the display shows it.",
+      "packages:",
+      `  - ${entry}`,
+      "---",
+      "",
+    ].join("\n");
+
+  it("[SR-112/AK1] where.package lists the members in another repository that name the package with its repository, and not those that name it without one (D-058)", async () => {
+    // The package lives in the repository `platform`; the two requirements are in `system`.
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-005/cross-repository",
+      files: {
+        "system/requirements/SR-2d4f6a8c0e1b.md": requirement(
+          NAMES,
+          `{ id: ${PACKAGE}, version: "n1:1111111111111111", repository: platform }`,
+        ),
+        "system/requirements/SR-3e5a7b9d1f2c.md": requirement(
+          SILENT,
+          `{ id: ${PACKAGE}, version: "n1:1111111111111111" }`,
+        ),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    const members = await list(workspace, { selection: { where: { package: PACKAGE } } });
+    expect(ids(members)).toEqual([NAMES]);
+    expect(members.elements.map((element) => element.repository)).toEqual(["system"]);
+  });
+});

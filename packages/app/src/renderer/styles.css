@@ -255,6 +255,29 @@ mark {
   color: var(--accent-outdated);
 }
 
+/* The package page (SR-112): the elements that name the package, below its text, properties and
+   relations. The row is marked only while the reader is in the elements. */
+.element .members {
+  margin-top: 0.5rem;
+}
+
+.element .members h2 .count {
+  font-weight: 400;
+}
+
+.list.part {
+  padding: 0;
+  outline: none;
+}
+
+.list.part .row[aria-selected="true"] {
+  background: none;
+}
+
+.list.part:focus .row[aria-selected="true"] {
+  background: var(--select);
+}
+
 /* The prompt: an input in the minibuffer; the candidates rise above the modeline. */
 .prompt-label {
   color: var(--muted);

@@ -18,6 +18,8 @@ import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
+import type { PackageModel } from "./package-page.js";
+import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { bufferView, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
@@ -72,6 +74,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const stoppedRef = useRef(false);
   // The names of the types by their key, from the metamodel, for the modeline of an element (SR-114).
   const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
+  // The types that are packages: their elements show the elements that name them (SR-112).
+  const [packages, setPackages] = useState<PackageModel | undefined>(undefined);
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
@@ -96,6 +100,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         setTypeNames(
           metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
         );
+        setPackages(metamodel.ok ? packageModel(metamodel.output) : undefined);
       }
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
@@ -127,6 +132,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         void loadTypeNames();
       } else {
         setTypeNames(new Map());
+        setPackages(undefined);
       }
     };
     void refresh(undefined);
@@ -274,6 +280,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
             register={setElementControls}
+            packages={packages}
+            dispatch={dispatch}
           />
         ) : current.kind === "overview" ? (
           <OverviewView

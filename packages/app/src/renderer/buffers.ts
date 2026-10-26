@@ -39,6 +39,10 @@ export interface ElementBuffer {
   readonly repository: string;
   /** "<identifier or short ID> <title>". */
   readonly name: string;
+  /** A package page (SR-112): how its elements are sorted, kept while the buffer is open. */
+  readonly memberSort?: readonly FilterSortKeyWithDefaults[] | undefined;
+  /** A package page: the selected row of its elements; set once the reader has used them. */
+  readonly memberCursor?: number;
 }
 
 /** The calm start (SR-118): one line per element type with its count, then the elements opened last. */
@@ -63,7 +67,7 @@ export type BufferAction =
   | { readonly type: "close"; readonly key: string }
   /** The workspace was opened: only `buffer` is open, or none. */
   | { readonly type: "reset"; readonly buffer?: Buffer }
-  /** The selected row of a list or search buffer. */
+  /** The selected row of a list or search buffer, or of the elements of a package page. */
   | { readonly type: "cursor"; readonly key: string; readonly cursor: number };
 
 /** The most buffers kept; the least recent one goes first. */
@@ -241,10 +245,13 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
     case "reset":
       return action.buffer === undefined ? [] : [action.buffer];
     case "cursor":
-      return buffers.map((buffer) =>
-        buffer.key === action.key && buffer.kind !== "element"
-          ? { ...buffer, cursor: action.cursor }
-          : buffer,
-      );
+      return buffers.map((buffer) => {
+        if (buffer.key !== action.key) {
+          return buffer;
+        }
+        return buffer.kind === "element"
+          ? { ...buffer, memberCursor: action.cursor }
+          : { ...buffer, cursor: action.cursor };
+      });
   }
 };

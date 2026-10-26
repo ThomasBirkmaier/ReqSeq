@@ -121,12 +121,14 @@ describe("buffers", () => {
     expect(reduceBuffers([b, a], { type: "reset" })).toEqual([]);
   });
 
-  it("moves the cursor of a list or a search, not of an element", () => {
+  it("moves the cursor of a list or a search; an element keeps the row of its package page apart", () => {
     const search = searchBuffer("wind");
     const moved = reduceBuffers([a, search, list], { type: "cursor", key: search.key, cursor: 7 });
     expect(moved[1]).toEqual({ ...search, cursor: 7 });
     expect(moved[2]).toBe(list);
-    expect(reduceBuffers([a, list], { type: "cursor", key: a.key, cursor: 3 })[0]).toBe(a);
+    const onPage = reduceBuffers([a, list], { type: "cursor", key: a.key, cursor: 3 });
+    expect(onPage[0]).toEqual({ ...a, memberCursor: 3 });
+    expect(onPage[1]).toBe(list);
     expect(reduceBuffers([list], { type: "cursor", key: list.key, cursor: 3 })[0]).toEqual({
       ...list,
       cursor: 3,

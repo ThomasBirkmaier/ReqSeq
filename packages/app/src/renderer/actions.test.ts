@@ -426,6 +426,54 @@ describe("list actions", () => {
     ]);
   });
 
+  describe("on a package page (SR-112)", () => {
+    const page = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), members: true };
+    const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
+
+    it('[SR-112/AK2] "Sort list" is offered on a package page and not on another element; no filter is', () => {
+      const onPage = setup([element, list], {}, true, { element: page }).context;
+      expect(action("sort").available(onPage)).toBe(true);
+      expect(titles(onPage)).toContain("Sort list");
+      for (const id of ["filter-type", "filter-status", "filter-property", "filter-text", "filter-saved"]) {
+        expect(action(id).available(onPage)).toBe(false);
+      }
+      const other = { ...page, members: false };
+      expect(action("sort").available(setup([element], {}, true, { element: other }).context)).toBe(false);
+      expect(action("sort").available(setup([element]).context)).toBe(false);
+      // The controls of an element that is no longer shown do not make a search a package page.
+      expect(
+        action("sort").available(setup([searchBuffer("wind")], {}, true, { element: page }).context),
+      ).toBe(false);
+    });
+
+    it("[SR-112/AK2] sorting on a package page sorts its elements and keeps the element buffer", () => {
+      const { context, asked, dispatched } = setup([element], {}, true, { element: page });
+      action("sort").run(context);
+      expect(asked[0]?.label).toBe("Sort by");
+      asked[0]?.items[9]?.run();
+      asked[0]?.items[0]?.run();
+      expect(dispatched).toEqual([
+        { type: "open", buffer: { ...element, memberSort: tree, memberCursor: 0 } },
+        { type: "open", buffer: { ...element, memberSort: undefined, memberCursor: 0 } },
+      ]);
+      expect(dispatched.map((d) => (d.type === "open" ? d.buffer.key : ""))).toEqual([
+        element.key,
+        element.key,
+      ]);
+    });
+
+    it("[SR-112/AK2] the sort prompt on a package page offers the same choices as on a list", () => {
+      const onList = setup([filtered]);
+      action("sort").run(onList.context);
+      const onPage = setup([element], {}, true, { element: page });
+      action("sort").run(onPage.context);
+      expect(onPage.asked[0]?.items.map((item) => item.name)).toEqual(
+        onList.asked[0]?.items.map((item) => item.name),
+      );
+      expect(onPage.asked[0]?.label).toBe(onList.asked[0]?.label);
+    });
+  });
+
   it("do nothing when the shown buffer is no list", async () => {
     const { context, asked, dispatched, echoed, call } = setup([element]);
     for (const id of [

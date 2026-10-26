@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Choice, Prompt } from "./actions.js";
-import type { Buffer, BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
+import type { Buffer, BufferAction, ElementBuffer, ListBuffer, SearchBuffer } from "./buffers.js";
 import { nth } from "./lists.js";
 import {
   bufferName,
@@ -21,6 +21,7 @@ import type { ElementControls } from "./actions.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
+import type { PackageModel } from "./package-page.js";
 import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
 import type { Draft } from "./drafts.js";
@@ -1071,6 +1072,299 @@ describe("OverviewView", () => {
   });
 });
 
+/** A list as a part of another buffer (SR-112): in a scrolling `.buffer`, with the means to leave it. */
+const partHarness = async (
+  call: Call,
+  buffer: ListBuffer,
+  extra: { enclosed?: boolean; focusOnLoad?: boolean; onLeave?: () => void } = {},
+) => {
+  const actions: BufferAction[] = [];
+  const data: [string, BufferData | undefined][] = [];
+  const echoed: string[] = [];
+  const node = (revision: number): React.ReactElement => {
+    const list = createElement(ListView, {
+      call,
+      buffer,
+      revision,
+      dispatch: (action: BufferAction) => actions.push(action),
+      onData: (key: string, loaded: BufferData | undefined) => data.push([key, loaded]),
+      onEcho: (message: string) => echoed.push(message),
+      part: true,
+      ...(extra.onLeave === undefined ? {} : { onLeave: extra.onLeave }),
+      ...(extra.focusOnLoad === undefined ? {} : { focusOnLoad: extra.focusOnLoad }),
+    });
+    return extra.enclosed === false
+      ? list
+      : createElement("div", { className: "buffer", id: "enclosing", tabIndex: 0 }, list);
+  };
+  await render(node(0));
+  return { actions, data, echoed, show: (revision: number) => render(node(revision)) };
+};
+
+const packageMembers = (): ListBuffer => ({
+  ...listBuffer("package: Stufe-3", { where: { package: "uuid-p" } }),
+  key: "element:spec:uuid-p",
+});
+
+describe("ListView, a part of a buffer (SR-112)", () => {
+  it("[SR-112/AK1] asks for the elements of the selection and shows them as rows, in the buffer that encloses it", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
+    await partHarness(asCall(call), packageMembers());
+    expect(call).toHaveBeenCalledWith("element.list", {
+      selection: { where: { package: "uuid-p" } },
+      limit: 200,
+      offset: 0,
+    });
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
+    const list = query('[role="listbox"]');
+    expect(list.className).toBe("list part");
+    expect(list.hasAttribute("data-buffer")).toBe(false);
+    expect(container.querySelectorAll("[data-buffer]")).toHaveLength(0);
+  });
+
+  it("shows nothing when there are no elements, and the message when asking failed", async () => {
+    const empty = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
+    const { data } = await partHarness(asCall(empty), packageMembers());
+    expect(container.querySelector(".quiet")).toBeNull();
+    expect(data).toEqual([["element:spec:uuid-p", { kind: "list", total: 0, incomplete: false }]]);
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    const failing = fakeCall({ "element.list": () => new Error("Stufe-3 is no package") });
+    const { echoed } = await partHarness(asCall(failing), packageMembers());
+    expect(query(".quiet").textContent).toBe("Stufe-3 is no package");
+    expect(echoed).toEqual(["Stufe-3 is no package"]);
+  });
+
+  it("asks for the next page when the enclosing buffer scrolls near its end, and stops listening when gone", async () => {
+    const call = fakeCall({
+      "element.list": (input) => ({
+        elements: rowsOf(Number(input["offset"]), Number(input["offset"]) + 200),
+        total: 400,
+      }),
+    });
+    await partHarness(asCall(call), packageMembers());
+    const enclosing = query("#enclosing");
+    const scrollTo = async (top: number): Promise<void> => {
+      for (const [name, value] of [
+        ["scrollHeight", 8000],
+        ["scrollTop", top],
+        ["clientHeight", 800],
+      ] as const) {
+        Object.defineProperty(enclosing, name, { value, configurable: true });
+      }
+      await act(async () => {
+        enclosing.dispatchEvent(new Event("scroll"));
+        await Promise.resolve();
+      });
+      await flush();
+    };
+    await scrollTo(1000);
+    expect(call).toHaveBeenCalledTimes(1);
+    await scrollTo(6800);
+    expect(call).toHaveBeenLastCalledWith("element.list", {
+      selection: { where: { package: "uuid-p" } },
+      limit: 200,
+      offset: 200,
+    });
+    expect(container.querySelectorAll(".row")).toHaveLength(400);
+    // The list itself does not scroll: its own scroll event pages the same way.
+    act(() => {
+      root.unmount();
+    });
+    await scrollTo(7000);
+    expect(call).toHaveBeenCalledTimes(2);
+    root = createRoot(container);
+  });
+
+  it("works without a buffer around it", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 3), total: 2 }) });
+    await partHarness(asCall(call), packageMembers(), { enclosed: false });
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
+  });
+
+  it("Escape, and Up on the first row, leave the part; Up on any other row moves up", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
+    const left: string[] = [];
+    const onLeave = (): void => {
+      left.push("left");
+    };
+    const { actions } = await partHarness(asCall(call), { ...packageMembers(), cursor: 2 }, { onLeave });
+    const list = query('[role="listbox"]');
+    const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    await act(async () => {
+      list.dispatchEvent(escape);
+      await Promise.resolve();
+    });
+    expect(escape.defaultPrevented).toBe(true);
+    expect(left).toEqual(["left"]);
+    await press(list, "ArrowUp");
+    expect(actions).toEqual([{ type: "cursor", key: "element:spec:uuid-p", cursor: 1 }]);
+    expect(left).toHaveLength(1);
+  });
+
+  it("leaves from the first row with Up, and does not scroll the page", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
+    const left: string[] = [];
+    await partHarness(asCall(call), packageMembers(), {
+      onLeave: () => {
+        left.push("left");
+      },
+    });
+    const up = new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true });
+    await act(async () => {
+      query('[role="listbox"]').dispatchEvent(up);
+      await Promise.resolve();
+    });
+    expect(up.defaultPrevented).toBe(true);
+    expect(left).toEqual(["left"]);
+  });
+
+  it("[SR-112/AK1] opening a package does not scroll to its elements", async () => {
+    const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => undefined);
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
+    await partHarness(asCall(call), packageMembers());
+    expect(texts(".row .title")).toHaveLength(5);
+    expect(scrolled).not.toHaveBeenCalled();
+    scrolled.mockRestore();
+  });
+
+  it("[SR-112/AK1] shows the selected row as the cursor moves while the part has the focus, and not otherwise", async () => {
+    const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => undefined);
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 6), total: 5 }) });
+    const shown = packageMembers();
+    const showCursor = async (cursor: number): Promise<void> => {
+      await render(
+        createElement(
+          "div",
+          { className: "buffer" },
+          createElement(ListView, {
+            call: asCall(call),
+            buffer: { ...shown, cursor },
+            revision: 0,
+            dispatch: () => undefined,
+            onData: () => undefined,
+            onEcho: () => undefined,
+            part: true,
+          }),
+        ),
+      );
+    };
+    await showCursor(0);
+    await showCursor(1);
+    expect(scrolled).not.toHaveBeenCalled();
+    act(() => {
+      query('[role="listbox"]').focus();
+    });
+    await showCursor(2);
+    expect(scrolled).toHaveBeenCalledTimes(1);
+    scrolled.mockRestore();
+  });
+
+  it("keeps the rows while the elements are asked for again after a change of the workspace", async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const call = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    const { show, data } = await partHarness(call as unknown as Call, packageMembers());
+    await act(async () => {
+      answers[0]?.({ ok: true, output: { elements: rowsOf(1, 3), total: 2 } });
+      await Promise.resolve();
+    });
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
+    await show(1);
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
+    expect(data).toEqual([["element:spec:uuid-p", { kind: "list", total: 2, incomplete: false }]]);
+    await act(async () => {
+      answers[1]?.({ ok: true, output: { elements: rowsOf(7, 8), total: 1 } });
+      await Promise.resolve();
+    });
+    expect(texts(".row .title")).toEqual(["Title 7"]);
+  });
+
+  it("does not open or page on the old rows while the elements are asked for again", async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const call = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    const { show, actions } = await partHarness(call as unknown as Call, packageMembers());
+    await act(async () => {
+      answers[0]?.({ ok: true, output: { elements: rowsOf(1, 4), total: 300 } });
+      await Promise.resolve();
+    });
+    await show(1);
+    expect(call).toHaveBeenCalledTimes(2);
+    const list = query('[role="listbox"]');
+    await press(list, "Enter");
+    await press(list, "End");
+    expect(actions.filter((action) => action.type === "open")).toEqual([]);
+    expect(call).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      answers[1]?.({ ok: true, output: { elements: rowsOf(7, 9), total: 2 } });
+      await Promise.resolve();
+    });
+    await press(query('[role="listbox"]'), "Enter");
+    expect(actions.at(-1)).toMatchObject({ type: "open", buffer: { id: "uuid-7" } });
+  });
+
+  it("takes the focus when its rows have arrived, if the focus is on the buffer around it", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
+    const around = document.createElement("div");
+    around.tabIndex = 0;
+    document.body.append(around);
+    around.focus();
+    await partHarness(asCall(call), packageMembers(), { focusOnLoad: true });
+    // The focus was on something else, not on the buffer around the part: it stays.
+    expect(document.activeElement).toBe(around);
+    around.remove();
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    // On the buffer around it (or on nothing), the part takes the focus.
+    const take = async (): Promise<void> => {
+      const answers: ((value: unknown) => void)[] = [];
+      const slow = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            answers.push(resolve);
+          }),
+      );
+      await partHarness(slow as unknown as Call, packageMembers(), { focusOnLoad: true });
+      act(() => {
+        query("#enclosing").focus();
+      });
+      await act(async () => {
+        answers[0]?.({ ok: true, output: { elements: rowsOf(1, 4), total: 3 } });
+        await Promise.resolve();
+      });
+    };
+    await take();
+    expect(document.activeElement).toBe(query('[role="listbox"]'));
+  });
+
+  it("does not take the focus when it was not asked to, or when there is nothing to select", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
+    await partHarness(asCall(call), packageMembers());
+    expect(document.activeElement).not.toBe(query('[role="listbox"]'));
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    const none = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
+    await partHarness(asCall(none), packageMembers(), { focusOnLoad: true });
+    expect(document.activeElement).not.toBe(query('[role="listbox"]'));
+  });
+});
+
 describe("ListView, a search", () => {
   const hit = (n: number, extra: object = {}) => ({
     ...row(n),
@@ -1197,7 +1491,13 @@ describe("ElementView", () => {
       ...extra,
     }) as DataExportElement;
 
-  const mount = async (call: Call, revision = 0, draft?: Draft) => {
+  const mount = async (
+    call: Call,
+    revision = 0,
+    draft?: Draft,
+    extra: { packages?: PackageModel; buffer?: ElementBuffer } = {},
+  ) => {
+    const dispatched: BufferAction[] = [];
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
     const targets: string[] = [];
@@ -1207,7 +1507,7 @@ describe("ElementView", () => {
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
-        buffer: elementBuffer("uuid-1", "spec", "SR-036 Measure wind"),
+        buffer: extra.buffer ?? elementBuffer("uuid-1", "spec", "SR-036 Measure wind"),
         revision: rev,
         onData: (key, loaded) => data.push([key, loaded]),
         onEcho: (message) => echoed.push(message),
@@ -1218,9 +1518,12 @@ describe("ElementView", () => {
         draft,
         onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
+        packages: extra.packages,
+        dispatch: (action) => dispatched.push(action),
       });
     await render(node(revision));
     return {
+      dispatched,
       data,
       echoed,
       targets,
@@ -1741,5 +2044,228 @@ describe("ElementView", () => {
     answer({ ok: true, output: { element: read() } });
     await Promise.resolve();
     root = createRoot(container);
+  });
+
+  describe("a package page (SR-112)", () => {
+    const model: PackageModel = { types: new Set(["package"]), key: "packages" };
+    const page = (extra: Partial<DataExportElement> = {}) =>
+      read({ type: "package", title: "Stufe-3", relations: [], ...extra });
+    const members = (elements = rowsOf(1, 4), total = elements.length, incomplete = false) => ({
+      elements,
+      total,
+      incomplete,
+    });
+    const packageBuffer = (extra: Partial<ElementBuffer> = {}): ElementBuffer => ({
+      ...elementBuffer("uuid-1", "spec", "PKG-0000d1 Stufe-3"),
+      ...extra,
+    });
+
+    it("[SR-112/AK1] shows below its title and text the elements that name the package, as asked of element.list by its UUID", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page({ text: "The third stage" }) }),
+        "element.list": () => members(),
+      });
+      await mount(asCall(call), 0, undefined, { packages: model });
+      expect(call).toHaveBeenCalledWith("element.list", {
+        selection: { where: { package: "uuid-1" } },
+        limit: 200,
+        offset: 0,
+      });
+      const article = query("article");
+      const order = [...article.querySelectorAll("h1, .cm-editor, .members h2, .members .row")].map(
+        (found) =>
+          found.tagName.toLowerCase() +
+          (found.className === "" ? "" : `.${found.className.split(" ")[0] ?? ""}`),
+      );
+      expect(order).toEqual(["h1", "div.cm-editor", "h2", "div.row", "div.row", "div.row"]);
+      expect(query(".members h2").textContent).toBe("← packages 3");
+      expect(texts(".members .row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
+      expect(query(".members").hasAttribute("hidden")).toBe(false);
+    });
+
+    it("[SR-112/AK1] asks once, and moving through the elements asks for nothing more", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      const { dispatched } = await mount(asCall(call), 0, undefined, { packages: model });
+      const asked = (): number => call.mock.calls.filter(([name]) => name === "element.list").length;
+      expect(asked()).toBe(1);
+      for (let n = 0; n < 3; n += 1) {
+        await press(query(".members .list"), "ArrowDown");
+      }
+      // The row is the one of the element buffer: the app keeps it as `memberCursor`.
+      expect(dispatched).toHaveLength(3);
+      expect(dispatched[0]).toEqual({ type: "cursor", key: "element:spec:uuid-1", cursor: 1 });
+      expect(asked()).toBe(1);
+    });
+
+    it("keeps the count out of the modeline: the buffer still reports the element", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      const { data } = await mount(asCall(call), 0, undefined, { packages: model });
+      expect(data.map(([, loaded]) => loaded?.kind)).toEqual([undefined, "element"]);
+    });
+
+    it("opens an element of the package on Enter, and a row that is clicked", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      const { dispatched } = await mount(asCall(call), 0, undefined, { packages: model });
+      await press(query(".members .list"), "Enter");
+      expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { kind: "element", id: "uuid-1" } });
+      await click(nth([...container.querySelectorAll(".members .row")], 2));
+      expect(dispatched.slice(-2)).toMatchObject([
+        { type: "cursor", cursor: 2 },
+        { type: "open", buffer: { kind: "element", id: "uuid-3" } },
+      ]);
+    });
+
+    it("[SR-112/AK1] asks for no elements when the element is no package, or when the metamodel has no package", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: read() }),
+        "element.list": () => members(),
+      });
+      await mount(asCall(call), 0, undefined, { packages: model });
+      expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+      expect(container.querySelector(".members")).toBeNull();
+      // Down keeps scrolling the text of an element that has no elements to go into.
+      const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+      await act(async () => {
+        query("article").dispatchEvent(down);
+        await Promise.resolve();
+      });
+      expect(down.defaultPrevented).toBe(false);
+      act(() => {
+        root.unmount();
+      });
+      root = createRoot(container);
+      const pkg = fakeCall({ "element.get": () => ({ element: page() }), "element.list": () => members() });
+      await mount(asCall(pkg));
+      expect(pkg.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+    });
+
+    it("shows no heading and nothing to select when no element names the package", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members([], 0),
+      });
+      const { controls } = await mount(asCall(call), 0, undefined, { packages: model });
+      expect(query(".members").hasAttribute("hidden")).toBe(true);
+      expect(container.querySelector(".members h2")).toBeNull();
+      expect(container.querySelector(".members .row")).toBeNull();
+      expect(controls().members).toBe(true);
+      // Down has nothing to go into: the page keeps its key.
+      const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+      await act(async () => {
+        query("article").dispatchEvent(down);
+        await Promise.resolve();
+      });
+      expect(down.defaultPrevented).toBe(false);
+    });
+
+    it("says that a repository is missing in the count, and how the elements are sorted", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(rowsOf(1, 3), 2, true),
+      });
+      await mount(asCall(call), 0, undefined, {
+        packages: model,
+        buffer: packageBuffer({ memberSort: [{ by: "hierarchy", order: "asc" }] }),
+      });
+      expect(query(".members h2").textContent).toBe(
+        "← packages 2 · incomplete: a repository is missing · tree",
+      );
+      expect(call).toHaveBeenCalledWith("element.list", {
+        selection: { where: { package: "uuid-1" } },
+        sort: [{ by: "hierarchy", order: "asc" }],
+        limit: 200,
+        offset: 0,
+      });
+    });
+
+    it("shows why the elements could not be asked for, and echoes it", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => new Error("The reference matches several elements"),
+      });
+      const { echoed } = await mount(asCall(call), 0, undefined, { packages: model });
+      expect(query(".members .quiet").textContent).toBe("The reference matches several elements");
+      expect(echoed).toEqual(["The reference matches several elements"]);
+      expect(container.querySelector(".members h2")).toBeNull();
+    });
+
+    it("Down on the page itself goes into the elements, Escape and Up on the first row come back; Enter still edits", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      await mount(asCall(call), 0, undefined, { packages: model });
+      const article = query("article");
+      article.focus();
+      const modified = new KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      await act(async () => {
+        article.dispatchEvent(modified);
+        await Promise.resolve();
+      });
+      expect(modified.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(article);
+      await press(article, "ArrowDown");
+      expect(document.activeElement).toBe(query(".members .list"));
+      await press(query(".members .list"), "ArrowUp");
+      expect(document.activeElement).toBe(article);
+      await press(article, "ArrowDown");
+      await press(query(".members .list"), "Escape");
+      expect(document.activeElement).toBe(article);
+      // A key of the list does not reach the page's own handling.
+      await press(query(".members .row"), "ArrowDown");
+      expect(document.activeElement).toBe(article);
+      await press(article, "Enter");
+      expect(editorView().hasFocus).toBe(true);
+    });
+
+    it("comes back to the elements with the focus when the reader used them before", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      await mount(asCall(call), 0, undefined, {
+        packages: model,
+        buffer: packageBuffer({ memberCursor: 2 }),
+      });
+      expect(document.activeElement).toBe(query(".members .list"));
+      expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    });
+
+    it("keeps the focus on the page when the reader has not used the elements before", async () => {
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(),
+      });
+      await mount(asCall(call), 0, undefined, { packages: model });
+      expect(document.activeElement).not.toBe(query(".members .list"));
+    });
+
+    it("[SR-112/AK1] asks for the elements again when the workspace changed, and keeps them until the answer", async () => {
+      let names = ["Title 1", "Title 2", "Title 3"];
+      const call = fakeCall({
+        "element.get": () => ({ element: page() }),
+        "element.list": () => members(names.map((_, at) => row(at + 1))),
+      });
+      const { again } = await mount(asCall(call), 0, undefined, { packages: model });
+      names = ["Title 1"];
+      await again(1);
+      expect(call.mock.calls.filter(([name]) => name === "element.list")).toHaveLength(2);
+      expect(texts(".members .row .title")).toEqual(["Title 1"]);
+      expect(query(".members h2").textContent).toBe("← packages 1");
+    });
   });
 });

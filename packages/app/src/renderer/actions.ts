@@ -7,7 +7,7 @@
 // The prompt finds the app's actions. Catalog commands come with #85: they need arguments, so they wait
 // for argument entry.
 import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
-import type { BufferAction, Buffers, FilterStep, ListBuffer } from "./buffers.js";
+import type { BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   bufferName,
   filteredList,
@@ -59,6 +59,8 @@ export interface ElementControls {
   readonly edit: () => void;
   /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
   readonly follow: () => void;
+  /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
+  readonly members?: boolean;
 }
 
 export interface ActionContext {
@@ -112,6 +114,11 @@ const isList = (context: ActionContext): boolean => currentList(context) !== und
 const isFiltered = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 0;
 const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
+/** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
+const packagePage = (context: ActionContext): ElementBuffer | undefined => {
+  const shown = context.buffers[0];
+  return shown?.kind === "element" && context.element?.members === true ? shown : undefined;
+};
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
 /** A buffer is open that can be closed: the lone overview cannot, it comes back (SR-118). */
 const hasBuffers = (context: ActionContext): boolean =>
@@ -144,6 +151,14 @@ const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[] | 
   ["Status descending", [{ by: "status", order: "desc" }]],
   ["Hierarchy (tree)", [{ by: "hierarchy", order: "asc" }]],
 ];
+
+/** The choices of the prompt "Sort by"; `apply` gets the sort of the one that is taken. */
+const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[] | undefined) => void): Choice[] =>
+  SORTS.map(([name, sort]) =>
+    choice(name, () => {
+      apply(sort);
+    }),
+  );
 
 /** The prompt of Ctrl/Cmd+P: the open buffers (not the shown one), and elements found by `element.search`. */
 export const jumpPrompt = (context: ActionContext): Prompt => ({
@@ -421,17 +436,25 @@ export const ACTIONS: readonly Action[] = [
   {
     id: "sort",
     title: "Sort list",
-    available: isList,
-    run: onList((context, list) => {
-      context.ask({
-        label: "Sort by",
-        items: SORTS.map(([name, sort]) =>
-          choice(name, () => {
-            context.dispatch({ type: "open", buffer: filteredList(list.steps, sort) });
-          }),
-        ),
-      });
-    }),
+    available: (context: ActionContext): boolean => isList(context) || packagePage(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const list = currentList(context);
+      const page = packagePage(context);
+      let apply: ((sort: readonly FilterSortKeyWithDefaults[] | undefined) => void) | undefined;
+      if (list !== undefined) {
+        apply = (sort) => {
+          context.dispatch({ type: "open", buffer: filteredList(list.steps, sort) });
+        };
+      } else if (page !== undefined) {
+        // The package page stays the element buffer (editor and draft included): the same key replaces it.
+        apply = (sort) => {
+          context.dispatch({ type: "open", buffer: { ...page, memberSort: sort, memberCursor: 0 } });
+        };
+      }
+      if (apply !== undefined) {
+        context.ask({ label: "Sort by", items: sortChoices(apply) });
+      }
+    },
   },
   {
     id: "close",

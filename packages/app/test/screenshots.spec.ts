@@ -87,3 +87,24 @@ test("screenshots of the main view on the specification workspace", async () => 
     await running.close();
   }
 });
+
+test("screenshot of a package page on the specification workspace (SR-112)", async () => {
+  const running = await launchApp({ folder: SPEC });
+  const { window } = running;
+  try {
+    await fs.mkdir(OUT, { recursive: true });
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    await expect(window.getByLabel("Modeline")).toContainText("elements");
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Stufe-3");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Stufe-3");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Stufe 3: Oberfläche");
+    await expect(window.locator(".members .row").first()).toBeVisible();
+    await window.screenshot({ path: path.join(OUT, "package-page.png") });
+  } finally {
+    await running.close();
+  }
+});

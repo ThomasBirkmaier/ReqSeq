@@ -85,7 +85,11 @@ const workspace = (): Record<string, Handler> => ({
     total: 1,
     incomplete: false,
   }),
-  "metamodel.get": () => ({ types: [{ key: "need", name: "Need" }], statuses: [{ key: "draft" }] }),
+  "metamodel.get": () => ({
+    types: [{ key: "need", name: "Need" }],
+    statuses: [{ key: "draft" }],
+    meanings: {},
+  }),
   "filter.list": () => ({ filters: [] }),
   "element.facets": () => ({
     total: 3,
@@ -517,7 +521,7 @@ describe("App", () => {
     act(() => {
       root.unmount();
     });
-    names({ ok: true, output: { types: [{ key: "need", name: "Need" }], statuses: [] } });
+    names({ ok: true, output: { types: [{ key: "need", name: "Need" }], statuses: [], meanings: {} } });
     await Promise.resolve();
     root = createRoot(container);
   });
@@ -1130,5 +1134,262 @@ describe("App, the text editor", () => {
     expect(editorView().hasFocus).toBe(true);
     await keyDown(query(".cm-content"), "Escape");
     expect(document.activeElement).toBe(query("article"));
+  });
+});
+
+describe("App, the package page (SR-112)", () => {
+  /** A package "Stufe-3" and three elements that name it; the start list is of no concern to these tests. */
+  const withPackage = (forMembers?: Handler): Record<string, Handler> => {
+    const handlers = workspace();
+    const members = [row(2), row(3), row(4)];
+    handlers["metamodel.get"] = () => ({
+      types: [
+        { key: "need", name: "Need" },
+        { key: "package", name: "Package", meaning: "package" },
+      ],
+      statuses: [{ key: "draft" }],
+      meanings: { package: ["package"], packages: ["packages"] },
+    });
+    handlers["element.get"] = (input) => {
+      const id = String(input["ref"]);
+      return {
+        element:
+          id === "uuid-p"
+            ? row(0, {
+                id: "uuid-p",
+                shortId: "PKG-0000d1",
+                type: "package",
+                title: "Stufe-3",
+                text: "Third stage",
+              })
+            : row(Number(id.replace("uuid-", "")), { text: "Hello" }),
+      };
+    };
+    handlers["element.search"] = (input) => {
+      const found = String(input["query"]).toLowerCase().startsWith("stufe")
+        ? row(0, { id: "uuid-p", shortId: "PKG-0000d1", type: "package", title: "Stufe-3" })
+        : row(2);
+      return {
+        hits: [{ ...found, score: 1, fields: ["title"], terms: [String(input["query"])] }],
+        total: 1,
+        incomplete: false,
+      };
+    };
+    handlers["element.list"] = (input) => {
+      const selection = input["selection"] as { where?: { package?: string } } | undefined;
+      if (selection?.where?.package === undefined) {
+        return { elements: [row(1)], total: 1 };
+      }
+      if (forMembers !== undefined) {
+        return forMembers(input);
+      }
+      const sort = input["sort"] as { by: string; order: string }[] | undefined;
+      if (sort?.[0]?.by === "hierarchy") {
+        return {
+          elements: members,
+          tree: [0, 1, 0].map((depth, at) => ({ id: `uuid-${String(at + 2)}`, repository: "spec", depth })),
+          total: 3,
+        };
+      }
+      return {
+        elements: sort?.[0]?.order === "desc" ? [...members].reverse() : members,
+        total: 3,
+        incomplete: false,
+      };
+    };
+    return handlers;
+  };
+
+  const openPackage = async (handlers = withPackage()) => {
+    const fake = fakeBridge(handlers);
+    await render(fake.bridge);
+    await keyDown(window, "p", { ctrlKey: true });
+    await type("stufe");
+    await keyDown(query("input"), "Enter");
+    return fake;
+  };
+
+  const memberCalls = (invoke: ReturnType<typeof fakeBridge>["invoke"]): unknown[] =>
+    calls(invoke, "element.list").filter(
+      (input) => (input as { selection?: unknown }).selection !== undefined,
+    );
+
+  const memberTitles = (): string[] =>
+    [...container.querySelectorAll(".members .row .title")].map((title) => title.textContent);
+
+  it("[SR-112/AK1] an opened package shows below its title and text every element that names it", async () => {
+    const { invoke } = await openPackage();
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    expect(memberCalls(invoke)).toEqual([
+      { selection: { where: { package: "uuid-p" } }, limit: 200, offset: 0 },
+    ]);
+    const parts = [
+      ...container.querySelectorAll(
+        "article h1, article .cm-editor, article .members h2, article .members .row",
+      ),
+    ];
+    expect(parts.map((part) => part.tagName)).toEqual(["H1", "DIV", "H2", "DIV", "DIV", "DIV"]);
+    expect(parts[1]?.className).toContain("cm-editor");
+    expect(query(".members h2").textContent).toBe("← packages 3");
+    expect(memberTitles()).toEqual(["Title 2", "Title 3", "Title 4"]);
+    // The page is the element: the modeline names it, and the focus is on its text, not on the elements.
+    expect(text("Modeline")).toBe("PKG-0000d1 · Package · draftWeather stationread-only");
+    expect(document.activeElement).toBe(query("article"));
+  });
+
+  it("[SR-112/AK1] an element that is no package asks for no elements", async () => {
+    const fake = fakeBridge(withPackage());
+    await render(fake.bridge);
+    await keyDown(window, "p", { ctrlKey: true });
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 2");
+    expect(container.querySelector(".members")).toBeNull();
+    expect(memberCalls(fake.invoke)).toEqual([]);
+  });
+
+  it("[SR-112/AK1] a package that no element names shows no heading", async () => {
+    await openPackage(withPackage(() => ({ elements: [], total: 0 })));
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    expect(container.querySelector(".members h2")).toBeNull();
+    expect(query(".members").hasAttribute("hidden")).toBe(true);
+  });
+
+  it("echoes why the elements of a package could not be listed", async () => {
+    await openPackage(withPackage(() => new Error("The reference matches several elements")));
+    expect(text("Minibuffer")).toBe("The reference matches several elements");
+    expect(query(".members .quiet").textContent).toBe("The reference matches several elements");
+  });
+
+  it("the elements of a package are asked for once, and moving through them asks for nothing more", async () => {
+    const { invoke } = await openPackage();
+    expect(memberCalls(invoke)).toHaveLength(1);
+    await keyDown(query("article"), "ArrowDown");
+    for (let n = 0; n < 3; n += 1) {
+      await keyDown(query(".members .list"), "ArrowDown");
+    }
+    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(memberCalls(invoke)).toHaveLength(1);
+    expect(calls(invoke, "element.get")).toHaveLength(1);
+  });
+
+  it("Down moves into the elements, Enter opens one, and Ctrl+P Enter comes back to the same row", async () => {
+    const { invoke } = await openPackage();
+    await keyDown(query("article"), "ArrowDown");
+    expect(document.activeElement).toBe(query(".members .list"));
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 3");
+    await keyDown(window, "p", { ctrlKey: true });
+    expect(query('[role="option"]').textContent).toContain("Stufe-3");
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    // The focus is on the row that was used, as it is on a list.
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 4");
+    expect(calls(invoke, "element.get").map((input) => (input as { ref: string }).ref)).toEqual([
+      "uuid-p",
+      "uuid-3",
+      "uuid-p",
+      "uuid-4",
+    ]);
+  });
+
+  it("Enter on the first row opens it, and Ctrl+P Enter comes back to row 0 with Down and Enter opening the next", async () => {
+    await openPackage();
+    await keyDown(query("article"), "ArrowDown");
+    await keyDown(query(".members .list"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 2");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 3");
+  });
+
+  it("Escape in the elements returns the focus to the page, and Enter on the page still edits the text", async () => {
+    await openPackage();
+    await keyDown(query("article"), "ArrowDown");
+    await keyDown(query(".members .list"), "Escape");
+    expect(document.activeElement).toBe(query("article"));
+    await keyDown(query("article"), "Enter");
+    expect(EditorView.findFromDOM(query(".cm-editor"))?.hasFocus).toBe(true);
+  });
+
+  it('[SR-112/AK2] "Sort list" sorts the elements of the package, and the page stays the same element', async () => {
+    const { invoke } = await openPackage();
+    await runCommand("sort list");
+    expect(query("label").textContent).toBe("Sort by");
+    await type("title desc");
+    await keyDown(query("input"), "Enter");
+    expect(memberCalls(invoke).at(-1)).toEqual({
+      selection: { where: { package: "uuid-p" } },
+      sort: [{ by: "title", order: "desc" }],
+      limit: 200,
+      offset: 0,
+    });
+    expect(memberTitles()).toEqual(["Title 4", "Title 3", "Title 2"]);
+    expect(query(".members h2").textContent).toBe("← packages 3 · sorted by title descending");
+    // The element buffer was replaced in place: its text was not asked for again, and no second buffer is open.
+    expect(calls(invoke, "element.get")).toHaveLength(1);
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    expect(document.activeElement).toBe(query("article"));
+  });
+
+  it('[SR-112/AK2] "Hierarchy (tree)" shows the elements of the package as the derivation tree', async () => {
+    const { invoke } = await openPackage();
+    await runCommand("sort list");
+    await type("hier");
+    await keyDown(query("input"), "Enter");
+    expect(memberCalls(invoke).at(-1)).toEqual({
+      selection: { where: { package: "uuid-p" } },
+      sort: [{ by: "hierarchy", order: "asc" }],
+      limit: 200,
+      offset: 0,
+    });
+    expect(
+      [...container.querySelectorAll<HTMLElement>(".members .row .title")].map(
+        (title) => title.style.paddingLeft,
+      ),
+    ).toEqual(["0rem", "1.25rem", "0rem"]);
+    expect(query(".members h2").textContent).toBe("← packages 3 · tree");
+  });
+
+  it("[SR-112/AK2] the sort and the row of the elements are kept while the buffer is open", async () => {
+    await openPackage();
+    await runCommand("sort list");
+    await type("title desc");
+    await keyDown(query("input"), "Enter");
+    await keyDown(query("article"), "ArrowDown");
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 3");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(memberTitles()).toEqual(["Title 4", "Title 3", "Title 2"]);
+    expect(query(".members h2").textContent).toBe("← packages 3 · sorted by title descending");
+    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+  });
+
+  it("asks for the elements again when the workspace changed, and keeps them until the answer", async () => {
+    const { invoke, change } = await openPackage();
+    await change("written");
+    expect(memberCalls(invoke)).toHaveLength(2);
+    expect(memberTitles()).toEqual(["Title 2", "Title 3", "Title 4"]);
+  });
+
+  it("has no package page when the metamodel cannot be read", async () => {
+    const handlers = withPackage();
+    handlers["metamodel.get"] = () => new Error("The metamodel is broken");
+    const { invoke } = await openPackage(handlers);
+    expect(query("article h1").textContent).toBe("Stufe-3");
+    expect(container.querySelector(".members")).toBeNull();
+    expect(memberCalls(invoke)).toEqual([]);
   });
 });
