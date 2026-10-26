@@ -16,7 +16,9 @@ export default defineConfig({
     // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
     // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types
     // by default only from 22.18; the flag does it on every Node 22 that `engines` allows.
+    // `--expose-gc`: heap measurements collect garbage first (packages/core/test/perf/search-index.test.ts).
     execArgv: [
+      "--expose-gc",
       "--experimental-strip-types",
       "--import",
       new URL("./scripts/test-support/worker-preload.mjs", import.meta.url).href,

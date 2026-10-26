@@ -33,8 +33,8 @@ import {
   resolveTarget,
   shortIdState,
   titleKeyOf,
-  warmWorkspace,
 } from "../../src/model/index.js";
+import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import {
   affectedOutput,

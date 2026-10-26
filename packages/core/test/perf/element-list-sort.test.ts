@@ -10,7 +10,8 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from 
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
-import { elementStoreState, shortIdState, warmWorkspace } from "../../src/model/index.js";
+import { elementStoreState, shortIdState } from "../../src/model/index.js";
+import { warmWorkspace } from "../../src/runtime/warm.js";
 import { invoke } from "../../src/runtime/invoke.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 

@@ -123,11 +123,36 @@ export class Workspace {
   readonly cacheFolder: string | undefined;
   readonly #state = new Map<WorkspaceState<unknown>, unknown>();
   #closed = false;
+  /** Commands that run on this workspace now (`invoke`). */
+  #commands = 0;
 
   /** Creates the object only; nothing is read until a command asks for state. */
   constructor(root: string, options: WorkspaceOptions = {}) {
     this.root = path.resolve(root);
     this.cacheFolder = options.cacheFolder;
+  }
+
+  /** Whether `close` was called: a long build may stop then, since nobody can read its result. */
+  get closed(): boolean {
+    return this.#closed;
+  }
+
+  /**
+   * Whether a command runs on this workspace now (`invoke`, `runCommand`): work in the background
+   * (the search index, ADR-0008) waits meanwhile, so that it does not slow the answer down.
+   */
+  get busy(): boolean {
+    return this.#commands > 0;
+  }
+
+  /** Runs `command` as a command on this workspace: `busy` while it runs (`invoke`). */
+  async runCommand<T>(command: () => Promise<T>): Promise<T> {
+    this.#commands += 1;
+    try {
+      return await command();
+    } finally {
+      this.#commands -= 1;
+    }
   }
 
   /** The state of this workspace for `key`, created on first use and kept until `reset` or `close`. */

@@ -8,8 +8,9 @@ import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from 
 import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
-import { currentVersions, elementStoreState, warmWorkspace } from "../../src/model/index.js";
+import { currentVersions, elementStoreState } from "../../src/model/index.js";
 import { invoke } from "../../src/runtime/invoke.js";
+import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 
 const ELEMENTS = 50_000;

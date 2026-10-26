@@ -1,5 +1,5 @@
-// Opening a workspace ahead of the first command (SR-082): a server loads what every command reads
-// before it answers, so "the API answers" means "the workspace is usable".
+// Opening the model of a workspace ahead of the first command (SR-082), for `warmWorkspace`
+// (`runtime/warm.ts`), which also warms the blocks built on the model.
 import { metamodelState } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { elementStoreState } from "./store.js";
@@ -13,7 +13,7 @@ import { shortIdState } from "./short-id.js";
  * carries it over, #267). Never rejects: a state that fails to build is dropped, and the first
  * command that needs it reports the error.
  */
-export const warmWorkspace = async (workspace: Workspace): Promise<void> => {
+export const warmModel = async (workspace: Workspace): Promise<void> => {
   await Promise.allSettled([
     (async () => workspace.get(shortIdState))(),
     (async () => {

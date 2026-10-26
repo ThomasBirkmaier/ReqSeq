@@ -534,6 +534,22 @@ const savesState = defineWorkspaceState(
   { dispose: (queue) => queue.tail },
 );
 
+/**
+ * Queues `write` behind the other saves of the cache of `workspace` (the model cache, the search
+ * index), one after the other; closing the workspace waits for them. A workspace that is closed
+ * writes nothing any more. `write` must not reject.
+ */
+export const queueCacheSave = (workspace: Workspace, write: () => Promise<void>): void => {
+  let queue: { tail: Promise<void> };
+  try {
+    queue = workspace.get(savesState);
+  } catch {
+    // Closed while loading: nothing is written any more.
+    return;
+  }
+  queue.tail = queue.tail.then(write);
+};
+
 /** Writes `model.json` for `store`; a failure is ignored, since the cache only saves time. */
 const save = async (folder: string, root: string, store: LoadedStore, startedAt: number): Promise<void> => {
   // Let the callers waiting for the store go first.
@@ -556,7 +572,6 @@ export const readModelCache = async (folder: string, root: string): Promise<Mode
   return text === undefined ? undefined : parseModelCache(text, root);
 };
 
-/** Whether `folder` is a repository folder of `layout` or lies inside one. */
 /**
  * The canonical name of `folder` (`canonicalRoot`), also before it exists: the nearest folder above
  * it that exists is resolved, and the rest of the name is appended. So a cache folder that does not
@@ -572,12 +587,23 @@ const canonicalFolder = (folder: string): string => {
   return canonicalRoot(path.join(canonicalRoot(existing), ...rest));
 };
 
+/** Whether `folder` is a repository folder of `layout` or lies inside one. */
 const insideRepository = (folder: string, layout: WorkspaceLayout): boolean => {
   const canonical = canonicalFolder(folder);
   return availableRepositories(layout).some((repository) => {
     const relative = path.relative(canonicalRoot(repository.folder), canonical);
     return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
   });
+};
+
+/**
+ * The cache folder of `workspace` (`WorkspaceOptions.cacheFolder`) when it has one that lies
+ * outside every repository of `layout`; undefined otherwise. The cache must not become part of a
+ * working tree (ADR-0008).
+ */
+export const usableCacheFolder = (workspace: Workspace, layout: WorkspaceLayout): string | undefined => {
+  const folder = workspace.cacheFolder;
+  return folder === undefined || insideRepository(folder, layout) ? undefined : folder;
 };
 
 /**
@@ -602,14 +628,7 @@ export const loadThroughCache = async (
   const use = new CacheUse(await readModelCache(folder, root));
   const store = await load(use.split);
   if (use.outOfDate(store)) {
-    let queue: { tail: Promise<void> };
-    try {
-      queue = workspace.get(savesState);
-    } catch {
-      // Closed while loading: nothing is written any more.
-      return store;
-    }
-    queue.tail = queue.tail.then(() => save(folder, root, store, startedAt));
+    queueCacheSave(workspace, () => save(folder, root, store, startedAt));
   }
   return store;
 };

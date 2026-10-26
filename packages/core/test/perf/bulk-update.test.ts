@@ -9,7 +9,8 @@ import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/te
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";
-import { elementStoreState, warmWorkspace } from "../../src/model/index.js";
+import { elementStoreState } from "../../src/model/index.js";
+import { warmWorkspace } from "../../src/runtime/warm.js";
 import { Workspace } from "../../src/runtime/workspace.js";
 import { standardModel, versionOf } from "./core-version.js";
 

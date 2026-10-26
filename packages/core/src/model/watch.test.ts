@@ -6,6 +6,8 @@ import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
+import { searchElements } from "../query/search-index.js";
+import { searchIndex } from "../query/search-state.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace, defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -274,7 +276,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(workspace.peek(workspaceLayoutState)).toBe(layout);
   });
 
-  it("[SR-007/AK2] has relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
+  it("[SR-007/AK2] has search, relations and status of 1,000 files changed by a pull current within 10 seconds", async () => {
     const count = 1000;
     const files: Record<string, string> = {};
     for (let i = 1; i <= count; i++) {
@@ -292,7 +294,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     for (let i = 1; i <= count; i++) {
       upstreamFiles[`pulled/SR-${uuid(i).slice(-12)}.md`] = requirement(
         uuid(i),
-        `Requirement ${String(i)}`,
+        `Requirement ${String(i)} pulled`,
         "approved",
         target,
       );
@@ -303,6 +305,8 @@ describe("watching a workspace with the file system (SR-007)", () => {
     const store = await workspace.get(elementStoreState);
     expect(records(store, uuid(1))[0]?.data["status"]).toBe("draft");
     expect(resolveId(store.byId, target).kind).toBe("unknown");
+    // A server holds the search index from its start (`warmWorkspace`).
+    expect(searchElements(await searchIndex(workspace), "pulled").total).toBe(0);
     await watching(fixture, workspace);
 
     // The pull: Git writes the 1,000 changed files (and the new need) into the working tree.
@@ -321,7 +325,8 @@ describe("watching a workspace with the file system (SR-007)", () => {
           return false;
         }
       }
-      return true;
+      // The search finds the pulled texts (the index carried over the watcher's batches).
+      return searchElements(await searchIndex(workspace), "pulled").total === count;
     };
     const elapsed = await within(PULL_LIMIT_MS, current);
     expect(elapsed).toBeLessThanOrEqual(PULL_LIMIT_MS);

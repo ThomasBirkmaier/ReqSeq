@@ -31,7 +31,7 @@ import { incomingState } from "./incoming.js";
 import { shortIdState } from "./short-id.js";
 import type { LoadedStore } from "./store.js";
 import { elementStoreState, loadElements } from "./store.js";
-import { warmWorkspace } from "./warm.js";
+import { warmModel } from "./warm.js";
 
 const WORKSPACE =
   "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
@@ -815,15 +815,15 @@ describe("codeFingerprint", () => {
   });
 });
 
-describe("warmWorkspace", () => {
+describe("warmModel", () => {
   it("loads the store and the short IDs and builds the incoming index ahead of the first command", async () => {
     const ws = await fixture();
     const workspace = new Workspace(ws.root);
     onTestFinished(() => workspace.close());
-    await warmWorkspace(workspace);
+    await warmModel(workspace);
     const store = await workspace.peek(elementStoreState);
     if (store === undefined) {
-      throw new Error("warmWorkspace did not load the store");
+      throw new Error("warmModel did not load the store");
     }
     expect((await workspace.peek(shortIdState))?.tail(ID_A)).toBe("3f4a5b");
     // The first chain after a start finds the index ready (SR-082 AK4, #227).
@@ -834,9 +834,9 @@ describe("warmWorkspace", () => {
     const empty = await tempFolder();
     const broken = new Workspace(empty);
     onTestFinished(() => broken.close());
-    await expect(warmWorkspace(broken)).resolves.toBeUndefined();
+    await expect(warmModel(broken)).resolves.toBeUndefined();
     const closed = new Workspace(empty);
     await closed.close();
-    await expect(warmWorkspace(closed)).resolves.toBeUndefined();
+    await expect(warmModel(closed)).resolves.toBeUndefined();
   });
 });

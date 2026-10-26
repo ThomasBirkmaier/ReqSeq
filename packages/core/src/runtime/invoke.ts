@@ -136,12 +136,15 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     const signal = ctx.signal ?? new AbortController().signal;
     let output: unknown;
     try {
-      if (guarded.has(name)) {
-        await assertWritable(ctx.workspace, name);
-      }
-      output = await command.run({ workspace: ctx.workspace, signal }, checked as never);
-      // Every problem that names an element names its short ID too (#315).
-      output = await withElementShortIds(ctx.workspace, locators.get(name), output);
+      // Background work of the workspace (the search index) waits while the command runs.
+      output = await ctx.workspace.runCommand(async () => {
+        if (guarded.has(name)) {
+          await assertWritable(ctx.workspace, name);
+        }
+        const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
+        // Every problem that names an element names its short ID too (#315).
+        return withElementShortIds(ctx.workspace, locators.get(name), result);
+      });
     } catch (error) {
       throw toCommandError(name, error, signal);
     }
