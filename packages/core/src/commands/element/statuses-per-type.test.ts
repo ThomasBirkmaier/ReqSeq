@@ -58,6 +58,23 @@ const setStatus = (opened: Opened, refs: readonly string[], status: string): Pro
 const supersede = (opened: Opened, input: Record<string, unknown>): Promise<unknown> =>
   invoke("element.supersede", input, { workspace: opened.workspace });
 
+const fixtureModel = (): Promise<string> =>
+  fs.readFile(
+    new URL("../../../../../fixtures/enabler-306/statuses-per-type/metamodel/model.yaml", import.meta.url),
+    "utf8",
+  );
+
+const metamodelProblems = async (opened: Opened): Promise<CommandOutput<"metamodel.get">["problems"]> =>
+  ((await invoke("metamodel.get", {}, { workspace: opened.workspace })) as CommandOutput<"metamodel.get">)
+    .problems;
+
+const statusHints = async (opened: Opened): Promise<readonly string[]> =>
+  (
+    (await invoke("workspace.check", {}, { workspace: opened.workspace })) as CommandOutput<"workspace.check">
+  ).problems
+    .filter((p) => p.code === "element.missing-status" || p.code === "element.status-not-allowed")
+    .map((p) => `${p.code} ${p.file ?? ""}`);
+
 describe("element.create with statuses per type (#306)", () => {
   it("gives a new element the initial status when its type has it, also a type without a list", async () => {
     const opened = await open();
@@ -76,14 +93,10 @@ describe("element.create with statuses per type (#306)", () => {
     expect(decision.problems).toEqual([]);
   });
 
-  it("never gives a new element an invalid status: it skips them, and refuses a type with only invalid ones", async () => {
-    const model = await fs.readFile(
-      new URL("../../../../../fixtures/enabler-306/statuses-per-type/metamodel/model.yaml", import.meta.url),
-      "utf8",
-    );
+  it("never gives a new element an invalid status: it skips them, and gives none to a type with only invalid ones", async () => {
     // `superseded` (invalid) comes before `archived` in the metamodel's statuses.
     const opened = await open({
-      "metamodel/model.yaml": model
+      "metamodel/model.yaml": (await fixtureModel())
         .replace(
           "properties:\n  - key: title",
           "  - { key: ruling, name: Ruling, prefix: RUL, properties: [title], statuses: [archived, superseded] }\n  - { key: tombstone, name: Tombstone, prefix: TS, properties: [title], statuses: [obsolete, superseded] }\n\nproperties:\n  - key: title",
@@ -93,41 +106,16 @@ describe("element.create with statuses per type (#306)", () => {
           "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: archived, name: Archived }\n",
         ),
     });
-    const metamodel = (await invoke(
-      "metamodel.get",
-      {},
-      { workspace: opened.workspace },
-    )) as CommandOutput<"metamodel.get">;
-    expect(metamodel.problems).toEqual([
-      {
-        code: "metamodel.invalid",
-        severity: "warning",
-        repository: "system",
-        message:
-          "Type tombstone has only statuses marked invalid (obsolete, superseded); element.create refuses new elements of it, as they would be superseded at once",
-        file: "metamodel/model.yaml",
-        line: 34,
-      },
-    ]);
-    const ruling = (await invoke(
-      "element.create",
-      { type: "ruling", title: "A ruling", folder: "elements" },
-      { workspace: opened.workspace },
-    )) as CommandOutput<"element.create">;
+    // A type with only invalid statuses is no metamodel problem any more (#344, option 1).
+    expect(await metamodelProblems(opened)).toEqual([]);
+    const ruling = await create(opened, "ruling");
     expect(ruling.element.status).toBe("archived");
-    const error = await errorOf(() =>
-      invoke(
-        "element.create",
-        { type: "tombstone", title: "Gone", folder: "elements" },
-        { workspace: opened.workspace },
-      ),
+    const tombstone = await create(opened, "tombstone");
+    expect(tombstone.element).not.toHaveProperty("status");
+    expect(tombstone.problems).toEqual([]);
+    expect(await read(opened, tombstone.element.file)).toMatch(
+      /^---\nid: [0-9a-f-]+\ntype: tombstone\ntitle: /,
     );
-    expect(error.toJSON()).toEqual({
-      code: "input.invalid",
-      message:
-        "Type Tombstone (tombstone) has only statuses marked invalid, so a new element of it would be superseded at once; give the type a status that is not invalid",
-      details: { type: "tombstone", reason: "initial-status", statuses: ["obsolete", "superseded"] },
-    });
   });
 
   it("writes no status for a type without status and gives no hint", async () => {
@@ -266,5 +254,106 @@ describe("element.supersede with statuses per type (#306)", () => {
       details: { reason: "not-invalid", allowed: [] },
     });
     expect(await read(opened, SR_ACCEPTED)).toContain("status: accepted\n");
+  });
+});
+
+/** Glossary terms that can be retired: one status, marked invalid (decision on #344, option 1). */
+const RETIRABLE = {
+  type: "  - { key: glossary-term, name: Glossary Term, prefix: GT, properties: [title], statuses: [retired] }\n\nproperties:\n  - key: title",
+  status:
+    "  - { key: superseded, name: Superseded, invalid: true }\n  - { key: retired, name: Retired, invalid: true }\n",
+};
+const GLOSSARY = "elements/GT-000000fff001.md";
+const GLOSSARY_TEXT =
+  "---\nid: 6f6f6f6f-6666-4666-8666-000000fff001\ntype: glossary-term\ntitle: Baseline\n---\n";
+
+const openRetirable = async (): Promise<Opened> =>
+  open({
+    "metamodel/model.yaml": (await fixtureModel())
+      .replace("properties:\n  - key: title", RETIRABLE.type)
+      .replace("  - { key: superseded, name: Superseded, invalid: true }\n", RETIRABLE.status),
+    [GLOSSARY]: GLOSSARY_TEXT,
+  });
+
+describe("a type whose statuses are all marked invalid (#344, option 1)", () => {
+  it("is no metamodel problem, and an element of it without status gets no hint", async () => {
+    const opened = await openRetirable();
+    expect(await metamodelProblems(opened)).toEqual([]);
+    // The hints of the fixture itself, none for the glossary term.
+    expect(await statusHints(opened)).toEqual([
+      "element.status-not-allowed elements/D-000000ddd002.md",
+      "element.status-not-allowed elements/SR-000000bbb002.md",
+      "element.missing-status elements/SR-000000bbb003.md",
+      "element.status-not-allowed elements/T-000000eee002.md",
+    ]);
+  });
+
+  it("gives a new element of it no status, so it is current", async () => {
+    const opened = await openRetirable();
+    const term = await create(opened, "glossary-term");
+    expect(term.element).not.toHaveProperty("status");
+    expect(term.problems).toEqual([]);
+    expect(await read(opened, term.element.file)).toBe(
+      `---\nid: ${term.element.id}\ntype: glossary-term\ntitle: A new glossary-term\n---\n`,
+    );
+  });
+
+  it("retires an element of it with element.supersede, which appends the status line (ADR-0007)", async () => {
+    const opened = await openRetirable();
+    const out = await supersede(opened, { ref: "GT-fff001", status: "Retired" });
+    expect(out).toMatchObject({ files: [GLOSSARY] });
+    expect(await read(opened, GLOSSARY)).toBe(
+      GLOSSARY_TEXT.replace("title: Baseline\n", "title: Baseline\nstatus: retired\n"),
+    );
+    expect((await statusHints(opened)).filter((h) => h.includes("GT-"))).toEqual([]);
+  });
+
+  it("still takes only its own invalid statuses", async () => {
+    const opened = await openRetirable();
+    const error = await errorOf(() => supersede(opened, { ref: "GT-fff001", status: "superseded" }));
+    expect(error.details).toMatchObject({ reason: "status-not-allowed", allowed: ["retired"] });
+    expect(await read(opened, GLOSSARY)).toBe(GLOSSARY_TEXT);
+  });
+});
+
+describe("an initial status that is marked invalid (#350)", () => {
+  /** `gone` is the initial status and marked invalid; `draft` is no longer initial. */
+  const openInvalidInitial = async (): Promise<Opened> =>
+    open({
+      "metamodel/model.yaml": (await fixtureModel())
+        .replace(
+          "properties:\n  - key: title",
+          "  - { key: gone-only, name: Gone only, prefix: GO, properties: [title], statuses: [gone] }\n\nproperties:\n  - key: title",
+        )
+        .replace(
+          "  - { key: draft, name: Draft, initial: true }\n",
+          "  - key: gone\n    name: Gone\n    initial: true\n    invalid: true\n  - { key: draft, name: Draft }\n",
+        ),
+    });
+
+  it("is a metamodel warning on its invalid line", async () => {
+    const opened = await openInvalidInitial();
+    expect(await metamodelProblems(opened)).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "warning",
+        repository: "system",
+        message:
+          "Status gone is initial and marked invalid; element.create does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)",
+        file: "metamodel/model.yaml",
+        line: 53,
+      },
+    ]);
+  });
+
+  it("is never written on create: a type gets its first status that is not invalid, or none", async () => {
+    const opened = await openInvalidInitial();
+    const need = await create(opened, "need");
+    expect(need.element.status).toBe("draft");
+    const decision = await create(opened, "decision");
+    expect(decision.element.status).toBe("accepted");
+    const gone = await create(opened, "gone-only");
+    expect(gone.element).not.toHaveProperty("status");
+    expect(await read(opened, gone.element.file)).not.toContain("status:");
   });
 });

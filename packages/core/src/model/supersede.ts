@@ -187,12 +187,15 @@ const hasRelation = (source: ElementRecord, key: string, target: ElementRecord):
 
 /**
  * `element.supersede` (SR-072 AK1, SR-087): sets `input.status`, a status of the element's type
- * that the metamodel marks invalid (#306), on the element `input.ref` and, with `input.successor`, adds a relation of the
- * replacement kind (`input.relation`, or the one that fits) from the successor to it. Every check
- * comes before the first write: the element's reference and that it may be written (SR-016 AK3),
- * the status, the successor's reference and that it may be written, the relation kind and that no
- * file changed on disk since the element store read it (`file.changed-on-disk`). Both files are written with `writeElementFiles` (best-effort rollback).
- * Returns the hints on all relations to the element as the store holds them after the write.
+ * that the metamodel marks invalid (#306), on the element `input.ref` and, with `input.successor`,
+ * adds a relation of the replacement kind (`input.relation`, or the one that fits) from the
+ * successor to it. An element without status of a type whose statuses are all invalid gets its
+ * `status` line here (#344, option 1). Every check comes before the first write: the element's
+ * reference and that it may be written (SR-016 AK3), the status, the successor's reference and that
+ * it may be written, the relation kind and that no file changed on disk since the element store
+ * read it (`file.changed-on-disk`). Both files are written with `writeElementFiles` (best-effort
+ * rollback). Returns the hints on all relations to the element as the store holds them after the
+ * write.
  */
 export const supersedeElement = async (
   workspace: Workspace,

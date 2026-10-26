@@ -3,8 +3,9 @@
 // bytes come from the lossless writer (`editElementFile`), so a new file has LogReq's one fixed
 // style and a change rewrites only the lines of the keys it changes; writing is atomic and refused
 // when the file changed on disk. Statuses: a new element gets the initial status of the metamodel,
-// or of its type when the type restricts the statuses (#306; none for a type without status); a
-// change never touches `id`, `type` or `status` (ADR-0002 rule 6, D-030).
+// or of its type when the type restricts the statuses (#306; none for a type without status or with
+// only invalid statuses, #344); a change never touches `id`, `type` or `status` (ADR-0002 rule 6,
+// D-030).
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { CommandName, Problem } from "../catalog.js";
@@ -217,14 +218,16 @@ export const withChoiceKeys = (
 
 /**
  * The status of a new element of `type` (D-030, #306): the one status with `initial: true` when the
- * type has it, else the type's first status in metamodel order that is not marked invalid, which
- * the metamodel sets by the order of its statuses; undefined for a type without status (no
- * `status` line). A new element never gets an invalid status, which would supersede it at once
- * (D-044): a type with only invalid statuses is refused (`reason: initial-status`). The tool never
- * picks one beyond this rule.
+ * type has it and it is not marked invalid (#350), else the type's first status in metamodel order
+ * that is not marked invalid, which the metamodel sets by the order of its statuses. A new element
+ * never gets an invalid status, which would supersede it at once (D-044). Undefined (no `status`
+ * line) for a type without a status that is not invalid: a type without status, or one whose
+ * statuses are all invalid, whose elements without status are current (#344, option 1). The tool
+ * never picks one beyond this rule.
  */
 const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): string | undefined => {
-  if (type.statuses.length === 0) {
+  const [working] = typeStatuses(metamodel, type).filter((s) => s.invalid !== true);
+  if (working === undefined) {
     return undefined;
   }
   const initial = metamodel.statuses.filter((s) => s.initial === true);
@@ -235,17 +238,7 @@ const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): stri
       { reason: "initial-status", initial: initial.map((s) => s.key) },
     );
   }
-  if (type.statuses.includes(first.key)) {
-    return first.key;
-  }
-  const valid = typeStatuses(metamodel, type).find((s) => s.invalid !== true);
-  if (valid === undefined) {
-    throw invalid(
-      `Type ${type.name} (${type.key}) has only statuses marked invalid, so a new element of it would be superseded at once; give the type a status that is not invalid`,
-      { type: type.key, reason: "initial-status", statuses: [...type.statuses] },
-    );
-  }
-  return valid.key;
+  return first.invalid !== true && type.statuses.includes(first.key) ? first.key : working.key;
 };
 
 const targetRepository = (layout: WorkspaceLayout, name: string | undefined): RepositoryLocation => {

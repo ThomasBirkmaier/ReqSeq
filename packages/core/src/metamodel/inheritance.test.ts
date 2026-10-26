@@ -419,25 +419,22 @@ describe("statuses per type (#306)", () => {
     ]);
   });
 
-  it("warns about a type with only invalid statuses, on its key when it inherits them; not an abstract one", async () => {
+  it("gives no warning for a type with only invalid statuses, also not for statuses: [] below one (#344, #350)", async () => {
     const ws = await fixture({
       files: {
         "model/z-gone.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: gone, name: Gone, prefix: GO, abstract: true, statuses: [withdrawn] }\n  - key: gone-item\n    name: Gone item\n    prefix: GI\n    extends: gone\nstatuses:\n  - { key: withdrawn, name: Withdrawn, invalid: true }\n",
+          "logreq-metamodel: 1\ntypes:\n  - { key: gone, name: Gone, prefix: GO, abstract: true, statuses: [withdrawn] }\n  - key: gone-item\n    name: Gone item\n    prefix: GI\n    extends: gone\n  - { key: gone-empty, name: Gone empty, prefix: GE, extends: gone, statuses: [] }\nstatuses:\n  - { key: withdrawn, name: Withdrawn, invalid: true }\n",
       },
     });
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(true);
-    expect(metamodel.problems).toEqual([
-      {
-        code: "metamodel.invalid",
-        severity: "warning",
-        repository: "system",
-        message:
-          "Type gone-item has only statuses marked invalid (withdrawn); element.create refuses new elements of it, as they would be superseded at once",
-        file: "model/z-gone.yaml",
-        line: 4,
-      },
+    // Their status is optional: an element without one is current, withdrawn retires it.
+    expect(metamodel.problems).toEqual([]);
+    expect(
+      metamodel.effectiveTypes.filter((t) => t.key.startsWith("gone-")).map((t) => [t.key, t.statuses]),
+    ).toEqual([
+      ["gone-item", ["withdrawn"]],
+      ["gone-empty", ["withdrawn"]],
     ]);
   });
 

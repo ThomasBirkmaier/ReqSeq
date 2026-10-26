@@ -6,7 +6,9 @@
 // inheritance.ts, with the statuses of each type, #306) and the built-in meanings are assigned
 // (SR-013, meanings.ts). Checks across the lists (enabler #157): a key is either a property or a
 // relation kind (ADR-0004, while merging); after all files, every type in `source-types`/
-// `target-types` is defined and exactly one status is initial. No type uses the prefix that short IDs of elements of an unknown type use (#154).
+// `target-types` is defined and exactly one status is initial; an initial status marked invalid is
+// a warning (#350). No type uses the prefix that short IDs of elements of an unknown type use
+// (#154).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -318,37 +320,22 @@ const initialStatusProblems = (
 };
 
 /**
- * Every type that is not abstract and has statuses, all of them marked invalid (#306): a warning on
- * its own `statuses` (on its key when it inherits them), as `element.create` refuses new elements of
- * it, which would be superseded at once (D-044).
+ * Every initial status that is marked invalid (#350): a warning on its `invalid`, as `element.create`
+ * never gives a new element an invalid status, which would supersede it at once (D-044), and so
+ * does not use it. A type whose statuses are all invalid is no problem: its status is optional
+ * (#344, option 1).
  */
-const onlyInvalidStatusProblems = (
-  types: readonly Located<MetamodelType>[],
-  effectiveTypes: readonly EffectiveType[],
-  statuses: readonly Located<MetamodelStatus>[],
-): Problem[] => {
-  const invalid = new Set(statuses.filter((s) => s.definition.invalid === true).map((s) => s.definition.key));
-  return types.flatMap((located, index) => {
-    const effective = effectiveTypes[index];
-    if (
-      effective === undefined ||
-      effective.abstract ||
-      effective.statuses.length === 0 ||
-      !effective.statuses.every((key) => invalid.has(key))
-    ) {
-      return [];
-    }
-    const line = located.lineOf(located.definition.statuses === undefined ? ["key"] : ["statuses"]);
-    return [
+const invalidInitialProblems = (statuses: readonly Located<MetamodelStatus>[]): Problem[] =>
+  statuses
+    .filter((s) => s.definition.initial === true && s.definition.invalid === true)
+    .map((s) =>
       problem(
         "warning",
-        `Type ${effective.key} has only statuses marked invalid (${effective.statuses.join(", ")}); element.create refuses new elements of it, as they would be superseded at once`,
-        located.file,
-        line,
+        `Status ${s.definition.key} is initial and marked invalid; element.create does not give it to new elements, as they would be superseded at once, but the first status of their type that is not marked invalid (none when there is no such status)`,
+        s.file,
+        s.lineOf(["invalid"]),
       ),
-    ];
-  });
-};
+    );
 
 type Listing =
   | { readonly kind: "names"; readonly names: readonly string[] }
@@ -465,7 +452,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     // every file was read.
     ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
     ...initialStatusProblems(statuses, folderName, complete),
-    ...(complete ? onlyInvalidStatusProblems(types, resolved.types, statuses) : []),
+    ...invalidInitialProblems(statuses),
   );
   const definitions = <T>(located: readonly Located<T>[]): T[] => located.map((l) => l.definition);
   return {

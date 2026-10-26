@@ -9,7 +9,14 @@ export { resolveTypes } from "./inheritance.js";
 export type { DefinedKeys, EffectiveType, Located, LocatedType, ResolvedTypes } from "./inheritance.js";
 export { METAMODEL_FILE_EXTENSION, UNKNOWN_TYPE_PREFIX, loadMetamodel } from "./load.js";
 export type { Metamodel } from "./load.js";
-export { allowsType, findType, keyDefinition, typeForNewElement, typeStatuses } from "./lookup.js";
+export {
+  allowsType,
+  findType,
+  hasWorkingStatus,
+  keyDefinition,
+  typeForNewElement,
+  typeStatuses,
+} from "./lookup.js";
 export { findNamed, listNamed } from "./named.js";
 export type { Named, NamedMatch } from "./named.js";
 export type { KeyDefinition } from "./lookup.js";

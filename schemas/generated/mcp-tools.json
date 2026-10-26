@@ -1466,7 +1466,7 @@
               "items": {
                 "$ref": "#/$defs/metamodel/$defs/key"
               },
-              "description": "Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type that is not abstract and has only statuses marked invalid is a metamodel warning, as element.create refuses its new elements. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
+              "description": "Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type whose statuses are all marked invalid (e.g. `[retired]`) has an optional status (#344): its elements without status are current, element.create gives them none, and element.supersede retires them. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
             }
           },
           "unevaluatedProperties": false
@@ -1682,7 +1682,7 @@
             "initial": {
               "type": "boolean",
               "default": false,
-              "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order (a type with only invalid statuses gets no new elements); a type without status gives them none (#306)."
+              "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order, and so does every type when the initial status is marked invalid (a metamodel warning, #350); a type without status or with only invalid statuses gives them none (#306, #344)."
             }
           },
           "unevaluatedProperties": false
@@ -2392,7 +2392,7 @@
     },
     {
       "name": "element_create",
-      "description": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type restricts the statuses and lacks it, the first status of the type in metamodel order that is not marked invalid (only invalid ones: refused), and no status for a type without status (#306).",
+      "description": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

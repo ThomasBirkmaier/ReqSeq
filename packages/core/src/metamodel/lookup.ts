@@ -60,6 +60,15 @@ export const typeStatuses = (metamodel: Metamodel, type: EffectiveType): readonl
   return metamodel.statuses.filter((s) => allowed.has(s.key));
 };
 
+/**
+ * Whether `type` has a status that is not marked invalid (#344, option 1). Only then does an element
+ * of it need a status (`element.missing-status`) and get one from `element.create`. A type whose
+ * statuses are all marked invalid, e.g. `statuses: [retired]`, has an optional status: an element
+ * without one is current, and `element.supersede` retires it (D-044, D-045).
+ */
+export const hasWorkingStatus = (metamodel: Metamodel, type: EffectiveType): boolean =>
+  typeStatuses(metamodel, type).some((s) => s.invalid !== true);
+
 /** What the metamodel defines under a frontmatter key: a property or a relation kind. */
 export type KeyDefinition =
   | { readonly kind: "property"; readonly definition: MetamodelProperty }

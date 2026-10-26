@@ -299,7 +299,7 @@
     },
     {
       "name": "element.create",
-      "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type restricts the statuses and lacks it, the first status of the type in metamodel order that is not marked invalid (only invalid ones: refused), and no status for a type without status (#306).",
+      "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).",
       "effect": "write-files",
       "stage": 1,
       "implements": [

@@ -6,14 +6,16 @@
 // - `element.status-not-allowed`: the element has a status its type does not have: one the
 //   metamodel does not know, one of other types only, or any status on a type without status. On
 //   the line of the value.
-// - `element.missing-status`: the type has statuses and the element has none (absent, `null`, blank;
-//   `isEmptyValue`). On the line of the key when the file has it.
+// - `element.missing-status`: the type has a status that is not marked invalid and the element has
+//   none (absent, `null`, blank; `isEmptyValue`). On the line of the key when the file has it. A type
+//   whose statuses are all invalid has an optional status (#344, option 1): its elements without
+//   status are current, so they get no hint.
 // Only `element.setStatus` and `element.supersede` change a status (D-030), so no file is written.
 // An element of an unknown type gets neither: it has `element.unknown-type` (SR-016). Nothing while
 // the metamodel is not valid (#208, #220 option 1), as for the other findings against it.
 import type { Problem } from "../catalog.js";
 import type { EffectiveType, Metamodel } from "../metamodel/index.js";
-import { findType, listNamed, metamodelState, typeStatuses } from "../metamodel/index.js";
+import { findType, hasWorkingStatus, listNamed, metamodelState, typeStatuses } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { carryProblems } from "./carry.js";
@@ -58,7 +60,7 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: StatusFindin
   const value = element.data["status"];
   const at = { repository: element.repository, file: element.file, elementId: element.id } as const;
   if (isEmptyValue(value)) {
-    if (type.statuses.length > 0) {
+    if (hasWorkingStatus(metamodel, type)) {
       out.push({
         element,
         path: ["status"],
