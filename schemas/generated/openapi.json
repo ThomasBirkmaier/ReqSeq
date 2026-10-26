@@ -2402,7 +2402,7 @@
     "/v1/commands/element.addAttachment": {
       "post": {
         "operationId": "element_addAttachment",
-        "summary": "Copy an image next to the element file and return the Markdown to insert; the image counts to the version (SR-065 AK2).",
+        "summary": "Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.",
         "tags": [
           "element"
         ],
@@ -2423,7 +2423,8 @@
                     "$ref": "#/components/schemas/common/$defs/elementRef"
                   },
                   "sourcePath": {
-                    "$ref": "#/components/schemas/common/$defs/localPath"
+                    "$ref": "#/components/schemas/common/$defs/localPath",
+                    "description": "The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case)."
                   }
                 },
                 "additionalProperties": false,
@@ -2444,10 +2445,12 @@
                   "type": "object",
                   "properties": {
                     "file": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused."
                     },
                     "markdown": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update."
                     }
                   },
                   "additionalProperties": false,

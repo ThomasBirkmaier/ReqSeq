@@ -29,11 +29,17 @@ const runtime = createCommandRuntime({ commands });
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 
-/** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder. */
+/** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image. */
 type Scenario = Readonly<Record<string, unknown>>;
 
 /** Every implemented write command, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  "element.addAttachment": [
+    { ref: WIND, sourcePath: "new/layout.png" },
+    { ref: WIND, sourcePath: "new/layout.png" },
+    { ref: GUSTS, sourcePath: "new/layout.png" },
+    { ref: WIND, sourcePath: "new/missing.png" },
+  ],
   "element.create": [
     { type: "system-requirement", title: "Show gusts", folder: "requirements" },
     { type: "need", title: "New need", folder: "needs/new" },
@@ -108,7 +114,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
     it(`[SR-099/AK1] ${name} never removes or moves a file`, async () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
-        files: { "new/.keep": "" },
+        files: { "new/.keep": "", "new/layout.png": "an image" },
       });
       onTestFinished(() => fixture.cleanup());
       const workspace = new Workspace(fixture.root);

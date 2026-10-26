@@ -241,7 +241,11 @@ const targetRepository = (layout: WorkspaceLayout, name: string | undefined): Re
 };
 
 /** A written file relative to the workspace root (the main repository's folder), with `/`. */
-const workspacePath = (layout: WorkspaceLayout, repository: RepositoryLocation, file: string): string => {
+export const workspacePath = (
+  layout: WorkspaceLayout,
+  repository: RepositoryLocation,
+  file: string,
+): string => {
   // The main repository is always kept and available: it holds the workspace file.
   const main = targetRepository(layout, layout.main);
   return path.relative(main.folder, path.join(repository.folder, file)).split(path.sep).join("/");
@@ -489,7 +493,7 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
  * (`newFileTarget`, #194).
  */
-const refuseUnlisted = async (
+export const refuseUnlisted = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   file: string,

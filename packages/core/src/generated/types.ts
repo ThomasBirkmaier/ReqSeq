@@ -1179,20 +1179,23 @@ export interface ElementBulkUpdateOutput {
 }
 
 /**
- * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image next to the element file and return the Markdown to insert; the image counts to the version (SR-065 AK2).
+ * Input of `element.addAttachment` as `run` gets it: validated, properties with a `default` filled in. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
  * Schema: `schemas/commands/catalog.json element.addAttachment input`.
  */
 export interface ElementAddAttachmentInput {
   readonly ref: ElementRef;
+  /** The image to copy: a file ending in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg or .webp (any case). */
   readonly sourcePath: LocalPath;
 }
 
 /**
- * Output of `element.addAttachment`. Copy an image next to the element file and return the Markdown to insert; the image counts to the version (SR-065 AK2).
+ * Output of `element.addAttachment`. Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.
  * Schema: `schemas/commands/catalog.json element.addAttachment output`.
  */
 export interface ElementAddAttachmentOutput {
+  /** The image file relative to the workspace root, / as separator, e.g. requirements/SR-825b7146fb54/layout.png. Its name is the source name with only ASCII letters, digits, _ and -, and -2, -3, ... when the folder has that name already; a file there with the same bytes is reused. */
   readonly file: string;
+  /** The image as Markdown with a link relative to the element file, e.g. ![layout](SR-825b7146fb54/layout.png), to insert into the text and save with element.update. */
   readonly markdown: string;
 }
 

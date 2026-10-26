@@ -75,8 +75,36 @@ const WITH_VAULT =
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
 
+/** SR-004/one-repository with an image to attach, whose name LogReq makes portable (SR-097). */
+const WITH_IMAGE: FixtureOptions = {
+  fixture: "SR-004/one-repository",
+  files: { "incoming/Wind Läyout (v2).png": "an image", "incoming/notes.txt": "no image" },
+  git: true,
+};
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  // `sourcePath` is a localPath, like `path` of workspace.init below: the same file through every access.
+  "element.addAttachment": [
+    {
+      name: "an image into the folder next to the element file, with its Markdown (SR-097 AK1, AK2)",
+      fixture: WITH_IMAGE,
+      input: { ref: "SR-e88fb3", sourcePath: "incoming/Wind Läyout (v2).png" },
+      expect: "output",
+    },
+    {
+      name: "a file that is no image",
+      fixture: WITH_IMAGE,
+      input: { ref: "SR-e88fb3", sourcePath: "incoming/notes.txt" },
+      expect: "error",
+    },
+    {
+      name: "an image that is not there",
+      fixture: WITH_IMAGE,
+      input: { ref: "SR-e88fb3", sourcePath: "incoming/gone.png" },
+      expect: "error",
+    },
+  ],
   "element.create": [
     {
       name: "new element in a new folder",

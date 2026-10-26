@@ -138,6 +138,7 @@ export type { FolderTreeOptions } from "./watch-tree.js";
 export type { WatchFunction, WatcherOptions, WorkspaceWatcher } from "./watch.js";
 export { addRelation, removeRelation } from "./relation-write.js";
 export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
+export { addAttachment, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
 export { assertElementWritable, createElement, updateElement, writtenElement } from "./write.js";
 export type {
   CreateElementInput,

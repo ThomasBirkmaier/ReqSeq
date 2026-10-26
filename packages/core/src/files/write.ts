@@ -229,8 +229,8 @@ const replace = async (
 };
 
 /**
- * Writes `content` (UTF-8) to `relativePath` below `root` atomically and returns the snapshot of
- * the written file.
+ * Writes `content` (a string as UTF-8, or bytes as they are, such as an image) to `relativePath`
+ * below `root` atomically and returns the snapshot of the written file.
  * - `expected` is the snapshot of a successful read: the file is replaced only while its bytes on
  *   disk are unchanged and still parse as `options.kind`; otherwise `file.changed-on-disk` or
  *   `file.faulty`.
@@ -241,7 +241,7 @@ const replace = async (
 export const writeFileAtomic = async (
   root: string,
   relativePath: string,
-  content: string,
+  content: string | Uint8Array,
   expected: FileSnapshot | null,
   options: WriteOptions = {},
 ): Promise<FileSnapshot> => {
@@ -249,7 +249,7 @@ export const writeFileAtomic = async (
   if (expected !== null && expected.path !== file) {
     throw new CommandError("internal", `Not written: the snapshot belongs to ${expected.path}, not ${file}`);
   }
-  const bytes = Buffer.from(content, "utf8");
+  const bytes = typeof content === "string" ? Buffer.from(content, "utf8") : content;
   const temp = tempPathFor(absolute);
   try {
     if (!(await folderInsideRoot(root, absolute))) {

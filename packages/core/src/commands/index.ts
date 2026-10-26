@@ -6,6 +6,7 @@
 // the list (keep both sorted by name).
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
+import elementAddAttachment from "./element/addAttachment.js";
 import elementCreate from "./element/create.js";
 import elementGet from "./element/get.js";
 import elementList from "./element/list.js";
@@ -26,6 +27,7 @@ import workspaceInit from "./workspace/init.js";
 import workspaceStatus from "./workspace/status.js";
 
 export const commands: readonly AnyCommand[] = [
+  elementAddAttachment,
   elementCreate,
   elementGet,
   elementList,

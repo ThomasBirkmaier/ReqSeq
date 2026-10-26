@@ -45,6 +45,7 @@ const FILES: Readonly<Record<string, string>> = {
   "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
+  "new/layout.png": "an image",
 };
 
 /** The `status` line of every element file, by file (relative, `/`), as written on disk. */
@@ -60,6 +61,13 @@ type Scenario = Readonly<Record<string, unknown>>;
 
 /** Every implemented command except the two status commands, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  "element.addAttachment": [
+    { ref: WIND, sourcePath: "new/layout.png" },
+    { ref: OBSOLETE, sourcePath: "new/layout.png" },
+    { ref: APPROVED, sourcePath: "new/layout.png" },
+    { ref: RETIRED, sourcePath: "new/layout.png" },
+    { ref: WIND, sourcePath: "new/.keep" },
+  ],
   "element.create": [
     { type: "system-requirement", title: "Show gusts", folder: "requirements" },
     { type: "need", title: "New need", folder: "needs" },
