@@ -1068,7 +1068,7 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). Later stages add the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. Later stages add `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
   readonly element: DataExportElement;
 }
 
@@ -1492,6 +1492,86 @@ export interface TraceAffectedOutput {
   /** The evidence records of an older version of the element (SR-024 AK4): records whose `version` is not its current one. Evidence records are read from stage 4 on (SR-028); until then the list is empty. */
   readonly records: readonly DataExportEvidenceRecord[];
   /** True while a repository of the workspace file is not on this machine: elements there may point at the element (SR-006 AK2). */
+  readonly incomplete: Incomplete;
+}
+
+/**
+ * Input of `trace.neighbourhood` as `run` gets it: validated, properties with a `default` filled in. The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
+ * Schema: `schemas/commands/catalog.json trace.neighbourhood input`.
+ */
+export interface TraceNeighbourhoodInput {
+  readonly ref: ElementRef;
+  /** `up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target (ADR-0004). */
+  readonly direction: "up" | "down" | "both";
+  /** The deepest depth in each direction; 0: the root only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */
+  readonly maxDepth?: number;
+  /** Walk as far as the links go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: ["derivation"]`. */
+  readonly allLevels: boolean;
+  /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
+  readonly kinds?: readonly Key[];
+  /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
+  readonly meanings?: readonly ("derivation" | "replacement" | "exclusion" | "reference")[];
+  readonly view?: View;
+  /** Nodes of the page; total counts all. */
+  readonly limit: number;
+  /** Nodes skipped before the page, in the order of `nodes` (the root, the up walk level by level, the down walk level by level). */
+  readonly offset: number;
+}
+
+/**
+ * Output of `trace.neighbourhood`. The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.
+ * Schema: `schemas/commands/catalog.json trace.neighbourhood output`.
+ */
+export interface TraceNeighbourhoodOutput {
+  readonly root: Uuid;
+  /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
+  readonly nodes: readonly {
+    readonly id: Uuid;
+    readonly shortId: ShortId;
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none. */
+    readonly identifier?: string;
+    readonly type: string;
+    readonly title: string;
+    readonly status?: string;
+    readonly repository: string;
+    /** Path relative to the repository. */
+    readonly file: string;
+    /** Steps from the root in its walk: 0 for the root. */
+    readonly depth: number;
+    /** `up` for an element reached along the links its file stores, `down` for one reached along the links that point at it; left out for the root. */
+    readonly direction?: "up" | "down";
+    /** Its links were looked at; false only at `maxDepth`, where the walk was cut. */
+    readonly expanded: boolean;
+  }[];
+  /** The number of all nodes; `nodes` holds the page. */
+  readonly total: number;
+  /** Every link the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved links (`element.get` and `workspace.check` report them). */
+  readonly edges: readonly {
+    /** The element whose file stores the link. */
+    readonly source: Uuid;
+    /** Workspace name of the repository of `source`. */
+    readonly sourceRepository: string;
+    /** The element the link points at (ADR-0004), whatever the walk direction. */
+    readonly target: Uuid;
+    /** Workspace name of the repository of `target`. */
+    readonly targetRepository: string;
+    /** A relation in the frontmatter or an inline reference in the text. */
+    readonly link: "relation" | "reference";
+    /** The frontmatter key, only for `link: relation`. */
+    readonly kind?: Key;
+    /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
+    readonly property?: true;
+    /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
+    readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference";
+    /** The walk it belongs to. */
+    readonly direction: "up" | "down";
+    /** Both ends lie in one cycle of the walk. */
+    readonly cyclic: boolean;
+    /** The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: ["derivation"]`). First means first reached breadth first (spec question #421). */
+    readonly repeated: boolean;
+    /** The link stores a version of normal form 1, its target is available and has a current version, and the two differ (SR-025). */
+    readonly outdated: boolean;
+  }[];
   readonly incomplete: Incomplete;
 }
 
@@ -2032,6 +2112,7 @@ export interface CommandTypes {
   readonly "trace.chain": { readonly input: TraceChainInput; readonly output: TraceChainOutput };
   readonly "trace.related": { readonly input: TraceRelatedInput; readonly output: TraceRelatedOutput };
   readonly "trace.affected": { readonly input: TraceAffectedInput; readonly output: TraceAffectedOutput };
+  readonly "trace.neighbourhood": { readonly input: TraceNeighbourhoodInput; readonly output: TraceNeighbourhoodOutput };
   readonly "hint.list": { readonly input: HintListInput; readonly output: HintListOutput };
   readonly "hint.confirm": { readonly input: HintConfirmInput; readonly output: HintConfirmOutput };
   readonly "element.search": { readonly input: ElementSearchInput; readonly output: ElementSearchOutput };

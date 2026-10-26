@@ -108,7 +108,7 @@ export {
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";
-export { isVersion } from "./is-version.js";
+export { isN1Version, isOutdatedVersion, isVersion } from "./is-version.js";
 export { elementVersion, elementView, listedElement, titleKeyOf } from "./view.js";
 export type { ElementViewInput, ListedElementInput } from "./view.js";
 export { listElements } from "./list.js";
@@ -135,6 +135,7 @@ export {
   incomingState,
   incomingTo,
   outgoingLinks,
+  relationKeysOf,
   relationPath,
 } from "./incoming.js";
 export { changedFiles, restrictTo, treeAt } from "./changed.js";

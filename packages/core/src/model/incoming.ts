@@ -129,10 +129,11 @@ const pointsInto = (
   }
 };
 
-/** The keys of a metamodel that hold relations, as `relationKey` defines them; one map per metamodel object. */
+/** One map per metamodel object (`relationKeysOf`). */
 const relationKeyMaps = new WeakMap<Metamodel, ReadonlyMap<string, RelationKey>>();
 
-const relationKeysOf = (metamodel: Metamodel): ReadonlyMap<string, RelationKey> => {
+/** The keys of a metamodel that hold relations, as `relationKey` defines them, in the order properties, then relation kinds. */
+export const relationKeysOf = (metamodel: Metamodel): ReadonlyMap<string, RelationKey> => {
   let keys = relationKeyMaps.get(metamodel);
   if (keys === undefined) {
     const candidates = new Set([...metamodel.properties, ...metamodel.relations].map((d) => d.key));

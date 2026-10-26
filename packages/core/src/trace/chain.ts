@@ -103,12 +103,16 @@ export interface Chain<L> {
   readonly incomplete: boolean;
 }
 
-/** `expansion` without the steps to elements that are not part of the chain (`includes`). */
-const within = (
-  expansion: Expansion<DerivationLink>,
+/**
+ * `expansion` without the steps to elements that are not part of the chain (`includes`); `down`:
+ * the other end of an unresolved link is the element that stores it. For any link type that has a
+ * `source`.
+ */
+export const within = <E extends { readonly source: ElementRecord }>(
+  expansion: Expansion<E>,
   includes: (element: ElementRecord) => boolean,
   down: boolean,
-): Expansion<DerivationLink> => ({
+): Expansion<E> => ({
   steps: expansion.steps.filter((step) => includes(step.to)),
   // Downwards the other end of an unresolved relation is the child that stores it.
   unresolved: down ? expansion.unresolved.filter((u) => includes(u.link.source)) : expansion.unresolved,
@@ -224,7 +228,7 @@ export interface ChainOutputContext {
   readonly shortIds: ShortIds;
 }
 
-type ChainNode = TraceChainOutput["nodes"][number];
+export type ChainNode = TraceChainOutput["nodes"][number];
 type ChainUnresolved = TraceChainOutput["unresolved"][number];
 
 /** The hint of one cycle (SR-022 AK4), at its first element: one problem (a cycle has elements). */
@@ -257,13 +261,38 @@ const EVERY_NODE: ChainPage = { limit: Number.POSITIVE_INFINITY, offset: 0 };
 type ChainEdge = TraceChainOutput["edges"][number];
 
 /** The title of an element; without the meaning `title` (SR-013 AK3) every title is empty, as in element.get. */
-const titles = (metamodel: Metamodel): ((element: ElementRecord) => string) => {
+export const titles = (metamodel: Metamodel): ((element: ElementRecord) => string) => {
   const titleKey = titleKeyOf(metamodel) ?? "";
   return (element) => {
     const title = element.data[titleKey];
     return typeof title === "string" ? title : "";
   };
 };
+
+/** Builds the node of an element at `depth` for the output of a chain or neighbourhood. */
+export const chainNode =
+  (shortIds: ShortIds, titleOf: (element: ElementRecord) => string) =>
+  (
+    element: ElementRecord,
+    depth: number,
+    expanded: boolean,
+    direction?: ChainNode["direction"],
+  ): ChainNode => {
+    const status = element.data["status"];
+    return {
+      id: element.id,
+      shortId: shortIds.of(element),
+      ...identifierField(shortIds, element),
+      type: element.type,
+      title: titleOf(element),
+      ...(typeof status === "string" ? { status } : {}),
+      repository: element.repository,
+      file: element.file,
+      depth,
+      expanded,
+      ...(direction === undefined ? {} : { direction }),
+    };
+  };
 
 /**
  * Adds to `edges` the edges of a walk that lead to an element of `onPage` in the walk: upwards the
@@ -364,27 +393,7 @@ export const chainOutput = (
 ): TraceChainOutput => {
   const { shortIds } = context;
   const titleOf = titles(context.metamodel);
-  const node = (
-    element: ElementRecord,
-    depth: number,
-    expanded: boolean,
-    direction?: ChainNode["direction"],
-  ): ChainNode => {
-    const status = element.data["status"];
-    return {
-      id: element.id,
-      shortId: shortIds.of(element),
-      ...identifierField(shortIds, element),
-      type: element.type,
-      title: titleOf(element),
-      ...(typeof status === "string" ? { status } : {}),
-      repository: element.repository,
-      file: element.file,
-      depth,
-      expanded,
-      ...(direction === undefined ? {} : { direction }),
-    };
-  };
+  const node = chainNode(shortIds, titleOf);
   const rootOnPage = page.offset === 0;
   const nodes: ChainNode[] = rootOnPage ? [node(chain.root, 0, chain.rootExpanded)] : [];
   const edges: ChainEdge[] = [];

@@ -26,6 +26,7 @@ import relationOptions from "./relation/options.js";
 import relationRemove from "./relation/remove.js";
 import traceAffected from "./trace/affected.js";
 import traceChain from "./trace/chain.js";
+import traceNeighbourhood from "./trace/neighbourhood.js";
 import traceRelated from "./trace/related.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
@@ -52,6 +53,7 @@ export const commands: readonly AnyCommand[] = [
   relationRemove,
   traceAffected,
   traceChain,
+  traceNeighbourhood,
   traceRelated,
   workspaceCheck,
   workspaceInit,

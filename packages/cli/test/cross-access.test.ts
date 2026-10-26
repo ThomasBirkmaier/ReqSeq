@@ -87,6 +87,10 @@ const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise
   ],
 ]);
 
+/** Every kind of link around a few elements: derivations, a package, an exclusion, inline references (SR-107). */
+const NEIGHBOURHOOD: FixtureOptions = { fixture: "SR-107/neighbourhood", git: true };
+const NB = "5e107a7d-2b4f-4c61-9d08-";
+
 /** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
 /** Spec IDs in a property with the meaning identifier (#305). */
 const IDENTIFIERS: FixtureOptions = { fixture: "enabler-305/identifiers", git: true };
@@ -793,6 +797,40 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "N-00a001", view: "N-00a002" },
       expect: "error",
     },
+  ],
+  "trace.neighbourhood": [
+    {
+      name: "the direct neighbours of a requirement over every kind (SR-107 AK2)",
+      fixture: NEIGHBOURHOOD,
+      input: { ref: `${NB}0b0000000001` },
+      expect: "output",
+    },
+    {
+      name: "children level by level, derivations only, one page (SR-107 AK2, AK3)",
+      fixture: NEIGHBOURHOOD,
+      input: {
+        ref: `${NB}0a0000000001`,
+        direction: "down",
+        meanings: ["derivation"],
+        maxDepth: 2,
+        limit: 2,
+        offset: 2,
+      },
+      expect: "output",
+    },
+    {
+      name: "the whole way up along one relation kind (SR-107 AK1)",
+      fixture: NEIGHBOURHOOD,
+      input: { ref: `${NB}0c0000000001`, direction: "up", kinds: ["derives-from"], allLevels: true },
+      expect: "output",
+    },
+    {
+      name: "a key that is no relation kind",
+      fixture: NEIGHBOURHOOD,
+      input: { ref: `${NB}0b0000000001`, kinds: ["nope"] },
+      expect: "error",
+    },
+    { name: "unknown reference", fixture: NEIGHBOURHOOD, input: { ref: "SR-ffffff" }, expect: "error" },
   ],
   "trace.related": [
     {

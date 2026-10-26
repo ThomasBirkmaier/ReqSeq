@@ -13,6 +13,10 @@
 //   affectedOutput(traceAffected(graph, element), { metamodel, shortIds }, { limit, offset })
 // The chain of SR-022 (`trace.chain`, chain.ts):
 //   chainOutput(traceChain(graph, element, { direction, maxDepth, includes }), { metamodel, shortIds }, { limit, offset })
+// The neighbourhood of SR-107 (`trace.neighbourhood`, neighbourhood.ts): the same walks over every
+// relation kind and inline reference, with `repeated` and `outdated` per edge:
+//   neighbourhoodOutput(traceNeighbourhood(neighbourhoodContext(context, { kinds, meanings }), element, { direction, maxDepth, includes }),
+//     { metamodel, shortIds }, { limit, offset }, versionsOf)
 // `relatedElements(graph, selection, { direction: "children" | "parents" })` lists the elements
 // related to a selection, each once (SR-023). Children come from the model's incoming relation
 // index (`model/incoming.ts`).
@@ -81,5 +85,18 @@ export type {
   GapMeaning,
 } from "./chain.js";
 export { chainOutput, traceChain } from "./chain.js";
+export type {
+  Neighbourhood,
+  NeighbourhoodContext,
+  NeighbourhoodDirection,
+  NeighbourhoodFilter,
+  NeighbourhoodMeaning,
+  NeighbourhoodOptions,
+  NeighbourhoodOutputContext,
+  NeighbourhoodWalk,
+  VersionLookup,
+  VersionsOf,
+} from "./neighbourhood.js";
+export { neighbourhoodContext, neighbourhoodOutput, traceNeighbourhood } from "./neighbourhood.js";
 export type { RelatedElements, RelatedOptions } from "./related.js";
 export { relatedElements } from "./related.js";

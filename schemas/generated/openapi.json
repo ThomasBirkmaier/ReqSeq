@@ -1184,7 +1184,7 @@
                   "properties": {
                     "element": {
                       "$ref": "#/components/schemas/data-export/$defs/element",
-                      "description": "Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). Later stages add the other incoming relations, and `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage."
+                      "description": "Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. Later stages add `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage."
                     }
                   },
                   "additionalProperties": false,
@@ -3915,6 +3915,360 @@
                     "affected",
                     "total",
                     "records",
+                    "incomplete"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commands/trace.neighbourhood": {
+      "post": {
+        "operationId": "trace_neighbourhood",
+        "summary": "The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
+        "tags": [
+          "trace"
+        ],
+        "x-logreq-effect": "read",
+        "x-logreq-stage": 3,
+        "x-logreq-implements": [
+          "SR-107"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "$ref": "#/components/schemas/common/$defs/elementRef"
+                  },
+                  "direction": {
+                    "enum": [
+                      "up",
+                      "down",
+                      "both"
+                    ],
+                    "default": "both",
+                    "description": "`up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target (ADR-0004)."
+                  },
+                  "maxDepth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The deepest depth in each direction; 0: the root only. Omitted: 1 (the direct neighbours), unless `allLevels` is true."
+                  },
+                  "allLevels": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Walk as far as the links go (the whole chain); not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/components/schemas/common/$defs/key"
+                    },
+                    "description": "Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule."
+                  },
+                  "meanings": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "derivation",
+                        "replacement",
+                        "exclusion",
+                        "reference"
+                      ]
+                    },
+                    "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+                  },
+                  "view": {
+                    "$ref": "#/components/schemas/common/$defs/view"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "default": 200,
+                    "description": "Nodes of the page; total counts all."
+                  },
+                  "offset": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "Nodes skipped before the page, in the order of `nodes` (the root, the up walk level by level, the down walk level by level)."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "ref"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "root": {
+                      "$ref": "#/components/schemas/common/$defs/uuid"
+                    },
+                    "nodes": {
+                      "type": "array",
+                      "description": "Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/components/schemas/common/$defs/uuid"
+                          },
+                          "shortId": {
+                            "$ref": "#/components/schemas/common/$defs/shortId"
+                          },
+                          "identifier": {
+                            "type": "string",
+                            "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "repository": {
+                            "type": "string"
+                          },
+                          "file": {
+                            "type": "string",
+                            "description": "Path relative to the repository."
+                          },
+                          "depth": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Steps from the root in its walk: 0 for the root."
+                          },
+                          "direction": {
+                            "enum": [
+                              "up",
+                              "down"
+                            ],
+                            "description": "`up` for an element reached along the links its file stores, `down` for one reached along the links that point at it; left out for the root."
+                          },
+                          "expanded": {
+                            "type": "boolean",
+                            "description": "Its links were looked at; false only at `maxDepth`, where the walk was cut."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "shortId",
+                          "type",
+                          "title",
+                          "repository",
+                          "file",
+                          "depth",
+                          "expanded"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "The number of all nodes; `nodes` holds the page."
+                    },
+                    "edges": {
+                      "type": "array",
+                      "description": "Every link the walks followed, up edges first, then down edges, in walk order; an edge is on the page of the node it leads to in its walk. A hub (a package with many members) can put many edges on one page: leave out `packages` with `kinds` or `meanings`. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "$ref": "#/components/schemas/common/$defs/uuid",
+                            "description": "The element whose file stores the link."
+                          },
+                          "sourceRepository": {
+                            "type": "string",
+                            "description": "Workspace name of the repository of `source`."
+                          },
+                          "target": {
+                            "$ref": "#/components/schemas/common/$defs/uuid",
+                            "description": "The element the link points at (ADR-0004), whatever the walk direction."
+                          },
+                          "targetRepository": {
+                            "type": "string",
+                            "description": "Workspace name of the repository of `target`."
+                          },
+                          "link": {
+                            "enum": [
+                              "relation",
+                              "reference"
+                            ],
+                            "description": "A relation in the frontmatter or an inline reference in the text."
+                          },
+                          "kind": {
+                            "$ref": "#/components/schemas/common/$defs/key",
+                            "description": "The frontmatter key, only for `link: relation`."
+                          },
+                          "property": {
+                            "const": true,
+                            "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
+                          },
+                          "meaning": {
+                            "enum": [
+                              "derivation",
+                              "replacement",
+                              "exclusion",
+                              "reference"
+                            ],
+                            "description": "The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property."
+                          },
+                          "direction": {
+                            "enum": [
+                              "up",
+                              "down"
+                            ],
+                            "description": "The walk it belongs to."
+                          },
+                          "cyclic": {
+                            "type": "boolean",
+                            "description": "Both ends lie in one cycle of the walk."
+                          },
+                          "repeated": {
+                            "type": "boolean",
+                            "description": "The edge leads, in its walk, to an element that this walk first reached through another edge, or to the root: a repetition (SR-107 AK3). It holds within one call (asking again from a child loses it; to open a tree level by level ask from the same root with a larger `maxDepth`) and within the followed kinds (the tree of derivations comes from `meanings: [\"derivation\"]`). First means first reached breadth first (spec question #421)."
+                          },
+                          "outdated": {
+                            "type": "boolean",
+                            "description": "The link stores a version of normal form 1, its target is available and has a current version, and the two differ (SR-025)."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "source",
+                          "sourceRepository",
+                          "target",
+                          "targetRepository",
+                          "link",
+                          "direction",
+                          "cyclic",
+                          "repeated",
+                          "outdated"
+                        ]
+                      }
+                    },
+                    "incomplete": {
+                      "$ref": "#/components/schemas/common/$defs/incomplete"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "root",
+                    "nodes",
+                    "total",
+                    "edges",
                     "incomplete"
                   ]
                 }

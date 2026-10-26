@@ -59,7 +59,8 @@ import {
   hasId,
   incomingFor,
   incomingState,
-  isVersion,
+  isN1Version,
+  isOutdatedVersion,
   referenceTargetState,
   relationItems,
   relationKey,
@@ -108,9 +109,6 @@ export interface Candidate {
   readonly path?: ValuePath;
 }
 
-/** A version of normal form 1 (ADR-0005); any other stored value is not compared (SR-085 reports it on a relation). */
-const isN1Version = (value: unknown): value is string => isVersion(value) && value.startsWith("n1:");
-
 /** The current version of `target` when it is not `stored`; else undefined. */
 const outdatedAgainst = (
   versions: CurrentVersions,
@@ -118,7 +116,7 @@ const outdatedAgainst = (
   stored: string,
 ): string | undefined => {
   const current = currentVersionOf(versions, target);
-  return current === stored ? undefined : current;
+  return isOutdatedVersion(stored, current) ? current : undefined;
 };
 
 /** The problem of an outdated relation or link of `element` (without line and dates). */
