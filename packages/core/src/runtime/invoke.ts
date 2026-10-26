@@ -1,12 +1,15 @@
 // The one entry point of the adapters (CLI, API, MCP, app): `invoke(name, input, { workspace })`.
 // Validates the input against the catalog, runs the command and maps every failure to a
-// CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4).
+// CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4). Adds the short
+// ID of the element each problem of the output names (`withElementShortIds`, #315).
 import type { AnyCommand } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import { assertWritable } from "../metamodel/index.js";
 import type { Contracts } from "./contracts.js";
-import { describeViolations, loadContracts, schemaViolations } from "./contracts.js";
+import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
+import type { ProblemLocator } from "./element-short-ids.js";
+import { problemLocator, withElementShortIds } from "./element-short-ids.js";
 import { describeInputViolations, inputViolations } from "./input-errors.js";
 import type { Workspace } from "./workspace.js";
 
@@ -75,6 +78,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const registry = new Map<string, AnyCommand>();
   // Write commands that are refused while the workspace is read-only (SR-011 AK3).
   const guarded = new Set<string>();
+  // Where the output of each command holds problems, from its output schema (#315).
+  const locators = new Map<string, ProblemLocator | undefined>();
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
@@ -84,6 +89,10 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       throw new Error(`command ${command.name} is registered twice`);
     }
     registry.set(command.name, command);
+    locators.set(
+      command.name,
+      problemLocator(entry.output, `${SCHEMA_BASE}commands/${command.name}.output.json`, contracts.schemas),
+    );
     if (entry.effect === "write-files" && !CREATES_WORKSPACE.has(command.name)) {
       guarded.add(command.name);
     }
@@ -131,6 +140,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         await assertWritable(ctx.workspace, name);
       }
       output = await command.run({ workspace: ctx.workspace, signal }, checked as never);
+      // Every problem that names an element names its short ID too (#315).
+      output = await withElementShortIds(ctx.workspace, locators.get(name), output);
     } catch (error) {
       throw toCommandError(name, error, signal);
     }

@@ -63,6 +63,7 @@ describe("outdated evidence (SR-025 AK4)", () => {
         file: "evidence/results.xml",
         line: 7,
         elementId: A,
+        elementShortId: "SR-b0000000001",
         elementRepository: "system",
         elementFile: "requirements/SR-0b0000000001.md",
         storedVersion: OLD,

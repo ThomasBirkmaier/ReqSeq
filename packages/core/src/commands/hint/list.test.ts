@@ -20,7 +20,6 @@ import {
   currentVersionsOf,
   currentVersionsState,
   elementStoreState,
-  shortIdState,
 } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -78,10 +77,6 @@ const listError = async (workspace: Workspace, input: Record<string, unknown>): 
 
 const get = async (workspace: Workspace, input: Record<string, unknown>): Promise<Shown["element"]> =>
   ((await invoke("element.get", input, { workspace })) as Shown).element;
-
-/** The hints without the short IDs hint.list adds for display, as workspace.check gives them. */
-const withoutShortIds = (hints: readonly Problem[]): Problem[] =>
-  hints.map(({ elementShortId: _shown, ...hint }) => hint);
 
 /** Each hint as `[code, element, target]`. */
 const rows = (hints: readonly Problem[]): unknown[] => hints.map((h) => [h.code, h.elementId, h.targetId]);
@@ -142,7 +137,7 @@ describe("hint.list (SR-026)", () => {
     const workspace = await opened();
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     expect(check.problems.map((p) => p.code)).toContain("relation.missing-target");
-    expect(withoutShortIds((await list(workspace)).hints)).toEqual(check.problems.filter(isHint));
+    expect((await list(workspace)).hints).toEqual(check.problems.filter(isHint));
   });
 
   it("[SR-026/AK1] gives the hints of workspace.check, also of a workspace with one finding of each kind", async () => {
@@ -150,7 +145,7 @@ describe("hint.list (SR-026)", () => {
     const check = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
     const hints = check.problems.filter(isHint);
     expect(hints.length).toBeGreaterThan(5);
-    expect(withoutShortIds((await list(workspace)).hints)).toEqual(hints);
+    expect((await list(workspace)).hints).toEqual(hints);
     // The finding states it leaves out give no hint.
     expect(FINDING_STATES.filter((s) => !(HINT_STATES as readonly unknown[]).includes(s))).toHaveLength(2);
     expect(HINT_STATES.every((s) => (FINDING_STATES as readonly unknown[]).includes(s))).toBe(true);
@@ -309,10 +304,9 @@ describe("hint.list (SR-026)", () => {
 
   it("matches the element of a hint by its UUID, repository and file, or the only record of its UUID", async () => {
     const workspace = await opened();
-    const [metamodel, store, shortIds] = await Promise.all([
+    const [metamodel, store] = await Promise.all([
       workspace.get(metamodelState),
       workspace.get(elementStoreState),
-      workspace.get(shortIdState),
     ]);
     const stray: Problem = {
       code: "element.unknown-property",
@@ -324,20 +318,20 @@ describe("hint.list (SR-026)", () => {
     };
     // A file that holds no record of the UUID: the only record of the UUID is meant.
     const elsewhere: Problem = { ...stray, elementId: N2, file: "needs/elsewhere.md" };
-    const context = { metamodel, store, shortIds };
+    const context = { metamodel, store };
     expect(await hintsOf(workspace, context, { types: ["need"] }, [stray, elsewhere], [])).toEqual([
-      { ...elsewhere, elementShortId: "N-0000a2" },
+      elsewhere,
     ]);
-    // No record of the UUID: no short ID either.
+    // No record of the UUID: no element filter matches it.
+    expect(await hintsOf(workspace, context, { types: ["need"] }, [stray], [])).toEqual([]);
     expect(await hintsOf(workspace, context, {}, [stray], [])).toEqual([stray]);
   });
 
   it("matches outdated evidence by the element it names, not by its record file", async () => {
     const workspace = await opened();
-    const [metamodel, store, shortIds] = await Promise.all([
+    const [metamodel, store] = await Promise.all([
       workspace.get(metamodelState),
       workspace.get(elementStoreState),
-      workspace.get(shortIdState),
     ]);
     const evidence: Problem = {
       code: "evidence.outdated",
@@ -352,7 +346,7 @@ describe("hint.list (SR-026)", () => {
       storedVersion: "n1:0000000000000000",
       currentVersion: "n1:1111111111111111",
     };
-    const context = { metamodel, store, shortIds };
+    const context = { metamodel, store };
     const pkg = store.byId.get(P1)?.[0];
     const own = store.byId.get(R4)?.[0];
     expect(pkg).toBeDefined();
@@ -364,9 +358,7 @@ describe("hint.list (SR-026)", () => {
     ];
     expect(filters).toHaveLength(3);
     for (const filter of filters) {
-      expect(await hintsOf(workspace, context, filter, [evidence], [])).toEqual([
-        { ...evidence, elementShortId: "SAF-0000b4" },
-      ]);
+      expect(await hintsOf(workspace, context, filter, [evidence], [])).toEqual([evidence]);
     }
     expect(await hintsOf(workspace, context, { types: ["need"] }, [evidence], [])).toEqual([]);
   });
@@ -395,7 +387,7 @@ describe("hints at the element (SR-026 AK3)", () => {
     // A single element never builds the versions of the whole workspace (ADR-0008).
     expect(workspace.peek(currentVersionsState)).toBeUndefined();
     // The same hints as the list, apart from the dates.
-    const listed = withoutShortIds((await list(workspace, { ref: R1 })).hints);
+    const listed = (await list(workspace, { ref: R1 })).hints;
     const undated = listed.map(({ storedDate: _s, currentDate: _c, ...p }) => ({
       ...p,
       message: p.message.replace(/: stored version from .*$/, ""),
@@ -406,7 +398,7 @@ describe("hints at the element (SR-026 AK3)", () => {
   it("[SR-026/AK3] element.get with versionDate names the dates, as hint.list does, also once the versions are built", async () => {
     const ws = await fixture({ ...HINTS, git: true });
     const workspace = open(ws.root);
-    const listed = withoutShortIds((await list(workspace, { ref: R1 })).hints);
+    const listed = (await list(workspace, { ref: R1 })).hints;
     expect(await currentVersionsIfBuilt(workspace)).toBeDefined();
     const element = await get(workspace, { ref: R1, versionDate: true });
     expect((element.problems ?? []).filter((p) => p.code === "relation.outdated")).toEqual(listed);

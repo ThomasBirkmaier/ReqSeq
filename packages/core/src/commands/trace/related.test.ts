@@ -288,6 +288,7 @@ describe("trace.related (SR-023)", () => {
           repository: "system",
           file: "requirements/SR-0000000000b4.md",
           elementId: D,
+          elementShortId: "SR-0000b4",
         },
       ],
     ]);
@@ -327,6 +328,7 @@ describe("trace.related (SR-023)", () => {
         repository: "system",
         file: "requirements/SR-0000000000b6.md",
         elementId: Y,
+        elementShortId: "SR-0000b6",
       },
     ]);
   });

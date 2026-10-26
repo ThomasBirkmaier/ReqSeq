@@ -150,7 +150,15 @@ describe("cycles in the derivations (SR-090)", () => {
     // The check reports them (SR-019) and is not ok: the CLI ends with exit code 1 (ADR-0009).
     const out = await check(workspace);
     expect(out.ok).toBe(false);
-    expect(out.problems).toEqual(problems);
+    // With the short ID of each element (#315), as the messages name them.
+    const shortIds = new Map([
+      [A, "SR-b0000000001"],
+      [B, "SR-000002"],
+      [C, "SR-000003"],
+    ]);
+    expect(out.problems).toEqual(
+      problems.map((p) => ({ ...p, elementShortId: shortIds.get(p.elementId ?? "") })),
+    );
   });
 
   it("[SR-090/AK1] reports an element that derives from itself, through any relation kind with the meaning derivation", async () => {

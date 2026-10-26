@@ -137,6 +137,7 @@ describe("relation.remove removes a relation from the source file only (D-045, S
           repository: "system",
           file: WIND.file,
           elementId: WIND.id,
+          elementShortId: "SR-e88fb3",
           targetId: GUSTS.id,
         },
       ],

@@ -87,7 +87,13 @@ export {
   unavailableRepositoryHint,
 } from "./references.js";
 export type { InlineReference, ReferenceTargetState, TextReference } from "./references.js";
-export { SHORT_ID_MIN_LENGTH, UNKNOWN_TYPE_PREFIX, buildShortIds, shortIdState } from "./short-id.js";
+export {
+  SHORT_ID_MIN_LENGTH,
+  UNKNOWN_TYPE_PREFIX,
+  buildShortIds,
+  problemElement,
+  shortIdState,
+} from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";

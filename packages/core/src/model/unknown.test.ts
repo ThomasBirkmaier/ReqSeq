@@ -223,7 +223,7 @@ describe("unknown properties and types (SR-016)", () => {
       legacy: { source: "DOORS", object: "WS-17" },
       tags: ["wind", "display"],
     });
-    expect(out.problems).toEqual(GUSTS_PROBLEMS);
+    expect(out.problems).toEqual(GUSTS_PROBLEMS.map((p) => ({ ...p, elementShortId: "SR-1b2c3d" })));
   });
 
   it("[SR-016/AK2] keeps unknown properties when a known property and the text change", async () => {

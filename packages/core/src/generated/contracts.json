@@ -296,7 +296,7 @@
             },
             "elementShortId": {
               "$ref": "#/$defs/shortId",
-              "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on the hints of hint.list."
+              "description": "Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements."
             },
             "targetId": {
               "$ref": "#/$defs/uuid"

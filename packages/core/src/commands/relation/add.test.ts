@@ -376,6 +376,7 @@ describe("relation.add gives a stored target without a valid version its current
     file: MIGRATED.file,
     line,
     elementId: MIGRATED.id,
+    elementShortId: "SR-fffff1",
     targetId: NEED.id,
     currentVersion: version,
   });
@@ -483,6 +484,7 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     repository: "system",
     file: source.file,
     elementId: source.id,
+    elementShortId: name(source === A ? 1 : 4).replace(/^.* /, ""),
     ...(target === undefined ? {} : { targetId: target.id }),
     line,
   });

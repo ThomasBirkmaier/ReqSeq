@@ -92,6 +92,8 @@ const hint = (
   repository: "system",
   file: source.file,
   elementId: source.id,
+  // The prefix of its file name and the last six digits of its UUID (SR-084; no two share them here).
+  elementShortId: `${source.file.replace(/^.*\//, "").replace(/-.*$/, "")}-${source.id.slice(-6)}`,
   targetId: target.id,
   line,
 });
@@ -531,7 +533,12 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
     const expected = (await supersede(superseded, { ref: N_OLD.id, status: "obsolete" })).problems;
     const byHand = await fs.readFile(superseded.fixture.path(N_OLD.file), "utf8");
     const opened = await open({ files: { [N_OLD.file]: byHand } });
-    expect(await opened.workspace.get(supersededTargetProblemsState)).toEqual(expected);
+    const checked = (await invoke(
+      "workspace.check",
+      {},
+      { workspace: opened.workspace },
+    )) as CommandOutput<"workspace.check">;
+    expect(checked.problems.filter((p) => p.code === "relation.target-superseded")).toEqual(expected);
     const none = await open();
     expect(await none.workspace.get(supersededTargetProblemsState)).toEqual([]);
   });

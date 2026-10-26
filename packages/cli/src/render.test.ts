@@ -30,6 +30,19 @@ describe("renderProblem", () => {
     ).toBe(`error  element.unknown-type  product/SR-1.md:3  Unknown type foo  (element ${uuid})\n`);
   });
 
+  it("names the element by its short ID when the problem has one (#315)", () => {
+    expect(
+      renderProblem({
+        severity: "warning",
+        code: "element.unknown-property",
+        file: "requirements/SR-825b7146fb54.md",
+        message: "m",
+        elementId: uuid,
+        elementShortId: "SR-46fb54",
+      }),
+    ).toBe("warning  element.unknown-property  requirements/SR-825b7146fb54.md  m  (element SR-46fb54)\n");
+  });
+
   it("names the repository of the file when the problem has one", () => {
     expect(
       renderProblem({

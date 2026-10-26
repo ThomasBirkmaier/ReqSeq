@@ -468,6 +468,7 @@ describe("element.get, more of what stage 1 shows", () => {
       repository: "system",
       file: GUSTS.file,
       elementId: GUSTS.id,
+      elementShortId: "SR-4a5b6c",
     });
     // Every other element keeps its version.
     expect((await get(opened, { ref: WIND.id })).version).toMatch(/^n1:/);
@@ -501,6 +502,7 @@ describe("element.get, more of what stage 1 shows", () => {
         file: "requirements/SR-000000000ab2.md",
         line: 11,
         elementId: "40a0e000-0000-4000-8000-000000000ab2",
+        elementShortId: "SR-000ab2",
         targetId: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
       },
     ]);

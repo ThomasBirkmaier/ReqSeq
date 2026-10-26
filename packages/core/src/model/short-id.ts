@@ -3,10 +3,12 @@
 // of the workspace has a UUID that ends the same way. Only the display grows; the file name keeps the
 // prefix and the 12 digits it got when the element was created and never changes (D-056, SR-084 AK3).
 // Computing short IDs reads nothing and writes nothing.
+import type { Problem } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { UNKNOWN_TYPE_PREFIX, findType, metamodelState } from "../metamodel/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
+import type { ElementStore } from "./store.js";
 import { carryStoreUpdate, elementStoreState } from "./store.js";
 import { normalizeRef } from "./uuid.js";
 
@@ -289,3 +291,24 @@ export const shortIdState = defineWorkspaceState(
     ),
   },
 );
+
+/**
+ * The record of `store` that a problem naming an element (`elementId`) is about: by its UUID and its
+ * repository and file, the element's own (`elementRepository`, `elementFile`) when the problem names
+ * another file (outdated evidence names its record file), else the problem's. That names the copy
+ * when several files share a UUID (SR-088). A problem that names no record of its UUID that way is
+ * about the only record of the UUID when there is one; else undefined.
+ */
+export const problemElement = (
+  store: ElementStore,
+  problem: Problem & { readonly elementId: string },
+): ElementRecord | undefined => {
+  const records = store.byId.get(problem.elementId) ?? [];
+  const repository = problem.elementRepository ?? problem.repository;
+  const file = problem.elementFile ?? problem.file;
+  const [only] = records;
+  return (
+    records.find((e) => e.repository === repository && e.file === file) ??
+    (records.length === 1 ? only : undefined)
+  );
+};

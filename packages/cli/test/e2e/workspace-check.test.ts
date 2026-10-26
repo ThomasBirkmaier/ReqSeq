@@ -102,7 +102,7 @@ describe("logreq workspace check (SR-019)", () => {
     expect(lines.slice(0, 2)).toEqual(["ok: false", "checkedElements: 13"]);
     expect(lines).toContainEqual(
       expect.stringMatching(
-        /^warning {2}element\.wrong-value-kind {2}system:requirements\/SR-b00000000004\.md:7 {2}.* {2}\(element 2b2b2b2b-2222-4222-8222-b00000000004\)$/,
+        /^warning {2}element\.wrong-value-kind {2}system:requirements\/SR-b00000000004\.md:7 {2}.* {2}\(element SR-b00000000004\)$/,
       ),
     );
     expect(lines).toContainEqual(
@@ -181,7 +181,7 @@ describe("findings handed over to workspace check", () => {
       ["element.wrong-value-kind", "anemometer/SR-b69e094ad34c.md", "c0dcc639-0097-42b7-b926-b69e094ad34c"],
     ]);
     expect(human.stdout).toContain(
-      'warning  element.wrong-value-kind  system:requirements/SR-9b0f1826503d.md:6  Property Weight (weight) expects a number; the value is the text "heavy"  (element 234ae95e-f9e5-4d31-9ab2-9b0f1826503d)\n',
+      'warning  element.wrong-value-kind  system:requirements/SR-9b0f1826503d.md:6  Property Weight (weight) expects a number; the value is the text "heavy"  (element SR-26503d)\n',
     );
   });
 
@@ -234,7 +234,7 @@ describe("findings handed over to workspace check", () => {
     // D only derives from A: it is no element of the cycle.
     expect(output.problems.map((p) => p.elementId)).not.toContain(`${CYCLE}4`);
     expect(human.stdout).toContain(
-      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element 5e9c0a7d-2b4f-4c61-9d08-0b0000000002)\n",
+      "warning  trace.cycle  system:requirements/SR-0b0000000002.md:10  System Requirement SR-000002 is in a cycle of derivations with 3 elements (System Requirement SR-b0000000001, System Requirement SR-000002, System Requirement SR-000003): its relation Derives from to System Requirement SR-000003 leads back to it  (element SR-000002)\n",
     );
   });
 
@@ -325,7 +325,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
       ),
     ]);
     expect(human.stdout).toContain(
-      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element ${A_ID})\n`,
+      `warning  relation.outdated  system:requirements/SR-0b0000000001.md:12  Relation Derives from (derives-from) of System Requirement SR-b0000000001 points to an older version of Need N-a0000000001: stored version from ${stored}, current version from ${current}  (element SR-b0000000001)\n`,
     );
   });
 

@@ -157,7 +157,7 @@ export interface Problem {
   readonly elementRepository?: string;
   /** The file of the element the problem is about, relative to `elementRepository`; given with it. */
   readonly elementFile?: string;
-  /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on the hints of hint.list. */
+  /** Short ID of the element `elementId` names, for display (SR-002 AK3); given on every problem that names an element of the workspace, by every command that has read the elements. */
   readonly elementShortId?: ShortId;
   readonly targetId?: Uuid;
   readonly storedVersion?: Version;

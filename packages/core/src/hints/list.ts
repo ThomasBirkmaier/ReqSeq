@@ -10,7 +10,8 @@
 //   no element (`file.yaml-warning`, `file.skipped`, `metamodel.meaning-unassigned`) are not hints.
 //   The hints of a core change (`variant.core-changed`, SR-045, SR-103) join in stage 5.
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
-//   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310), the target
+//   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310, added by
+//   `invoke` to every problem that names an element, #315), the target
 //   where it has one (`targetId`) and the reason (`message`; an outdated relation names both
 //   versions and their dates, D-013). Order: the order of the check.
 // - Filters (AK2), combined with AND; within `kind` and `type` any of the values: `kind` the code;
@@ -37,6 +38,7 @@ import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import {
   currentVersions,
   elementStoreState,
+  problemElement,
   relationKey,
   relationTypeProblemsState,
   requiredProblemsState,
@@ -191,56 +193,32 @@ const filtersElements = (filter: HintFilter): boolean =>
   filter.ref !== undefined;
 
 /**
- * The record of the element of each hint by its UUID and its repository and file: the element's own
- * (`elementRepository`, `elementFile`) when the problem names another file (outdated evidence names
- * its record file), else the problem's. That names the copy when several files share a UUID
- * (SR-088). A problem that names no record of its UUID that way is about the only record of the
- * UUID when there is one.
- */
-const recordFinder =
-  (store: ElementStore): ((problem: Problem & { readonly elementId: string }) => ElementRecord | undefined) =>
-  (problem) => {
-    const records = store.byId.get(problem.elementId) ?? [];
-    const repository = problem.elementRepository ?? problem.repository;
-    const file = problem.elementFile ?? problem.file;
-    const [only] = records;
-    return (
-      records.find((e) => e.repository === repository && e.file === file) ??
-      (records.length === 1 ? only : undefined)
-    );
-  };
-
-/**
  * The hints of `problems` and `outdated` (in this order) that pass `filter`, the outdated ones with
- * the dates of both versions (`datedProblems`, asked only for these); each with the short ID of its
- * element (`elementShortId`) when the element is in the store.
+ * the dates of both versions (`datedProblems`, asked only for these). The short ID of each hint's
+ * element (`elementShortId`) is added where every problem leaves the runtime (`invoke`, #315).
  */
 export const hintsOf = async (
   workspace: Workspace,
-  context: { readonly metamodel: Metamodel; readonly store: ElementStore; readonly shortIds: ShortIds },
+  context: { readonly metamodel: Metamodel; readonly store: ElementStore },
   filter: HintFilter,
   problems: Iterable<Problem>,
   outdated: readonly OutdatedFinding[],
 ): Promise<Problem[]> => {
-  const recordOf = recordFinder(context.store);
   const byElement = filtersElements(filter);
   const passes = (problem: Problem): problem is Problem & { readonly elementId: string } =>
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
-    (!byElement || elementMatches(recordOf(problem), filter, context));
+    (!byElement || elementMatches(problemElement(context.store, problem), filter, context));
   const hints: Problem[] = [];
   for (const problem of problems) {
     if (passes(problem)) {
-      const record = recordOf(problem);
-      hints.push(
-        record === undefined ? problem : { ...problem, elementShortId: context.shortIds.of(record) },
-      );
+      hints.push(problem);
     }
   }
-  const named = outdated
-    .filter((f) => passes(f.problem))
-    .map((f) => ({ ...f, problem: { ...f.problem, elementShortId: context.shortIds.of(f.element) } }));
-  for (const problem of await datedProblems(workspace, named)) {
+  for (const problem of await datedProblems(
+    workspace,
+    outdated.filter((f) => passes(f.problem)),
+  )) {
     hints.push(problem);
   }
   return hints;
@@ -273,7 +251,7 @@ export const listHints = async (
   }
   const outdated = await workspace.get(outdatedRelationsState);
   return {
-    hints: await hintsOf(workspace, { metamodel, store, shortIds }, filter, problems, outdated),
+    hints: await hintsOf(workspace, { metamodel, store }, filter, problems, outdated),
     incomplete,
   };
 };
