@@ -16,6 +16,11 @@ on:
   schedule:
     - cron: "30 2 * * *"
   workflow_dispatch:
+    inputs:
+      github-runners:
+        description: Run on GitHub's runner (the reference machine; costs Actions minutes)
+        type: boolean
+        default: false
   pull_request:
     types: [opened, labeled, synchronize, reopened]
 
@@ -35,7 +40,9 @@ jobs:
       github.event_name != 'pull_request' ||
       (contains(github.event.pull_request.labels.*.name, 'perf') &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf'))
-    runs-on: ubuntu-24.04
+    # On the Mac runner (product owner decision, 2026-10-26, #365: no Actions budget); its times are a guide value. A manual run
+    # with `github-runners: true` measures on GitHub's runner of the reference size before a stage acceptance.
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.github-runners && '"ubuntu-24.04"' || '["self-hosted","logreq-linux"]') }}
     timeout-minutes: 60
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
@@ -84,7 +91,7 @@ jobs:
     name: record and report
     needs: perf
     if: always() && needs.perf.result != 'skipped' && github.event_name != 'pull_request' && needs.perf.outputs.exceeded != ''
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, logreq-linux]
     permissions:
       contents: write # the nightly run commits verification/performance.md to main
       issues: write # an exceeded threshold opens or updates an issue
