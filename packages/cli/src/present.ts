@@ -9,6 +9,9 @@
 //   its line, a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked.
+// - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
+//   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
+//   before it (on an earlier page) names it, `[under X]`.
 // - A list of findings other than `problems` (the hints of hint.list) is one line per finding: the
 //   element's short ID, the kind, the message and the hint ID when it has one.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
@@ -245,6 +248,53 @@ const unresolvedLine = (item: Rec, chain: Chain): string => {
   );
 };
 
+/** A place in a tree list: its depth, and the element it is shown below. */
+interface Place extends Rec {
+  readonly depth: number;
+}
+
+const isPlace = (value: unknown): value is Place => isRecord(value) && typeof value["depth"] === "number";
+
+type Placed = readonly [Rec & { readonly shortId: string; readonly title: string }, Place];
+
+/** The elements of a tree list with their places, in order; undefined when `tree` does not fit them. */
+const treeListOf = (
+  elements: readonly unknown[],
+  tree: readonly unknown[],
+): readonly Placed[] | undefined => {
+  if (elements.length !== tree.length) {
+    return undefined;
+  }
+  const placed: Placed[] = [];
+  for (const [index, place] of tree.entries()) {
+    const element = elements[index];
+    if (!isElement(element) || !isPlace(place)) {
+      return undefined;
+    }
+    placed.push([element, place]);
+  }
+  return placed;
+};
+
+/** A tree list (see the file comment). */
+const treeListLines = (placed: readonly Placed[]): string[] => {
+  if (placed.length === 0) {
+    return ["elements: none"];
+  }
+  const name = namerOf(placed.map(([element]) => element));
+  const keyOf = (repository: unknown, id: unknown): string => JSON.stringify([text(repository), text(id)]);
+  const before = new Set<string>();
+  const lines = ["elements:"];
+  for (const [element, place] of placed) {
+    const parent = place["parent"];
+    const away = isRecord(parent) && !before.has(keyOf(parent["repository"], parent["id"]));
+    const under = away ? `[under ${name(text(parent["repository"]), text(parent["id"]))}]` : "";
+    lines.push(`  ${"  ".repeat(place.depth)}${join(elementLine(element, name), under)}`);
+    before.add(keyOf(element["repository"], element["id"]));
+  }
+  return lines;
+};
+
 /** The key of the root among the nodes; `root/up` and `root/down` hold its parents and children. */
 const ROOT = "root";
 
@@ -396,6 +446,13 @@ export function renderHuman(output: unknown, details = true): string {
     lines.push(...chainLines(rest));
   }
   const shown = chain ? new Set(["root", "nodes", "edges", "gaps", "unresolved"]) : new Set<string>();
+  const tree = rest["tree"];
+  const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
+  if (treeList !== undefined) {
+    lines.push(...treeListLines(treeList));
+    shown.add("elements");
+    shown.add("tree");
+  }
   // The findings left out are said after the problems (`problemsEnd`).
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");

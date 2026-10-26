@@ -24,14 +24,12 @@ import { findNamed, keyDefinition } from "../metamodel/index.js";
 import { relationKey, resolveRef } from "../model/index.js";
 import { validityTarget } from "../variants/index.js";
 import type { CompileContext, Predicate } from "./context.js";
-import { invalidAt, valuesOf } from "./context.js";
+import { fold, invalidAt, valuesOf } from "./context.js";
 
 type Scalar = string | number | boolean;
 
 const isScalar = (value: unknown): value is Scalar =>
   typeof value === "string" || typeof value === "number" || typeof value === "boolean";
-
-const fold = (text: string): string => text.normalize("NFC").toLowerCase();
 
 /** The operands of `eq`, `ne` (one value) and `in` (a list); `input.invalid` for any other shape. */
 const operandsOf = (

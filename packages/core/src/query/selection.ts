@@ -14,7 +14,7 @@
 // - Not yet: `filter`, a saved filter by name (SR-070, #82), and `baseline` (stage 5). Both are
 //   refused with `input.invalid`, so no caller takes every element for a narrower selection.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
-//   path (code units), whatever order `ids` names them in; sorting is SR-075 (#87).
+//   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
 //   whose elements may belong to the selection too, or a condition met a target in a repository the
 //   workspace file does not list (relation.ts).

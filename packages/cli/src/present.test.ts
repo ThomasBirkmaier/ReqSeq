@@ -146,6 +146,52 @@ describe("renderHuman: values", () => {
     expect(renderHuman({ total: 4 })).toBe(lines("total: 4"));
   });
 
+  it("[SR-075/AK2] shows a tree list indented by depth, naming a parent that is not shown before", () => {
+    const element = (id: string, title: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      shortId: `SR-${id}`,
+      status: "draft",
+      title,
+    });
+    const at = (id: string, depth: number, parent?: string): Record<string, unknown> => ({
+      id,
+      repository: "system",
+      depth,
+      ...(parent === undefined ? {} : { parent: { id: parent, repository: "system" } }),
+    });
+    expect(
+      renderHuman({
+        elements: [element("b1", "One"), element("f1", "Two"), element("b2", "Three"), element("n2", "Four")],
+        tree: [at("b1", 1, "n1"), at("f1", 2, "b1"), at("b2", 1, "n1"), at("n2", 0)],
+        total: 9,
+        incomplete: false,
+      }),
+    ).toBe(
+      lines(
+        "elements:",
+        "    SR-b1  draft  One  [under n1]",
+        "      SR-f1  draft  Two",
+        "    SR-b2  draft  Three  [under n1]",
+        "  SR-n2  draft  Four",
+        "total: 9",
+        "Showing 4 of 9; ask for more with --offset and --limit.",
+      ),
+    );
+    expect(renderHuman({ elements: [], tree: [], total: 0 })).toBe(lines("elements: none", "total: 0"));
+  });
+
+  it("shows a tree that does not fit the elements as it is", () => {
+    const one = { shortId: "SR-1", title: "One" };
+    expect(renderHuman({ elements: [one], tree: [] })).toBe(lines("elements:", "  SR-1  One", "tree: none"));
+    expect(renderHuman({ elements: [one], tree: [{ depth: "1" }] })).toBe(
+      lines("elements:", "  SR-1  One", "tree:", '  - depth: "1"'),
+    );
+    expect(renderHuman({ elements: ["SR-1"], tree: [{ depth: 0 }] })).toBe(
+      lines("elements:", "  SR-1", "tree:", "  - depth: 0"),
+    );
+  });
+
   it("renders a list of strings one per line", () => {
     expect(renderHuman({ files: ["a.md", "b.md"], problems: [] })).toBe(
       lines("files:", "  a.md", "  b.md", "No problems."),

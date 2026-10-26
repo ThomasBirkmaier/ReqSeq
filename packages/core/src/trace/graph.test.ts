@@ -11,6 +11,7 @@ import {
   childrenOf,
   derivationEdges,
   derivationGraph,
+  parentPositions,
   parentsOf,
   traceContext,
   walkDerivation,
@@ -192,6 +193,34 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
     });
     expect(show(missingOnly)).toEqual({ steps: [], unresolved: [[MISSING, "missing"]], incomplete: false });
     expect(show(parentsOf(graph, r(N1)))).toEqual({ steps: [], unresolved: [], incomplete: false });
+  });
+
+  it("gives the store positions of the parents parentsOf steps to, without the incoming index (SR-075)", async () => {
+    const workspace = await open();
+    const store = await workspace.get(elementStoreState);
+    const graph = derivationGraph(await traceContext(workspace), "trace.chain");
+    const odd = (base: ElementRecord): ElementRecord => ({
+      ...base,
+      id: uuid(99),
+      // `repository: null` names no repository; a single target where a list belongs is none.
+      data: { "derives-from": [{ id: N1, repository: null }, { id: S1 }], refines: { id: N2 } },
+    });
+    const [first = store.elements[0]] = store.elements;
+    const elements = [...store.elements, ...(first === undefined ? [] : [odd(first)])];
+    const positions = parentPositions({ kinds: graph.kinds, store: { ...store, elements } });
+    expect(positions.map((entry) => entry.element)).toEqual(elements);
+    for (const { element, parents } of positions) {
+      expect(parents.map((position) => elements[position])).toEqual(
+        parentsOf(graph, element).steps.map((step) => step.to),
+      );
+    }
+    const r = await recordsOf(workspace);
+    const s2 = positions.find((entry) => entry.element === r(S2))?.parents ?? [];
+    expect(s2.map((position) => [elements[position]?.id, elements[position]?.repository])).toEqual([
+      [S1, "system"],
+      [P1, "platform"],
+    ]);
+    expect(positions.at(-1)?.parents.map((position) => elements[position]?.id)).toEqual([S1]);
   });
 
   it("gives the children of an element from the incoming index, across repositories", async () => {

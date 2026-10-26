@@ -194,6 +194,7 @@
       "required": ["by"],
       "properties": {
         "by": {
+          "description": "`id`: short ID. `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders.",
           "anyOf": [
             { "enum": ["id", "hierarchy", "type", "status", "title"] },
             { "$ref": "common.schema.json#/$defs/key" }

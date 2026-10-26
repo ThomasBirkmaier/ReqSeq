@@ -70,15 +70,27 @@ export interface DerivationGraph extends TraceContext {
 }
 
 /**
+ * The relation kinds a derivation graph follows (`DerivationGraph.kinds`). Throws
+ * `metamodel.meaning-unassigned` naming `command` when no relation kind has the meaning `derivation`
+ * (SR-013 AK3).
+ */
+export const derivationKinds = (
+  metamodel: Metamodel,
+  command: CommandName,
+): readonly MetamodelRelationKind[] => {
+  requireMeaning(metamodel, "derivation", command);
+  // `keyDefinition`'s rule: a property of the same key wins, so its key holds no relation kind.
+  return relationKindsWithMeaning(metamodel, "derivation").filter(
+    (kind) => !metamodel.properties.some((p) => p.key === kind.key),
+  );
+};
+
+/**
  * The derivation graph of `context`. Throws `metamodel.meaning-unassigned` naming `command` when no
  * relation kind has the meaning `derivation` (SR-013 AK3).
  */
 export const derivationGraph = (context: TraceContext, command: CommandName): DerivationGraph => {
-  requireMeaning(context.metamodel, "derivation", command);
-  // `keyDefinition`'s rule: a property of the same key wins, so its key holds no relation kind.
-  const kinds = relationKindsWithMeaning(context.metamodel, "derivation").filter(
-    (kind) => !context.metamodel.properties.some((p) => p.key === kind.key),
-  );
+  const kinds = derivationKinds(context.metamodel, command);
   return {
     ...context,
     kinds,
@@ -170,6 +182,64 @@ const onlyRecordIn = (records: readonly ElementRecord[], repository: string): El
     }
   }
   return found;
+};
+
+/** An element of the store with the store positions of its available derivation parents. */
+export interface ParentPositions {
+  readonly element: ElementRecord;
+  /**
+   * The positions in `store.elements` of the elements `parentsOf` steps to, in the same order (a
+   * parent named twice is there twice).
+   */
+  readonly parents: readonly number[];
+}
+
+/**
+ * For every element of the store, in store order, the positions of its available parents: each
+ * derivation item's one record of its UUID in the repository it names (the source's own without
+ * `repository`), as `targetState` finds an `available` one; a repository that is not here or not
+ * in the workspace file holds no record. Positions instead of records, and no incoming index: for
+ * the derivation tree of a list (`element.list` by hierarchy, SR-075), which then links its
+ * elements by array positions; looking each parent up as a record, for the 128,000 derivations of
+ * N-036, cost several times as much (#87).
+ */
+export const parentPositions = (graph: Pick<DerivationGraph, "kinds" | "store">): ParentPositions[] => {
+  const { elements } = graph.store;
+  const positions = new Map<string, { readonly element: ElementRecord; readonly position: number }[]>();
+  for (const [position, element] of elements.entries()) {
+    const known = positions.get(element.id);
+    if (known === undefined) {
+      positions.set(element.id, [{ element, position }]);
+    } else {
+      known.push({ element, position });
+    }
+  }
+  return elements.map((element) => {
+    const parents: number[] = [];
+    for (const { key } of graph.kinds) {
+      const value: unknown = element.data[key];
+      if (!Array.isArray(value)) {
+        continue;
+      }
+      for (const item of value) {
+        if (!hasId(item)) {
+          continue;
+        }
+        const repository = item["repository"] === undefined ? element.repository : item["repository"];
+        let found = -1;
+        for (const candidate of positions.get(item.id) ?? NONE) {
+          if (candidate.element.repository === repository) {
+            // Several files of the repository share the UUID (SR-088): none is the parent.
+            found = found === -1 ? candidate.position : -2;
+          }
+        }
+        if (found >= 0) {
+          parents.push(found);
+        }
+      }
+    }
+    return { element, parents };
+  });
 };
 
 /**

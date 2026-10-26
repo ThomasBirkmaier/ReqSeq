@@ -580,6 +580,7 @@ export interface FilterRelationCondition {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKey {
+  /** `id`: short ID. `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   readonly order?: "asc" | "desc";
 }
@@ -589,6 +590,7 @@ export interface FilterSortKey {
  * Schema: `schemas/filter.schema.json#/$defs/sortKey`.
  */
 export interface FilterSortKeyWithDefaults {
+  /** `id`: short ID. `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders. */
   readonly by: Key;
   readonly order: "asc" | "desc";
 }
@@ -1095,6 +1097,7 @@ export interface ElementResolveOutput {
 export interface ElementListInput {
   /** Every part given must hold (SR-101 AK2). */
   readonly selection?: ElementSelection;
+  /** Keys in order: ties go to the next key, then to the workspace order (also without sort). `hierarchy` only first: the list is then the derivation tree, see `tree`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Also give the text of each element. Left out for an element without a version, and when its file changed while the list was built (list again). */
   readonly withText?: boolean;
@@ -1108,6 +1111,19 @@ export interface ElementListInput {
  */
 export interface ElementListOutput {
   readonly elements: readonly DataExportElement[];
+  /** Only when `sort` starts with `hierarchy` (SR-075 AK2): the place in the derivation tree of each element of `elements`, in the same order. The list is the tree depth first: each root, then the elements below it. Each element of the selection appears once (spec-frage #354): below the parent of the list that reaches it at the shortest depth, the first in sort order among equals; an element without a parent in the list is a root, and so is the first element in sort order of a cycle that no root reaches. Its other parents are in its `relations`. */
+  readonly tree?: readonly {
+    readonly id: Uuid;
+    /** Workspace name of the repository of the element. */
+    readonly repository: string;
+    /** 0 for a root, 1 for an element below it, and so on. */
+    readonly depth: number;
+    /** The element it is shown below, a parent of it by a derivation; left out for a root. It may lie on an earlier page. */
+    readonly parent?: {
+      readonly id: Uuid;
+      readonly repository: string;
+    };
+  }[];
   readonly total: number;
   readonly incomplete?: Incomplete;
 }

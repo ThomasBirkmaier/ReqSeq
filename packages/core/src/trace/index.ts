@@ -25,11 +25,19 @@ export {
   elementCycleFindings,
 } from "./cycles.js";
 export type { ElementCycleContext } from "./cycles.js";
-export type { DerivationGraph, DerivationLink, DerivationWalkOptions, TraceContext } from "./graph.js";
+export type {
+  DerivationGraph,
+  DerivationLink,
+  DerivationWalkOptions,
+  ParentPositions,
+  TraceContext,
+} from "./graph.js";
 export {
   childrenOf,
   derivationEdges,
   derivationGraph,
+  derivationKinds,
+  parentPositions,
   parentsOf,
   traceContext,
   walkDerivation,

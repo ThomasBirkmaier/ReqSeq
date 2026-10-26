@@ -488,14 +488,8 @@ describe("element.list (SR-069)", () => {
 });
 
 describe("element.list refuses what it cannot do yet, and wrong conditions", () => {
-  it("refuses sort, saved filters, baselines and the conditions text and emergent, naming the field", async () => {
+  it("refuses saved filters, baselines and the conditions text and emergent, naming the field", async () => {
     const ws = await open();
-    const sort = await failure(ws, { sort: [{ by: "title" }] });
-    expect([sort.code, sort.message, sort.details?.["fields"]]).toEqual([
-      "input.invalid",
-      "sort: sorting comes with SR-075; leave it out",
-      ["sort"],
-    ]);
     expect((await failure(ws, { selection: { filter: "open ones" } })).details?.["fields"]).toEqual([
       "selection.filter",
     ]);

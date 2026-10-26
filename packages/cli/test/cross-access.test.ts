@@ -50,6 +50,8 @@ const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
 /** Needs, requirements, variants and packages to filter (SR-069). */
 const FILTER: FixtureOptions = { fixture: "SR-069/filter", git: true };
+/** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
+const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
@@ -336,6 +338,24 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: FILTER,
       input: { selection: { ids: ["SR-0000b3", "sr-0000B1"] } },
       expect: "output",
+    },
+    {
+      name: "sorted by a choice and then by a number descending, one page (SR-075 AK1)",
+      fixture: SORT,
+      input: { sort: [{ by: "requirement-type" }, { by: "priority", order: "desc" }], offset: 1, limit: 5 },
+      expect: "output",
+    },
+    {
+      name: "the derivation tree with its places, siblings by title, one page (SR-075 AK2)",
+      fixture: SORT,
+      input: { sort: [{ by: "hierarchy" }, { by: "title" }], offset: 2, limit: 5 },
+      expect: "output",
+    },
+    {
+      name: "hierarchy after another sort key (SR-075)",
+      fixture: SORT,
+      input: { sort: [{ by: "title" }, { by: "hierarchy" }] },
+      expect: "error",
     },
     {
       name: "the condition text before the full-text search (SR-068)",

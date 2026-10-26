@@ -70,3 +70,6 @@ export const valuesOf = (value: unknown): readonly unknown[] => {
 };
 
 const NONE: readonly never[] = Object.freeze([]);
+
+/** A text as conditions and sorting compare it ignoring case: NFC, lower case. */
+export const fold = (text: string): string => text.normalize("NFC").toLowerCase();
