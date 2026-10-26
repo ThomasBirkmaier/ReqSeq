@@ -103,6 +103,7 @@ export {
   identifierField,
   problemElement,
   shortIdState,
+  shortIdsBuiltFrom,
 } from "./short-id.js";
 export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";

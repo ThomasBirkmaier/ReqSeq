@@ -88,6 +88,8 @@ interface Index {
   readonly groups: ReadonlyMap<string, readonly Entry[]>;
   /** Digits a UUID shares at the end with its closest other UUID, for UUIDs not alone in their group. */
   readonly shared: ReadonlyMap<string, number>;
+  /** The elements (the `byId` of a store) the short IDs are of. */
+  readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
   readonly metamodel: Metamodel;
   /** The identifiers of the elements (#305). */
   readonly identifiers: IdentifierIndex;
@@ -253,7 +255,7 @@ export const buildShortIds = (
   for (const group of groups.values()) {
     link(group, shared);
   }
-  return shortIdsOf({ groups, shared, metamodel, identifiers: buildIdentifierIndex(byId, metamodel) });
+  return shortIdsOf({ groups, shared, byId, metamodel, identifiers: buildIdentifierIndex(byId, metamodel) });
 };
 
 /**
@@ -307,9 +309,25 @@ export const updateShortIds = (
   return shortIdsOf({
     groups,
     shared,
+    byId,
     metamodel: index.metamodel,
     identifiers: updateIdentifierIndex(index.identifiers, byId, changedIds, recordsBefore),
   });
+};
+
+/**
+ * Whether `shortIds` are the short IDs of the elements of `byId` (the `byId` of a store) with the
+ * prefixes of `metamodel`: built from them (`buildShortIds`) or carried to them (`updateShortIds`).
+ * A command that takes kept short IDs together with a store checks it, so that both are one view
+ * of the workspace (ADR-0008).
+ */
+export const shortIdsBuiltFrom = (
+  shortIds: ShortIds,
+  byId: ReadonlyMap<string, readonly ElementRecord[]>,
+  metamodel: Metamodel,
+): boolean => {
+  const index = indexes.get(shortIds);
+  return index?.byId === byId && index.metamodel === metamodel;
 };
 
 /**

@@ -78,8 +78,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const registry = new Map<string, AnyCommand>();
   // Write commands that are refused while the workspace is read-only (SR-011 AK3).
   const guarded = new Set<string>();
-  // Where the output of each command holds problems, from its output schema (#315).
-  const locators = new Map<string, ProblemLocator | undefined>();
+  // Where the output of each command holds problems, from its output schema (#315); built on the
+  // first call of the command, since a CLI process runs one (#319).
+  const locators = new Map<string, () => ProblemLocator | undefined>();
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
@@ -89,10 +90,17 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       throw new Error(`command ${command.name} is registered twice`);
     }
     registry.set(command.name, command);
-    locators.set(
-      command.name,
-      problemLocator(entry.output, `${SCHEMA_BASE}commands/${command.name}.output.json`, contracts.schemas),
-    );
+    let located: { readonly locator: ProblemLocator | undefined } | undefined;
+    locators.set(command.name, () => {
+      located ??= {
+        locator: problemLocator(
+          entry.output,
+          `${SCHEMA_BASE}commands/${command.name}.output.json`,
+          contracts.schemas,
+        ),
+      };
+      return located.locator;
+    });
     if (entry.effect === "write-files" && !CREATES_WORKSPACE.has(command.name)) {
       guarded.add(command.name);
     }
@@ -141,9 +149,11 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         if (guarded.has(name)) {
           await assertWritable(ctx.workspace, name);
         }
+        // Before the command runs: a catalog the locator cannot follow fails before anything is written.
+        const locator = locators.get(name)?.();
         const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
         // Every problem that names an element names its short ID too (#315).
-        return withElementShortIds(ctx.workspace, locators.get(name), result);
+        return withElementShortIds(ctx.workspace, locator, result);
       });
     } catch (error) {
       throw toCommandError(name, error, signal);
