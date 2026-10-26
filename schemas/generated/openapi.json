@@ -508,7 +508,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "tags": [
           "workspace"
         ],
@@ -732,7 +732,7 @@
     "/v1/commands/metamodel.get": {
       "post": {
         "operationId": "metamodel_get",
-        "summary": "The effective metamodel: types with inherited properties, properties, relation kinds, statuses, meanings.",
+        "summary": "The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.",
         "tags": [
           "metamodel"
         ],
@@ -767,7 +767,7 @@
                       "items": {
                         "$ref": "#/components/schemas/metamodel/$defs/effectiveType"
                       },
-                      "description": "The types with inheritance resolved (SR-012), in metamodel order."
+                      "description": "The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306)."
                     },
                     "properties": {
                       "type": "array",
@@ -925,7 +925,7 @@
     "/v1/commands/element.create": {
       "post": {
         "operationId": "element_create",
-        "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).",
+        "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type restricts the statuses and lacks it, the first status of the type in metamodel order that is not marked invalid (only invalid ones: refused), and no status for a type without status (#306).",
         "tags": [
           "element"
         ],
@@ -1863,7 +1863,7 @@
     "/v1/commands/element.setStatus": {
       "post": {
         "operationId": "element_setStatus",
-        "summary": "Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
+        "summary": "Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
         "tags": [
           "element"
         ],
@@ -1888,7 +1888,7 @@
                   },
                   "status": {
                     "$ref": "#/components/schemas/common/$defs/keyOrName",
-                    "description": "Key or display name of a status of the metamodel, in any case; the key is written."
+                    "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306)."
                   }
                 },
                 "additionalProperties": false,
@@ -2026,7 +2026,7 @@
     "/v1/commands/element.supersede": {
       "post": {
         "operationId": "element_supersede",
-        "summary": "Supersede an element: set an invalid status and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
+        "summary": "Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
         "tags": [
           "element"
         ],
@@ -2049,7 +2049,7 @@
                   },
                   "status": {
                     "$ref": "#/components/schemas/common/$defs/keyOrName",
-                    "description": "Key or display name of a status of the metamodel, in any case; the key is written."
+                    "description": "Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306)."
                   },
                   "successor": {
                     "$ref": "#/components/schemas/common/$defs/elementRef"
@@ -8159,6 +8159,8 @@
               "element.unknown-property",
               "element.missing-required",
               "element.wrong-value-kind",
+              "element.status-not-allowed",
+              "element.missing-status",
               "relation.missing-target",
               "relation.inaccessible-target",
               "relation.not-allowed",
@@ -8371,7 +8373,6 @@
               "id",
               "shortId",
               "type",
-              "status",
               "title",
               "repository",
               "file",
@@ -8389,7 +8390,8 @@
                 "$ref": "#/components/schemas/common/$defs/key"
               },
               "status": {
-                "$ref": "#/components/schemas/common/$defs/key"
+                "$ref": "#/components/schemas/common/$defs/key",
+                "description": "The status key as written; left out when the element has none (a type without status, #306)."
               },
               "title": {
                 "type": "string"
@@ -8640,12 +8642,11 @@
       },
       "element": {
         "title": "Element file frontmatter",
-        "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural; every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.",
+        "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.",
         "type": "object",
         "required": [
           "id",
-          "type",
-          "status"
+          "type"
         ],
         "properties": {
           "id": {
@@ -8657,7 +8658,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/common/$defs/key",
-            "description": "Status key from the metamodel. Only ever set by a person (D-030, SR-017)."
+            "description": "Status key from the metamodel, one of the statuses of the element's type (#306). Left out for a type without status. Only ever set by a person (D-030, SR-017)."
           },
           "normal-form": {
             "description": "Reserved. Never written; the normal-form version is part of every stored version string (D-027).",
@@ -9266,6 +9267,13 @@
                   "$ref": "#/components/schemas/metamodel/$defs/key"
                 },
                 "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064)."
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/metamodel/$defs/key"
+                },
+                "description": "Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type that is not abstract and has only statuses marked invalid is a metamodel warning, as element.create refuses its new elements. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
               }
             },
             "unevaluatedProperties": false
@@ -9289,7 +9297,8 @@
               "abstract",
               "ancestors",
               "properties",
-              "required"
+              "required",
+              "statuses"
             ],
             "properties": {
               "key": {
@@ -9333,6 +9342,13 @@
                   "$ref": "#/components/schemas/metamodel/$defs/key"
                 },
                 "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c)."
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/metamodel/$defs/key"
+                },
+                "description": "The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out."
               },
               "meaning": {
                 "$ref": "#/components/schemas/metamodel/$defs/typeMeaning",
@@ -9472,7 +9488,7 @@
               "initial": {
                 "type": "boolean",
                 "default": false,
-                "description": "Status of new elements. Exactly one status is initial."
+                "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order (a type with only invalid statuses gets no new elements); a type without status gives them none (#306)."
               }
             },
             "unevaluatedProperties": false

@@ -218,7 +218,7 @@ describe("elementView", () => {
     ).toEqual([]);
   });
 
-  it("shows a status and title that are not text as empty and counts no property of an unknown type", async () => {
+  it("leaves out a status and shows a title that are not text as empty and counts no property of an unknown type", async () => {
     const { metamodel, store, layout } = await context();
     const file = parsedFile(`---\nid: ${OTHER}\ntype: gadget\nstatus: 3\ntitle: [a]\nweight: 2\n---\nBody\n`);
     const record = recordOf(file);
@@ -234,12 +234,13 @@ describe("elementView", () => {
       layout,
     });
     expect(view).toMatchObject({
-      status: "",
       title: "",
       text: "Body\n",
       properties: { weight: 2 },
       version: computeVersion({ text: "Body\n", properties: {}, definitions: [], files: [] }),
     });
+    // A status that is not text is no key; the element is listed as one without status (#306).
+    expect(view).not.toHaveProperty("status");
   });
 
   it("gives a value-kind hint without a line when the file at hand does not hold the value", async () => {

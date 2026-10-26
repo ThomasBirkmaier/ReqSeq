@@ -151,6 +151,14 @@ describe("standard model", () => {
     }
   });
 
+  it("restricts no type's statuses: every type of the standard model has every status (#306)", async () => {
+    const metamodel = await standardModel();
+    expect(metamodel.types.every((t) => t.statuses === undefined)).toBe(true);
+    expect(new Set(metamodel.effectiveTypes.map((t) => t.statuses.join(",")))).toEqual(
+      new Set(["draft,approved,obsolete"]),
+    );
+  });
+
   it("[SR-014/AK3] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {
     const metamodel = await standardModel();
     // Open question #150, option 1 (assumption): a relation meaning may have several relation kinds

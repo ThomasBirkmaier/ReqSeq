@@ -60,6 +60,7 @@ describe("type inheritance", () => {
       ancestors: ["item"],
       properties: ["title", "rationale"],
       required: ["title"],
+      statuses: ["draft", "approved"],
     });
   });
 
@@ -75,6 +76,7 @@ describe("type inheritance", () => {
       ancestors: ["requirement", "item"],
       properties: ["title", "rationale", "component"],
       required: ["title", "component"],
+      statuses: ["draft", "approved"],
     });
     expect(effective(metamodel, "interface-requirement")).toMatchObject({
       ancestors: ["software-requirement", "requirement", "item"],
@@ -104,6 +106,7 @@ describe("type inheritance", () => {
       ancestors: [],
       properties: ["title"],
       required: ["title"],
+      statuses: ["draft", "approved"],
     });
   });
 
@@ -120,7 +123,13 @@ describe("type inheritance", () => {
       file: "model/hazard.yaml",
       lineOf: () => undefined,
     };
-    expect(resolveTypes([located], new Set(["severity"]), new Set(), true)).toEqual({
+    expect(
+      resolveTypes(
+        [located],
+        { properties: new Set(["severity"]), relations: new Set(), statuses: [] },
+        true,
+      ),
+    ).toEqual({
       types: [
         {
           key: "hazard",
@@ -132,6 +141,7 @@ describe("type inheritance", () => {
           ancestors: [],
           properties: ["severity"],
           required: ["severity"],
+          statuses: [],
         },
       ],
       problems: [],
@@ -144,7 +154,9 @@ describe("type inheritance", () => {
       file: "model/hazard.yaml",
       lineOf: () => undefined,
     };
-    expect(resolveTypes([located], new Set(), new Set(), true).problems).toEqual([
+    expect(
+      resolveTypes([located], { properties: new Set(), relations: new Set(), statuses: [] }, true).problems,
+    ).toEqual([
       {
         code: "metamodel.invalid",
         severity: "error",
@@ -311,5 +323,166 @@ describe("type inheritance", () => {
       properties: ["rationale", "title"],
     });
     expect(effective(metamodel, "c")).toMatchObject({ ancestors: [], properties: [] });
+  });
+});
+
+describe("statuses per type (#306)", () => {
+  /** A type of `model/types.yaml` at index `index`, without lines. */
+  const typeAt = (definition: LocatedType["definition"]): LocatedType => ({
+    definition,
+    file: "model/types.yaml",
+    lineOf: (segments) => (segments[0] === "statuses" ? 10 + Number(segments[1]) : undefined),
+  });
+  const KEYS = {
+    properties: new Set<string>(),
+    relations: new Set<string>(),
+    statuses: ["draft", "approved", "accepted", "obsolete", "superseded"],
+  };
+  const statusesOf = (types: readonly LocatedType[], complete = true): Record<string, readonly string[]> =>
+    Object.fromEntries(resolveTypes(types, KEYS, complete).types.map((t) => [t.key, t.statuses]));
+
+  it("gives a type without a list in its chain every status, in metamodel order", () => {
+    expect(
+      statusesOf([
+        typeAt({ key: "item", name: "Item", prefix: "I" }),
+        typeAt({ key: "need", name: "Need", prefix: "N", extends: "item" }),
+      ]),
+    ).toEqual({ item: KEYS.statuses, need: KEYS.statuses });
+  });
+
+  it("inherits the statuses like properties: the union of the type and its ancestors, in metamodel order", () => {
+    expect(
+      statusesOf([
+        typeAt({ key: "item", name: "Item", prefix: "I" }),
+        typeAt({
+          key: "requirement",
+          name: "Requirement",
+          prefix: "R",
+          extends: "item",
+          statuses: ["obsolete", "draft"],
+        }),
+        typeAt({
+          key: "safety",
+          name: "Safety",
+          prefix: "S",
+          extends: "requirement",
+          statuses: ["approved", "draft"],
+        }),
+        typeAt({ key: "kept", name: "Kept", prefix: "K", extends: "requirement", statuses: [] }),
+      ]),
+    ).toEqual({
+      item: KEYS.statuses,
+      requirement: ["draft", "obsolete"],
+      safety: ["draft", "approved", "obsolete"],
+      // An empty list adds nothing to the parent's statuses; it cannot take any away.
+      kept: ["draft", "obsolete"],
+    });
+  });
+
+  it("gives a type with an empty list and no list above it no status, also to the types extending it", () => {
+    expect(
+      statusesOf([
+        typeAt({ key: "term", name: "Term", prefix: "T", statuses: [] }),
+        typeAt({ key: "acronym", name: "Acronym", prefix: "A", extends: "term" }),
+      ]),
+    ).toEqual({ term: [], acronym: [] });
+  });
+
+  it("reports an undefined status of a type as a warning on its line and leaves it out", () => {
+    const resolved = resolveTypes(
+      [typeAt({ key: "decision", name: "Decision", prefix: "D", statuses: ["accepted", "acepted"] })],
+      KEYS,
+      true,
+    );
+    expect(resolved.types[0]?.statuses).toEqual(["accepted"]);
+    expect(resolved.problems).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "warning",
+        message:
+          "Type decision names unknown status acepted; it is treated like a status the type does not have",
+        file: "model/types.yaml",
+        line: 11,
+      },
+    ]);
+  });
+
+  it("says so when a type is left without status because none of its statuses is defined", () => {
+    const resolved = resolveTypes(
+      [typeAt({ key: "decision", name: "Decision", prefix: "D", statuses: ["acepted"] })],
+      KEYS,
+      true,
+    );
+    expect(resolved.types[0]?.statuses).toEqual([]);
+    expect(resolved.problems.map((p) => p.message)).toEqual([
+      "Type decision names unknown status acepted; it is treated like a status the type does not have, so type decision has no status",
+    ]);
+  });
+
+  it("warns about a type with only invalid statuses, on its key when it inherits them; not an abstract one", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-gone.yaml":
+          "logreq-metamodel: 1\ntypes:\n  - { key: gone, name: Gone, prefix: GO, abstract: true, statuses: [withdrawn] }\n  - key: gone-item\n    name: Gone item\n    prefix: GI\n    extends: gone\nstatuses:\n  - { key: withdrawn, name: Withdrawn, invalid: true }\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(true);
+    expect(metamodel.problems).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "warning",
+        repository: "system",
+        message:
+          "Type gone-item has only statuses marked invalid (withdrawn); element.create refuses new elements of it, as they would be superseded at once",
+        file: "model/z-gone.yaml",
+        line: 4,
+      },
+    ]);
+  });
+
+  it("keeps an undefined status after the known ones and does not report it while a file is faulty", () => {
+    const resolved = resolveTypes(
+      [
+        typeAt({
+          key: "decision",
+          name: "Decision",
+          prefix: "D",
+          statuses: ["frozen", "superseded", "accepted"],
+        }),
+      ],
+      KEYS,
+      false,
+    );
+    expect(resolved.types[0]?.statuses).toEqual(["accepted", "superseded", "frozen"]);
+    expect(resolved.problems).toEqual([]);
+  });
+
+  it("loads the statuses of each type from the metamodel files; the definition keeps them as written", async () => {
+    const ws = await fixture({
+      files: {
+        "model/z-decision.yaml":
+          "logreq-metamodel: 1\ntypes:\n  - key: decision\n    name: Decision\n    prefix: D\n    properties: [title]\n    statuses: [approved, withdrawn]\n",
+      },
+    });
+    const workspace = open(ws.root);
+    const metamodel = await workspace.get(metamodelState);
+    expect(metamodel.valid).toBe(true);
+    expect(metamodel.problems).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "warning",
+        repository: "system",
+        message:
+          "Type decision names unknown status withdrawn; it is treated like a status the type does not have",
+        file: "model/z-decision.yaml",
+        line: 7,
+      },
+    ]);
+    expect(effective(metamodel, "decision")?.statuses).toEqual(["approved"]);
+    expect(metamodel.types.find((t) => t.key === "decision")?.statuses).toEqual(["approved", "withdrawn"]);
+    const out = (await invoke("metamodel.get", {}, { workspace })) as CommandOutput<"metamodel.get">;
+    expect(out.types.find((t) => t.key === "decision")?.statuses).toEqual(["approved"]);
+    expect(out.types.find((t) => t.key === "requirement")?.statuses).toEqual(["draft", "approved"]);
   });
 });

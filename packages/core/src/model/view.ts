@@ -25,6 +25,7 @@ import { hasId, relationItems } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { targetState } from "./relations.js";
 import { requiredFindings } from "./required.js";
+import { statusFindings } from "./status-findings.js";
 import type { ShortIds } from "./short-id.js";
 import { UNKNOWN_TYPE_PREFIX } from "./short-id.js";
 import type { ElementStore } from "./store.js";
@@ -280,6 +281,8 @@ export type ListedElementInput = Pick<
 export const listedElement = (input: ListedElementInput, version: string | undefined): DataExportElement => {
   const { record, metamodel, shortIds, titleKey } = input;
   const relationKeys = new Set(metamodel.relations.map((r) => r.key));
+  // Left out for an element without status, such as one of a type without status (#306).
+  const status = text(record.data["status"]);
   const properties = Object.fromEntries(
     Object.entries(record.data).filter(
       ([key]) => !STRUCTURAL_KEYS.includes(key) && key !== titleKey && !relationKeys.has(key),
@@ -289,7 +292,7 @@ export const listedElement = (input: ListedElementInput, version: string | undef
     id: record.id,
     shortId: shortIds.of(record),
     type: record.type,
-    status: text(record.data["status"]),
+    ...(status === "" ? {} : { status }),
     title: text(record.data[titleKey]),
     ...(version === undefined ? {} : { version }),
     repository: record.repository,
@@ -321,6 +324,7 @@ export const elementView = (
     ? [
         ...unknownFindings(record, metamodel),
         ...requiredFindings(record, metamodel),
+        ...statusFindings(record, metamodel),
         ...valueFindings(record, metamodel),
         ...relationTypeFindings(record, { store: input.store, metamodel, shortIds }),
         ...supersededFindingsOf({ store: input.store, metamodel, shortIds }, record, input.successionsOf),
@@ -340,5 +344,14 @@ export const elementView = (
   const { id, shortId, type, status, title, ...rest } = listedElement(input, version);
   // The text after the title, as the element files and the schema order it; without the blank line
   // after the frontmatter, so element.update takes it back unchanged (#308).
-  return { id, shortId, type, status, title, text: elementText(file.body), ...rest, problems };
+  return {
+    id,
+    shortId,
+    type,
+    ...(status === undefined ? {} : { status }),
+    title,
+    text: elementText(file.body),
+    ...rest,
+    problems,
+  };
 };

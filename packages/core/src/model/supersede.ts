@@ -5,7 +5,9 @@
 // (source = new, target = old), so the element's own file changes only in its status line. The
 // relation stores the element's UUID and current version like every new relation (SR-021,
 // `currentTarget`); one the successor already has is kept with its stored version (#177 (a)).
-// Relations to the superseded element then get hints (`superseded.ts`, SR-072 AK2).
+// Relations to the superseded element then get hints (`superseded.ts`, SR-072 AK2). A type that
+// restricts the statuses (#306) offers only its own invalid statuses; a type without one cannot be
+// superseded.
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { editElementFile } from "../files/index.js";
@@ -18,6 +20,7 @@ import {
   metamodelState,
   relationKindsWithMeaning,
   requireMeaning,
+  typeStatuses,
 } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -51,16 +54,33 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
   new CommandError("input.invalid", message, details);
 
 /**
- * The key of the status `given` names (`statusKey`: key or display name, #309), which must be one the
- * metamodel marks invalid (D-044); else `input.invalid` with the invalid statuses as `key (Name)`.
+ * The key of the status `given` names (`statusKey`: key or display name, #309), which must be one of
+ * the statuses of `type` (#306) that the metamodel marks invalid (D-044); else `input.invalid` with
+ * those statuses as `key (Name)` and their keys as `details.allowed`. The message names the type
+ * when it offers fewer invalid statuses than the metamodel has; a type with none gives `reason:
+ * no-invalid-status` whatever is given.
  */
-const invalidStatusKey = (metamodel: Metamodel, given: string): string => {
-  const invalidOnes = invalidStatuses(metamodel);
-  const allowed = [...invalidOnes.keys()];
+const invalidStatusKey = (
+  metamodel: Metamodel,
+  type: MetamodelEffectiveType,
+  ref: string,
+  given: string,
+): string => {
+  const ofMetamodel = invalidStatuses(metamodel);
+  const invalidOnes = typeStatuses(metamodel, type).filter((s) => ofMetamodel.has(s.key));
+  const allowed = invalidOnes.map((s) => s.key);
+  if (allowed.length === 0 && ofMetamodel.size > 0) {
+    throw invalid(
+      `Type ${type.name} (${type.key}) has no status marked invalid, so ${ref} cannot be superseded`,
+      { ref, type: type.key, status: given, reason: "no-invalid-status", allowed },
+    );
+  }
   const list =
     allowed.length === 0
       ? "the metamodel marks no status invalid"
-      : `the invalid statuses are: ${listNamed([...invalidOnes.values()])}`;
+      : allowed.length === ofMetamodel.size
+        ? `the invalid statuses are: ${listNamed(invalidOnes)}`
+        : `the invalid statuses of type ${type.name} (${type.key}) are: ${listNamed(invalidOnes)}`;
   const match = findNamed(metamodel.statuses, given);
   if (match.kind === "ambiguous") {
     // The same refusal as element.setStatus gives, with every status to choose from.
@@ -73,11 +93,20 @@ const invalidStatusKey = (metamodel: Metamodel, given: string): string => {
       allowed,
     });
   }
-  if (!invalidOnes.has(match.key)) {
+  if (!ofMetamodel.has(match.key)) {
     throw invalid(
       `${given} is not marked invalid in the metamodel, so it cannot supersede an element; ${list}`,
       { status: given, reason: "not-invalid", allowed },
     );
+  }
+  if (!allowed.includes(match.key)) {
+    throw invalid(`${given} is not a status of type ${type.name} (${type.key}) of ${ref}; ${list}`, {
+      ref,
+      type: type.key,
+      status: given,
+      reason: "status-not-allowed",
+      allowed,
+    });
   }
   return match.key;
 };
@@ -157,12 +186,12 @@ const hasRelation = (source: ElementRecord, key: string, target: ElementRecord):
 };
 
 /**
- * `element.supersede` (SR-072 AK1, SR-087): sets `input.status`, a status the metamodel marks
- * invalid, on the element `input.ref` and, with `input.successor`, adds a relation of the
+ * `element.supersede` (SR-072 AK1, SR-087): sets `input.status`, a status of the element's type
+ * that the metamodel marks invalid (#306), on the element `input.ref` and, with `input.successor`, adds a relation of the
  * replacement kind (`input.relation`, or the one that fits) from the successor to it. Every check
- * comes before the first write: the status, both references, that both elements may be written
- * (SR-016 AK3), the relation kind and that no file changed on disk since the element store read it
- * (`file.changed-on-disk`). Both files are written with `writeElementFiles` (best-effort rollback).
+ * comes before the first write: the element's reference and that it may be written (SR-016 AK3),
+ * the status, the successor's reference and that it may be written, the relation kind and that no
+ * file changed on disk since the element store read it (`file.changed-on-disk`). Both files are written with `writeElementFiles` (best-effort rollback).
  * Returns the hints on all relations to the element as the store holds them after the write.
  */
 export const supersedeElement = async (
@@ -170,12 +199,13 @@ export const supersedeElement = async (
   input: SupersedeInput,
 ): Promise<SupersedeResult> => {
   const metamodel = await workspace.get(metamodelState);
-  const statusValue = invalidStatusKey(metamodel, input.status);
   const layout = await workspace.get(workspaceLayoutState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const record = resolveRef(store, shortIds, input.ref);
   const type = assertElementWritable(metamodel, record);
+  // The statuses come from the element's type (#306), so the element is resolved first.
+  const statusValue = invalidStatusKey(metamodel, type, input.ref, input.status);
   const successor = input.successor === undefined ? undefined : resolveRef(store, shortIds, input.successor);
   if (successor === undefined && input.relation !== undefined) {
     throw invalid("relation names the kind of the relation from a successor; give successor too", {

@@ -30,6 +30,8 @@ export type {
 } from "./store.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";
 export type { RequiredFinding } from "./required.js";
+export { allStatusFindings, statusFindings, statusProblemsState } from "./status-findings.js";
+export type { StatusFinding } from "./status-findings.js";
 export { valueFindings, valueKindFindings, valueKindProblemsState } from "./values.js";
 export type { ValueFinding, ValueKind, ValuePath } from "./values.js";
 export {

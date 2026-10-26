@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://logreq.dev/schemas/element.schema.json",
   "title": "Element file frontmatter",
-  "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural; every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.",
+  "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.",
   "type": "object",
-  "required": ["id", "type", "status"],
+  "required": ["id", "type"],
   "properties": {
     "id": {
       "$ref": "common.schema.json#/$defs/uuid"
@@ -15,7 +15,7 @@
     },
     "status": {
       "$ref": "common.schema.json#/$defs/key",
-      "description": "Status key from the metamodel. Only ever set by a person (D-030, SR-017)."
+      "description": "Status key from the metamodel, one of the statuses of the element's type (#306). Left out for a type without status. Only ever set by a person (D-030, SR-017)."
     },
     "normal-form": {
       "description": "Reserved. Never written; the normal-form version is part of every stored version string (D-027).",

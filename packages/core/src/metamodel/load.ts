@@ -3,10 +3,10 @@
 // is checked against metamodel.schema.json; the lists of all files are merged. A faulty file is
 // reported with file, line and reason and makes the metamodel invalid, which opens the workspace
 // read-only (SR-011 AK3, access.ts). Then the inheritance of the types is resolved (SR-012,
-// inheritance.ts) and the built-in meanings are assigned (SR-013, meanings.ts). Checks across the
-// lists (enabler #157): a key is either a property or a relation kind (ADR-0004, while merging);
-// after all files, every type in `source-types`/`target-types` is defined and exactly one status is
-// initial. No type uses the prefix that short IDs of elements of an unknown type use (#154).
+// inheritance.ts, with the statuses of each type, #306) and the built-in meanings are assigned
+// (SR-013, meanings.ts). Checks across the lists (enabler #157): a key is either a property or a
+// relation kind (ADR-0004, while merging); after all files, every type in `source-types`/
+// `target-types` is defined and exactly one status is initial. No type uses the prefix that short IDs of elements of an unknown type use (#154).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isNode } from "yaml";
@@ -317,6 +317,39 @@ const initialStatusProblems = (
   );
 };
 
+/**
+ * Every type that is not abstract and has statuses, all of them marked invalid (#306): a warning on
+ * its own `statuses` (on its key when it inherits them), as `element.create` refuses new elements of
+ * it, which would be superseded at once (D-044).
+ */
+const onlyInvalidStatusProblems = (
+  types: readonly Located<MetamodelType>[],
+  effectiveTypes: readonly EffectiveType[],
+  statuses: readonly Located<MetamodelStatus>[],
+): Problem[] => {
+  const invalid = new Set(statuses.filter((s) => s.definition.invalid === true).map((s) => s.definition.key));
+  return types.flatMap((located, index) => {
+    const effective = effectiveTypes[index];
+    if (
+      effective === undefined ||
+      effective.abstract ||
+      effective.statuses.length === 0 ||
+      !effective.statuses.every((key) => invalid.has(key))
+    ) {
+      return [];
+    }
+    const line = located.lineOf(located.definition.statuses === undefined ? ["key"] : ["statuses"]);
+    return [
+      problem(
+        "warning",
+        `Type ${effective.key} has only statuses marked invalid (${effective.statuses.join(", ")}); element.create refuses new elements of it, as they would be superseded at once`,
+        located.file,
+        line,
+      ),
+    ];
+  });
+};
+
 type Listing =
   | { readonly kind: "names"; readonly names: readonly string[] }
   | { readonly kind: "error"; readonly reason: string };
@@ -414,8 +447,11 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
   // problems come last.
   const resolved = resolveTypes(
     types,
-    new Set(merged.properties.firstFile.keys()),
-    new Set(merged.relations.firstFile.keys()),
+    {
+      properties: new Set(merged.properties.firstFile.keys()),
+      relations: new Set(merged.relations.firstFile.keys()),
+      statuses: statuses.map((s) => s.definition.key),
+    },
     complete,
   );
   const assigned = assignMeanings({ types, effectiveTypes: resolved.types, properties, relations });
@@ -428,6 +464,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     // every file was read.
     ...(complete ? unknownTypeProblems(new Set(merged.types.firstFile.keys()), properties, relations) : []),
     ...initialStatusProblems(statuses, folderName, complete),
+    ...(complete ? onlyInvalidStatusProblems(types, resolved.types, statuses) : []),
   );
   const definitions = <T>(located: readonly Located<T>[]): T[] => located.map((l) => l.definition);
   return {

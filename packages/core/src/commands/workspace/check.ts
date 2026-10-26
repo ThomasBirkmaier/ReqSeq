@@ -49,6 +49,7 @@ import {
   relationTypeProblemsState,
   requiredProblemsState,
   restrictTo,
+  statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
   valueKindProblemsState,
@@ -70,6 +71,7 @@ const RANK: Readonly<Record<Severity, number>> = { info: 0, warning: 1, error: 2
 export const FINDING_STATES = [
   requiredProblemsState, // SR-015
   unknownProblemsState, // SR-016
+  statusProblemsState, // #306
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
   valueKindProblemsState, // SR-085

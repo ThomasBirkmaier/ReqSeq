@@ -1,7 +1,12 @@
 // Finding types by their key (SR-012, D-043): element files hold the key of their type, the tool
 // shows its name. Only the key finds a type, never the name, so renaming a type changes no file.
 import { CommandError } from "../catalog.js";
-import type { MetamodelKey, MetamodelProperty, MetamodelRelationKind } from "../generated/types.js";
+import type {
+  MetamodelKey,
+  MetamodelProperty,
+  MetamodelRelationKind,
+  MetamodelStatus,
+} from "../generated/types.js";
 import type { EffectiveType } from "./inheritance.js";
 import type { Metamodel } from "./load.js";
 
@@ -43,6 +48,16 @@ export const typeForNewElement = (metamodel: Metamodel, key: MetamodelKey): Effe
     );
   }
   return type;
+};
+
+/**
+ * The status definitions elements of `type` may have (`type.statuses`, #306), in metamodel order;
+ * empty for a type without status. A key no status defines (kept only while a metamodel file is
+ * faulty) is left out.
+ */
+export const typeStatuses = (metamodel: Metamodel, type: EffectiveType): readonly MetamodelStatus[] => {
+  const allowed = new Set(type.statuses);
+  return metamodel.statuses.filter((s) => allowed.has(s.key));
 };
 
 /** What the metamodel defines under a frontmatter key: a property or a relation kind. */

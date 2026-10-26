@@ -2,8 +2,9 @@
 // file per element, named once from the type prefix and the UUID (D-056) and never renamed. The
 // bytes come from the lossless writer (`editElementFile`), so a new file has LogReq's one fixed
 // style and a change rewrites only the lines of the keys it changes; writing is atomic and refused
-// when the file changed on disk. Statuses: a new element gets the initial status of the metamodel;
-// a change never touches `id`, `type` or `status` (ADR-0002 rule 6, D-030).
+// when the file changed on disk. Statuses: a new element gets the initial status of the metamodel,
+// or of its type when the type restricts the statuses (#306; none for a type without status); a
+// change never touches `id`, `type` or `status` (ADR-0002 rule 6, D-030).
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { CommandName, Problem } from "../catalog.js";
@@ -40,6 +41,7 @@ import {
   metamodelState,
   requireMeaning,
   typeForNewElement,
+  typeStatuses,
 } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
@@ -212,8 +214,18 @@ const withChoiceKeys = (
     ];
   });
 
-/** The one status with `initial: true` (D-030); the tool never picks one itself. */
-const initialStatus = (metamodel: Metamodel): string => {
+/**
+ * The status of a new element of `type` (D-030, #306): the one status with `initial: true` when the
+ * type has it, else the type's first status in metamodel order that is not marked invalid, which
+ * the metamodel sets by the order of its statuses; undefined for a type without status (no
+ * `status` line). A new element never gets an invalid status, which would supersede it at once
+ * (D-044): a type with only invalid statuses is refused (`reason: initial-status`). The tool never
+ * picks one beyond this rule.
+ */
+const initialStatus = (metamodel: Metamodel, type: MetamodelEffectiveType): string | undefined => {
+  if (type.statuses.length === 0) {
+    return undefined;
+  }
   const initial = metamodel.statuses.filter((s) => s.initial === true);
   const [first, ...others] = initial;
   if (first === undefined || others.length > 0) {
@@ -222,7 +234,17 @@ const initialStatus = (metamodel: Metamodel): string => {
       { reason: "initial-status", initial: initial.map((s) => s.key) },
     );
   }
-  return first.key;
+  if (type.statuses.includes(first.key)) {
+    return first.key;
+  }
+  const valid = typeStatuses(metamodel, type).find((s) => s.invalid !== true);
+  if (valid === undefined) {
+    throw invalid(
+      `Type ${type.name} (${type.key}) has only statuses marked invalid, so a new element of it would be superseded at once; give the type a status that is not invalid`,
+      { type: type.key, reason: "initial-status", statuses: [...type.statuses] },
+    );
+  }
+  return valid.key;
 };
 
 const targetRepository = (layout: WorkspaceLayout, name: string | undefined): RepositoryLocation => {
@@ -542,7 +564,7 @@ export const createElement = async (
   const { layout, metamodel, store } = context;
   const type = typeForNewElement(metamodel, input.type);
   const titleKey = titleKeyFor(metamodel, type, "element.create");
-  const status = initialStatus(metamodel);
+  const status = initialStatus(metamodel, type);
   // Every given key is checked, also one with an empty value (`status: null` is refused).
   checkPropertyKeys(Object.keys(input.properties ?? {}), metamodel, type, titleKey, "properties");
   const repository = targetRepository(layout, input.repository);
@@ -573,7 +595,7 @@ export const createElement = async (
   const edits: FrontmatterEdit[] = [
     { kind: "set", key: "id", value: id },
     { kind: "set", key: "type", value: type.key },
-    { kind: "set", key: "status", value: status },
+    ...(status === undefined ? [] : [{ kind: "set", key: "status", value: status } as const]),
     { kind: "set", key: titleKey, value: input.title },
     ...properties.map(([key, value]): FrontmatterEdit => ({
       kind: "set",

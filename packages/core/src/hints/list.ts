@@ -44,6 +44,7 @@ import {
   requiredProblemsState,
   resolveRef,
   shortIdState,
+  statusProblemsState,
   supersededTargetProblemsState,
   unknownProblemsState,
   valueKindProblemsState,
@@ -74,6 +75,7 @@ const COMMAND: CommandName = "hint.list";
 export const HINT_STATES = [
   requiredProblemsState, // SR-015
   unknownProblemsState, // SR-016
+  statusProblemsState, // #306
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
   valueKindProblemsState, // SR-085

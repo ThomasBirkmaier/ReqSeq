@@ -68,6 +68,7 @@ describe("typeForNewElement", () => {
       ancestors: [],
       properties: ["severity", "title"],
       required: ["title", "severity"],
+      statuses: ["draft", "approved"],
     });
   });
 

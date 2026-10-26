@@ -186,6 +186,8 @@ export type ProblemCode =
   | "element.unknown-property"
   | "element.missing-required"
   | "element.wrong-value-kind"
+  | "element.status-not-allowed"
+  | "element.missing-status"
   | "relation.missing-target"
   | "relation.inaccessible-target"
   | "relation.not-allowed"
@@ -309,7 +311,8 @@ export interface DataExportElement {
   readonly id: Uuid;
   readonly shortId: ShortId;
   readonly type: Key;
-  readonly status: Key;
+  /** The status key as written; left out when the element has none (a type without status, #306). */
+  readonly status?: Key;
   readonly title: string;
   /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
   readonly text?: string;
@@ -387,15 +390,15 @@ export interface DataExportEvidenceRecord {
 }
 
 /**
- * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural; every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.
+ * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.
  * Schema: `schemas/element.schema.json#`.
  */
 export interface ElementFile {
   readonly id: Uuid;
   /** Type key from the metamodel. */
   readonly type: Key;
-  /** Status key from the metamodel. Only ever set by a person (D-030, SR-017). */
-  readonly status: Key;
+  /** Status key from the metamodel, one of the statuses of the element's type (#306). Left out for a type without status. Only ever set by a person (D-030, SR-017). */
+  readonly status?: Key;
   /** Reserved. Never written; the normal-form version is part of every stored version string (D-027). */
   readonly "normal-form"?: never;
   readonly [key: string]: unknown;
@@ -628,6 +631,8 @@ export interface MetamodelType {
   readonly properties?: readonly MetamodelKey[];
   /** Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064). */
   readonly required?: readonly MetamodelKey[];
+  /** Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type that is not abstract and has only statuses marked invalid is a metamodel warning, as element.create refuses its new elements. A status outside the list gives a hint on the element (`element.status-not-allowed`). */
+  readonly statuses?: readonly MetamodelKey[];
 }
 
 /**
@@ -654,6 +659,8 @@ export interface MetamodelEffectiveType {
   readonly properties: readonly MetamodelKey[];
   /** All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c). */
   readonly required: readonly MetamodelKey[];
+  /** The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out. */
+  readonly statuses: readonly MetamodelKey[];
   /** Own meaning, else the meaning of the closest ancestor that has one. */
   readonly meaning?: MetamodelTypeMeaning;
 }
@@ -731,7 +738,7 @@ export interface MetamodelStatus {
   readonly description?: string;
   /** Elements with this status do not count for coverage, verification degree and indirect verification, but stay visible in chains (D-044). */
   readonly invalid?: boolean;
-  /** Status of new elements. Exactly one status is initial. */
+  /** Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order (a type with only invalid statuses gets no new elements); a type without status gives them none (#306). */
   readonly initial?: boolean;
 }
 
@@ -941,7 +948,7 @@ export interface WorkspaceStatusOutput {
 }
 
 /**
- * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Input of `workspace.check` as `run` gets it: validated, properties with a `default` filled in. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check input`.
  */
 export interface WorkspaceCheckInput {
@@ -956,7 +963,7 @@ export interface WorkspaceCheckInput {
 }
 
 /**
- * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
+ * Output of `workspace.check`. Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).
  * Schema: `schemas/commands/catalog.json workspace.check output`.
  */
 export interface WorkspaceCheckOutput {
@@ -977,17 +984,17 @@ export interface WorkspaceCheckOutput {
 }
 
 /**
- * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties, properties, relation kinds, statuses, meanings.
+ * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.
  * Schema: `schemas/commands/catalog.json metamodel.get input`.
  */
 export type MetamodelGetInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `metamodel.get`. The effective metamodel: types with inherited properties, properties, relation kinds, statuses, meanings.
+ * Output of `metamodel.get`. The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.
  * Schema: `schemas/commands/catalog.json metamodel.get output`.
  */
 export interface MetamodelGetOutput {
-  /** The types with inheritance resolved (SR-012), in metamodel order. */
+  /** The types with inheritance resolved (SR-012), in metamodel order; `statuses` are the statuses each type offers (#306). */
   readonly types: readonly MetamodelEffectiveType[];
   readonly properties: readonly MetamodelProperty[];
   readonly relations: readonly MetamodelRelationKind[];
@@ -998,7 +1005,7 @@ export interface MetamodelGetOutput {
 }
 
 /**
- * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).
+ * Input of `element.create` as `run` gets it: validated, properties with a `default` filled in. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type restricts the statuses and lacks it, the first status of the type in metamodel order that is not marked invalid (only invalid ones: refused), and no status for a type without status (#306).
  * Schema: `schemas/commands/catalog.json element.create input`.
  */
 export interface ElementCreateInput {
@@ -1013,7 +1020,7 @@ export interface ElementCreateInput {
 }
 
 /**
- * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030).
+ * Output of `element.create`. Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type restricts the statuses and lacks it, the first status of the type in metamodel order that is not marked invalid (only invalid ones: refused), and no status for a type without status (#306).
  * Schema: `schemas/commands/catalog.json element.create output`.
  */
 export interface ElementCreateOutput {
@@ -1123,17 +1130,17 @@ export interface ElementUpdateOutput {
 }
 
 /**
- * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Input of `element.setStatus` as `run` gets it: validated, properties with a `default` filled in. Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus input`.
  */
 export interface ElementSetStatusInput {
   readonly refs: readonly ElementRef[];
-  /** Key or display name of a status of the metamodel, in any case; the key is written. */
+  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type (#306). */
   readonly status: KeyOrName;
 }
 
 /**
- * Output of `element.setStatus`. Set the status of elements on explicit request of the caller. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
+ * Output of `element.setStatus`. Set the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).
  * Schema: `schemas/commands/catalog.json element.setStatus output`.
  */
 export interface ElementSetStatusOutput {
@@ -1142,12 +1149,12 @@ export interface ElementSetStatusOutput {
 }
 
 /**
- * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede input`.
  */
 export interface ElementSupersedeInput {
   readonly ref: ElementRef;
-  /** Key or display name of a status of the metamodel, in any case; the key is written. */
+  /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306). */
   readonly status: KeyOrName;
   readonly successor?: ElementRef;
   /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
@@ -1155,7 +1162,7 @@ export interface ElementSupersedeInput {
 }
 
 /**
- * Output of `element.supersede`. Supersede an element: set an invalid status and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede output`.
  */
 export interface ElementSupersedeOutput {

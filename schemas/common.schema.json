@@ -201,6 +201,8 @@
         "element.unknown-property",
         "element.missing-required",
         "element.wrong-value-kind",
+        "element.status-not-allowed",
+        "element.missing-status",
         "relation.missing-target",
         "relation.inaccessible-target",
         "relation.not-allowed",

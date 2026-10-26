@@ -99,6 +99,13 @@
             "$ref": "#/$defs/key"
           },
           "description": "Mandatory property keys (Pflichtfelder), in addition to inherited ones; each is also a property of the type and should be a defined property; an undefined key is a metamodel warning and the type is treated as not having it (#141 c). Empty values are allowed but give a hint (SR-064)."
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "description": "Status keys elements of this type may have, in addition to inherited ones (#306): the top-level `statuses` stay the vocabulary (names, `invalid`, `initial`), a type only restricts it. Left out on the type and on every ancestor: every status. Once the type or any ancestor has a list, only the listed statuses count: a type with a list below a parent without one has only its own statuses (an unrestricted parent does not add every status). An empty list on a type whose ancestors have none: the type has no status, and its element files have no `status`. Each should be a defined status; an undefined key is a metamodel warning and left out (when no key is left, the type has no status). A type that is not abstract and has only statuses marked invalid is a metamodel warning, as element.create refuses its new elements. A status outside the list gives a hint on the element (`element.status-not-allowed`)."
         }
       },
       "unevaluatedProperties": false
@@ -110,7 +117,7 @@
     "effectiveType": {
       "description": "A type with its inheritance resolved (SR-012), as metamodel.get returns it; never written in a file. Key, name, description, prefix and extends are as written in the type's definition.",
       "type": "object",
-      "required": ["key", "name", "prefix", "abstract", "ancestors", "properties", "required"],
+      "required": ["key", "name", "prefix", "abstract", "ancestors", "properties", "required", "statuses"],
       "properties": {
         "key": {
           "$ref": "#/$defs/key"
@@ -153,6 +160,13 @@
             "$ref": "#/$defs/key"
           },
           "description": "All required property keys, own and inherited, in the same order. Keys that no property definition has are left out (#141 c)."
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          },
+          "description": "The status keys elements of the type may have, own and inherited, in the order of the metamodel's statuses (#306): every status when neither the type nor an ancestor has `statuses`; empty when the type has no status. Keys that no status definition has are left out."
         },
         "meaning": {
           "$ref": "#/$defs/typeMeaning",
@@ -280,7 +294,7 @@
         "initial": {
           "type": "boolean",
           "default": false,
-          "description": "Status of new elements. Exactly one status is initial."
+          "description": "Status of new elements. Exactly one status is initial. A type whose statuses do not include it gives its new elements its first status that is not marked invalid, in metamodel order (a type with only invalid statuses gets no new elements); a type without status gives them none (#306)."
         }
       },
       "unevaluatedProperties": false

@@ -2,10 +2,13 @@
 // the ones of the metamodel, in metamodel order (`metamodel.get` lists them); `element.setStatus`
 // takes only those. The value always comes from the caller: the tool never picks or computes one.
 // Only the `status` line of each file is rewritten (ADR-0007); UUID, type and file name stay.
+// A type may restrict the statuses (#306): then only the type's statuses are taken, and an element
+// of a type without status gets none.
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
+import type { MetamodelEffectiveType } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findNamed, listNamed, metamodelState } from "../metamodel/index.js";
+import { findNamed, listNamed, metamodelState, typeStatuses } from "../metamodel/index.js";
 import { editElementFile } from "../files/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -63,10 +66,40 @@ export const statusKey = (metamodel: Metamodel, given: string): string => {
 };
 
 /**
+ * Refuses `status` (a key of the metamodel) for `ref`, an element of `type`, when the type does not
+ * have it (#306): `input.invalid` with `reason: type-without-status` for a type without status, else
+ * `status-not-allowed` with the type's statuses as `key (Name)` in the message and their keys as
+ * `details.allowed`.
+ */
+const assertTypeHasStatus = (
+  metamodel: Metamodel,
+  type: MetamodelEffectiveType,
+  ref: string,
+  status: string,
+): void => {
+  if (type.statuses.includes(status)) {
+    return;
+  }
+  const details = { ref, type: type.key, status, allowed: [...type.statuses] };
+  if (type.statuses.length === 0) {
+    throw new CommandError(
+      "input.invalid",
+      `Type ${type.name} (${type.key}) has no status, so ${ref} cannot get one`,
+      { ...details, reason: "type-without-status" },
+    );
+  }
+  throw new CommandError(
+    "input.invalid",
+    `${status} is not a status of type ${type.name} (${type.key}) of ${ref}; its statuses are: ${listNamed(typeStatuses(metamodel, type))}`,
+    { ...details, reason: "status-not-allowed" },
+  );
+};
+
+/**
  * `element.setStatus` (SR-017, SR-087): sets `input.status`, a status of the metamodel (its key or
- * display name, `statusKey`), on every
- * element of `input.refs`. Every check comes before the first write: the status, each reference,
- * that each element may be written (SR-016 AK3) and that no file changed on disk since the element
+ * display name, `statusKey`), on every element of `input.refs`. Every check comes before the first
+ * write: the status, each reference, that each element may be written (SR-016 AK3), that its type
+ * has the status (#306, `assertTypeHasStatus`) and that no file changed on disk since the element
  * store read it (`file.changed-on-disk`; the store is then read again on the next call). A write
  * that is still refused (a read-only file, a change in the meantime) rolls back the files already
  * written as far as possible (`writeElementFiles`). A reference given twice is written once. With a
@@ -85,7 +118,7 @@ export const setElementStatus = async (
   const records = new Map<string, ElementRecord>();
   for (const ref of input.refs) {
     const record = resolveRef(store, shortIds, ref);
-    assertElementWritable(metamodel, record);
+    assertTypeHasStatus(metamodel, assertElementWritable(metamodel, record), ref, status);
     records.set(`${record.repository}\0${record.file}`, record);
   }
   const writes: ElementFileWrite[] = [];

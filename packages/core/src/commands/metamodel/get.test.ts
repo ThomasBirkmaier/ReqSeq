@@ -67,6 +67,7 @@ describe("metamodel.get", () => {
       ancestors: ["software-requirement", "requirement", "item"],
       properties: ["title", "rationale", "component", "protocol"],
       required: ["title", "component"],
+      statuses: ["draft", "approved"],
     });
     // The assignment is the type that declares the meaning, not the ones inheriting it.
     expect(out.meanings["requirement"]).toEqual(["requirement"]);

@@ -55,17 +55,7 @@
   "$defs": {
     "element": {
       "type": "object",
-      "required": [
-        "id",
-        "shortId",
-        "type",
-        "status",
-        "title",
-        "repository",
-        "file",
-        "properties",
-        "relations"
-      ],
+      "required": ["id", "shortId", "type", "title", "repository", "file", "properties", "relations"],
       "properties": {
         "id": {
           "$ref": "common.schema.json#/$defs/uuid"
@@ -77,7 +67,8 @@
           "$ref": "common.schema.json#/$defs/key"
         },
         "status": {
-          "$ref": "common.schema.json#/$defs/key"
+          "$ref": "common.schema.json#/$defs/key",
+          "description": "The status key as written; left out when the element has none (a type without status, #306)."
         },
         "title": {
           "type": "string"
