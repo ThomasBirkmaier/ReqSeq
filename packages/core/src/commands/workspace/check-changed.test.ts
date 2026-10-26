@@ -441,6 +441,31 @@ describe("a workspace in a subfolder of a Git repository (#377)", () => {
     expect(out.checkedElements).toBe(1);
   });
 
+  it("keeps git.unavailable below the top level when git fails for another reason than no repository (#414)", async () => {
+    const { ws } = await inSubfolder();
+    await append(ws, N_FILE, "Changed.\n");
+    vi.mocked(reader.resolveCommit).mockResolvedValueOnce({
+      known: false,
+      reason: "not-a-repository",
+      detail: "fatal: bad config line 1 in file .git/config",
+    });
+    await expect(check(open(ws.root), { changedSince: "HEAD" })).rejects.toMatchObject({
+      code: "git.unavailable",
+      details: { repository: "system", reason: "not-a-repository" },
+    });
+    // git's own words, in any case, make it a folder without Git.
+    vi.mocked(reader.resolveCommit).mockResolvedValueOnce({
+      known: false,
+      reason: "not-a-repository",
+      detail: "Fatal: Not A Git Repository (or any of the parent directories): .git",
+    });
+    await expect(check(open(ws.root), { changedSince: "HEAD" })).rejects.toMatchObject({
+      code: "git.unavailable",
+      message:
+        "No repository of the workspace on this machine is a Git repository; the check cannot be restricted to changes since a commit",
+    });
+  });
+
   it("fails with git.unavailable when Git cannot tell whether it sees the folder", async () => {
     const { ws } = await inSubfolder();
     vi.mocked(reader.openObjectReader).mockImplementationOnce(() => ({

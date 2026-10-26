@@ -228,6 +228,9 @@ type RepositoryChange =
   | { readonly kind: NotLookedAt }
   | { readonly kind: "changed"; readonly paths: readonly string[]; readonly ids: readonly string[] };
 
+/** What git says where it finds no repository. */
+const NOT_A_REPOSITORY = /not a git repository/i;
+
 const changeOf = async (
   repository: RepositoryLocation,
   revision: string,
@@ -243,8 +246,14 @@ const changeOf = async (
   const resolved = await resolveCommit(repository.folder, revision, { signal });
   // Below the top level, `workTreeOf` may name a `.git` entry that git does not use
   // (`GIT_CEILING_DIRECTORIES`, a file system boundary): git then says it is no repository, as for
-  // a folder without any.
-  if (!resolved.known && tree.depth > 0 && resolved.reason === "not-a-repository") {
+  // a folder without any. Other failures (a broken configuration, a corrupt repository) stay
+  // unavailable, so only git's own "not a git repository" counts (ADR-0006).
+  if (
+    !resolved.known &&
+    tree.depth > 0 &&
+    resolved.reason === "not-a-repository" &&
+    NOT_A_REPOSITORY.test(resolved.detail)
+  ) {
     return { kind: "no-git" };
   }
   if (!resolved.known) {

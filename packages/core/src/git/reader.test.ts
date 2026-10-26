@@ -304,7 +304,19 @@ describe("git reader", () => {
       GIT_TERMINAL_PROMPT: "0",
       GIT_LITERAL_PATHSPECS: "1",
       GIT_NO_LAZY_FETCH: "1",
+      LC_ALL: "C",
+      LANGUAGE: "C",
     });
+  });
+
+  it("runs git with English messages whatever the locale of the user (#414)", async () => {
+    vi.stubEnv("LANG", "de_DE.UTF-8");
+    vi.stubEnv("LC_ALL", "de_DE.UTF-8");
+    vi.stubEnv("LANGUAGE", "de");
+    onTestFinished(() => void vi.unstubAllEnvs());
+    const ws = await fixture();
+    await headCommit(ws.path("plain"));
+    expect(mock.calls[0]?.options.env).toMatchObject({ LANG: "de_DE.UTF-8", LC_ALL: "C", LANGUAGE: "C" });
   });
 });
 
@@ -520,6 +532,8 @@ describe("file history", () => {
       [
         [
           ...FIXED,
+          "-c",
+          "diff.relative=false",
           "log",
           "--no-show-signature",
           "--no-follow",
@@ -528,7 +542,6 @@ describe("file history", () => {
           "--full-history",
           "--cc",
           "--name-only",
-          "--no-relative",
           "-z",
           "--parents",
           "--format=%H %cI %P%x00",
@@ -1079,14 +1092,49 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     expect(mock.calls).toEqual([]);
   });
 
+  it("skips a .git folder that git does not accept and goes on to the one above (#414)", async () => {
+    const { ws, folder } = await nested();
+    // Git takes a `.git` folder only with a HEAD file and `objects` and `refs` folders.
+    const entry = path.join(folder, ".git");
+    await fs.mkdir(entry);
+    expect(await workTreeOf(folder)).toEqual({ topLevel: ws.root, depth: 2 });
+    await fs.writeFile(path.join(entry, "HEAD"), "ref: refs/heads/main\n");
+    expect(await workTreeOf(folder)).toEqual({ topLevel: ws.root, depth: 2 });
+    await fs.mkdir(path.join(entry, "objects"));
+    expect(await workTreeOf(folder)).toEqual({ topLevel: ws.root, depth: 2 });
+    await fs.mkdir(path.join(entry, "refs"));
+    expect(await workTreeOf(folder)).toEqual({ topLevel: folder, depth: 0 });
+    // Without HEAD it is no Git folder either.
+    await fs.rm(path.join(entry, "HEAD"));
+    expect(await workTreeOf(folder)).toEqual({ topLevel: ws.root, depth: 2 });
+    // A `.git` file is read by git and stops the search, valid or not.
+    await fs.rm(entry, { recursive: true });
+    await fs.writeFile(entry, "gitdir: elsewhere\n");
+    expect(await workTreeOf(folder)).toEqual({ topLevel: folder, depth: 0 });
+    // Also at the top level: an empty `.git` folder there is no top level.
+    const plain = await fixture();
+    await fs.mkdir(plain.path("plain/.git"));
+    expect(await workTreeOf(plain.path("plain"))).toBeUndefined();
+    expect(mock.calls).toEqual([]);
+  });
+
   it("reads HEAD from git and from the files of the Git folder above", async () => {
     const { ws, folder, made } = await nested();
     const head = commitOf(made, "outside");
     expect(await headCommit(folder)).toEqual({ known: true, commit: head, shallow: false });
     expect(await headFiles(folder)).toEqual(await headFiles(ws.root));
     expect(await headFiles(folder)).toMatchObject({ commit: head, shallow: false });
-    // The nearest `.git` entry counts, also an empty one that names no HEAD: only git can tell.
+    // An empty `.git` folder is none for git, and so none here: the one above counts (#414).
     await fs.mkdir(path.join(folder, "deep", ".git"));
+    expect(await headFiles(path.join(folder, "deep"))).toEqual(await headFiles(ws.root));
+    // A Git folder without a HEAD that names a commit or a branch: only git can tell.
+    await fs.mkdir(path.join(folder, "deep", ".git", "objects"));
+    await fs.mkdir(path.join(folder, "deep", ".git", "refs"));
+    await fs.writeFile(path.join(folder, "deep", ".git", "HEAD"), "garbage\n");
+    expect(await headFiles(path.join(folder, "deep"))).toBeUndefined();
+    // A `.git` file that names a Git folder which is not there: git stops there too.
+    await fs.rm(path.join(folder, "deep", ".git"), { recursive: true });
+    await fs.writeFile(path.join(folder, "deep", ".git"), "gitdir: elsewhere\n");
     expect(await headFiles(path.join(folder, "deep"))).toBeUndefined();
   });
 
@@ -1112,14 +1160,14 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     // Both run at once, in the folder.
     expect(
       mock.calls.map((c) => [
-        c.args.slice(FIXED.length, FIXED.length + 2),
+        c.args.slice(FIXED.length, FIXED.length + 4),
         (c.options as ExecFileOptions).timeout,
         c.options.cwd,
       ]),
     ).toEqual(
       expect.arrayContaining([
         [["rev-parse", "--show-prefix"], 10_000, folder],
-        [["log", "--no-show-signature"], 60_000, folder],
+        [["-c", "diff.relative=false", "log", "--no-show-signature"], 60_000, folder],
       ]),
     );
     expect(mock.calls).toHaveLength(2);
@@ -1129,7 +1177,7 @@ describe("a repository folder below the top level of its work tree (#377)", () =
     const { ws, folder, made } = await nested();
     const before = await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"]);
     expect(before).toHaveProperty("commits.3");
-    // Without `--no-relative`, the commits would name their paths relative to the folder and the
+    // Without `-c diff.relative=false`, the commits would name their paths relative to the folder and the
     // merge from the top level, and the prefix would be taken off twice.
     await ws.git(["config", "diff.relative", "true"]);
     expect(await fileHistory(folder, commitOf(made, "outside"), ["a.md", "deep/"])).toEqual(before);

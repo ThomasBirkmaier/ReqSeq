@@ -36,10 +36,13 @@ const COMMANDS = {
    * (`--parents` rewrites them past the commits left out) and the paths it changed (`-z`: NUL after
    * every name). Renames are neither followed nor detected, a merge names the paths that differ
    * from every parent (`--cc`), the root commit names its paths (`--root`), and no signature is
-   * checked. `--no-relative` (git 2.28 and newer): a user's `diff.relative=true` would name the paths
-   * of a normal commit relative to the folder, but those of a merge from the top level.
+   * checked. `-c diff.relative=false` (a git option, so it works on every git version): a user's
+   * `diff.relative=true` would name the paths of a normal commit relative to the folder, but those
+   * of a merge from the top level.
    */
   history: [
+    "-c",
+    "diff.relative=false",
     "log",
     "--no-show-signature",
     "--no-follow",
@@ -48,7 +51,6 @@ const COMMANDS = {
     "--full-history",
     "--cc",
     "--name-only",
-    "--no-relative",
     "-z",
     "--parents",
     "--format=%H %cI %P%x00",
@@ -123,7 +125,10 @@ const LOCATION_VARIABLES: ReadonlySet<string> = new Set([
 /**
  * ADR-0006: no optional locks (a `status` must not refresh the index), never ask for credentials,
  * paths are literal (no glob or `:(magic)`), and a partial clone never fetches a missing object
- * (git 2.44 and newer; `protocol.allow=never` covers older versions).
+ * (git 2.44 and newer; `protocol.allow=never` covers older versions). `LC_ALL` and `LANGUAGE` are
+ * `C`, so git's messages are English whatever the user's locale: the reader reads some of them
+ * ("not a git repository", "dubious ownership"). Nothing else depends on the locale (fixed formats,
+ * `-z`, exit codes).
  */
 const gitEnv = (): NodeJS.ProcessEnv => ({
   ...Object.fromEntries(
@@ -133,6 +138,8 @@ const gitEnv = (): NodeJS.ProcessEnv => ({
   GIT_TERMINAL_PROMPT: "0",
   GIT_LITERAL_PATHSPECS: "1",
   GIT_NO_LAZY_FETCH: "1",
+  LC_ALL: "C",
+  LANGUAGE: "C",
 });
 
 /** Most bytes a `rev-parse` or `log` may print; more is a failure (the reader streams object contents). */
@@ -239,12 +246,37 @@ const unknown = (result: { readonly reason: GitUnknownReason; readonly detail: s
   detail: result.detail,
 });
 
-/** Whether `folder` holds a `.git` entry (a folder, or the file of a linked worktree or submodule). */
-const holdsGitEntry = async (folder: string): Promise<boolean> =>
-  fs.lstat(path.join(folder, ".git")).then(
-    () => true,
+/** Whether `file` exists and is a folder (links followed). */
+const isFolder = async (file: string): Promise<boolean> =>
+  fs.stat(file).then(
+    (stats) => stats.isDirectory(),
     () => false,
   );
+
+/**
+ * Whether `folder` holds a `.git` entry that git accepts: a file (of a linked worktree or submodule;
+ * git reads it and stops at it, valid or not), or a Git folder with a `HEAD` file and `objects` and
+ * `refs` folders. Git skips any other `.git` folder (an empty one) and searches further up.
+ */
+const holdsGitEntry = async (folder: string): Promise<boolean> => {
+  const entry = path.join(folder, ".git");
+  const stats = await fs.stat(entry).catch(() => undefined);
+  if (stats === undefined) {
+    return false;
+  }
+  if (!stats.isDirectory()) {
+    return true;
+  }
+  const [head, objects, refs] = await Promise.all([
+    fs.stat(path.join(entry, "HEAD")).then(
+      () => true,
+      () => false,
+    ),
+    isFolder(path.join(entry, "objects")),
+    isFolder(path.join(entry, "refs")),
+  ]);
+  return head && objects && refs;
+};
 
 /** Where a folder lies in a Git work tree (`workTreeOf`). */
 export interface WorkTree {
@@ -256,7 +288,7 @@ export interface WorkTree {
 
 /**
  * The work tree `folder` lies in: the nearest folder at or above it (after following links, as git
- * does) that holds a `.git` entry, as git looks for one (#377). The nearest wins, so a nested
+ * does) that holds a `.git` entry that git accepts, as git looks for one (#377, #414). The nearest wins, so a nested
  * repository keeps its own Git. Undefined where there is none or `folder` does not exist; no
  * process starts. git may still refuse such a folder (`safe.directory`, `GIT_CEILING_DIRECTORIES`,
  * a file system boundary); what it would tell is then unknown.
