@@ -36,7 +36,7 @@ class FakeContents extends EventEmitter {
 
 type Handler = (...args: unknown[]) => unknown;
 
-const fakeElectron = () => {
+const fakeElectron = (dark = false) => {
   const appHandlers = new Map<string, Handler>();
   const protocolHandlers = new Map<string, (request: { url: string }) => Promise<Response>>();
   const windows: { options: unknown; webContents: FakeContents; loadURL: ReturnType<typeof vi.fn> }[] = [];
@@ -77,6 +77,7 @@ const fakeElectron = () => {
         windows.push(this);
       }
     },
+    nativeTheme: { shouldUseDarkColors: dark },
     dialog: { showOpenDialog: vi.fn() },
     Menu: {
       buildFromTemplate: vi.fn((template: unknown) => ({ template })),
@@ -107,8 +108,8 @@ const options = (argv: readonly string[] = ["electron", "."]): ShellOptions => (
   log: vi.fn(),
 });
 
-const start = async (argv?: readonly string[]) => {
-  const fake = fakeElectron();
+const start = async (argv?: readonly string[], dark = false) => {
+  const fake = fakeElectron(dark);
   await startShell(fake.electron as unknown as ShellElectron, options(argv));
   return fake;
 };
@@ -135,6 +136,13 @@ describe("startShell", () => {
     expect(contents.setWindowOpenHandler).toHaveBeenCalledOnce();
     appHandlers.get("window-all-closed")?.();
     expect(electron.app.quit).toHaveBeenCalledOnce();
+  });
+
+  it("[SR-113/AK1] gives the window the sheet colour of the system's scheme, so that a start does not flash", async () => {
+    const light = await start(undefined, false);
+    expect(light.windows[0]?.options).toMatchObject({ backgroundColor: "#ffffff" });
+    const dark = await start(undefined, true);
+    expect(dark.windows[0]?.options).toMatchObject({ backgroundColor: "#16181b" });
   });
 
   it("opens one secured window on the bundled renderer, with the menu and the protocols", async () => {

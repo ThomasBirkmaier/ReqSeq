@@ -1,13 +1,17 @@
-/* A white sheet: only what means something is visible (D-061..D-063). One buffer, the modeline (a
-   display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for everything; one
-   accent colour, for "outdated" only. */
+/* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer,
+   the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
+   everything; one accent colour, for "outdated" only. Every colour is a token below with a light and a
+   dark value; the page follows the system (`color-scheme`), and the action "Toggle dark mode" sets
+   `data-theme` on the root. A rule uses a token, never a colour of its own (styles.test.ts). */
 :root {
-  --text: #1f2328;
-  --muted: #6e7781;
-  --rule: #e6e8eb;
-  --sheet: #ffffff;
-  --select: #eef0f2;
-  --accent-outdated: #b54708;
+  color-scheme: light dark;
+  --text: light-dark(#1f2328, #e6e8eb);
+  --muted: light-dark(#656d76, #9198a1);
+  --rule: light-dark(#e6e8eb, #30363d);
+  --sheet: light-dark(#ffffff, #16181b);
+  --select: light-dark(#eef0f2, #25292e);
+  --accent-outdated: light-dark(#b54708, #f0883e);
+  --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --line: 1.6rem;
   color: var(--text);
   background: var(--sheet);
@@ -16,6 +20,14 @@
     -apple-system,
     "Segoe UI",
     sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html,
@@ -223,7 +235,7 @@ mark {
   list-style: none;
   background: var(--sheet);
   border-top: 1px solid var(--rule);
-  box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
+  box-shadow: 0 -4px 12px var(--shadow);
   font-size: 13px;
 }
 

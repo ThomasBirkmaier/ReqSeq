@@ -52,6 +52,7 @@ const start = (list: ListBuffer, answers: Record<string, unknown> = {}) => {
     workspace: true,
     buffers,
     mac: false,
+    theme: { shown: () => "light", chosen: () => false, toggle: () => "dark", follow: () => undefined },
     call: call as unknown as Call,
     dispatch: (action) => {
       if (action.type === "open") {

@@ -7,6 +7,7 @@ import { menuTemplate } from "./menu.js";
 import { APP_SCHEMES, RENDERER_URL, rendererFiles, workspaceFiles } from "./protocols.js";
 import { guardContents, secureSession, webPreferences } from "./security.js";
 import { workspaceArgument } from "./args.js";
+import { SHEET } from "../shared/theme.js";
 
 /** The parts of the `electron` module the main process uses. */
 export type ShellElectron = Pick<
@@ -16,6 +17,7 @@ export type ShellElectron = Pick<
   | "dialog"
   | "Menu"
   | "MessageChannelMain"
+  | "nativeTheme"
   | "protocol"
   | "session"
   | "utilityProcess"
@@ -44,7 +46,8 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     width: 1200,
     height: 800,
     title: "LogReq",
-    backgroundColor: "#ffffff",
+    // The colour of the sheet in the scheme of the system, so that a dark start does not flash white (SR-113).
+    backgroundColor: electron.nativeTheme.shouldUseDarkColors ? SHEET.dark : SHEET.light,
     autoHideMenuBar: true,
     webPreferences: webPreferences(options.paths.preload),
   });

@@ -21,6 +21,7 @@ import {
   typeStep,
 } from "./list-filters.js";
 import { searchRows } from "./rows.js";
+import type { Theme } from "./theme.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
 export interface Choice {
@@ -59,6 +60,8 @@ export interface ActionContext {
   /** The open buffers, the most recent first; the first one is shown. */
   readonly buffers: Buffers;
   readonly mac: boolean;
+  /** Light and dark (SR-113). */
+  readonly theme: Theme;
   readonly call: Call;
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
@@ -469,6 +472,24 @@ export const ACTIONS: readonly Action[] = [
             context.echo(answer.ok ? versionLine(answer.output.element) : answer.message);
           });
       }
+    },
+  },
+  {
+    id: "toggle-dark-mode",
+    title: "Toggle dark mode",
+    available: hasWorkspace,
+    run: (context: ActionContext): void => {
+      const scheme = context.theme.toggle();
+      context.echo(scheme === "dark" ? "Dark mode until the app quits" : "Light mode until the app quits");
+    },
+  },
+  {
+    id: "follow-system-theme",
+    title: "Follow system light or dark mode",
+    available: (context: ActionContext): boolean => context.workspace && context.theme.chosen(),
+    run: (context: ActionContext): void => {
+      context.theme.follow();
+      context.echo("Light or dark as the system says");
     },
   },
 ];

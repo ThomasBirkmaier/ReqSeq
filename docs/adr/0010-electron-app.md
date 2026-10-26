@@ -1,6 +1,6 @@
 # ADR-0010: Electron app: process model and security
 
-Status: Proposed · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082, SR-100
+Status: Proposed · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 · SRs: SR-065, SR-066, SR-073, SR-074, SR-076, SR-077, SR-078, SR-082, SR-100, SR-113
 
 ## Decision
 
@@ -28,6 +28,7 @@ Status: Proposed · Based on: D-003, D-004, D-019, D-029, D-061, D-062, D-063 ·
 - Editor (SR-065, #77): CodeMirror 6 in live-preview mode (D-061) in the element buffer. Decorations only, the document is never rewritten: headings, emphasis, lists, task lists, tables, code blocks, quotes and links appear set; the Markdown source shows only on the lines the cursor touches while the editor has the focus, and a table shows its source while the cursor is in it (spec question #420). Nothing from a file is interpreted as HTML (widgets use text nodes). Ctrl/Cmd+S saves with `element.update` (autosave follows with #401); Enter on the element edits, Escape leaves the text. An inline reference (`logreq:` link) opens its element on a click on its label and with Ctrl/Cmd+Enter (the editor only finds what is under the pointer or the cursor; whether a reference is outdated comes from the `relation.outdated` hints of `element.get`, shown in the accent colour with the word "outdated"). The modeline names the type by its name in the metamodel (`metamodel.get`). Extension points (`editor/plugins.ts`): parser extensions and preview rules for formulas and diagrams (KaTeX and Mermaid bundled locally, #108) and images (#109), further CodeMirror extensions for `[[` element search with an inline reference (#78, ADR-0004). Properties stay boxes below the text (#400).
 - Graph (D-063): the current element and what hangs on it, in layers, with an existing library (licence check per ADR-0015 when it comes).
 - All UI text is English, no i18n framework (D-019, SR-074).
+- Light and dark (SR-113): colours are custom properties with `light-dark()`; `color-scheme` follows the OS (`prefers-color-scheme`, from `nativeTheme`) at start and while running. "Toggle dark mode" sets `data-theme` on the root for the running app only (nothing is stored, AK1); "Follow system light or dark mode" removes it. The window background at start follows `nativeTheme`. The native title bar keeps the OS look (no bridge function for `themeSource`).
 
 ## Consequences
 

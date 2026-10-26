@@ -20,6 +20,7 @@ import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { bufferView, workspaceView } from "./modeline.js";
+import { createTheme } from "./theme.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -138,10 +139,18 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     setPrompt({ serial: serial.current, prompt: next });
   }, []);
 
+  // Light and dark (SR-113): the choice is an attribute on the root, so no React state; the live media
+  // query gives the system's scheme at the time of the call.
+  const theme = useMemo(
+    () => createTheme(document.documentElement, window.matchMedia("(prefers-color-scheme: dark)")),
+    [],
+  );
+
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     buffers,
     mac: isMac(navigator.platform),
+    theme,
     call,
     dispatch,
     ask,

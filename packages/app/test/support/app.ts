@@ -63,8 +63,19 @@ export interface RunningApp {
   close(): Promise<void>;
 }
 
+export interface LaunchOptions {
+  /**
+   * The colour scheme the pages see (Playwright emulates `prefers-color-scheme` in the renderer only).
+   * Default `light`, as Playwright's; `null` leaves it to the system (Electron's nativeTheme).
+   */
+  readonly colorScheme?: "light" | "dark" | null;
+}
+
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace). */
-export const launchApp = async (fixture: Fixture | undefined): Promise<RunningApp> => {
+export const launchApp = async (
+  fixture: Fixture | undefined,
+  options: LaunchOptions = {},
+): Promise<RunningApp> => {
   const workspace = fixture === undefined ? undefined : await copyFixture(fixture);
   // The OS cache folder (model cache, ADR-0008) lies in a temporary folder on every OS.
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-"));
@@ -80,6 +91,7 @@ export const launchApp = async (fixture: Fixture | undefined): Promise<RunningAp
     executablePath: ELECTRON,
     args: [APP_FOLDER, ...(workspace === undefined ? [] : ["--workspace", workspace.root])],
     env,
+    ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),
   });
   let stderr = "";
   app.process().stderr?.on("data", (chunk: Buffer) => {

@@ -6,6 +6,26 @@ import { elementBuffer, filteredList, listBuffer, searchBuffer } from "./buffers
 import { typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
+import type { Theme } from "./theme.js";
+import type { Scheme } from "../shared/theme.js";
+
+/** A theme over a flag: `system` is dark, `choice` is what a command chose. */
+const fakeTheme = (system = false): Theme & { readonly choice: () => Scheme | undefined } => {
+  let choice: Scheme | undefined;
+  const shown = (): Scheme => choice ?? (system ? "dark" : "light");
+  return {
+    shown,
+    chosen: () => choice !== undefined,
+    toggle: () => {
+      choice = shown() === "dark" ? "light" : "dark";
+      return choice;
+    },
+    follow: () => {
+      choice = undefined;
+    },
+    choice: () => choice,
+  };
+};
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -33,6 +53,7 @@ const setup = (
     workspace,
     buffers,
     mac: false,
+    theme: fakeTheme(),
     call: call as unknown as Call,
     dispatch: (action) => dispatched.push(action),
     ask: (prompt) => asked.push(prompt),
@@ -75,6 +96,7 @@ describe("the command prompt", () => {
       "Sort list",
       "Close buffer",
       "Close all buffers",
+      "Toggle dark mode",
     ]);
   });
 
@@ -104,6 +126,7 @@ describe("the command prompt", () => {
       "Edit text",
       "Follow reference",
       "Show element ID and version",
+      "Toggle dark mode",
     ]);
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
@@ -114,6 +137,7 @@ describe("the command prompt", () => {
       "Ctrl+S",
       "Enter",
       "Ctrl+Enter",
+      undefined,
       undefined,
     ]);
     expect(commandPrompt({ ...element$.context, mac: true }).items[5]?.hint).toBe("⌘S");
@@ -130,6 +154,7 @@ describe("the command prompt", () => {
       "Go to element or buffer",
       "Search elements",
       "List all elements",
+      "Toggle dark mode",
     ]);
   });
 
@@ -138,6 +163,7 @@ describe("the command prompt", () => {
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
       "Ctrl+Shift+F",
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -609,5 +635,39 @@ describe("show element ID and version", () => {
     const { context, call } = setup([list]);
     action("version").run(context);
     expect(call).not.toHaveBeenCalled();
+  });
+});
+
+describe("light and dark", () => {
+  it('[SR-113/AK2] "Toggle dark mode" switches to the other scheme and says so', () => {
+    const light = setup([list], {}, true, { theme: fakeTheme(false) });
+    runAction(action("toggle-dark-mode"), light.context);
+    expect(light.context.theme.shown()).toBe("dark");
+    runAction(action("toggle-dark-mode"), light.context);
+    expect(light.context.theme.shown()).toBe("light");
+    expect(light.echoed).toEqual(["Dark mode until the app quits", "Light mode until the app quits"]);
+    const dark = setup([list], {}, true, { theme: fakeTheme(true) });
+    runAction(action("toggle-dark-mode"), dark.context);
+    expect(dark.context.theme.shown()).toBe("light");
+  });
+
+  it('[SR-113/AK2] "Follow system light or dark mode" is offered only after a choice, and drops it', () => {
+    const theme = fakeTheme(true);
+    const { context, echoed } = setup([list], {}, true, { theme });
+    expect(titles(context)).toContain("Toggle dark mode");
+    expect(titles(context)).not.toContain("Follow system light or dark mode");
+    runAction(action("toggle-dark-mode"), context);
+    expect(titles(context)).toContain("Follow system light or dark mode");
+    runAction(action("follow-system-theme"), context);
+    expect(theme.choice()).toBeUndefined();
+    expect(theme.shown()).toBe("dark");
+    expect(echoed.at(-1)).toBe("Light or dark as the system says");
+    expect(titles(context)).not.toContain("Follow system light or dark mode");
+  });
+
+  it("offers neither without a workspace, where the prompt cannot be opened", () => {
+    const theme = fakeTheme();
+    theme.toggle();
+    expect(titles(setup([], {}, false, { theme }).context)).toEqual([]);
   });
 });
