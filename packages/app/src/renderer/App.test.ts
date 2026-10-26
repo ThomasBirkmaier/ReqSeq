@@ -4,6 +4,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import { EditorView } from "@codemirror/view";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -444,5 +445,177 @@ describe("App", () => {
     await keyDown(window, "x", { ctrlKey: true });
     await keyDown(window, "a");
     expect(container.querySelector("input")).toBeNull();
+  });
+});
+
+describe("App, the text editor", () => {
+  /** A workspace whose elements have a text, and that saves it with a final line break. */
+  const withText = (): Record<string, Handler> => {
+    const handlers = workspace();
+    handlers["element.get"] = (input) => ({
+      element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: "Hello", relations: [] }),
+    });
+    handlers["element.update"] = (input) => ({
+      element: row(1, { text: `${String(input["text"])}\n`, relations: [] }),
+      files: ["f1.md"],
+      affected: 0,
+    });
+    return handlers;
+  };
+  const editorView = (): EditorView => {
+    const found = EditorView.findFromDOM(query(".cm-editor"));
+    if (found === null) {
+      throw new Error("no editor");
+    }
+    return found;
+  };
+  const typeText = async (insert: string): Promise<void> => {
+    await act(async () => {
+      editorView().dispatch({ changes: { from: editorView().state.doc.length, insert } });
+      await Promise.resolve();
+    });
+    await flush();
+  };
+  const openElement = async (handlers = withText()) => {
+    const fake = fakeBridge(handlers);
+    await render(fake.bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    return fake;
+  };
+
+  it("shows the text of the element in the editor", async () => {
+    await openElement();
+    expect(editorView().state.doc.toString()).toBe("Hello");
+    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+  });
+
+  it("shows modified in the modeline while the text has unsaved changes", async () => {
+    await openElement();
+    await typeText("!");
+    expect(text("Modeline")).toBe("SR-000001needdraftmodifiedWeather stationread-only");
+  });
+
+  it("saves with Ctrl+S or Cmd+S: element.update, Saved in the minibuffer, no modified", async () => {
+    const { invoke, change } = await openElement();
+    await typeText("!");
+    await keyDown(query(".cm-content"), "s", { ctrlKey: true });
+    expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", text: "Hello!" }]);
+    expect(text("Minibuffer")).toBe("Saved SR-000001 Title 1");
+    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    // The write reports itself as a change of the workspace; the message of the save stays.
+    await change("written");
+    expect(text("Minibuffer")).toBe("Saved SR-000001 Title 1");
+    expect(query(".cm-editor")).not.toBeNull();
+    await keyDown(window, "s", { metaKey: true });
+    expect(text("Minibuffer")).toBe("No changes to save");
+    await typeText("?");
+    await keyDown(window, "s", { metaKey: true });
+    expect(calls(invoke, "element.update")).toHaveLength(2);
+  });
+
+  it("keeps the editor, with its undo history, when the save is reported as a change of the workspace", async () => {
+    const { change } = await openElement();
+    const editor = query(".cm-editor");
+    await typeText("!");
+    await keyDown(window, "s", { ctrlKey: true });
+    await change("written");
+    await change("restarted");
+    expect(query(".cm-editor")).toBe(editor);
+  });
+
+  it("saves from the command prompt, and offers editing there", async () => {
+    const { invoke } = await openElement();
+    await typeText("!");
+    await runCommand("save element");
+    expect(calls(invoke, "element.update")).toHaveLength(1);
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
+      "Edit textEnter",
+    );
+    await keyDown(query("input"), "Escape");
+    await runCommand("edit text");
+    expect(editorView().hasFocus).toBe(true);
+  });
+
+  it("does not save on a list", async () => {
+    const { bridge, invoke } = fakeBridge(withText());
+    await render(bridge);
+    await keyDown(window, "s", { ctrlKey: true });
+    expect(calls(invoke, "element.update")).toEqual([]);
+    expect(text("Minibuffer")).toBe("");
+  });
+
+  it("keeps the unsaved text of a buffer while another one is shown", async () => {
+    await openElement();
+    await typeText("!");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(query('[role="listbox"]')).not.toBeNull();
+    expect(text("Modeline")).toBe("All elements3 elementsWeather stationread-only");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    expect(text("Modeline")).toBe("SR-000001needdraftmodifiedWeather stationread-only");
+  });
+
+  it("asks before closing a buffer with unsaved text, and discards it when closing is repeated", async () => {
+    await openElement();
+    await typeText("!");
+    await runCommand("close buffer");
+    expect(text("Minibuffer")).toBe(
+      "SR-000001 Title 1 has unsaved changes: Ctrl+S saves them, closing again discards them",
+    );
+    expect(query("article")).not.toBeNull();
+    await runCommand("close buffer");
+    expect(query('[role="listbox"]')).not.toBeNull();
+    // Opened again, the element shows its saved text.
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello");
+    expect(text("Modeline")).toBe("SR-000001needdraftWeather stationread-only");
+  });
+
+  it("asks again when text was typed after the question, or another action ran", async () => {
+    await openElement();
+    await typeText("!");
+    await runCommand("close buffer");
+    await typeText("?");
+    await runCommand("close buffer");
+    expect(query("article")).not.toBeNull();
+    await runCommand("show element id");
+    await runCommand("close buffer");
+    expect(query("article")).not.toBeNull();
+    // Another buffer in between ends the question as well.
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await runCommand("close buffer");
+    expect(query("article")).not.toBeNull();
+  });
+
+  it("closes a buffer without unsaved text at once", async () => {
+    await openElement();
+    await runCommand("close buffer");
+    expect(query('[role="listbox"]')).not.toBeNull();
+  });
+
+  it("drops the unsaved text when another workspace is opened", async () => {
+    const { handlers, change } = await openElement();
+    await typeText("!");
+    handlers["workspace.status"] = () => ({ name: "Other", readOnly: false });
+    await change("opened");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello");
+    expect(text("Modeline")).not.toContain("modified");
+  });
+
+  it("gives the editor the focus on Enter on the buffer, and the buffer on Escape", async () => {
+    await openElement();
+    expect(document.activeElement).toBe(query("article"));
+    await keyDown(query("article"), "Enter");
+    expect(editorView().hasFocus).toBe(true);
+    await keyDown(query(".cm-content"), "Escape");
+    expect(document.activeElement).toBe(query("article"));
   });
 });

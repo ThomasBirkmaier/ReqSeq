@@ -100,6 +100,21 @@ describe("bufferView", () => {
     ).toBe("1 hint");
   });
 
+  it("shows that the text has unsaved changes, after the status", () => {
+    const buffer = elementBuffer("u", "spec", "SR-036 T");
+    expect(
+      bufferView(buffer, {
+        kind: "element",
+        element: element({ status: "draft", readOnly: false }),
+        modified: true,
+      }),
+    ).toEqual(["SR-000001", "system-requirement", "draft", "modified"]);
+    expect(bufferView(buffer, { kind: "element", element: element(), modified: false })).toEqual([
+      "SR-000001",
+      "system-requirement",
+    ]);
+  });
+
   it("names the buffer before it has loaded", () => {
     expect(bufferView(elementBuffer("u", "spec", "SR-036 T"), undefined)).toEqual(["SR-036 T"]);
     expect(bufferView(listBuffer("All elements"), undefined)).toEqual(["All elements"]);

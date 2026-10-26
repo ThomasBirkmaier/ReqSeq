@@ -149,9 +149,9 @@ mark {
   font-weight: 600;
 }
 
-.element .text {
+/* The text editor (SR-065) is part of the sheet: no border, no frame. Its styles are in editor/Editor.tsx. */
+.element .editor {
   margin: 0 0 1.5rem;
-  white-space: pre-wrap;
 }
 
 .element .box {

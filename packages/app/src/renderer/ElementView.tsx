@@ -1,11 +1,17 @@
-// The element buffer: one element, read-only, as `element.get` gives it. The text is shown as plain text
-// (React text nodes only: nothing from a file is ever interpreted as HTML); Markdown rendering comes
-// with the editor. Empty properties are left out; the UUID and the version are shown on request only.
-import { useEffect, useState } from "react";
+// The element buffer: one element as `element.get` gives it. The text is edited in the Markdown editor
+// with live preview (SR-065, D-061); the properties and the relations stay boxes and lists below it,
+// read-only (property editing comes with #400). Empty properties are left out; the UUID and the version
+// are shown on request only. The only write is `element.update { ref, text }` (ADR-0002), on the action
+// "Save element"; the unsaved text is a draft that the app keeps while another buffer is shown.
+import { useEffect, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
+import type { ElementControls } from "./actions.js";
 import type { ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { propertyBoxes, relationGroups } from "./element-view.js";
+import type { EditorHandle } from "./editor/Editor.js";
+import { Editor } from "./editor/Editor.js";
+import { afterSave, dirty, saveInput } from "./editor/save.js";
 import type { BufferData } from "./modeline.js";
 
 export interface ElementViewProps {
@@ -18,6 +24,12 @@ export interface ElementViewProps {
   readonly onEcho: (message: string) => void;
   /** A relation target is opened: by its UUID, as the relation output has no repository. */
   readonly onOpenTarget: (id: string) => void;
+  /** The unsaved text this buffer had when it was shown last, if any. */
+  readonly draft: string | undefined;
+  /** The text of the buffer has unsaved changes (`text`), or has none (undefined). */
+  readonly onDraft: (key: string, text: string | undefined) => void;
+  /** Gives the app the means to save and edit while the text is shown, and takes them back. */
+  readonly register: (controls: ElementControls | undefined) => void;
 }
 
 type View =
@@ -69,32 +81,135 @@ export const ElementView = ({
   onData,
   onEcho,
   onOpenTarget,
+  draft,
+  onDraft,
+  register,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<View>({ status: "loading" });
+  // The text as last loaded or saved: what the document is compared with.
+  const [text, setText] = useState("");
+  const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
+  const baseline = useRef("");
+  const loadedOnce = useRef(false);
+  const saving = useRef(false);
+  const [article, setArticle] = useState<HTMLElement | null>(null);
+  const readOnly = view.status === "ok" && view.element.readOnly === true;
+  // What the callbacks need of the latest render.
+  const now = useRef({ buffer, call, onData, onDraft, onEcho, readOnly, handle });
+  now.current = { buffer, call, onData, onDraft, onEcho, readOnly, handle };
 
+  const setBaseline = (next: string): void => {
+    baseline.current = next;
+    setText(next);
+  };
+
+  // The shown buffer is a new one (the app keys this component by buffer), so "loading" shows once; a
+  // reload after a change of the workspace keeps the editor (focus, cursor and undo history).
   useEffect(() => {
     let current = true;
-    setView({ status: "loading" });
-    onData(buffer.key, undefined);
+    if (!loadedOnce.current) {
+      onData(buffer.key, undefined);
+    }
     void call("element.get", { ref: buffer.id, repository: buffer.repository }).then((answer) => {
       if (!current) {
         return;
       }
-      if (answer.ok) {
-        setView({ status: "ok", element: answer.output.element });
-        onData(buffer.key, { kind: "element", element: answer.output.element });
-      } else {
+      if (!answer.ok) {
         setView({ status: "error", message: answer.message });
         onEcho(answer.message);
+        return;
       }
+      const { element } = answer.output;
+      const loaded = element.text ?? "";
+      // A save that runs sets the baseline itself with its answer.
+      if (!saving.current) {
+        if (!loadedOnce.current) {
+          setBaseline(loaded);
+        } else if (loaded !== baseline.current) {
+          const editor = now.current.handle;
+          const unsaved = editor !== undefined && dirty(editor.doc(), baseline.current);
+          setBaseline(loaded);
+          if (unsaved) {
+            // Interim until the conflict rule of the external-change issues (#401, #402).
+            onEcho(
+              `${buffer.name} changed on disk; your unsaved changes are kept. Saving overwrites the file.`,
+            );
+          }
+        }
+        loadedOnce.current = true;
+      }
+      setView({ status: "ok", element });
+      onData(buffer.key, { kind: "element", element });
     });
     return () => {
       current = false;
     };
   }, [call, buffer.key, buffer.id, buffer.repository, revision]);
 
+  const save = async (editor: EditorHandle): Promise<void> => {
+    const { buffer: shown, call: run, onData: data, onDraft: draftOf, onEcho: echo } = now.current;
+    if (saving.current) {
+      return;
+    }
+    const doc = editor.doc();
+    if (now.current.readOnly) {
+      echo(`${shown.name} is read-only`);
+    } else if (!dirty(doc, baseline.current)) {
+      echo("No changes to save");
+    } else {
+      saving.current = true;
+      const answer = await run("element.update", saveInput(shown.id, doc));
+      saving.current = false;
+      if (!answer.ok) {
+        echo(answer.message);
+        return;
+      }
+      const { element } = answer.output;
+      const after = afterSave(doc, element.text ?? "", editor.doc());
+      setBaseline(after.baseline);
+      if (after.replace !== undefined) {
+        editor.replace(after.replace);
+      }
+      const rest = editor.doc();
+      draftOf(shown.key, dirty(rest, after.baseline) ? rest : undefined);
+      setView({ status: "ok", element });
+      data(shown.key, { kind: "element", element });
+      echo(`Saved ${shown.name}`);
+    }
+  };
+
+  useEffect(() => {
+    if (handle === undefined) {
+      return undefined;
+    }
+    register({
+      save: () => {
+        void save(handle);
+      },
+      edit: () => {
+        handle.focus("end");
+      },
+    });
+    return () => {
+      register(undefined);
+    };
+  }, [handle, register]);
+
   return (
-    <article className="buffer element" aria-label={buffer.name} data-buffer="" tabIndex={0}>
+    <article
+      className="buffer element"
+      aria-label={buffer.name}
+      data-buffer=""
+      tabIndex={0}
+      ref={setArticle}
+      onKeyDown={(event) => {
+        // Enter on the buffer itself edits the text; Escape in the editor comes back here.
+        if (event.key === "Enter" && event.target === event.currentTarget) {
+          event.preventDefault();
+          handle?.focus("end");
+        }
+      }}
+    >
       <div className="column">
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
         {view.status === "ok" ? (
@@ -104,9 +219,18 @@ export const ElementView = ({
                 ? (view.element.identifier ?? view.element.shortId)
                 : view.element.title}
             </h1>
-            {view.element.text === undefined || view.element.text === "" ? null : (
-              <p className="text">{view.element.text}</p>
-            )}
+            <Editor
+              text={text}
+              readOnly={readOnly}
+              {...(draft === undefined ? {} : { initial: draft })}
+              onChange={(doc) => {
+                onDraft(buffer.key, dirty(doc, baseline.current) ? doc : undefined);
+              }}
+              onEscape={() => {
+                article?.focus();
+              }}
+              handle={setHandle}
+            />
             {propertyBoxes(view.element).map((box) => (
               <div className="box" key={box.key}>
                 <span className="key">{box.key}</span>

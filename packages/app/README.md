@@ -15,7 +15,7 @@ pnpm --filter @logreq/app test:electron      # install, build and the Playwright
 
 A white sheet (D-062). The window shows one buffer at a time, the most recent one, above the modeline and the minibuffer; nothing else is permanently visible.
 
-- **Buffers:** the list of elements (`element.list`: filter, sort, derivation tree, pages of 200), a search result (`element.search`, pages of 50) and one element, read-only (`element.get`: title, text as plain text, the properties that are set, relations by kind, with a mark for outdated ones). Opening a buffer again shows the one that is open. Editing comes with the editor (SR-065).
+- **Buffers:** the list of elements (`element.list`: filter, sort, derivation tree, pages of 200), a search result (`element.search`, pages of 50) and one element (`element.get`: title, the text in the Markdown editor, the properties that are set and the relations by kind, with a mark for outdated ones, both read-only for now). Opening a buffer again shows the one that is open.
 - **Modeline:** a display, not a control. Left the parts of the shown buffer (a list: its filter, sort and count; an element: ID, type, status, `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
 - **Minibuffer:** the only control. Idle it is one line with the last message. Asked, it has an input and the candidates rise above the modeline, only while asked.
 - **Fuzzy matching:** names of actions and buffers are ranked with uFuzzy in the renderer (`intraMode: 0`, and one slip per word when that finds nothing). Elements are found by `element.search` in core.
@@ -30,8 +30,19 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 | Enter | Open the selected row (in a prompt: run the candidate) |
 | Escape | End the prompt |
 | Tab | In a prompt, the next candidate |
+| Ctrl/Cmd+S | Save the text of the shown element (action "Save element") |
+| Enter | On an element, put the cursor into the text (action "Edit text") |
+| Escape | In the text, back to the element |
 
 Catalog commands in the command prompt (SR-073 AK2) come with #85.
+
+## Editor (SR-065)
+
+The text of an element is Markdown source with a live preview (D-061, `src/renderer/editor/`, CodeMirror 6): headings, emphasis (`*em*`, `**strong**`, `~~strike~~`, `` `code` ``), bullet, ordered and task lists, tables, fenced and indented code blocks, quotes and links appear set, and the source shows only on the lines the cursor touches while the editor has the focus. A table shows its source while the cursor is in any of its rows (spec question #420). There is no preview pane, no toolbar and no Markdown rewriting: the preview only decorates, and the file holds exactly what is in the editor (core adds the final line break, ADR-0004). Nothing in the text is interpreted as HTML, and links are not followed.
+
+- **Keys:** Enter on the element puts the cursor at the end of the text; Escape comes back to the element; Ctrl/Cmd+S saves with `element.update`; Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo; Enter in a list continues it. After a prompt closes, the focus goes to the element (the article), not to the text, unless the action was "Edit text".
+- **Unsaved text** is a draft the app keeps per buffer while another buffer is shown (the modeline says `modified`). "Close buffer" asks once and discards when repeated. Opening another workspace drops all drafts. Autosave and the rule for a file that changed outside come with #401 and #402; until then a reload keeps the draft and says that saving overwrites the file.
+- **Extension points** (`editor/plugins.ts`) for the following issues: parser extensions and preview rules (formulas and diagrams #108, images #109) and further CodeMirror extensions (`[[` link search #78). Property boxes stay below the text (#400).
 
 ## Processes
 
@@ -80,5 +91,6 @@ The bridge offers nothing else, and in particular no delete (SR-099).
 
   The JUnit file is `test-results/junit-electron.xml` (CI job `electron`, under `xvfb-run` on Linux).
 - `test/main-view.spec.ts` runs the main view on `fixtures/SR-069/filter` and compares it with the CLI: the list, the tree, a filter, the search and an element (`[SR-100/AK1]` checks that nothing but the buffer, the modeline and the minibuffer is permanently visible; the SR is verified by inspection, `verification/SR-100.md`).
+- `test/editor.spec.ts` runs the editor on the built app (`[SR-065/AK1]` live preview and source on the cursor line, `[SR-065/AK2]` typed text saved and read back as CommonMark with GitHub extensions by micromark, undo, drafts, no request). `test/editor-screenshots.spec.ts` takes the screenshots of `verification/SR-065/`.
 - `test/screenshots.spec.ts` takes the screenshots of `verification/SR-100/` on a copy of the repository's `spec/` workspace (`test-results/electron/screenshots/`, or the folder in `LOGREQ_SCREENSHOTS`).
 - The cross-access and no-delete tests in `packages/cli/test/` run the app's bridge and core side over a `MessageChannel` for every catalog command.

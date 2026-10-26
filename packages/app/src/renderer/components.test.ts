@@ -9,6 +9,8 @@ import type { Buffer, BufferAction, ListBuffer, SearchBuffer } from "./buffers.j
 import { nth } from "./lists.js";
 import { elementBuffer, listBuffer, reduceBuffers, searchBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import { EditorView } from "@codemirror/view";
+import type { ElementControls } from "./actions.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -776,10 +778,12 @@ describe("ElementView", () => {
       ...extra,
     }) as DataExportElement;
 
-  const mount = async (call: Call, revision = 0) => {
+  const mount = async (call: Call, revision = 0, draft?: string) => {
     const data: [string, BufferData | undefined][] = [];
     const echoed: string[] = [];
     const targets: string[] = [];
+    const drafts: [string, string | undefined][] = [];
+    const registered: (ElementControls | undefined)[] = [];
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
@@ -788,10 +792,46 @@ describe("ElementView", () => {
         onData: (key, loaded) => data.push([key, loaded]),
         onEcho: (message) => echoed.push(message),
         onOpenTarget: (id) => targets.push(id),
+        draft,
+        onDraft: (key, text) => drafts.push([key, text]),
+        register: (controls) => registered.push(controls),
       });
     await render(node(revision));
-    return { data, echoed, targets, again: (rev: number) => render(node(rev)) };
+    return {
+      data,
+      echoed,
+      targets,
+      drafts,
+      registered,
+      controls: (): ElementControls => {
+        const found = registered.findLast((c) => c !== undefined);
+        if (found === undefined) {
+          throw new Error("no controls registered");
+        }
+        return found;
+      },
+      again: (rev: number) => render(node(rev)),
+    };
   };
+  const editorView = (): EditorView => {
+    const found = EditorView.findFromDOM(query(".cm-editor"));
+    if (found === null) {
+      throw new Error("no editor");
+    }
+    return found;
+  };
+  /** Types into the editor as the user does. */
+  const typeInto = async (text: string): Promise<void> => {
+    await act(async () => {
+      editorView().dispatch({ changes: { from: editorView().state.doc.length, insert: text } });
+      await Promise.resolve();
+    });
+  };
+  const saved = (text: string, extra: Partial<DataExportElement> = {}) => ({
+    element: read({ text, ...extra }),
+    files: ["a.md"],
+    affected: 0,
+  });
 
   it("reads the element with its repository and shows title, text, properties and relations", async () => {
     const call = fakeCall({ "element.get": () => ({ element: read() }) });
@@ -808,13 +848,14 @@ describe("ElementView", () => {
     expect(texts("h2")).toEqual(["derives-from", "← derives-from", "packages"]);
   });
 
-  it("shows the text as text: nothing of it becomes markup", async () => {
+  it("edits the text in the editor, as text: nothing of it becomes markup", async () => {
     await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
-    expect(query(".text").textContent).toBe("Line one\n<b>not bold</b>");
-    expect(container.querySelector(".text b")).toBeNull();
+    expect(editorView().state.doc.toString()).toBe("Line one\n<b>not bold</b>");
+    expect(query(".cm-content").textContent).toBe("Line one<b>not bold</b>");
+    expect(container.querySelector(".cm-content b")).toBeNull();
   });
 
-  it("shows no text and no properties when there are none, and the ID when the title is empty", async () => {
+  it("shows an editor also when the text is empty or there is none, and no properties or relations", async () => {
     await mount(
       asCall(
         fakeCall({
@@ -823,7 +864,7 @@ describe("ElementView", () => {
       ),
     );
     expect(query("h1").textContent).toBe("SR-036");
-    expect(container.querySelector(".text")).toBeNull();
+    expect(editorView().state.doc.toString()).toBe("");
     expect(container.querySelector(".box")).toBeNull();
     expect(container.querySelector("section")).toBeNull();
     await mount(
@@ -843,7 +884,232 @@ describe("ElementView", () => {
       ),
     );
     expect(query("h1").textContent).toBe("SR-000001");
-    expect(container.querySelector(".text")).toBeNull();
+    expect(editorView().state.doc.toString()).toBe("");
+  });
+
+  it("is editable, or not for a read-only element", async () => {
+    await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("true");
+    await mount(asCall(fakeCall({ "element.get": () => ({ element: read({ readOnly: true }) }) })));
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+  });
+
+  it("keeps the text typed as a draft for the app, and drops it when the text is the saved one again", async () => {
+    const { drafts } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
+    await typeInto("!");
+    expect(drafts).toEqual([["element:spec:uuid-1", "Line one\n<b>not bold</b>!"]]);
+    await act(async () => {
+      editorView().dispatch({ changes: { from: 24, to: 25 } });
+      await Promise.resolve();
+    });
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+  });
+
+  it("shows the draft of the app in place of the text, and it stays a draft", async () => {
+    const { drafts } = await mount(
+      asCall(fakeCall({ "element.get": () => ({ element: read() }) })),
+      0,
+      "my draft",
+    );
+    expect(editorView().state.doc.toString()).toBe("my draft");
+    expect(drafts).toEqual([]);
+    await typeInto("!");
+    expect(drafts).toEqual([["element:spec:uuid-1", "my draft!"]]);
+  });
+
+  it("saves with element.update { ref, text }, says so, and the baseline is what core gives back", async () => {
+    const call = fakeCall({
+      "element.get": () => ({ element: read() }),
+      "element.update": (input) => saved(`${String(input["text"])}\n`),
+    });
+    const { controls, echoed, drafts, data } = await mount(asCall(call));
+    await typeInto("!");
+    drafts.length = 0;
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([
+      ["element.update", { ref: "uuid-1", text: "Line one\n<b>not bold</b>!" }],
+    ]);
+    // Core added the final line break, so the editor shows what the file holds.
+    expect(editorView().state.doc.toString()).toBe("Line one\n<b>not bold</b>!\n");
+    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+    expect(data.at(-1)?.[1]?.kind).toBe("element");
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    expect(echoed.at(-1)).toBe("No changes to save");
+    expect(call.mock.calls.filter(([name]) => name === "element.update")).toHaveLength(1);
+  });
+
+  it("saves an empty text, which core gives back as no text", async () => {
+    const call = fakeCall({
+      "element.get": () => ({ element: read() }),
+      "element.update": () => saved(undefined as unknown as string),
+    });
+    const { controls, echoed } = await mount(asCall(call));
+    await act(async () => {
+      editorView().dispatch({ changes: { from: 0, to: editorView().state.doc.length } });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(call).toHaveBeenCalledWith("element.update", { ref: "uuid-1", text: "" });
+    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+    expect(editorView().state.doc.toString()).toBe("");
+  });
+
+  it("keeps what was typed while the save ran, as a draft", async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    const call = vi.fn((name: string) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            answer = resolve;
+          })
+        : Promise.resolve({ ok: true, output: { element: read({ text: "base" }) } }),
+    );
+    const { controls, drafts, echoed } = await mount(asCall(call as never));
+    await typeInto("!");
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    // A second Ctrl+S while the first runs does nothing.
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    expect(call.mock.calls.filter(([name]) => name === "element.update")).toHaveLength(1);
+    await typeInto("?");
+    await act(async () => {
+      answer({ ok: true, output: saved("base!") });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(editorView().state.doc.toString()).toBe("base!?");
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", "base!?"]);
+    expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+  });
+
+  it("echoes why a save failed and keeps the text as a draft", async () => {
+    const call = fakeCall({
+      "element.get": () => ({ element: read() }),
+      "element.update": () => new Error("More than one element has the ID"),
+    });
+    const { controls, echoed, drafts } = await mount(asCall(call));
+    await typeInto("!");
+    const before = drafts.length;
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(echoed.at(-1)).toBe("More than one element has the ID");
+    expect(drafts).toHaveLength(before);
+    expect(editorView().state.doc.toString()).toBe("Line one\n<b>not bold</b>!");
+  });
+
+  it("does not save a read-only element", async () => {
+    const call = fakeCall({ "element.get": () => ({ element: read({ readOnly: true }) }) });
+    const { controls, echoed } = await mount(asCall(call));
+    await act(async () => {
+      controls().save();
+      await Promise.resolve();
+    });
+    expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+    expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([]);
+  });
+
+  it("gives the app its controls once the text is shown, and takes them back", async () => {
+    const { registered } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
+    expect(registered.map((c) => c !== undefined)).toEqual([true]);
+    act(() => {
+      root.unmount();
+    });
+    expect(registered.at(-1)).toBeUndefined();
+    root = createRoot(container);
+    const failing = await mount(
+      asCall(fakeCall({ "element.get": () => new Error("No element has that ID") })),
+    );
+    expect(failing.registered).toEqual([]);
+  });
+
+  it("Enter on the buffer gives the editor the focus at the end, Escape in the editor gives it back", async () => {
+    const { controls } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
+    const article = query("article");
+    await press(article, "Enter");
+    expect(editorView().hasFocus).toBe(true);
+    expect(editorView().state.selection.main.head).toBe(24);
+    await press(query(".cm-content"), "Escape");
+    expect(document.activeElement).toBe(article);
+    act(() => {
+      controls().edit();
+    });
+    expect(editorView().hasFocus).toBe(true);
+  });
+
+  it("ignores Enter on the buffer before the text is shown", async () => {
+    await mount(asCall(fakeCall({ "element.get": () => new Error("No element has that ID") })));
+    await press(query("article"), "Enter");
+    expect(container.querySelector(".cm-editor")).toBeNull();
+  });
+
+  it("does not show loading again after a reload: the editor stays, and the text follows when nothing was typed", async () => {
+    let text = "first";
+    const call = fakeCall({ "element.get": () => ({ element: read({ text }) }) });
+    const { again, echoed } = await mount(asCall(call));
+    const editor = query(".cm-editor");
+    text = "second";
+    await again(1);
+    expect(query(".cm-editor")).toBe(editor);
+    expect(editorView().state.doc.toString()).toBe("second");
+    expect(echoed).toEqual([]);
+  });
+
+  it("keeps unsaved input on a reload with a changed text, and says so", async () => {
+    let text = "first";
+    const call = fakeCall({ "element.get": () => ({ element: read({ text }) }) });
+    const { again, echoed, drafts } = await mount(asCall(call));
+    await typeInto("!");
+    text = "changed";
+    await again(1);
+    expect(editorView().state.doc.toString()).toBe("first!");
+    expect(echoed).toEqual([
+      "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+    ]);
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", "first!"]);
+    // The same text again says nothing more.
+    await again(2);
+    expect(echoed).toHaveLength(1);
+  });
+
+  it("reads again after an error, with no editor to ask", async () => {
+    let fail = true;
+    const call = fakeCall({
+      "element.get": () => (fail ? new Error("busy") : { element: read({ text: "first" }) }),
+    });
+    const { again } = await mount(asCall(call));
+    expect(container.querySelector(".cm-editor")).toBeNull();
+    fail = false;
+    await again(1);
+    expect(editorView().state.doc.toString()).toBe("first");
+    fail = true;
+    await again(2);
+    expect(query(".quiet").textContent).toBe("busy");
+    fail = false;
+    const changed = call;
+    changed.mockImplementation(() =>
+      Promise.resolve({ ok: true, output: { element: read({ text: "other" }) } }),
+    );
+    await again(3);
+    expect(editorView().state.doc.toString()).toBe("other");
   });
 
   it("opens a relation target that is available, on a click and on Enter", async () => {

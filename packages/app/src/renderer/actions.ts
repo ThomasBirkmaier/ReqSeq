@@ -33,6 +33,14 @@ export interface Prompt {
   readonly text?: (text: string) => void;
 }
 
+/** What the shown element buffer lets the app do with its text (SR-065). */
+export interface ElementControls {
+  /** Saves the text with `element.update` (the action "Save element"). */
+  readonly save: () => void;
+  /** Gives the text editor the focus (the action "Edit text"). */
+  readonly edit: () => void;
+}
+
 export interface ActionContext {
   /** A workspace is open. */
   readonly workspace: boolean;
@@ -43,15 +51,30 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /** The shown element buffer, when it has loaded. */
+  readonly element?: ElementControls;
+  /** The shown buffer has unsaved changes. */
+  readonly modified: boolean;
+  /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
+  readonly closeArmed: (key: string) => boolean;
+  /** Remembers that closing asked about the buffer with this key, or (undefined) that it did not. */
+  readonly armClose: (key: string | undefined) => void;
+  /** Drops the unsaved changes of the buffer with this key. */
+  readonly discard: (key: string) => void;
 }
 
 export interface Action {
   readonly id: string;
   readonly title: string;
   readonly shortcut?: Shortcut;
+  /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
+  readonly hint?: string;
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
+
+/** Ctrl/Cmd+S saves the text of the shown element. */
+const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
 
 /** The command prompt itself; it is not listed in itself. */
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
@@ -66,6 +89,8 @@ const isFiltered = (context: ActionContext): boolean => currentList(context)?.se
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
 const hasBuffers = (context: ActionContext): boolean => context.buffers.length > 0;
+const hasElementText = (context: ActionContext): boolean =>
+  isElement(context) && context.element !== undefined;
 
 /** An action on the shown list; without one it does nothing. */
 const onList =
@@ -267,9 +292,36 @@ export const ACTIONS: readonly Action[] = [
     available: hasBuffers,
     run: (context: ActionContext): void => {
       const current = context.buffers[0];
-      if (current !== undefined) {
-        context.dispatch({ type: "close", key: current.key });
+      if (current === undefined) {
+        return;
       }
+      if (context.modified && !context.closeArmed(current.key)) {
+        context.armClose(current.key);
+        context.echo(
+          `${bufferName(current)} has unsaved changes: ${shortcutLabel(SAVE_SHORTCUT, context.mac)} saves them, closing again discards them`,
+        );
+        return;
+      }
+      context.discard(current.key);
+      context.dispatch({ type: "close", key: current.key });
+    },
+  },
+  {
+    id: "save",
+    title: "Save element",
+    shortcut: SAVE_SHORTCUT,
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.save();
+    },
+  },
+  {
+    id: "edit",
+    title: "Edit text",
+    hint: "Enter",
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.edit();
     },
   },
   {
@@ -289,15 +341,29 @@ export const ACTIONS: readonly Action[] = [
   },
 ];
 
+/** Runs an action. Any action but "Close buffer" ends a question that closing asked. */
+export const runAction = (action: Action, context: ActionContext): void => {
+  if (action.id !== "close") {
+    context.armClose(undefined);
+  }
+  action.run(context);
+};
+
+/** The hint of a prompt entry: the shortcut, or else the key that works in the buffer. */
+const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
+  const hint = action.shortcut === undefined ? action.hint : shortcutLabel(action.shortcut, mac);
+  return hint === undefined ? {} : { hint };
+};
+
 /** The command prompt: the actions that apply now, with their shortcuts. */
 export const commandPrompt = (context: ActionContext): Prompt => ({
   label: "Command",
   items: ACTIONS.filter((action) => action.available(context)).map((action) => ({
     id: action.id,
     name: action.title,
-    ...(action.shortcut === undefined ? {} : { hint: shortcutLabel(action.shortcut, context.mac) }),
+    ...hintOf(action, context.mac),
     run: () => {
-      action.run(context);
+      runAction(action, context);
     },
   })),
 });

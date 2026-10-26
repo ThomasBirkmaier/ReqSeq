@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt } from "./actions.js";
+import { ACTIONS, COMMAND_SHORTCUT, actionFor, commandPrompt, jumpPrompt, runAction } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, listBuffer, searchBuffer } from "./buffers.js";
@@ -8,8 +8,15 @@ import type { Call } from "./call.js";
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** A context over `buffers`, with the commands answered by `answers` and what the actions did recorded. */
-const setup = (buffers: Buffers, answers: Record<string, unknown> = {}, workspace = true) => {
+const setup = (
+  buffers: Buffers,
+  answers: Record<string, unknown> = {},
+  workspace = true,
+  extra: Partial<ActionContext> = {},
+) => {
   const dispatched: BufferAction[] = [];
+  const armed: (string | undefined)[] = [];
+  const discarded: string[] = [];
   const asked: Prompt[] = [];
   const echoed: string[] = [];
   const call = vi.fn((name: string) => {
@@ -28,8 +35,13 @@ const setup = (buffers: Buffers, answers: Record<string, unknown> = {}, workspac
     dispatch: (action) => dispatched.push(action),
     ask: (prompt) => asked.push(prompt),
     echo: (message) => echoed.push(message),
+    modified: false,
+    closeArmed: () => false,
+    armClose: (value) => armed.push(value),
+    discard: (key) => discarded.push(key),
+    ...extra,
   };
-  return { context, dispatched, asked, echoed, call };
+  return { context, dispatched, asked, echoed, call, armed, discarded };
 };
 
 const action = (id: string) => {
@@ -69,6 +81,35 @@ describe("the command prompt", () => {
     expect(names).toContain("Show element ID and version");
     expect(names).not.toContain("Sort list");
     expect(names).not.toContain("Filter list by type");
+  });
+
+  it("offers saving and editing the text on an element that has loaded", () => {
+    const element$ = setup([element], {}, true, { element: { save: vi.fn(), edit: vi.fn() } });
+    const items = commandPrompt(element$.context).items;
+    expect(items.map((item) => item.name)).toEqual([
+      "Go to element or buffer",
+      "Search elements",
+      "List all elements",
+      "Close buffer",
+      "Save element",
+      "Edit text",
+      "Show element ID and version",
+    ]);
+    expect(items.map((item) => item.hint)).toEqual([
+      "Ctrl+P",
+      "Ctrl+Shift+F",
+      undefined,
+      undefined,
+      "Ctrl+S",
+      "Enter",
+      undefined,
+    ]);
+    expect(commandPrompt({ ...element$.context, mac: true }).items[4]?.hint).toBe("⌘S");
+    // Not while the element has not loaded, and not on a list.
+    expect(titles(setup([element]).context)).not.toContain("Save element");
+    expect(
+      titles(setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn() } }).context),
+    ).not.toContain("Edit text");
   });
 
   it("offers nothing without a workspace and nothing to close without a buffer", () => {
@@ -341,6 +382,53 @@ describe("close buffer", () => {
     const none = setup([]);
     action("close").run(none.context);
     expect(none.dispatched).toEqual([]);
+  });
+});
+
+describe("close buffer with unsaved changes", () => {
+  it("asks once, with the key that saves, and discards and closes when closing is repeated", () => {
+    const first = setup([element, list], {}, true, { modified: true });
+    action("close").run(first.context);
+    expect(first.dispatched).toEqual([]);
+    expect(first.armed).toEqual([element.key]);
+    expect(first.echoed).toEqual([
+      "SR-036 Title has unsaved changes: Ctrl+S saves them, closing again discards them",
+    ]);
+    const again = setup([element, list], {}, true, { modified: true, closeArmed: () => true });
+    action("close").run(again.context);
+    expect(again.discarded).toEqual([element.key]);
+    expect(again.dispatched).toEqual([{ type: "close", key: element.key }]);
+    const mac = setup([element], {}, true, { modified: true, mac: true });
+    action("close").run(mac.context);
+    expect(mac.echoed[0]).toContain("⌘S saves them");
+  });
+
+  it("any other action ends the question", () => {
+    const { context, armed } = setup([element, list]);
+    runAction(action("search"), context);
+    runAction(action("close"), context);
+    expect(armed).toEqual([undefined]);
+  });
+});
+
+describe("save element and edit text", () => {
+  it("save runs the controls with Ctrl/Cmd+S, edit has no shortcut", () => {
+    const controls = { save: vi.fn(), edit: vi.fn() };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(actionFor(context, (shortcut) => shortcut.key === "s" && shortcut.mod)?.id).toBe("save");
+    action("save").run(context);
+    action("edit").run(context);
+    expect(controls.save).toHaveBeenCalledTimes(1);
+    expect(controls.edit).toHaveBeenCalledTimes(1);
+    expect(action("edit").shortcut).toBeUndefined();
+  });
+
+  it("do nothing without controls", () => {
+    const { context } = setup([element]);
+    action("save").run(context);
+    action("edit").run(context);
+    expect(action("save").available(context)).toBe(false);
+    expect(actionFor(context, (shortcut) => shortcut.key === "s")).toBeUndefined();
   });
 });
 

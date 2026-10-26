@@ -43,7 +43,9 @@ test.describe("the main view on a fixture workspace", () => {
   test("[SR-100/AK1] the main view shows only the list, the element and the search line", async () => {
     const { window } = running;
     // Nothing that can be operated, besides the buffer itself and the minibuffer, is permanently visible.
-    const permanent = async (): Promise<void> => {
+    // The text of an element is edited in place (SR-065): its editor, `article .cm-content`, is the one
+    // text box of the sheet and is not an extra control; a list has none.
+    const permanent = async (editors: number): Promise<void> => {
       for (const role of [
         "button",
         "tab",
@@ -57,11 +59,16 @@ test.describe("the main view on a fixture workspace", () => {
         "toolbar",
         "tree",
         "combobox",
-        "textbox",
         "searchbox",
       ] as const) {
         expect([role, await window.getByRole(role).count()]).toEqual([role, 0]);
       }
+      expect(
+        await window
+          .getByRole("textbox")
+          .evaluateAll((all) => all.filter((e) => !e.matches("article .cm-content")).length),
+      ).toBe(0);
+      expect(await window.getByRole("textbox").count()).toBe(editors);
       expect(await window.locator("button, input, textarea, select, form, nav, aside, dialog").count()).toBe(
         0,
       );
@@ -74,17 +81,17 @@ test.describe("the main view on a fixture workspace", () => {
     };
     // With the list open ...
     await expect(window.getByRole("listbox")).toBeVisible();
-    await permanent();
+    await permanent(0);
     // ... and with an element open.
     await window.keyboard.press("Enter");
     await expect(window.locator("article")).toBeVisible();
-    await permanent();
+    await permanent(1);
     // The prompt, which is the search line, is there only while it is asked for.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await expect(window.getByRole("combobox")).toBeVisible();
     await window.keyboard.press("Escape");
     await expect(window.getByRole("combobox")).toHaveCount(0);
-    await permanent();
+    await permanent(1);
   });
 
   test("the list shows what `element list` gives: titles in order and the total in the modeline", async () => {
@@ -145,7 +152,7 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(window.getByRole("combobox")).toHaveCount(0);
   });
 
-  test("Ctrl+P finds an element by a word of its title and opens it, read-only, with what `element get` gives", async () => {
+  test("Ctrl+P finds an element by a word of its title and opens it, with what `element get` gives", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type("icing");
@@ -159,9 +166,12 @@ test.describe("the main view on a fixture workspace", () => {
       `${got.element.shortId}${got.element.type}${got.element.status}`,
     );
     if (got.element.text !== undefined) {
-      await expect(window.locator("article .text")).toHaveText(got.element.text);
+      await expect(window.locator("article .cm-content")).toHaveText(got.element.text.trim());
     }
-    await expect(window.locator("article input, article textarea, article [contenteditable]")).toHaveCount(0);
+    // The text editor is the only thing in the element that takes input.
+    await expect(window.locator("article input, article textarea")).toHaveCount(0);
+    await expect(window.locator("article [contenteditable]")).toHaveCount(1);
+    await expect(window.locator("article [contenteditable]")).toHaveClass(/cm-content/);
     // Ctrl+P, Enter goes back to the list.
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");

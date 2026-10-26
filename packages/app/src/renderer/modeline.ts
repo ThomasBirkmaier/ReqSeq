@@ -45,7 +45,7 @@ export const workspaceView = (result: InvokeResult): WorkspaceView => {
 /** What a buffer has loaded, for its part of the modeline. */
 export type BufferData =
   | { readonly kind: "list" | "search"; readonly total: number; readonly incomplete: boolean }
-  | { readonly kind: "element"; readonly element: DataExportElement };
+  | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
 /**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
@@ -63,6 +63,7 @@ export const bufferView = (buffer: Buffer, data: BufferData | undefined): string
       element.identifier ?? element.shortId,
       element.type,
       ...(element.status === undefined ? [] : [element.status]),
+      ...(data.modified === true ? ["modified"] : []),
       ...(element.readOnly === true ? ["read-only"] : []),
       ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
       ...(hints > 0 ? [plural(hints, "hint")] : []),

@@ -13,7 +13,7 @@ export default defineConfig({
     // CLI end-to-end tests spawn the built binary: `pnpm test:e2e` after `pnpm build` (vitest.e2e.config.ts).
     // The performance suite runs apart, nightly and with label `perf`: `pnpm test:perf` (vitest.perf.config.ts).
     exclude: [...configDefaults.exclude, "packages/*/test/e2e/**", "packages/*/test/perf/**"],
-    setupFiles: ["./scripts/test-support/block-network.mjs"],
+    setupFiles: ["./scripts/test-support/block-network.mjs", "./scripts/test-support/dom-selection.mjs"],
     // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
     // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types
     // by default only from 22.18; the flag does it on every Node 22 that `engines` allows.
