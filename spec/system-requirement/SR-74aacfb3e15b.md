@@ -19,7 +19,7 @@ derives-from:
 based-on:
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n1:ce1d13c56aad179c, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n1:88f7a1e2a1bfc5a9, title: In Buffern arbeiten }
+  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n1:203241827a27aca5, title: In Buffern arbeiten }
 ---
 
 Die App muss alle offenen Buffer mit einem Befehl schließen lassen.
