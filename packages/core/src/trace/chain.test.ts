@@ -1,6 +1,7 @@
-// The chain at core level (SR-022, #127 option 1): evidence records come in stage 4 (SR-028), so the
+// The chain at core level (SR-022, #127 option 1): the chain never imports the evidence block, so the
 // tests of "bis zu den Nachweisen" (AK1) and "ohne Nachweis" (AK3) give the evidence through the
-// walk's leaves themselves. The command's own tests are in commands/trace/chain.test.ts.
+// walk's leaves, `hasEvidence` and `evidenceOf` themselves. The command's own tests, with evidence
+// records (SR-033), are in commands/trace/chain.test.ts.
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -81,6 +82,17 @@ const levels = (chain: Chain<unknown>): unknown[] =>
   chain.walks.map((w) => [w.direction, w.result.nodes.map((n) => [n.element.id, n.depth, n.expanded])]);
 
 const gaps = (chain: Chain<unknown>): unknown[] => chain.gaps.map((g) => [g.element.id, g.kind]);
+
+/** A record as `evidenceOf` gives it (`data-export.schema.json#/$defs/evidenceRecord`). */
+const RECORD: TraceChainOutput["evidence"][number]["records"][number] = {
+  element: SPEED,
+  version: V,
+  kind: "verification",
+  method: "inspection",
+  item: "sample",
+  result: "passed",
+  date: "2026-10-20T14:00:00Z",
+};
 
 /** An evidence record as stage 4 will read it (ADR-0012), given by the test. */
 interface Evidence {
@@ -800,5 +812,63 @@ describe("trace chain output", () => {
       const past = chainOutput(chain, context, { limit: 2, offset: 4 });
       expect([past.nodes, past.edges, past.gaps, past.total]).toEqual([[], [], [], 4]);
     });
+  });
+
+  it("hasEvidence decides the gap when given, asked only for a requirement without a child", async () => {
+    const opened = await open();
+    const asked: string[] = [];
+    const chain = chainOf(opened, SEE_WIND, {
+      direction: "down",
+      // Leaves alone would close every gap; with hasEvidence they decide nothing.
+      leaves: () => ["leaf"],
+      hasEvidence: (e) => {
+        asked.push(e.id);
+        return e.id === TURNS;
+      },
+    });
+    expect(gaps(chain)).toEqual([
+      [DIRECTION, "no-evidence"],
+      [STALL, "no-evidence"],
+    ]);
+    expect(asked).toEqual([DIRECTION, TURNS, STALL]);
+  });
+
+  it("chainOutput lists the evidence of the expanded down nodes of the page with their depth", async () => {
+    const opened = await open();
+    const shortIds = await opened.workspace.get(shortIdState);
+    const asked: string[] = [];
+    const context: ChainOutputContext = {
+      metamodel: opened.graph.metamodel,
+      shortIds,
+      evidenceOf: (e) => {
+        asked.push(e.id);
+        return e.id === SEE_WIND || e.id === SPEED
+          ? undefined
+          : { testCases: [], records: [{ ...RECORD, element: e.id }] };
+      },
+    };
+    // Up: SEE_WIND; down: TURNS, STALL (SR-022/chain: both at depth 1 below SPEED).
+    const chain = chainOf(opened, SPEED, { direction: "both" });
+    const whole = chainOutput(chain, context);
+    expect(whole.evidence.map((e) => [e.id, e.repository, e.depth, e.records.map((r) => r.element)])).toEqual(
+      [
+        [TURNS, "system", 2, [TURNS]],
+        [STALL, "system", 2, [STALL]],
+      ],
+    );
+    // Asked for the root of the down walk and its down nodes only, never for an upward node.
+    expect(asked).toEqual([SPEED, TURNS, STALL]);
+    asked.length = 0;
+    const second = chainOutput(chain, context, { limit: 2, offset: 2 });
+    expect([second.nodes.map((n) => n.id), second.evidence.map((e) => e.id), asked]).toEqual([
+      [TURNS, STALL],
+      [TURNS, STALL],
+      [TURNS, STALL],
+    ]);
+    // Not below a node whose children were not looked at; none without evidenceOf.
+    asked.length = 0;
+    const cut = chainOutput(chainOf(opened, SPEED, { direction: "down", maxDepth: 1 }), context);
+    expect([cut.evidence.map((e) => e.id), asked]).toEqual([[], [SPEED]]);
+    expect(chainOutput(chain, { metamodel: opened.graph.metamodel, shortIds }).evidence).toEqual([]);
   });
 });

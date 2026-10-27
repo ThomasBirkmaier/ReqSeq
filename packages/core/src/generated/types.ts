@@ -1636,12 +1636,25 @@ export interface TraceChainOutput {
     /** Both ends lie in one cycle of derivations (SR-022 AK4). */
     readonly cyclic: boolean;
   }[];
-  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). Evidence records come in stage 4 (SR-028): until then every requirement without a child is `no-evidence`. */
+  /** The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap. */
   readonly gaps: readonly {
     readonly id: Uuid;
     /** Workspace name of the repository of the element with the gap. */
     readonly repository: string;
     readonly kind: "no-child" | "no-evidence";
+  }[];
+  /** The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened. */
+  readonly evidence: readonly {
+    /** The element of the chain the evidence belongs to. */
+    readonly id: Uuid;
+    /** Workspace name of the repository of that element. */
+    readonly repository: string;
+    /** The element's depth plus one: the evidence is one level below it (SR-022 AK1). */
+    readonly depth: number;
+    /** The test cases that name the element (SR-033), by class name, then name, each with the element's own executions newest first (`elements` names every element the test case names, SR-033 AK2); `executed` false for a test case that was only skipped (SR-033 AK3). */
+    readonly testCases: readonly DataExportTestCase[];
+    /** Unlike `evidence.list` `records`: only the element's records without a test case (inspection, analysis, demonstration, manual records without `test-case`), newest first. */
+    readonly records: readonly DataExportEvidenceRecord[];
   }[];
   /** Derivation relations the chain could not follow (SR-006 AK1, SR-088, SR-089): upwards a parent that is not available, downwards a child whose relation points at a UUID several files of the repository share. The other end is shown by its short ID only when it is not available (prefix `UNKNOWN` when its repository is not on this machine). A parent whose `id` is no UUID is not listed (the value-kind check reports it, SR-085); in a repository that is not here it still makes the chain `incomplete`. Only those of the nodes of the page (`from`). */
   readonly unresolved: readonly {
@@ -1660,6 +1673,7 @@ export interface TraceChainOutput {
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   }[];
+  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -2120,8 +2134,8 @@ export interface EvidenceListInput {
 export interface EvidenceListOutput {
   /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
-  /** The test cases that name the element, each with the element's own records only (SR-033). */
-  readonly testCases?: readonly DataExportTestCase[];
+  /** The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false). */
+  readonly testCases: readonly DataExportTestCase[];
   /** Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`. */
   readonly problems: readonly Problem[];
   /** True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen (SR-006 AK2). */

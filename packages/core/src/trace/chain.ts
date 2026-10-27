@@ -8,10 +8,14 @@
 // - A view (SR-040, `appliesIn`) is a filter on the steps: an element that does not apply in it is
 //   not reached, and nothing is reached through it. The root is always the start (assumption: the
 //   chain of the element asked for, whatever the view). The variant views of stage 5 narrow it further.
-// - Evidence (AK1, AK3 "Nachweis"): what hangs below an element of the downward chain comes through
-//   the walk's leaves (`leaves`). Stage 2 has no evidence records (SR-028, stage 4): the command passes
-//   none, and the core tests pass records of their own (#127 option 1). Test cases and executions in
-//   the chain are SR-033 (stage 4).
+// - Evidence (AK1, AK3 "Nachweis"; SR-033): the chain stays generic and never imports the evidence
+//   block (which imports `trace`). Two seams: `hasEvidence` decides the `no-evidence` gap for every
+//   element of the walk (the command passes `hasVerificationRecord`, no allocation), and
+//   `ChainOutputContext.evidenceOf` gives what is shown below an element, called by `chainOutput`
+//   only for the expanded downward nodes of the page, so a page of 200 nodes builds the evidence of
+//   200 elements, not of the 42,000 of the whole chain (N-036). The walk's `leaves` stay for callers
+//   that pass leaves of their own (core tests, #127 option 1); without `hasEvidence` they decide the
+//   gap.
 // - Gaps (AK3), downward and only for elements whose children were looked at (`expanded`): an element
 //   of a type with the meaning `need` without a child is `no-child`; an element of a type with the
 //   meaning `requirement` without a child and without evidence is `no-evidence` (a requirement is
@@ -56,8 +60,13 @@ export interface ChainOptions<L> {
   readonly maxDepth?: number;
   /** Whether an element is part of the chain, e.g. it applies in a view (SR-040). Default: every one. */
   readonly includes?: (element: ElementRecord) => boolean;
-  /** The evidence of an element of the downward chain (stage 4, SR-028). Default: none. */
+  /** Leaves below an element of the downward chain (`Chain.evidence`). Default: none. */
   readonly leaves?: (element: ElementRecord) => readonly L[];
+  /**
+   * Whether an element has evidence that closes its `no-evidence` gap (SR-022 AK3); asked only for a
+   * requirement without a child. Default: it has leaves.
+   */
+  readonly hasEvidence?: (element: ElementRecord) => boolean;
 }
 
 /** One walk of the chain. */
@@ -159,14 +168,16 @@ const gapTypes = (metamodel: Metamodel): GapTypes => ({
 
 /**
  * The gap of an element whose children were looked at (SR-022 AK3, see the file comment): `no-child`
- * for a need without a child, `no-evidence` for a requirement without a child and without evidence,
- * none otherwise. The one rule of `trace.chain` and of the marks of `trace.graph` (SR-111 AK4).
+ * for a need without a child, `no-evidence` for a requirement without a child and without evidence
+ * (`hasEvidence` of the element and its leaves, asked only then), none otherwise. The one rule of
+ * `trace.chain` and of the marks of `trace.graph` (SR-111 AK4).
  */
 const gapOf = (
   types: GapTypes,
   element: ElementRecord,
   hasChild: boolean,
   leaves: readonly unknown[],
+  hasEvidence: (element: ElementRecord, leaves: readonly unknown[]) => boolean,
 ): GapKind | undefined => {
   if (hasChild) {
     return undefined;
@@ -174,14 +185,19 @@ const gapOf = (
   if (types.needs.has(element.type)) {
     return "no-child";
   }
-  return types.requirements.has(element.type) && leaves.length === 0 ? "no-evidence" : undefined;
+  return types.requirements.has(element.type) && !hasEvidence(element, leaves) ? "no-evidence" : undefined;
 };
+
+/** The default evidence of an element: it has leaves. */
+const hasLeaves = (_element: ElementRecord, leaves: readonly unknown[]): boolean => leaves.length > 0;
 
 /**
  * Whether an element is a `no-evidence` gap of the downward chain (SR-022 AK3), whatever depth a
  * chain would look at: its children are counted as the chain's down walk counts them (in the view,
  * `includes`; a child named only by an ambiguous relation is none, SR-088), and `leaves` is its
- * evidence. For the marks of `trace.graph` (SR-111 AK4), so the graph and the chain agree.
+ * evidence. For the marks of `trace.graph` (SR-111 AK4): the chain decides its gaps with the records
+ * (`hasEvidence`, SR-033), while `trace.graph` passes no records until #565, so with records the two
+ * can differ until then.
  */
 export const lacksEvidence = (
   graph: DerivationGraph,
@@ -191,17 +207,19 @@ export const lacksEvidence = (
   const children = childrenWithin(graph, includes);
   return (element, leaves) =>
     types.requirements.has(element.type) &&
-    gapOf(types, element, children(element).steps.length > 0, leaves) === "no-evidence";
+    gapOf(types, element, children(element).steps.length > 0, leaves, hasLeaves) === "no-evidence";
 };
 
 /** Gaps and evidence of the downward walk (see the file comment). */
 const gapsOf = <L>(
   graph: DerivationGraph,
   down: WalkResult<DerivationLink, L>,
+  hasEvidence: ((element: ElementRecord) => boolean) | undefined,
 ): { readonly gaps: ChainGap[]; readonly evidence: ChainEvidence<L>[] } => {
   const types = gapTypes(graph.metamodel);
   const gaps: ChainGap[] = [];
   const evidence: ChainEvidence<L>[] = [];
+  const evidenced: (element: ElementRecord, leaves: readonly unknown[]) => boolean = hasEvidence ?? hasLeaves;
   // The walk expands its nodes in order and takes the steps of each one after the other, so the
   // edges come in the order of the nodes they start from: one pass over both, no lookup (SR-082 AK4).
   let next = 0;
@@ -217,7 +235,7 @@ const gapsOf = <L>(
     for (const leaf of leaves) {
       evidence.push({ element, depth: depth + 1, leaf });
     }
-    const kind = gapOf(types, element, parent, leaves);
+    const kind = gapOf(types, element, parent, leaves, evidenced);
     if (kind !== undefined) {
       gaps.push({ element, kind });
     }
@@ -234,7 +252,7 @@ export const traceChain = <L = never>(
   root: ElementRecord,
   options: ChainOptions<L>,
 ): Chain<L> => {
-  const { direction, maxDepth, includes, leaves } = options;
+  const { direction, maxDepth, includes, leaves, hasEvidence } = options;
   const limit = maxDepth === undefined ? {} : { maxDepth };
   const walks: ChainWalk<L>[] = [];
   if (direction !== "down") {
@@ -257,7 +275,8 @@ export const traceChain = <L = never>(
       }
     }
   }
-  const { gaps, evidence } = down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down);
+  const { gaps, evidence } =
+    down === undefined ? { gaps: [], evidence: [] } : gapsOf(graph, down, hasEvidence);
   const meanings: readonly GapMeaning[] = ["need", "requirement"];
   return {
     root,
@@ -271,13 +290,22 @@ export const traceChain = <L = never>(
   };
 };
 
+/** The evidence below an element of the chain as `trace.chain` shows it (SR-033): its test cases and other records. */
+export type ChainEvidenceLeaf = Pick<TraceChainOutput["evidence"][number], "testCases" | "records">;
+
 /** What `chainOutput` needs besides the chain. */
 export interface ChainOutputContext {
   readonly metamodel: Metamodel;
   readonly shortIds: ShortIds;
+  /**
+   * The evidence below an element of the downward chain (SR-022 AK1, SR-033), undefined when it has
+   * none; asked only for the expanded downward nodes of the page. Default: none.
+   */
+  readonly evidenceOf?: (element: ElementRecord) => ChainEvidenceLeaf | undefined;
 }
 
 export type ChainNode = TraceChainOutput["nodes"][number];
+type ChainEvidenceItem = TraceChainOutput["evidence"][number];
 type ChainUnresolved = TraceChainOutput["unresolved"][number];
 
 /** The hint of one cycle (SR-022 AK4), at its first element: one problem (a cycle has elements). */
@@ -409,6 +437,23 @@ const addUnresolvedOf = (
   }
 };
 
+/**
+ * Adds to `evidence` the evidence below each expanded node of `nodes` (the downward nodes of a page,
+ * in node order), one level deeper than the node (SR-022 AK1).
+ */
+const addEvidenceOf = (
+  evidence: ChainEvidenceItem[],
+  nodes: readonly { readonly element: ElementRecord; readonly depth: number; readonly expanded: boolean }[],
+  evidenceOf: (element: ElementRecord) => ChainEvidenceLeaf | undefined,
+): void => {
+  for (const { element, depth, expanded } of nodes) {
+    const leaf = expanded ? evidenceOf(element) : undefined;
+    if (leaf !== undefined) {
+      evidence.push({ id: element.id, repository: element.repository, depth: depth + 1, ...leaf });
+    }
+  }
+};
+
 /** The hints of the whole chain: meanings no type has (SR-013 AK3), then one per cycle (SR-022 AK4). */
 const chainProblems = (chain: Chain<unknown>, context: ChainOutputContext): Problem[] => {
   const problems: Problem[] = [];
@@ -432,8 +477,9 @@ const chainProblems = (chain: Chain<unknown>, context: ChainOutputContext): Prob
  * (spec-frage #290, SR-082 AK4). The nodes are the root, then those of the upward walk, then those
  * of the downward walk (each walk without its root); `total` counts them all. Only the nodes of the
  * page are built, with the edges that lead to them in their walk (so each edge is on one page),
- * their gaps and their unresolved relations. Depth, gaps, cycles, hints and `incomplete` are those
- * of the whole chain. Default: every node.
+ * their gaps, their evidence (`context.evidenceOf`, for the expanded downward nodes) and their
+ * unresolved relations. Depth, gaps, cycles, hints and `incomplete` are those of the whole chain.
+ * Default: every node.
  */
 export const chainOutput = (
   chain: Chain<unknown>,
@@ -447,6 +493,8 @@ export const chainOutput = (
   const nodes: ChainNode[] = rootOnPage ? [node(chain.root, 0, chain.rootExpanded)] : [];
   const edges: ChainEdge[] = [];
   const gaps: ChainGap[] = [];
+  const evidence: ChainEvidenceItem[] = [];
+  const { evidenceOf } = context;
   const unresolved: ChainUnresolved[] = [];
   // The position among all nodes of a walk's second node; the root is the first of all.
   let start = 1;
@@ -458,7 +506,8 @@ export const chainOutput = (
     // starts takes none of it (`slice` counts a negative end from the back).
     const first = Math.max(1, page.offset - start + 1);
     const last = Math.max(first, page.offset + page.limit - start + 1);
-    for (const { element, depth, expanded } of result.nodes.slice(first, last)) {
+    const shown = result.nodes.slice(first, last);
+    for (const { element, depth, expanded } of shown) {
       onPage.add(element);
       nodes.push(node(element, depth, expanded, direction));
     }
@@ -473,6 +522,9 @@ export const chainOutput = (
           gaps.push(gap);
         }
       }
+      if (evidenceOf !== undefined) {
+        addEvidenceOf(evidence, rootOnPage ? [...result.nodes.slice(0, 1), ...shown] : shown, evidenceOf);
+      }
     }
     addEdgesTo(edges, walked, onPage);
     addUnresolvedOf(unresolved, walked, onPage, shortIds, titleOf);
@@ -483,6 +535,7 @@ export const chainOutput = (
     total: start,
     edges,
     gaps: gaps.map(({ element, kind }) => ({ id: element.id, repository: element.repository, kind })),
+    evidence,
     unresolved,
     incomplete: chain.incomplete,
     problems: chainProblems(chain, context),

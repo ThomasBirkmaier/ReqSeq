@@ -1020,6 +1020,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "the chain of a requirement with an executed and a skipped test case and an inspection (SR-033)",
+      fixture: EVIDENCE,
+      input: { ref: "SR-e88fb3" },
+      expect: "output",
+    },
+    {
       name: "one page of a chain up and down (SR-082 AK4, spec-frage #290)",
       fixture: CHAIN,
       input: { ref: "SR-00b001", limit: 2, offset: 1 },

@@ -75,6 +75,13 @@ describe("renderHuman: values", () => {
     expect(renderHuman(["a", "b"])).toBe("- a\n- b\n");
   });
 
+  it("writes a value that appears twice in full both times, without YAML anchors (an execution and last)", () => {
+    const run = { item: "build-1" };
+    expect(renderHuman({ testCases: [{ executions: [run], last: run }] })).toBe(
+      lines("testCases:", "  - executions:", "      - item: build-1", "    last:", "      item: build-1"),
+    );
+  });
+
   it("shows incomplete only when it is true, and an empty list as none", () => {
     expect(renderHuman({ incomplete: false, files: [] })).toBe(lines("files: none"));
     expect(renderHuman({ incomplete: true })).toBe(
@@ -527,6 +534,7 @@ describe("renderHuman: a chain", () => {
     total: 0,
     edges: [],
     gaps: [],
+    evidence: [],
     unresolved: [],
     incomplete: false,
     problems: [],
@@ -656,6 +664,89 @@ describe("renderHuman: a chain", () => {
       edges: [edge("p3", "r", "up", true)],
     });
     expect(renderHuman(output).split("\n")[0]).toBe("SR-r  draft  Title SR-r  [cycle from p3]");
+  });
+
+  it("prints the test cases, executions and records below an element of a chain", () => {
+    const junit = {
+      date: "2026-10-22T09:00:00Z",
+      result: "failed",
+      item: "build-513",
+      repository: "system",
+      file: "evidence/ci/run-2.xml",
+      line: 4,
+    };
+    const inspection = {
+      date: "2026-10-20T14:00:00Z",
+      method: "inspection",
+      result: "passed",
+      item: "Sample",
+      evidence: "reports/b4.pdf",
+      variant: "v1",
+    };
+    const output = chain({
+      nodes: [
+        node("r", "SR-r", 0),
+        node("p", "N-p", 1, "up"),
+        node("c", "CR-c", 1, "down"),
+        node("d", "CR-d", 2, "down"),
+      ],
+      total: 4,
+      edges: [edge("r", "p", "up"), edge("c", "r", "down")],
+      evidence: [
+        // The root's own evidence, one level below it.
+        {
+          id: "r",
+          repository: "system",
+          depth: 1,
+          testCases: [],
+          records: [{ ...inspection, variant: undefined }],
+        },
+        // Not shown below the parent of the same UUID: evidence belongs to the downward chain.
+        { id: "p", repository: "system", depth: 2, testCases: [], records: [inspection] },
+        {
+          id: "c",
+          repository: "system",
+          depth: 2,
+          testCases: [
+            {
+              className: "tests.test_wind",
+              name: "test_speed",
+              executed: true,
+              executions: [junit, { ...junit, line: undefined, result: "passed" }],
+            },
+            { name: "manual check", executed: false, executions: [] },
+          ],
+          records: [inspection],
+        },
+        // CR-d is not nested (its parent is on another page): its evidence follows it all the same.
+        {
+          id: "d",
+          repository: "system",
+          depth: 3,
+          testCases: [],
+          records: [{ date: "2026-10-01T10:00:00Z", result: "passed" }],
+        },
+      ],
+    });
+    expect(renderHuman(output)).toBe(
+      lines(
+        "SR-r  draft  Title SR-r",
+        "  1  record  2026-10-20T14:00:00Z  inspection  passed  Sample  reports/b4.pdf",
+        "parents:",
+        "  1  N-p  draft  Title N-p",
+        "children:",
+        "  1  CR-c  draft  Title CR-c",
+        "  2    test case  tests.test_wind › test_speed",
+        "         2026-10-22T09:00:00Z  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "         2026-10-22T09:00:00Z  passed  build-513  system/evidence/ci/run-2.xml",
+        "  2    test case  manual check  [not executed]",
+        "  2    record  2026-10-20T14:00:00Z  inspection  passed  Sample  reports/b4.pdf  [variant v1]",
+        "  2  CR-d  draft  Title CR-d",
+        "  3    record  2026-10-01T10:00:00Z  passed",
+        "total: 4",
+        "No problems.",
+      ),
+    );
   });
 
   it("is a chain only when every node has a depth; else its lists are shown as they are", () => {

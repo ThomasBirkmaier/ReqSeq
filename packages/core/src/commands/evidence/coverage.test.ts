@@ -189,6 +189,29 @@ describe("evidence.coverage (SR-036)", () => {
     ]);
   });
 
+  it("[SR-033/AK2] a test case that names two requirements counts as evidence for each in the coverage", async () => {
+    const ws = await fixture();
+    const software = async (records: readonly EvidenceRecord[]): Promise<unknown> =>
+      (await levels(await open(ws, records))).find(
+        (level) => (level as Level).type === "software-requirement",
+      );
+    // Control: without records no software requirement has evidence.
+    expect(await software([])).toMatchObject({ withEvidence: 0 });
+    // One JUnit test case that names F2 and F3 gives one record of each (SR-093).
+    const run = {
+      testCase: "test_wind",
+      className: "tests.Wind",
+      source: "junit",
+      repository: "system",
+      file: "evidence/results.xml",
+      line: 3,
+    } as const;
+    expect(await software([record(ID.F2, run), record(ID.F3, run)])).toMatchObject({
+      withEvidence: 2,
+      elements: { withEvidence: ["F2", "F3"], withoutEvidence: ["F1"] },
+    });
+  });
+
   it("[SR-036/AK2] the UUIDs of a number select exactly its requirements in element.list", async () => {
     const workspace = await open(await fixture());
     const [, requirements] = (await coverage(workspace)).levels;

@@ -4088,7 +4088,7 @@
                     },
                     "gaps": {
                       "type": "array",
-                      "description": "The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). Evidence records come in stage 4 (SR-028): until then every requirement without a child is `no-evidence`.",
+                      "description": "The gaps of the downward chain (SR-022 AK3), in the order of `nodes`, only those of the nodes of the page: `no-child` for a need without a child, `no-evidence` for a requirement without a child and without evidence. Only for elements whose children were looked at (`expanded`). `no-evidence`: the element has no verification record in `view`, in the core without `view` (as `evidence.coverage` and the filter condition `verification`; any version and result, spec question #527 Q3), so without `view` a requirement verified only for a variant shows its records in `evidence` and still has the gap (spec question #527 Q4). A test case that was only skipped does not close the gap.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -4111,6 +4111,50 @@
                           "id",
                           "repository",
                           "kind"
+                        ]
+                      }
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "description": "The evidence (Nachweise) of the downward chain (SR-022 AK1, SR-033 AK1 to AK3), in the order of `nodes`, only for the nodes of the page whose children were looked at (`expanded`), paged like `gaps`; one item per element that has any, none with `direction` `up`. Only verification records (D-007: the chain ends at the Nachweise; validation records are in `evidence.list`). With `view` only the records that hold in it (SR-047: the core the records without a variant, a variant those for it); without `view` every record, each with its `variant`, as `evidence.list`. A test case all of whose executions of the element hold in another view is left out; a test case that was only skipped shows in every view. The Beleg of a record is its `evidence`; a JUnit execution has none, its Beleg is its record file (`repository`, `file`, `line`; D-007: for automatic tests the record is the result file). Belege are text and never opened.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/components/schemas/common/$defs/uuid",
+                            "description": "The element of the chain the evidence belongs to."
+                          },
+                          "repository": {
+                            "type": "string",
+                            "description": "Workspace name of the repository of that element."
+                          },
+                          "depth": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The element's depth plus one: the evidence is one level below it (SR-022 AK1)."
+                          },
+                          "testCases": {
+                            "type": "array",
+                            "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own executions newest first (`elements` names every element the test case names, SR-033 AK2); `executed` false for a test case that was only skipped (SR-033 AK3).",
+                            "items": {
+                              "$ref": "#/components/schemas/data-export/$defs/testCase"
+                            }
+                          },
+                          "records": {
+                            "type": "array",
+                            "description": "Unlike `evidence.list` `records`: only the element's records without a test case (inspection, analysis, demonstration, manual records without `test-case`), newest first.",
+                            "items": {
+                              "$ref": "#/components/schemas/data-export/$defs/evidenceRecord"
+                            }
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "repository",
+                          "depth",
+                          "testCases",
+                          "records"
                         ]
                       }
                     },
@@ -4173,7 +4217,8 @@
                       }
                     },
                     "incomplete": {
-                      "$ref": "#/components/schemas/common/$defs/incomplete"
+                      "$ref": "#/components/schemas/common/$defs/incomplete",
+                      "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen."
                     },
                     "problems": {
                       "type": "array",
@@ -4190,6 +4235,7 @@
                     "total",
                     "edges",
                     "gaps",
+                    "evidence",
                     "unresolved",
                     "incomplete",
                     "problems"
@@ -6753,7 +6799,7 @@
                     },
                     "testCases": {
                       "type": "array",
-                      "description": "The test cases that name the element, each with the element's own records only (SR-033).",
+                      "description": "The test cases that name the element (SR-033), by class name, then name, each with the element's own records only, newest first, and every kind of record as in `records`; with `view` only the executions that hold in it, and a test case all of whose executions hold in another view is left out (a test case that was only skipped stays, `executed` false).",
                       "items": {
                         "$ref": "#/components/schemas/data-export/$defs/testCase"
                       }
@@ -6773,6 +6819,7 @@
                   "additionalProperties": false,
                   "required": [
                     "records",
+                    "testCases",
                     "problems",
                     "incomplete"
                   ]

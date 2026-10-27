@@ -76,6 +76,7 @@ export type {
   Chain,
   ChainDirection,
   ChainEvidence,
+  ChainEvidenceLeaf,
   ChainGap,
   ChainOptions,
   ChainOutputContext,

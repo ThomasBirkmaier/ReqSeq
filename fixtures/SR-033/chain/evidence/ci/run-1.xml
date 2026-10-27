@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="station" tests="2" failures="0" errors="0" skipped="1" timestamp="2026-10-21T09:00:00">
+    <testcase classname="tests.test_wind" name="test_speed[SR-33b001]" time="0.010">
+      <properties>
+        <property name="logreq:element" value="5c0e1d2a-0033-4033-8033-00000033b001"/>
+        <property name="logreq:element" value="5c0e1d2a-0033-4033-8033-00000033b002"/>
+        <property name="logreq:version" value="n1:7eb1cc5815e307fa"/>
+        <property name="logreq:version" value="n1:9e8d521db5ae313a"/>
+        <property name="logreq:item" value="build-512"/>
+        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+      </properties>
+    </testcase>
+    <testcase classname="tests.test_wind" name="test_gusts[SR-33b003]" time="0.000">
+      <properties>
+        <property name="logreq:element" value="5c0e1d2a-0033-4033-8033-00000033b003"/>
+        <property name="logreq:version" value="n1:c784b000c0bc96b5"/>
+        <property name="logreq:item" value="build-512"/>
+        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+      </properties>
+      <skipped message="no gust sensor on the runner"/>
+    </testcase>
+  </testsuite>
+</testsuites>

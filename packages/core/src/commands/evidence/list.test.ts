@@ -4,7 +4,8 @@
 // Release 1.1 (A1 at V2, A2 at V2), plus a README that is no baseline. The evidence records are
 // given through `evidenceRecordsState` (#127 option 1); the readers come with SR-028 and SR-093,
 // whose end-to-end tests read record files. The same output on every access: cross-access.test.ts.
-// The baseline reader itself: baselines/read.test.ts.
+// The baseline reader itself: baselines/read.test.ts. The test cases of the element (SR-033) come
+// from the same index; skipped test cases are injected through `evidenceReadState`.
 import { rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -139,6 +140,7 @@ describe("evidence.list (SR-032)", () => {
     const workspace = await open(await fixture(), [OTHER]);
     expect(await list(workspace, { ref: "SR-0032a1" })).toEqual({
       records: [],
+      testCases: [],
       problems: [],
       incomplete: false,
     });
@@ -221,6 +223,7 @@ describe("evidence.list (SR-032)", () => {
     );
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: [] }],
+      testCases: [],
       problems: [],
       incomplete: true,
     });
@@ -235,8 +238,82 @@ describe("evidence.list (SR-032)", () => {
     await workspace.replace(evidenceReadState, read, Promise.resolve(injected));
     expect(await list(workspace, { ref: A2 })).toEqual({
       records: [{ ...OTHER, baselines: ["Release 1.0", "Release 1.1"] }],
+      testCases: [],
       problems: [],
       incomplete: true,
     });
+  });
+});
+
+describe("evidence.list: test cases (SR-033)", () => {
+  /** A1's second execution of the test case of FAILED, a run later, and one of it for A2. */
+  const RERUN = record({
+    version: V3,
+    item: "build-513",
+    date: "2026-10-21T08:00:00Z",
+    testCase: "test_shows_wind_speed",
+    className: "tests.test_display",
+    source: "junit",
+    repository: "system",
+    file: "evidence/ci/run-513.xml",
+    line: 4,
+  });
+  const OF_A2 = { ...RERUN, element: A2, version: V2 };
+
+  /** A workspace on `ws` whose evidence read gives `records` and the skipped test cases `skipped`. */
+  const openRead = async (
+    ws: FixtureWorkspace,
+    records: readonly EvidenceRecord[],
+    skipped: EvidenceRead["skipped"] = [],
+  ): Promise<Workspace> => {
+    const workspace = new Workspace(ws.root);
+    onTestFinished(() => workspace.close());
+    const read = workspace.get(evidenceReadState);
+    const injected: EvidenceRead = { records, skipped, problems: [], incomplete: false };
+    await workspace.replace(evidenceReadState, read, Promise.resolve(injected));
+    return workspace;
+  };
+
+  it("[SR-033/AK1] evidence.list gives the test cases of the element with all their executions", async () => {
+    const workspace = await openRead(await fixture(), [...RECORDS, RERUN, OF_A2]);
+    const output = await list(workspace, { ref: A1 });
+    expect(output.testCases).toEqual([
+      {
+        name: "test_shows_wind_speed",
+        className: "tests.test_display",
+        elements: [A1, A2],
+        executed: true,
+        executions: [RERUN, FAILED],
+        last: RERUN,
+      },
+    ]);
+    // In the core view both executions hold; for the coast none, so the test case is left out there.
+    expect((await list(workspace, { ref: A1, view: "core" })).testCases).toEqual(output.testCases);
+    expect((await list(workspace, { ref: A1, view: "VAR-0032c1" })).testCases).toEqual([]);
+    expect((await list(workspace, { ref: A2 })).testCases.map((t) => t.executions)).toEqual([[OF_A2]]);
+  });
+
+  it("[SR-033/AK3] evidence.list marks a test case without execution as not executed", async () => {
+    const skipped = {
+      name: "test_shows_gusts",
+      className: "tests.test_display",
+      elements: [A1],
+      repository: "system",
+      file: "evidence/ci/run-513.xml",
+      line: 12,
+    };
+    const workspace = await openRead(await fixture(), [OTHER], [skipped]);
+    const expected = [
+      {
+        name: "test_shows_gusts",
+        className: "tests.test_display",
+        elements: [A1],
+        executed: false,
+        executions: [],
+      },
+    ];
+    expect((await list(workspace, { ref: A1 })).testCases).toEqual(expected);
+    // A skipped test case carries no variant: it shows in every view.
+    expect((await list(workspace, { ref: A1, view: "VAR-0032c1" })).testCases).toEqual(expected);
   });
 });

@@ -1,8 +1,10 @@
 // `logreq trace chain` end to end (SR-022, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its JSON and its readable output. Also the tests SR-013 handed
 // over to this command (#25: AK1 and AK3, #127 option 1). The evidence in the chain (SR-022 AK1, AK3;
-// SR-033) comes with the evidence records of stage 4, and its CLI tests with it.
+// SR-033) on fixtures/SR-033/chain: test cases and executions read from JUnit and Markdown record
+// files in its evidence location.
 // Run after `pnpm build` with `pnpm test:e2e`.
+import { rm } from "node:fs/promises";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -205,5 +207,229 @@ describe("logreq trace chain follows the meaning derivation (SR-013)", () => {
       stderr:
         "error metamodel.meaning-unassigned: No relation kind of the metamodel has the meaning derivation, which trace.chain needs. Add `meaning: derivation` to a relation kind in the metamodel files.\n",
     });
+  });
+});
+
+/** fixtures/SR-033/chain: N-33a001 with the leaf system requirements SR-33b001 to SR-33b004. */
+const Q = "5c0e1d2a-0033-4033-8033-00000033";
+
+interface Execution {
+  readonly date: string;
+  readonly result: string;
+  readonly item: string;
+  readonly evidence?: string;
+  readonly repository?: string;
+  readonly file?: string;
+  readonly line?: number;
+}
+
+interface TestCase {
+  readonly name: string;
+  readonly className?: string;
+  readonly elements: readonly string[];
+  readonly executed: boolean;
+  readonly executions: readonly Execution[];
+}
+
+interface WithEvidence extends Output {
+  readonly evidence: readonly {
+    readonly id: string;
+    readonly depth: number;
+    readonly testCases: readonly TestCase[];
+    readonly records: readonly Execution[];
+  }[];
+}
+
+/** `logreq trace chain <ref> --json` on `ws`. */
+const chainJson = async (ws: FixtureWorkspace, ref: string): Promise<WithEvidence> => {
+  const run = await logreq(["trace", "chain", ref, "--json"], ws.root);
+  expect([run.code, run.stderr]).toEqual([0, ""]);
+  return JSON.parse(run.stdout) as WithEvidence;
+};
+
+/** Each execution as `[date, result, item, Beleg]`: its `evidence`, else its record file (A5, #528 Q4). */
+const fields = (e: Execution): unknown[] => [
+  e.date,
+  e.result,
+  e.item,
+  e.evidence ?? `${e.repository ?? ""}/${e.file ?? ""}:${String(e.line)}`,
+];
+
+describe("logreq trace chain: test cases and executions (SR-033)", () => {
+  it("[SR-033/AK1] logreq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {
+    const ws = await fixture({
+      fixture: "SR-033/chain",
+      files: {
+        "evidence/2026-10-19-SR-33b001-test.md": [
+          "---",
+          "logreq-record: 1",
+          "kind: verification",
+          `element: ${Q}b001`,
+          "version: n1:7eb1cc5815e307fa",
+          "method: test",
+          "item: Prototype P2",
+          "result: passed",
+          "date: 2026-10-19T10:00:00Z",
+          "evidence: reports/wind-tunnel.pdf",
+          "test-case: wind tunnel check",
+          "---",
+          "",
+        ].join("\n"),
+      },
+    });
+    const output = await chainJson(ws, "SR-33b001");
+    expect(output.evidence.map((e) => [e.id, e.depth])).toEqual([[`${Q}b001`, 1]]);
+    const [below] = output.evidence;
+    expect(below?.testCases.map((t) => [t.className, t.name, t.executed, t.executions.map(fields)])).toEqual([
+      [
+        undefined,
+        "wind tunnel check",
+        true,
+        [["2026-10-19T10:00:00Z", "passed", "Prototype P2", "reports/wind-tunnel.pdf"]],
+      ],
+      [
+        "tests.test_wind",
+        "test_speed[SR-33b001]",
+        true,
+        [
+          ["2026-10-22T09:00:00Z", "failed", "build-513", "system/evidence/ci/run-2.xml:4"],
+          ["2026-10-21T09:00:00Z", "passed", "build-512", "system/evidence/ci/run-1.xml:4"],
+        ],
+      ],
+    ]);
+    expect(below?.records).toEqual([]);
+    const human = await logreq(["trace", "chain", "SR-33b001", "--direction", "down"], ws.root);
+    expect(human).toEqual({
+      code: 0,
+      stdout: [
+        "SR-33b001  draft  Show wind speed",
+        "  1  test case  wind tunnel check",
+        "       2026-10-19T10:00:00Z  passed  Prototype P2  reports/wind-tunnel.pdf",
+        "  1  test case  tests.test_wind › test_speed[SR-33b001]",
+        "       2026-10-22T09:00:00Z  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "       2026-10-21T09:00:00Z  passed  build-512  system/evidence/ci/run-1.xml:4",
+        "total: 1",
+        "No problems.",
+        "",
+      ].join("\n"),
+      stderr: "",
+    });
+  });
+
+  it("[SR-022/AK1] logreq trace chain shows every level of a need down to the record files, with their depth", async () => {
+    const ws = await fixture({ fixture: "SR-033/chain" });
+    const output = await chainJson(ws, "N-33a001");
+    expect(output.nodes.map((n) => [n.shortId, n.depth])).toEqual([
+      ["N-33a001", 0],
+      ["SR-33b001", 1],
+      ["SR-33b002", 1],
+      ["SR-33b003", 1],
+      ["SR-33b004", 1],
+    ]);
+    expect(output.evidence.map((e) => [e.id, e.depth, e.testCases.length, e.records.length])).toEqual([
+      [`${Q}b001`, 2, 1, 0],
+      [`${Q}b002`, 2, 1, 0],
+      [`${Q}b003`, 2, 1, 0],
+      [`${Q}b004`, 2, 0, 1],
+    ]);
+    expect(output.evidence[3]?.records.map(fields)).toEqual([
+      ["2026-10-20T14:00:00Z", "passed", "Display sample B4", "reports/inspection-b4.pdf"],
+    ]);
+    const human = await logreq(["trace", "chain", "N-33a001"], ws.root);
+    expect(human).toEqual({
+      code: 0,
+      stdout: [
+        "N-33a001  approved  See the wind",
+        "children:",
+        "  1  SR-33b001  draft  Show wind speed",
+        "  2    test case  tests.test_wind › test_speed[SR-33b001]",
+        "         2026-10-22T09:00:00Z  failed  build-513  system/evidence/ci/run-2.xml:4",
+        "         2026-10-21T09:00:00Z  passed  build-512  system/evidence/ci/run-1.xml:4",
+        "  1  SR-33b002  draft  Log wind speed",
+        "  2    test case  tests.test_wind › test_speed[SR-33b001]",
+        "         2026-10-21T09:00:00Z  passed  build-512  system/evidence/ci/run-1.xml:4",
+        "  1  SR-33b003  draft  Show gusts  [gap: no evidence]",
+        "  2    test case  tests.test_wind › test_gusts[SR-33b003]  [not executed]",
+        "  1  SR-33b004  draft  Show the wind on the display",
+        "  2    record  2026-10-20T14:00:00Z  inspection  passed  Display sample B4  reports/inspection-b4.pdf",
+        "total: 5",
+        "No problems.",
+        "",
+      ].join("\n"),
+      stderr: "",
+    });
+  });
+
+  it("[SR-033/AK2] logreq trace chain shows a JUnit test case that names two requirements at both", async () => {
+    const ws = await fixture({ fixture: "SR-033/chain" });
+    const output = await chainJson(ws, "N-33a001");
+    // One <testcase> of run-1.xml names SR-33b001 and SR-33b002: shown at each, with its own executions.
+    const speed = (id: string): unknown =>
+      output.evidence
+        .find((e) => e.id === id)
+        ?.testCases.map((t) => [t.name, t.elements, t.executions.map((e) => [e.item, e.file, e.line])]);
+    expect(speed(`${Q}b001`)).toEqual([
+      [
+        "test_speed[SR-33b001]",
+        [`${Q}b001`, `${Q}b002`],
+        [
+          ["build-513", "evidence/ci/run-2.xml", 4],
+          ["build-512", "evidence/ci/run-1.xml", 4],
+        ],
+      ],
+    ]);
+    expect(speed(`${Q}b002`)).toEqual([
+      ["test_speed[SR-33b001]", [`${Q}b001`, `${Q}b002`], [["build-512", "evidence/ci/run-1.xml", 4]]],
+    ]);
+    // It counts for each: neither leaf requirement has a no-evidence gap ...
+    expect(output.gaps.map((g) => g.id)).toEqual([`${Q}b003`]);
+    // ... and the coverage counts both with evidence.
+    const coverage = await logreq(["evidence", "coverage", "--json"], ws.root);
+    const level = (
+      JSON.parse(coverage.stdout) as {
+        levels: { type: string; elements: { withEvidence: string[] } }[];
+      }
+    ).levels.find((l) => l.type === "system-requirement");
+    expect(level?.elements.withEvidence).toEqual([`${Q}b001`, `${Q}b002`, `${Q}b004`]);
+  });
+
+  it("[SR-033/AK3] logreq trace chain marks a skipped JUnit test case as not executed", async () => {
+    const ws = await fixture({ fixture: "SR-033/chain" });
+    const output = await chainJson(ws, "SR-33b003");
+    expect(output.evidence).toEqual([
+      {
+        id: `${Q}b003`,
+        repository: "system",
+        depth: 1,
+        testCases: [
+          {
+            name: "test_gusts[SR-33b003]",
+            className: "tests.test_wind",
+            elements: [`${Q}b003`],
+            executed: false,
+            executions: [],
+          },
+        ],
+        records: [],
+      },
+    ]);
+    const human = await logreq(["trace", "chain", "SR-33b003"], ws.root);
+    expect(human.stdout.split("\n").slice(0, 2)).toEqual([
+      "SR-33b003  draft  Show gusts  [gap: no evidence]",
+      "  1  test case  tests.test_wind › test_gusts[SR-33b003]  [not executed]",
+    ]);
+  });
+
+  it("[SR-022/AK3] logreq trace chain marks a gap at a requirement whose test case was skipped, and none at one with a record file", async () => {
+    const ws = await fixture({ fixture: "SR-033/chain" });
+    const gaps = async (): Promise<unknown[]> =>
+      (await chainJson(ws, "N-33a001")).gaps.map((g) => [g.id, g.kind]);
+    expect(await gaps()).toEqual([[`${Q}b003`, "no-evidence"]]);
+    // Control: without its record file SR-33b004 is a gap too.
+    await rm(ws.path("evidence/2026-10-20-SR-33b004-inspection.md"));
+    expect(await gaps()).toEqual([
+      [`${Q}b003`, "no-evidence"],
+      [`${Q}b004`, "no-evidence"],
+    ]);
   });
 });

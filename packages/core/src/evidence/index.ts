@@ -44,4 +44,5 @@ export {
   workspaceStatusOf,
 } from "./verification.js";
 export type { VersionReader, WorkspaceStatus } from "./verification.js";
-export { listedRecords, recordHoldsIn } from "./views.js";
+export { chainEvidenceOf, listedRecords, recordHoldsIn, testCasesIn } from "./views.js";
+export type { ElementEvidence, RecordKind } from "./views.js";

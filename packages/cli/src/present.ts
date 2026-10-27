@@ -11,7 +11,8 @@
 //   such line per element. A read command (element.get) shows the element's details below its line,
 //   a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
-//   front, its gaps, cycles and the edges to an element listed elsewhere marked.
+//   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
+//   indented below the element it belongs to (`evidenceLines`).
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
 //   by hierarchy, SR-075 AK2) is indented two spaces per level; an element whose parent is not shown
 //   before it (on an earlier page) names it, `[under X]`.
@@ -32,7 +33,8 @@ const text = (value: unknown): string => (typeof value === "string" ? value : ""
 /** The parts that are not empty, two spaces apart. */
 const join = (...parts: readonly string[]): string => parts.filter((part) => part !== "").join("  ");
 
-const yamlOf = (value: unknown): string => stringify(value, { lineWidth: 0 });
+// No anchors and aliases: a record that is both an execution and `last` of a test case reads in full twice.
+const yamlOf = (value: unknown): string => stringify(value, { lineWidth: 0, aliasDuplicateObjects: false });
 
 const indent = (lines: readonly string[], by = "  "): string[] => lines.map((line) => `${by}${line}`);
 
@@ -367,6 +369,57 @@ const gapMarks = (chain: Chain): Marks => {
   return gaps;
 };
 
+/** The evidence items of a chain (`evidence`) by `nodeKey("", repository, id)`, read loosely. */
+const evidenceByNode = (chain: Chain): ReadonlyMap<string, Rec> =>
+  new Map(
+    listOf(chain["evidence"])
+      .filter(isRecord)
+      .map((item) => [nodeKey("", text(item["repository"]), text(item["id"])), item]),
+  );
+
+/** Where the Beleg of a record is: its `evidence`, else its record file and line (a JUnit execution). */
+const belegOf = (record: Rec): string => {
+  const evidence = text(record["evidence"]);
+  if (evidence !== "" || text(record["file"]) === "") {
+    return evidence;
+  }
+  const line = record["line"];
+  return `${text(record["repository"])}/${text(record["file"])}${typeof line === "number" ? `:${String(line)}` : ""}`;
+};
+
+/** A record as one line: date, method (`withMethod`), result, item, Beleg and variant. */
+const recordLine = (record: Rec, withMethod: boolean): string =>
+  join(
+    text(record["date"]),
+    withMethod ? text(record["method"]) : "",
+    text(record["result"]),
+    text(record["item"]),
+    belegOf(record),
+    text(record["variant"]) === "" ? "" : `[variant ${text(record["variant"])}]`,
+  );
+
+/**
+ * The evidence below an element of a chain (SR-033): per test case `test case  CLASS › NAME`, marked
+ * `[not executed]` when it has no execution, with one line per execution below it (date, result,
+ * item, Beleg); then one line per record without a test case, `record  DATE  METHOD  RESULT  ITEM
+ * BELEG`. `item` gives the lines of the test cases and records, `under` those of the executions.
+ */
+const evidenceLines = (item: Rec, at: string, under: string): string[] => {
+  const lines: string[] = [];
+  for (const test of listOf(item["testCases"]).filter(isRecord)) {
+    const className = text(test["className"]);
+    const name = className === "" ? text(test["name"]) : `${className} › ${text(test["name"])}`;
+    lines.push(`${at}${join("test case", name, test["executed"] === false ? "[not executed]" : "")}`);
+    for (const execution of listOf(test["executions"]).filter(isRecord)) {
+      lines.push(`${under}${recordLine(execution, false)}`);
+    }
+  }
+  for (const record of listOf(item["records"]).filter(isRecord)) {
+    lines.push(`${at}${join("record", recordLine(record, true))}`);
+  }
+  return lines;
+};
+
 /**
  * The mark of an edge from another page on the node it leads to: `[under X]` for the edge the node
  * was reached by (`first`; never the root, which no edge reaches: an edge into it closes a cycle),
@@ -435,6 +488,7 @@ const chainLines = (chain: Chain): string[] => {
   const nodes = new Map(chain.nodes.map((node) => [keyOf(node), node]));
   const root = nodes.get(ROOT);
   const { children, references, marks, placed } = treeOf(chain, nodes, root);
+  const evidence = evidenceByNode(chain);
   const line = (node: ChainNode): string =>
     join(
       elementLine(node),
@@ -446,9 +500,21 @@ const chainLines = (chain: Chain): string[] => {
   const prefix = (depth: number, level: number): string =>
     `  ${String(depth).padStart(width)}  ${"  ".repeat(level - 1)}`;
   const lines: string[] = root === undefined ? [] : [line(root)];
+  // The evidence of a node of the downward chain (or the root) one level below it.
+  const evidenceOf = (node: ChainNode, level: number): void => {
+    const item = node["direction"] === "up" ? undefined : evidence.get(nodeKey("", node.repository, node.id));
+    if (item !== undefined) {
+      const at = prefix(node.depth + 1, level + 1);
+      lines.push(...evidenceLines(item, at, `${" ".repeat(at.length)}  `));
+    }
+  };
+  if (root !== undefined) {
+    evidenceOf(root, 0);
+  }
   const walk = (key: string, depth: number, level: number): void => {
     for (const child of children.get(key) ?? []) {
       lines.push(`${prefix(child.node.depth, level + 1)}${line(child.node)}`);
+      evidenceOf(child.node, level + 1);
       walk(child.key, child.node.depth, level + 1);
     }
     for (const reference of references.get(key) ?? []) {
@@ -468,6 +534,7 @@ const chainLines = (chain: Chain): string[] => {
         const key = keyOf(node);
         if (!placed.has(key)) {
           lines.push(`${prefix(node.depth, 1)}${line(node)}`);
+          evidenceOf(node, 1);
           walk(key, node.depth, 1);
         }
       }
@@ -494,7 +561,9 @@ export function renderHuman(output: unknown, details = true): string {
   if (chain) {
     lines.push(...chainLines(rest));
   }
-  const shown = chain ? new Set(["root", "nodes", "edges", "gaps", "unresolved"]) : new Set<string>();
+  const shown = chain
+    ? new Set(["root", "nodes", "edges", "gaps", "evidence", "unresolved"])
+    : new Set<string>();
   const tree = rest["tree"];
   const treeList = Array.isArray(tree) ? treeListOf(listOf(rest["elements"]), tree) : undefined;
   if (treeList !== undefined) {
