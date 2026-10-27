@@ -63,6 +63,9 @@ class FakeParentPort extends EventEmitter implements ParentPort {
 }
 
 /** Waits until `condition` holds (a few seconds at most). */
+/** Longer than a batch of core's watcher can take after the last file event. */
+const ECHO_WAIT_MS = 1200;
+
 const waitUntil = async (condition: () => boolean): Promise<void> => {
   const end = Date.now() + 10_000;
   while (!condition()) {
@@ -242,6 +245,60 @@ describe("serveCoreProcess", () => {
     } finally {
       await fs.rm(folder, { recursive: true, force: true });
     }
+  });
+});
+
+describe("serveCoreProcess: changes from outside (SR-116, SR-106)", () => {
+  it("passes a file changed outside to the windows as workspace-changed external, and not the app's own write", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    const { parent, exit } = start();
+    parent.send({ type: "open", folder: fixture.root });
+    const { core, window, received } = windowPort();
+    parent.send({ type: "connect" }, [core]);
+    window.postMessage({ id: 1, kind: "invoke", name: "element.get", input: { ref: "SR-e88fb3" } });
+    await waitUntil(() => received.length === 1);
+    const answer = received[0] as { result: { output: { element: { id: string; text: string } } } };
+    const { id, text } = answer.result.output.element;
+    const events = (): PortMessage[] => received.filter((message) => "event" in message);
+    // The app's own write: `written`, and the watcher sees its own bytes, so no element is named.
+    window.postMessage({
+      id: 2,
+      kind: "invoke",
+      name: "element.update",
+      input: { ref: id, text: `${text}\nSaved in the app.\n` },
+    });
+    await waitUntil(() => events().length >= 1);
+    expect(events()).toEqual([{ event: "workspace-changed", data: { reason: "written" } }]);
+    const named = (): PortMessage[] =>
+      events().filter(
+        (message) =>
+          "event" in message &&
+          message.event === "workspace-changed" &&
+          message.data.reason === "external" &&
+          message.data.elements !== undefined &&
+          [...message.data.elements.changed, ...message.data.elements.added].includes(id),
+      );
+    // Longer than a batch of the watcher takes (it settles 100 ms after the last file event): an echo of
+    // the app's own write would be here by now, in a batch of its own.
+    await new Promise((resolve) => setTimeout(resolve, ECHO_WAIT_MS));
+    expect(named()).toEqual([]);
+    // Another process (here: the test) changes the file.
+    const file = path.join(fixture.root, "requirements", "SR-6328cee88fb3.md");
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("Saved in the app.", "Changed outside."),
+    );
+    // The file may be read while it is written: then one batch has it removed and the next added
+    // (core's `WorkspaceChange`). Either way a batch names it as changed or added.
+    await waitUntil(() => named().length >= 1);
+    expect(named()).toHaveLength(1);
+    expect(named()[0]).toMatchObject({
+      event: "workspace-changed",
+      data: { reason: "external", scope: "elements" },
+    });
+    parent.send({ type: "stop" });
+    await waitUntil(() => exit.mock.calls.length === 1);
   });
 });
 

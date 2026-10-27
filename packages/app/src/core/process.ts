@@ -4,7 +4,7 @@
 // root found upwards from the folder (else the folder itself, so `workspace.init` works there), the
 // model cache in the cache folder of the copy, the watcher first and then the load (SR-007, SR-082).
 // It also watches the accesses that agents make through the API or MCP on the copy (SR-117), and the
-// host sends each to the windows.
+// host sends each to the windows, as it sends each batch of the watcher (SR-116, SR-106).
 import type { CommandRuntime, Workspace } from "@logreq/core";
 import {
   Workspace as CoreWorkspace,
@@ -81,7 +81,8 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
     const root = (await findWorkspaceRoot(folder)) ?? folder;
     const workspace = openWorkspace(root);
     // The workspace loads only once the folders are watched, so a change during the load is seen.
-    await watchWorkspace(workspace).ready;
+    const watcher = watchWorkspace(workspace);
+    await watcher.ready;
     // A cold load can take up to 30 s at 50,000 elements (SR-082 AK2); the first command waits for it.
     void warmWorkspace(workspace);
     parentPort.postMessage({ type: "ready", root });
@@ -90,6 +91,7 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
       runtime,
       workspace,
       activity: (onAccess) => watchActivity(workspace, { onAccess, log: options.log }),
+      changes: (listener) => watcher.onChange(listener),
     });
   };
 

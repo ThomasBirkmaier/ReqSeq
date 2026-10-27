@@ -26,12 +26,49 @@ export type WorkspaceChangeReason =
   /** The core process stopped again and again; it is not started again. */
   | "stopped"
   /** A write command of this window changed files. */
-  | "written";
+  | "written"
+  /**
+   * Files changed outside the app (CLI, API, MCP, another editor, Git): a batch of core's watcher
+   * (`watchWorkspace(...).onChange`, #331), with its `scope` and `elements` (SR-116, SR-106).
+   */
+  | "external";
+
+/** The elements a change from outside names by UUID, as core's watcher gives them (`ChangedElements`). */
+export interface ChangedElements {
+  readonly added: readonly string[];
+  readonly changed: readonly string[];
+  readonly removed: readonly string[];
+}
+
+/** What a change from outside reached: elements only, the metamodel, or the whole workspace. */
+export type ChangeScope = "elements" | "metamodel" | "workspace";
 
 export interface WorkspaceChange {
   readonly reason: WorkspaceChangeReason;
+  /** `external` only: what the batch reached (core's `WorkspaceChange.scope`). */
+  readonly scope?: ChangeScope;
+  /** `external` only: the elements the batch names, at most `MAX_CHANGED_IDS` UUIDs in all. */
+  readonly elements?: ChangedElements;
 }
 
+/**
+ * The most UUIDs a change from outside names (N-036). A batch with more, such as a pull of a thousand
+ * files, is sent as `workspace` with empty lists: every view reads again and nothing is highlighted.
+ */
+export const MAX_CHANGED_IDS = 1000;
+
+const NONE: ChangedElements = { added: [], changed: [], removed: [] };
+
+/** A batch of core's watcher as the event the windows get, with the UUIDs capped (`MAX_CHANGED_IDS`). */
+export const externalChange = (change: {
+  readonly scope: ChangeScope;
+  readonly elements: ChangedElements;
+}): WorkspaceChange => {
+  const { added, changed, removed } = change.elements;
+  return added.length + changed.length + removed.length > MAX_CHANGED_IDS
+    ? { reason: "external", scope: "workspace", elements: NONE }
+    : { reason: "external", scope: change.scope, elements: { added, changed, removed } };
+};
 /**
  * An element an agent read or changed through the API or the MCP server of this copy (SR-117): the
  * access as `workspace.activity` gives it (`schemas/activity.schema.json#/$defs/access`), no content.
@@ -194,12 +231,42 @@ const REASONS: readonly unknown[] = [
   "restarted",
   "stopped",
   "written",
+  "external",
 ] satisfies readonly WorkspaceChangeReason[];
 
-const workspaceChange = (value: unknown): WorkspaceChange | undefined =>
-  isRecord(value) && REASONS.includes(value["reason"])
-    ? { reason: value["reason"] as WorkspaceChangeReason }
+const SCOPES: readonly unknown[] = ["elements", "metamodel", "workspace"] satisfies readonly ChangeScope[];
+
+const isIds = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) && value.every((id) => typeof id === "string");
+
+/** The lists of a change from outside, rebuilt from the three fields; undefined when one is no list of strings or there are too many. */
+const changedElements = (value: unknown): ChangedElements | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const { added, changed, removed } = value;
+  return isIds(added) &&
+    isIds(changed) &&
+    isIds(removed) &&
+    added.length + changed.length + removed.length <= MAX_CHANGED_IDS
+    ? { added, changed, removed }
     : undefined;
+};
+
+/** `value` as the data of `workspace-changed`, with only its fields; undefined when it is none. */
+const workspaceChange = (value: unknown): WorkspaceChange | undefined => {
+  if (!isRecord(value) || !REASONS.includes(value["reason"])) {
+    return undefined;
+  }
+  const reason = value["reason"] as WorkspaceChangeReason;
+  if (reason !== "external") {
+    return { reason };
+  }
+  const elements = changedElements(value["elements"]);
+  return SCOPES.includes(value["scope"]) && elements !== undefined
+    ? { reason, scope: value["scope"] as ChangeScope, elements }
+    : undefined;
+};
 
 // The checks of `schemas/activity.schema.json#/$defs/access`, kept here because the preload and the
 // renderer bundle no part of core.

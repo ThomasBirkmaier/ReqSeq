@@ -2,7 +2,8 @@
 // order; one column per relation kind and direction that occurs; each cell the elements at the other end,
 // "—" where the row has none; above each column how many rows have a relation and their share. Everything
 // is what `trace.matrix` gives (ADR-0002); the rows come in pages like the list's. Right and Left walk
-// through the row element and its relations, Enter or a click opens the element.
+// through the row element and its relations, Enter or a click opens the element. The row element of an
+// element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useRef, useState } from "react";
 import type { DataExportRelation } from "@logreq/core";
 import type { BufferAction, ListBuffer } from "./buffers.js";
@@ -13,6 +14,8 @@ import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } 
 import type { MatrixColumn, MatrixRow } from "./matrix.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
+import type { OutsideChanges } from "./outside-marks.js";
+import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import { LIST_MAX, LIST_PAGE, activeRow, firstLimit } from "./rows.js";
 
 export interface MatrixViewProps {
@@ -24,6 +27,8 @@ export interface MatrixViewProps {
   /** `undefined` while the buffer asks again, so the modeline never shows an old count. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The changes from outside (SR-116): the row element of an element that changed is highlighted. */
+  readonly outside?: OutsideChanges;
 }
 
 type View =
@@ -71,8 +76,10 @@ export const MatrixView = ({
   dispatch,
   onData,
   onEcho,
+  outside,
 }: MatrixViewProps): React.JSX.Element => {
   const [view, setView] = useState<View>({ status: "loading" });
+  const { marked, mark } = useOutsideMarks();
   // Which target of the selected row the cursor is on: 0 the row element, then its relations in order.
   const [target, setTarget] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -95,13 +102,17 @@ export const MatrixView = ({
       }
       if (answer.ok) {
         const { incomplete } = answer.output;
+        const rows = matrixRows(answer.output);
         setView({
           status: "ok",
           columns: answer.output.columns,
-          rows: matrixRows(answer.output),
+          rows,
           total: answer.output.total,
           incomplete,
         });
+        if (outside !== undefined) {
+          mark(rows.map((row) => row.element.open.id).filter(outside.fresh));
+        }
         onData(buffer.key, { kind: "list", total: answer.output.total, incomplete });
       } else {
         setView({ status: "error", message: answer.message });
@@ -240,7 +251,7 @@ export const MatrixView = ({
                 role="row"
                 aria-selected={index === cursor}
               >
-                <td className="element" role="gridcell">
+                <td className={rowClass("element", marked, row.element.open.id)} role="gridcell">
                   <span
                     role="link"
                     className={index === cursor && at === 0 ? "target current" : "target"}

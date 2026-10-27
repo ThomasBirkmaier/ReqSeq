@@ -2,21 +2,25 @@
 // one open workspace and answers the windows' requests by calling the command catalog, nothing else
 // (ADR-0002). Outputs and error objects go back unchanged, so the app gives what CLI, API and MCP give
 // (SR-080 AK2). Transport only: which command runs and with which input is the renderer's choice, and
-// every check is core's. The one push besides the answers are the events (`BridgeEvents`): a write of
-// a window, and an access of an agent through the API or MCP (SR-117) that the activity watch reports.
+// every check is core's. Besides the answers it pushes the events (`BridgeEvents`): `workspace-changed`
+// after a write of a window (`written`) and for each batch of core's watcher, which reports only changes
+// made outside the app (`external`, SR-116, SR-106); and `agent-activity` for an access of an agent
+// through the API or MCP (SR-117) that the activity watch reports.
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { AccessName, CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
 import { CommandError } from "@logreq/core";
 import type {
   AgentActivity,
+  ChangeScope,
+  ChangedElements,
   CommandListing,
   FileAnswer,
   InvokeResult,
   PortMessage,
 } from "../shared/protocol.js";
 import { decodedPath, isInside } from "../shared/paths.js";
-import { portRequest } from "../shared/protocol.js";
+import { externalChange, portRequest } from "../shared/protocol.js";
 
 /** One window's end of a port, whatever kind of port it is (Electron's MessagePortMain, Node's MessagePort). */
 export interface Channel {
@@ -41,6 +45,12 @@ export interface CoreHost {
   close(): Promise<void>;
 }
 
+/** A batch of core's watcher (core's `WorkspaceChange`). */
+export interface WatchedChange {
+  readonly scope: ChangeScope;
+  readonly elements: ChangedElements;
+}
+
 export interface CoreHostOptions {
   readonly runtime: CommandRuntime;
   readonly workspace: Workspace;
@@ -50,6 +60,13 @@ export interface CoreHostOptions {
    * `agent-activity` and closes the watch first on `close`. Without it, no window hears of agents.
    */
   readonly activity?: (onAccess: (activity: AgentActivity) => void) => { close(): void };
+  /**
+   * Subscribes to the batches of core's watcher (the core process passes `watchWorkspace(...).onChange`)
+   * and returns the function that unsubscribes. The host sends each to every window as
+   * `workspace-changed` with the reason `external` and unsubscribes first on `close`. Without it, no
+   * window hears of changes from outside.
+   */
+  readonly changes?: (listener: (change: WatchedChange) => void) => () => void;
 }
 
 /**
@@ -112,7 +129,7 @@ const errorObject = (error: unknown): CommandErrorObject =>
 /** The access of every call of the app (ADR-0002 rule 4); core does not record it (SR-117). */
 const ACCESS: AccessName = "app";
 
-export const createCoreHost = ({ runtime, workspace, activity }: CoreHostOptions): CoreHost => {
+export const createCoreHost = ({ runtime, workspace, activity, changes }: CoreHostOptions): CoreHost => {
   const entries = new Map<string, CatalogEntry>(runtime.contracts.commands.map((e) => [e.name, e]));
   const channels = new Map<Channel, AbortController>();
   /** The requests being answered, so that close waits for the writes among them. */
@@ -153,6 +170,15 @@ export const createCoreHost = ({ runtime, workspace, activity }: CoreHostOptions
       }
     }
   };
+
+  // Transport only (ADR-0002): which views read again and what is highlighted is the renderer's choice.
+  const unsubscribe = changes?.((change) => {
+    // The repositories may have moved with the layout (the workspace file, a folder gone).
+    if (change.scope !== "elements") {
+      folders = undefined;
+    }
+    broadcast({ event: "workspace-changed", data: externalChange(change) });
+  });
 
   const watch = activity?.((access) => {
     broadcast({ event: "agent-activity", data: access });
@@ -235,6 +261,7 @@ export const createCoreHost = ({ runtime, workspace, activity }: CoreHostOptions
 
     close: async () => {
       watch?.close();
+      unsubscribe?.();
       for (const controller of channels.values()) {
         controller.abort();
       }

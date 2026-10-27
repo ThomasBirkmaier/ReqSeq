@@ -10,6 +10,9 @@
 // write is `element.update { ref, text?, set?, unset? }` (ADR-0002), on the action "Save element": the text
 // and every box that changed go together, and a box that was emptied removes its property
 // (`property-edit.ts`). The unsaved text and boxes are a draft that the app keeps while another buffer is shown.
+// A change of the file from outside the app (SR-106, SR-116) is read again when core's watcher names this
+// element: the editors without input take the new text with the cursor kept at its place in the text, and
+// the fields that changed are highlighted briefly when the file's bytes (`fileSha256`) differ.
 import { Prec } from "@codemirror/state";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
@@ -33,6 +36,9 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { BoxDraft, Draft } from "./drafts.js";
 import { boxDrafts, makeDraft, reconcile, typedText } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
+import type { OutsideChanges } from "./outside-marks.js";
+import { NO_CHANGES, changedFields, fieldTexts, namedSince } from "./outside-marks.js";
+import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { TextBox } from "./TextBox.js";
@@ -65,6 +71,11 @@ export interface ElementViewProps {
   readonly buffer: ElementBuffer;
   /** Counts up when the workspace changed: the element is asked for again. */
   readonly revision: number;
+  /**
+   * The changes from outside (SR-116, SR-106): the element is asked for again when one names it, and the
+   * parents line and the elements of a package page on each. Default: none.
+   */
+  readonly outside?: OutsideChanges;
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
@@ -197,6 +208,7 @@ export const ElementView = ({
   call,
   buffer,
   revision,
+  outside = NO_CHANGES,
   onData,
   onEcho,
   onCopy,
@@ -220,6 +232,24 @@ export const ElementView = ({
   const textEditor = useRef<EditorHandle | undefined>(undefined);
   const baseline = useRef("");
   const loadedOnce = useRef(false);
+  // The changes from outside that named this element since it was shown: each asks for it again.
+  const [touched, setTouched] = useState(0);
+  const seenChange = useRef(outside.seq);
+  useEffect(() => {
+    if (outside.seq !== seenChange.current) {
+      const named = namedSince(outside, buffer.id, seenChange.current);
+      seenChange.current = outside.seq;
+      if (named) {
+        setTouched((count) => count + 1);
+      }
+    }
+  }, [outside]);
+  // The file the shown answer was built from (`fileSha256`) and what its fields show: a reload with other
+  // bytes after a change from outside highlights the fields that differ (SR-116), the app's own save never.
+  const held = useRef<{ readonly sha: string; readonly fields: ReadonlyMap<string, string> } | undefined>(
+    undefined,
+  );
+  const { marked, mark } = useOutsideMarks();
   // The draft this buffer was shown with (the app keys this component by buffer).
   const initialDraft = useRef(draft);
   const saving = useRef(false);
@@ -351,6 +381,12 @@ export const ElementView = ({
     );
   // The boxes whose document differs from the stored one: what "Save element" sends besides the text.
   const boxEdits = (): BoxEdit[] => changedBoxes(editsOf(now.current.boxes, editorDocs()));
+  // The fields with input: the text when it was typed in, and every box whose document is not the stored one.
+  const inputFields = (): ReadonlySet<string> =>
+    new Set([
+      ...(dirty(now.current.handle?.doc() ?? baseline.current, baseline.current) ? ["Text"] : []),
+      ...[...editorDocs()].filter(([key, doc]) => doc !== stored.current.get(key)).map(([key]) => key),
+    ]);
 
   // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
   // editor is configured again only when the hints about the text change.
@@ -453,6 +489,8 @@ export const ElementView = ({
     if (!loadedOnce.current) {
       onData(buffer.key, undefined);
     }
+    // Fresh when the read is asked, not when a slow answer comes: shown within 2 s of the change (SR-116).
+    const changedJustNow = outside.fresh(buffer.id);
     void call("element.get", { ref: buffer.id, repository: buffer.repository }).then((answer) => {
       if (!current) {
         return;
@@ -462,11 +500,16 @@ export const ElementView = ({
         onEcho(answer.message);
         return;
       }
-      const { element } = answer.output;
+      const { element, fileSha256 } = answer.output;
       const loaded = element.text ?? "";
       const docs = storedDocs(editableBoxes(element, now.current.properties));
       // A save that runs sets the baseline itself with its answer.
       if (!saving.current) {
+        const fields = fieldTexts(element);
+        if (changedJustNow && held.current?.sha !== fileSha256) {
+          mark(changedFields(held.current?.fields, fields, inputFields()));
+        }
+        held.current = { sha: fileSha256, fields };
         if (!loadedOnce.current) {
           setBaseline(loaded);
           const kept = initialDraft.current;
@@ -511,17 +554,23 @@ export const ElementView = ({
     return () => {
       current = false;
     };
-  }, [call, buffer.key, buffer.id, buffer.repository, revision]);
+  }, [call, buffer.key, buffer.id, buffer.repository, revision, touched]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft.
   const settle = (
-    output: { readonly element: DataExportElement; readonly problems?: readonly { message: string }[] },
+    output: {
+      readonly element: DataExportElement;
+      readonly fileSha256: string;
+      readonly problems?: readonly { message: string }[];
+    },
     sent: { readonly doc: string; readonly edits: readonly BoxEdit[] },
     editor: EditorHandle,
   ): void => {
     const { buffer: shown, onData: data, onDraft: draftOf, onEcho: echo } = now.current;
     const { element } = output;
+    // The file as this save wrote it: the reload its `written` brings finds the same bytes.
+    held.current = { sha: output.fileSha256, fields: fieldTexts(element) };
     const after = afterSave(sent.doc, element.text ?? "", editor.doc());
     const docs = storedDocs(editableBoxes(element, now.current.properties));
     // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
@@ -857,14 +906,14 @@ export const ElementView = ({
               call={call}
               id={buffer.id}
               repository={buffer.repository}
-              revision={revision}
+              revision={revision + outside.seq}
               dispatch={dispatch}
               onEcho={onEcho}
             />
-            <FieldBox label="Title" focusable onCopy={copy}>
+            <FieldBox label="Title" focusable onCopy={copy} marked={marked}>
               <h1>{heading(view.element)}</h1>
             </FieldBox>
-            <FieldBox label="Text" onCopy={copy}>
+            <FieldBox label="Text" onCopy={copy} marked={marked}>
               <Editor
                 text={text}
                 readOnly={readOnly}
@@ -890,7 +939,7 @@ export const ElementView = ({
               const kept = keptBoxes.current.get(box.key)?.doc;
               const value = values.current.get(box.key);
               return (
-                <FieldBox key={box.key} label={box.key} focusable onCopy={copy}>
+                <FieldBox key={box.key} label={box.key} focusable onCopy={copy} marked={marked}>
                   <div className="box">
                     <span className="key">{box.key}</span>
                     <span className="value">
@@ -955,7 +1004,7 @@ export const ElementView = ({
               );
             })}
             {relationGroups(view.element.relations).map((group) => (
-              <FieldBox key={group.heading} label={group.heading} onCopy={copy}>
+              <FieldBox key={group.heading} label={group.heading} onCopy={copy} marked={marked}>
                 <section>
                   <h2>{group.heading}</h2>
                   <ul>
@@ -978,7 +1027,8 @@ export const ElementView = ({
                   part
                   call={call}
                   buffer={memberList(buffer, selection)}
-                  revision={revision}
+                  revision={revision + outside.seq}
+                  outside={outside}
                   dispatch={dispatch}
                   onData={(_key, data) => {
                     setMembers(memberCount(data));

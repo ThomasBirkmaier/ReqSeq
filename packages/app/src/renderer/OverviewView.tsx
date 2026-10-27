@@ -1,7 +1,8 @@
 // The overview buffer (SR-118): the first buffer of a workspace. One line per element type with the number
 // of its elements, and below it the elements opened last, at most five. It lists no element of the
 // workspace (AK4): the full list opens on request only ("List all elements"). The counts come from
-// `element.facets`, the recent elements from `element.get`; the app only shows them (ADR-0002).
+// `element.facets`, the recent elements from `element.get`; the app only shows them (ADR-0002). A recent
+// element that changed outside the app is highlighted briefly (SR-116).
 import { Fragment, useEffect, useState } from "react";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
@@ -10,8 +11,10 @@ import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { RecentRow, TypeCount } from "./overview.js";
 import { openRow, overviewRows, typeLine } from "./overview.js";
+import type { OutsideChanges } from "./outside-marks.js";
 import type { RecentEntry } from "./recent.js";
 import { activeRow } from "./rows.js";
+import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 
 /** What the type lines and the modeline show. */
 export interface OverviewData {
@@ -113,6 +116,8 @@ export interface OverviewViewProps {
   /** Undefined until the counts are there: the sheet stays empty meanwhile. */
   readonly data: OverviewData | undefined;
   readonly recents: readonly RecentRow[];
+  /** The changes from outside (SR-116): the line of a recent element that changed is highlighted. */
+  readonly outside?: OutsideChanges;
   readonly dispatch: (action: BufferAction) => void;
   /** What the buffer has loaded, for the modeline; undefined while it loads. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
@@ -122,9 +127,16 @@ export const OverviewView = ({
   buffer,
   data,
   recents,
+  outside,
   dispatch,
   onData,
 }: OverviewViewProps): React.JSX.Element => {
+  const { marked, mark } = useOutsideMarks();
+  useEffect(() => {
+    if (outside !== undefined) {
+      mark(recents.map((row) => row.buffer.id).filter(outside.fresh));
+    }
+  }, [recents]);
   const rows = data === undefined ? [] : overviewRows(data.types, recents);
   const cursor = Math.min(buffer.cursor, Math.max(0, rows.length - 1));
   const firstRecent = rows.findIndex((row) => row.kind === "recent");
@@ -175,7 +187,7 @@ export const OverviewView = ({
           {at === firstRecent ? <div className="group">Recent</div> : null}
           <div
             id={`overview-${String(at)}`}
-            className={row.kind === "type" ? "line type" : "line recent"}
+            className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
             role="option"
             aria-selected={at === cursor}
             {...(row.kind === "type" ? { "aria-label": typeLine(row) } : {})}

@@ -1,11 +1,11 @@
 // Starts the built app (out/, `pnpm build:electron`) on a fixture workspace for one test, with its own
 // cache folder, and the CLI on the same workspace for comparisons (SR-080).
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron } from "@playwright/test";
@@ -18,6 +18,10 @@ const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url)
 const APP_FOLDER = fileURLToPath(new URL("../..", import.meta.url));
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
+/** Fails every connection that leaves the machine in a spawned CLI, as in the CLI's end-to-end tests (SR-077). */
+const BLOCK_NETWORK = pathToFileURL(
+  fileURLToPath(new URL("../../../../scripts/test-support/block-network.mjs", import.meta.url)),
+).href;
 /** The Electron binary of this package (`pnpm electron:install`). */
 const ELECTRON = createRequire(import.meta.url)("electron") as string;
 
@@ -66,11 +70,106 @@ export interface RunningApp {
   cli(
     argv: readonly string[],
   ): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
+  /**
+   * Starts `logreq mcp` on the workspace with the app's cache folder, as an agent starts it, and connects
+   * to it as an MCP client (initialize first). The server ends with the app or with `close()`.
+   */
+  mcp(): Promise<McpSession>;
   /** Ends the app. With `keep` the workspace copy and the user data stay, for `launchApp(..., kept)`. */
   close(options?: { readonly keep?: boolean }): Promise<void>;
   /** The workspace copy and the user data, to start the app on them again after `close({ keep: true })`. */
   readonly kept: Kept;
 }
+
+/** An MCP client on a `logreq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
+export interface McpSession {
+  /** Calls a tool; resolves to its `structuredContent`, rejects with the text of an error result. */
+  call(tool: string, args: Readonly<Record<string, unknown>>): Promise<unknown>;
+  close(): Promise<void>;
+}
+
+/** Starts `logreq mcp` with `args` and `env`, and initializes an MCP session on it. */
+const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promise<McpSession> => {
+  const child = spawn(process.execPath, ["--import", BLOCK_NETWORK, CLI, "mcp", ...args], {
+    env,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  const waiting = new Map<
+    number,
+    { readonly resolve: (message: Record<string, unknown>) => void; readonly reject: (error: Error) => void }
+  >();
+  let buffered = "";
+  let stderr = "";
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+  });
+  // One listener for the whole session: a request that is still waiting when the server ends fails.
+  child.once("exit", () => {
+    for (const { reject } of waiting.values()) {
+      reject(new Error(`logreq mcp ended: ${stderr}`));
+    }
+    waiting.clear();
+  });
+  const answered = (line: string): void => {
+    let message: Record<string, unknown>;
+    try {
+      message = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      // Not a JSON-RPC message (a stray line on stdout): it shows with the failure, if one comes.
+      stderr += `${line}\n`;
+      return;
+    }
+    if (typeof message["id"] === "number") {
+      waiting.get(message["id"])?.resolve(message);
+      waiting.delete(message["id"]);
+    }
+  };
+  child.stdout.on("data", (chunk: Buffer) => {
+    buffered += chunk.toString("utf8");
+    for (let end = buffered.indexOf("\n"); end >= 0; end = buffered.indexOf("\n")) {
+      const line = buffered.slice(0, end);
+      buffered = buffered.slice(end + 1);
+      answered(line);
+    }
+  });
+  let next = 0;
+  const request = (method: string, params: unknown): Promise<Record<string, unknown>> => {
+    if (child.exitCode !== null) {
+      return Promise.reject(new Error(`logreq mcp ended: ${stderr}`));
+    }
+    next += 1;
+    const id = next;
+    const answer = new Promise<Record<string, unknown>>((resolve, reject) => {
+      waiting.set(id, { resolve, reject });
+    });
+    child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+    return answer;
+  };
+  await request("initialize", {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "logreq-app-e2e", version: "1" },
+  });
+  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
+  return {
+    call: async (tool, toolArgs) => {
+      const answer = await request("tools/call", { name: tool, arguments: toolArgs });
+      const result = answer["result"] as
+        { isError?: boolean; structuredContent?: unknown; content?: { text?: string }[] } | undefined;
+      if (result === undefined || result.isError === true) {
+        throw new Error(JSON.stringify(answer["error"] ?? result?.content));
+      }
+      return result.structuredContent;
+    },
+    close: async () => {
+      if (child.exitCode === null) {
+        const ended = new Promise((resolve) => child.once("exit", resolve));
+        child.stdin.end();
+        await ended;
+      }
+    },
+  };
+};
 
 export interface LaunchOptions {
   /**
@@ -122,6 +221,7 @@ export const launchApp = async (
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),
   });
   let stderr = "";
+  const sessions: McpSession[] = [];
   app.process().stderr?.on("data", (chunk: Buffer) => {
     stderr += chunk.toString("utf8");
   });
@@ -156,8 +256,14 @@ export const launchApp = async (
         return { code: failed.code, stdout: failed.stdout, stderr: failed.stderr };
       }
     },
+    mcp: async () => {
+      const session = await startMcp(workspace === undefined ? [] : ["--workspace", workspace.root], env);
+      sessions.push(session);
+      return session;
+    },
     kept: { home, workspace },
     close: async (options) => {
+      await Promise.all(sessions.splice(0).map((session) => session.close()));
       await app.close();
       if (options?.keep !== true) {
         await workspace?.cleanup();

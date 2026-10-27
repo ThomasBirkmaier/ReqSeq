@@ -38,6 +38,8 @@ import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { bufferView, selectedRow, shownElement, windowTitle, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
+import type { OutsideChanges } from "./outside-marks.js";
+import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import { ResultView } from "./ResultView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
@@ -111,14 +113,16 @@ export const LoadingView = ({
     onData: props.onData,
     onEcho: props.onEcho,
   };
+  // The rows that changed outside are highlighted (SR-116).
+  const marking = props.outside === undefined ? {} : { outside: props.outside };
   if (buffer.kind === "result") {
     return <ResultView key={buffer.key} buffer={buffer} {...shared} />;
   }
   if (buffer.kind === "neighbourhood") {
-    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} />;
+    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...marking} />;
   }
   return inMatrix(buffer) ? (
-    <MatrixView buffer={buffer} {...shared} />
+    <MatrixView buffer={buffer} {...shared} {...marking} />
   ) : (
     <ListView buffer={buffer} {...props} />
   );
@@ -138,6 +142,10 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   );
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
+  // The changes from outside that named elements (SR-116, SR-106): every view but an element buffer
+  // reads again on each, an element buffer only on its own; what changed is highlighted where it is shown.
+  const fresh = useMemo(() => arrivals(), []);
+  const [outside, setOutside] = useState<OutsideChanges>(() => ({ ...NO_CHANGES, fresh: fresh.fresh }));
   const [loaded, setLoaded] = useState<
     { readonly key: string; readonly data: BufferData | undefined } | undefined
   >(undefined);
@@ -213,8 +221,18 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     };
     void refresh(undefined);
     const unsubscribe = bridge.on("workspace-changed", (change) => {
-      // A save of this window reports `written`; its message ("Saved ...") stays.
-      if (change.reason !== "written") {
+      if (change.reason === "external" && change.elements !== undefined) {
+        fresh.record(change.elements);
+        // Elements only: the metamodel and the workspace stay, the views read again (D3 of the plan).
+        if (change.scope === "elements") {
+          const { elements } = change;
+          setOutside((before) => nextChanges(before, elements, fresh.fresh));
+          return;
+        }
+      }
+      // A save of this window reports `written`, its message ("Saved ...") stays; a change from outside
+      // is quiet (D-062).
+      if (change.reason !== "written" && change.reason !== "external") {
         setEcho(MESSAGES[change.reason] ?? "");
       }
       if (change.reason === "stopped") {
@@ -284,8 +302,10 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   latest.current = context;
   // The catalog, read once (it is the same for every workspace), and the revision now, read when a command runs.
   const catalog = useRef<readonly CommandListing[]>([]);
-  const revisionNow = useRef(revision);
-  revisionNow.current = revision;
+  // What a view that shows several elements reads again on: any change of the workspace, also from outside.
+  const seen = revision + outside.seq;
+  const revisionNow = useRef(seen);
+  revisionNow.current = seen;
   useEffect(() => {
     bridge.commands().then(
       (commands) => {
@@ -376,7 +396,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     );
   };
 
-  const overview = useOverview(call, revision, recent, current?.kind === "overview", setEcho);
+  const overview = useOverview(call, seen, recent, current?.kind === "overview", setEcho);
 
   // A relation names the repository of its target (#416): its buffer is opened at once.
   const openRelation = (buffer: ElementBuffer): void => {
@@ -394,6 +414,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             call={call}
             buffer={current}
             revision={revision}
+            outside={outside}
             onData={onData}
             onEcho={setEcho}
             onCopy={copy}
@@ -415,6 +436,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             buffer={current}
             data={overview.data}
             recents={overview.recents}
+            outside={outside}
             dispatch={dispatch}
             onData={onData}
           />
@@ -423,7 +445,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             key={current.key}
             call={call}
             buffer={current}
-            revision={revision}
+            revision={seen}
             dispatch={dispatch}
             onData={onData}
             onEcho={setEcho}
@@ -433,7 +455,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           <LoadingView
             call={call}
             buffer={current}
-            revision={revision}
+            revision={seen}
+            outside={outside}
             dispatch={dispatch}
             onData={onData}
             onEcho={setEcho}

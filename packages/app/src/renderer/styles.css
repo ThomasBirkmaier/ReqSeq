@@ -16,6 +16,7 @@
   --accent-outdated: light-dark(#b54708, #f0883e);
   --accent-gap: light-dark(#b54708, #f0883e);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
+  --outside-change: light-dark(#ebeef1, #292e34);
   --line: 1.6rem;
   --modeline: calc(var(--line) + 0.5rem);
   --titlebar: 38px;
@@ -169,6 +170,31 @@ body,
 
 .row[aria-selected="true"] {
   background: var(--select);
+}
+
+/* Changed outside the app (SR-116): a field of the element or a row is tinted grey and fades within
+   2.5 s; the class goes when the fade ends, within the 3 s of AK2. An inset shadow, so the tint lies over the selection and
+   leaves it as it was. Grey only, no text, no control (D-062 „Farbe trägt nur Bedeutung“). */
+.outside-change {
+  animation: outside-change 2.5s ease-out;
+}
+
+@keyframes outside-change {
+  from {
+    box-shadow: inset 0 0 0 100vmax var(--outside-change);
+  }
+
+  to {
+    box-shadow: inset 0 0 0 100vmax transparent;
+  }
+}
+
+/* Without motion the tint stays as it is until the class goes. */
+@media (prefers-reduced-motion: reduce) {
+  .outside-change {
+    animation: none;
+    box-shadow: inset 0 0 0 100vmax var(--outside-change);
+  }
 }
 
 .row .id,

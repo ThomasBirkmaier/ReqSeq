@@ -1,6 +1,7 @@
 // The list buffer and the search buffer: rows of elements as `element.list` and `element.search` give
 // them, in pages. The next page is asked for when the selection or the scroll reaches the end, so a
-// workspace of 50,000 elements is never loaded at once (N-036).
+// workspace of 50,000 elements is never loaded at once (N-036). A row whose element changed outside the
+// app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll.
 import { useEffect, useRef, useState } from "react";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";
@@ -10,6 +11,8 @@ import type { Part } from "./highlight.js";
 import { rowStep, rowTarget } from "./keys.js";
 import type { KeyPress } from "./keys.js";
 import type { BufferData } from "./modeline.js";
+import type { OutsideChanges } from "./outside-marks.js";
+import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 import type { Row } from "./rows.js";
 import {
   LIST_MAX,
@@ -29,9 +32,14 @@ export interface ListViewProps {
   readonly revision: number;
   readonly dispatch: (action: BufferAction) => void;
   /** What the buffer has loaded, for the modeline. */
-  /** `undefined` while the buffer asks again, so the modeline never shows an old count. */
+  /**
+   * `undefined` while the buffer asks for another list (a filter, a sort), so the modeline never shows the
+   * count of another list; asked again for a change of the workspace, it keeps the old count until the answer.
+   */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The changes from outside (SR-116): a row of an element that changed is highlighted when it is shown. */
+  readonly outside?: OutsideChanges;
   /**
    * The list is a part of another buffer, below its text (the package page, SR-112): the enclosing buffer
    * scrolls, a list without rows shows nothing, a workspace change keeps the rows until the new answer is
@@ -129,17 +137,23 @@ export const ListView = ({
   dispatch,
   onData,
   onEcho,
+  outside,
   part = false,
   onLeave,
   focusOnLoad = false,
 }: ListViewProps): React.JSX.Element => {
   const [view, setView] = useState<View>({ status: "loading" });
+  const { marked, mark } = useOutsideMarks();
+  // The list the rows were asked for last: when only the workspace changed since, the rows stay until
+  // the new ones are there, so the selection and the scroll stay too (a change from outside, a save).
+  const asked = useRef<string | undefined>(undefined);
   const root = useRef<HTMLDivElement>(null);
   // Counts the loads: an answer of an older one (another filter, a later change) is dropped.
   const generation = useRef(0);
   const loadingMore = useRef(false);
   // A part keeps its old rows while it is asked again (a sort, a change of the workspace); until the
-  // answer is there they must not be opened or paged on.
+  // answer is there they must not be opened or paged on. A list keeps its rows only for a change of the
+  // workspace (SR-116): they are of the same list, and Enter opens them meanwhile, as a click does.
   const reloading = useRef(false);
   // The focus is taken once, when the first answer is there.
   const focusTaken = useRef(false);
@@ -154,8 +168,11 @@ export const ListView = ({
     loadingMore.current = false;
     reloading.current = true;
     // A part keeps what it shows until the answer replaces it: the page does not jump when the
-    // workspace changes, for example with every save.
-    if (!part) {
+    // workspace changes, for example with every save. So does a list that is asked again for a change.
+    const list = JSON.stringify([buffer.key, kind, selection, sort]);
+    const same = asked.current === list;
+    asked.current = list;
+    if (!part && !same) {
       setView({ status: "loading" });
       onData(buffer.key, undefined);
     }
@@ -167,6 +184,9 @@ export const ListView = ({
       reloading.current = false;
       if (loaded.ok) {
         setView({ status: "ok", rows: loaded.rows, total: loaded.total, incomplete: loaded.incomplete });
+        if (outside !== undefined) {
+          mark(loaded.rows.map((row) => row.open.id).filter(outside.fresh));
+        }
         onData(buffer.key, {
           kind,
           total: loaded.total,
@@ -274,7 +294,7 @@ export const ListView = ({
       // With no row selected, Enter opens the first one.
       const at = Math.max(0, cursor);
       const row = rows[at];
-      if (row !== undefined && !reloading.current) {
+      if (row !== undefined && !(part && reloading.current)) {
         // The row is kept as the cursor, as a click keeps it: Ctrl+P Enter comes back to it.
         dispatch({ type: "cursor", key: buffer.key, cursor: at });
         openRow(row);
@@ -302,7 +322,7 @@ export const ListView = ({
         <div
           key={row.open.key}
           id={`row-${String(at)}`}
-          className="row"
+          className={rowClass("row", marked, row.open.id)}
           role="option"
           aria-selected={at === cursor}
           onClick={() => {

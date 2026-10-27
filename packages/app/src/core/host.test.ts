@@ -8,7 +8,7 @@ import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, PortMessage } from "../shared/protocol.js";
-import type { Channel, CoreHostOptions } from "./host.js";
+import type { Channel, CoreHostOptions, WatchedChange } from "./host.js";
 import { FILE_HOST, createCoreHost, lexicalTarget } from "./host.js";
 
 const runtime = createCommandRuntime();
@@ -79,6 +79,7 @@ const setup = async (
     runtime?: CommandRuntime;
     files?: Record<string, string | Uint8Array>;
     activity?: CoreHostOptions["activity"];
+    changes?: CoreHostOptions["changes"];
   } = {},
 ) => {
   const fixture = await createFixtureWorkspace({
@@ -92,6 +93,7 @@ const setup = async (
     runtime: options.runtime ?? runtime,
     workspace,
     ...(options.activity === undefined ? {} : { activity: options.activity }),
+    ...(options.changes === undefined ? {} : { changes: options.changes }),
   });
   const connect = (): Window => {
     const { port1, port2 } = new MessageChannel();
@@ -433,6 +435,92 @@ describe("createCoreHost: files for logreq-file:", () => {
     expect((await host.file("logreq-file://workspace/system/images/dot.png")).status).toBe(200);
     expect(calls.filter((name) => name === "workspace.status")).toHaveLength(3);
     window.close();
+  });
+});
+
+describe("createCoreHost: changes from outside (SR-116, SR-106)", () => {
+  /** A watcher whose batches the test sends with `emit`. */
+  const fakeWatcher = () => {
+    const listeners = new Set<(change: WatchedChange) => void>();
+    const unsubscribed = vi.fn();
+    const changes: CoreHostOptions["changes"] = (listener) => {
+      listeners.add(listener);
+      return () => {
+        unsubscribed();
+        listeners.delete(listener);
+      };
+    };
+    const emit = (change: WatchedChange): void => {
+      for (const listener of listeners) {
+        listener(change);
+      }
+    };
+    return { changes, emit, unsubscribed, listeners };
+  };
+  const lists = (changed: readonly string[] = []) => ({ added: [], changed, removed: [] });
+
+  it("sends each batch of the watcher to every window as workspace-changed external, and stops on close", async () => {
+    const watcher = fakeWatcher();
+    const { connect, host } = await setup({ changes: watcher.changes });
+    const one = connect();
+    const two = connect();
+    watcher.emit({ scope: "elements", elements: { added: ["a"], changed: ["b"], removed: ["c"] } });
+    watcher.emit({ scope: "workspace", elements: lists() });
+    await waitUntil(() => one.received.length === 2 && two.received.length === 2);
+    for (const window of [one, two]) {
+      expect(window.received).toEqual([
+        {
+          event: "workspace-changed",
+          data: {
+            reason: "external",
+            scope: "elements",
+            elements: { added: ["a"], changed: ["b"], removed: ["c"] },
+          },
+        },
+        { event: "workspace-changed", data: { reason: "external", scope: "workspace", elements: lists() } },
+      ]);
+    }
+    await host.close();
+    expect(watcher.unsubscribed).toHaveBeenCalledOnce();
+    expect(watcher.listeners.size).toBe(0);
+  });
+
+  it("sends more than 1,000 UUIDs as a change of the workspace with empty lists (N-036)", async () => {
+    const watcher = fakeWatcher();
+    const { connect } = await setup({ changes: watcher.changes });
+    const window = connect();
+    watcher.emit({ scope: "elements", elements: lists(Array.from({ length: 1001 }, (_, at) => String(at))) });
+    await waitUntil(() => window.received.length === 1);
+    expect(window.received[0]).toEqual({
+      event: "workspace-changed",
+      data: { reason: "external", scope: "workspace", elements: lists() },
+    });
+    window.close();
+  });
+
+  it("finds the repositories again after a change of the metamodel or the workspace, not of elements", async () => {
+    const watcher = fakeWatcher();
+    const calls: string[] = [];
+    const counting: CommandRuntime = {
+      ...runtime,
+      invoke: (name, input, ctx) => {
+        calls.push(name);
+        return runtime.invoke(name, input, ctx);
+      },
+    };
+    const { host } = await setup({ runtime: counting, changes: watcher.changes });
+    const status = (): number => calls.filter((name) => name === "workspace.status").length;
+    const image = "logreq-file://workspace/system/images/dot.png";
+    expect((await host.file(image)).status).toBe(200);
+    watcher.emit({ scope: "elements", elements: lists(["a"]) });
+    expect((await host.file(image)).status).toBe(200);
+    expect(status()).toBe(1);
+    watcher.emit({ scope: "metamodel", elements: lists() });
+    expect((await host.file(image)).status).toBe(200);
+    expect(status()).toBe(2);
+    watcher.emit({ scope: "workspace", elements: lists() });
+    expect((await host.file(image)).status).toBe(200);
+    expect(status()).toBe(3);
   });
 });
 

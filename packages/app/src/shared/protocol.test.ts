@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { AgentActivity } from "./protocol.js";
 import {
   BRIDGE_EVENTS,
+  MAX_CHANGED_IDS,
   coreMessage,
   coreRequest,
+  externalChange,
   isBridgeEvent,
   portMessage,
   portRequest,
@@ -181,6 +183,49 @@ describe("portMessage: what the core process sends a window", () => {
     }
   });
 
+  it("takes a change from outside with its scope and the three lists, and only those fields (SR-116)", () => {
+    const elements = { added: ["a"], changed: ["b", "c"], removed: [] };
+    expect(
+      portMessage({
+        event: "workspace-changed",
+        data: { reason: "external", scope: "elements", elements: { ...elements, moved: ["x"] }, extra: 1 },
+      }),
+    ).toEqual({ event: "workspace-changed", data: { reason: "external", scope: "elements", elements } });
+    for (const scope of ["metamodel", "workspace"]) {
+      expect(
+        portMessage({
+          event: "workspace-changed",
+          data: { reason: "external", scope, elements: { added: [], changed: [], removed: [] } },
+        }),
+      ).toMatchObject({ data: { scope } });
+    }
+    // The other reasons carry nothing else.
+    expect(
+      portMessage({ event: "workspace-changed", data: { reason: "opened", scope: "elements" } }),
+    ).toEqual({ event: "workspace-changed", data: { reason: "opened" } });
+  });
+
+  it("drops a malformed change: an unknown reason or scope, lists that are no lists of strings, too many UUIDs", () => {
+    const lists = { added: [], changed: [], removed: [] };
+    const many = Array.from({ length: MAX_CHANGED_IDS + 1 }, (_, at) => String(at));
+    for (const change of [
+      { reason: "deleted" },
+      { reason: "external" },
+      { reason: "external", scope: "elements" },
+      { reason: "external", scope: "files", elements: lists },
+      { reason: "external", scope: "elements", elements: "all" },
+      { reason: "external", scope: "elements", elements: { ...lists, added: "a" } },
+      { reason: "external", scope: "elements", elements: { ...lists, changed: [1] } },
+      { reason: "external", scope: "elements", elements: { added: [], changed: [] } },
+      { reason: "external", scope: "elements", elements: { ...lists, removed: many } },
+    ]) {
+      expect(
+        portMessage({ event: "workspace-changed", data: change }),
+        JSON.stringify(change),
+      ).toBeUndefined();
+    }
+  });
+
   it("drops anything else", () => {
     for (const value of [
       null,
@@ -194,5 +239,36 @@ describe("portMessage: what the core process sends a window", () => {
     ]) {
       expect(portMessage(value)).toBeUndefined();
     }
+  });
+});
+
+describe("externalChange: a batch of the watcher as the event of the windows", () => {
+  it("keeps the scope and the lists up to MAX_CHANGED_IDS UUIDs in all", () => {
+    const ids = Array.from({ length: MAX_CHANGED_IDS - 2 }, (_, at) => `id-${String(at)}`);
+    expect(
+      externalChange({ scope: "metamodel", elements: { added: ["a"], changed: ids, removed: ["r"] } }),
+    ).toEqual({
+      reason: "external",
+      scope: "metamodel",
+      elements: { added: ["a"], changed: ids, removed: ["r"] },
+    });
+  });
+
+  it("sends more than MAX_CHANGED_IDS UUIDs as a change of the workspace with empty lists (N-036)", () => {
+    const ids = Array.from({ length: MAX_CHANGED_IDS }, (_, at) => `id-${String(at)}`);
+    const change = externalChange({
+      scope: "elements",
+      elements: { added: ["a"], changed: ids, removed: [] },
+    });
+    expect(change).toEqual({
+      reason: "external",
+      scope: "workspace",
+      elements: { added: [], changed: [], removed: [] },
+    });
+    // What the host sends passes the check of the window.
+    expect(portMessage({ event: "workspace-changed", data: change })).toEqual({
+      event: "workspace-changed",
+      data: change,
+    });
   });
 });

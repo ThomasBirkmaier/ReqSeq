@@ -1,6 +1,9 @@
 // A field of the element buffer with its copy symbol (SR-128). The symbol sits at the right edge and is
 // seen only while the pointer is over the field or the focus is in it (styles.css); it takes no focus,
-// and a press on it leaves the focus where it is, so the text editor keeps its cursor.
+// and a press on it leaves the focus where it is, so the text editor keeps its cursor. A field that changed
+// outside the app is highlighted briefly (SR-116).
+import { rowClass } from "./use-outside-marks.js";
+
 export const CopySymbol = ({
   label,
   onCopy,
@@ -34,6 +37,7 @@ export const FieldBox = ({
   label,
   focusable = false,
   onCopy,
+  marked,
   children,
 }: {
   /** The name of the field: what the status line says and what "Copy field" looks up. */
@@ -41,9 +45,15 @@ export const FieldBox = ({
   /** The field itself takes the focus (it has no control inside), so "the cursor is in the field". */
   readonly focusable?: boolean;
   readonly onCopy: (label: string) => void;
+  /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
+  readonly marked: ReadonlySet<string>;
   readonly children: React.ReactNode;
 }): React.JSX.Element => (
-  <div className="field" data-field={label} {...(focusable ? { tabIndex: 0 } : {})}>
+  <div
+    className={rowClass("field", marked, label)}
+    data-field={label}
+    {...(focusable ? { tabIndex: 0 } : {})}
+  >
     {children}
     <CopySymbol
       label={label}

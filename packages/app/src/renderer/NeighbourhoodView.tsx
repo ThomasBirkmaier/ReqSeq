@@ -1,7 +1,8 @@
 // The neighbourhood buffer (SR-107): the parents above the title, the children as an indented tree that
 // opens level by level, and below it the incoming relations and references by kind, outdated ones marked.
 // The tree and the groups are what `trace.neighbourhood` gives (ADR-0002): the tree is asked for again from
-// the same element with one more level whenever a row below the fetched levels is opened.
+// the same element with one more level whenever a row below the fetched levels is opened. A row of an
+// element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TraceNeighbourhoodOutput } from "@logreq/core";
 import type { BufferAction, NeighbourhoodBuffer } from "./buffers.js";
@@ -17,8 +18,10 @@ import {
   treeRows,
 } from "./neighbourhood.js";
 import type { GroupEntry, TreeRow } from "./neighbourhood.js";
+import type { OutsideChanges } from "./outside-marks.js";
 import { ParentsLine } from "./ParentsLine.js";
 import type { Row } from "./rows.js";
+import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
 
 export interface NeighbourhoodViewProps {
   readonly call: Call;
@@ -29,6 +32,8 @@ export interface NeighbourhoodViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The changes from outside (SR-116): a row of an element that changed is highlighted when it is shown. */
+  readonly outside?: OutsideChanges;
 }
 
 /** Rows moved by Page Up and Page Down. */
@@ -70,7 +75,9 @@ export const NeighbourhoodView = ({
   dispatch,
   onData,
   onEcho,
+  outside,
 }: NeighbourhoodViewProps): React.JSX.Element => {
+  const { marked, mark } = useOutsideMarks();
   const [fetched, setFetched] = useState<Fetched | undefined>(undefined);
   const [incomingOutput, setIncomingOutput] = useState<TraceNeighbourhoodOutput | undefined>(undefined);
   const [errors, setErrors] = useState<readonly string[]>([]);
@@ -152,6 +159,13 @@ export const NeighbourhoodView = ({
     ...(tree?.rows ?? []),
     ...groups.flatMap((group) => group.entries),
   ];
+
+  // The rows shown after an answer: those of elements that changed outside are highlighted.
+  useEffect(() => {
+    if (outside !== undefined) {
+      mark(entries.map((entry) => entry.row.open.id).filter(outside.fresh));
+    }
+  }, [tree, incoming]);
   const cursor = Math.min(buffer.cursor, Math.max(0, entries.length - 1));
 
   useEffect(() => {
@@ -255,7 +269,7 @@ export const NeighbourhoodView = ({
                 <div
                   key={at}
                   id={`nrow-${String(at)}`}
-                  className="row"
+                  className={rowClass("row", marked, entry.row.open.id)}
                   role="treeitem"
                   aria-level={entry.level}
                   aria-expanded={entry.expandable === true ? entry.opened : undefined}
@@ -305,7 +319,7 @@ export const NeighbourhoodView = ({
                   <div
                     key={index}
                     id={`nrow-${String(start + index)}`}
-                    className="row"
+                    className={rowClass("row", marked, entry.row.open.id)}
                     role="option"
                     aria-selected={start + index === cursor}
                     onClick={() => {

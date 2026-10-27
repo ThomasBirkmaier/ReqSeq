@@ -21,6 +21,7 @@ const TOKENS = [
   "accent-outdated",
   "accent-gap",
   "shadow",
+  "outside-change",
 ] as const;
 
 /** The `:root` rule of styles.css: its declarations, and the rest of the file. */
@@ -69,7 +70,7 @@ const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|(?<![-\w])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|(?<![-\w])(?:white|black)(?![-\w])/i;
 
 describe("the colours of the sheet", () => {
-  it("has the nine tokens, each with a light and a dark value", () => {
+  it("has the ten tokens, each with a light and a dark value", () => {
     for (const name of TOKENS) {
       const both = values(name);
       expect(both.light, name).not.toBe("");
@@ -81,7 +82,7 @@ describe("the colours of the sheet", () => {
     "keeps the text readable on the sheet, the selection and the raised tone (%s)",
     (scheme) => {
       const at = (name: string): string => values(name)[scheme];
-      for (const ground of [at("sheet"), at("select"), at("raised")]) {
+      for (const ground of [at("sheet"), at("select"), at("raised"), at("outside-change")]) {
         for (const name of ["text", "muted", "accent-outdated", "accent-gap"]) {
           expect(ratio(at(name), ground), `${name} on ${ground}`).toBeGreaterThanOrEqual(4.5);
         }
@@ -247,5 +248,31 @@ describe("the links of the graph", () => {
     expect(ruleOf(".graph-edge.selected")).toMatch(/stroke:\s*var\(--text\);/);
     // Same specificity: the later rule wins.
     expect(CSS.indexOf(".graph-edge.outdated {")).toBeGreaterThan(CSS.indexOf(".graph-edge.selected {"));
+  });
+});
+
+describe("the highlight of a change from outside (SR-116)", () => {
+  /** The three channels of `#rrggbb`. */
+  const channels = (hex: string): number[] => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+
+  it.each(["light", "dark"] as const)(
+    "[SR-116/AK1] tints in grey, no colour, and visibly on the sheet (%s)",
+    (scheme) => {
+      const tint = values("outside-change")[scheme];
+      const [red = 0, green = 0, blue = 0] = channels(tint);
+      // A grey: the channels lie close together, like those of the other greys (--select, --rule).
+      expect(Math.max(red, green, blue) - Math.min(red, green, blue)).toBeLessThanOrEqual(12);
+      expect(ratio(tint, values("sheet")[scheme])).toBeGreaterThanOrEqual(1.1);
+    },
+  );
+
+  it("[SR-116/AK2] fades within the 3 s the mark stays, and stays still without motion", () => {
+    const rule = ruleOf(".outside-change");
+    expect(rule).toMatch(/animation:\s*outside-change 2\.5s/);
+    // The end of the animation is no tint: nothing is left standing when the class goes at 3 s.
+    expect(CSS).toMatch(/@keyframes outside-change \{[\s\S]*?to \{\s*box-shadow:[^;]*transparent;/);
+    expect(CSS).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.outside-change \{\s*animation: none;\s*box-shadow:[^;]*var\(--outside-change\);/,
+    );
   });
 });
