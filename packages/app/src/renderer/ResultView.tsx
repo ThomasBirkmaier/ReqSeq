@@ -1,7 +1,8 @@
 // The result buffer (SR-073 AK2): the output of a catalog command run from the command prompt that no
 // other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
-// a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of a problem. When the workspace changed, it asks the
-// command again with the same input (ADR-0002: the app runs commands and shows what they give).
+// a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
+// a problem. When the workspace changed, it asks the command again with the same input (ADR-0002: the
+// app runs commands and shows what they give).
 import { useEffect, useMemo } from "react";
 import type { BufferAction, ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";

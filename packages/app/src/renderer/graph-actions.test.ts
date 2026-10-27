@@ -30,6 +30,8 @@ const context = (buffers: Buffers, mac = false) => {
     armClose: vi.fn(),
     discard: vi.fn(),
     drafted: () => false,
+    opened: [],
+    leaveEditor: vi.fn(),
   };
   return { full, dispatched };
 };

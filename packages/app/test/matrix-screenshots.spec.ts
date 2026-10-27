@@ -88,7 +88,8 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
     const fromOverview = typed.count();
     expect(await titles(window)).toEqual(cli.rows.map((row) => row.title));
     test.info().annotations.push({ type: "keys from the overview", description: String(fromOverview) });
-    // Down x2 to the second line "System Requirement", Enter, Ctrl+Shift+P, flp, Enter, pa, Enter, st3, Enter, Ctrl+T.
+    // Down ×(at+1) to the line "System Requirement" (none on the first line), Enter, Ctrl+Shift+P, flp,
+    // Enter, pa, Enter, st3, Enter, Ctrl+T.
     expect(fromOverview).toBe(downs + 14);
 
     // The package page: Ctrl+P, the title, Enter, Ctrl+T.

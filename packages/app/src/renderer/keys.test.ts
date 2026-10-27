@@ -5,6 +5,7 @@ const press = (
   key: string,
   extra: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> & {
     readonly code?: string;
+    readonly isComposing?: boolean;
   } = {},
 ) => ({
   key,
@@ -44,6 +45,45 @@ describe("keys", () => {
         key: "a",
       }),
     ).toBe(false);
+  });
+
+  it("[SR-115/AK5] Alt+N and Alt+P match by the letter on Linux and Windows, and by the physical key under macOS, where Option types a character", () => {
+    const next = { mod: false, shift: false, alt: true, key: "n" };
+    const previous = { mod: false, shift: false, alt: true, key: "p" };
+    // Linux and Windows: the letter.
+    expect(matches(press("n", { altKey: true, code: "KeyN" }), next)).toBe(true);
+    expect(matches(press("p", { altKey: true }), previous)).toBe(true);
+    // macOS: Option+N is the dead key of "~", Option+P is "π"; the physical key counts.
+    expect(matches(press("Dead", { altKey: true, code: "KeyN" }), next)).toBe(true);
+    expect(matches(press("π", { altKey: true, code: "KeyP" }), previous)).toBe(true);
+    expect(matches(press("Dead", { altKey: true, code: "KeyU" }), next)).toBe(false);
+    expect(matches(press("Dead", { altKey: true }), next)).toBe(false);
+    // A non-Latin layout on Linux (Russian Alt+N is "т"): the physical key.
+    expect(matches(press("т", { altKey: true, code: "KeyN" }), next)).toBe(true);
+    // Dvorak on Linux: the letter, not the place ("b" lies where QWERTY has N; "n" where it has L).
+    expect(matches(press("b", { altKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("n", { altKey: true, code: "KeyL" }), next)).toBe(true);
+    // An input method that composes keeps the key.
+    expect(matches(press("Process", { altKey: true, code: "KeyN", isComposing: true }), next)).toBe(false);
+  });
+
+  it("[SR-115/AK5] Alt+N is Alt alone: Ctrl+Alt (AltGr), Cmd+Option, Shift or no Alt do not count", () => {
+    const next = { mod: false, shift: false, alt: true, key: "n" };
+    expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("n", { ctrlKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("Dead", { metaKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("N", { altKey: true, shiftKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("n", { code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("n", { ctrlKey: true, code: "KeyN" }), next)).toBe(false);
+    // Ctrl+Alt+... shortcuts keep their rule: "ñ" with Ctrl+Alt is no Ctrl+Alt+N.
+    expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), { ...next, mod: true })).toBe(
+      false,
+    );
+  });
+
+  it("[SR-115/AK5] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
+    expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "n" }, false)).toBe("Alt+N");
+    expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "p" }, true)).toBe("⌥P");
   });
 
   it("knows macOS by the platform", () => {

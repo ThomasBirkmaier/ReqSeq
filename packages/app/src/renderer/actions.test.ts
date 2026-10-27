@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ACTIONS,
   COMMAND_SHORTCUT,
+  NEXT_BUFFER_SHORTCUT,
+  PREVIOUS_BUFFER_SHORTCUT,
   actionFor,
   commandPrompt,
   jumpPrompt,
@@ -23,6 +25,8 @@ import {
   withMatrix,
 } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
+import { matches } from "./keys.js";
+import { openingOrder } from "./opening-order.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
 import type { Theme } from "./theme.js";
@@ -60,6 +64,7 @@ const setup = (
   const discarded: string[] = [];
   const asked: Prompt[] = [];
   const echoed: string[] = [];
+  const left: boolean[] = [];
   const call = vi.fn((name: string) => {
     const output = answers[name];
     return Promise.resolve(
@@ -82,9 +87,13 @@ const setup = (
     armClose: (value) => armed.push(value),
     discard: (key) => discarded.push(key),
     drafted: () => false,
+    opened: openingOrder([], buffers),
+    leaveEditor: () => {
+      left.push(true);
+    },
     ...extra,
   };
-  return { context, dispatched, asked, echoed, call, armed, discarded };
+  return { context, dispatched, asked, echoed, call, armed, discarded, left };
 };
 
 const action = (id: string) => {
@@ -1066,5 +1075,82 @@ describe("light and dark", () => {
     const theme = fakeTheme();
     theme.toggle();
     expect(titles(setup([], {}, false, { theme }).context)).toEqual([]);
+  });
+});
+
+describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
+  const overview = overviewBuffer();
+  const search = searchBuffer("wind");
+  // Opened in this order: the overview, the list, the element, the search; the element was used last.
+  const opened = [overview.key, list.key, element.key, search.key];
+  const used: Buffers = [element, search, list, overview];
+
+  it("[SR-115/AK5] Next buffer shows the buffer opened after the shown one, after the last the first; Previous buffer the one before", () => {
+    const next = setup(used, {}, true, { opened });
+    runAction(action("next-buffer"), next.context);
+    expect(next.dispatched).toEqual([{ type: "switch", key: search.key }]);
+    const previous = setup(used, {}, true, { opened });
+    runAction(action("previous-buffer"), previous.context);
+    expect(previous.dispatched).toEqual([{ type: "switch", key: list.key }]);
+    const last = setup([search, element, list, overview], {}, true, { opened });
+    runAction(action("next-buffer"), last.context);
+    expect(last.dispatched).toEqual([{ type: "switch", key: overview.key }]);
+    const first = setup([overview, search, element, list], {}, true, { opened });
+    runAction(action("previous-buffer"), first.context);
+    expect(first.dispatched).toEqual([{ type: "switch", key: search.key }]);
+  });
+
+  it("[SR-115/AK5] the focus leaves a text editor before the switch, so that the editor gets nothing of the key", () => {
+    const { context, left, dispatched } = setup(used, {}, true, { opened });
+    runAction(action("next-buffer"), context);
+    expect(left).toEqual([true]);
+    expect(dispatched).toHaveLength(1);
+  });
+
+  it("[SR-115/AK5] are commands of the prompt with their keys while several buffers are open", () => {
+    const linux = commandPrompt(setup(used, {}, true, { opened }).context).items;
+    expect(linux.find((item) => item.name === "Next buffer")?.hint).toBe("Alt+N");
+    expect(linux.find((item) => item.name === "Previous buffer")?.hint).toBe("Alt+P");
+    const mac = commandPrompt(setup(used, {}, true, { opened, mac: true }).context).items;
+    expect(mac.find((item) => item.name === "Next buffer")?.hint).toBe("⌥N");
+    expect(mac.find((item) => item.name === "Previous buffer")?.hint).toBe("⌥P");
+    const names = titles(setup(used, {}, true, { opened }).context);
+    expect(names.indexOf("Next buffer")).toBe(names.indexOf("Close all buffers") + 1);
+    expect(names.indexOf("Previous buffer")).toBe(names.indexOf("Next buffer") + 1);
+  });
+
+  it("[SR-115/AK5] are not offered and take no key with one buffer, or without a workspace", () => {
+    expect(titles(setup([overview]).context)).not.toContain("Next buffer");
+    expect(titles(setup([list]).context)).not.toContain("Previous buffer");
+    const alone = setup([overview]).context;
+    expect(actionFor(alone, (shortcut) => shortcut === NEXT_BUFFER_SHORTCUT)).toBeUndefined();
+    const none = setup([], {}, false).context;
+    expect(actionFor(none, (shortcut) => shortcut === PREVIOUS_BUFFER_SHORTCUT)).toBeUndefined();
+  });
+
+  it("[SR-115/AK5] Alt+N and Alt+P find the actions, Option+N and Option+P by the physical key", () => {
+    const { context } = setup(used, {}, true, { opened });
+    const press = (key: string, code: string) => ({
+      key,
+      code,
+      altKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    const found = (key: string, code: string) =>
+      actionFor(context, (shortcut) => matches(press(key, code), shortcut))?.id;
+    expect(found("n", "KeyN")).toBe("next-buffer");
+    expect(found("p", "KeyP")).toBe("previous-buffer");
+    expect(found("Dead", "KeyN")).toBe("next-buffer");
+    expect(found("π", "KeyP")).toBe("previous-buffer");
+  });
+
+  it("[SR-115/AK5] switches nothing when the shown buffer is not in the order, and leaves the focus where it is", () => {
+    const { context, dispatched, left } = setup(used, {}, true, { opened: [list.key, search.key] });
+    runAction(action("next-buffer"), context);
+    runAction(action("previous-buffer"), context);
+    expect(dispatched).toEqual([]);
+    expect(left).toEqual([]);
   });
 });

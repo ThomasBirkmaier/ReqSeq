@@ -215,6 +215,9 @@ export const ElementView = ({
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
+  // The same editor at once: `handle` comes with the next render, and a key that arrives before it (Enter
+  // right after the element loaded, under load) must find the editor already.
+  const textEditor = useRef<EditorHandle | undefined>(undefined);
   const baseline = useRef("");
   const loadedOnce = useRef(false);
   // The draft this buffer was shown with (the app keys this component by buffer).
@@ -704,7 +707,7 @@ export const ElementView = ({
         openValue(editable);
       }
     } else {
-      (box !== undefined && !box.state().readOnly ? box : handle)?.focus("end");
+      (box !== undefined && !box.state().readOnly ? box : textEditor.current)?.focus("end");
     }
   };
   // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; Up and Down
@@ -877,6 +880,7 @@ export const ElementView = ({
                   if (editor !== undefined) {
                     keptText.current = undefined;
                   }
+                  textEditor.current = editor;
                   setHandle(editor);
                 }}
               />

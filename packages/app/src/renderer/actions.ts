@@ -25,6 +25,7 @@ import type { Answer, Call } from "./call.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
+import { cycleKey } from "./opening-order.js";
 import {
   hasSavedFilter,
   propertyChoices,
@@ -105,6 +106,10 @@ export interface ActionContext {
   readonly workspace: boolean;
   /** The open buffers, the most recent first; the first one is shown. */
   readonly buffers: Buffers;
+  /** The keys of the open buffers in the order of opening (`opening-order.ts`): "Next buffer" walks it. */
+  readonly opened: readonly string[];
+  /** Takes the focus out of a text editor that has it, so that the editor gets no more of the key. */
+  readonly leaveEditor: () => void;
   readonly mac: boolean;
   /** Light and dark (SR-113). */
   readonly theme: Theme;
@@ -164,6 +169,13 @@ const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
 /** The command prompt itself; it is not listed in itself. */
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
 
+/**
+ * Alt+N (Option+N on macOS) shows the next buffer in the order of opening, Alt+P the previous one (SR-115
+ * AK5), also while typing in an editor. Alt alone: Ctrl/Cmd+N and Ctrl/Cmd+P are other keys (SR-122).
+ */
+export const NEXT_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "n" };
+export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "p" };
+
 const currentList = (context: ActionContext): ListBuffer | undefined => {
   const current = context.buffers[0];
   return current?.kind === "list" ? current : undefined;
@@ -182,6 +194,8 @@ const packagePage = (context: ActionContext): ElementBuffer | undefined => {
   return shown?.kind === "element" && context.element?.members === true ? shown : undefined;
 };
 const hasWorkspace = (context: ActionContext): boolean => context.workspace;
+/** There is another buffer to switch to (SR-115 AK5: „mehrere geöffnete Buffer“). */
+const hasOthers = (context: ActionContext): boolean => context.buffers.length > 1;
 /** A buffer is open that can be closed: the lone overview cannot, it comes back (SR-118). */
 const hasBuffers = (context: ActionContext): boolean =>
   context.buffers.length > 0 && !onlyOverview(context.buffers);
@@ -417,6 +431,27 @@ const closeAll = (context: ActionContext): void => {
   });
 };
 
+/**
+ * Shows the buffer after (`step` 1) or before (-1) the shown one in the order of opening, wrapping
+ * (SR-115 AK5); none when the shown one is not in the order.
+ *
+ * In a text editor the key must insert no character. The window's listener prevents the key, so the
+ * editor gets no keydown. On macOS, Option+N is a dead key ("~"), and Chromium hands it to the input
+ * method before the page sees the keydown, whether or not it is prevented. What keeps the "~" out: the
+ * focus leaves the editor first, synchronously in the keydown (`leaveEditor`), and the switch then
+ * unmounts the editor: React shows the other buffer in a microtask after the listener, the App's focus
+ * effect moves the focus to the new buffer, which cannot be edited, and a composition aimed at a focus
+ * that is no text input inserts nothing. Leaving the editor first also covers a later case where the
+ * editor stays shown (a split window, SR-115 AK3).
+ */
+const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
+  const key = cycleKey(context.opened, context.buffers[0]?.key, step);
+  if (key !== undefined) {
+    context.leaveEditor();
+    context.dispatch({ type: "switch", key });
+  }
+};
+
 /** The facets of the shown list: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, list: ListBuffer): Promise<Answer<"element.facets">> =>
   call("element.facets", list.selection === undefined ? {} : { selection: list.selection });
@@ -633,6 +668,24 @@ export const ACTIONS: readonly Action[] = [
     },
   },
   { id: "close-all", title: "Close all buffers", available: hasBuffers, run: closeAll },
+  {
+    id: "next-buffer",
+    title: "Next buffer",
+    shortcut: NEXT_BUFFER_SHORTCUT,
+    available: hasOthers,
+    run: (context: ActionContext): void => {
+      cycleBuffer(context, 1);
+    },
+  },
+  {
+    id: "previous-buffer",
+    title: "Previous buffer",
+    shortcut: PREVIOUS_BUFFER_SHORTCUT,
+    available: hasOthers,
+    run: (context: ActionContext): void => {
+      cycleBuffer(context, -1);
+    },
+  },
   {
     id: "save",
     title: "Save element",

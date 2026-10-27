@@ -32,6 +32,7 @@ import { MatrixView } from "./MatrixView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
+import { openingOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
@@ -227,11 +228,21 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     [],
   );
 
+  // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
+  const opened = useRef<readonly string[]>([]);
+  opened.current = openingOrder(opened.current, buffers);
   // The default of an element argument when no element is shown (#85).
   const row = selectedRow(current, loaded);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     buffers,
+    opened: opened.current,
+    leaveEditor: () => {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused.closest(".cm-editor") !== null) {
+        focused.blur();
+      }
+    },
     mac: isMac(navigator.platform),
     theme,
     call,

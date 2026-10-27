@@ -20,17 +20,33 @@ export interface KeyPress {
   readonly key: string;
   /** The physical key (`KeyA`); a test may leave it out. */
   readonly code?: string;
+  /** An input method is composing (CJK); absent is false. */
+  readonly isComposing?: boolean;
 }
 
+/** A Latin letter: what Alt with a letter key gives on Linux and Windows with a Latin layout. */
+const LETTER = /^[a-z]$/i;
+
 /**
- * Whether the key of `event` is the letter of `shortcut`. With Cmd and Option held, macOS reports the
- * character Option makes (Cmd+Option+A is "å"), so then the physical key counts. Not with Ctrl+Alt:
- * on Windows that is AltGr, which types a letter of its own on many layouts (AltGr+A is "ą" in Polish)
- * and must stay that letter.
+ * Whether the key of `event` is the letter of `shortcut`. With Option held, macOS reports the character
+ * Option makes, not the letter: Cmd+Option+A is "å", Option+N the dead key of "~" ("Dead"), Option+P
+ * "π". So for a shortcut with Alt the physical key (`event.code`) counts too:
+ *
+ * - with Cmd and Option held (⌥⌘A);
+ * - with Alt alone (Option+N, SR-115 AK5) when the key is no Latin letter. On Linux and Windows Alt+N
+ *   is "n" and matches by the letter; with a Dvorak layout there the letter counts, not the place. On
+ *   macOS Option+letter is never the plain letter, so there the place counts, also with Dvorak. A
+ *   non-Latin layout (Alt+N is "т" in Russian) matches by the place. Not while an input method composes
+ *   (its key is "Process"): the key belongs to the composition.
+ *
+ * Not with Ctrl+Alt: on Windows that is AltGr, which types a letter of its own on many layouts (AltGr+A
+ * is "ą" in Polish) and must stay that letter.
  */
 const sameKey = (event: KeyPress, shortcut: Shortcut): boolean =>
   event.key.toLowerCase() === shortcut.key ||
-  (shortcut.alt === true && event.metaKey && event.code === `Key${shortcut.key.toUpperCase()}`);
+  (shortcut.alt === true &&
+    event.code === `Key${shortcut.key.toUpperCase()}` &&
+    (event.metaKey || (!event.ctrlKey && event.isComposing !== true && !LETTER.test(event.key))));
 
 export const matches = (event: KeyPress, shortcut: Shortcut): boolean =>
   (event.ctrlKey || event.metaKey) === shortcut.mod &&
@@ -76,8 +92,9 @@ export const rowStep = (event: KeyPress): 1 | -1 | undefined =>
  *
  * - Down and Ctrl+N go one row down; with no row selected, to the first.
  * - Up and Ctrl+P go one row up. With no row selected, Up selects the first row, and Ctrl+P is not the
- *   list's: it stays Ctrl+P "Go to" on Linux and Windows (SR-118 AK3, SR-115 AK1). With a row selected,
- *   Ctrl+P only moves the selection, also on the first row (AK5).
+ *   list's: it stays Ctrl+P "Go to" (SR-118 AK3, SR-115 AK1). With a row selected, the physical Ctrl+P
+ *   only moves the selection, also on the first row (AK5), on every platform; Cmd+P on macOS always
+ *   jumps.
  * - A list without rows takes neither Ctrl+N nor Ctrl+P.
  * - Page Down and Page Up go `screen` rows (none when the list has no `screen`), Home to the first row,
  *   End to the last.

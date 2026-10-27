@@ -54,6 +54,8 @@ const setup = (
     armClose: () => undefined,
     discard: () => undefined,
     drafted: () => false,
+    opened: [],
+    leaveEditor: () => undefined,
     revision: () => revision,
     reopen: () => {
       reopened += 1;
