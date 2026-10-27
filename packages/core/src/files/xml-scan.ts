@@ -138,9 +138,10 @@ const INVISIBLE = new Set([
 /**
  * Text of the file as a refusal message quotes it: at most `SHOWN_LENGTH` characters (then `…`),
  * with control characters, bidirectional controls and line separators as `\u{…}`, so a crafted file
- * cannot flood the output or send escape sequences to the terminal that shows the message.
+ * cannot flood the output or send escape sequences to the terminal that shows the message. The JUnit
+ * reader quotes test case names and property values with it too.
  */
-const shown = (text: string): string => {
+export const shown = (text: string): string => {
   // Two UTF-16 units per character at most, plus one, tell whether more than SHOWN_LENGTH follow.
   const characters = Array.from(text.slice(0, 2 * SHOWN_LENGTH + 1));
   const kept = characters.slice(0, SHOWN_LENGTH).map((character) => {

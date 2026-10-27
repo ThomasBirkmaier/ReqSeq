@@ -10,7 +10,7 @@ import { evidenceIndexState } from "./by-element.js";
 import type { EvidenceFile } from "./folders.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
 import type { EvidenceReader } from "./state.js";
-import { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
+import { evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
 
 const SR = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 
@@ -40,16 +40,14 @@ const recordOf = (file: EvidenceFile, date: string): EvidenceRecord => ({
 });
 
 describe("evidence states", () => {
-  it("evidenceRecordsState is empty while no reader is registered", async () => {
-    expect(EVIDENCE_READERS).toEqual([]);
-    const { workspace } = await open();
-    expect(await workspace.get(evidenceReadState)).toEqual({
+  it("readEvidence reads no file without a reader", async () => {
+    const { root } = await open();
+    expect(await readEvidence(await loadWorkspaceLayout(root), [])).toEqual({
       records: [],
       skipped: [],
       problems: [],
       incomplete: false,
     });
-    expect(await workspace.get(evidenceRecordsState)).toEqual([]);
   });
 
   it("evidenceRecordsState gives each file to the reader of its extension", async () => {

@@ -13,6 +13,8 @@ export { coverageOf, coverageRules } from "./coverage.js";
 export type { CoverageLevel, CoverageRules } from "./coverage.js";
 export { EVIDENCE_FILES, evidenceFiles } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";
+export { JUNIT_READER, readJunitRecords } from "./junit.js";
+export type { JunitLocation } from "./junit.js";
 export { testCaseKey, testCaseKeyOf } from "./record.js";
 export type { EvidenceRecord, SkippedTestCase, TestCase, TestCaseName } from "./record.js";
 export { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";

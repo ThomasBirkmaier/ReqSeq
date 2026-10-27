@@ -8,7 +8,7 @@
 //   first: replacing it resets `evidenceRecordsState`).
 //
 // The readers are registered in `EVIDENCE_READERS`, one per extension: the Markdown reader comes with
-// SR-028 (#40), the JUnit reader with SR-093 (#105). Until then the list is empty and no file is read.
+// SR-028 (#40), the JUnit reader (`junit.ts`) with SR-093 (#105).
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -16,6 +16,7 @@ import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceExtension, EvidenceFile } from "./folders.js";
 import { evidenceFiles } from "./folders.js";
+import { JUNIT_READER } from "./junit.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
 
 /** What a reader found in one file. */
@@ -38,7 +39,7 @@ export interface EvidenceReader {
 }
 
 /** The readers of the product, one per extension (see the file comment). */
-export const EVIDENCE_READERS: readonly EvidenceReader[] = [];
+export const EVIDENCE_READERS: readonly EvidenceReader[] = [JUNIT_READER];
 
 /** Everything read from the evidence folders of a workspace. */
 export interface EvidenceRead {

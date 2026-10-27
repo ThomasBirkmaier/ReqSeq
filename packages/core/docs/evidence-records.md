@@ -25,7 +25,7 @@ Nobody shows the problems yet; SR-028 shows them through its `evidenceProblemsSt
 ## State
 
 - `evidenceReadState` (`state.ts`, depends on `workspaceLayoutState`): `readEvidence(layout, readers)`: the files of `evidenceFiles`, each given with its bytes to the reader of its extension, 16 at a time; `{ records, skipped, problems, incomplete }`. A file without a reader is not read; one that cannot be read is `file.unreadable`.
-- `EVIDENCE_READERS`: one `EvidenceReader` (`{ extension, read(file, bytes) }`) per extension. Empty until SR-028 (Markdown) and SR-093 (JUnit) add theirs, one line each. A reader reads nothing else and gives nothing for a file that is no record of its kind.
+- `EVIDENCE_READERS`: one `EvidenceReader` (`{ extension, read(file, bytes) }`) per extension: the JUnit reader (`xml`, SR-093); SR-028 adds the Markdown reader (`md`), one line. A reader reads nothing else and gives nothing for a file that is no record of its kind.
 - `evidenceRecordsState` (depends on `evidenceReadState`): the records alone, an array. It is the seam through which tests and consumers get records without files (#127 option 1): `workspace.replace(evidenceRecordsState, current, Promise.resolve(records))`. Skipped test cases are injected by replacing `evidenceReadState` first (replacing it resets `evidenceRecordsState`). The check of SR-025 AK4 (`hints/evidence.ts`) reads it.
 
 ## Index
@@ -43,7 +43,15 @@ SR-028 (#40).
 
 ## JUnit reader
 
-SR-093 (#105); the XML scanner and the JUnit model are `files/xml-scan.ts` and `evidence/junit-model.ts` (E2, ADR-0012 "JUnit XML").
+SR-093 (#105). `readJunitRecords(location, bytes)` (`junit.ts`), registered as `JUNIT_READER` for `xml`: the records of an enriched JUnit XML file, read with the XML scanner and the JUnit model (`files/xml-scan.ts`, `evidence/junit-model.ts`, E2, ADR-0012 "JUnit XML"). It reads the bytes only, never the element store: whether a UUID names an element of the workspace is the consumers' question (`evidence.unknown-element`, SR-028).
+
+- A test case is enriched when it has a `logreq:version` property. Its `logreq:element` properties (UUIDs, any case, kept in lower case) name the requirements, and the n-th `logreq:version` is the version of the n-th `logreq:element`; `logreq:item` and `logreq:date` are required, `logreq:variant` is optional (absent: the core). It gives one record per element (a repeated element with the same version once, with two different versions `evidence.invalid-record`; SR-033 AK2): kind `verification`, method `test`, result `failed` with `<failure>` or `<error>`, else `passed`, `testCase` the JUnit `name`, `className` the `classname` (left out when empty), `source: junit`, the repository, file and line of the `<testcase>`.
+- A test case that names no requirement (no `logreq:element` property, no short ID or UUID token in its name) is passed over without a problem (AK2). A pytest parameter list (`test_add[1-2]`) or an identifier in brackets (`[SR-036]`) is no reference the reader can tell without the store, so it is passed over too.
+- A test case that names a requirement but has no `logreq:version` gives no record. The file gets one `evidence.not-enriched` warning with the number of such test cases and the line of the first (spec question #529 Q3), not one per test case, so an unenriched CI file of thousands of test cases gives one line.
+- An enriched test case marked `<skipped>` gives no record, so it never counts as passed (AK3); it is a `SkippedTestCase`, a test case without execution (SR-033 AK3).
+- An enriched test case whose properties do not fit gives no record and an `evidence.invalid-record` error with its line: a `logreq:element` that is no UUID (a short ID left by hand: enrich writes the UUID, #529 Q4), element and version counts that differ, an element given twice with different versions, a malformed version, item, date or variant, or item, date or variant given twice with different values. A file the scanner refuses is `evidence.invalid-record` with the scanner's line; XML whose root is not `testsuites`/`testsuite` gives nothing.
+- Problems of a file come by line. Nobody shows them yet; SR-028's `evidenceProblemsState` shows the problems of `evidenceReadState` in `workspace.check`.
+- Cost: linear in the file; the JUnit model is most of it (a 29 MB file with 50,000 enriched test cases reads in a few seconds). Memory is the larger risk: the model holds about 17 times the file (an 18 MB file, 313 MB heap), and `readEvidence` reads 16 files at a time, so many large CI files at once can need several GB. E4 measures peak heap next to time and, if needed, lowers the concurrency for `xml` or bounds the bytes in flight.
 
 ## Writing records
 
