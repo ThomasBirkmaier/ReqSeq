@@ -9,13 +9,16 @@ import { createCommandRuntime } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { assertWritable, workspaceAccess } from "./access.js";
 
-// Test-only catalog: no write command is implemented yet (element.create is SR-001), so the guard
-// in `invoke` is checked with stand-ins that have the effects of the real catalog entries.
-const entry = (name: string, effect: "read" | "write-files"): Record<string, unknown> => ({
+// Test-only catalog: the guard in `invoke` is checked with stand-ins that have the effects of the
+// real catalog entries. Whether a write command runs while the workspace is read-only is the
+// `whileReadOnly` field of its entry (ADR-0002 rule 5, #142), never its name.
+const entry = (name: string, whileReadOnly?: "refuse" | "allow"): Record<string, unknown> => ({
   name,
   title: "Test command",
   summary: `${name} (test only).`,
-  effect,
+  ...(whileReadOnly === undefined
+    ? { effect: "read" }
+    : { effect: "write-files", whileReadOnly, whileReadOnlyReason: "Stand-in for the tests of the guard." }),
   stage: 1,
   implements: ["SR-011"],
   arguments: [],
@@ -31,11 +34,7 @@ const entry = (name: string, effect: "read" | "write-files"): Record<string, unk
 const contracts = loadContracts({
   catalog: {
     "logreq-catalog": 1,
-    commands: [
-      entry("test.read", "read"),
-      entry("test.write", "write-files"),
-      entry("workspace.init", "write-files"),
-    ],
+    commands: [entry("test.read"), entry("test.write", "refuse"), entry("test.create", "allow")],
   },
 });
 
@@ -55,7 +54,7 @@ const stub = (name: string, writes: boolean): AnyCommand =>
 
 const runtime = createCommandRuntime({
   contracts,
-  commands: [stub("test.read", false), stub("test.write", true), stub("workspace.init", true)],
+  commands: [stub("test.read", false), stub("test.write", true), stub("test.create", true)],
   validateOutput: true,
 });
 
@@ -162,12 +161,23 @@ describe("read-only workspace", () => {
     await expect(assertWritable(workspace, "test.write")).resolves.toBeUndefined();
   });
 
-  it("lets workspace.init run without a workspace, since it creates one", async () => {
+  it("runs a write command whose catalog entry allows it while read-only, as workspace.init", async () => {
     const ws = await createFixtureWorkspace();
     onTestFinished(() => ws.cleanup());
-    await expect(runtime.invoke("workspace.init", {}, { workspace: open(ws.root) })).resolves.toEqual({
+    // No workspace yet: the command creates one.
+    await expect(runtime.invoke("test.create", {}, { workspace: open(ws.root) })).resolves.toEqual({
       ran: true,
     });
+    const faulty = await fixture({ files: FAULTY_STATUSES });
+    await expect(runtime.invoke("test.create", {}, { workspace: open(faulty.root) })).resolves.toEqual({
+      ran: true,
+    });
+    expect(await exists(faulty.path("written-by-test.create.txt"))).toBe(true);
+  });
+
+  it("allows only workspace.init while read-only in the product catalog, until an SR decides otherwise", () => {
+    const writes = loadContracts().commands.filter((c) => c.effect === "write-files");
+    expect(writes.filter((c) => c.whileReadOnly === "allow").map((c) => c.name)).toEqual(["workspace.init"]);
   });
 
   it("passes a missing workspace file on unchanged to write commands", async () => {

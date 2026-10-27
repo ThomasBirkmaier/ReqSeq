@@ -15,6 +15,36 @@ describe("contracts", () => {
     expect(() => execFileSync("node", ["scripts/contracts/generate.mjs", "--check"])).not.toThrow();
   });
 
+  it("catalog: a write command needs whileReadOnly with a reason, a read command has neither (#142)", () => {
+    const entry = {
+      name: "test.write",
+      title: "Test command",
+      summary: "A test command.",
+      effect: "write-files",
+      whileReadOnly: "refuse",
+      whileReadOnlyReason: "A test write command.",
+      stage: 1,
+      implements: ["SR-011"],
+      arguments: [],
+      input: { type: "object" },
+      output: { type: "object" },
+    };
+    const catalog = (...commands) => ({ "logreq-catalog": 1, commands });
+    const meta = "commands/catalog.meta.schema.json";
+    const { whileReadOnly, whileReadOnlyReason, ...write } = entry;
+    expect(validate(meta, catalog(entry))).toBe(true);
+    expect(validate(meta, catalog({ ...entry, whileReadOnly: "allow" }))).toBe(true);
+    expect(validate(meta, catalog(write))).toBe(false);
+    expect(validate(meta, catalog({ ...write, whileReadOnly }))).toBe(false);
+    expect(validate(meta, catalog({ ...write, whileReadOnlyReason }))).toBe(false);
+    expect(validate(meta, catalog({ ...entry, whileReadOnly: "ignore" }))).toBe(false);
+    expect(validate(meta, catalog({ ...entry, whileReadOnlyReason: "Two\nlines of reason." }))).toBe(false);
+    const read = { ...write, effect: "read" };
+    expect(validate(meta, catalog(read))).toBe(true);
+    expect(validate(meta, catalog({ ...read, whileReadOnly: "refuse" }))).toBe(false);
+    expect(validate(meta, catalog({ ...read, whileReadOnlyReason }))).toBe(false);
+  });
+
   it("element: rejects UUID v7 and accepts unknown property keys", () => {
     const v7 = "01928c6e-5a8b-7c3d-9e1f-0a2b3c4d5e6f";
     expect(validate("element.schema.json", { id: v7, type: "need", status: "draft" })).toBe(false);

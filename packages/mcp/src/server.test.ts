@@ -23,6 +23,9 @@ const entry = (name: string, effect = "read", input: Record<string, unknown> = {
   title: `Title of ${name.replace(".", " ")}`,
   summary: `Test command ${name}.`,
   effect,
+  ...(effect === "write-files"
+    ? { whileReadOnly: "refuse", whileReadOnlyReason: "A test write command." }
+    : {}),
   stage: 1,
   implements: ["SR-080"],
   arguments: [],

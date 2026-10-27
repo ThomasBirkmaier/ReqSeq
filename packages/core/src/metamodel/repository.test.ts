@@ -181,12 +181,15 @@ describe("metamodel in its own repository (SR-018)", () => {
 
   it("[SR-018/AK2] runs read and write commands while the metamodel repository is read-only", async () => {
     // Stand-ins with the effects of the real catalog entries: the guard of `invoke` decides by
-    // `effect`, so every element command behaves like these.
+    // `whileReadOnly`, which every element command has as `refuse`, so they behave like these.
     const entry = (name: string, effect: "read" | "write-files"): Record<string, unknown> => ({
       name,
       title: "Test command",
       summary: `${name} (test only).`,
       effect,
+      ...(effect === "write-files"
+        ? { whileReadOnly: "refuse", whileReadOnlyReason: "Stand-in for an element command." }
+        : {}),
       stage: 1,
       implements: ["SR-018"],
       arguments: [],

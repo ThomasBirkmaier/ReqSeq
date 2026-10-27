@@ -41,6 +41,16 @@
             "enum": ["read", "write-files"],
             "description": "No command writes to Git (D-036). No command deletes elements (D-045)."
           },
+          "whileReadOnly": {
+            "enum": ["refuse", "allow"],
+            "description": "Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, #142)."
+          },
+          "whileReadOnlyReason": {
+            "type": "string",
+            "minLength": 10,
+            "pattern": "^[^\\n]+$",
+            "description": "Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`."
+          },
           "stage": {
             "type": "integer",
             "minimum": 1,
@@ -95,6 +105,11 @@
             "properties": { "type": { "const": "object" } },
             "description": "Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009)."
           }
+        },
+        "if": { "properties": { "effect": { "const": "write-files" } } },
+        "then": { "required": ["whileReadOnly", "whileReadOnlyReason"] },
+        "else": {
+          "not": { "anyOf": [{ "required": ["whileReadOnly"] }, { "required": ["whileReadOnlyReason"] }] }
         },
         "additionalProperties": false
       }

@@ -71,13 +71,6 @@ const toCommandError = (name: string, error: unknown, signal: AbortSignal): Comm
 };
 
 /**
- * Write commands that run without an open workspace: `workspace.init` creates one, so there is no
- * metamodel yet that could make it read-only. Interim list: the exemption belongs to the catalog
- * entry (ADR-0002 rule 5), and #142 replaces this list with a catalog field.
- */
-const CREATES_WORKSPACE: ReadonlySet<string> = new Set(["workspace.init"]);
-
-/**
  * Bind implementations to their catalog entries. Holds compiled schemas only, never workspace
  * state, so one runtime serves any number of workspaces. Throws a plain `Error` when an
  * implementation has no catalog entry or a name is registered twice (programming errors).
@@ -86,7 +79,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   const contracts = options.contracts ?? loadContracts();
   const validateOutput = options.validateOutput ?? process.env["LOGREQ_VALIDATE_OUTPUT"] === "1";
   const registry = new Map<string, AnyCommand>();
-  // Write commands that are refused while the workspace is read-only (SR-011 AK3).
+  // Write commands that are refused while the workspace is read-only (SR-011 AK3): the catalog
+  // entry says so with `whileReadOnly` (ADR-0002 rule 5); read commands have no such field.
   const guarded = new Set<string>();
   // Where the output of each command holds problems, from its output schema (#315); built on the
   // first call of the command, since a CLI process runs one (#319).
@@ -114,7 +108,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       return located.locator;
     });
     calls.set(command.name, { command: command.name, effect: entry.effect, subject: accessSubject(entry) });
-    if (entry.effect === "write-files" && !CREATES_WORKSPACE.has(command.name)) {
+    if (entry.whileReadOnly === "refuse") {
       guarded.add(command.name);
     }
   }

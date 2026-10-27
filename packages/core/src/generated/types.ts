@@ -948,6 +948,10 @@ export interface CommandCatalog {
     readonly summary: string;
     /** No command writes to Git (D-036). No command deletes elements (D-045). */
     readonly effect: "read" | "write-files";
+    /** Whether a `write-files` command runs while the workspace is read-only (a missing or faulty metamodel, SR-011 AK3): `refuse` gives `workspace.read-only` before the command runs, `allow` runs it (`workspace.init`, which creates the workspace). Required for `write-files`, not allowed for `read` (reads always run). Each command's SR decides; until then `refuse` (ADR-0002 rule 5, #142). */
+    readonly whileReadOnly?: "refuse" | "allow";
+    /** Why the command has its `whileReadOnly` value, in one line for the people who change it. Required with `whileReadOnly`. */
+    readonly whileReadOnlyReason?: string;
     /** Stage of D-035 in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];

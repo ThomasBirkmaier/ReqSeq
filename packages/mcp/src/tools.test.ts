@@ -105,6 +105,8 @@ describe("serverTools", () => {
         title: "Test command",
         summary: "A write command, never implemented here.",
         effect: "write-files",
+        whileReadOnly: "refuse",
+        whileReadOnlyReason: "A test write command.",
         stage: 2,
         implements: ["SR-080"],
         arguments: [],
