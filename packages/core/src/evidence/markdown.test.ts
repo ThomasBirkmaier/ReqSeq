@@ -4,7 +4,8 @@
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { parseDocument } from "yaml";
 import type { FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import type { MockInstance } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { outdatedEvidenceProblemsState } from "../hints/index.js";
 import { keyLinesOf } from "../model/index.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -99,6 +100,76 @@ const record = (extra = "", eol = "\n"): string =>
     "Text.",
     "",
   ].join(eol);
+
+/**
+ * The characters of `text` that the string methods which search or copy it scan while `run` runs:
+ * `indexOf` up to its match (or the end), `slice` and `substring` their part, and the whole text for
+ * `split`, `lastIndexOf` and `includes`. The spies call through; calls on other strings do not count
+ * (a spy may see its receiver boxed, so it is compared as a string).
+ */
+const scannedBy = (text: string, run: () => unknown): number => {
+  const proto = String.prototype;
+  const spies: StringSpies = {
+    indexOf: vi.spyOn(proto, "indexOf"),
+    slice: vi.spyOn(proto, "slice"),
+    substring: vi.spyOn(proto, "substring"),
+    whole: [vi.spyOn(proto, "split"), vi.spyOn(proto, "lastIndexOf"), vi.spyOn(proto, "includes")],
+  };
+  try {
+    run();
+    return scannedOf(text, spies);
+  } finally {
+    // After reading the calls: restoring a spy clears what it recorded.
+    for (const spy of [spies.indexOf, spies.slice, spies.substring, ...spies.whole]) {
+      spy.mockRestore();
+    }
+  }
+};
+
+/** The spies `scannedBy` sets on the string methods. */
+interface StringSpies {
+  readonly indexOf: MockInstance<typeof String.prototype.indexOf>;
+  readonly slice: MockInstance<typeof String.prototype.slice>;
+  readonly substring: MockInstance<typeof String.prototype.substring>;
+  /** `split`, `lastIndexOf`, `includes`: each call counts the whole text. */
+  readonly whole: readonly MockInstance[];
+}
+
+/** One recorded call on the counted text. */
+interface Call<A> {
+  readonly args: A;
+  readonly result: unknown;
+}
+
+/** What `scannedBy` counts, from the calls the spies recorded on `text`. */
+const scannedOf = (text: string, spies: StringSpies): number => {
+  const { length } = text;
+  /** Characters of the part from `a` to `b` (a negative index counts from the end, as `slice` does). */
+  const part = (a = 0, b = length): number => {
+    const at = (i: number): number => Math.min(length, i < 0 ? Math.max(0, length + i) : i);
+    return Math.max(0, at(b) - at(a));
+  };
+  const on = <A>(mock: { calls: A[]; contexts: unknown[]; results: { value: unknown }[] }): Call<A>[] =>
+    mock.calls.flatMap((args, i) =>
+      String(mock.contexts[i]) === text ? [{ args, result: mock.results[i]?.value }] : [],
+    );
+  let scanned = 0;
+  for (const { args, result } of on(spies.indexOf.mock)) {
+    const [search, from = 0] = args;
+    scanned += part(from, result === -1 ? length : Number(result) + search.length);
+  }
+  for (const { args } of on(spies.slice.mock)) {
+    scanned += part(...args);
+  }
+  for (const { args } of on(spies.substring.mock)) {
+    const [a, b = length] = args;
+    scanned += part(Math.min(a, b), Math.max(a, b));
+  }
+  for (const spy of spies.whole) {
+    scanned += on(spy.mock).length * length;
+  }
+  return scanned;
+};
 
 describe("SR-028 reading Markdown records", () => {
   it("[SR-028/AK1] reads every record in the evidence folders of the workspace file, nested folders included", async () => {
@@ -278,27 +349,15 @@ describe("SR-028 reading Markdown records", () => {
     expect(out.problems).toHaveLength(500);
     expect(out.problems?.map((p) => p.line)).toEqual(Array.from({ length: 500 }, (_, i) => 10 + i));
     // The line lookup alone: 20,000 unknown keys took 69 s with a search per key (review of #556).
-    // Linear: one record of 40,000 keys takes about as long as ten of 4,000, not the tenfold of a
-    // search per key. Same work on both sides and the shortest of five runs, so the bound holds on a
-    // loaded machine. (The YAML parse is the files block's; its duplicate key check is left out so
-    // the test measures the lookup only.)
-    const parsedKeys = (n: number): Parameters<typeof keyLinesOf>[0] => {
-      const frontmatter = `${keys(n)}\nextra-0: again\n`;
-      return { document: parseDocument(frontmatter, { uniqueKeys: false }), frontmatter };
-    };
-    const shortest = (file: Parameters<typeof keyLinesOf>[0], times: number): number =>
-      Math.min(
-        ...Array.from({ length: 5 }, () => {
-          const start = performance.now();
-          for (let i = 0; i < times; i++) {
-            keyLinesOf(file);
-          }
-          return performance.now() - start;
-        }),
-      );
-    const small = parsedKeys(4_000);
-    const large = parsedKeys(40_000);
-    expect(shortest(large, 1) / shortest(small, 10)).toBeLessThan(4);
+    // Linear: the characters of the frontmatter that string methods scan during one call stay within
+    // a small multiple of its length; a search per key scans thousands of times that. Counted, not
+    // timed, so the result does not depend on the load of the machine (#578). (The YAML parse is the
+    // files block's; its duplicate key check is left out so the test looks at the lookup only.)
+    const frontmatter = `${keys(40_000)}\nextra-0: again\n`;
+    const large = { document: parseDocument(frontmatter, { uniqueKeys: false }), frontmatter };
+    const scanned = scannedBy(frontmatter, () => keyLinesOf(large));
+    expect(scanned).toBeGreaterThanOrEqual(frontmatter.length);
+    expect(scanned).toBeLessThan(3 * frontmatter.length);
     const lines = keyLinesOf(large);
     expect(lines.get("extra-39999")).toBe(40_001);
     // A key written twice (no element file parses with one) keeps its first line.
