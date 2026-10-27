@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="1" skipped="1" tests="8" time="0.107" timestamp="2026-10-27T12:22:02.181431+00:00" hostname="vm"><testcase classname="test_sample" name="test_login_by_property" file="test_sample.py" line="3" time="0.001"><properties><property name="logreq:element" value="SR-46fb54" /></properties><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_add[1-2]" file="test_sample.py" line="8" time="0.001"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_add[3-4]" file="test_sample.py" line="8" time="0.000"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_named[SR-46fb54]" file="test_sample.py" line="13" time="0.000"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_named[SR-036]" file="test_sample.py" line="13" time="0.000"><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_fails" file="test_sample.py" line="18" time="0.001"><failure message="assert 1 == 2">def test_fails():
+        print("Prüfling läuft")
+&gt;       assert 1 == 2
+E       assert 1 == 2
+
+test_sample.py:21: AssertionError</failure><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+Prüfling läuft
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_skipped" file="test_sample.py" line="23" time="0.000"><skipped type="pytest.skip" message="not on this platform">/tmp/claude-0/-home-user/939c0a27-47b6-54d4-bac9-5e0b97f8f4f7/scratchpad/pyt/test_sample.py:24: not on this platform</skipped><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase><testcase classname="test_sample" name="test_error" file="test_sample.py" line="33" time="0.000"><error message="failed on setup with &quot;RuntimeError: setup &lt;failed&gt; &amp; stopped&quot;">@pytest.fixture
+    def broken():
+&gt;       raise RuntimeError("setup &lt;failed&gt; &amp; stopped")
+E       RuntimeError: setup &lt;failed&gt; &amp; stopped
+
+test_sample.py:31: RuntimeError</error><system-out>--------------------------------- Captured Log ---------------------------------
+
+--------------------------------- Captured Out ---------------------------------
+
+</system-out><system-err>--------------------------------- Captured Err ---------------------------------
+
+</system-err></testcase></testsuite></testsuites>

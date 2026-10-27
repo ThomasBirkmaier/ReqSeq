@@ -1,5 +1,6 @@
-// The `files` block (ADR-0007): reading and writing element and YAML files. The only module that
-// writes to disk. Core blocks import it relatively; it is not part of the package's public API.
+// The `files` block (ADR-0007): reading and writing element and YAML files, and scanning XML files
+// (ADR-0012). The only module that writes to disk. Core blocks import it relatively; it is not part
+// of the package's public API.
 export { findConflictMarker } from "./conflict-markers.js";
 export { createFolder } from "./folder.js";
 export { resolveInRoot } from "./paths.js";
@@ -42,3 +43,5 @@ export type { EditableYaml, YamlEditResult, YamlKeyEdit } from "./yaml-document.
 export { bodyForText, elementText } from "./text.js";
 export type { EditableFile, FileEditRequest, FileEditResult, FrontmatterEdit } from "./edit.js";
 export type { FlowMappingValue, ItemValue, PropertyValue, ScalarValue } from "./yaml-text.js";
+export { scanXml, xmlAttribute } from "./xml-scan.js";
+export type { XmlAttribute, XmlDocument, XmlElement, XmlRefusalReason, XmlScanOutcome } from "./xml-scan.js";
