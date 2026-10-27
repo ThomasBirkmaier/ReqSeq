@@ -971,6 +971,170 @@
         }
       }
     },
+    "/v1/commands/workspace.recent": {
+      "post": {
+        "operationId": "workspace_recent",
+        "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+        "tags": [
+          "workspace"
+        ],
+        "x-logreq-effect": "read",
+        "x-logreq-stage": 3,
+        "x-logreq-implements": [
+          "SR-131"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspaces": {
+                      "type": "array",
+                      "maxItems": 20,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "root": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "description": "The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml)."
+                          },
+                          "opened": {
+                            "$ref": "#/components/schemas/common/$defs/dateTime",
+                            "description": "When the app opened it last."
+                          },
+                          "exists": {
+                            "type": "boolean",
+                            "description": "Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false."
+                          }
+                        },
+                        "additionalProperties": false,
+                        "required": [
+                          "root",
+                          "opened",
+                          "exists"
+                        ]
+                      },
+                      "description": "The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/logreq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "workspaces"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Command error of class input (e.g. input.invalid), or a body that is not JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header not a loopback name with the port, or an Origin header (no browser access)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command error of class conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body larger than 32 MiB (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Command error of class internal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Command error of class not-implemented: a catalog command this version does not implement yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Command error of class unavailable (e.g. git.unavailable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/commands/metamodel.get": {
       "post": {
         "operationId": "metamodel_get",

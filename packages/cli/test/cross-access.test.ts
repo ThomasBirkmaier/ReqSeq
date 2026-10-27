@@ -18,7 +18,7 @@ import { startApiServer } from "@logreq/api";
 import type { Channel, IpcRendererLike } from "@logreq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
 import type { CatalogEntry, CommandName } from "@logreq/core";
-import { CommandError, Workspace, createCommandRuntime } from "@logreq/core";
+import { CommandError, Workspace, createCommandRuntime, rememberWorkspace } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
@@ -54,6 +54,11 @@ interface Scenario {
    * short ID) and its version are replaced by placeholders in the outcome and the files before comparing.
    */
   readonly newElement?: boolean;
+  /**
+   * Prepares state outside the copy before each access, with the same result every time (the list of
+   * recent workspaces in the OS cache folder, SR-131).
+   */
+  readonly prepare?: (copy: Copy) => Promise<void>;
 }
 
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
@@ -1374,6 +1379,23 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  // The list belongs to the user (`<OS cache>/logreq/recent-workspaces.json`), not to the workspace: the
+  // app records it, every access reads the same list (SR-131, SR-080 AK4).
+  "workspace.recent": [
+    {
+      name: "the recent workspaces, the last opened first, one gone and one without a workspace file",
+      tag: "[SR-131/AK1]",
+      input: {},
+      expect: "output",
+      prepare: async ({ top, root }) => {
+        const at = (minute: number): Date => new Date(Date.UTC(2026, 9, 27, 10, minute));
+        // A folder that held a workspace and is gone, and one inside the workspace without its own file.
+        await rememberWorkspace(path.join(top, "gone"), { now: at(1) });
+        await rememberWorkspace(path.join(root, "requirements"), { now: at(2) });
+        await rememberWorkspace(root, { now: at(3) });
+      },
+    },
+  ],
   "workspace.status": [
     { name: "one repository", input: {}, expect: "output" },
     {
@@ -1691,6 +1713,7 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
   const results: Record<string, Result> = {};
   for (const access of ACCESSES) {
     const { top, root } = shared ?? (await copy(scenario));
+    await scenario.prepare?.({ top, root });
     const input = { ...scenario.input };
     const outcome =
       access === "core"

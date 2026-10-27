@@ -37,6 +37,7 @@ import traceRelated from "./trace/related.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
+import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
 export const commands: readonly AnyCommand[] = [
@@ -71,5 +72,6 @@ export const commands: readonly AnyCommand[] = [
   workspaceActivity,
   workspaceCheck,
   workspaceInit,
+  workspaceRecent,
   workspaceStatus,
 ];

@@ -268,6 +268,53 @@
       }
     },
     {
+      "name": "workspace.recent",
+      "title": "List recent workspaces",
+      "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+      "effect": "read",
+      "stage": 3,
+      "implements": ["SR-131"],
+      "arguments": [],
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "workspaces": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "root": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "description": "The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml)."
+                },
+                "opened": {
+                  "$ref": "../common.schema.json#/$defs/dateTime",
+                  "description": "When the app opened it last."
+                },
+                "exists": {
+                  "type": "boolean",
+                  "description": "Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false."
+                }
+              },
+              "additionalProperties": false,
+              "required": ["root", "opened", "exists"]
+            },
+            "description": "The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/logreq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+          }
+        },
+        "additionalProperties": false,
+        "required": ["workspaces"]
+      }
+    },
+    {
       "name": "metamodel.get",
       "title": "Show metamodel",
       "summary": "The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.",

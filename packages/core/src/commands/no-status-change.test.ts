@@ -220,6 +220,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
   ],
+  "workspace.recent": [{}, { extra: true }],
   "workspace.status": [{}, { extra: true }],
 };
 

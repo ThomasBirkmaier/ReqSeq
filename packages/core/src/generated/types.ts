@@ -1152,6 +1152,28 @@ export interface WorkspaceActivityOutput {
 }
 
 /**
+ * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Schema: `schemas/commands/catalog.json workspace.recent input`.
+ */
+export type WorkspaceRecentInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `workspace.recent`. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Schema: `schemas/commands/catalog.json workspace.recent output`.
+ */
+export interface WorkspaceRecentOutput {
+  /** The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/logreq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
+  readonly workspaces: readonly {
+    /** The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml). */
+    readonly root: string;
+    /** When the app opened it last. */
+    readonly opened: IsoDateTime;
+    /** Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false. */
+    readonly exists: boolean;
+  }[];
+}
+
+/**
  * Input of `metamodel.get` as `run` gets it: validated, properties with a `default` filled in. The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.
  * Schema: `schemas/commands/catalog.json metamodel.get input`.
  */
@@ -2474,6 +2496,7 @@ export interface CommandTypes {
   readonly "workspace.status": { readonly input: WorkspaceStatusInput; readonly output: WorkspaceStatusOutput };
   readonly "workspace.check": { readonly input: WorkspaceCheckInput; readonly output: WorkspaceCheckOutput };
   readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
+  readonly "workspace.recent": { readonly input: WorkspaceRecentInput; readonly output: WorkspaceRecentOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };
