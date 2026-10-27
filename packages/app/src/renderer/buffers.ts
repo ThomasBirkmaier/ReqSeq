@@ -24,6 +24,12 @@ export interface ListBuffer {
    * workspace order (the order of the store). Else the keys as `element.list` takes them.
    */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
+  /**
+   * The list shows as a traceability matrix (SR-125, D-062): the same selection and sort, `trace.matrix`
+   * instead of `element.list`. A mode of the list buffer, not a buffer of its own; filtering, sorting and
+   * clearing a filter keep it.
+   */
+  readonly matrix?: true;
   /** Index of the selected row. */
   readonly cursor: number;
 }
@@ -110,6 +116,7 @@ const makeList = (
   steps: readonly FilterStep[],
   selection: ElementSelection | undefined,
   sort: readonly FilterSortKeyWithDefaults[] | undefined,
+  matrix: boolean,
 ): ListBuffer => ({
   kind: "list",
   key: LIST_KEY,
@@ -118,6 +125,7 @@ const makeList = (
   cursor: 0,
   ...(selection === undefined ? {} : { selection }),
   ...(sort === undefined ? {} : { sort }),
+  ...(matrix ? { matrix: true as const } : {}),
 });
 
 /** A list with one step: the selection under its label (or every element, without a selection). */
@@ -125,7 +133,8 @@ export const listBuffer = (
   label: string,
   selection?: ElementSelection,
   sort?: readonly FilterSortKeyWithDefaults[],
-): ListBuffer => makeList(label, selection === undefined ? [] : [{ label, selection }], selection, sort);
+): ListBuffer =>
+  makeList(label, selection === undefined ? [] : [{ label, selection }], selection, sort, false);
 
 /**
  * What the steps select together (SR-124 AK1): the conditions of all steps in order, one alone as it
@@ -146,17 +155,32 @@ export const selectionOf = (steps: readonly FilterStep[]): ElementSelection | un
   return Object.keys(selection).length === 0 ? undefined : selection;
 };
 
-/** The list the steps give: "All elements" without steps, else the step labels joined by " · ". */
+/**
+ * The list the steps give: "All elements" without steps, else the step labels joined by " · ". `matrix`
+ * keeps the matrix mode (SR-125): every action that rebuilds a list passes the mode of the list it came from.
+ */
 export const filteredList = (
   steps: readonly FilterStep[],
   sort?: readonly FilterSortKeyWithDefaults[],
+  matrix = false,
 ): ListBuffer =>
   makeList(
     steps.length === 0 ? "All elements" : steps.map((step) => step.label).join(" · "),
     steps,
     selectionOf(steps),
     sort,
+    matrix,
   );
+
+/** The buffer is a list in matrix mode (SR-125). */
+export const inMatrix = (buffer: Buffer | undefined): buffer is ListBuffer =>
+  buffer?.kind === "list" && buffer.matrix === true;
+
+/** The same list in matrix mode, or (`on` false) as a list; the row and everything else stay. */
+export const withMatrix = (list: ListBuffer, on: boolean): ListBuffer => {
+  const { matrix: _before, ...rest } = list;
+  return on ? { ...rest, matrix: true } : rest;
+};
 
 export const searchBuffer = (query: string): SearchBuffer => ({
   kind: "search",
@@ -267,7 +291,7 @@ export const sortLabel = (sort: readonly FilterSortKeyWithDefaults[] | undefined
 export const bufferName = (buffer: Buffer): string => {
   switch (buffer.kind) {
     case "list":
-      return `${buffer.label}${sortLabel(buffer.sort)}`;
+      return `${buffer.label}${sortLabel(buffer.sort)}${buffer.matrix === true ? " · matrix" : ""}`;
     case "search":
       return `Search: ${buffer.query}`;
     case "element":

@@ -18,6 +18,7 @@ import {
   onlyOverview,
   overviewBuffer,
   searchBuffer,
+  withMatrix,
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
@@ -31,6 +32,7 @@ import {
   textStep,
   typeStep,
 } from "./list-filters.js";
+import { packageSelection } from "./package-page.js";
 import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
@@ -114,6 +116,9 @@ const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
 /** Ctrl/Cmd+J shows the neighbourhood of the shown element (SR-107), and on the neighbourhood the element again. */
 const NEIGHBOURHOOD_SHORTCUT: Shortcut = { mod: true, shift: false, key: "j" };
 
+/** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
+const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
+
 /** The command prompt itself; it is not listed in itself. */
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
 
@@ -123,6 +128,7 @@ const currentList = (context: ActionContext): ListBuffer | undefined => {
 };
 
 const isList = (context: ActionContext): boolean => currentList(context) !== undefined;
+const isMatrix = (context: ActionContext): boolean => currentList(context)?.matrix === true;
 const isFiltered = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 0;
 const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
@@ -267,7 +273,10 @@ interface FilterBy {
 
 /** The list the steps of `list` give with one more, which keeps the sort. */
 const addStep = (context: ActionContext, list: ListBuffer, step: FilterStep): void => {
-  context.dispatch({ type: "open", buffer: filteredList([...list.steps, step], list.sort) });
+  context.dispatch({
+    type: "open",
+    buffer: filteredList([...list.steps, step], list.sort, list.matrix === true),
+  });
 };
 
 const filterBy = (by: FilterBy): Action => ({
@@ -473,7 +482,10 @@ export const ACTIONS: readonly Action[] = [
     title: "Clear list filter",
     available: isFiltered,
     run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: filteredList(list.steps.slice(0, -1), list.sort) });
+      context.dispatch({
+        type: "open",
+        buffer: filteredList(list.steps.slice(0, -1), list.sort, list.matrix === true),
+      });
     }),
   },
   {
@@ -481,7 +493,7 @@ export const ACTIONS: readonly Action[] = [
     title: "Clear all list filters",
     available: isChained,
     run: onList((context, list) => {
-      context.dispatch({ type: "open", buffer: filteredList([], list.sort) });
+      context.dispatch({ type: "open", buffer: filteredList([], list.sort, list.matrix === true) });
     }),
   },
   {
@@ -494,7 +506,7 @@ export const ACTIONS: readonly Action[] = [
       let apply: ((sort: readonly FilterSortKeyWithDefaults[]) => void) | undefined;
       if (list !== undefined) {
         apply = (sort) => {
-          context.dispatch({ type: "open", buffer: filteredList(list.steps, sort) });
+          context.dispatch({ type: "open", buffer: filteredList(list.steps, sort, list.matrix === true) });
         };
       } else if (page !== undefined) {
         // The package page stays the element buffer (editor and draft included): the same key replaces it.
@@ -506,6 +518,33 @@ export const ACTIONS: readonly Action[] = [
         context.ask({ label: "Sort by", items: sortChoices(apply) });
       }
     },
+  },
+  {
+    id: "matrix",
+    title: "Show traceability matrix",
+    shortcut: MATRIX_SHORTCUT,
+    available: (context: ActionContext): boolean =>
+      (isList(context) && !isMatrix(context)) || packagePage(context) !== undefined,
+    run: (context: ActionContext): void => {
+      const list = currentList(context);
+      const page = packagePage(context);
+      if (list !== undefined) {
+        context.dispatch({ type: "open", buffer: withMatrix(list, true) });
+      } else if (page !== undefined) {
+        // The members of the package as a list in matrix mode, in the sort of the page, as its list shows them.
+        const step = { label: `package: ${page.name}`, selection: packageSelection(page.id) };
+        context.dispatch({ type: "open", buffer: filteredList([step], page.memberSort, true) });
+      }
+    },
+  },
+  {
+    id: "matrix-list",
+    title: "Show as list",
+    shortcut: MATRIX_SHORTCUT,
+    available: isMatrix,
+    run: onList((context, list) => {
+      context.dispatch({ type: "open", buffer: withMatrix(list, false) });
+    }),
   },
   {
     id: "close",

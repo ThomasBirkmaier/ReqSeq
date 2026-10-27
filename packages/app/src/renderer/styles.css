@@ -1,8 +1,9 @@
 /* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer,
    the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
-   everything; one accent colour, for "outdated" only. Every colour is a token below with a light and a
-   dark value; the page follows the system (`color-scheme`), and the action "Toggle dark mode" sets
-   `data-theme` on the root. A rule uses a token, never a colour of its own (styles.test.ts). */
+   everything; one accent colour, for "outdated" and for a gap in the chain (D-062). Every colour is a
+   token below with a light and a dark value; the page follows the system (`color-scheme`), and the action
+   "Toggle dark mode" sets `data-theme` on the root. A rule uses a token, never a colour of its own
+   (styles.test.ts). */
 :root {
   color-scheme: light dark;
   --text: light-dark(#1f2328, #e6e8eb);
@@ -11,6 +12,7 @@
   --sheet: light-dark(#ffffff, #16181b);
   --select: light-dark(#eef0f2, #25292e);
   --accent-outdated: light-dark(#b54708, #f0883e);
+  --accent-gap: light-dark(#b54708, #f0883e);
   --shadow: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
   --line: 1.6rem;
   color: var(--text);
@@ -423,4 +425,94 @@ mark {
 .parents [role="link"]:hover,
 .parents [role="link"]:focus-visible {
   text-decoration: underline;
+}
+
+/* The traceability matrix (SR-125): a list in matrix mode. A borderless table on the sheet; the header
+   stays at the top and the element column at the left while it scrolls. Greys; the accent for the gaps
+   and for "outdated" (D-062: colour only for meaning). */
+.matrix table {
+  border-collapse: separate;
+  border-spacing: 0;
+  outline: none;
+}
+
+.matrix th,
+.matrix td {
+  padding: 0.1rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+  background: var(--sheet);
+}
+
+.matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 400;
+}
+
+.matrix th .name,
+.matrix th .count {
+  display: block;
+}
+
+.matrix th .count {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix th:first-child,
+.matrix td.element {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matrix thead th:first-child {
+  z-index: 3;
+}
+
+.matrix tr[aria-selected="true"] td {
+  background: var(--select);
+}
+
+.matrix .id {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix .target {
+  cursor: pointer;
+}
+
+.matrix .target:hover,
+.matrix .target.current {
+  text-decoration: underline;
+}
+
+.matrix .relation {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matrix .unavailable,
+.matrix .state {
+  color: var(--muted);
+}
+
+.matrix .outdated {
+  color: var(--accent-outdated);
+}
+
+.matrix .gap {
+  color: var(--accent-gap);
 }

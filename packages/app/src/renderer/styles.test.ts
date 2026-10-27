@@ -10,7 +10,16 @@ const read = (relative: string): string => fs.readFileSync(new URL(relative, imp
 const CSS = read("./styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
 const EDITOR = read("./editor/Editor.tsx");
 
-const TOKENS = ["text", "muted", "rule", "sheet", "select", "accent-outdated", "shadow"] as const;
+const TOKENS = [
+  "text",
+  "muted",
+  "rule",
+  "sheet",
+  "select",
+  "accent-outdated",
+  "accent-gap",
+  "shadow",
+] as const;
 
 /** The `:root` rule of styles.css: its declarations, and the rest of the file. */
 const root = ((): { readonly body: string; readonly rest: string } => {
@@ -58,7 +67,7 @@ const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|(?<![-\w])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|(?<![-\w])(?:white|black)(?![-\w])/i;
 
 describe("the colours of the sheet", () => {
-  it("has the seven tokens, each with a light and a dark value", () => {
+  it("has the eight tokens, each with a light and a dark value", () => {
     for (const name of TOKENS) {
       const both = values(name);
       expect(both.light, name).not.toBe("");
@@ -71,7 +80,7 @@ describe("the colours of the sheet", () => {
     (scheme) => {
       const at = (name: string): string => values(name)[scheme];
       for (const ground of [at("sheet"), at("select")]) {
-        for (const name of ["text", "muted", "accent-outdated"]) {
+        for (const name of ["text", "muted", "accent-outdated", "accent-gap"]) {
           expect(ratio(at(name), ground), `${name} on ${ground}`).toBeGreaterThanOrEqual(4.5);
         }
       }
@@ -133,6 +142,16 @@ const ruleOf = (selector: string): string => {
   }
   return at;
 };
+
+describe("the traceability matrix (SR-125)", () => {
+  it("[SR-125/AK3] marks a gap in the accent colour, by a token, and the outdated and missing marks as the element view does", () => {
+    expect(ruleOf(".matrix .gap")).toMatch(/color:\s*var\(--accent-gap\);/);
+    expect(ruleOf(".matrix .outdated")).toMatch(/color:\s*var\(--accent-outdated\);/);
+    expect(ruleOf(".matrix .unavailable, .matrix .state")).toMatch(/color:\s*var\(--muted\);/);
+    // The gap is the accent colour of "outdated": one accent in both schemes (D-062).
+    expect(values("accent-gap")).toEqual(values("accent-outdated"));
+  });
+});
 
 describe("the copy symbol of a field (SR-128)", () => {
   it("[SR-128/AK1] is hidden, and seen only while the pointer is over the field or the focus is in it", () => {

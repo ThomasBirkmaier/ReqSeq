@@ -16,6 +16,7 @@ import {
   searchBuffer,
   selectionOf,
   sortLabel,
+  withMatrix,
 } from "./buffers.js";
 import type { Buffers, FilterStep } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
@@ -245,5 +246,17 @@ describe("the steps of a list filter (SR-124)", () => {
     const selection = { where: { type: ["need"] } };
     expect(listBuffer("type: need", selection).steps).toEqual([{ label: "type: need", selection }]);
     expect(filteredList([{ label: "type: need", selection }])).toEqual(listBuffer("type: need", selection));
+  });
+});
+
+describe("the matrix mode of a list (SR-125)", () => {
+  it("[SR-125/AK1] is a flag of the one list buffer: opening it replaces the list in place, and the cursor keeps the flag", () => {
+    const open = reduceBuffers([a, list], { type: "open", buffer: withMatrix({ ...list, cursor: 3 }, true) });
+    expect(open.map((buffer) => buffer.key)).toEqual([list.key, a.key]);
+    expect(open[0]).toEqual({ ...list, cursor: 3, matrix: true });
+    const moved = reduceBuffers(open, { type: "cursor", key: list.key, cursor: 5 });
+    expect(moved[0]).toEqual({ ...list, cursor: 5, matrix: true });
+    expect(withMatrix(withMatrix(list, true), false)).toEqual(list);
+    expect(withMatrix(list, false)).not.toHaveProperty("matrix");
   });
 });

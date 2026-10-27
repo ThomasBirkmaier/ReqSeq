@@ -19,6 +19,7 @@ import {
   neighbourhoodBuffer,
   overviewBuffer,
   searchBuffer,
+  withMatrix,
 } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
@@ -112,6 +113,7 @@ describe("the command prompt", () => {
       "Filter list by text search",
       "Filter list by saved filter",
       "Sort list",
+      "Show traceability matrix",
       "Close buffer",
       "Close all buffers",
       "Toggle dark mode",
@@ -199,6 +201,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
       undefined,
+      "Ctrl+T",
       undefined,
       undefined,
       undefined,
@@ -793,6 +796,8 @@ describe("save element and edit text", () => {
       setup([element]).context,
       setup([list]).context,
       setup([filtered]).context,
+      // The matrix (SR-125): the list in matrix mode (a package page above offers it too).
+      setup([withMatrix(filtered, true)]).context,
       setup([overviewBuffer()]).context,
       setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
       setup([], {}, true).context,

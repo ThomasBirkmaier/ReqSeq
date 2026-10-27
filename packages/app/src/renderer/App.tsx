@@ -10,7 +10,7 @@ import { COMMAND_SHORTCUT, actionFor, commandPrompt, referencePrompt, runAction 
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer, ElementBuffer } from "./buffers.js";
-import { elementBufferOf, overviewBuffer, reduceBuffers } from "./buffers.js";
+import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import type { MarkdownProperties } from "./element-view.js";
@@ -18,6 +18,8 @@ import { markdownProperties } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
 import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
+import type { ListViewProps } from "./ListView.js";
+import { MatrixView } from "./MatrixView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
@@ -57,6 +59,21 @@ const modelineParts = (
     typeNames,
   );
 };
+
+/** A list or a search result as rows, or (a list in matrix mode, SR-125) as the traceability matrix. */
+const ListOrMatrix = (props: ListViewProps): React.JSX.Element =>
+  inMatrix(props.buffer) ? (
+    <MatrixView
+      call={props.call}
+      buffer={props.buffer}
+      revision={props.revision}
+      dispatch={props.dispatch}
+      onData={props.onData}
+      onEcho={props.onEcho}
+    />
+  ) : (
+    <ListView {...props} />
+  );
 
 export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
@@ -231,12 +248,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   }, [ask]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
-  // the action of the prompt put it into the buffer already (the text editor).
+  // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
+  // list in place (one key), so the mode is a reason to look for the focus too (Ctrl+T has no prompt).
   useEffect(() => {
     if (prompt === undefined && sheet.current?.contains(document.activeElement) !== true) {
       sheet.current?.querySelector<HTMLElement>("[data-buffer]")?.focus();
     }
-  }, [prompt, current?.key]);
+  }, [prompt, current?.key, inMatrix(current)]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements.
   useEffect(() => {
@@ -316,7 +334,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onEcho={setEcho}
           />
         ) : (
-          <ListView
+          <ListOrMatrix
             call={call}
             buffer={current}
             revision={revision}
