@@ -2,8 +2,9 @@
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
 import type { DataExportElement } from "@logreq/core";
 import type { InvokeResult } from "../shared/protocol.js";
-import type { Buffer, ElementBuffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
+import { depthLabel, filterLabel } from "./graph.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
 interface StatusOutput {
@@ -54,6 +55,12 @@ export type BufferData =
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
   | { readonly kind: "result"; readonly total: number | undefined }
+  | {
+      readonly kind: "graph";
+      readonly nodes: number;
+      readonly truncated: boolean;
+      readonly incomplete: boolean;
+    }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
 /**
@@ -104,6 +111,22 @@ const elementParts = (
 };
 
 /**
+ * The parts for a graph (SR-111): its name, the depth, the kinds followed (only when some are chosen),
+ * the number of nodes, "more not shown" when `trace.graph` left some out, and "incomplete".
+ */
+const graphParts = (buffer: GraphBuffer, data: Extract<BufferData, { readonly kind: "graph" }>): string[] => {
+  const filter = filterLabel(buffer);
+  return [
+    bufferName(buffer),
+    depthLabel(buffer.depth),
+    ...(filter === undefined ? [] : [filter]),
+    plural(data.nodes, "node"),
+    ...(data.truncated ? ["more not shown"] : []),
+    ...(data.incomplete ? [INCOMPLETE] : []),
+  ];
+};
+
+/**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
  * something. Values are the output's as they are: nothing is computed about a status. An element is
  * named by its ID, its type by its name in the metamodel (else by its key) and its status, in one part
@@ -125,6 +148,10 @@ export const bufferView = (
   }
   if (data.kind === "result") {
     return [bufferName(buffer), ...(data.total === undefined ? [] : [`${String(data.total)} in all`])];
+  }
+  if (data.kind === "graph") {
+    // Data of a graph belongs to a graph buffer; anything else is named only.
+    return buffer.kind === "graph" ? graphParts(buffer, data) : [bufferName(buffer)];
   }
   return [
     bufferName(buffer),

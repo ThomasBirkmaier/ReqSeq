@@ -13,6 +13,7 @@ import {
   bufferName,
   elementBuffer,
   filteredList,
+  graphBuffer,
   listBuffer,
   neighbourhoodBuffer,
   onlyOverview,
@@ -149,6 +150,12 @@ const ADD_PROPERTY_SHORTCUT: Shortcut = { mod: true, shift: false, alt: true, ke
 /** Ctrl/Cmd+J shows the neighbourhood of the shown element (SR-107), and on the neighbourhood the element again. */
 const NEIGHBOURHOOD_SHORTCUT: Shortcut = { mod: true, shift: false, key: "j" };
 
+/**
+ * Ctrl/Cmd+Shift+G shows the graph of the shown element (SR-111), and on the graph the element again.
+ * Not Ctrl/Cmd+G: Ctrl+G is the Emacs keyboard-quit (SR-121) and stays free.
+ */
+export const GRAPH_SHORTCUT: Shortcut = { mod: true, shift: true, key: "g" };
+
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
 const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
 
@@ -166,6 +173,7 @@ const isFiltered = (context: ActionContext): boolean => (currentList(context)?.s
 const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
 const isNeighbourhood = (context: ActionContext): boolean => context.buffers[0]?.kind === "neighbourhood";
+const isGraph = (context: ActionContext): boolean => context.buffers[0]?.kind === "graph";
 /** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
 const packagePage = (context: ActionContext): ElementBuffer | undefined => {
   const shown = context.buffers[0];
@@ -711,6 +719,33 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const current = context.buffers[0];
       if (current?.kind === "neighbourhood") {
+        showBuffer(context, elementBuffer(current.id, current.repository, current.name));
+      }
+    },
+  },
+  {
+    // The title of `trace.graph` in the catalog; it covers that command, so the command prompt lists it
+    // once and its output opens the graph buffer, never a result buffer (ADR-0002).
+    id: "graph",
+    title: "Show graph",
+    shortcut: GRAPH_SHORTCUT,
+    covers: ["trace.graph"],
+    available: (context: ActionContext): boolean => isElement(context) || isNeighbourhood(context),
+    run: (context: ActionContext): void => {
+      const current = context.buffers[0];
+      if (current?.kind === "element" || current?.kind === "neighbourhood") {
+        showBuffer(context, graphBuffer(current.id, current.repository, current.name));
+      }
+    },
+  },
+  {
+    id: "graph-back",
+    title: "Show element",
+    shortcut: GRAPH_SHORTCUT,
+    available: isGraph,
+    run: (context: ActionContext): void => {
+      const current = context.buffers[0];
+      if (current?.kind === "graph") {
         showBuffer(context, elementBuffer(current.id, current.repository, current.name));
       }
     },

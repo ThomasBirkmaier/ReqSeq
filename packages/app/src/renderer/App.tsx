@@ -17,13 +17,14 @@ import {
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
-import type { Buffer, ElementBuffer, OverviewBuffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, GraphBuffer, OverviewBuffer } from "./buffers.js";
 import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
+import { GraphView } from "./GraphView.js";
 import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
 import type { ListViewProps } from "./ListView.js";
@@ -70,8 +71,12 @@ const modelineParts = (
   );
 };
 
+/** The minibuffer's line: the last message, else why no workspace is open. */
+const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
+  echo === "" ? (view?.message ?? "") : echo;
+
 /** The buffers whose view loads its own data from the same props: lists, search results, neighbourhoods and results. */
-type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer>;
+type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer>;
 
 /**
  * The view of such a buffer: a list or a search result as rows, or (a list in matrix mode, SR-125) as the
@@ -384,6 +389,17 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             dispatch={dispatch}
             onData={onData}
           />
+        ) : current.kind === "graph" ? (
+          <GraphView
+            key={current.key}
+            call={call}
+            buffer={current}
+            revision={revision}
+            dispatch={dispatch}
+            onData={onData}
+            onEcho={setEcho}
+            typeNames={typeNames}
+          />
         ) : (
           <LoadingView
             call={call}
@@ -404,7 +420,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         notice={notice}
       />
       <Minibuffer
-        echo={echo === "" ? (view?.message ?? "") : echo}
+        echo={echoLine(echo, view)}
         prompt={prompt}
         onCommand={() => {
           if (latest.current.workspace) {

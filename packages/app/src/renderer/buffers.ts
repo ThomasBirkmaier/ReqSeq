@@ -5,6 +5,7 @@ import type {
   DataExportRelation,
   ElementSelection,
   FilterSortKeyWithDefaults,
+  TraceGraphInput,
 } from "@logreq/core";
 import { hasSavedFilter } from "./list-filters.js";
 
@@ -106,8 +107,37 @@ export interface ResultBuffer {
   readonly cursor: number;
 }
 
+/** How far a graph goes from its element: a number of levels, or the whole chain (SR-111 AK2). */
+export type GraphDepth = number | "all";
+
+/**
+ * The graph of one element (SR-111, D-063): the element and what hangs on it, in layers. The buffer holds
+ * the input of `trace.graph` (the element, the depth, the kinds and meanings followed, the view); the app
+ * only adds the size limit. `repository` and `id` identify the element as in `ElementBuffer`.
+ */
+export interface GraphBuffer {
+  readonly kind: "graph";
+  readonly key: string;
+  readonly id: string;
+  readonly repository: string;
+  /** "<identifier or short ID> <title>" of the element. */
+  readonly name: string;
+  readonly depth: GraphDepth;
+  readonly kinds?: TraceGraphInput["kinds"];
+  readonly meanings?: TraceGraphInput["meanings"];
+  readonly view?: TraceGraphInput["view"];
+  /** The selected node as `<repository>:<id>`; not set: the element. */
+  readonly selected?: string;
+}
+
 export type Buffer =
-  ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer | NeighbourhoodBuffer | ResultBuffer;
+  | ListBuffer
+  | SearchBuffer
+  | ElementBuffer
+  | OverviewBuffer
+  | NeighbourhoodBuffer
+  | ResultBuffer
+  | GraphBuffer;
 
 /** Open buffers, the most recent first; the first one is shown. */
 export type Buffers = readonly Buffer[];
@@ -122,7 +152,9 @@ export type BufferAction =
   /** The workspace was opened: only `buffer` is open, or none. */
   | { readonly type: "reset"; readonly buffer?: Buffer }
   /** The selected row of a list or search buffer, or of the elements of a package page. */
-  | { readonly type: "cursor"; readonly key: string; readonly cursor: number };
+  | { readonly type: "cursor"; readonly key: string; readonly cursor: number }
+  /** The selected node of a graph, as `<repository>:<id>`. */
+  | { readonly type: "select"; readonly key: string; readonly node: string };
 
 /** The most buffers kept; the least recent one goes first. */
 export const MAX_BUFFERS = 30;
@@ -257,6 +289,16 @@ export const resultBuffer = (
   cursor: NO_ROW,
 });
 
+/** The graph of an element, the direct neighbours over every kind (SR-111 AK2: the depth starts at 1). */
+export const graphBuffer = (id: string, repository: string, name: string): GraphBuffer => ({
+  kind: "graph",
+  key: `graph:${repository}:${id}`,
+  id,
+  repository,
+  name,
+  depth: 1,
+});
+
 /** The buffer of an element as a list row, a hit or a read element shows it. */
 export const elementBufferOf = (element: {
   readonly id: string;
@@ -352,6 +394,8 @@ export const bufferName = (buffer: Buffer): string => {
       return `Neighbourhood: ${buffer.name}`;
     case "result":
       return buffer.name;
+    case "graph":
+      return `Graph: ${buffer.name}`;
   }
 };
 
@@ -387,12 +431,16 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       return action.buffer === undefined ? [] : [action.buffer];
     case "cursor":
       return buffers.map((buffer) => {
-        if (buffer.key !== action.key) {
+        if (buffer.key !== action.key || buffer.kind === "graph") {
           return buffer;
         }
         return buffer.kind === "element"
           ? { ...buffer, memberCursor: action.cursor }
           : { ...buffer, cursor: action.cursor };
       });
+    case "select":
+      return buffers.map((buffer) =>
+        buffer.key === action.key && buffer.kind === "graph" ? { ...buffer, selected: action.node } : buffer,
+      );
   }
 };

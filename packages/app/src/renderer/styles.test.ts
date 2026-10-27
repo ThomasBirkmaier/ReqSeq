@@ -14,6 +14,7 @@ const TOKENS = [
   "text",
   "muted",
   "rule",
+  "edge",
   "sheet",
   "select",
   "accent-outdated",
@@ -67,7 +68,7 @@ const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|(?<![-\w])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(|(?<![-\w])(?:white|black)(?![-\w])/i;
 
 describe("the colours of the sheet", () => {
-  it("has the eight tokens, each with a light and a dark value", () => {
+  it("has the nine tokens, each with a light and a dark value", () => {
     for (const name of TOKENS) {
       const both = values(name);
       expect(both.light, name).not.toBe("");
@@ -174,5 +175,26 @@ describe("the copy symbol of a field (SR-128)", () => {
     expect(ruleOf(".element .field")).toMatch(/position:\s*relative;/);
     // A hit area of about 20 px: 1.5rem of the 14 px root.
     expect(ruleOf(".copy")).toMatch(/width:\s*1\.5rem;[\s\S]*height:\s*1\.5rem;/);
+  });
+});
+
+describe("the links of the graph", () => {
+  it.each(["light", "dark"] as const)(
+    "[SR-111] draws the links of the graph visibly on the sheet: 3:1 (WCAG 1.4.11), derivations darker (%s)",
+    (scheme) => {
+      const at = (name: string): string => values(name)[scheme];
+      expect(ratio(at("edge"), at("sheet"))).toBeGreaterThanOrEqual(3);
+      expect(ratio(at("muted"), at("sheet"))).toBeGreaterThan(ratio(at("edge"), at("sheet")));
+      expect(ruleOf(".graph-edge")).toMatch(/stroke:\s*var\(--edge\);/);
+      expect(ruleOf(".graph-edge.derivation")).toMatch(/stroke:\s*var\(--muted\);/);
+      expect(ruleOf(".graph-edge.reference")).toMatch(/stroke-dasharray:/);
+    },
+  );
+
+  it("[SR-111] keeps the accent on an outdated link, also on a link of the selected box", () => {
+    expect(ruleOf(".graph-edge.outdated")).toMatch(/stroke:\s*var\(--accent-outdated\);/);
+    expect(ruleOf(".graph-edge.selected")).toMatch(/stroke:\s*var\(--text\);/);
+    // Same specificity: the later rule wins.
+    expect(CSS.indexOf(".graph-edge.outdated {")).toBeGreaterThan(CSS.indexOf(".graph-edge.selected {"));
   });
 });

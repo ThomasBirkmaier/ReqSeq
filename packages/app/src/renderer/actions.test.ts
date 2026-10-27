@@ -16,6 +16,7 @@ import {
   filteredList,
   listBuffer,
   listSort,
+  graphBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
   searchBuffer,
@@ -158,6 +159,7 @@ describe("the command prompt", () => {
       "Clear property",
       "Show element ID and version",
       "Show neighbourhood",
+      "Show graph",
       "Toggle dark mode",
     ]);
     expect(items.map((item) => item.hint)).toEqual([
@@ -175,6 +177,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
       "Ctrl+J",
+      "Ctrl+Shift+G",
       undefined,
     ]);
     expect(commandPrompt({ ...element$.context, mac: true }).items[6]?.hint).toBe("⌘S");
@@ -962,6 +965,8 @@ describe("save element and edit text", () => {
       setup([withMatrix(filtered, true)]).context,
       setup([overviewBuffer()]).context,
       setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
+      // The graph (SR-111): Ctrl/Cmd+Shift+G back to the element.
+      setup([graphBuffer("uuid", "spec", "X")]).context,
       setup([], {}, true).context,
     ];
     // Shortcuts as written: `shift` may be left out.

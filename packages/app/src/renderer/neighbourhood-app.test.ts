@@ -39,9 +39,16 @@ const query = (selector: string): HTMLElement => {
   return found;
 };
 
-const keyDown = async (target: EventTarget, key: string, ctrlKey = false): Promise<void> => {
+const keyDown = async (
+  target: EventTarget,
+  key: string,
+  ctrlKey = false,
+  shiftKey = false,
+): Promise<void> => {
   await act(async () => {
-    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ctrlKey }));
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ctrlKey, shiftKey }),
+    );
     await Promise.resolve();
   });
   await flush();
@@ -133,6 +140,23 @@ const bridge = (): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } =>
       element: ELEMENTS.find((candidate) => candidate.id === input["ref"]),
     }),
     "trace.neighbourhood": neighbourhood,
+    // The graph of the need (SR-111): its two requirements below it.
+    "trace.graph": () => ({
+      root: "uuid-1",
+      nodes: [
+        { ...node(NEED, 0), level: 0, marks: [] },
+        { ...node(SPEED, 1), level: 1, marks: ["no-evidence"] },
+        { ...node(DIRECTION, 1), level: 1, marks: [] },
+      ].map(
+        ({ depth: _depth, text: _text, properties: _properties, relations: _relations, ...rest }) => rest,
+      ),
+      edges: [edge("uuid-2", "uuid-1"), edge("uuid-3", "uuid-1")].map(
+        ({ direction: _direction, cyclic: _cyclic, repeated: _repeated, ...rest }) => rest,
+      ),
+      truncated: false,
+      incomplete: false,
+      problems: [],
+    }),
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve({ ok: true, output: handlers[name]?.(input) }),
@@ -202,5 +226,32 @@ describe("the neighbourhood in the app", () => {
     await keyDown(query(".neighbourhood"), "ArrowDown");
     await keyDown(query(".neighbourhood"), "Enter");
     expect(query("article h1").textContent).toBe("Show wind direction");
+  });
+});
+
+describe("the graph in the app", () => {
+  it("[SR-111/AK1] shows the graph of the element with Ctrl+Shift+G, with the type names, and goes back the same way", async () => {
+    const fake = await open();
+    await keyDown(window, "p", true);
+    await type("N-001");
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("See the wind");
+    await keyDown(window, "G", true, true);
+    expect(fake.invoke).toHaveBeenCalledWith("trace.graph", {
+      ref: "uuid-1",
+      repository: "spec",
+      maxDepth: 1,
+      limit: 500,
+    });
+    expect(document.activeElement).toBe(query(".graph"));
+    expect([...container.querySelectorAll(".graph-node .graph-id")].map((id) => id.textContent)).toEqual([
+      "N-001 · Need",
+      "SR-001 · Need",
+      "SR-002 · Need",
+    ]);
+    expect(query('[aria-label="Modeline"]').textContent).toContain("Graph: N-001 See the wind");
+    expect(query('[aria-label="Modeline"]').textContent).toContain("3 nodes");
+    await keyDown(window, "G", true, true);
+    expect(query("article h1").textContent).toBe("See the wind");
   });
 });

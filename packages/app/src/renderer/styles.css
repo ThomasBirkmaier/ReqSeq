@@ -9,6 +9,7 @@
   --text: light-dark(#1f2328, #e6e8eb);
   --muted: light-dark(#656d76, #9198a1);
   --rule: light-dark(#e6e8eb, #30363d);
+  --edge: light-dark(#8c959f, #6e7681);
   --sheet: light-dark(#ffffff, #16181b);
   --select: light-dark(#eef0f2, #25292e);
   --accent-outdated: light-dark(#b54708, #f0883e);
@@ -553,4 +554,130 @@ mark {
 
 .matrix .gap {
   color: var(--accent-gap);
+}
+
+/* The graph (SR-111, D-063): boxes in layers over soft curves on the white sheet, no grid, no legend, no
+   controls. A box has the size `graph-layout.ts` places it with (224 × 86 px): a line with the ID and the
+   type, the title on at most two lines, and a line with the marks at the bottom, so neither the ID nor
+   the type is ever cut. The element has a dark border (AK1), the selected box the background of a
+   selected row and, when it is not the element, a grey border. Links are grey (`--edge`, visible on the
+   sheet; derivations darker), inline references dashed; the links of the selected box are drawn in the
+   text colour when some other link is drawn, and outdated links always in the accent. The sheet has half
+   a view of room on every side, so the view can open on any box. */
+.graph-sheet {
+  position: relative;
+}
+
+.graph-canvas {
+  position: absolute;
+  top: 50vh;
+  left: 50vw;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.graph-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+}
+
+.graph-edge.derivation {
+  stroke: var(--muted);
+}
+
+.graph-edge.reference {
+  stroke-dasharray: 5 4;
+}
+
+.graph-edge.selected {
+  stroke: var(--text);
+}
+
+/* After `.selected`: an outdated link keeps the accent, also when it is a link of the selected box. */
+.graph-edge.outdated {
+  stroke: var(--accent-outdated);
+}
+
+.graph-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--sheet);
+  cursor: default;
+}
+
+.graph-node.root {
+  padding: 5px 7px;
+  border: 2px solid var(--text);
+}
+
+.graph-node[aria-selected="true"] {
+  background: var(--select);
+}
+
+.graph-node[aria-selected="true"]:not(.root) {
+  border-color: var(--muted);
+}
+
+.graph-id,
+.graph-marks {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  height: 16px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.graph-id {
+  display: block;
+  margin-bottom: 2px;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-marks {
+  margin-top: auto;
+}
+
+.graph-marks .outdated {
+  color: var(--accent-outdated);
+}
+
+.graph-marks .gap {
+  color: var(--accent-gap);
+}
+
+.graph-title {
+  display: -webkit-box;
+  flex: none;
+  max-height: 36px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.graph-node.root .graph-title {
+  font-weight: 700;
+}
+
+.graph-node.superseded .graph-title {
+  color: var(--muted);
+  text-decoration: line-through;
 }

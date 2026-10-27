@@ -142,6 +142,12 @@ describe("catalog commands in the command prompt", () => {
     expect(offered.has("Show relation options")).toBe(true);
   });
 
+  it("lists trace.graph only as the action that opens the graph buffer, whatever its title", () => {
+    const { context } = setup([list]);
+    expect(catalogItems(context, [{ ...command("trace.graph"), title: "Graph it" }], ACTIONS)).toEqual([]);
+    expect(catalogItems(context, [{ ...command("trace.graph"), title: "Graph it" }], [])).toHaveLength(1);
+  });
+
   it("gives no two equal names in the prompt", () => {
     const { context } = setup([shown]);
     const names = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items.map(
