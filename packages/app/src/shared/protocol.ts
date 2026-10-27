@@ -8,6 +8,15 @@ import type { CatalogEntry, CommandErrorObject } from "@logreq/core";
 /** Main to preload: the workspace of the window, with the port to its core process when one is open. */
 export const WORKSPACE_CHANNEL = "logreq:workspace";
 
+/**
+ * Renderer to main: the text to put on the system clipboard (SR-128). The one channel from the renderer
+ * to the main process; `ipcMain.handle` answers `true` when the text was copied, else `false`.
+ */
+export const COPY_CHANNEL = "logreq:copy";
+
+/** The longest text the main process copies, in characters (16 Mi). */
+export const MAX_COPY_LENGTH = 16 * 1024 * 1024;
+
 /** Why the workspace of the window changed (`window.logreq.on("workspace-changed", ...)`). */
 export type WorkspaceChangeReason =
   /** Another workspace was opened (File > Open Workspace). */
@@ -50,6 +59,12 @@ export interface LogReqBridge {
   commands(): Promise<readonly CommandListing[]>;
   /** Calls `listener` whenever the workspace changed; returns the function that unsubscribes it. */
   on(event: "workspace-changed", listener: (change: WorkspaceChange) => void): () => void;
+  /**
+   * Puts `text` on the system clipboard (SR-128); resolves `false` when it could not, never rejects. A
+   * facility of the window like the theme, so it is no catalog command (CLI, API and MCP give the values
+   * with `element get`).
+   */
+  copyText(text: string): Promise<boolean>;
 }
 
 /** Renderer to core process, over the port. */

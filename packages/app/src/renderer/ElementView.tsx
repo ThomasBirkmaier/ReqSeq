@@ -9,7 +9,8 @@ import type { ElementControls } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { relationBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
-import { outdatedReferences, propertyBoxes, relationGroups } from "./element-view.js";
+import { NOTHING, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
+import { outdatedReferences, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -19,6 +20,7 @@ import { afterSave, dirty, saveInput } from "./editor/save.js";
 import { slashMenu } from "./editor/slash-menu.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Draft } from "./drafts.js";
+import { FieldBox } from "./FieldBox.js";
 import { ListView } from "./ListView.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
@@ -32,6 +34,8 @@ export interface ElementViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** A field is copied (SR-128): its name and its value as text; the app puts it on the clipboard. */
+  readonly onCopy: (label: string, text: string) => void;
   /** A relation target is opened: its element buffer, by UUID and repository (#416). */
   readonly onOpenRelation: (target: ElementBuffer) => void;
   /**
@@ -62,6 +66,10 @@ type View =
   | { readonly status: "error"; readonly message: string }
   | { readonly status: "ok"; readonly element: DataExportElement };
 
+/** A key press is for the buffer when its target is the buffer, or a field that has the focus itself (SR-128). */
+const forBuffer = (target: EventTarget, buffer: EventTarget): boolean =>
+  target === buffer || (target instanceof HTMLElement && target.matches(".field[tabindex]"));
+
 const Relation = ({
   relation,
   onOpenRelation,
@@ -70,7 +78,7 @@ const Relation = ({
   readonly onOpenRelation: (target: ElementBuffer) => void;
 }): React.JSX.Element => {
   const target = relation.targetState === "available" ? relationBuffer(relation) : undefined;
-  const label = `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim();
+  const label = relationLabel(relation);
   return (
     <li className={target !== undefined ? "relation" : "relation unavailable"}>
       {target !== undefined ? (
@@ -105,6 +113,7 @@ export const ElementView = ({
   revision,
   onData,
   onEcho,
+  onCopy,
   onOpenTarget,
   onOpenRelation,
   onPickElement,
@@ -139,12 +148,32 @@ export const ElementView = ({
     onData,
     onDraft,
     onEcho,
+    onCopy,
     onOpenTarget,
     onPickElement,
     readOnly,
     handle,
   });
-  now.current = { buffer, call, onData, onDraft, onEcho, onOpenTarget, onPickElement, readOnly, handle };
+  now.current = {
+    buffer,
+    call,
+    onData,
+    onDraft,
+    onEcho,
+    onCopy,
+    onOpenTarget,
+    onPickElement,
+    readOnly,
+    handle,
+  };
+  // The fields of the element (SR-128), and the field the focus was in last, which "Copy field" from the
+  // command prompt needs: it runs while the prompt has the focus.
+  const fields = useRef(NOTHING);
+  fields.current = view.status === "ok" ? copyable(view.element, () => docOf(now.current.handle)) : NOTHING;
+  const lastField = useRef<string | undefined>(undefined);
+  const copy = (label: string | undefined): void => {
+    copyField(fields.current, label, now.current.onCopy);
+  };
 
   // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
   // editor is configured again only when the hints about the text change.
@@ -277,6 +306,9 @@ export const ElementView = ({
         handle.focus("end");
       },
       members: packageModel !== undefined,
+      copy: () => {
+        copy(cursorField(document.activeElement, lastField.current));
+      },
       follow: () => {
         const state = handle.state();
         const reference = referenceAt(state, state.selection.main.head);
@@ -299,16 +331,20 @@ export const ElementView = ({
       data-buffer=""
       tabIndex={0}
       ref={setArticle}
+      onFocus={(event) => {
+        lastField.current = event.target.closest<HTMLElement>("[data-field]")?.dataset["field"];
+      }}
       onKeyDown={(event) => {
         // Enter on the buffer itself edits the text; Escape in the editor comes back here. Enter with a
         // modifier is a shortcut ("Follow reference") and goes on to the window. Keys of a control inside
-        // the buffer (the editor, the list of a package page) are not for the buffer.
+        // the buffer (the editor, the list of a package page) are not for the buffer. A field that has
+        // the focus itself (the title, a box: SR-128) is the buffer as well.
         const plain =
           !event.ctrlKey &&
           !event.metaKey &&
           !event.altKey &&
           !event.shiftKey &&
-          event.target === event.currentTarget;
+          forBuffer(event.target, event.currentTarget);
         if (plain && event.key === "Enter") {
           event.preventDefault();
           handle?.focus("end");
@@ -323,48 +359,52 @@ export const ElementView = ({
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
         {view.status === "ok" ? (
           <>
-            <h1>
-              {view.element.title === ""
-                ? (view.element.identifier ?? view.element.shortId)
-                : view.element.title}
-            </h1>
-            <Editor
-              text={text}
-              readOnly={readOnly}
-              plugins={plugins}
-              {...(initialDraft.current === undefined ? {} : { initial: initialDraft.current.text })}
-              onChange={(doc) => {
-                onDraft(
-                  buffer.key,
-                  dirty(doc, baseline.current) ? { text: doc, base: baseline.current } : undefined,
-                );
-              }}
-              onEscape={() => {
-                article?.focus();
-              }}
-              handle={setHandle}
-            />
+            <FieldBox label="Title" focusable onCopy={copy}>
+              <h1>{heading(view.element)}</h1>
+            </FieldBox>
+            <FieldBox label="Text" onCopy={copy}>
+              <Editor
+                text={text}
+                readOnly={readOnly}
+                plugins={plugins}
+                {...(initialDraft.current === undefined ? {} : { initial: initialDraft.current.text })}
+                onChange={(doc) => {
+                  onDraft(
+                    buffer.key,
+                    dirty(doc, baseline.current) ? { text: doc, base: baseline.current } : undefined,
+                  );
+                }}
+                onEscape={() => {
+                  article?.focus();
+                }}
+                handle={setHandle}
+              />
+            </FieldBox>
             {propertyBoxes(view.element).map((box) => (
-              <div className="box" key={box.key}>
-                <span className="key">{box.key}</span>
-                <span className="value">
-                  {box.lines.map((line, at) => (
-                    <span className="line" key={at}>
-                      {line}
-                    </span>
-                  ))}
-                </span>
-              </div>
+              <FieldBox key={box.key} label={box.key} focusable onCopy={copy}>
+                <div className="box">
+                  <span className="key">{box.key}</span>
+                  <span className="value">
+                    {box.lines.map((line, at) => (
+                      <span className="line" key={at}>
+                        {line}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </FieldBox>
             ))}
             {relationGroups(view.element.relations).map((group) => (
-              <section key={group.heading}>
-                <h2>{group.heading}</h2>
-                <ul>
-                  {group.relations.map((relation, at) => (
-                    <Relation key={at} relation={relation} onOpenRelation={onOpenRelation} />
-                  ))}
-                </ul>
-              </section>
+              <FieldBox key={group.heading} label={group.heading} onCopy={copy}>
+                <section>
+                  <h2>{group.heading}</h2>
+                  <ul>
+                    {group.relations.map((relation, at) => (
+                      <Relation key={at} relation={relation} onOpenRelation={onOpenRelation} />
+                    ))}
+                  </ul>
+                </section>
+              </FieldBox>
             ))}
             {packageModel === undefined ? null : (
               <section className="members" hidden={members?.total === 0}>

@@ -13,7 +13,7 @@ export const APP_SCHEMES = [
 ];
 
 /** The host of the bundled renderer; the origin of the window is `app://logreq`. */
-const RENDERER_HOST = "logreq";
+export const RENDERER_HOST = "logreq";
 export const RENDERER_URL = `app://${RENDERER_HOST}/index.html`;
 
 /** Media types of the bundled renderer's files; any other file is not served. */

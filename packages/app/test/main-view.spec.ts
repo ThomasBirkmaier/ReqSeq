@@ -69,9 +69,12 @@ test.describe("the main view on a fixture workspace", () => {
           .evaluateAll((all) => all.filter((e) => !e.matches("article .cm-content")).length),
       ).toBe(0);
       expect(await window.getByRole("textbox").count()).toBe(editors);
-      expect(await window.locator("button, input, textarea, select, form, nav, aside, dialog").count()).toBe(
-        0,
-      );
+      // The only buttons are the copy symbols of the fields (SR-128), and they are seen only while a field
+      // is hovered or has the focus: none is visible here.
+      expect(
+        await window.locator("button:not(.copy), input, textarea, select, form, nav, aside, dialog").count(),
+      ).toBe(0);
+      await expect(window.locator(".copy:visible")).toHaveCount(0);
       // The window has the sheet, the modeline and the minibuffer, nothing else.
       expect(
         await window.locator(".shell > *").evaluateAll((all) => all.map((e) => e.getAttribute("aria-label"))),

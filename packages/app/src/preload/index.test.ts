@@ -11,7 +11,7 @@ describe("preload entry", () => {
     expect(exposeInMainWorld).toHaveBeenCalledOnce();
     const [name, bridge] = exposeInMainWorld.mock.calls[0] as [string, object];
     expect(name).toBe("logreq");
-    expect(Object.keys(bridge).sort()).toEqual(["commands", "invoke", "on"]);
+    expect(Object.keys(bridge).sort()).toEqual(["commands", "copyText", "invoke", "on"]);
     expect(on.mock.calls.map((call) => call[0] as unknown)).toEqual([WORKSPACE_CHANNEL]);
   });
 });

@@ -124,3 +124,36 @@ describe("the colours of the sheet", () => {
     expect(theme).toContain('".cm-completionMatchedText": { textDecoration: "none"');
   });
 });
+
+/** The declarations of the rule whose selector list is exactly `selector` (as written, one line). */
+const ruleOf = (selector: string): string => {
+  const at = CSS.split("\n}\n").find((rule) => rule.trim().replace(/\s+/g, " ").startsWith(`${selector} {`));
+  if (at === undefined) {
+    throw new Error(`no rule for ${selector}`);
+  }
+  return at;
+};
+
+describe("the copy symbol of a field (SR-128)", () => {
+  it("[SR-128/AK1] is hidden, and seen only while the pointer is over the field or the focus is in it", () => {
+    expect(ruleOf(".copy")).toMatch(/visibility:\s*hidden;/);
+    const shown = ruleOf(".field:hover > .copy, .field:focus-within > .copy");
+    expect(shown).toMatch(/visibility:\s*visible;/);
+    // Nothing else shows it: no rule makes a copy symbol visible by another selector.
+    expect(CSS.match(/visibility:\s*visible;/g)).toHaveLength(1);
+  });
+
+  it("[SR-128/AK1] is very quiet: the muted colour, no frame, and the text colour only under the pointer", () => {
+    expect(ruleOf(".copy")).toMatch(/color:\s*var\(--muted\);/);
+    expect(ruleOf(".copy")).toMatch(/border:\s*0;/);
+    expect(ruleOf(".copy:hover")).toMatch(/color:\s*var\(--text\);/);
+  });
+
+  it("[SR-128/AK1] sits at the right edge of the field, in the room the field keeps for it", () => {
+    expect(ruleOf(".element .field > .copy")).toMatch(/position:\s*absolute;[\s\S]*right:\s*0;/);
+    expect(ruleOf(".element .field")).toMatch(/padding-right:\s*1\.75rem;/);
+    expect(ruleOf(".element .field")).toMatch(/position:\s*relative;/);
+    // A hit area of about 20 px: 1.5rem of the 14 px root.
+    expect(ruleOf(".copy")).toMatch(/width:\s*1\.5rem;[\s\S]*height:\s*1\.5rem;/);
+  });
+});

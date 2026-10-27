@@ -75,6 +75,7 @@ body,
 .modeline .parts,
 .modeline .workspace {
   display: flex;
+  align-items: center;
   gap: 1.5rem;
 }
 
@@ -212,6 +213,60 @@ mark {
 /* The text editor (SR-065) is part of the sheet: no border, no frame. Its styles are in editor/Editor.tsx. */
 .element .editor {
   margin: 0 0 1.5rem;
+}
+
+/* A field of the element with its copy symbol (SR-128): the symbol is at the right edge, in the space
+   the field keeps free for it, and is seen only while the pointer is over the field or the focus is in
+   it. `visibility`, not `opacity`: a hidden symbol is neither seen nor reachable. */
+.element .field {
+  position: relative;
+  padding-right: 1.75rem;
+  outline: none;
+}
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.copy:hover {
+  color: var(--text);
+}
+
+.element .field > .copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.field:hover > .copy,
+.field:focus-within > .copy {
+  visibility: visible;
+}
+
+/* The symbol of the ID takes no room while it is hidden: it lies over the separator after the ID. */
+.modeline .field {
+  position: relative;
+  display: inline-block;
+}
+
+.modeline .copy {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 1rem;
+  height: 1.25rem;
+  transform: translateY(-50%);
+  background: var(--sheet);
 }
 
 .element .box {

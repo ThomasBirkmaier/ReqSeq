@@ -240,6 +240,7 @@ describe("the app offers no delete (SR-099)", () => {
       on: (_channel, listener) => {
         deliver = listener;
       },
+      invoke: () => Promise.resolve(false),
     });
     deliver?.({ ports: [port2] }, { open: true });
     return { bridge, close: () => host.close() };
@@ -248,7 +249,7 @@ describe("the app offers no delete (SR-099)", () => {
   it("[SR-099/AK1] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
     const app = connect(new Workspace(fixture.root));
     try {
-      expect(Object.keys(app.bridge).sort()).toEqual(["commands", "invoke", "on"]);
+      expect(Object.keys(app.bridge).sort()).toEqual(["commands", "copyText", "invoke", "on"]);
       const listed = (await app.bridge.commands()).map((c) => c.name);
       expect(listed).toEqual(catalogNames);
       expect(listed.filter((name) => DELETE_LIKE.test(name.slice(name.indexOf(".") + 1)))).toEqual([

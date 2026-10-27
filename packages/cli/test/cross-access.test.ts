@@ -1309,6 +1309,7 @@ const connectApp = (
       expect(channel).toBe(WORKSPACE_CHANNEL);
       deliver = listener;
     },
+    invoke: () => Promise.resolve(false),
   });
   deliver?.({ ports: [port2] }, { open: true });
   return { bridge, close: () => host.close() };

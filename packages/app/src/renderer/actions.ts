@@ -64,6 +64,8 @@ export interface ElementControls {
   readonly edit: () => void;
   /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
   readonly follow: () => void;
+  /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
+  readonly copy: () => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
 }
@@ -536,6 +538,15 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.follow();
+    },
+  },
+  {
+    id: "copy-field",
+    title: "Copy field",
+    shortcut: { mod: true, shift: true, key: "c" },
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.copy();
     },
   },
   {

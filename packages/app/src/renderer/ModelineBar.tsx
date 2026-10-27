@@ -1,10 +1,18 @@
-// The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace.
+// The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace. Two
+// things are not just display (SR-128): the ID of an element carries the copy symbol of a field, and the
+// confirmation of a copy shows briefly after the parts.
+import type { DataExportElement } from "@logreq/core";
+import { idField } from "./copy.js";
+import { CopySymbol } from "./FieldBox.js";
 import type { WorkspaceView } from "./modeline.js";
 
 export const ModelineBar = ({
   parts,
   view,
   stopped,
+  element,
+  onCopy,
+  notice,
 }: {
   /** What the shown buffer is and has (`bufferView`). */
   readonly parts: readonly string[];
@@ -12,22 +20,51 @@ export const ModelineBar = ({
   readonly view: WorkspaceView | undefined;
   /** The core process stopped for good. */
   readonly stopped: boolean;
-}): React.JSX.Element => (
-  <footer className="modeline" aria-label="Modeline">
-    {view === undefined ? null : (
-      <>
-        <span className="parts">
-          {parts.map((part) => (
-            <span key={part}>{part}</span>
-          ))}
-        </span>
-        <span className="workspace">
-          <span className="name">{view.name ?? "No workspace"}</span>
-          {[...view.marks, ...(stopped ? ["stopped"] : [])].map((mark) => (
-            <span key={mark}>{mark}</span>
-          ))}
-        </span>
-      </>
-    )}
-  </footer>
-);
+  /** The element that the shown buffer is: its ID, at the start of the first part, is a field to copy. */
+  readonly element: DataExportElement | undefined;
+  /** Copies a field (its name and its value). */
+  readonly onCopy: (label: string, text: string) => void;
+  /** The confirmation of a copy; empty when there is none. */
+  readonly notice: string;
+}): React.JSX.Element => {
+  const id = element === undefined ? undefined : idField(element);
+  return (
+    <footer className="modeline" aria-label="Modeline">
+      {view === undefined ? null : (
+        <>
+          <span className="parts">
+            {parts.map((part, at) =>
+              at === 0 && id !== undefined ? (
+                <span key={part}>
+                  <span className="field" data-field="ID">
+                    <span>{id.text()}</span>
+                    <CopySymbol
+                      label={id.label}
+                      onCopy={() => {
+                        onCopy(id.label, id.text());
+                      }}
+                    />
+                  </span>
+                  {part.slice(id.text().length)}
+                </span>
+              ) : (
+                <span key={part}>{part}</span>
+              ),
+            )}
+            {notice === "" ? null : (
+              <span className="notice" role="status">
+                {notice}
+              </span>
+            )}
+          </span>
+          <span className="workspace">
+            <span className="name">{view.name ?? "No workspace"}</span>
+            {[...view.marks, ...(stopped ? ["stopped"] : [])].map((mark) => (
+              <span key={mark}>{mark}</span>
+            ))}
+          </span>
+        </>
+      )}
+    </footer>
+  );
+};

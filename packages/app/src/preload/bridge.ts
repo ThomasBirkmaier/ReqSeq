@@ -1,8 +1,9 @@
 // `window.logreq` (ADR-0010): the only thing the sandboxed renderer can reach. The main process sends
 // the window's workspace on WORKSPACE_CHANNEL, with a port to the core process when one is open; every
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
-// command, the catalog for the command palette, and one event. It never rejects across the context
-// bridge, which would keep only an error's message: a failure is the error object of every access.
+// command, the catalog for the command palette, and one event. The one facility of the window is
+// `copyText` (SR-128), which asks the main process to write the clipboard. Nothing rejects across the
+// context bridge, which would keep only an error's message: a failure is the error object of every access.
 import type {
   CommandListing,
   InvokeResult,
@@ -11,7 +12,7 @@ import type {
   WorkspaceChange,
   WorkspaceMessage,
 } from "../shared/protocol.js";
-import { WORKSPACE_CHANNEL, portMessage } from "../shared/protocol.js";
+import { COPY_CHANNEL, WORKSPACE_CHANNEL, portMessage } from "../shared/protocol.js";
 
 /** The part of Electron's `ipcRenderer` the bridge uses. */
 export interface IpcRendererLike {
@@ -19,6 +20,7 @@ export interface IpcRendererLike {
     channel: string,
     listener: (event: { readonly ports: readonly MessagePort[] }, message: WorkspaceMessage) => void,
   ): unknown;
+  invoke(channel: string, ...args: readonly unknown[]): Promise<unknown>;
 }
 
 const NO_WORKSPACE: InvokeResult = {
@@ -127,6 +129,14 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
       const connection = await current;
       const answer = await connection?.request({ kind: "commands" });
       return Array.isArray(answer) ? (answer as readonly CommandListing[]) : [];
+    },
+    // The main process answers `true` for a copy; anything else, also a refusal, is a failure.
+    copyText: async (text) => {
+      try {
+        return (await ipc.invoke(COPY_CHANNEL, text)) === true;
+      } catch {
+        return false;
+      }
     },
     // The renderer is not trusted to keep to the types: any other event has no listeners.
     on: (event: string, listener: (change: WorkspaceChange) => void) => {

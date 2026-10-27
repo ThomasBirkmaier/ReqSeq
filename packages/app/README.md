@@ -18,7 +18,7 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 - **Start (SR-118):** the first buffer of a workspace is the overview, not the list of all elements. It has one line per element type with the number of its elements (`element.facets`, `types`: "System Requirement 117"), the types of the metamodel first, and below them the elements opened last, at most five, newest first, under a muted "Recent" (nothing of it before an element was opened). Enter or a click on a type line opens the list of the elements of exactly that type (`subtypes: false`, so the list is as long as the count says; it filters further like any list). The full list opens only on request: "List all elements" in the command prompt. Ctrl/Cmd+P works at once, with the overview as the only buffer. "Show overview" in the command prompt (offered when the overview is not shown) and closing the last buffer, also "Close all buffers", show it again; the lone overview cannot be closed. The counts are asked once per change of the workspace, not at every return to the overview. The recent elements are display state of the app, like the open buffers: only the UUID and the repository are kept, per workspace (its name and repositories), in the local storage of the app (Chromium, in the user data folder of the operating system), never in the files of the workspace (SR-118 AK5) and not through a catalog command (SR-080 AK1: "außer reiner Darstellung der App"). Each is read with `element.get` when the overview is shown; one that cannot be read is left out. The main process writes the storage to disk when the app quits.
 - **Buffers:** the overview, the list of elements (`element.list`: filter, sort, derivation tree, pages of 200), a search result (`element.search`, pages of 50) and one element (`element.get`: title, the text in the Markdown editor, the properties that are set and the relations by kind, with a mark for outdated ones, both read-only for now). Opening a buffer again shows the one that is open.
 - **Package page (SR-112):** an element whose type has the meaning `package` shows below its title, text, properties and relations the elements that name it (`element.list` with `where.package`). They sort and show as a tree with "Sort list" like any list. Down on the page goes into them, Escape and Up on the first row come back.
-- **Modeline:** a display, not a control. Left the parts of the shown buffer (a list: its filter, sort and count; an element: one part with the ID, the type by its name in the metamodel and the status, then `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
+- **Modeline:** a display, not a control (the ID of an element has the copy symbol of a field, and a copy is confirmed here for 3 s, SR-128). Left the parts of the shown buffer (a list: its filter, sort and count; an element: one part with the ID, the type by its name in the metamodel and the status, then `read-only`, outdated relations, hints), right the workspace and its marks. Values are the commands' output as it is.
 - **Minibuffer:** the only control. Idle it is one line with the last message. Asked, it has an input and the candidates rise above the modeline, only while asked.
 - **Fuzzy matching:** names of actions and buffers are ranked with uFuzzy in the renderer (`intraMode: 0`, and one slip per word when that finds nothing). Elements are found by `element.search` in core.
 - **Not shown unless asked:** UUID and version (action "Show element ID and version": the UUID and the date of the version, D-013, not the check value), empty properties, the shortcut of an action (only in the prompt).
@@ -36,6 +36,7 @@ A white sheet (D-062). The window shows one buffer at a time, the most recent on
 | Ctrl/Cmd+S | Save the text of the shown element (action "Save element") |
 | Enter | On an element, put the cursor into the text (action "Edit text") |
 | Ctrl/Cmd+Enter | On an element, open the element of the inline reference at the cursor (action "Follow reference") |
+| Ctrl/Cmd+Shift+C | On an element, copy the field with the cursor, else the ID, as text, one value per line (action "Copy field", SR-128). Every field also has a copy symbol at its right edge, seen on hover or focus |
 | Escape | In the text, back to the element |
 | `/` | In the text, at the start of a line or after a space: the slash menu (SR-129) with the Markdown elements at the caret |
 | (slash menu open) Down, Up, Tab, Ctrl+N / Ctrl+P, Enter, Escape | Choose, take the entry (one undo step), close the menu and leave the `/` as typed |
@@ -67,6 +68,7 @@ Main gives each page load a `MessagePort` to the core process (`logreq:workspace
 
 - `invoke(name, input = {})` resolves to `{ ok: true, output }` or `{ ok: false, error }`, where `error` is the error object of every access. It never rejects, because the context bridge would keep only an error's message. Without a workspace it gives `workspace.not-found`.
 - `commands()` returns the catalog entries, each with `implemented`, as `GET /v1/commands` of the API does (for the command palette, SR-073 AK2).
+- `copyText(text)` (SR-128) puts a text on the system clipboard and resolves `true`, or `false` when it could not; it never rejects. It sends the one message from the renderer to main (`logreq:copy`), which writes the clipboard only for a string of at most 16 Mi characters from the main frame of the LogReq window (`app://logreq`). It is a facility of the window like the theme, not a catalog command, and it reads nothing.
 - `on("workspace-changed", listener)` returns the function that unsubscribes. The listener gets `{ reason }`:
   - `opened`: another workspace was opened.
   - `restarted`: the core process was started again.
@@ -75,10 +77,11 @@ Main gives each page load a `MessagePort` to the core process (`logreq:workspace
 
   Files changed outside the app do not send the event yet; that needs a change event of core's watcher (#331).
 
-The bridge offers nothing else, and in particular no delete (SR-099).
+The bridge offers nothing else, and in particular no delete (SR-099): `invoke` and `commands` are generic over the catalog, `on` is the one event, `copyText` the one facility of the window.
 
 ## Security (SR-077, SR-078)
 
+- The renderer sends main exactly one message, `logreq:copy` (SR-128): main checks the sender (the main frame of the LogReq window on `app://logreq`) and the text (a string, at most 16 Mi characters) before it writes the clipboard, and never reads it.
 - Windows use `contextIsolation`, `sandbox` and `app.enableSandbox()`. They have no `nodeIntegration` and no webview. The spell checker is off and its dictionary URL points at `app://logreq/no-dictionaries/`, which serves nothing.
 - The content security policy is sent as a header with every page: `connect-src 'none'`, and only the app's own scripts.
 - Navigation of any frame (`will-navigate`, `will-frame-navigate`), redirects, `window.open` and webviews are denied. Every permission request and device (HID, serial, USB, Bluetooth) is refused. The CSP has `frame-src 'none'`.
@@ -92,7 +95,7 @@ The bridge offers nothing else, and in particular no delete (SR-099).
 - `test/app.spec.ts` (Playwright, `_electron.launch`) runs the built app on fixture workspaces:
   - it starts and shows the status;
   - `invoke` gives what the CLI gives (`[SR-080/AK2]`);
-  - the bridge offers only the catalog (`[SR-099/AK1]`);
+  - the bridge offers the catalog commands, the one event and `copyText`, and no delete (`[SR-099/AK1]`);
   - the renderer has no Node;
   - the session cancels a non-local request, and the app makes none itself (SR-078);
   - `logreq-file:` does not leave the repository;

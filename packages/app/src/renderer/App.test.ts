@@ -9,6 +9,7 @@ import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/prot
 import { EditorView } from "@codemirror/view";
 import { App } from "./App.js";
 import { DEFAULT_SORT } from "./buffers.js";
+import { NOTICE_MS } from "./copy.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,6 +26,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
         : { ok: true, output },
     );
   });
+  const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
@@ -32,6 +34,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    copyText,
   };
   const change = async (reason: WorkspaceChange["reason"]): Promise<void> => {
     await act(async () => {
@@ -41,7 +44,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
-  return { bridge, invoke, change, listeners, handlers };
+  return { bridge, invoke, change, listeners, handlers, copyText };
 };
 
 const row = (n: number, extra: object = {}) => ({
@@ -213,6 +216,7 @@ describe("App", () => {
         }),
       commands: () => Promise.resolve([]),
       on: () => () => undefined,
+      copyText: () => Promise.resolve(true),
     };
     await render(bridge);
     expect(container.querySelector('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
@@ -1443,4 +1447,154 @@ describe("App, the package page (SR-112)", () => {
     expect(container.querySelector(".members")).toBeNull();
     expect(memberCalls(invoke)).toEqual([]);
   });
+});
+
+describe("App, copy field (SR-128)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const withText = (): Record<string, Handler> => ({
+    ...workspace(),
+    "element.get": (input) => ({
+      element: row(Number(String(input["ref"]).replace("uuid-", "")), {
+        identifier: "SR-036",
+        text: "Hello\n**bold**",
+        properties: { criteria: ["first", "second"] },
+        relations: [],
+      }),
+    }),
+  });
+  const editorView = (): EditorView => {
+    const found = EditorView.findFromDOM(query(".cm-editor"));
+    if (found === null) {
+      throw new Error("no editor");
+    }
+    return found;
+  };
+  const openElement = async () => {
+    const fake = fakeBridge(withText());
+    await renderList(fake.bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    return fake;
+  };
+  const modeline = (): string => text("Modeline") ?? "";
+  const copyKeys = { ctrlKey: true, shiftKey: true };
+
+  it("[SR-128/AK1] shows a copy symbol with the ID in the modeline of an element, and none on a list", async () => {
+    await renderList(fakeBridge(withText()).bridge);
+    expect(container.querySelector(".modeline .copy")).toBeNull();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    const field = query('.modeline [data-field="ID"]');
+    expect(field.textContent).toBe("SR-036");
+    expect(field.querySelector(".copy")?.getAttribute("aria-label")).toBe("Copy ID");
+    // The rest of the first part, and the modeline's text, are as before.
+    expect(modeline()).toBe("SR-036 · Need · draftWeather stationread-only");
+  });
+
+  it("[SR-128/AK2] copies the ID with the symbol in the modeline, and the modeline says so for a few seconds", async () => {
+    const { copyText } = await openElement();
+    const symbol = query('.modeline [data-field="ID"] .copy');
+    vi.useFakeTimers();
+    await act(async () => {
+      symbol.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-036");
+    expect(modeline()).toBe("SR-036 · Need · draftCopied IDWeather stationread-only");
+    expect(query(".modeline .notice").getAttribute("role")).toBe("status");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NOTICE_MS - 1);
+    });
+    expect(modeline()).toContain("Copied ID");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(modeline()).toBe("SR-036 · Need · draftWeather stationread-only");
+  });
+
+  it("[SR-128/AK2] a second copy restarts the time of the confirmation", async () => {
+    const { copyText } = await openElement();
+    const symbol = query('.modeline [data-field="ID"] .copy');
+    vi.useFakeTimers();
+    const copyOnce = () =>
+      act(async () => {
+        symbol.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+    const wait = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    await copyOnce();
+    await wait(NOTICE_MS - 1000);
+    await copyOnce();
+    await wait(NOTICE_MS - 1000);
+    expect(modeline()).toContain("Copied ID");
+    await wait(1000);
+    expect(modeline()).not.toContain("Copied");
+    expect(copyText).toHaveBeenCalledTimes(2);
+  });
+
+  it("[SR-128/AK2] says Copy failed when the main process could not copy", async () => {
+    const { copyText } = await openElement();
+    copyText.mockResolvedValueOnce(false);
+    await click(query('.modeline [data-field="ID"] .copy'));
+    expect(modeline()).toContain("Copy failed");
+    expect(modeline()).not.toContain("Copied");
+  });
+
+  it("[SR-128/AK3] Ctrl+Shift+C in the text copies the text as it is stored, Markdown marks and all", async () => {
+    const { copyText } = await openElement();
+    editorView().focus();
+    await keyDown(query(".cm-content"), "C", copyKeys);
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("Hello\n**bold**");
+    expect(modeline()).toContain("Copied Text");
+  });
+
+  it("[SR-128/AK3] Cmd+Shift+C copies as well", async () => {
+    const { copyText } = await openElement();
+    editorView().focus();
+    await keyDown(query(".cm-content"), "c", { metaKey: true, shiftKey: true });
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("Hello\n**bold**");
+  });
+
+  it("[SR-128/AK3] Copy field in the command prompt copies the field the cursor was in", async () => {
+    const { copyText } = await openElement();
+    await act(async () => {
+      query('[data-field="criteria"]').focus();
+      await Promise.resolve();
+    });
+    await keyDown(query('[data-field="criteria"]'), "P", copyKeys);
+    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
+      "Copy fieldCtrl+Shift+C",
+    );
+    await type("Copy field");
+    await keyDown(query("input"), "Enter");
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("first\nsecond");
+    expect(modeline()).toContain("Copied criteria");
+  });
+
+  it("[SR-128/AK3] copies the ID when the cursor is in no field", async () => {
+    const { copyText } = await openElement();
+    await keyDown(window, "C", copyKeys);
+    expect(copyText).toHaveBeenCalledExactlyOnceWith("SR-036");
+    expect(modeline()).toContain("Copied ID");
+  });
+
+  it("[SR-128/AK3] has no Copy field on a list", async () => {
+    const { copyText } = await renderListOnly();
+    await keyDown(window, "C", copyKeys);
+    expect(copyText).not.toHaveBeenCalled();
+    await keyDown(window, "P", copyKeys);
+    expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).not.toContain(
+      "Copy fieldCtrl+Shift+C",
+    );
+  });
+
+  const renderListOnly = async () => {
+    const fake = fakeBridge(withText());
+    await renderList(fake.bridge);
+    return fake;
+  };
 });

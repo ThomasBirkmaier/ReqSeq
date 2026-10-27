@@ -85,3 +85,7 @@ export const outdatedReferences = (element: DataExportElement): ReadonlyMap<stri
   }
   return found;
 };
+
+/** The label of a relation as the buffer shows it: the identifier or short ID, then the title. */
+export const relationLabel = (relation: DataExportRelation): string =>
+  `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim();

@@ -1,6 +1,12 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { outdatedReferences, propertyBoxes, propertyLines, relationGroups } from "./element-view.js";
+import {
+  outdatedReferences,
+  propertyBoxes,
+  propertyLines,
+  relationGroups,
+  relationLabel,
+} from "./element-view.js";
 
 const relation = (extra: Partial<DataExportRelation>): DataExportRelation => ({
   kind: "derives-from",
@@ -112,5 +118,16 @@ describe("outdatedReferences", () => {
       ]).size,
     ).toBe(0);
     expect(of(undefined).size).toBe(0);
+  });
+});
+
+describe("relationLabel", () => {
+  it("is the identifier, else the short ID, else the UUID, then the title when there is one", () => {
+    expect(relationLabel(relation({ identifier: "N-1", shortId: "N-000001", title: "Need" }))).toBe(
+      "N-1 Need",
+    );
+    expect(relationLabel(relation({ shortId: "N-000001", title: "Need" }))).toBe("N-000001 Need");
+    expect(relationLabel(relation({ shortId: "N-000001" }))).toBe("N-000001");
+    expect(relationLabel(relation({ id: "uuid-9" }))).toBe("uuid-9");
   });
 });

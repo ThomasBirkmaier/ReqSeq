@@ -21,11 +21,12 @@ import { ModelineBar } from "./ModelineBar.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
-import { bufferView, workspaceView } from "./modeline.js";
+import { bufferView, shownElement, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
+import { useCopyNotice } from "./use-copy-notice.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -58,6 +59,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
   const [stopped, setStopped] = useState(false);
+  // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
+  const { notice, copy } = useCopyNotice(bridge);
   const [buffers, dispatch] = useReducer(reduceBuffers, []);
   const current = buffers[0];
   const { drafts, armed, onDraft, reset: resetDrafts } = useDrafts(current?.key);
@@ -263,7 +266,6 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   };
 
   const parts = modelineParts(current, loaded, drafts.current, typeNames);
-
   return (
     <div className="shell">
       <main className="sheet" aria-label="Sheet" ref={sheet}>
@@ -275,6 +277,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             revision={revision}
             onData={onData}
             onEcho={setEcho}
+            onCopy={copy}
             onOpenTarget={openTarget}
             onOpenRelation={openRelation}
             onPickElement={(request) => {
@@ -305,7 +308,14 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           />
         )}
       </main>
-      <ModelineBar parts={parts} view={view} stopped={stopped} />
+      <ModelineBar
+        parts={parts}
+        view={view}
+        stopped={stopped}
+        element={shownElement(current, loaded)}
+        onCopy={copy}
+        notice={notice}
+      />
       <Minibuffer
         echo={echo === "" ? (view?.message ?? "") : echo}
         prompt={prompt}

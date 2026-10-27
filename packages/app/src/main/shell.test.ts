@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { CoreRequest } from "../shared/protocol.js";
-import { WORKSPACE_CHANNEL } from "../shared/protocol.js";
+import { COPY_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
 import type { ShellElectron, ShellOptions } from "./shell.js";
 import { startShell } from "./shell.js";
@@ -23,6 +23,7 @@ class FakeChild extends EventEmitter {
 }
 
 class FakeContents extends EventEmitter {
+  readonly mainFrame = { url: RENDERER_URL };
   readonly posted: { channel: string; message: unknown }[] = [];
 
   postMessage(channel: string, message: unknown): void {
@@ -38,6 +39,7 @@ type Handler = (...args: unknown[]) => unknown;
 
 const fakeElectron = (dark = false) => {
   const appHandlers = new Map<string, Handler>();
+  const ipcHandlers = new Map<string, Handler>();
   const protocolHandlers = new Map<string, (request: { url: string }) => Promise<Response>>();
   const windows: { options: unknown; webContents: FakeContents; loadURL: ReturnType<typeof vi.fn> }[] = [];
   const children: FakeChild[] = [];
@@ -69,6 +71,12 @@ const fakeElectron = (dark = false) => {
         flushStorageData: vi.fn(),
       },
     },
+    ipcMain: {
+      handle: vi.fn((channel: string, handler: Handler) => {
+        ipcHandlers.set(channel, handler);
+      }),
+    },
+    clipboard: { writeText: vi.fn(() => Promise.resolve()) },
     BrowserWindow: class {
       readonly webContents = new FakeContents();
       readonly loadURL = vi.fn(() => Promise.resolve());
@@ -96,7 +104,7 @@ const fakeElectron = (dark = false) => {
       readonly port2 = { port: 2 };
     },
   };
-  return { electron, appHandlers, protocolHandlers, windows, children };
+  return { electron, appHandlers, ipcHandlers, protocolHandlers, windows, children };
 };
 
 const CWD = path.resolve("/home/me");
@@ -174,6 +182,18 @@ describe("startShell", () => {
     expect(windows[0]?.webContents.posted).toEqual([
       { channel: WORKSPACE_CHANNEL, message: { open: false } },
     ]);
+  });
+
+  it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
+    const { electron, ipcHandlers, windows } = await start();
+    const contents = windows[0]?.webContents;
+    expect([...ipcHandlers.keys()]).toEqual([COPY_CHANNEL]);
+    const copied = await ipcHandlers.get(COPY_CHANNEL)?.(
+      { sender: contents, senderFrame: contents?.mainFrame },
+      "x",
+    );
+    expect(copied).toBe(true);
+    expect(electron.clipboard.writeText).toHaveBeenCalledWith("x");
   });
 
   it("opens the workspace of --workspace in the core process and connects the page once it has loaded", async () => {

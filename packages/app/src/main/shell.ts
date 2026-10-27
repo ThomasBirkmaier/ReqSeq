@@ -2,6 +2,7 @@
 // protocols and the security settings. No program logic (ADR-0002): every command runs in the core
 // process, which the renderer reaches over a port.
 import type Electron from "electron";
+import { handleCopy } from "./clipboard.js";
 import { CoreProcess } from "./core-process.js";
 import { menuTemplate } from "./menu.js";
 import { APP_SCHEMES, RENDERER_URL, rendererFiles, workspaceFiles } from "./protocols.js";
@@ -14,7 +15,9 @@ export type ShellElectron = Pick<
   typeof Electron,
   | "app"
   | "BrowserWindow"
+  | "clipboard"
   | "dialog"
+  | "ipcMain"
   | "Menu"
   | "MessageChannelMain"
   | "nativeTheme"
@@ -51,6 +54,8 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     autoHideMenuBar: true,
     webPreferences: webPreferences(options.paths.preload),
   });
+  // The renderer asks for a copy to the clipboard over the one channel it has (SR-128).
+  handleCopy(electron, window.webContents);
   window.webContents.on("did-finish-load", () => {
     core.attach(window.webContents);
   });

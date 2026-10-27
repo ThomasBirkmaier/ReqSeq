@@ -1,7 +1,7 @@
 import { MessageChannel } from "node:worker_threads";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
-import { WORKSPACE_CHANNEL } from "../shared/protocol.js";
+import { COPY_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
 import type { IpcRendererLike } from "./bridge.js";
 import { createBridge } from "./bridge.js";
 
@@ -10,12 +10,20 @@ type Listener = Parameters<IpcRendererLike["on"]>[1];
 /** The main process's side of the preload: sends the workspace of the window. */
 class FakeIpc implements IpcRendererLike {
   readonly channels: string[] = [];
+  /** The calls of `invoke`, and what it answers (a rejection when it is an Error). */
+  readonly invoked: { channel: string; args: readonly unknown[] }[] = [];
+  answer: unknown = true;
   #listener: Listener | undefined;
 
   on(channel: string, listener: Listener): this {
     this.channels.push(channel);
     this.#listener = listener;
     return this;
+  }
+
+  invoke(channel: string, ...args: readonly unknown[]): Promise<unknown> {
+    this.invoked.push({ channel, args });
+    return this.answer instanceof Error ? Promise.reject(this.answer) : Promise.resolve(this.answer);
   }
 
   send(message: WorkspaceMessage, ports: readonly MessagePort[] = []): void {
@@ -170,5 +178,19 @@ describe("createBridge", () => {
     );
     off();
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("[SR-128/AK2] copyText asks the main process over the copy channel, and says whether it was copied", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    expect(await bridge.copyText("one\ntwo")).toBe(true);
+    expect(ipc.invoked).toEqual([{ channel: COPY_CHANNEL, args: ["one\ntwo"] }]);
+    // Only the main process's `true` is a copy; a refusal, anything else and a failure never reject.
+    ipc.answer = false;
+    expect(await bridge.copyText("x")).toBe(false);
+    ipc.answer = "yes";
+    expect(await bridge.copyText("x")).toBe(false);
+    ipc.answer = new Error("No handler registered");
+    expect(await bridge.copyText("x")).toBe(false);
   });
 });

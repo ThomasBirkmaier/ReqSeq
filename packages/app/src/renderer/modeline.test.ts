@@ -1,7 +1,7 @@
 import type { DataExportElement } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import { elementBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { bufferView, workspaceView } from "./modeline.js";
+import { bufferView, shownElement, workspaceView } from "./modeline.js";
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
@@ -171,5 +171,28 @@ describe("bufferView", () => {
       "Search: wind",
       "0 hits",
     ]);
+  });
+});
+
+describe("shownElement", () => {
+  const element = {
+    id: "u1",
+    shortId: "SR-000001",
+    relations: [],
+    properties: {},
+  } as unknown as DataExportElement;
+  const buffer = elementBuffer("u1", "spec", "SR-000001 T");
+
+  it("[SR-128/AK1] is the element that the shown element buffer has loaded, and none otherwise", () => {
+    expect(shownElement(buffer, { key: buffer.key, data: { kind: "element", element } })).toBe(element);
+    // A list, nothing loaded yet, another buffer's data, no buffer at all.
+    const data = { kind: "list", total: 1, incomplete: false } as const;
+    expect(
+      shownElement(listBuffer("All elements"), { key: listBuffer("All elements").key, data }),
+    ).toBeUndefined();
+    expect(shownElement(buffer, { key: buffer.key, data: undefined })).toBeUndefined();
+    expect(shownElement(buffer, undefined)).toBeUndefined();
+    expect(shownElement(buffer, { key: "another", data: { kind: "element", element } })).toBeUndefined();
+    expect(shownElement(undefined, undefined)).toBeUndefined();
   });
 });

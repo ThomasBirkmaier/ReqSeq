@@ -130,7 +130,7 @@ describe("the command prompt", () => {
 
   it("offers saving and editing the text on an element that has loaded", () => {
     const element$ = setup([element], {}, true, {
-      element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn() },
+      element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() },
     });
     const items = commandPrompt(element$.context).items;
     expect(items.map((item) => item.name)).toEqual([
@@ -143,6 +143,7 @@ describe("the command prompt", () => {
       "Save element",
       "Edit text",
       "Follow reference",
+      "Copy field",
       "Show element ID and version",
       "Toggle dark mode",
     ]);
@@ -156,6 +157,7 @@ describe("the command prompt", () => {
       "Ctrl+S",
       "Enter",
       "Ctrl+Enter",
+      "Ctrl+Shift+C",
       undefined,
       undefined,
     ]);
@@ -163,7 +165,10 @@ describe("the command prompt", () => {
     // Not while the element has not loaded, and not on a list.
     expect(titles(setup([element]).context)).not.toContain("Save element");
     expect(
-      titles(setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn() } }).context),
+      titles(
+        setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() } })
+          .context,
+      ),
     ).not.toContain("Edit text");
   });
 
@@ -515,7 +520,7 @@ describe("list actions", () => {
   });
 
   describe("on a package page (SR-112)", () => {
-    const page = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), members: true };
+    const page = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn(), members: true };
     const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
 
     it('[SR-112/AK2] "Sort list" is offered on a package page and not on another element; no filter is', () => {
@@ -693,7 +698,7 @@ describe("close all buffers", () => {
   });
 
   it('[SR-123/AK3] "cab" ranks Close all buffers first in the command prompt', () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
     const { context } = setup([element, other, filtered], {}, true, { element: controls });
     const items = commandPrompt(context).items;
     expect(rank(items, (item) => item.name, "cab")[0]?.item.name).toBe("Close all buffers");
@@ -732,7 +737,7 @@ describe("close all buffers", () => {
 
 describe("save element and edit text", () => {
   it("save runs the controls with Ctrl/Cmd+S, edit has no shortcut", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "s" && shortcut.mod)?.id).toBe("save");
     action("save").run(context);
@@ -743,7 +748,7 @@ describe("save element and edit text", () => {
   });
 
   it("follow reference runs the controls with Ctrl/Cmd+Enter, on an element with a loaded text only", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn() };
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "enter" && shortcut.mod)?.id).toBe(
       "follow-reference",
@@ -756,6 +761,48 @@ describe("save element and edit text", () => {
     );
     action("follow-reference").run(setup([element]).context);
     expect(controls.follow).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-128/AK3] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(action("copy-field").title).toBe("Copy field");
+    expect(action("copy-field").shortcut).toEqual({ mod: true, shift: true, key: "c" });
+    expect(actionFor(context, (shortcut) => shortcut.key === "c" && shortcut.shift && shortcut.mod)?.id).toBe(
+      "copy-field",
+    );
+    action("copy-field").run(context);
+    expect(controls.copy).toHaveBeenCalledTimes(1);
+    expect(action("copy-field").available(setup([element]).context)).toBe(false);
+    expect(action("copy-field").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("copy-field").run(setup([element]).context);
+    expect(controls.copy).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-128/AK3] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {
+    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const page = { ...controls, members: true };
+    const contexts = [
+      setup([element], {}, true, { element: controls }).context,
+      setup([element], {}, true, { element: page }).context,
+      setup([element]).context,
+      setup([list]).context,
+      setup([filtered]).context,
+      setup([overviewBuffer()]).context,
+      setup([], {}, true).context,
+    ];
+    // Shortcuts as written: `shift` may be left out.
+    const written = (shortcut: { mod: boolean; shift?: boolean; key: string }): string =>
+      JSON.stringify([shortcut.mod, shortcut.shift === true, shortcut.key]);
+    for (const context of contexts) {
+      const shortcuts = ACTIONS.filter((candidate) => candidate.available(context)).flatMap((candidate) =>
+        candidate.shortcut === undefined ? [] : [written(candidate.shortcut)],
+      );
+      expect(new Set(shortcuts).size).toBe(shortcuts.length);
+      expect(shortcuts).not.toContain(written(COMMAND_SHORTCUT));
+    }
   });
 
   it("do nothing without controls", () => {

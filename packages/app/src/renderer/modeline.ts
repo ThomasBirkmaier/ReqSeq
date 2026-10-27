@@ -48,6 +48,13 @@ export type BufferData =
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
+/** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */
+export const shownElement = (
+  current: Buffer | undefined,
+  loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
+): DataExportElement | undefined =>
+  loaded?.key === current?.key && loaded?.data?.kind === "element" ? loaded.data.element : undefined;
+
 /** What a list says when a repository is missing for its answer. */
 export const INCOMPLETE = "incomplete: a repository is missing";
 
