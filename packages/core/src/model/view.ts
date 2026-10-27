@@ -34,6 +34,7 @@ import { supersededFindingsOf } from "./superseded.js";
 import { unknownFindings } from "./unknown.js";
 import { valueFindings } from "./values.js";
 import { duplicateIdentifierFindings } from "./identifiers.js";
+import { emergentKeyOf, isEmergent } from "./emergent.js";
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
@@ -312,7 +313,8 @@ export type ListedElementInput = Pick<
 
 /**
  * The element as list commands give it (`data-export.schema.json#/$defs/element`): `version` (the
- * caller gives the current one, ADR-0005; left out when it has none), its properties (every key
+ * caller gives the current one, ADR-0005; left out when it has none), `emergent: true` when it is
+ * marked emergent (`isEmergent`, SR-035), its properties (every key
  * except `id`, `type`, `status`, the title and relation kinds, unknown keys included), its own
  * relations, then, when it is superseded, the relations from its successors (`successorRelations`,
  * SR-072 AK3). Without its text (the list commands leave it out, so no file is read), hints and
@@ -338,6 +340,8 @@ export const listedElement = (input: ListedElementInput, version: string | undef
     ...(version === undefined ? {} : { version }),
     repository: record.repository,
     file: record.file,
+    // Only `true` is given (SR-035): the property with the meaning `emergent` stays in `properties`.
+    ...(isEmergent(record, emergentKeyOf(metamodel)) ? { emergent: true } : {}),
     properties,
     relations: [...outgoingRelations(input), ...successorRelations(input)],
   };

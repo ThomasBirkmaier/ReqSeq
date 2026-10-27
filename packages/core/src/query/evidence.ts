@@ -38,7 +38,10 @@ export interface EvidenceStatuses {
   readonly hasEvidence: (element: ElementRecord, view: View) => boolean;
 }
 
-/** The provider of the verification and validation `status` with the records of `index` (see the file comment). */
+/**
+ * The provider of the verification and validation `status` with the records of `index` (see the file
+ * comment).
+ */
 const providerOf = (status: WorkspaceStatus, index: EvidenceIndex | undefined): EvidenceStatuses => ({
   verification: (element, view) => status.evaluate(element, view)?.status,
   validation: (element) => status.validate(element),

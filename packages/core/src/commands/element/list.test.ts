@@ -488,7 +488,7 @@ describe("element.list (SR-069)", () => {
 });
 
 describe("element.list refuses what it cannot do yet, and wrong conditions", () => {
-  it("refuses an unknown saved filter, baselines and the condition emergent, naming the field", async () => {
+  it("refuses an unknown saved filter and baselines, naming the field", async () => {
     const ws = await open();
     expect((await failure(ws, { selection: { filter: "open ones" } })).details?.["fields"]).toEqual([
       "selection.filter",
@@ -496,12 +496,6 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
     expect((await failure(ws, { selection: { baseline: "v1" } })).details?.["fields"]).toEqual([
       "selection.baseline",
     ]);
-    expect(await refused(ws, { any: [{ type: ["need"] }, { not: { emergent: true } }] })).toEqual({
-      code: "input.invalid",
-      message:
-        "selection.where.any[1].not.emergent: the condition emergent comes with SR-035 (stage 4); leave it out",
-      fields: ["selection.where.any[1].not.emergent"],
-    });
   });
 
   it("refuses a value that does not fit the operator", async () => {
@@ -604,6 +598,11 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
       "source",
       "element.list",
     ]);
+    expect(await meaning({ emergent: true })).toEqual([
+      "metamodel.meaning-unassigned",
+      "emergent",
+      "element.list",
+    ]);
     expect(await meaning({ validFor: "core" })).toEqual([
       "metamodel.meaning-unassigned",
       "validity",
@@ -668,5 +667,33 @@ describe("element.list, the elements of a package in several repositories (SR-11
     const members = await list(workspace, { selection: { where: { package: PACKAGE } } });
     expect(ids(members)).toEqual([NAMES]);
     expect(members.elements.map((element) => element.repository)).toEqual(["system"]);
+  });
+});
+
+describe("the condition emergent (SR-035)", () => {
+  it("[SR-035/AK2] the condition emergent true finds the requirements marked emergent, false all others", async () => {
+    const ws = await open();
+    expect(await where(ws, { emergent: true })).toEqual([B3]);
+    expect(await where(ws, { emergent: false })).toEqual(but(B3));
+    expect(await where(ws, { not: { emergent: true } })).toEqual(await where(ws, { emergent: false }));
+    // The mark shows in the output of the elements found, and only there.
+    const output = await list(ws, { selection: { where: { emergent: true } } });
+    expect(output.elements.map((e) => [e.id, e.emergent, e.properties["emergent"]])).toEqual([
+      [B3, true, "yes"],
+    ]);
+    const others = await list(ws, { selection: { where: { emergent: false } }, limit: 5000 });
+    expect(others.elements.filter((e) => "emergent" in e)).toEqual([]);
+  });
+
+  it("[SR-035/AK2] emergent combines with the verification status: the emergent requirements without own record", async () => {
+    const ws = await open({ fixture: "SR-035/emergent" });
+    const E = "35353535-3535-4535-8535-00000000";
+    expect(await where(ws, { all: [{ emergent: true }, { verification: ["open"] }] })).toEqual([
+      `${E}b110`,
+      `${E}b150`,
+    ]);
+    expect(await where(ws, { all: [{ emergent: false }, { verification: ["indirect"] }] })).toEqual([
+      `${E}b120`,
+    ]);
   });
 });

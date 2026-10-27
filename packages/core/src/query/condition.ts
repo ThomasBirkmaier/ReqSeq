@@ -16,9 +16,11 @@
 // - `text` (SR-068): the elements `element.search` finds for the query, from the search index of
 //   the workspace (`searchIndex`, which waits for a build that runs), compared by repository and
 //   file, so the store the index was carried to may be newer than the one compiled against.
-// - Not yet: `emergent` (SR-035, stage 4, decides which value marks an element emergent). It is
-//   refused with `input.invalid`, as `element.get` refuses a view, so no caller takes an unfiltered
-//   list for a filtered one.
+// - `emergent` (SR-035 AK2): whether the element is marked emergent (`isEmergent` of
+//   `model/emergent.ts`, the mark the output and the verification status use); `false` holds for every
+//   element that is not marked, of any type. Without a property with the meaning `emergent`:
+//   `metamodel.meaning-unassigned` (SR-013 AK3), as `source`; with one that cannot hold the mark (a
+//   metamodel warning), `true` finds none.
 //
 // Errors name the field of the input they are about (`details.fields`, the path from `at`).
 // To add an operator, compile it in `compileLeaf`; the compiler refuses a schema operator without a
@@ -27,7 +29,7 @@ import type { ElementRef, FilterCondition, View as ViewInput } from "../generate
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
-import { invalidStatuses, resolveRef } from "../model/index.js";
+import { emergentKeyOf, invalidStatuses, isEmergent, resolveRef } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { appliesIn, resolveView, validityEntries, validityOf, validityTarget } from "../variants/index.js";
 import type { CompileContext, Predicate, QueryContext, QueryNotes } from "./context.js";
@@ -104,6 +106,14 @@ const compileSource = (context: QueryContext, source: string): Predicate => {
   return (element) => element.data[key] === source;
 };
 
+/** `emergent`: whether the element is marked emergent (SR-035, `isEmergent`). */
+const compileEmergent = (context: QueryContext, emergent: boolean): Predicate => {
+  propertyFor(context, "emergent");
+  // Undefined for a property that cannot hold the mark: then no element is emergent (#591 Q1).
+  const key = emergentKeyOf(context.metamodel);
+  return (element) => isEmergent(element, key) === emergent;
+};
+
 /** The conditions on one fact of the element, besides properties and relations. */
 type Leaf = Exclude<
   FilterCondition,
@@ -163,11 +173,7 @@ const compileLeaf = async (context: CompileContext, condition: Leaf, at: string)
     return compileSource(context, condition.source);
   }
   if ("emergent" in condition) {
-    throw invalidAt(
-      context,
-      `${at}.emergent`,
-      "the condition emergent comes with SR-035 (stage 4); leave it out",
-    );
+    return compileEmergent(context, condition.emergent);
   }
   if ("text" in condition) {
     const keys = matchingKeys(await searchIndex(context.workspace), condition.text);

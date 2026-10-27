@@ -306,7 +306,7 @@ export interface CommandErrorObject {
 export type Incomplete = boolean;
 
 /**
- * Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view (SR-036 AK1, SR-043, SR-061 AK2).
+ * Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.
  * Schema: `schemas/common.schema.json#/$defs/selection`.
  */
 export interface ElementSelection {
@@ -339,7 +339,7 @@ export type View = ElementRef;
 export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "outdated";
 
 /**
- * SR-038: open (offen), validated (erfolgreich), failed (nicht erfolgreich), outdated (veraltet).
+ * offen, erfolgreich, nicht erfolgreich, veraltet.
  * Schema: `schemas/common.schema.json#/$defs/validationStatus`.
  */
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
@@ -394,6 +394,7 @@ export interface DataExportElement {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
@@ -595,7 +596,7 @@ export type FilterCondition =
   | {
     /** Type keys; an element of a subtype matches too unless `subtypes` is false. */
     readonly type: FilterKeys;
-    /** Include subtypes of the type. Absent means true (no `default` keyword: defaults inside `oneOf` are not applied). */
+    /** Include subtypes of the type. Absent means true. */
     readonly subtypes?: boolean;
   }
   | {
@@ -620,14 +621,15 @@ export type FilterCondition =
     readonly variant?: View;
   }
   | {
-    /** Validation status (SR-038). Elements without one never match (#534). */
+    /** Needs always (open without record), other elements only with a validation record (assumption #534). */
     readonly validation: readonly ValidationStatus[];
   }
   | {
+    /** true: the property with the meaning `emergent` is `yes`; false: it is not. */
     readonly emergent: boolean;
   }
   | {
-    /** Value of the property with meaning `source` of imported elements (SR-057 AK2, D-059). */
+    /** Value of the property with meaning `source` of imported elements. */
     readonly source: string;
   }
   | {
@@ -803,7 +805,7 @@ export interface MetamodelProperty {
 }
 
 /**
- * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
+ * Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.
  * Schema: `schemas/metamodel.schema.json#/$defs/propertyMeaning`.
  */
 export type MetamodelPropertyMeaning =
@@ -1284,7 +1286,7 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/catalog.json element.resolve output`.
  */
 export interface ElementResolveOutput {
-  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) both are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
+  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
   readonly element: DataExportElement;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
@@ -2242,7 +2244,7 @@ export interface EvidenceStatusInput {
  * Schema: `schemas/commands/catalog.json evidence.status output`.
  */
 export interface EvidenceStatusOutput {
-  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared and every requirement is `open`. */
+  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
   readonly total: number;

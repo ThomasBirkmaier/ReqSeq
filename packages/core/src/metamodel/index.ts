@@ -24,7 +24,9 @@ export type { RelationOption } from "./relation-options.js";
 export type { Named, NamedMatch } from "./named.js";
 export type { KeyDefinition } from "./lookup.js";
 export {
+  EMERGENT_CHOICE,
   MEANINGS,
+  emergentProblem,
   meaningUnassigned,
   meaningUnassignedMessage,
   propertyWithMeaning,

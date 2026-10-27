@@ -446,6 +446,53 @@ describe("renderHuman: validation status (SR-038)", () => {
   });
 });
 
+describe("renderHuman: the mark emergent (SR-035)", () => {
+  it("[SR-035/AK2] shows [emergent] after the title, before the verification status, and only for a marked element", () => {
+    const elements = [
+      {
+        id: "e",
+        shortId: "SR-1",
+        status: "approved",
+        title: "Forecast",
+        emergent: true,
+        verification: [{ view: "core", status: "open" }],
+      },
+      {
+        id: "p",
+        shortId: "SR-2",
+        status: "approved",
+        title: "Wind",
+        verification: [{ view: "core", status: "indirect" }],
+      },
+    ];
+    expect(renderHuman({ elements, total: 2 })).toBe(
+      lines(
+        "elements:",
+        "  SR-1  approved  Forecast  [emergent]  [verification: core open]",
+        "  SR-2  approved  Wind  [verification: core indirect]",
+        "total: 2",
+      ),
+    );
+  });
+
+  it("shows it on the line of one element, not again in its details; the property stays", () => {
+    const element = {
+      id: "e",
+      shortId: "SR-1",
+      status: "approved",
+      title: "Forecast",
+      type: "system-requirement",
+      emergent: true,
+      properties: { emergent: "yes" },
+      verification: [{ view: "core", status: "open" }],
+    };
+    const out = renderHuman({ element }).split("\n");
+    expect(out[0]).toBe("SR-1  approved  Forecast  [emergent]  [verification: core open]");
+    expect(out.filter((line) => line.trimStart().startsWith("emergent: true"))).toEqual([]);
+    expect(out).toContain("    emergent: yes");
+  });
+});
+
 describe("renderHuman: identifiers (#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {

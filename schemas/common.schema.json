@@ -295,7 +295,7 @@
       "type": "boolean"
     },
     "selection": {
-      "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view (SR-036 AK1, SR-043, SR-061 AK2).",
+      "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.",
       "type": "object",
       "properties": {
         "ids": {
@@ -351,7 +351,7 @@
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
-      "description": "SR-038: open (offen), validated (erfolgreich), failed (nicht erfolgreich), outdated (veraltet).",
+      "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
       "enum": ["open", "validated", "failed", "outdated"]
     }
   }

@@ -4,12 +4,12 @@
 // command of the catalog is covered. `--json` prints the output unchanged, `--yaml` all of it.
 //
 // - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
-//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305) and its verification
-//   status per view at the end, apart from its own status (`[verification: core verified]`, SR-031,
-//   D-030; the children missing for SR-034 as `core open (missing SR-0000b2)`), then its validation
-//   status (`[validation: validated]`, SR-038); a list of them one
-//   such line per element. A read command (element.get) shows the element's details below its line,
-//   a write command only the line.
+//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305), `[emergent]` when it
+//   is marked emergent (SR-035), and its verification status per view at the end, apart from its own
+//   status (`[verification: core verified]`, SR-031, D-030; the children missing for SR-034 as
+//   `core open (missing SR-0000b2)`), then its validation status (`[validation: validated]`, SR-038);
+//   a list of them one such line per element. A read command (element.get) shows the element's details
+//   below its line, a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked. Its `evidence` is
 //   indented below the element it belongs to (`evidenceLines`).
@@ -125,9 +125,12 @@ const validationText = (element: Rec): string => {
   return validation === "" ? "" : `[validation: ${validation}]`;
 };
 
+/** `[emergent]` for an element marked emergent (SR-035), next to the `open` it explains; else nothing. */
+const emergentText = (element: Rec): string => (element["emergent"] === true ? "[emergent]" : "");
+
 /**
- * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind and
- * its verification status per view last.
+ * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind, its
+ * mark emergent and its verification status per view last.
  */
 const elementLine = (
   element: Rec & { readonly shortId: string; readonly title: string },
@@ -141,6 +144,7 @@ const elementLine = (
     text(element["status"]),
     element.title,
     viaText(element, name),
+    emergentText(element),
     verificationText(element, view),
     validationText(element),
   );
@@ -171,6 +175,7 @@ const elementDetails = (element: Rec): string[] => {
     problems: _problems,
     verification: _verification,
     validation: _validation,
+    emergent: _emergent,
     repository,
     file,
     relations,

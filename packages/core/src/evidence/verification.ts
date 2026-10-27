@@ -10,7 +10,8 @@
 // view they apply in, and reads the versions of those with records that are not known yet, in one
 // batch (`currentVersionsOf`: their files, or the whole store when they are a large share of it). A
 // page or a leaf reads only what it needs; a repeated element.get of the same parent reads nothing
-// (plan review B1, SR-082 AK3). The walk is iterative, so a deep chain cannot overflow the stack.
+// (plan review B1, SR-082 AK3). Below an element marked emergent nothing is walked (SR-035). The walk
+// is iterative, so a deep chain cannot overflow the stack.
 // With `own`, `prepare` also reads the versions of the elements themselves that have validation
 // records; the walk below them stays on verification. The element shown is measured against the
 // version it is shown with (`Shown`), which is never kept. Children are measured against the versions
@@ -119,8 +120,10 @@ export const workspaceStatusOf = (
   ];
   const hasRecords = (element: ElementRecord): boolean =>
     source.recordsOf(element.id).some((r) => r.kind === "verification");
-  // Below an element with an own record in every view it applies in, its children decide nothing.
+  // Below an element with an own record in every view it applies in, or one marked emergent (SR-035),
+  // its children decide nothing.
   const decidedByChildren = (element: ElementRecord): boolean =>
+    !source.emergent(element) &&
     views.some((view) => appliesIn(source.validity, element, view) && !hasOwnRecordIn(source, element, view));
   let batches = 0;
 

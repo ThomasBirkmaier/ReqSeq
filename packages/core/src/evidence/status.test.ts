@@ -1,6 +1,7 @@
 // The verification status (SR-031) and the validation status (SR-038) from records (ADR-0012 "Status
-// rules"), as pure functions of the records of one element, its current version and a view. The commands that show it (evidence.status,
-// element.get) and the filter are tested in commands/evidence/status.test.ts.
+// rules"), as pure functions of the records of one element, its current version and a view. The
+// commands that show it (evidence.status, element.get) and the filter are tested in
+// commands/evidence/status.test.ts.
 import { describe, expect, it } from "vitest";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
@@ -30,7 +31,10 @@ const record = (
   ...more,
 });
 
-/** The status of `records` of A in the core against CURRENT, the records in the order of the index and reversed. */
+/**
+ * The status of `records` of A in the core against CURRENT, the records in the order of the index and
+ * reversed.
+ */
 const statusOf = (records: readonly EvidenceRecord[], view: View = CORE): string[] => {
   const ordered = evidenceIndex(records).byElement.get(A) ?? [];
   return [

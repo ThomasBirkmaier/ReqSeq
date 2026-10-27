@@ -155,26 +155,79 @@ export const assignMeanings = (lists: {
   return { meanings, problems };
 };
 
+/** A `metamodel.invalid` problem of `file`, with its line when it is known. */
+const problemAt = (
+  file: string,
+  line: number | undefined,
+  message: string,
+  severity: Problem["severity"],
+): Problem => ({
+  code: "metamodel.invalid",
+  severity,
+  message,
+  file,
+  ...(line === undefined ? {} : { line }),
+});
+
 /**
- * `metamodel.invalid` errors for a property whose meaning needs another value kind (#305): the
- * meaning `identifier` names an element by one text, so its property is of kind `text` without
- * `many`. Each with the file and the line of its `kind` (or `many`).
+ * The choice key that marks an element emergent (SR-035, assumption of spec question #591 Q1): the
+ * check below and the mark of `model/emergent.ts` share it.
+ */
+export const EMERGENT_CHOICE = "yes";
+
+/**
+ * Why a property with the meaning `emergent` cannot hold the mark, and the key whose line names it;
+ * undefined when it can (#591 Q1). Without the mark no element is emergent (`model/emergent.ts`).
+ */
+export const emergentProblem = (
+  property: MetamodelProperty,
+): { readonly reason: string; readonly at: string } | undefined => {
+  if (property.kind !== "choice") {
+    return { reason: `kind ${property.kind}`, at: "kind" };
+  }
+  if (property.many === true) {
+    return { reason: "a list", at: "many" };
+  }
+  if (property.choices?.some((choice) => choice.key === EMERGENT_CHOICE) !== true) {
+    return { reason: `no choice ${EMERGENT_CHOICE}`, at: "choices" };
+  }
+  return undefined;
+};
+
+/**
+ * The problems of a property whose meaning needs another value kind, each with the file and the line
+ * of its `kind` (or `many`, `choices`):
+ * - errors for the meaning `identifier` (#305): it names an element by one text, so its property is
+ *   of kind `text` without `many`;
+ * - warnings for the meaning `emergent` (SR-035, assumption of spec question #591 Q1): the mark is the
+ *   choice key `yes` of a property of kind `choice` without `many`. Otherwise no element is marked
+ *   emergent; as D-012 wants for metamodel transitions („Das Tool zeigt sie als Hinweis an, blockiert
+ *   aber nichts.“), the metamodel stays valid and the workspace writable.
  */
 export const meaningKindProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
   properties.flatMap(({ definition, file, lineOf }): Problem[] => {
     const { key, kind, many, meaning } = definition;
-    if (meaning !== "identifier" || (kind === "text" && many !== true)) {
+    if (meaning === "identifier" && (kind !== "text" || many === true)) {
+      return [
+        problemAt(
+          file,
+          lineOf([kind === "text" ? "many" : "kind"]),
+          `Property ${key} has the meaning identifier, which needs kind text without many (one text per element), not ${kind === "text" ? "a list" : `kind ${kind}`}`,
+          "error",
+        ),
+      ];
+    }
+    const emergent = meaning === "emergent" ? emergentProblem(definition) : undefined;
+    if (emergent === undefined) {
       return [];
     }
-    const line = lineOf([kind === "text" ? "many" : "kind"]);
     return [
-      {
-        code: "metamodel.invalid",
-        severity: "error",
-        message: `Property ${key} has the meaning identifier, which needs kind text without many (one text per element), not ${kind === "text" ? "a list" : `kind ${kind}`}`,
+      problemAt(
         file,
-        ...(line === undefined ? {} : { line }),
-      },
+        lineOf([emergent.at]),
+        `Property ${key} has the meaning emergent, which needs kind choice without many and the choice ${EMERGENT_CHOICE} (the mark), not ${emergent.reason}; no element is marked emergent`,
+        "warning",
+      ),
     ];
   });
 

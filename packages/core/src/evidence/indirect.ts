@@ -21,7 +21,9 @@
 //    (explicit stack, memo per view), so a chain of any depth cannot overflow the call stack (N-036).
 // 7. Without child rules (no relation kind with the meaning `derivation`, or the metamodel is not
 //    valid) no element has children: nothing is indirect, and nothing fails.
-// Not yet: an element flagged emergent (SR-035) can still be indirect; SR-035 adds that condition here.
+// 8. An element marked emergent (SR-035 AK1, `StatusSource.emergent`) has no counted children: without
+//    an own record in the view it is `open` there with no `missingChildren`, never `indirect`, and its
+//    children are not walked (#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
 import type { VerificationStatus } from "../generated/types.js";
 import { invalidStatuses } from "../model/index.js";
 import type { ElementRecord } from "../model/index.js";
@@ -124,7 +126,7 @@ export const verificationEvaluator = (
   };
 
   const counted = (element: ElementRecord, view: View): readonly ElementRecord[] => {
-    if (children === undefined) {
+    if (children === undefined || source.emergent(element)) {
       return NONE;
     }
     const seen = new Set<ElementRecord>();

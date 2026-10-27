@@ -3,6 +3,7 @@
 // commands/evidence/status.test.ts and commands/evidence/indirect.test.ts.
 import { describe, expect, it } from "vitest";
 import type { CurrentVersion, ElementRecord } from "../model/index.js";
+import { isEmergent } from "../model/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { ChildRules } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
@@ -50,6 +51,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
     needs: new Set(["need"]),
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
+    emergent: (e) => isEmergent(e, "emergent"),
   };
 };
 
@@ -206,6 +208,35 @@ describe("workspaceStatusOf: current versions (SR-034, plan review B1)", () => {
     expect(asked).toEqual([[leaf]]);
     expect(status.evaluate(head, { kind: "core" })).toEqual({ status: "indirect" });
   });
+
+  it("prepare reads no version below an emergent requirement without own record (SR-035)", async () => {
+    const [emergent, a, b, recorded, child] = [
+      element({ emergent: "yes" }),
+      element(),
+      element(),
+      element({ emergent: "yes" }),
+      element(),
+    ];
+    const { asked, read } = reader();
+    const status = workspaceStatusOf(
+      sourceOf([passed(a), passed(b), passed(recorded), passed(child)]),
+      [],
+      rulesOf(
+        new Map([
+          [emergent, [a, b]],
+          [recorded, [child]],
+        ]),
+      ),
+      read,
+    );
+    await status.prepare([emergent]);
+    expect(status.versionBatches()).toBe(0);
+    expect(status.evaluate(emergent, { kind: "core" })).toEqual({ status: "open" });
+    // With its own record only its own version is read, never its children's.
+    await status.prepare([recorded], { own: true });
+    expect(asked).toEqual([[recorded]]);
+    expect(status.evaluate(recorded, { kind: "core" })).toEqual({ status: "verified" });
+  });
 });
 
 describe("verificationOf (SR-031, SR-034)", () => {
@@ -277,10 +308,10 @@ describe("workspaceStatusOf: validation status (SR-038)", () => {
   });
 
   it("prepare with own reads the versions of validation-recorded elements in the one batch, once", async () => {
-    const [need, requirement, other] = [element({}, "need"), element(), element()];
+    const [need, requirement, other] = [element({}, "need"), element(), element({}, "use-case")];
     const { asked, read } = reader();
     const status = workspaceStatusOf(
-      sourceOf([validation(need), passed(requirement), validation(other, { kind: "validation" })]),
+      sourceOf([validation(need), passed(requirement), validation(other)]),
       [],
       undefined,
       read,

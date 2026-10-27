@@ -84,7 +84,7 @@ describe("logreq element list (SR-069)", () => {
     expect([human.code, human.stderr]).toEqual([0, ""]);
     // One line per element (#310), then the total of all matches and how to page.
     expect(human.stdout).toBe(
-      "elements:\n  SR-0000b3  draft  Survive icing\n  SR-0000b4  obsolete  Show a dial\ntotal: 5\nShowing 2 of 5; ask for more with --offset and --limit.\n",
+      "elements:\n  SR-0000b3  draft  Survive icing  [emergent]\n  SR-0000b4  obsolete  Show a dial\ntotal: 5\nShowing 2 of 5; ask for more with --offset and --limit.\n",
     );
   });
 
@@ -98,12 +98,12 @@ describe("logreq element list (SR-069)", () => {
     expect([output.total, output.incomplete]).toEqual([2, false]);
   });
 
-  it("ends with exit code 2 and the error for a condition that comes later", async () => {
-    const failed = await list({ selection: { where: { emergent: true } } });
+  it("ends with exit code 2 and the error for a selection that comes later", async () => {
+    const failed = await list({ selection: { baseline: "v1" } });
     expect([failed.code, failed.stdout]).toEqual([2, ""]);
     expect(JSON.parse(failed.stderr)).toMatchObject({
       code: "input.invalid",
-      details: { fields: ["selection.where.emergent"] },
+      details: { fields: ["selection.baseline"] },
     });
   });
 });

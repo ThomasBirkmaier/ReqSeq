@@ -1,8 +1,10 @@
 // The indirect verification (SR-034, ADR-0012 "Status rules") as a pure function of a status source,
 // the derivation children of each element and their current versions. The commands that show it
-// (evidence.status, element.get) and the filter are tested in commands/evidence/indirect.test.ts.
+// (evidence.status, element.get) and the filter are tested in commands/evidence/indirect.test.ts; the
+// emergent rule (SR-035) in commands/evidence/emergent.test.ts.
 import { describe, expect, it } from "vitest";
 import type { ElementRecord } from "../model/index.js";
+import { isEmergent } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { ChildRules, VerificationResult } from "./indirect.js";
@@ -64,6 +66,8 @@ interface Setup {
   readonly versions?: ReadonlyMap<ElementRecord, string | undefined>;
   /** No child rules (no derivation meaning, or the metamodel is not valid). */
   readonly noRules?: boolean;
+  /** The key of the property with the meaning `emergent`; `emergent` unless given, null: none (SR-035). */
+  readonly emergentKey?: string | null;
 }
 
 const evaluator = (setup: Setup) => {
@@ -73,6 +77,8 @@ const evaluator = (setup: Setup) => {
     needs: new Set(["need"]),
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
+    emergent: (e) =>
+      isEmergent(e, setup.emergentKey === null ? undefined : (setup.emergentKey ?? "emergent")),
   };
   const versions = setup.versions ?? new Map<ElementRecord, string | undefined>();
   return verificationEvaluator(
@@ -350,5 +356,136 @@ describe("indirect verification (SR-034)", () => {
     const evaluate = evaluator({});
     expect(evaluate(element({}, "need"), CORE)).toBeUndefined();
     expect(evaluate(element({ validity: [{ id: V }] }), CORE)).toBeUndefined();
+  });
+});
+
+describe("emergent requirements need their own record (SR-035)", () => {
+  const EMERGENT = { emergent: "yes" } as const;
+
+  it("[SR-035/AK1] an emergent requirement without own record whose children are all verified is open, not indirect", () => {
+    const [emergent, a, b] = [element(EMERGENT), element(), element()];
+    const evaluate = evaluator({
+      children: new Map([[emergent, [a, b]]]),
+      records: [record(a, "passed"), record(b, "passed")],
+    });
+    expect(evaluate(emergent, CORE)?.status).toBe("open");
+    expect(evaluate(a, CORE)).toEqual({ status: "verified" });
+  });
+
+  it("[SR-035/AK1] an emergent requirement without own record names no missing children", () => {
+    const [emergent, verified, failed, none] = [element(EMERGENT), element(), element(), element()];
+    const evaluate = evaluator({
+      children: new Map([[emergent, [verified, failed, none]]]),
+      records: [record(verified, "passed"), record(failed, "failed")],
+    });
+    expect(evaluate(emergent, CORE)).toEqual({ status: "open" });
+  });
+
+  it("[SR-035/AK1] an emergent requirement with its own passed record of the current version is verified", () => {
+    const [emergent, child] = [element(EMERGENT), element()];
+    const evaluate = evaluator({
+      children: new Map([[emergent, [child]]]),
+      records: [record(emergent, "passed"), record(child, "passed")],
+    });
+    expect(evaluate(emergent, CORE)).toEqual({ status: "verified" });
+    const older = evaluator({
+      children: new Map([[emergent, [child]]]),
+      records: [record(emergent, "passed", { version: OLDER }), record(child, "passed")],
+    });
+    expect(older(emergent, CORE)).toEqual({ status: "outdated" });
+  });
+
+  it("[SR-035/AK1] a parent whose emergent child has no own record is not indirect and names that child", () => {
+    const [parent, emergent, grandchild, sibling] = [element(), element(EMERGENT), element(), element()];
+    const evaluate = evaluator({
+      children: new Map([
+        [parent, [emergent, sibling]],
+        [emergent, [grandchild]],
+      ]),
+      records: [record(grandchild, "passed"), record(sibling, "passed")],
+    });
+    expect(evaluate(parent, CORE)).toEqual({ status: "open", missingChildren: [emergent.id] });
+    expect(evaluate(emergent, CORE)).toEqual({ status: "open" });
+    // With its own record the emergent child counts as verified for its parent.
+    const own = evaluator({
+      children: new Map([
+        [parent, [emergent, sibling]],
+        [emergent, [grandchild]],
+      ]),
+      records: [record(emergent, "passed"), record(sibling, "passed")],
+    });
+    expect(own(parent, CORE)).toEqual(indirect);
+  });
+
+  it("[SR-035/AK1] in a variant view an emergent requirement needs a record for that variant; its core record does not count there", () => {
+    const [emergent, child] = [element(EMERGENT), element()];
+    const evaluate = evaluator({
+      children: new Map([[emergent, [child]]]),
+      records: [record(emergent, "passed"), record(child, "passed"), record(child, "passed", { variant: V })],
+    });
+    expect(evaluate(emergent, CORE)).toEqual({ status: "verified" });
+    expect(evaluate(emergent, IN_V)).toEqual({ status: "open" });
+    const inV = evaluator({
+      children: new Map([[emergent, [child]]]),
+      records: [record(emergent, "passed", { variant: V }), record(child, "passed")],
+    });
+    expect(inV(emergent, IN_V)).toEqual({ status: "verified" });
+    expect(inV(emergent, CORE)).toEqual({ status: "open" });
+  });
+
+  it("an own passed record decides also when a child failed (#591 Q2)", () => {
+    const [emergent, child] = [element(EMERGENT), element()];
+    const evaluate = evaluator({
+      children: new Map([[emergent, [child]]]),
+      records: [record(emergent, "passed"), record(child, "failed")],
+    });
+    expect(evaluate(emergent, CORE)).toEqual({ status: "verified" });
+  });
+
+  it.each([
+    ["no", { emergent: "no" }],
+    ["an absent value", {}],
+    ["the display name Yes", { emergent: "Yes" }],
+  ])("%s is no mark: the requirement is indirect as before (#591 Q1)", (_name, more) => {
+    const [parent, child] = [element(more), element()];
+    const evaluate = evaluator({
+      children: new Map([[parent, [child]]]),
+      records: [record(child, "passed")],
+    });
+    expect(evaluate(parent, CORE)).toEqual(indirect);
+  });
+
+  it("without a property with the meaning emergent nothing is emergent and nothing fails", () => {
+    const [parent, child] = [element(EMERGENT), element()];
+    const evaluate = evaluator({
+      children: new Map([[parent, [child]]]),
+      records: [record(child, "passed")],
+      emergentKey: null,
+    });
+    expect(evaluate(parent, CORE)).toEqual(indirect);
+  });
+
+  it("the mark follows the property with the meaning, whatever its key", () => {
+    const [parent, child] = [element({ "emergent-behaviour": "yes" }), element()];
+    const setup: Setup = { children: new Map([[parent, [child]]]), records: [record(child, "passed")] };
+    expect(evaluator(setup)(parent, CORE)).toEqual(indirect);
+    expect(evaluator({ ...setup, emergentKey: "emergent-behaviour" })(parent, CORE)).toEqual({
+      status: "open",
+    });
+  });
+
+  it("an emergent requirement on a derivation cycle ends", () => {
+    const [top, a, b, leaf] = [element(), element(EMERGENT), element(), element()];
+    const evaluate = evaluator({
+      children: new Map([
+        [top, [a]],
+        [a, [b]],
+        [b, [a, leaf]],
+      ]),
+      records: [record(leaf, "passed")],
+    });
+    expect(evaluate(b, CORE)).toEqual({ status: "open", missingChildren: [a.id] });
+    expect(evaluate(a, CORE)).toEqual({ status: "open" });
+    expect(evaluate(top, CORE)).toEqual({ status: "open", missingChildren: [a.id] });
   });
 });

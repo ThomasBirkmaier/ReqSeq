@@ -167,6 +167,35 @@ describe("validation status in element.get, element.resolve, evidence.status and
     expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
   });
 
+  it("a need whose only validation record of the current version has a variant is open, has no hint, and evidence.list lists the record (#534 Q2)", async () => {
+    const plain = await open();
+    const current = String((await get(plain, N4)).element.version);
+    const record = [
+      "---",
+      "logreq-record: 1",
+      "kind: validation",
+      `element: ${N4}`,
+      `version: ${current}`,
+      `variant: ${U("c001")}`,
+      "result: passed",
+      "date: 2026-10-27T10:00:00Z",
+      "---",
+      "",
+    ].join("\n");
+    const ws = await open({ ...VALIDATION, files: { "evidence/2026-10-27-N-00a004-validation.md": record } });
+    const out = (await get(ws, N4)).element;
+    expect(out.validation).toBe("open");
+    expect(out.problems ?? []).toEqual([]);
+    const listed = (await invoke(
+      "evidence.list",
+      { ref: N4 },
+      { workspace: ws },
+    )) as CommandOutput<"evidence.list">;
+    expect(listed.records.map((r) => [r.element, r.kind, r.version, r.variant])).toEqual([
+      [N4, "validation", current, U("c001")],
+    ]);
+  });
+
   it("compares nothing while the metamodel is not valid: every need is open, no other element has a validation status", async () => {
     const ws = await open({ ...VALIDATION, files: { "metamodel/broken.yaml": "properties: [\n" } });
     const out = statuses((await status(ws, { selection: { ids: [N1, N4, S1, U1] } })).elements);

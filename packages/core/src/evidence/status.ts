@@ -22,6 +22,8 @@
 import type { DataExportElement, ValidationStatus, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
+import type { ElementRecord } from "../model/index.js";
+import { emergentKeyOf, isEmergent } from "../model/index.js";
 import type { Validity, View } from "../variants/index.js";
 import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
@@ -31,7 +33,10 @@ import type { EvidenceRecord } from "./record.js";
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
 export type RecordStatus = "open" | "passed" | "failed" | "outdated";
 
-/** The verification status computed from records alone; `indirect` comes from the children (SR-034, `indirect.ts`). */
+/**
+ * The verification status computed from records alone; `indirect` comes from the children (SR-034,
+ * `indirect.ts`).
+ */
 export type RecordVerificationStatus = Exclude<VerificationStatus, "indirect">;
 
 /** The verification entries of an element (`data-export.schema.json#/$defs/element` `verification`). */
@@ -113,11 +118,16 @@ export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean
 export interface StatusSource {
   /** The effective type keys with the meaning `requirement` (own or inherited, SR-012). */
   readonly requirements: ReadonlySet<string>;
-  /** The effective type keys with the meaning `need`: they have a validation status without record (SR-038, #534). */
+  /**
+   * The effective type keys with the meaning `need`: they have a validation status without record
+   * (SR-038, #534).
+   */
   readonly needs: ReadonlySet<string>;
   readonly validity: Validity | undefined;
   /** The records of an element by UUID; none while the metamodel is not valid. */
   readonly recordsOf: (id: string) => readonly EvidenceRecord[];
+  /** Whether an element is marked emergent (`isEmergent`, SR-035): it needs an own record, never `indirect`. */
+  readonly emergent: (element: ElementRecord) => boolean;
 }
 
 const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
@@ -126,9 +136,13 @@ const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
  * The status source of `metamodel` with the records of `index`; without `index` (the metamodel is
  * not valid) no element has records.
  */
-export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefined): StatusSource => ({
-  requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
-  needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
-  validity: validityOf(metamodel),
-  recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
-});
+export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefined): StatusSource => {
+  const emergentKey = emergentKeyOf(metamodel);
+  return {
+    requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
+    needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
+    validity: validityOf(metamodel),
+    recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
+    emergent: (element) => isEmergent(element, emergentKey),
+  };
+};

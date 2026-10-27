@@ -600,7 +600,7 @@
         "properties": {
           "element": {
             "$ref": "../data-export.schema.json#/$defs/element",
-            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) both are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
+            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
           },
           "current": {
             "enum": ["current", "outdated", "unknown", null],
@@ -617,7 +617,7 @@
       "summary": "Elements of a selection, sorted; optionally as derivation tree.",
       "effect": "read",
       "stage": 3,
-      "implements": ["SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101"],
+      "implements": ["SR-035", "SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101"],
       "arguments": [
         { "field": "selection", "complete": "selection" },
         { "field": "sort", "complete": "json" },
@@ -3134,7 +3134,7 @@
         "properties": {
           "elements": {
             "type": "array",
-            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared and every requirement is `open`.",
+            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
             "items": {
               "$ref": "../data-export.schema.json#/$defs/element"
             }

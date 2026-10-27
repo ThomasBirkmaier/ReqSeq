@@ -529,7 +529,7 @@
           "type": "boolean"
         },
         "selection": {
-          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view (SR-036 AK1, SR-043, SR-061 AK2).",
+          "description": "Which elements a command works on: a saved filter, an inline filter, a package, a baseline or explicit IDs, optionally seen through a variant view.",
           "type": "object",
           "properties": {
             "ids": {
@@ -591,7 +591,7 @@
           ]
         },
         "validationStatus": {
-          "description": "SR-038: open (offen), validated (erfolgreich), failed (nicht erfolgreich), outdated (veraltet).",
+          "description": "offen, erfolgreich, nicht erfolgreich, veraltet.",
           "enum": [
             "open",
             "validated",
@@ -743,7 +743,8 @@
               "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
             },
             "emergent": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
             },
             "properties": {
               "type": "object",
@@ -1334,7 +1335,7 @@
                 },
                 "subtypes": {
                   "type": "boolean",
-                  "description": "Include subtypes of the type. Absent means true (no `default` keyword: defaults inside `oneOf` are not applied)."
+                  "description": "Include subtypes of the type. Absent means true."
                 }
               },
               "additionalProperties": false
@@ -1421,7 +1422,7 @@
                   "items": {
                     "$ref": "#/$defs/common/$defs/validationStatus"
                   },
-                  "description": "Validation status (SR-038). Elements without one never match (#534)."
+                  "description": "Needs always (open without record), other elements only with a validation record (assumption #534)."
                 }
               },
               "additionalProperties": false
@@ -1433,7 +1434,8 @@
               ],
               "properties": {
                 "emergent": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "true: the property with the meaning `emergent` is `yes`; false: it is not."
                 }
               },
               "additionalProperties": false
@@ -1446,7 +1448,7 @@
               "properties": {
                 "source": {
                   "type": "string",
-                  "description": "Value of the property with meaning `source` of imported elements (SR-057 AK2, D-059)."
+                  "description": "Value of the property with meaning `source` of imported elements."
                 }
               },
               "additionalProperties": false
@@ -1846,7 +1848,7 @@
           "unevaluatedProperties": false
         },
         "propertyMeaning": {
-          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.",
+          "description": "Built-in meaning (D-012, D-059): `title`; `validity` (list of variants, D-020); `packages` (D-040); `emergent` (emergent behaviour, N-010; a choice without `many` whose key `yes` is the mark, SR-035; otherwise a warning and nothing is marked); `verification-method`; `statement` (Stellungnahme for ReqIF, SR-058); `source`, `source-identifier`, `import-date`, `delivery` (origin of imported elements, written only by ReqIF import, SR-057); `identifier` (an ID from another source, such as the spec ID SR-036 or a customer ID, D-017; unique per type; element references accept it besides the UUID and short ID, and outputs show it next to the short ID, #305). A property with the meaning `identifier` is of kind `text` without `many`.",
           "enum": [
             "title",
             "validity",
@@ -2959,7 +2961,7 @@
         "properties": {
           "element": {
             "$ref": "#/$defs/data-export/$defs/element",
-            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) both are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
+            "description": "The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275)."
           },
           "current": {
             "enum": [
@@ -5785,7 +5787,7 @@
         "properties": {
           "elements": {
             "type": "array",
-            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared and every requirement is `open`.",
+            "description": "One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 \"Status rules\") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`.",
             "items": {
               "$ref": "#/$defs/data-export/$defs/element"
             }

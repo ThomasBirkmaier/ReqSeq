@@ -1,12 +1,13 @@
-# What data.export gives for a need and two requirements of a weather station (SR-061): the core
+# What data.export gives for a need and three requirements of a weather station (SR-061): the core
 # view, with the verification status per view (SR-031, SR-047 AK3); the parent without own record is
 # verified indirectly in the core and names its missing child in the variant (SR-034); the need and
-# one requirement have a validation status (SR-038). Records and test cases are checked by
+# one requirement have a validation status (SR-038). The emergent requirement (SR-035) has no own record,
+# so it is open in each view, never indirect. Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
 logreq-data: 1
 workspace: Weather station
 generated: 2026-10-27T08:00:00Z
-selection: { ids: [SR-e88fb3, SR-e88fa0, N-e88f00] }
+selection: { ids: [SR-e88fb3, SR-e88fa0, SR-e88fe0, N-e88f00] }
 repositories:
   - { name: system, available: true, commit: 0123456789abcdef0123456789abcdef01234567, dirty: false }
 elements:
@@ -49,6 +50,21 @@ elements:
     verification:
       - { view: core, status: indirect }
       - { view: VAR-0000c2, status: open, missingChildren: [e8df96ea-a168-4d90-8d65-6328cee88fb3] }
+  - id: e8df96ea-a168-4d90-8d65-6328cee88fe0
+    shortId: SR-e88fe0
+    type: system-requirement
+    status: approved
+    title: Show the forecast
+    version: n1:3f8fc8003c630a63
+    versionDate: 2026-10-20T12:00:00Z
+    repository: system
+    file: requirements/SR-6328cee88fe0.md
+    emergent: true
+    properties: { emergent: "yes" }
+    relations: []
+    verification:
+      - { view: core, status: open }
+      - { view: VAR-0000c2, status: open }
   - id: e8df96ea-a168-4d90-8d65-6328cee88f00
     shortId: N-e88f00
     type: need

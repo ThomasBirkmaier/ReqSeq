@@ -186,6 +186,9 @@ const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 /** Needs, requirements and a use case with validation and verification records (SR-038). */
 const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
+/** Requirements marked emergent, with and without own records, and their children (SR-035). */
+const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
+
 /** SR-004/one-repository with an image to attach, whose name LogReq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
   fixture: "SR-004/one-repository",
@@ -469,6 +472,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
           },
         },
       },
+      expect: "output",
+    },
+    {
+      name: "the condition emergent (SR-035)",
+      fixture: EMERGENT,
+      input: { selection: { where: { all: [{ emergent: true }, { verification: ["open"] }] } } },
       expect: "output",
     },
     {
@@ -894,6 +903,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     {
       name: "validation status apart from the verification status (SR-038)",
       fixture: VALIDATION,
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "emergent requirements need their own record (SR-035)",
+      fixture: EMERGENT,
       input: {},
       expect: "output",
     },

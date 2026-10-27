@@ -121,7 +121,8 @@
           "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
         },
         "emergent": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
         },
         "properties": {
           "type": "object",

@@ -59,7 +59,7 @@
             },
             "subtypes": {
               "type": "boolean",
-              "description": "Include subtypes of the type. Absent means true (no `default` keyword: defaults inside `oneOf` are not applied)."
+              "description": "Include subtypes of the type. Absent means true."
             }
           },
           "additionalProperties": false
@@ -122,7 +122,7 @@
             "validation": {
               "type": "array",
               "items": { "$ref": "common.schema.json#/$defs/validationStatus" },
-              "description": "Validation status (SR-038). Elements without one never match (#534)."
+              "description": "Needs always (open without record), other elements only with a validation record (assumption #534)."
             }
           },
           "additionalProperties": false
@@ -130,7 +130,12 @@
         {
           "type": "object",
           "required": ["emergent"],
-          "properties": { "emergent": { "type": "boolean" } },
+          "properties": {
+            "emergent": {
+              "type": "boolean",
+              "description": "true: the property with the meaning `emergent` is `yes`; false: it is not."
+            }
+          },
           "additionalProperties": false
         },
         {
@@ -139,7 +144,7 @@
           "properties": {
             "source": {
               "type": "string",
-              "description": "Value of the property with meaning `source` of imported elements (SR-057 AK2, D-059)."
+              "description": "Value of the property with meaning `source` of imported elements."
             }
           },
           "additionalProperties": false

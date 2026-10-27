@@ -387,6 +387,51 @@ describe("built-in meanings", () => {
     ]);
   });
 
+  it("#591: the meaning emergent wants a single choice with the key yes, else a warning", async () => {
+    const lines: Readonly<Record<string, number>> = { kind: 4, many: 5, choices: 6 };
+    const at = (definition: MetamodelProperty, known = true): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => (known ? lines[String(path[0])] : undefined),
+    });
+    const warning = (key: string, reason: string, line?: number): Problem => ({
+      code: "metamodel.invalid",
+      severity: "warning",
+      message: `Property ${key} has the meaning emergent, which needs kind choice without many and the choice yes (the mark), not ${reason}; no element is marked emergent`,
+      file: "model/properties.yaml",
+      ...(line === undefined ? {} : { line }),
+    });
+    const yesNo = [
+      { key: "yes", name: "Yes" },
+      { key: "no", name: "No" },
+    ];
+    expect(
+      meaningKindProblems([
+        at({ key: "a", name: "A", kind: "text", meaning: "emergent" }),
+        at({ key: "b", name: "B", kind: "choice", many: true, choices: yesNo, meaning: "emergent" }),
+        at({
+          key: "c",
+          name: "C",
+          kind: "choice",
+          choices: [{ key: "ja", name: "Ja" }],
+          meaning: "emergent",
+        }),
+        at({ key: "d", name: "D", kind: "choice", meaning: "emergent" }),
+        at({ key: "e", name: "E", kind: "number", meaning: "emergent" }, false),
+        at({ key: "f", name: "F", kind: "choice", many: false, choices: yesNo, meaning: "emergent" }),
+        at({ key: "g", name: "G", kind: "text" }),
+      ]),
+    ).toEqual([
+      warning("a", "kind text", 4),
+      warning("b", "a list", 5),
+      warning("c", "no choice yes", 6),
+      warning("d", "no choice yes", 6),
+      warning("e", "kind number"),
+    ]);
+    // The standard model complies, and a warning leaves the metamodel valid.
+    expect(await load({ fixture: "SR-035/emergent" })).toMatchObject({ valid: true, problems: [] });
+  });
+
   it("[SR-127/AK5] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {
     const at = (definition: MetamodelProperty, line?: number): Located<MetamodelProperty> => ({
       definition,

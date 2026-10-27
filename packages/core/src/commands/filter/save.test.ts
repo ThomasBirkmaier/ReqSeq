@@ -251,6 +251,25 @@ describe("filter.save (SR-070)", () => {
     expect(await fs.readdir(fixture.path("config/team/filters"))).toEqual(["all.yaml"]);
   });
 
+  it("[SR-035/AK2] saves the condition emergent, and running the saved filter gives what the condition gives", async () => {
+    const { fixture, workspace } = await open();
+    expect(await save(workspace, { name: "Emergent", where: { emergent: true } })).toEqual({
+      files: ["filters/emergent.yaml"],
+      problems: [],
+    });
+    expect(await read(fixture, "filters/emergent.yaml")).toContain("where:\n  emergent: true\n");
+    const run = async (selection: Record<string, unknown>): Promise<string[]> => {
+      const out = (await invoke(
+        "element.list",
+        { selection },
+        { workspace },
+      )) as CommandOutput<"element.list">;
+      return out.elements.map((e) => e.id);
+    };
+    expect(await run({ filter: "Emergent" })).toEqual([`${P}b3`]);
+    expect(await run({ filter: "Emergent" })).toEqual(await run({ where: { emergent: true } }));
+  });
+
   it("checks the filter as a selection does, naming the field, and writes nothing then", async () => {
     const { fixture, workspace } = await open();
     const refused = async (input: Record<string, unknown>): Promise<unknown> => {
@@ -264,10 +283,6 @@ describe("filter.save (SR-070)", () => {
     expect(await refused({ where: { package: "PKG-ffffff" } })).toEqual({
       code: "ref.unknown",
       fields: undefined,
-    });
-    expect(await refused({ where: { not: { emergent: true } } })).toEqual({
-      code: "input.invalid",
-      fields: ["where.not.emergent"],
     });
     expect(await refused({ where: { all: [] }, view: "SR-0000b1" })).toEqual({
       code: "input.invalid",
