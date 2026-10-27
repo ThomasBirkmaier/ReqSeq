@@ -17,6 +17,7 @@ import elementSearch from "./element/search.js";
 import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
+import evidenceCoverage from "./evidence/coverage.js";
 import filterList from "./filter/list.js";
 import filterSave from "./filter/save.js";
 import hintConfirm from "./hint/confirm.js";
@@ -48,6 +49,7 @@ export const commands: readonly AnyCommand[] = [
   elementSetStatus,
   elementSupersede,
   elementUpdate,
+  evidenceCoverage,
   filterList,
   filterSave,
   hintConfirm,

@@ -70,6 +70,7 @@ const SELECTION_TOOLS: readonly string[] = [
   "trace_matrix",
   "element_search",
   "filter_save",
+  "evidence_coverage",
 ];
 /**
  * What each listed tool brings to the bound of the whole list (#496). The tools average 1.85 KB without their

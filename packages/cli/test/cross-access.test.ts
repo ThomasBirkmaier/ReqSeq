@@ -167,6 +167,9 @@ const WITH_IMAGE: FixtureOptions = {
   git: true,
 };
 
+/** Needs, requirements and a subtype in two repositories, an obsolete child, a saved filter (SR-036). */
+const COVERAGE: FixtureOptions = { fixture: "SR-036/levels", git: ["system", "sensor"] };
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   // `sourcePath` is a localPath, like `path` of workspace.init below: the same file through every access.
@@ -699,6 +702,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "change the text of an element two others point at: affected 2 (SR-024 AK2)",
       fixture: AFFECTED,
       input: { ref: "SR-00b001", text: "Changed.\n" },
+      expect: "output",
+    },
+  ],
+  "evidence.coverage": [
+    {
+      name: "the whole workspace in two repositories, with an obsolete child (SR-036)",
+      fixture: COVERAGE,
+      root: "system",
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "a saved filter in the core view (SR-036)",
+      fixture: COVERAGE,
+      root: "system",
+      input: { selection: { filter: "Requirements", view: "core" } },
+      expect: "output",
+    },
+    {
+      name: "an unknown package gives the same error (#535 fixture)",
+      fixture: EVIDENCE,
+      input: { selection: { package: "PKG-ffffff" } },
+      expect: "error",
+    },
+    {
+      name: "a workspace with an evidence location (#535)",
+      fixture: EVIDENCE,
+      input: { selection: { ids: ["SR-e88fb3"] } },
       expect: "output",
     },
   ],

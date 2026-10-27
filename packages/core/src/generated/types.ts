@@ -2170,6 +2170,7 @@ export interface EvidenceStatusOutput {
  * Schema: `schemas/commands/catalog.json evidence.coverage input`.
  */
 export interface EvidenceCoverageInput {
+  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those that apply in it, as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
   readonly selection?: ElementSelection;
 }
 
@@ -2178,13 +2179,22 @@ export interface EvidenceCoverageInput {
  * Schema: `schemas/commands/catalog.json evidence.coverage output`.
  */
 export interface EvidenceCoverageOutput {
+  /** One level per element type of the selection with the meaning `need` or `requirement` (a subtype is its own level), in metamodel order (spec question #527). Elements whose status the metamodel marks invalid are not counted (SR-036 AK4, D-044); other types have no level. */
   readonly levels: readonly {
     readonly type: Key;
+    /** The counted elements of the type. */
     readonly total: number;
+    /** How many have a derivation child that counts: one whose status is not marked invalid and, with a view, that applies in it; in any repository. */
     readonly withChildren: number;
-    readonly withEvidence: number;
-    readonly withoutChildren?: readonly Uuid[];
-    readonly withoutEvidence?: readonly Uuid[];
+    /** Only for a type with the meaning `requirement`: how many have at least one verification record in the view (the core without one), of any version and result (`hasVerificationRecord`, spec question #527). */
+    readonly withEvidence?: number;
+    /** The UUIDs behind every number, in selection order (SR-036 AK2): pass them as `selection.ids` to `element.list`. `withEvidence` and `withoutEvidence` only where the level has `withEvidence`. */
+    readonly elements: {
+      readonly withChildren: readonly Uuid[];
+      readonly withoutChildren: readonly Uuid[];
+      readonly withEvidence?: readonly Uuid[];
+      readonly withoutEvidence?: readonly Uuid[];
+    };
   }[];
   readonly incomplete?: Incomplete;
 }

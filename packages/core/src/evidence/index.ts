@@ -9,6 +9,8 @@ export {
   sortNewestFirst,
 } from "./by-element.js";
 export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
+export { coverageOf, coverageRules } from "./coverage.js";
+export type { CoverageLevel, CoverageRules } from "./coverage.js";
 export { EVIDENCE_FILES, evidenceFiles } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";
 export { testCaseKey, testCaseKeyOf } from "./record.js";

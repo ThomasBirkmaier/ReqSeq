@@ -134,6 +134,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: WIND, unset: ["status"] },
     { ref: "SR-ffffff", title: "Unknown element" },
   ],
+  "evidence.coverage": [
+    {},
+    { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] }, view: "core" } },
+    { selection: { ids: [WIND, OBSOLETE, RETIRED] } },
+    { selection: { ids: ["SR-ffffff"] } },
+  ],
   "filter.list": [{}, { extra: true }],
   "filter.save": [
     { name: "Drafts", where: { status: ["draft"] }, sort: [{ by: "status" }] },
