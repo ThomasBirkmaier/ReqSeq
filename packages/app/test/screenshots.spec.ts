@@ -66,7 +66,9 @@ test("screenshots of the main view on the specification workspace", async () => 
     await window.keyboard.press("Enter");
     await expect(window.getByLabel("Modeline")).toContainText("All elements · tree");
     await expect(window.locator(".row").first()).toBeVisible();
-    // The roots come first; go down to the first element below one, so the tree shows.
+    // The roots come first; go down to the first element below one, so the tree shows. A fresh list has no
+    // row selected (SR-122): Down selects the first.
+    await window.keyboard.press("ArrowDown");
     const selectedIndent = (): Promise<string> =>
       window
         .locator('.row[aria-selected="true"] .title')

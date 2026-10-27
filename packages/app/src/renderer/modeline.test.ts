@@ -203,6 +203,11 @@ describe("selectedRow", () => {
     const element = elementBuffer("uuid-1", "spec", "SR-1 One");
     expect(selectedRow(element, { key: element.key, data: data("list") })).toBeUndefined();
   });
+
+  it("is undefined while no row of a fresh list is selected (SR-122)", () => {
+    const list = listBuffer("All elements");
+    expect(selectedRow(list, { key: list.key, data: data("list") })).toBeUndefined();
+  });
 });
 
 describe("shownElement", () => {

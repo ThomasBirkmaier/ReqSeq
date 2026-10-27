@@ -54,12 +54,15 @@ const query = (selector: string): HTMLElement => {
 const texts = (selector: string): string[] =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
 
-const press = async (target: Element, key: string): Promise<void> => {
+/** Presses `key` on `target` and gives the event back, to see whether a handler took it. */
+const press = async (target: Element, key: string, init: KeyboardEventInit = {}): Promise<KeyboardEvent> => {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
   await act(async () => {
-    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    target.dispatchEvent(event);
     await Promise.resolve();
   });
   await flush();
+  return event;
 };
 
 const click = async (target: Element): Promise<void> => {
@@ -245,7 +248,8 @@ describe("NeighbourhoodView", () => {
       limit: 5000,
     });
     expect(asked(call, "down", false)).toHaveLength(1);
-    expect(selected()).toEqual(["S1"]);
+    // A fresh neighbourhood has no row selected (SR-122).
+    expect(selected()).toEqual([]);
   });
 
   it("[SR-107/AK2] Right opens a row and asks again from the element with one more level; Left closes it or goes to the parent", async () => {
@@ -315,6 +319,8 @@ describe("NeighbourhoodView", () => {
     const { actions } = await mount(asCall(fakeCall()));
     const sheet = query(".neighbourhood");
     await press(sheet, "ArrowDown");
+    expect(selected()).toEqual(["S1"]);
+    await press(sheet, "ArrowDown");
     expect(selected()).toEqual(["S2"]);
     await press(sheet, "ArrowDown");
     expect(selected()).toEqual(["V1"]);
@@ -329,9 +335,66 @@ describe("NeighbourhoodView", () => {
     await press(sheet, "ArrowUp");
     await press(sheet, "Home");
     expect(selected()).toEqual(["S1"]);
-    expect(actions.filter((action) => action.type === "cursor")).toHaveLength(8);
+    expect(actions.filter((action) => action.type === "cursor")).toHaveLength(9);
     await press(sheet, "a");
-    expect(actions).toHaveLength(8);
+    expect(actions).toHaveLength(9);
+  });
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P move through the tree and on into the incoming links like Down and Up; Ctrl+N first selects the first row", async () => {
+    await mount(asCall(fakeCall()));
+    const sheet = query(".neighbourhood");
+    const ctrl = { ctrlKey: true };
+    expect(selected()).toEqual([]);
+    expect((await press(sheet, "n", ctrl)).defaultPrevented).toBe(true);
+    expect(selected()).toEqual(["S1"]);
+    await press(sheet, "n", ctrl);
+    expect(selected()).toEqual(["S2"]);
+    // After the last row of the tree, the first incoming link.
+    await press(sheet, "n", ctrl);
+    expect(selected()).toEqual(["V1"]);
+    await press(sheet, "p", ctrl);
+    expect(selected()).toEqual(["S2"]);
+    await press(sheet, "p", ctrl);
+    expect((await press(sheet, "p", ctrl)).defaultPrevented).toBe(true);
+    expect(selected()).toEqual(["S1"]);
+    await press(sheet, "End");
+    expect((await press(sheet, "n", ctrl)).defaultPrevented).toBe(true);
+    expect(selected()).toEqual(["E"]);
+  });
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-122/AK5] on %s, with a row selected Ctrl+P is the neighbourhood's; with none, and Cmd+P, it is not",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      await mount(asCall(fakeCall()));
+      const sheet = query(".neighbourhood");
+      expect((await press(sheet, "p", { ctrlKey: true })).defaultPrevented).toBe(false);
+      expect(selected()).toEqual([]);
+      await press(sheet, "ArrowDown");
+      expect((await press(sheet, "p", { ctrlKey: true })).defaultPrevented).toBe(true);
+      expect((await press(sheet, "p", { metaKey: true })).defaultPrevented).toBe(false);
+      expect((await press(sheet, "n", { metaKey: true })).defaultPrevented).toBe(false);
+      expect(selected()).toEqual(["S1"]);
+    },
+  );
+
+  it("with no row selected, Right and Left act on the first row and select it", async () => {
+    const opened = { ...N1, open: ["spec:uuid-S1"] };
+    const first = await mount(asCall(fakeCall()), opened);
+    // Right on a row that is open already only selects it.
+    await press(query(".neighbourhood"), "ArrowRight");
+    expect(selected()).toEqual(["S1"]);
+    expect(first.actions).toEqual([{ type: "cursor", key: N1.key, cursor: 0 }]);
+    // Left closes it, with the row selected.
+    const second = await mount(asCall(fakeCall()), opened);
+    await press(query(".neighbourhood"), "ArrowLeft");
+    expect(second.actions.at(-1)).toMatchObject({ type: "open", buffer: { open: [], cursor: 0 } });
+    expect(selected()).toEqual(["S1"]);
+    // Left on a closed row of the first level only selects it.
+    const third = await mount(asCall(fakeCall()));
+    await press(query(".neighbourhood"), "ArrowLeft");
+    expect(third.actions).toEqual([{ type: "cursor", key: N1.key, cursor: 0 }]);
+    expect(selected()).toEqual(["S1"]);
   });
 
   it("[SR-107/AK2] Enter opens the element of a tree row and of an incoming row, keeping the row as the cursor", async () => {

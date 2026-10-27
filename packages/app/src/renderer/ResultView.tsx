@@ -1,10 +1,11 @@
 // The result buffer (SR-073 AK2): the output of a catalog command run from the command prompt that no
-// other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down select a line, Enter or a
-// click opens the element of an element row or of a problem. When the workspace changed, it asks the
+// other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
+// a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of a problem. When the workspace changed, it asks the
 // command again with the same input (ADR-0002: the app runs commands and shows what they give).
 import { useEffect, useMemo } from "react";
 import type { BufferAction, ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import { resultLines, resultTotal } from "./result.js";
 
@@ -65,20 +66,19 @@ export const ResultView = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
-    // Only the plain keys of the lines; the shortcuts are the window's.
-    const moves: Readonly<Record<string, number>> = {
-      ArrowDown: cursor + 1,
-      ArrowUp: cursor - 1,
-      Home: 0,
-      End: lines.length - 1,
-    };
-    const to = moves[event.key];
+    // The keys of the lines and Ctrl+N/P (SR-122); Cmd+P, and Ctrl+P while no line is selected, are the
+    // window's "Go to", as are the other shortcuts.
+    const to = rowTarget(event, cursor, lines.length);
     if (to !== undefined) {
       event.preventDefault();
       dispatch({ type: "cursor", key: buffer.key, cursor: Math.max(0, Math.min(lines.length - 1, to)) });
     } else if (event.key === "Enter") {
       event.preventDefault();
-      open(cursor);
+      // With no line selected, Enter acts on the first one and selects it.
+      if (cursor < 0 && lines.length > 0) {
+        dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
+      }
+      open(Math.max(0, cursor));
     }
   };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMac, listStep, matches, shortcutLabel } from "./keys.js";
+import { ctrlStep, isMac, listStep, matches, rowStep, rowTarget, shortcutLabel } from "./keys.js";
 
 const press = (
   key: string,
@@ -92,5 +92,69 @@ describe("keys", () => {
     expect(listStep(press("Tab"))).toBe(1);
     expect(listStep(press("ArrowUp"))).toBe(-1);
     expect(listStep(press("Enter"))).toBeUndefined();
+  });
+
+  it("[SR-122/AK5] Ctrl+N and Ctrl+P are the physical Ctrl key alone with the letter; Cmd, Shift and AltGr do not count", () => {
+    expect(ctrlStep(press("n", { ctrlKey: true }))).toBe(1);
+    expect(ctrlStep(press("N", { ctrlKey: true }))).toBe(1);
+    expect(ctrlStep(press("p", { ctrlKey: true }))).toBe(-1);
+    expect(ctrlStep(press("n", { metaKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("p", { metaKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("p", { ctrlKey: true, metaKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("n", { ctrlKey: true, shiftKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("n", { ctrlKey: true, altKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("x", { ctrlKey: true }))).toBeUndefined();
+    expect(ctrlStep(press("n"))).toBeUndefined();
+  });
+
+  it("[SR-122/AK4] a step in a list is Down or Ctrl+N, Up or Ctrl+P; Tab is not a row key", () => {
+    expect(rowStep(press("ArrowDown"))).toBe(1);
+    expect(rowStep(press("n", { ctrlKey: true }))).toBe(1);
+    expect(rowStep(press("ArrowUp"))).toBe(-1);
+    expect(rowStep(press("p", { ctrlKey: true }))).toBe(-1);
+    expect(rowStep(press("Tab"))).toBeUndefined();
+    expect(rowStep(press("Enter"))).toBeUndefined();
+  });
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P move like Down and Up; with no row selected Ctrl+N and Down go to the first row", () => {
+    const ctrl = { ctrlKey: true };
+    expect(rowTarget(press("n", ctrl), 3, 10)).toBe(4);
+    expect(rowTarget(press("ArrowDown"), 3, 10)).toBe(4);
+    expect(rowTarget(press("p", ctrl), 3, 10)).toBe(2);
+    expect(rowTarget(press("ArrowUp"), 3, 10)).toBe(2);
+    expect(rowTarget(press("n", ctrl), -1, 10)).toBe(0);
+    expect(rowTarget(press("ArrowDown"), -1, 10)).toBe(0);
+    // The list clamps what is below the first row: Up with none selected selects the first.
+    expect(Math.max(0, rowTarget(press("ArrowUp"), -1, 10) ?? NaN)).toBe(0);
+    // On the last row Ctrl+N stays the list's key: the list clamps it.
+    expect(rowTarget(press("n", ctrl), 9, 10)).toBe(10);
+  });
+
+  it("[SR-122/AK5] with a row selected Ctrl+P is the list's, also on the first row; with none, and in a list without rows, it is not", () => {
+    const ctrl = { ctrlKey: true };
+    expect(rowTarget(press("p", ctrl), 0, 10)).toBe(-1);
+    expect(rowTarget(press("p", ctrl), -1, 10)).toBeUndefined();
+    expect(rowTarget(press("p", ctrl), 0, 0)).toBeUndefined();
+    expect(rowTarget(press("n", ctrl), -1, 0)).toBeUndefined();
+    expect(rowTarget(press("p", { metaKey: true }), 3, 10)).toBeUndefined();
+    expect(rowTarget(press("n", { metaKey: true }), 3, 10)).toBeUndefined();
+    expect(rowTarget(press("p", { ctrlKey: true, shiftKey: true }), 3, 10)).toBeUndefined();
+    expect(rowTarget(press("n", { ctrlKey: true, altKey: true }), 3, 10)).toBeUndefined();
+  });
+
+  it("moves by a screen with Page Down and Page Up only where the list has one, and to the ends with Home and End", () => {
+    expect(rowTarget(press("PageDown"), 3, 50, 10)).toBe(13);
+    expect(rowTarget(press("PageUp"), 13, 50, 10)).toBe(3);
+    // From no row Page Down lands on the last row of the first screen.
+    expect(rowTarget(press("PageDown"), -1, 50, 10)).toBe(9);
+    expect(rowTarget(press("PageDown"), 3, 50)).toBeUndefined();
+    expect(rowTarget(press("PageUp"), 3, 50)).toBeUndefined();
+    expect(rowTarget(press("Home"), -1, 50)).toBe(0);
+    expect(rowTarget(press("End"), -1, 50)).toBe(49);
+    // Without rows the arrows are still the list's (it clamps them), as before.
+    expect(rowTarget(press("ArrowDown"), -1, 0)).toBe(0);
+    expect(rowTarget(press("Tab"), 3, 10)).toBeUndefined();
+    expect(rowTarget(press("Enter"), 3, 10)).toBeUndefined();
+    expect(rowTarget(press("constructor"), 3, 10)).toBeUndefined();
   });
 });

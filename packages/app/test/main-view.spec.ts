@@ -243,7 +243,8 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
-    await expect(window.locator('[aria-selected="true"]')).toBeVisible();
+    // No row of the list was used, so none is selected (SR-122): Ctrl+P is still "Go to" there.
+    await expect(window.locator('[aria-selected="true"]')).toHaveCount(0);
   });
 
   test("[SR-122/AK1] Ctrl+N and Ctrl+P move through the command prompt and the go-to prompt", async () => {

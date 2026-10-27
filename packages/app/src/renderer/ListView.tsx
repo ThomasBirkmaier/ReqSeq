@@ -7,9 +7,20 @@ import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
+import { rowStep, rowTarget } from "./keys.js";
+import type { KeyPress } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { Row } from "./rows.js";
-import { LIST_MAX, LIST_PAGE, SEARCH_MAX, SEARCH_PAGE, firstLimit, listRows, searchRows } from "./rows.js";
+import {
+  LIST_MAX,
+  LIST_PAGE,
+  SEARCH_MAX,
+  SEARCH_PAGE,
+  activeRow,
+  firstLimit,
+  listRows,
+  searchRows,
+} from "./rows.js";
 
 export interface ListViewProps {
   readonly call: Call;
@@ -95,9 +106,9 @@ const takesFocus = (list: HTMLElement | null, rows: number): boolean => {
   return rows > 0 && (active === null || active === document.body || active === list?.closest(".buffer"));
 };
 
-/** A part is left with Escape, or with Up on its first row. */
-const leaves = (key: string, cursor: number): boolean =>
-  key === "Escape" || (key === "ArrowUp" && cursor === 0);
+/** A part is left with Escape, or with Up or Ctrl+P on its first row. */
+const leaves = (event: KeyPress, cursor: number): boolean =>
+  event.key === "Escape" || (rowStep(event) === -1 && cursor === 0);
 
 /** The scroll position is within a screen of the end: the next page is due. */
 const nearEnd = ({ scrollHeight, scrollTop, clientHeight }: HTMLElement): boolean =>
@@ -249,29 +260,23 @@ export const ListView = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
-    if (part && leaves(event.key, cursor)) {
+    if (part && leaves(event, cursor)) {
       event.preventDefault();
       onLeave?.();
       return;
     }
-    const moves: Readonly<Record<string, number>> = {
-      ArrowDown: cursor + 1,
-      ArrowUp: cursor - 1,
-      PageDown: cursor + SCREEN,
-      PageUp: cursor - SCREEN,
-      Home: 0,
-      End: rows.length - 1,
-    };
-    const to = moves[event.key];
+    const to = rowTarget(event, cursor, rows.length, SCREEN);
     if (to !== undefined) {
       event.preventDefault();
       moveTo(to);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const row = rows[cursor];
+      // With no row selected, Enter opens the first one.
+      const at = Math.max(0, cursor);
+      const row = rows[at];
       if (row !== undefined && !reloading.current) {
         // The row is kept as the cursor, as a click keeps it: Ctrl+P Enter comes back to it.
-        dispatch({ type: "cursor", key: buffer.key, cursor });
+        dispatch({ type: "cursor", key: buffer.key, cursor: at });
         openRow(row);
       }
     }
@@ -283,7 +288,7 @@ export const ListView = ({
       className={part ? "list part" : "buffer list"}
       role="listbox"
       aria-label={bufferName(buffer)}
-      aria-activedescendant={rows.length === 0 ? undefined : `row-${String(cursor)}`}
+      aria-activedescendant={activeRow("row", cursor, rows.length)}
       {...(part ? {} : { "data-buffer": "" })}
       tabIndex={0}
       onKeyDown={keyDown}

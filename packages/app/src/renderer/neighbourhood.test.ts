@@ -1,6 +1,6 @@
 import type { TraceNeighbourhoodOutput } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer, neighbourhoodBuffer } from "./buffers.js";
+import { NO_ROW, elementBuffer, neighbourhoodBuffer } from "./buffers.js";
 import {
   fetchDepth,
   incomingGroups,
@@ -118,7 +118,7 @@ describe("the inputs", () => {
       repository: "spec",
       name: "N1 Title N1",
       open: [],
-      cursor: 0,
+      cursor: NO_ROW,
     });
   });
 });

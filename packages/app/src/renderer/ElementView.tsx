@@ -33,6 +33,7 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { BoxDraft, Draft } from "./drafts.js";
 import { boxDrafts, makeDraft, reconcile, typedText } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
+import { ctrlStep } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { TextBox } from "./TextBox.js";
 import { ParentsLine } from "./ParentsLine.js";
@@ -725,15 +726,24 @@ export const ElementView = ({
   // focus itself (the title, a box: SR-128) is the buffer as well.
   const onBufferKey = (event: React.KeyboardEvent<HTMLElement>): void => {
     const { key, target, currentTarget } = event;
+    if (!forBuffer(target, currentTarget)) {
+      return;
+    }
     const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
     const label =
       target === currentTarget
         ? undefined
         : (target as HTMLElement).closest<HTMLElement>("[data-field]")?.dataset["field"];
-    const wanted = fieldKey(key, label, (members?.total ?? 0) > 0);
-    if (plain && wanted && forBuffer(target, currentTarget)) {
+    const hasMembers = (members?.total ?? 0) > 0;
+    if (plain && fieldKey(key, label, hasMembers)) {
       event.preventDefault();
       onField(key, label, currentTarget);
+    } else if (hasMembers && !event.defaultPrevented && ctrlStep(event) === 1) {
+      // Ctrl+N on the page of a package selects its first element (SR-122 AK4). Not from an editor or the
+      // list itself (they are not the buffer); Ctrl+P is not the page's: it stays "Go to".
+      event.preventDefault();
+      dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
+      intoMembers(currentTarget);
     }
   };
 

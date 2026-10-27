@@ -1,5 +1,6 @@
 import type { ElementListOutput, ElementSearchOutput } from "@logreq/core";
 import { describe, expect, it } from "vitest";
+import { NO_ROW } from "./buffers.js";
 import { LIST_MAX, LIST_PAGE, SEARCH_MAX, SEARCH_PAGE, firstLimit, listRows, searchRows } from "./rows.js";
 
 const element = (n: number, extra: object = {}) => ({
@@ -72,5 +73,10 @@ describe("firstLimit", () => {
     expect(firstLimit(99_999, LIST_PAGE, LIST_MAX)).toBe(5000);
     expect(firstLimit(120, SEARCH_PAGE, SEARCH_MAX)).toBe(150);
     expect(firstLimit(9000, SEARCH_PAGE, SEARCH_MAX)).toBe(500);
+  });
+
+  it("asks for one page while no row is selected (SR-122)", () => {
+    expect(firstLimit(NO_ROW, LIST_PAGE, LIST_MAX)).toBe(200);
+    expect(firstLimit(NO_ROW, SEARCH_PAGE, SEARCH_MAX)).toBe(50);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SORT,
   MAX_BUFFERS,
+  NO_ROW,
   OVERVIEW_KEY,
   bufferName,
   elementBuffer,
@@ -9,6 +10,7 @@ import {
   filteredList,
   listBuffer,
   listSort,
+  neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
   reduceBuffers,
@@ -239,7 +241,19 @@ describe("the steps of a list filter (SR-124)", () => {
       "type: system-requirement · status: draft · topic: Bearbeiten und Finden · sorted by title",
     );
     expect(chain.steps).toEqual([TYPE, STATUS, TOPIC]);
-    expect(chain.cursor).toBe(0);
+    expect(chain.cursor).toBe(NO_ROW);
+  });
+
+  it("[SR-122/AK4] a fresh list of the main window has no row selected: the overview, a list, a search, a neighbourhood", () => {
+    expect(NO_ROW).toBeLessThan(0);
+    expect(overviewBuffer().cursor).toBe(NO_ROW);
+    expect(listBuffer("All elements").cursor).toBe(NO_ROW);
+    expect(filteredList([TYPE]).cursor).toBe(NO_ROW);
+    expect(searchBuffer("wind").cursor).toBe(NO_ROW);
+    expect(neighbourhoodBuffer("uuid-1", "spec", "N1 Title").cursor).toBe(NO_ROW);
+    // A row the reader chose is kept, also in matrix mode.
+    const chosen = reduceBuffers([listBuffer("All elements")], { type: "cursor", key: "list", cursor: 3 });
+    expect(chosen[0]?.kind === "list" ? withMatrix(chosen[0], true).cursor : undefined).toBe(3);
   });
 
   it("a list built with a selection is one step", () => {

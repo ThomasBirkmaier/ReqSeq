@@ -202,6 +202,7 @@ describe("the matrix in the app", () => {
       expect.objectContaining({ limit: 200, offset: 0 }),
     );
     await keyDown(query("table"), "ArrowDown");
+    await keyDown(query("table"), "ArrowDown");
     await keyDown(window, "t", { ctrlKey: true });
     expect(container.querySelector("table")).toBeNull();
     expect(container.querySelectorAll(".row")).toHaveLength(2);

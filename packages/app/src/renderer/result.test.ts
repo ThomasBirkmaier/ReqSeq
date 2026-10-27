@@ -124,14 +124,15 @@ describe("result view", () => {
     });
   };
 
-  const press = async (key: string): Promise<void> => {
+  /** Presses `key` on the buffer and gives the event back, to see whether the view took it. */
+  const press = async (key: string, init: KeyboardEventInit = {}): Promise<KeyboardEvent> => {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
     await act(async () => {
-      container
-        .querySelector("[data-buffer]")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      container.querySelector("[data-buffer]")?.dispatchEvent(event);
       await Promise.resolve();
     });
     await flush();
+    return event;
   };
 
   /** Renders the view of `initial` through the reducer; returns what it dispatched, loaded and said. */
@@ -187,7 +188,8 @@ describe("result view", () => {
     ]);
     const listbox = container.querySelector('[role="listbox"]');
     expect(listbox?.getAttribute("aria-activedescendant")).toBeNull();
-    expect(container.querySelector("[data-cursor]")?.textContent).toBe("total2");
+    // No line is selected at first (SR-122).
+    expect(container.querySelector("[data-cursor]")).toBeNull();
     await press("End");
     await press("ArrowUp");
     await press("Home");
@@ -201,6 +203,37 @@ describe("result view", () => {
       type: "open",
       buffer: elementBuffer("uuid-1", "spec", "SR-000001 Title 1"),
     });
+  });
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the lines like Down and Up; Ctrl+N first selects the first line, and Ctrl+P is Go to until one is", async () => {
+    const output = { total: 2, elements: [element(1), element(2)] };
+    await mount(vi.fn<Call>(), resultBuffer("trace.affected", {}, "Affected", output, 0), 0);
+    const cursorLine = (): string | null | undefined => container.querySelector("[data-cursor]")?.textContent;
+    expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(false);
+    expect(cursorLine()).toBeUndefined();
+    expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(true);
+    expect(cursorLine()).toBe("total2");
+    await press("n", { ctrlKey: true });
+    await press("n", { ctrlKey: true });
+    expect(cursorLine()).toBe("SR-000001Title 1");
+    await press("p", { ctrlKey: true });
+    expect(cursorLine()).toBe("elements2");
+    await press("p", { ctrlKey: true });
+    expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(true);
+    expect(cursorLine()).toBe("total2");
+    expect((await press("p", { metaKey: true })).defaultPrevented).toBe(false);
+  });
+
+  it("Enter with no line selected acts on the first line and selects it", async () => {
+    const output = { total: 1, elements: [element(1)] };
+    const { actions } = await mount(
+      vi.fn<Call>(),
+      resultBuffer("trace.affected", {}, "Affected", output, 0),
+      0,
+    );
+    await press("Enter");
+    expect(actions).toEqual([{ type: "cursor", key: "result:trace.affected:{}", cursor: 0 }]);
+    expect(container.querySelector("[data-cursor]")?.textContent).toBe("total1");
   });
 
   it("opens an element row on a click; a line without an element opens nothing", async () => {

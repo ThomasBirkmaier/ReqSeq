@@ -171,6 +171,17 @@ const keyDown = async (
   await flush();
 };
 
+/** Presses `key` on `target` and gives the event back, to see whether a handler took it. */
+const pressed = async (target: Element, key: string, init: KeyboardEventInit): Promise<KeyboardEvent> => {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+  await act(async () => {
+    target.dispatchEvent(event);
+    await Promise.resolve();
+  });
+  await flush();
+  return event;
+};
+
 const type = async (value: string): Promise<void> => {
   const input = query("input");
   await act(async () => {
@@ -353,6 +364,8 @@ describe("App", () => {
   it("opens an element from the list, shows it with its modeline, and Ctrl+P Enter goes back with the selection kept", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
+    // A fresh list has no row selected (SR-122): the first Down selects the first row.
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(calls(invoke, "element.get")).toEqual([{ ref: "uuid-2", repository: "spec" }]);
@@ -636,6 +649,134 @@ describe("App", () => {
     },
   );
 
+  const PLATFORMS = ["MacIntel", "Win32", "Linux x86_64"];
+  const ctrl = { ctrlKey: true };
+  /** The id of the selected row of the list or overview, if one is. */
+  const selectedRow = (): string | undefined =>
+    container.querySelector('[data-buffer] [aria-selected="true"]')?.id ?? undefined;
+  /** The label of the open prompt, if one is. */
+  const prompt = (): string | undefined => container.querySelector("label")?.textContent ?? undefined;
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the overview, the list and the search result like Down and Up; Ctrl+N first selects the first row", async () => {
+    const handlers = workspace();
+    handlers["element.facets"] = () => ({
+      total: 3,
+      types: [
+        { key: "need", name: "Need", count: 2 },
+        { key: "system-requirement", name: "System Requirement", count: 1 },
+      ],
+      statuses: [],
+      properties: [],
+      incomplete: false,
+    });
+    const { bridge } = fakeBridge(handlers);
+    await render(bridge);
+    const overview = query('[role="listbox"]');
+    expect(selectedRow()).toBeUndefined();
+    expect(overview.getAttribute("aria-activedescendant")).toBeNull();
+    await keyDown(overview, "n", ctrl);
+    expect(selectedRow()).toBe("overview-0");
+    expect(overview.getAttribute("aria-activedescendant")).toBe("overview-0");
+    await keyDown(overview, "N", ctrl);
+    expect(selectedRow()).toBe("overview-1");
+    await keyDown(overview, "p", ctrl);
+    expect(selectedRow()).toBe("overview-0");
+    await listAll();
+    const list = query('[role="listbox"]');
+    expect(selectedRow()).toBeUndefined();
+    await keyDown(list, "n", ctrl);
+    expect(selectedRow()).toBe("row-0");
+    await keyDown(list, "n", ctrl);
+    await keyDown(list, "n", ctrl);
+    expect(selectedRow()).toBe("row-2");
+    expect(list.getAttribute("aria-activedescendant")).toBe("row-2");
+    await keyDown(list, "p", ctrl);
+    expect(selectedRow()).toBe("row-1");
+    await keyDown(list, "ArrowUp");
+    expect(selectedRow()).toBe("row-0");
+    await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(text("Modeline")).toContain("Search: title");
+    expect(selectedRow()).toBeUndefined();
+    await keyDown(query('[role="listbox"]'), "n", ctrl);
+    expect(selectedRow()).toBe("row-0");
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(query("article h1").textContent).toBe("Title 2");
+  });
+
+  it.each(PLATFORMS)(
+    "[SR-122/AK5] on %s, with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      const { bridge } = fakeBridge(workspace());
+      await renderList(bridge);
+      const list = query('[role="listbox"]');
+      await keyDown(list, "n", ctrl);
+      await keyDown(list, "n", ctrl);
+      const up = await pressed(list, "p", ctrl);
+      expect(up.defaultPrevented).toBe(true);
+      expect(selectedRow()).toBe("row-0");
+      expect(prompt()).toBeUndefined();
+      const top = await pressed(list, "p", ctrl);
+      expect(top.defaultPrevented).toBe(true);
+      expect(selectedRow()).toBe("row-0");
+      expect(prompt()).toBeUndefined();
+      const cmdN = await pressed(list, "n", { metaKey: true });
+      expect(cmdN.defaultPrevented).toBe(false);
+      expect(selectedRow()).toBe("row-0");
+      await keyDown(list, "p", { metaKey: true });
+      expect(prompt()).toBe("Go to");
+      await keyDown(query("input"), "Escape");
+      // The same on the overview once a line is selected.
+      await runCommand("show overview");
+      const overview = query('[role="listbox"]');
+      await keyDown(overview, "n", ctrl);
+      await keyDown(overview, "p", ctrl);
+      expect(selectedRow()).toBe("overview-0");
+      expect(prompt()).toBeUndefined();
+    },
+  );
+
+  it.each(PLATFORMS)(
+    "[SR-122/AK5] on %s, with no row selected Ctrl+P is still Go to: on the overview after the start, and on a list without rows",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      const handlers = workspace();
+      const { bridge } = fakeBridge(handlers);
+      await render(bridge);
+      const fresh = await pressed(query('[role="listbox"]'), "p", ctrl);
+      expect(fresh.defaultPrevented).toBe(true);
+      expect(prompt()).toBe("Go to");
+      await keyDown(query("input"), "Escape");
+      handlers["element.list"] = () => ({ elements: [], total: 0 });
+      await listAll();
+      expect(query(".list .quiet").textContent).toBe("No elements");
+      const ctrlN = await pressed(query('[role="listbox"]'), "n", ctrl);
+      expect(ctrlN.defaultPrevented).toBe(false);
+      await keyDown(query('[role="listbox"]'), "p", ctrl);
+      expect(prompt()).toBe("Go to");
+    },
+  );
+
+  it("[SR-122/AK5] Ctrl+P on an overview without lines is Go to", async () => {
+    const handlers = workspace();
+    handlers["element.facets"] = () => new Error("The workspace is not valid");
+    await render(fakeBridge(handlers).bridge);
+    await keyDown(query('[role="listbox"]'), "p", ctrl);
+    expect(prompt()).toBe("Go to");
+  });
+
+  it("[SR-122/AK4] Enter on a fresh list opens its first row and keeps it selected", async () => {
+    const { bridge, invoke } = fakeBridge(workspace());
+    await renderList(bridge);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(calls(invoke, "element.get")).toEqual([{ ref: "uuid-1", repository: "spec" }]);
+    await keyDown(window, "p", ctrl);
+    await keyDown(query("input"), "Enter");
+    expect(selectedRow()).toBe("row-0");
+  });
+
   it("[SR-122/AK1] Ctrl+N and Ctrl+P move through the hits of the go-to prompt", async () => {
     const { bridge } = fakeBridge(workspace());
     await renderList(bridge);
@@ -724,6 +865,8 @@ describe("App, catalog commands in the command prompt (#85)", () => {
     const fake = fakeBridge({ ...workspace(), "trace.affected": () => ({ elements: [], total: 0 }) });
     const bridge = { ...fake.bridge, commands: () => Promise.resolve([listing("trace.affected")] as never) };
     await renderList(bridge);
+    // A fresh list has no row selected (SR-122): the first Down selects the first row.
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "ArrowDown");
     await runCommand("Show affected elements");
     expect(query("label").textContent).toBe("Show affected elements · ref:");
@@ -802,6 +945,7 @@ describe("App, the overview (SR-118)", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     await runCommand("list all elements");
     await keyDown(query('[role="listbox"]'), "ArrowDown");
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "Enter");
     await runCommand("show overview");
     expect(options()).toEqual(["Need 2", "System Requirement 3", "SR-000002Title 2", "SR-000001Title 1"]);
@@ -866,6 +1010,7 @@ describe("App, the overview (SR-118)", () => {
   it("[SR-118/AK2] Enter on a type line opens the list of the elements of that type", async () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "ArrowDown");
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: system-requirement");
@@ -1658,6 +1803,128 @@ describe("App, the package page (SR-112)", () => {
     expect(query("article h1").textContent).toBe("Stufe-3");
     expect(container.querySelector(".members")).toBeNull();
     expect(memberCalls(invoke)).toEqual([]);
+  });
+
+  /** Goes to the overview and back to the package with Ctrl+P Enter: the list takes the focus only when a row was chosen. */
+  const awayAndBack = async (): Promise<void> => {
+    await runCommand("show overview");
+    await keyDown(window, "p", { metaKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Stufe-3");
+  };
+
+  it("[SR-122/AK4] on a package page Ctrl+N selects the first element, walks the elements, and Ctrl+P on the first goes back to the page", async () => {
+    await openPackage();
+    const ctrlN = await pressed(query("article"), "n", { ctrlKey: true });
+    expect(ctrlN.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    await keyDown(query(".members .list"), "n", { ctrlKey: true });
+    expect(query('.members [aria-selected="true"]').id).toBe("row-1");
+    await keyDown(query(".members .list"), "p", { ctrlKey: true });
+    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+    const back = await pressed(query(".members .list"), "p", { ctrlKey: true });
+    expect(back.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(query("article"));
+    expect(container.querySelector("label")).toBeNull();
+  });
+
+  it("[SR-122/AK4] Ctrl+N on the page goes to the first element also when another one was used, and from the title field", async () => {
+    await openPackage();
+    await keyDown(query("article"), "ArrowDown");
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "ArrowDown");
+    await keyDown(query(".members .list"), "Escape");
+    const title = query('.field[data-field="Title"]');
+    act(() => {
+      title.focus();
+    });
+    await keyDown(title, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(query(".members .list"));
+    expect(query('.members [aria-selected="true"]').id).toBe("row-0");
+  });
+
+  it("[SR-122/AK4] Ctrl+N on the last element stays there and goes no further", async () => {
+    await openPackage();
+    await keyDown(query("article"), "n", { ctrlKey: true });
+    await keyDown(query(".members .list"), "End");
+    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    const last = await pressed(query(".members .list"), "n", { ctrlKey: true });
+    expect(last.defaultPrevented).toBe(true);
+    expect(query('.members [aria-selected="true"]').id).toBe("row-2");
+    expect(document.activeElement).toBe(query(".members .list"));
+  });
+
+  it("Ctrl+N on an element that is no package, or on a package without elements, is not taken", async () => {
+    const fake = fakeBridge(withPackage());
+    await render(fake.bridge);
+    await keyDown(window, "p", { ctrlKey: true });
+    await type("title");
+    await keyDown(query("input"), "Enter");
+    expect(query("article h1").textContent).toBe("Title 2");
+    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(false);
+    await openPackage(withPackage(() => ({ elements: [], total: 0 })));
+    expect((await pressed(query("article"), "n", { ctrlKey: true })).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(query("article"));
+  });
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-122/AK5] on %s, Ctrl+P on a package page outside its elements is still Go to",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      await openPackage();
+      const ctrlP = await pressed(query("article"), "p", { ctrlKey: true });
+      expect(ctrlP.defaultPrevented).toBe(true);
+      expect(query("label").textContent).toBe("Go to");
+    },
+  );
+
+  it("Ctrl+N typed in the text editor of a package page stays in the editor and chooses no element", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    await openPackage();
+    await keyDown(query("article"), "Enter");
+    const content = query("article .cm-content");
+    expect(document.activeElement).toBe(content);
+    await keyDown(content, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(content);
+    await keyDown(content, "Escape");
+    await awayAndBack();
+    expect(document.activeElement).toBe(query("article"));
+  });
+
+  it("Ctrl+N typed in a box editor of a package page stays in the box and chooses no element", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const handlers = withPackage();
+    const metamodel = handlers["metamodel.get"];
+    handlers["metamodel.get"] = (input) => {
+      const model = metamodel?.(input) as {
+        types: { key: string; properties: string[] }[];
+        properties: unknown[];
+      };
+      return {
+        ...model,
+        types: model.types.map((type) =>
+          type.key === "package" ? { ...type, properties: ["topic"] } : type,
+        ),
+        properties: [{ key: "topic", name: "Topic", kind: "text" }],
+      };
+    };
+    const get = handlers["element.get"];
+    handlers["element.get"] = (input) => {
+      const answer = get?.(input) as { element: Record<string, unknown> };
+      return input["ref"] === "uuid-p"
+        ? { element: { ...answer.element, properties: { topic: "Wind" } } }
+        : answer;
+    };
+    await openPackage(handlers);
+    const content = query('[data-field="topic"] .cm-content');
+    act(() => {
+      content.focus();
+    });
+    await keyDown(content, "n", { ctrlKey: true });
+    expect(document.activeElement).toBe(content);
+    await awayAndBack();
+    expect(document.activeElement).toBe(query("article"));
   });
 });
 

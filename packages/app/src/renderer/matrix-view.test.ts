@@ -57,12 +57,15 @@ const query = (selector: string): HTMLElement => {
 const texts = (selector: string): string[] =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
 
-const press = async (key: string): Promise<void> => {
+/** Presses `key` on the matrix and gives the event back, to see whether the matrix took it. */
+const press = async (key: string, init: KeyboardEventInit = {}): Promise<KeyboardEvent> => {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
   await act(async () => {
-    query("table").dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    query("table").dispatchEvent(event);
     await Promise.resolve();
   });
   await flush();
+  return event;
 };
 
 const click = async (target: Element): Promise<void> => {
@@ -244,6 +247,10 @@ describe("MatrixView", () => {
 
   it("[SR-125/AK5] Enter opens the selected row's element; Down and Up move the row, and the cursor is kept", async () => {
     const { actions } = await mount(asCall(fakeCall()));
+    // A fresh matrix has no row selected (SR-122): the first Down selects the first row, on its element.
+    expect(selectedRows()).toEqual([]);
+    expect(current()).toBeUndefined();
+    await press("ArrowDown");
     expect(selectedRows()).toEqual(["matrix-row-0"]);
     expect(current()).toContain("SR-1 Requirement 1");
     await press("ArrowDown");
@@ -283,6 +290,7 @@ describe("MatrixView", () => {
 
   it("[SR-125/AK5] asks again with the cursor back on the row element, so Enter opens the row, not a link", async () => {
     const { actions, show } = await mount(asCall(fakeCall()));
+    await press("ArrowDown");
     await press("ArrowRight");
     expect(current()).toBe("N-1 See the wind");
     await show(1);
@@ -293,6 +301,7 @@ describe("MatrixView", () => {
 
   it("[SR-125/AK5] Enter on a link opens the element at the other end, in its repository", async () => {
     const { actions } = await mount(asCall(fakeCall()));
+    await press("ArrowDown");
     await press("ArrowRight");
     await press("ArrowRight");
     await press("Enter");
@@ -328,6 +337,7 @@ describe("MatrixView", () => {
     const { actions, echoed } = await mount(asCall(fakeCall()));
     await press("ArrowDown");
     await press("ArrowDown");
+    await press("ArrowDown");
     await press("ArrowRight");
     expect(current()).toBe("UNKNOWN-1");
     const before = actions.length;
@@ -337,6 +347,63 @@ describe("MatrixView", () => {
     await click(query("tbody tr:nth-child(3) td.cell [role=link]"));
     expect(echoed).toEqual(["UNKNOWN-1 is missing", "UNKNOWN-1 is missing"]);
     expect(actions.some((action) => action.type === "open")).toBe(false);
+  });
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P move the row like Down and Up; with no row selected Ctrl+N selects the first", async () => {
+    await mount(asCall(fakeCall()));
+    expect(selectedRows()).toEqual([]);
+    expect(query("table").getAttribute("aria-activedescendant")).toBeNull();
+    expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(true);
+    expect(selectedRows()).toEqual(["matrix-row-0"]);
+    expect(query("table").getAttribute("aria-activedescendant")).toBe("matrix-row-0");
+    expect(current()).toContain("SR-1 Requirement 1");
+    await press("n", { ctrlKey: true });
+    await press("n", { ctrlKey: true });
+    expect(selectedRows()).toEqual(["matrix-row-2"]);
+    await press("p", { ctrlKey: true });
+    expect(selectedRows()).toEqual(["matrix-row-1"]);
+    await press("ArrowUp");
+    expect(selectedRows()).toEqual(["matrix-row-0"]);
+  });
+
+  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+    "[SR-122/AK5] on %s, with a row selected Ctrl+P is the matrix's, also on the first row; with none, and Cmd+P, it is not",
+    async (platform) => {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      await mount(asCall(fakeCall()));
+      expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(false);
+      expect(selectedRows()).toEqual([]);
+      await press("n", { ctrlKey: true });
+      expect((await press("p", { ctrlKey: true })).defaultPrevented).toBe(true);
+      expect(selectedRows()).toEqual(["matrix-row-0"]);
+      expect((await press("p", { metaKey: true })).defaultPrevented).toBe(false);
+      expect((await press("n", { metaKey: true })).defaultPrevented).toBe(false);
+      expect((await press("n", { ctrlKey: true, altKey: true })).defaultPrevented).toBe(false);
+      expect((await press("N", { ctrlKey: true, shiftKey: true })).defaultPrevented).toBe(false);
+      expect(selectedRows()).toEqual(["matrix-row-0"]);
+    },
+  );
+
+  it("with no row selected, Enter opens the element of the first row and selects it", async () => {
+    const { actions } = await mount(asCall(fakeCall()));
+    await press("Enter");
+    expect(actions.slice(-2)).toEqual([
+      { type: "cursor", key: "list", cursor: 0 },
+      { type: "open", buffer: objectWith({ id: "uuid-s1" }) },
+    ]);
+  });
+
+  it("with no row selected, Right and Left first select the first row on its element; the next Right steps", async () => {
+    await mount(asCall(fakeCall()));
+    await press("ArrowRight");
+    expect(selectedRows()).toEqual(["matrix-row-0"]);
+    expect(current()).toContain("SR-1 Requirement 1");
+    await press("ArrowRight");
+    expect(current()).toBe("N-1 See the wind");
+    await mount(asCall(fakeCall()));
+    await press("ArrowLeft");
+    expect(selectedRows()).toEqual(["matrix-row-0"]);
+    expect(current()).toContain("SR-1 Requirement 1");
   });
 
   it("moves with Page, Home and End, and does nothing on Enter without a row", async () => {
@@ -355,6 +422,7 @@ describe("MatrixView", () => {
     const { actions } = await mount(asCall(fakeCall(() => matrixAnswer([], { columns: [] }))));
     await press("Enter");
     await press("ArrowRight");
+    expect((await press("n", { ctrlKey: true })).defaultPrevented).toBe(false);
     expect(actions).toEqual([]);
   });
 

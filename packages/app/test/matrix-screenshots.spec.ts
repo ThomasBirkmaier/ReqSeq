@@ -64,7 +64,9 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
     const lines = await window.locator(".overview .line").allTextContents();
     const at = lines.findIndex((line) => line.startsWith("System Requirement"));
     expect(at).toBeGreaterThanOrEqual(0);
-    for (let step = 0; step < at; step += 1) {
+    // No line is selected at the start (SR-122): Enter opens the first line, and the first Down selects it.
+    const downs = at === 0 ? 0 : at + 1;
+    for (let step = 0; step < downs; step += 1) {
       await typed.press("ArrowDown");
     }
     await typed.press("Enter");
@@ -86,8 +88,8 @@ test("[SR-125/AK1] all system requirements of the package Stufe-3 as a matrix: f
     const fromOverview = typed.count();
     expect(await titles(window)).toEqual(cli.rows.map((row) => row.title));
     test.info().annotations.push({ type: "keys from the overview", description: String(fromOverview) });
-    // Down x1 to the line "System Requirement", Enter, Ctrl+Shift+P, flp, Enter, pa, Enter, st3, Enter, Ctrl+T.
-    expect(fromOverview).toBe(at + 14);
+    // Down x2 to the second line "System Requirement", Enter, Ctrl+Shift+P, flp, Enter, pa, Enter, st3, Enter, Ctrl+T.
+    expect(fromOverview).toBe(downs + 14);
 
     // The package page: Ctrl+P, the title, Enter, Ctrl+T.
     const direct = keys(window);

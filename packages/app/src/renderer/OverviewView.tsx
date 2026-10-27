@@ -6,10 +6,12 @@ import { Fragment, useEffect, useState } from "react";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
+import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { RecentRow, TypeCount } from "./overview.js";
 import { openRow, overviewRows, typeLine } from "./overview.js";
 import type { RecentEntry } from "./recent.js";
+import { activeRow } from "./rows.js";
 
 /** What the type lines and the modeline show. */
 export interface OverviewData {
@@ -142,20 +144,19 @@ export const OverviewView = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
-    // Ctrl/Cmd+P and the other shortcuts are the window's: only the plain keys of the list are handled.
-    const moves: Readonly<Record<string, number>> = {
-      ArrowDown: cursor + 1,
-      ArrowUp: cursor - 1,
-      Home: 0,
-      End: rows.length - 1,
-    };
-    const to = moves[event.key];
+    // The keys of the list and Ctrl+N/P (SR-122); Cmd+P, and Ctrl+P while no row is selected, are the
+    // window's "Go to", as are the other shortcuts.
+    const to = rowTarget(event, cursor, rows.length);
     if (to !== undefined) {
       event.preventDefault();
       dispatch({ type: "cursor", key: buffer.key, cursor: Math.max(0, Math.min(rows.length - 1, to)) });
     } else if (event.key === "Enter") {
       event.preventDefault();
-      open(cursor);
+      // With no row selected, Enter opens the first one and selects it.
+      if (cursor < 0 && rows.length > 0) {
+        dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
+      }
+      open(Math.max(0, cursor));
     }
   };
 
@@ -164,7 +165,7 @@ export const OverviewView = ({
       className="buffer overview"
       role="listbox"
       aria-label="Overview"
-      aria-activedescendant={rows.length === 0 ? undefined : `overview-${String(cursor)}`}
+      aria-activedescendant={activeRow("overview", cursor, rows.length)}
       data-buffer=""
       tabIndex={0}
       onKeyDown={keyDown}

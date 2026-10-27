@@ -872,7 +872,7 @@ const row = (n: number, extra: object = {}) => ({
 const rowsOf = (from: number, to: number) => Array.from({ length: to - from }, (_, at) => row(from + at));
 
 describe("ListView, a list", () => {
-  it("shows the rows of element.list as they are: ID, title, status; the first one selected", async () => {
+  it("shows the rows of element.list as they are: ID, title, status; no row selected yet (SR-122)", async () => {
     const call = fakeCall({
       "element.list": () => ({
         elements: [row(1, { identifier: "SR-036" }), row(2, { status: undefined })],
@@ -886,8 +886,8 @@ describe("ListView, a list", () => {
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
     expect(texts(".row .status")).toEqual(["draft", ""]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
-    expect(query('[role="listbox"]').getAttribute("aria-activedescendant")).toBe("row-0");
-    expect(query('[role="option"]').getAttribute("aria-selected")).toBe("true");
+    expect(query('[role="listbox"]').getAttribute("aria-activedescendant")).toBeNull();
+    expect(query('[role="option"]').getAttribute("aria-selected")).toBe("false");
     expect(data).toEqual([
       ["list", undefined],
       [
@@ -1001,10 +1001,11 @@ describe("ListView, a list", () => {
     const { opened, actions } = await listHarness(asCall(call), listBuffer("All elements"));
     const list = query('[role="listbox"]');
     await press(list, "ArrowDown");
+    await press(list, "ArrowDown");
     await press(list, "Enter");
     expect(opened).toEqual([elementBuffer("uuid-2", "spec", "SR-000002 Title 2")]);
     expect(query("#elsewhere").textContent).toBe("SR-000002 Title 2");
-    expect(actions.at(0)).toEqual({ type: "cursor", key: "list", cursor: 1 });
+    expect(actions.at(-2)).toEqual({ type: "cursor", key: "list", cursor: 1 });
   });
 
   it("selects and opens a row that is clicked", async () => {
@@ -1405,11 +1406,13 @@ describe("OverviewView", () => {
     expect(options()).toEqual([]);
   });
 
-  it("moves the selection with the arrow keys, Home and End, inside the lines, and keeps Ctrl+P for the window", async () => {
+  it("moves the selection with the arrow keys, Home and End, inside the lines, and keeps Cmd+P for the window", async () => {
     const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
     const selected = (): string => query('[aria-selected="true"]').id;
-    expect(selected()).toBe("overview-0");
+    // No line is selected yet (SR-122): the first Down selects the first one.
+    expect(container.querySelector('[aria-selected="true"]')).toBeNull();
     await press(listbox(), "ArrowDown");
+    expect(selected()).toBe("overview-0");
     await press(listbox(), "ArrowDown");
     await press(listbox(), "ArrowDown");
     expect(selected()).toBe("overview-2");
@@ -1422,7 +1425,7 @@ describe("OverviewView", () => {
     await press(listbox(), "End");
     expect(selected()).toBe("overview-2");
     const keys = view.actions.length;
-    const event = new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true, cancelable: true });
+    const event = new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true, cancelable: true });
     await act(async () => {
       listbox().dispatchEvent(event);
       await Promise.resolve();
@@ -1433,6 +1436,7 @@ describe("OverviewView", () => {
 
   it("opens the list of a type line and the element of a recent line on Enter, and a clicked line", async () => {
     const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    await press(listbox(), "ArrowDown");
     await press(listbox(), "ArrowDown");
     await press(listbox(), "Enter");
     expect(view.opened[0]).toMatchObject({ kind: "list", label: "type: system-requirement" });
@@ -1447,6 +1451,14 @@ describe("OverviewView", () => {
     await press(listbox(), "Enter");
     await press(listbox(), "End");
     expect(empty.opened).toEqual([]);
+  });
+
+  it("[SR-122/AK4] Enter with no line selected opens the first line and selects it", async () => {
+    const view = await mount(asCall(fakeCall(handlers())), { recent: [entry(1)] });
+    expect(listbox().getAttribute("aria-activedescendant")).toBeNull();
+    await press(listbox(), "Enter");
+    expect(view.actions[0]).toEqual({ type: "cursor", key: "overview", cursor: 0 });
+    expect(view.opened[0]).toMatchObject({ kind: "list", label: "type: need" });
   });
 
   it("keeps the selection on a line when the lines became fewer", async () => {
@@ -1487,9 +1499,11 @@ const partHarness = async (
   return { actions, data, echoed, show: (revision: number) => render(node(revision)) };
 };
 
+/** As `memberList` makes it: the part starts on its first row, shown while it has the focus. */
 const packageMembers = (): ListBuffer => ({
   ...listBuffer("package: Stufe-3", { where: { package: "uuid-p" } }),
   key: "element:spec:uuid-p",
+  cursor: 0,
 });
 
 describe("ListView, a part of a buffer (SR-112)", () => {
@@ -1590,6 +1604,44 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     await press(list, "ArrowUp");
     expect(actions).toEqual([{ type: "cursor", key: "element:spec:uuid-p", cursor: 1 }]);
     expect(left).toHaveLength(1);
+  });
+
+  it("[SR-122/AK4] Ctrl+N and Ctrl+P walk the elements like Down and Up; Ctrl+P on the first leaves like Up", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 4), total: 3 }) });
+    const left: string[] = [];
+    const { actions } = await partHarness(
+      asCall(call),
+      { ...packageMembers(), cursor: 1 },
+      {
+        onLeave: () => {
+          left.push("left");
+        },
+      },
+    );
+    const list = query('[role="listbox"]');
+    // The harness keeps the buffer as given, on row 1: each key moves from there.
+    await press(list, "n", { ctrlKey: true });
+    await press(list, "n", { ctrlKey: true });
+    await press(list, "p", { ctrlKey: true });
+    expect(actions).toEqual([
+      { type: "cursor", key: "element:spec:uuid-p", cursor: 2 },
+      { type: "cursor", key: "element:spec:uuid-p", cursor: 2 },
+      { type: "cursor", key: "element:spec:uuid-p", cursor: 0 },
+    ]);
+    expect(left).toEqual([]);
+    const first = await partHarness(asCall(call), packageMembers(), {
+      onLeave: () => {
+        left.push("left");
+      },
+    });
+    const up = new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => {
+      query('[role="listbox"]').dispatchEvent(up);
+      await Promise.resolve();
+    });
+    expect(up.defaultPrevented).toBe(true);
+    expect(left).toEqual(["left"]);
+    expect(first.actions).toEqual([]);
   });
 
   it("leaves from the first row with Up, and does not scroll the page", async () => {

@@ -224,6 +224,9 @@ test.describe("the neighbourhood of an element on a fixture workspace", () => {
     expect(requirements).toHaveLength(2);
     await expect(window.locator('[role="tree"] [role="treeitem"]')).toHaveCount(requirements.length);
     expect(await treeRows(window)).toEqual(requirements);
+    // No row is selected yet (SR-122): the first Down selects the first requirement.
+    await expect(window.locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(0);
+    await window.keyboard.press("ArrowDown");
     await expect(window.locator('[role="treeitem"][aria-selected="true"] .title')).toHaveText(
       `▸${requirements[0] ?? ""}`,
     );

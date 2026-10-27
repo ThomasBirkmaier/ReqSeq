@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { TraceNeighbourhoodOutput } from "@logreq/core";
 import type { BufferAction, NeighbourhoodBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import {
   NEIGHBOURHOOD_MAX,
@@ -184,36 +185,39 @@ export const NeighbourhoodView = ({
     if (event.target !== event.currentTarget) {
       return;
     }
-    const moves: Readonly<Record<string, number>> = {
-      ArrowDown: cursor + 1,
-      ArrowUp: cursor - 1,
-      PageDown: cursor + SCREEN,
-      PageUp: cursor - SCREEN,
-      Home: 0,
-      End: entries.length - 1,
+    const to = rowTarget(event, cursor, entries.length, SCREEN);
+    // Enter, Right and Left act on the selected row; with none selected, on the first, which they select.
+    const at = Math.max(0, cursor);
+    const row = tree?.rows[at];
+    const entry = entries[at];
+    const selectFirst = (): void => {
+      if (cursor < 0 && entry !== undefined) {
+        moveTo(0);
+      }
     };
-    const to = moves[event.key];
-    const row = tree?.rows[cursor];
-    const entry = entries[cursor];
     if (to !== undefined) {
       event.preventDefault();
       moveTo(to);
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (entry !== undefined) {
-        openElement(cursor, entry.row);
+        openElement(at, entry.row);
       }
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
       if (row?.expandable === true && !row.opened) {
-        setOpened(row, true, cursor);
+        setOpened(row, true, at);
+      } else {
+        selectFirst();
       }
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       if (row?.opened === true) {
-        setOpened(row, false, cursor);
+        setOpened(row, false, at);
       } else if (row?.parent !== undefined) {
         moveTo(row.parent);
+      } else {
+        selectFirst();
       }
     }
   };

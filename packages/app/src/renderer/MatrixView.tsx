@@ -11,8 +11,9 @@ import type { Call } from "./call.js";
 import { relationLabel } from "./element-view.js";
 import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } from "./matrix.js";
 import type { MatrixColumn, MatrixRow } from "./matrix.js";
+import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
-import { LIST_MAX, LIST_PAGE, firstLimit } from "./rows.js";
+import { LIST_MAX, LIST_PAGE, activeRow, firstLimit } from "./rows.js";
 
 export interface MatrixViewProps {
   readonly call: Call;
@@ -177,24 +178,22 @@ export const MatrixView = ({
   };
 
   const keyDown = (event: React.KeyboardEvent): void => {
-    const moves: Readonly<Record<string, number>> = {
-      ArrowDown: cursor + 1,
-      ArrowUp: cursor - 1,
-      PageDown: cursor + SCREEN,
-      PageUp: cursor - SCREEN,
-      Home: 0,
-      End: rows.length - 1,
-    };
-    const to = moves[event.key];
+    const to = rowTarget(event, cursor, rows.length, SCREEN);
     if (to !== undefined) {
       event.preventDefault();
       moveTo(to);
     } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
       event.preventDefault();
-      setTarget(Math.max(0, Math.min(targets.length - 1, at + (event.key === "ArrowRight" ? 1 : -1))));
+      if (cursor >= 0) {
+        setTarget(Math.max(0, Math.min(targets.length - 1, at + (event.key === "ArrowRight" ? 1 : -1))));
+      } else if (rows.length > 0) {
+        // No row selected: the first key selects the first row, on its element; the next one steps.
+        moveTo(0);
+      }
     } else if (event.key === "Enter") {
       event.preventDefault();
-      open(cursor, at);
+      // With no row selected, Enter opens the element of the first row and selects it.
+      open(Math.max(0, cursor), at);
     }
   };
 
@@ -212,7 +211,7 @@ export const MatrixView = ({
       <table
         role="grid"
         aria-label={bufferName(buffer)}
-        aria-activedescendant={rows.length === 0 ? undefined : `matrix-row-${String(cursor)}`}
+        aria-activedescendant={activeRow("matrix-row", cursor, rows.length)}
         data-buffer=""
         tabIndex={0}
         onKeyDown={keyDown}

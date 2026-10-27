@@ -35,7 +35,7 @@ export interface ListBuffer {
    * clearing a filter keep it.
    */
   readonly matrix?: true;
-  /** Index of the selected row. */
+  /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
 
@@ -44,6 +44,7 @@ export interface SearchBuffer {
   readonly kind: "search";
   readonly key: string;
   readonly query: string;
+  /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
 
@@ -65,7 +66,7 @@ export interface ElementBuffer {
 export interface OverviewBuffer {
   readonly kind: "overview";
   readonly key: "overview";
-  /** Index of the selected row. */
+  /** Index of the selected row; `NO_ROW` while none is. */
   readonly cursor: number;
 }
 
@@ -82,7 +83,7 @@ export interface NeighbourhoodBuffer {
   readonly name: string;
   /** The rows of the tree whose children are shown, as `<repository>:<id>`. */
   readonly open: readonly string[];
-  /** Index of the selected row: first the rows of the tree, then those of the incoming groups. */
+  /** Index of the selected row: first the rows of the tree, then those of the incoming groups; `NO_ROW` while none is. */
   readonly cursor: number;
 }
 
@@ -130,7 +131,13 @@ export const LIST_KEY = "list";
 
 export const OVERVIEW_KEY = "overview";
 
-export const overviewBuffer = (): OverviewBuffer => ({ kind: "overview", key: OVERVIEW_KEY, cursor: 0 });
+/**
+ * The cursor of a list that has no row selected. A fresh list of the main window starts with none (SR-122
+ * AK4): Down or Ctrl+N selects the first row, Enter opens it, and Ctrl+P stays "Go to" (AK5).
+ */
+export const NO_ROW = -1;
+
+export const overviewBuffer = (): OverviewBuffer => ({ kind: "overview", key: OVERVIEW_KEY, cursor: NO_ROW });
 
 /** Exactly one buffer is open and it is the overview: there is nothing to close. */
 export const onlyOverview = (buffers: Buffers): boolean =>
@@ -147,7 +154,7 @@ const makeList = (
   key: LIST_KEY,
   label,
   steps,
-  cursor: 0,
+  cursor: NO_ROW,
   ...(selection === undefined ? {} : { selection }),
   ...(sort === undefined ? {} : { sort }),
   ...(matrix ? { matrix: true as const } : {}),
@@ -211,7 +218,7 @@ export const searchBuffer = (query: string): SearchBuffer => ({
   kind: "search",
   key: `search:${query}`,
   query,
-  cursor: 0,
+  cursor: NO_ROW,
 });
 
 export const elementBuffer = (id: string, repository: string, name: string): ElementBuffer => ({
@@ -229,7 +236,7 @@ export const neighbourhoodBuffer = (id: string, repository: string, name: string
   repository,
   name,
   open: [],
-  cursor: 0,
+  cursor: NO_ROW,
 });
 
 /** The result buffer of `command` with `input`: one per command and input, so running it again replaces it. */
@@ -247,7 +254,7 @@ export const resultBuffer = (
   name,
   output,
   revision,
-  cursor: 0,
+  cursor: NO_ROW,
 });
 
 /** The buffer of an element as a list row, a hit or a read element shows it. */

@@ -62,8 +62,15 @@ export const searchRows = (output: ElementSearchOutput): Row[] =>
   output.hits.map((hit) => rowOf(hit, 0, hit.terms, hit.fields.includes("id")));
 
 /**
+ * The id of the selected row for `aria-activedescendant` (`<prefix>-<cursor>`); none while no row is
+ * selected or there are no rows.
+ */
+export const activeRow = (prefix: string, cursor: number, length: number): string | undefined =>
+  cursor < 0 || length === 0 ? undefined : `${prefix}-${String(cursor)}`;
+
+/**
  * How many rows the first request of a list or search buffer asks for: whole pages, enough for the
- * selected row, so a buffer that is shown again is as long as it was.
+ * selected row, so a buffer that is shown again is as long as it was; one page while no row is selected.
  */
 export const firstLimit = (cursor: number, page: number, max: number): number =>
-  Math.min(max, (Math.floor(cursor / page) + 1) * page);
+  Math.min(max, (Math.floor(Math.max(0, cursor) / page) + 1) * page);

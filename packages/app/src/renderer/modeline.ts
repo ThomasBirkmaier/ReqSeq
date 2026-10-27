@@ -56,7 +56,10 @@ export type BufferData =
   | { readonly kind: "result"; readonly total: number | undefined }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
-/** The element of the selected row of the shown list or search; undefined for any other buffer, or while it loads. */
+/**
+ * The element of the selected row of the shown list or search; undefined for any other buffer, while it
+ * loads, or while no row is selected (a fresh list, SR-122).
+ */
 export const selectedRow = (
   current: Buffer | undefined,
   loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,

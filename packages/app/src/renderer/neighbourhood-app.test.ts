@@ -175,9 +175,8 @@ describe("the neighbourhood in the app", () => {
     expect(
       [...container.querySelectorAll('[role="treeitem"] .title')].map((title) => title.textContent),
     ).toEqual(["Show wind speed", "Show wind direction"]);
-    expect(container.querySelector('[role="treeitem"][aria-selected="true"] .id')?.textContent).toBe(
-      "SR-001",
-    );
+    // No row is selected yet (SR-122): Ctrl+P stays "Go to"; the first Down selects the first row.
+    expect(container.querySelector('[role="treeitem"][aria-selected="true"]')).toBeNull();
     expect(document.activeElement).toBe(query(".neighbourhood"));
     expect(query('[aria-label="Modeline"]').textContent).toContain("Neighbourhood: N-001 See the wind");
   });
@@ -196,6 +195,10 @@ describe("the neighbourhood in the app", () => {
   it("opens a requirement from the tree with Enter", async () => {
     await open();
     await toRequirements();
+    await keyDown(query(".neighbourhood"), "ArrowDown");
+    expect(container.querySelector('[role="treeitem"][aria-selected="true"] .id')?.textContent).toBe(
+      "SR-001",
+    );
     await keyDown(query(".neighbourhood"), "ArrowDown");
     await keyDown(query(".neighbourhood"), "Enter");
     expect(query("article h1").textContent).toBe("Show wind direction");
