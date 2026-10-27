@@ -165,6 +165,9 @@ const WITH_VAULT =
  */
 const EVIDENCE: FixtureOptions = { fixture: "enabler-535/evidence", git: true };
 
+/** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
+const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
+
 /** SR-004/one-repository with an image to attach, whose name LogReq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
   fixture: "SR-004/one-repository",
@@ -778,6 +781,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "the verification status per view of requirements valid for variants, one page (SR-031, SR-047)",
       fixture: FILTER,
       input: { selection: { where: { verification: ["open"] }, view: "VAR-0000c1" }, limit: 3, offset: 1 },
+      expect: "output",
+    },
+    {
+      name: "indirect verification and missing children (SR-034)",
+      fixture: INDIRECT,
+      input: {},
       expect: "output",
     },
     {

@@ -345,6 +345,54 @@ describe("renderHuman: verification status (SR-031)", () => {
   });
 });
 
+describe("renderHuman: indirect verification (SR-034)", () => {
+  it("[SR-034/AK2] names the missing children after the status of their view: short ID from the list, else from the relations, else UUID", () => {
+    const elements = [
+      {
+        id: "p",
+        shortId: "SR-P",
+        status: "approved",
+        title: "Parent",
+        verification: [
+          { view: "core", status: "open", missingChildren: ["c1", "c2", "c3"] },
+          { view: "v1", status: "indirect" },
+        ],
+        relations: [{ kind: "derives-from", direction: "in", id: "c2", shortId: "SR-C2", title: "Two" }],
+      },
+      {
+        id: "c1",
+        shortId: "SR-C1",
+        status: "draft",
+        title: "One",
+        verification: [{ view: "core", status: "failed" }],
+      },
+      { id: "v1", shortId: "VAR-1", status: "draft", title: "Pro" },
+    ];
+    expect(renderHuman({ elements, total: 3 })).toBe(
+      lines(
+        "elements:",
+        "  SR-P  approved  Parent  [verification: core open (missing SR-C1, SR-C2, c3), VAR-1 indirect]",
+        "  SR-C1  draft  One  [verification: core failed]",
+        "  VAR-1  draft  Pro",
+        "total: 3",
+      ),
+    );
+  });
+
+  it("[SR-034/AK1] shows indirect on the line of one element", () => {
+    const element = {
+      id: "p",
+      shortId: "SR-P",
+      status: "approved",
+      title: "Parent",
+      verification: [{ view: "core", status: "indirect" }],
+    };
+    expect(renderHuman({ element }).split("\n")[0]).toBe(
+      "SR-P  approved  Parent  [verification: core indirect]",
+    );
+  });
+});
+
 describe("renderHuman: identifiers (#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {

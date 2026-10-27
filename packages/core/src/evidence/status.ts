@@ -15,22 +15,21 @@
 //   Nachweis verweist immer auf ein Requirement"), in the core and each variant they apply in
 //   (`appliesIn`, SR-040). While the metamodel is not valid the records are not compared (the
 //   versions follow the metamodel): every requirement is `open`, as without records.
+// The indirect verification of a requirement without own record (SR-034) is `indirect.ts`; the state
+// that commands and the filter share is `verification.ts`.
 import type { DataExportElement, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
-import type { ElementRecord } from "../model/index.js";
-import { elementStoreState } from "../model/index.js";
-import type { Workspace } from "../runtime/workspace.js";
+import { typesWithMeaning } from "../metamodel/index.js";
 import type { Validity, View } from "../variants/index.js";
-import { appliesIn, validityOf, variantsOf } from "../variants/index.js";
+import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
-import { evidenceIndexState, instantOf } from "./by-element.js";
+import { instantOf } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
 
 /** What the records of one kind say about an element in a view, before it is named for its kind. */
 export type RecordStatus = "open" | "passed" | "failed" | "outdated";
 
-/** The verification status computed from records; `indirect` comes with SR-034. */
+/** The verification status computed from records alone; `indirect` comes from the children (SR-034, `indirect.ts`). */
 export type RecordVerificationStatus = Exclude<VerificationStatus, "indirect">;
 
 /** The verification entries of an element (`data-export.schema.json#/$defs/element` `verification`). */
@@ -107,71 +106,3 @@ export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefi
   validity: validityOf(metamodel),
   recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
 });
-
-/**
- * The verification status of `element` in `view`, measured against its `current` version;
- * undefined when it has none there (no requirement, or it does not apply in the view, SR-040).
- */
-export const verificationIn = (
-  source: StatusSource,
-  element: ElementRecord,
-  view: View,
-  current: string | undefined,
-): RecordVerificationStatus | undefined =>
-  source.requirements.has(element.type) && appliesIn(source.validity, element, view)
-    ? verificationStatusOf(source.recordsOf(element.id), current, view)
-    : undefined;
-
-/**
- * The verification entries of `element` (`$defs/element` `verification`): the core and each of
- * `variants` it applies in, in that order, with its status there; undefined for an element that is
- * no requirement.
- */
-export const verificationOf = (
-  source: StatusSource,
-  variants: readonly ElementRecord[],
-  element: ElementRecord,
-  current: string | undefined,
-): VerificationEntries | undefined => {
-  if (!source.requirements.has(element.type)) {
-    return undefined;
-  }
-  const views: View[] = [
-    { kind: "core" },
-    ...variants.map((variant): View => ({ kind: "variant", variant })),
-  ];
-  return views.flatMap((view) => {
-    const status = verificationIn(source, element, view, current);
-    return status === undefined ? [] : [{ view: view.kind === "core" ? "core" : view.variant.id, status }];
-  });
-};
-
-/** What the verification status of a workspace's elements needs, read once for one command. */
-export interface WorkspaceStatus {
-  readonly source: StatusSource;
-  /** The variants of the workspace in store order (`variantsOf`). */
-  readonly variants: readonly ElementRecord[];
-}
-
-/**
- * The status source of `workspace` (see the file comment): the records of `evidenceIndexState` while
- * the metamodel is valid, none otherwise.
- */
-export const workspaceStatus = async (workspace: Workspace): Promise<WorkspaceStatus> => {
-  const [metamodel, store] = await Promise.all([
-    workspace.get(metamodelState),
-    workspace.get(elementStoreState),
-  ]);
-  const index = metamodel.valid ? await workspace.get(evidenceIndexState) : undefined;
-  return { source: statusSource(metamodel, index), variants: variantsOf(store, metamodel) };
-};
-
-/** `element` with its verification entries (`verificationOf`), when it has any, measured against its own `version`. */
-export const withVerification = (
-  status: WorkspaceStatus,
-  record: ElementRecord,
-  element: DataExportElement,
-): DataExportElement => {
-  const verification = verificationOf(status.source, status.variants, record, element.version);
-  return verification === undefined ? element : { ...element, verification };
-};

@@ -146,7 +146,7 @@
                 "items": {
                   "$ref": "common.schema.json#/$defs/uuid"
                 },
-                "description": "SR-034 AK2."
+                "description": "SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none."
               }
             },
             "additionalProperties": false

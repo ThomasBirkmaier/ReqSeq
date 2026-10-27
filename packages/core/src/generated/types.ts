@@ -387,7 +387,7 @@ export interface DataExportElement {
   readonly verification?: readonly {
     readonly view: ViewId;
     readonly status: VerificationStatus;
-    /** SR-034 AK2. */
+    /** SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none. */
     readonly missingChildren?: readonly Uuid[];
   }[];
   readonly validation?: ValidationStatus;
@@ -1239,7 +1239,7 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in the core and in each variant it applies in, as evidence.status gives it (SR-031). `validation` comes with SR-038. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in the core and in each variant it applies in, as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation` comes with SR-038. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
@@ -2175,7 +2175,7 @@ export interface EvidenceEnrichJunitOutput {
 }
 
 /**
- * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031); validation status, indirect verification and missing children follow with SR-038 and SR-034.
+ * Input of `evidence.status` as `run` gets it: validated, properties with a `default` filled in. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status follows with SR-038.
  * Schema: `schemas/commands/catalog.json evidence.status input`.
  */
 export interface EvidenceStatusInput {
@@ -2185,11 +2185,11 @@ export interface EvidenceStatusInput {
 }
 
 /**
- * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031); validation status, indirect verification and missing children follow with SR-038 and SR-034.
+ * Output of `evidence.status`. Verification status of a selection per view, from the evidence records (SR-031) and, without own record, from the children with the children that are missing (SR-034); validation status follows with SR-038.
  * Schema: `schemas/commands/catalog.json evidence.status output`.
  */
 export interface EvidenceStatusOutput {
-  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared and every requirement is `open`. */
+  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared and every requirement is `open`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
   readonly total: number;

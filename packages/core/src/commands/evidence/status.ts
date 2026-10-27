@@ -1,7 +1,8 @@
-// evidence.status (SR-031): the verification status of the elements of a selection (query/selection.ts,
-// SR-101), one page at a time in workspace order, each element as element.list gives it
-// (model/list.ts) with `verification` from the evidence block (`withVerification`, ADR-0012
-// "Status rules"), measured against the version listed. `total` counts the whole selection;
+// evidence.status (SR-031, SR-034): the verification status of the elements of a selection
+// (query/selection.ts, SR-101), one page at a time in workspace order, each element as element.list
+// gives it (model/list.ts) with `verification` from the evidence block (`withVerification`, ADR-0012
+// "Status rules"), measured against the version listed; a requirement without own record is
+// indirectly verified through its children or names those that are missing (SR-034). `total` counts the whole selection;
 // `incomplete` follows SR-006 AK2: a repository of the workspace that is not on this machine may hold
 // elements of the selection and records in its evidence locations. Only the page is built, so the files of the page and those of the
 // requirements a verification condition asks about are read (N-036). Nothing is written: the status
@@ -17,7 +18,7 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"evidence.status">> => {
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, "evidence.status");
     const page = selected.elements.slice(input.offset, input.offset + input.limit);
-    const status = await workspaceStatus(ctx.workspace);
+    const status = await workspaceStatus(ctx.workspace, page);
     const elements = await listElements(ctx.workspace, selected, page, {
       extend: (record, element) => withVerification(status, record, element),
     });

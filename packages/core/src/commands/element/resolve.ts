@@ -88,8 +88,12 @@ export default defineCommand({
     const copy = { repository: input.repository, file: input.file };
     try {
       const shown = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
-      // With its verification status, as element.get shows it (SR-031).
-      const element = withVerification(await workspaceStatus(ctx.workspace), shown.record, shown.element);
+      // With its verification status, as element.get shows it (SR-031, SR-034).
+      const element = withVerification(
+        await workspaceStatus(ctx.workspace, [shown.record]),
+        shown.record,
+        shown.element,
+      );
       return { element, current: currentOf(version, element.version) };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {

@@ -6,8 +6,9 @@
 // - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305) and its verification
 //   status per view at the end, apart from its own status (`[verification: core verified]`, SR-031,
-//   D-030); a list of them one such line per element. A read command (element.get) shows the element's details below
-//   its line, a write command only the line.
+//   D-030; the children missing for SR-034 as `core open (missing SR-0000b2)`); a list of them one
+//   such line per element. A read command (element.get) shows the element's details below its line,
+//   a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked.
 // - A list of elements with a `tree` of their places (`depth`, `parent`; one per element, element.list
@@ -95,9 +96,11 @@ const viewNamerOf =
 
 /**
  * The verification status of an element per view (SR-031), apart from its own status:
- * `[verification: core verified, VAR-0000c1 open]`; nothing for an element without one. A variant
- * is named by its short ID from the list, else from the element's own relations (its validity),
- * else by its UUID.
+ * `[verification: core verified, VAR-0000c1 open (missing SR-0000b2, SR-0000b3)]`; nothing for an
+ * element without one. The children that are missing for an indirect verification (SR-034 AK2) follow
+ * their view. A variant or child is named by its short ID from the list, else from the element's own
+ * relations (its validity, its incoming relations), else by its UUID: the output gives UUIDs only
+ * (`missingChildren`, the open export format), so a child that neither lists is shown as its UUID.
  */
 const verificationText = (element: Rec, view: ViewNamer): string => {
   const entries = listOf(element["verification"]).filter(isRecord);
@@ -106,9 +109,11 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
     const listed = view(id);
     return listed === id ? own(id) : listed;
   };
-  return entries.length === 0
-    ? ""
-    : `[verification: ${entries.map((e) => `${named(text(e["view"]))} ${text(e["status"])}`).join(", ")}]`;
+  const entryText = (e: Rec): string => {
+    const missing = listOf(e["missingChildren"]).map((id) => named(text(id)));
+    return `${named(text(e["view"]))} ${text(e["status"])}${missing.length === 0 ? "" : ` (missing ${missing.join(", ")})`}`;
+  };
+  return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };
 
 /**

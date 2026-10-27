@@ -23,21 +23,16 @@ export { testCaseKey, testCaseKeyOf } from "./record.js";
 export type { EvidenceRecord, SkippedTestCase, TestCase, TestCaseName } from "./record.js";
 export { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
 export type { EvidenceFileRead, EvidenceRead, EvidenceReader } from "./state.js";
+export { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
+export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } from "./indirect.js";
+export { holdsIn, recordStatusOf, statusSource, verificationStatusOf } from "./status.js";
+export type { RecordStatus, RecordVerificationStatus, StatusSource, VerificationEntries } from "./status.js";
 export {
-  holdsIn,
-  recordStatusOf,
-  statusSource,
-  verificationIn,
   verificationOf,
-  verificationStatusOf,
+  verificationState,
   withVerification,
   workspaceStatus,
-} from "./status.js";
-export type {
-  RecordStatus,
-  RecordVerificationStatus,
-  StatusSource,
-  VerificationEntries,
-  WorkspaceStatus,
-} from "./status.js";
+  workspaceStatusOf,
+} from "./verification.js";
+export type { VersionReader, WorkspaceStatus } from "./verification.js";
 export { listedRecords, recordHoldsIn } from "./views.js";

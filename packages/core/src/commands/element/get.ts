@@ -3,7 +3,8 @@
 // hints, read from its file as it is now, with the SHA-256 of that file (`fileSha256`, the write
 // precondition of element.update, SR-106); `repository` and `file` pick one copy of a duplicate
 // (#255). Its verification status in the core and each variant it applies in comes from the
-// evidence block (SR-031, `withVerification`), measured against the version shown. What stage 1
+// evidence block (SR-031, SR-034, `withVerification`), measured against the version shown, with
+// the children that are missing for an indirect verification. What stage 1
 // leaves out: see model/get.ts. `view` (SR-043, stage 5) is refused until variants exist, so a
 // caller never takes the whole element for the view of a variant.
 import type { CommandOutput } from "../../catalog.js";
@@ -33,6 +34,9 @@ export default defineCommand({
         file: input.file,
       },
     );
-    return { element: withVerification(await workspaceStatus(ctx.workspace), record, element), fileSha256 };
+    return {
+      element: withVerification(await workspaceStatus(ctx.workspace, [record]), record, element),
+      fileSha256,
+    };
   },
 });

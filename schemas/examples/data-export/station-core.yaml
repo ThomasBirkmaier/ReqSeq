@@ -1,10 +1,11 @@
-# What data.export gives for one requirement of a weather station (SR-061): the core view, with its
-# verification status per view (SR-031, SR-047 AK3). Records and test cases are checked by
+# What data.export gives for two requirements of a weather station (SR-061): the core view, with their
+# verification status per view (SR-031, SR-047 AK3); the parent without own record is verified
+# indirectly in the core and names its missing child in the variant (SR-034). Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
 logreq-data: 1
 workspace: Weather station
 generated: 2026-10-27T08:00:00Z
-selection: { ids: [SR-e88fb3] }
+selection: { ids: [SR-e88fb3, SR-e88fa0] }
 repositories:
   - { name: system, available: true, commit: 0123456789abcdef0123456789abcdef01234567, dirty: false }
 elements:
@@ -22,3 +23,17 @@ elements:
     verification:
       - { view: core, status: verified }
       - { view: VAR-0000c2, status: open }
+  - id: e8df96ea-a168-4d90-8d65-6328cee88fa0
+    shortId: SR-e88fa0
+    type: system-requirement
+    status: draft
+    title: Show the wind
+    version: n1:5c1d0f2e8a7b6c43
+    versionDate: 2026-10-20T12:00:00Z
+    repository: system
+    file: requirements/SR-6328cee88fa0.md
+    properties: {}
+    relations: []
+    verification:
+      - { view: core, status: indirect }
+      - { view: VAR-0000c2, status: open, missingChildren: [e8df96ea-a168-4d90-8d65-6328cee88fb3] }

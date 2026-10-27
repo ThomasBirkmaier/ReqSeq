@@ -4,29 +4,25 @@
 // conditions `verification`, `validation` and `{relation: {direction: evidence}}` ask only this
 // provider, never the records themselves.
 //
-// Stage 4 computes the verification status from the evidence records (SR-031 #43, evidence block,
-// `evidence/status.ts`): each requirement (a type with the meaning `requirement`, own or inherited,
-// SR-012) in each view it applies in (SR-040, SR-047 AK3), measured against its current version.
-// Only the requirements that have records get a current version (`currentVersionsOf`: the files of
-// those elements, or the whole store when they are a large share of it, ADR-0008), so a workspace
-// without records reads no element file for it. While the metamodel is not valid the records are
-// not compared and every requirement is `open`. "Has evidence" is `hasVerificationRecord` of the
+// Stage 4 computes the verification status from the evidence records (SR-031 #43) and, for a
+// requirement without own record, from its children (SR-034 #46): each requirement (a type with the
+// meaning `requirement`, own or inherited, SR-012) in each view it applies in (SR-040, SR-047 AK3),
+// by the evidence block's `verificationState` (`evidence/verification.ts`), which element.get and
+// evidence.status share. Only the requirements that have records get a current version
+// (`currentVersionsOf`: the files of those elements, or the whole store when they are a large share
+// of it, ADR-0008), so a workspace without records reads no element file for it. While the metamodel
+// is not valid the records are not compared and every requirement is `open`. "Has evidence" is `hasVerificationRecord` of the
 // evidence block: a verification record in the view, any version and result (spec question #527).
 // The validation status stays `open` for every need until SR-038 (#50) computes it.
 // The conditions are tested at core level with records given through `evidenceRecordsState` or a
 // provider given through `evidenceStatusState` (decision on #127, option 1).
 import type { ValidationStatus, VerificationStatus } from "../generated/types.js";
-import type { EvidenceIndex, StatusSource } from "../evidence/index.js";
-import {
-  evidenceIndexState,
-  hasVerificationRecord,
-  statusSource,
-  verificationIn,
-} from "../evidence/index.js";
+import type { EvidenceIndex, WorkspaceStatus } from "../evidence/index.js";
+import { evidenceIndexState, hasVerificationRecord, verificationState } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
-import type { CurrentVersion, ElementRecord } from "../model/index.js";
-import { currentVersionsOf, elementStoreState } from "../model/index.js";
+import type { ElementRecord } from "../model/index.js";
+import { elementStoreState } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
@@ -41,20 +37,15 @@ export interface EvidenceStatuses {
   readonly hasEvidence: (element: ElementRecord, view: View) => boolean;
 }
 
-/** The provider of `source` with the current versions `versions` and the records of `index` (see the file comment). */
+/** The provider of the verification `status` with the records of `index` (see the file comment). */
 const providerOf = (
   metamodel: Metamodel,
-  source: StatusSource,
+  status: WorkspaceStatus,
   index: EvidenceIndex | undefined,
-  versions: ReadonlyMap<ElementRecord, CurrentVersion>,
 ): EvidenceStatuses => {
   const needs = new Set(typesWithMeaning(metamodel, "need").map((t) => t.key));
-  const current = (element: ElementRecord): string | undefined => {
-    const entry = versions.get(element);
-    return entry?.kind === "version" ? entry.version : undefined;
-  };
   return {
-    verification: (element, view) => verificationIn(source, element, view, current(element)),
+    verification: (element, view) => status.evaluate(element, view)?.status,
     validation: (element) => (needs.has(element.type) ? "open" : undefined),
     hasEvidence: (element, view) => index !== undefined && hasVerificationRecord(index, element.id, view),
   };
@@ -62,25 +53,26 @@ const providerOf = (
 
 /** The provider of a workspace (see the file comment). */
 const evidenceStatuses = async (workspace: Workspace): Promise<EvidenceStatuses> => {
-  const metamodel = await workspace.get(metamodelState);
+  const [metamodel, status] = await Promise.all([
+    workspace.get(metamodelState),
+    workspace.get(verificationState),
+  ]);
   if (!metamodel.valid) {
-    return providerOf(metamodel, statusSource(metamodel, undefined), undefined, new Map());
+    return providerOf(metamodel, status, undefined);
   }
   const [store, index] = await Promise.all([
     workspace.get(elementStoreState),
     workspace.get(evidenceIndexState),
   ]);
-  const source = statusSource(metamodel, index);
-  // Only requirements with records need their current version (N-036).
-  const recorded = store.elements.filter((e) => source.requirements.has(e.type) && index.byElement.has(e.id));
-  const versions = recorded.length === 0 ? new Map() : await currentVersionsOf(workspace, recorded);
-  return providerOf(metamodel, source, index, versions);
+  // Every requirement may be asked about: the versions of all requirements with records, one batch.
+  await status.prepare(store.elements, { own: true });
+  return providerOf(metamodel, status, index);
 };
 
 /**
  * The evidence provider of a workspace (see the file comment). Reset with the metamodel, the element
- * store and the evidence records.
+ * store, the evidence records and the verification state.
  */
 export const evidenceStatusState = defineWorkspaceState("evidence-status", evidenceStatuses, {
-  dependsOn: [metamodelState, elementStoreState, evidenceIndexState],
+  dependsOn: [metamodelState, elementStoreState, evidenceIndexState, verificationState],
 });
