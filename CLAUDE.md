@@ -59,6 +59,6 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 
 ## Quality gates (required checks)
 
-Typecheck (strictest settings), lint (strictTypeChecked, zero warnings), format, unit tests with 100 % coverage of product code (ADR-0016), CLI end-to-end tests, Electron tests (Playwright, xvfb on Linux), trace-check, offline test, cross-access consistency test, dependency license and security audit. Nightly: performance with generated data.
+Typecheck (strictest settings), lint (strictTypeChecked, zero warnings), format, unit tests with 100 % coverage of product code except React components `.tsx` (ADR-0016, #537), CLI end-to-end tests, Electron tests (Playwright, xvfb on Linux), trace-check, offline test, cross-access consistency test, dependency license and security audit. Nightly: performance with generated data.
 
 Never lower a coverage threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason; the code review rejects them otherwise (ADR-0016).

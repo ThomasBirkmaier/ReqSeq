@@ -108,7 +108,7 @@ The bridge offers nothing else, and in particular no delete (SR-099): `invoke` a
 
 ## Tests
 
-- Unit tests (`src/**/*.test.ts`, Vitest) use fake Electron objects, a Node `MessageChannel` and happy-dom for React. They cover 100 % (ADR-0016).
+- Unit tests (`src/**/*.test.ts`, Vitest) use fake Electron objects, a Node `MessageChannel` and happy-dom for React. They cover the `.ts` modules 100 %; React components (`.tsx`) have no coverage threshold, Playwright covers them (ADR-0016, #537).
 - `test/app.spec.ts` (Playwright, `_electron.launch`) runs the built app on fixture workspaces:
   - it starts and shows the status;
   - `invoke` gives what the CLI gives (`[SR-080/AK2]`);

@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
-// ADR-0016: 100 % coverage of product code is a required gate.
+// ADR-0016: 100 % coverage of product code (except React components) is a required gate.
 export default defineConfig({
   // Tests use the testkit sources directly, so they need no build of @logreq/testkit first.
   resolve: {
@@ -41,7 +41,18 @@ export default defineConfig({
       // `text` with skipFull lists only the files below 100 %, so a CI log names what is uncovered (#511).
       reporter: ["text-summary", ["text", { skipFull: true }], "json-summary", "lcov"],
       reportsDirectory: "coverage",
-      thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
+      // 100 % for every `.ts` file of product code. React components (`.tsx`) are reported, but have no
+      // threshold: Playwright and the [SR-xxx/AKn] tests are their evidence (product owner decision, 2026-10-27, #537).
+      thresholds: {
+        // perFile: the error names the `.ts` file, which the `text` report lists among the components.
+        "packages/*/src/**/*.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+          perFile: true,
+        },
+      },
     },
   },
 });
