@@ -46,6 +46,8 @@ test.describe("the main view on a fixture workspace", () => {
     // The text of an element is edited in place (SR-065) and so are its text properties (SR-104): the editors,
     // `article .cm-content`, are the text boxes of the sheet and no extra control; a list has none.
     const permanent = async (editors: number): Promise<void> => {
+      // The editors mount after the buffer shows: wait for them before the instant counts below.
+      await expect(window.getByRole("textbox")).toHaveCount(editors);
       for (const role of [
         "button",
         "tab",
@@ -75,10 +77,13 @@ test.describe("the main view on a fixture workspace", () => {
         await window.locator("button:not(.copy), input, textarea, select, form, nav, aside, dialog").count(),
       ).toBe(0);
       await expect(window.locator(".copy:visible")).toHaveCount(0);
-      // The window has the sheet, the modeline and the minibuffer, nothing else.
+      // The window has the sheet, the modeline and the minibuffer, nothing else. On macOS the top strip of the
+      // sheet stands in for the native title bar (#490): it is aria-hidden and holds no control.
       expect(
-        await window.locator(".shell > *").evaluateAll((all) => all.map((e) => e.getAttribute("aria-label"))),
-      ).toEqual(["Sheet", "Modeline", "Minibuffer"]);
+        await window
+          .locator(".shell > *")
+          .evaluateAll((all) => all.map((e) => e.getAttribute("aria-label") ?? e.getAttribute("class"))),
+      ).toEqual([...(process.platform === "darwin" ? ["titlebar"] : []), "Sheet", "Modeline", "Minibuffer"]);
       // The sheet holds exactly one buffer.
       expect(await window.locator('[aria-label="Sheet"] > *').count()).toBe(1);
     };

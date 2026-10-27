@@ -154,6 +154,22 @@ describe("startShell", () => {
     expect(dark.windows[0]?.options).toMatchObject({ backgroundColor: "#16181b" });
   });
 
+  it("hides the native title bar on macOS only, so that the sheet reaches the top of the window (#490)", async () => {
+    const mac = fakeElectron(false);
+    await startShell(mac.electron as unknown as ShellElectron, { ...options(), platform: "darwin" });
+    expect(mac.windows[0]?.options).toMatchObject({
+      titleBarStyle: "hiddenInset",
+      trafficLightPosition: { x: 14, y: 12 },
+    });
+    for (const platform of ["linux", "win32"] as const) {
+      const other = fakeElectron(false);
+      await startShell(other.electron as unknown as ShellElectron, { ...options(), platform });
+      expect(other.windows[0]?.options).not.toHaveProperty("titleBarStyle");
+      expect(other.windows[0]?.options).not.toHaveProperty("titleBarOverlay");
+      expect(other.windows[0]?.options).not.toHaveProperty("trafficLightPosition");
+    }
+  });
+
   it("opens one secured window on the bundled renderer, with the menu and the protocols", async () => {
     const { electron, windows, protocolHandlers } = await start();
     expect(windows).toHaveLength(1);

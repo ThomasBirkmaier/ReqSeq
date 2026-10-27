@@ -24,6 +24,10 @@ export interface WorkspaceView {
 
 const plural = (count: number, word: string): string => `${String(count)} ${word}${count === 1 ? "" : "s"}`;
 
+/** The title of the window: the workspace's name, then the app's. On macOS the title bar shows it too. */
+export const windowTitle = (view: WorkspaceView | undefined): string =>
+  view?.name === undefined ? "LogReq" : `${view.name} - LogReq`;
+
 export const workspaceView = (result: InvokeResult): WorkspaceView => {
   if (!result.ok) {
     return { name: undefined, marks: [], message: result.error.message };

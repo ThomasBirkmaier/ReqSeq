@@ -251,6 +251,30 @@ describe("App", () => {
     expect(document.title).toBe("Weather station - LogReq");
   });
 
+  it("on macOS names the window in a title bar strip of the sheet, which has no control; elsewhere has none (#490)", async () => {
+    const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    const { bridge } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
+    await render(bridge);
+    expect(query(".titlebar").textContent).toBe("LogReq");
+    act(() => {
+      root.unmount();
+    });
+    const other = fakeBridge(workspace());
+    root = createRoot(container);
+    await render(other.bridge);
+    const bar = query(".titlebar");
+    expect(bar.textContent).toBe("Weather station - LogReq");
+    expect(bar.getAttribute("aria-hidden")).toBe("true");
+    expect(bar.querySelector("button, input, a, [tabindex]")).toBeNull();
+    act(() => {
+      root.unmount();
+    });
+    platform.mockReturnValue("Linux x86_64");
+    root = createRoot(container);
+    await render(other.bridge);
+    expect(container.querySelector(".titlebar")).toBeNull();
+  });
+
   it("shows the list of all elements, its count in the modeline, and gives the list the focus", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);

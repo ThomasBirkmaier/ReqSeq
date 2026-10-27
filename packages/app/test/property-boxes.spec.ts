@@ -302,6 +302,8 @@ test.describe("property boxes of an element", () => {
   test("[SR-104/AK2] Add property is also in the command prompt, by its name", async () => {
     const { window } = running;
     await window.keyboard.press("ControlOrMeta+Shift+P");
+    // The prompt's input takes the keys only once it is mounted and focused.
+    await expect(window.getByRole("combobox")).toBeFocused();
     await window.keyboard.type("add prop");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Add property");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(/Ctrl\+Alt\+A|⌥⌘A/);

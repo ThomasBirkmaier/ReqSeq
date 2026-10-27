@@ -17,6 +17,7 @@ const TOKENS = [
   "edge",
   "sheet",
   "select",
+  "raised",
   "accent-outdated",
   "accent-gap",
   "shadow",
@@ -77,10 +78,10 @@ describe("the colours of the sheet", () => {
   });
 
   it.each(["light", "dark"] as const)(
-    "keeps the text readable on the sheet and on the selection (%s)",
+    "keeps the text readable on the sheet, the selection and the raised tone (%s)",
     (scheme) => {
       const at = (name: string): string => values(name)[scheme];
-      for (const ground of [at("sheet"), at("select")]) {
+      for (const ground of [at("sheet"), at("select"), at("raised")]) {
         for (const name of ["text", "muted", "accent-outdated", "accent-gap"]) {
           expect(ratio(at(name), ground), `${name} on ${ground}`).toBeGreaterThanOrEqual(4.5);
         }
@@ -94,6 +95,18 @@ describe("the colours of the sheet", () => {
       for (const name of ["select", "rule"]) {
         expect(ratio(values(name)[scheme], values("sheet")[scheme]), name).toBeGreaterThanOrEqual(1.1);
       }
+    },
+  );
+
+  it.each(["light", "dark"] as const)(
+    "sets the raised tone (prompt card, modeline) quietly apart from the sheet, the selection visible on it (%s)",
+    (scheme) => {
+      const at = (name: string): string => values(name)[scheme];
+      const off = ratio(at("raised"), at("sheet"));
+      expect(off).toBeGreaterThan(1.03);
+      expect(off).toBeLessThan(1.1);
+      expect(ratio(at("select"), at("raised"))).toBeGreaterThanOrEqual(1.1);
+      expect(ratio(at("rule"), at("raised"))).toBeGreaterThanOrEqual(1.1);
     },
   );
 
@@ -175,6 +188,44 @@ describe("the copy symbol of a field (SR-128)", () => {
     expect(ruleOf(".element .field")).toMatch(/position:\s*relative;/);
     // A hit area of about 20 px: 1.5rem of the 14 px root.
     expect(ruleOf(".copy")).toMatch(/width:\s*1\.5rem;[\s\S]*height:\s*1\.5rem;/);
+  });
+});
+
+describe("the look of the window (#490)", () => {
+  it("lifts the candidates of a prompt as a card: the raised tone, a thin edge, round corners, a shadow upwards", () => {
+    const card = ruleOf(".candidates");
+    expect(card).toMatch(/background:\s*var\(--raised\);/);
+    expect(card).toMatch(/border:\s*1px solid var\(--rule\);/);
+    expect(card).toMatch(/border-radius:\s*8px;/);
+    expect(card).toMatch(/box-shadow:\s*0 -\d+px \d+px var\(--shadow\);/);
+    // It rises above the modeline, whose row is --modeline high.
+    expect(card).toMatch(/bottom:\s*calc\(100% \+ var\(--modeline\) \+ [\d.]+rem\);/);
+    expect(ruleOf(".shell")).toMatch(
+      /grid-template-rows:\s*minmax\(0, 1fr\) var\(--modeline\) var\(--line\);/,
+    );
+  });
+
+  it("makes the modeline one rounded bar of segments joined by a thin rounded edge, in the tones of the sheet", () => {
+    const bar = ruleOf(".modeline");
+    expect(bar).toMatch(/border-radius:\s*999px;/);
+    expect(bar).toMatch(/border:\s*1px solid var\(--rule\);/);
+    expect(bar).toMatch(/background:\s*var\(--raised\);/);
+    expect(ruleOf(".modeline .segment")).toMatch(/border-radius:\s*999px 0 0 999px;/);
+    expect(ruleOf(".modeline .segment + .segment")).toMatch(/box-shadow:\s*-1px 0 0 var\(--rule\);/);
+    const head = ruleOf(".modeline .parts .segment:first-child, .modeline .workspace .segment:first-child");
+    expect(head).toMatch(/background:\s*var\(--select\);/);
+    expect(head).toMatch(/color:\s*var\(--text\);/);
+  });
+
+  it("gives macOS a title bar strip of the sheet that moves the window and only names it", () => {
+    const strip = ruleOf(".titlebar");
+    expect(strip).toMatch(/-webkit-app-region:\s*drag;/);
+    expect(strip).toMatch(/background:\s*var\(--sheet\);/);
+    expect(strip).toMatch(/color:\s*var\(--muted\);/);
+    expect(strip).toMatch(/user-select:\s*none;/);
+    expect(ruleOf(".shell:has(> .titlebar)")).toMatch(
+      /grid-template-rows:\s*var\(--titlebar\) minmax\(0, 1fr\)/,
+    );
   });
 });
 

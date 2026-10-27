@@ -1,4 +1,5 @@
-// The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace. Two
+// The modeline: a display, not a control. Left the parts of the shown buffer, right the workspace, each
+// part a segment of one rounded bar (#490). Two
 // things are not just display (SR-128): the ID of an element carries the copy symbol of a field, and the
 // confirmation of a copy shows briefly after the parts.
 import type { DataExportElement } from "@logreq/core";
@@ -35,7 +36,7 @@ export const ModelineBar = ({
           <span className="parts">
             {parts.map((part, at) =>
               at === 0 && id !== undefined ? (
-                <span key={part}>
+                <span key={part} className="segment">
                   <span className="field" data-field="ID">
                     <span>{id.text()}</span>
                     <CopySymbol
@@ -48,19 +49,23 @@ export const ModelineBar = ({
                   {part.slice(id.text().length)}
                 </span>
               ) : (
-                <span key={part}>{part}</span>
+                <span key={part} className="segment">
+                  {part}
+                </span>
               ),
             )}
             {notice === "" ? null : (
-              <span className="notice" role="status">
+              <span className="segment notice" role="status">
                 {notice}
               </span>
             )}
           </span>
           <span className="workspace">
-            <span className="name">{view.name ?? "No workspace"}</span>
+            <span className="segment name">{view.name ?? "No workspace"}</span>
             {[...view.marks, ...(stopped ? ["stopped"] : [])].map((mark) => (
-              <span key={mark}>{mark}</span>
+              <span key={mark} className="segment">
+                {mark}
+              </span>
             ))}
           </span>
         </>

@@ -52,6 +52,12 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     // The colour of the sheet in the scheme of the system, so that a dark start does not flash white (SR-113).
     backgroundColor: electron.nativeTheme.shouldUseDarkColors ? SHEET.dark : SHEET.light,
     autoHideMenuBar: true,
+    // macOS: no native title bar; the traffic lights lie on the sheet, whose top strip moves the window
+    // and names it in the colours of the scheme (#490). Windows and Linux keep the native frame (ADR-0010).
+    // The lights are pinned to the middle of the 38 px strip: the inset of `hiddenInset` differs between macOS versions.
+    ...(options.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 14, y: 12 } }
+      : {}),
     webPreferences: webPreferences(options.paths.preload),
   });
   // The renderer asks for a copy to the clipboard over the one channel it has (SR-128).

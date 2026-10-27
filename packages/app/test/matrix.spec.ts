@@ -323,7 +323,8 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await requirements(window);
     await matrixOpen(window, 6);
     await window.keyboard.press("ControlOrMeta+Shift+P");
-    const option = window.locator('.candidates [role="option"]').first();
+    // A candidate in the middle of the card: the first one can lie over the header row of the matrix.
+    const option = window.locator('.candidates [role="option"]').nth(3);
     await expect(option).toBeVisible();
     const box = await option.boundingBox();
     if (box === null) {

@@ -36,7 +36,7 @@ import { openingOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
-import { bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
+import { bufferView, selectedRow, shownElement, windowTitle, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import { ResultView } from "./ResultView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
@@ -53,6 +53,23 @@ const MESSAGES: Readonly<Record<string, string>> = {
 
 /** The app's local storage, where the recent elements are kept (SR-118 AK5); read when needed, it may throw. */
 const appStorage = (): RecentStorage => window.localStorage;
+
+/**
+ * macOS: the window has no native title bar (ADR-0010, #490), so this strip of the sheet moves the window
+ * and names it. It holds no control.
+ */
+const TitleBar = ({
+  shown,
+  title,
+}: {
+  readonly shown: boolean;
+  readonly title: string;
+}): React.JSX.Element | null =>
+  shown ? (
+    <div className="titlebar" aria-hidden="true">
+      {title}
+    </div>
+  ) : null;
 
 /** The parts of the modeline for the shown buffer: what it loaded, and `modified` for unsaved text. */
 const modelineParts = (
@@ -168,7 +185,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       }
       const next = workspaceView(result);
       setView(next);
-      document.title = next.name === undefined ? "LogReq" : `${next.name} - LogReq`;
+      document.title = windowTitle(next);
       if (reason === undefined || reason === "opened") {
         resetDrafts();
         setPrompt(undefined);
@@ -369,6 +386,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const parts = modelineParts(current, loaded, drafts.current, typeNames);
   return (
     <div className="shell">
+      <TitleBar shown={context.mac} title={windowTitle(view)} />
       <main className="sheet" aria-label="Sheet" ref={sheet}>
         {current === undefined ? null : current.kind === "element" ? (
           <ElementView
