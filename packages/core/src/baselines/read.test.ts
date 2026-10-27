@@ -232,7 +232,8 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     const { atime, mtime } = await fs.stat(file);
     await fs.writeFile(file, (await fs.readFile(file, "utf8")).replace("Release 1.0", "Release 1.X"));
     await fs.utimes(file, atime, mtime);
-    expect((await fs.stat(file)).mtimeMs).toBe(mtime.getTime());
+    // The file system stores the time set back in its own resolution, so it reads back as e.g. ...930.999.
+    expect((await fs.stat(file)).mtimeMs).toBeCloseTo(mtime.getTime(), 0);
     expect((await readBaselines(layout, kept)).baselines.map((b) => b.name)).toEqual([
       "Beta",
       "Release 1.X",
