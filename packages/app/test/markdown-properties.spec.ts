@@ -10,30 +10,17 @@ import type { Locator, Page } from "@playwright/test";
 import { REFERENCE_FILES, REFERENCE_TARGET_ID, REFERENCE_TARGET_TITLE } from "./support/demo.js";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
+import { markdownMetamodel, quoted } from "./support/boxes.js";
 
 const OUT =
   process.env["LOGREQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
-const FIXTURE_FOLDER = fileURLToPath(new URL("../../../fixtures/SR-069/filter", import.meta.url));
 const SR_ID = "69069069-0000-4000-8000-0000000000b9";
 const SR_TITLE = "Veraltete Messung anzeigen";
 const FIRST = `**Gegeben** ein Messwert, **wenn** er älter als eine Sekunde ist, **dann** zeigt das Tool [Messung](logreq:${REFERENCE_TARGET_ID}?version=n1:1111111111111111) als veraltet.`;
 const SECOND = "Die Anzeige bleibt *lesbar*, und `n/a` erscheint ohne Messung.";
 const IMAGE = "![Skizze](skizze.png) steht im Quelltext, nicht als Bild.";
-
-/** The metamodel of the fixture with `markdown: true` on the acceptance criteria. */
-const markdownMetamodel = async (): Promise<string> => {
-  const file = await fs.readFile(path.join(FIXTURE_FOLDER, "metamodel", "standard-model.yaml"), "utf8");
-  const marked = file.replace(
-    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n    many: true\n",
-    "  - key: acceptance-criteria\n    name: Acceptance Criteria\n    kind: text\n    many: true\n    markdown: true\n",
-  );
-  expect(marked).not.toBe(file);
-  return marked;
-};
-
-const quoted = (value: string): string => `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 
 const files = async (): Promise<Record<string, string>> => ({
   ...REFERENCE_FILES,
@@ -81,12 +68,14 @@ test.describe("Markdown properties in the element buffer", () => {
   test("[SR-127/AK1] the acceptance criteria show bold, italic, code and a reference formatted, without their marks", async () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
-    await expect(criteria.locator(".cm-content")).toHaveCount(3);
+    // One editor for the box, one value per line.
+    await expect(criteria.locator(".cm-content")).toHaveCount(1);
+    await expect(criteria.locator(".cm-line")).toHaveCount(3);
     await expect(criteria.locator(".cm-lr-strong")).toHaveText(["Gegeben", "wenn", "dann"]);
     await expect(criteria.locator(".cm-lr-em")).toHaveText("lesbar");
     await expect(criteria.locator(".cm-lr-code")).toHaveText("n/a");
     await expect(criteria.locator(".cm-lr-ref")).toHaveText("Messung");
-    const shown = await criteria.locator(".cm-content").allInnerTexts();
+    const shown = await criteria.locator(".cm-line").allInnerTexts();
     expect(shown[0]).toContain("Gegeben ein Messwert, wenn er älter");
     for (const line of shown.slice(0, 2)) {
       expect(line).not.toMatch(/\*|`|logreq:|\]\(/);
@@ -104,14 +93,49 @@ test.describe("Markdown properties in the element buffer", () => {
     const criteria = field(window, "acceptance-criteria");
     // (CodeMirror puts empty `img.cm-widgetBuffer` next to widgets; they draw nothing.)
     await expect(criteria.locator("img:not(.cm-widgetBuffer)")).toHaveCount(0);
-    await expect(criteria.locator(".cm-content").nth(2)).toHaveText(IMAGE);
+    await expect(criteria.locator(".cm-line").nth(2)).toHaveText(IMAGE);
   });
 
   test("[SR-127/AK5] the title and a property that is not marked markdown show their text as it is", async () => {
     const { window } = running;
     await expect(window.locator("article h1")).toHaveText(`**${SR_TITLE}**`);
     await expect(field(window, "topic")).toContainText("**Anzeige**");
-    await expect(field(window, "topic").locator(".cm-editor")).toHaveCount(0);
+    // The plain property is edited in place too, but nothing in it is formatted.
+    await expect(field(window, "topic").locator(".cm-content")).toHaveText("**Anzeige**");
+    await expect(field(window, "topic").locator(".cm-lr-strong")).toHaveCount(0);
+  });
+
+  test("[SR-127/AK1] the Markdown source is shown only on the line with the cursor, and the other values stay formatted", async () => {
+    const { window } = running;
+    const lines = field(window, "acceptance-criteria").locator(".cm-line");
+    await expect(lines.nth(0)).not.toContainText("**");
+    await expect(lines.nth(1)).not.toContainText("*lesbar*");
+    // A click in the first value shows its source, the others stay formatted.
+    await lines.nth(0).click();
+    await expect(lines.nth(0)).toContainText("**Gegeben**");
+    await expect(lines.nth(0)).toContainText(`logreq:${REFERENCE_TARGET_ID}`);
+    await expect(lines.nth(1)).not.toContainText("*lesbar*");
+    await expect(lines.nth(1)).toContainText("Die Anzeige bleibt lesbar");
+    // The cursor in the second value: its source shows, the first is formatted again.
+    await lines.nth(1).click();
+    await expect(lines.nth(1)).toContainText("*lesbar*");
+    await expect(lines.nth(1)).toContainText("`n/a`");
+    await expect(lines.nth(0)).not.toContainText("**");
+    // The keys move the cursor from value to value the same way (a long value takes more than one Down).
+    await window.keyboard.press("ControlOrMeta+Home");
+    await expect(lines.nth(0)).toContainText("**Gegeben**");
+    await expect(lines.nth(1)).not.toContainText("*lesbar*");
+    for (let step = 0; step < 4 && !(await lines.nth(1).innerText()).includes("*lesbar*"); step += 1) {
+      await window.keyboard.press("ArrowDown");
+    }
+    await expect(lines.nth(1)).toContainText("*lesbar*");
+    await expect(lines.nth(0)).not.toContainText("**");
+    // Escape leaves the box: no cursor, no source anywhere.
+    await window.keyboard.press("Escape");
+    await expect(field(window, "acceptance-criteria")).toBeFocused();
+    await expect(lines.nth(1)).not.toContainText("*lesbar*");
+    await expect(lines.nth(0)).not.toContainText("**");
+    await expect(lines.nth(1)).toContainText("Die Anzeige bleibt lesbar");
   });
 
   test("[SR-127/AK3] an outdated reference in a criterion is marked like one in the text, and a click opens its element", async () => {

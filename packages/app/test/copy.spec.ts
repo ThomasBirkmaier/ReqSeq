@@ -137,7 +137,7 @@ test.describe("copying a field of an element", () => {
     // The cursor in the text.
     await window.locator("article").focus();
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
     await expect(symbol(window, "Text")).toBeVisible();
     await expect(symbol(window, "Title")).toBeHidden();
     // A relation target, which is a link.
@@ -181,7 +181,7 @@ test.describe("copying a field of an element", () => {
     const { window } = running;
     // The cursor in the text.
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.press("ControlOrMeta+Shift+C");
     await expect(modeline(window)).toContainText("Copied Text");
     expect(await readClipboard(running)).toBe((await stored()).text);
@@ -201,13 +201,33 @@ test.describe("copying a field of an element", () => {
     expect(await readClipboard(running)).toBe((await stored()).id);
   });
 
+  test("[SR-128/AK3] with the caret in a box, Ctrl/Cmd+Shift+C copies what the box holds, the unsaved input included", async () => {
+    const { window } = running;
+    await writeClipboard(running, SENTINEL);
+    const criteria = field(window, "acceptance-criteria");
+    await criteria.locator(".cm-line").last().click();
+    // The criterion can wrap once its source shows; Ctrl/Cmd+End goes to the end of the text, not of the visual line.
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.type(" Neu");
+    // The copy symbol is not pressed: the key goes to the window with the caret still in the box.
+    await window.keyboard.press("ControlOrMeta+Shift+C");
+    await expect(modeline(window)).toContainText("Copied acceptance-criteria");
+    expect(await readClipboard(running)).toBe([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`].join("\n"));
+    await expect(criteria.locator(".cm-content")).toBeFocused();
+    // Nothing was saved by copying.
+    const got = JSON.parse((await running.cli(["element", "get", SR_ID])).stdout) as {
+      element: { properties: Record<string, unknown> };
+    };
+    expect(got.element.properties["acceptance-criteria"]).toEqual(CRITERIA);
+  });
+
   test("[SR-128/AK4] a click on a field only sets the cursor: the clipboard is not changed", async () => {
     const { window } = running;
     await field(window, "Title").click();
     await field(window, "acceptance-criteria").click();
     await field(window, "derives-from").getByRole("link").first().hover();
-    await window.locator(".cm-content").click();
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await window.locator('[data-field="Text"] .cm-content').click();
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.type("x");
     await window.locator(".modeline [data-field='ID'] span").first().click();
     expect(await readClipboard(running)).toBe(SENTINEL);

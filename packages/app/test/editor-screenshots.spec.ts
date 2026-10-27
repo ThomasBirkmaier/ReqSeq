@@ -21,7 +21,7 @@ const openByTitle = async (window: Page, query: string, title = query): Promise<
   await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
   await window.keyboard.press("Enter");
   await expect(window.locator("article h1")).toHaveText(title);
-  await expect(window.locator(".cm-content")).toBeVisible();
+  await expect(window.locator('[data-field="Text"] .cm-content')).toBeVisible();
   // The buffer has the focus once the prompt is gone; its keys (Enter) work from then on.
   await expect(window.locator("article")).toBeFocused();
 };
@@ -38,7 +38,7 @@ test("screenshots of the editor on a demo element", async () => {
     });
     await expect(window.getByRole("listbox")).toBeVisible();
     await openByTitle(window, DEMO_TITLE);
-    const content = window.locator(".cm-content");
+    const content = window.locator('[data-field="Text"] .cm-content');
 
     // Not focused: everything is set.
     await expect(content.locator("table.cm-lr-table")).toHaveCount(1);

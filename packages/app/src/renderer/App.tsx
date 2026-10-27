@@ -13,8 +13,8 @@ import type { Buffer, ElementBuffer } from "./buffers.js";
 import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
-import type { MarkdownProperties } from "./element-view.js";
-import { markdownProperties } from "./element-view.js";
+import type { PropertyModel } from "./element-view.js";
+import { propertyModel } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
 import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
@@ -99,8 +99,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const [typeNames, setTypeNames] = useState<ReadonlyMap<string, string>>(new Map());
   // The types that are packages: their elements show the elements that name them (SR-112).
   const [packages, setPackages] = useState<PackageModel | undefined>(undefined);
-  // The properties marked `markdown` per type: their boxes show formatted values (SR-127).
-  const [markdown, setMarkdown] = useState<MarkdownProperties>(new Map());
+  // The properties of each type: which boxes are edited in place (SR-104) and which show Markdown (SR-127).
+  const [properties, setProperties] = useState<PropertyModel>(new Map());
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
@@ -126,7 +126,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           metamodel.ok ? new Map(metamodel.output.types.map((type) => [type.key, type.name])) : new Map(),
         );
         setPackages(metamodel.ok ? packageModel(metamodel.output) : undefined);
-        setMarkdown(metamodel.ok ? markdownProperties(metamodel.output) : new Map());
+        setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
       }
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
@@ -159,7 +159,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       } else {
         setTypeNames(new Map());
         setPackages(undefined);
-        setMarkdown(new Map());
+        setProperties(new Map());
       }
     };
     void refresh(undefined);
@@ -312,7 +312,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onDraft={onDraft}
             register={setElementControls}
             packages={packages}
-            markdown={markdown}
+            properties={properties}
             dispatch={dispatch}
           />
         ) : current.kind === "overview" ? (

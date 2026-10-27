@@ -43,8 +43,8 @@ test.describe("the main view on a fixture workspace", () => {
   test("[SR-100/AK1] the main view shows only the list, the element and the search line", async () => {
     const { window } = running;
     // Nothing that can be operated, besides the buffer itself and the minibuffer, is permanently visible.
-    // The text of an element is edited in place (SR-065): its editor, `article .cm-content`, is the one
-    // text box of the sheet and is not an extra control; a list has none.
+    // The text of an element is edited in place (SR-065) and so are its text properties (SR-104): the editors,
+    // `article .cm-content`, are the text boxes of the sheet and no extra control; a list has none.
     const permanent = async (editors: number): Promise<void> => {
       for (const role of [
         "button",
@@ -88,13 +88,16 @@ test.describe("the main view on a fixture workspace", () => {
     // ... and with an element open.
     await window.keyboard.press("Enter");
     await expect(window.locator("article")).toBeVisible();
-    await permanent(1);
+    // The text and the two text properties of the first element (acceptance criteria and priority, a number).
+    await permanent(3);
+    await expect(window.locator('article [data-field="acceptance-criteria"] .cm-content')).toHaveCount(1);
+    await expect(window.locator('article [data-field="priority"] .cm-content')).toHaveCount(1);
     // The prompt, which is the search line, is there only while it is asked for.
     await window.keyboard.press("ControlOrMeta+Shift+F");
     await expect(window.getByRole("combobox")).toBeVisible();
     await window.keyboard.press("Escape");
     await expect(window.getByRole("combobox")).toHaveCount(0);
-    await permanent(1);
+    await permanent(3);
   });
 
   test("the list shows what `element list` gives for the default sort (type, then ID): titles in order and the total in the modeline", async () => {
@@ -204,12 +207,38 @@ test.describe("the main view on a fixture workspace", () => {
       `${got.element.shortId} · ${typeName ?? ""} · ${got.element.status}`,
     );
     if (got.element.text !== undefined) {
-      await expect(window.locator("article .cm-content")).toHaveText(got.element.text.trim());
+      await expect(window.locator('article [data-field="Text"] .cm-content')).toHaveText(
+        got.element.text.trim(),
+      );
     }
-    // The text editor is the only thing in the element that takes input.
+    // The editors are the only things in the element that take input: the text, and one per filled property
+    // of a text kind that the type has (SR-104), as `metamodel get` and `element get` give them.
+    const model = await cliJson<{
+      types: { key: string; properties: string[] }[];
+      properties: { key: string; kind: string }[];
+    }>(running, ["metamodel", "get"]);
+    const properties = (
+      await cliJson<{ element: { properties: Record<string, unknown> } }>(running, [
+        "element",
+        "get",
+        "SR-0000b3",
+      ])
+    ).element.properties;
+    const typeKeys = model.types.find((type) => type.key === got.element.type)?.properties ?? [];
+    const textKeys = Object.entries(properties)
+      .filter(([key, value]) => value !== "" && typeKeys.includes(key))
+      .filter(([key]) =>
+        ["text", "number", "date"].includes(model.properties.find((p) => p.key === key)?.kind ?? ""),
+      )
+      .map(([key]) => key);
+    expect(textKeys).toEqual(["acceptance-criteria"]);
     await expect(window.locator("article input, article textarea")).toHaveCount(0);
-    await expect(window.locator("article [contenteditable]")).toHaveCount(1);
-    await expect(window.locator("article [contenteditable]")).toHaveClass(/cm-content/);
+    await expect(window.locator("article [contenteditable]")).toHaveCount(1 + textKeys.length);
+    expect(
+      await window
+        .locator("article [contenteditable]")
+        .evaluateAll((all) => all.every((node) => node.classList.contains("cm-content"))),
+    ).toBe(true);
     // Ctrl+P, Enter goes back to the list.
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
@@ -251,10 +280,10 @@ test.describe("the main view on a fixture workspace", () => {
   test("[SR-123/AK2] [SR-123/AK3] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text", async () => {
     const { window } = running;
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeVisible();
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeVisible();
     await expect(window.locator("article")).toBeFocused();
     await window.keyboard.press("Enter");
-    await expect(window.locator(".cm-content")).toBeFocused();
+    await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.insertText(" ENDE");
     await expect(window.getByLabel("Modeline")).toContainText("modified");
     await window.keyboard.press("Escape");

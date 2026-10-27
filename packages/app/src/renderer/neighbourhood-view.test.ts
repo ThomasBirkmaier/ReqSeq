@@ -553,7 +553,7 @@ describe("the parents line on the element page", () => {
         onDraft: () => undefined,
         register: () => undefined,
         packages: undefined,
-        markdown: new Map(),
+        properties: new Map(),
         dispatch: (action) => dispatched.push(action),
       });
     await render(node(revision));

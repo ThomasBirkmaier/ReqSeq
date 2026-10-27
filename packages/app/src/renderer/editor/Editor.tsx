@@ -13,8 +13,10 @@ import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
 
 export interface EditorHandle {
-  /** Gives the editor the focus, the cursor at the end of the text when asked. */
-  readonly focus: (at?: "end") => void;
+  /** Gives the editor the focus, the cursor at the start or the end of the text when asked. */
+  readonly focus: (at?: "start" | "end") => void;
+  /** The editor has the focus (the caret is in it). */
+  readonly hasFocus: () => boolean;
   readonly doc: () => string;
   /** The state of the editor, for the cursor (the element buffer asks what it is on). */
   readonly state: () => EditorState;
@@ -189,11 +191,13 @@ export const Editor = ({
     setView(editor);
     latest.current.handle?.({
       focus: (at) => {
-        editor.focus();
-        if (at === "end") {
-          editor.dispatch({ selection: { anchor: editor.state.doc.length } });
+        // The caret first: moving it while the editor has the focus asks the browser for a selection change.
+        if (at !== undefined) {
+          editor.dispatch({ selection: { anchor: at === "end" ? editor.state.doc.length : 0 } });
         }
+        editor.focus();
       },
+      hasFocus: () => editor.hasFocus,
       doc: () => editor.state.doc.toString(),
       state: () => editor.state,
       replace: (next) => {

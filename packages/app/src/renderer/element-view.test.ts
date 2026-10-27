@@ -1,10 +1,10 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import {
-  markdownProperties,
   outdatedReferences,
   propertyBoxes,
   propertyLines,
+  propertyModel,
   relationGroups,
   relationLabel,
 } from "./element-view.js";
@@ -133,29 +133,46 @@ describe("relationLabel", () => {
   });
 });
 
-describe("markdownProperties", () => {
+describe("propertyModel", () => {
   const property = (key: string, extra: object = {}) => ({ key, name: key, kind: "text", ...extra });
 
-  it("[SR-127/AK5] lists, per type, the properties of the type that the metamodel marks markdown", () => {
-    const marked = markdownProperties({
+  it("[SR-127/AK5] gives, per type, kind, list and markdown of each property of the type, as the metamodel says", () => {
+    const model = propertyModel({
       properties: [
         property("title", { meaning: "title" }),
         property("acceptance-criteria", { markdown: true, many: true }),
         property("rationale", { markdown: true }),
         property("topic", { markdown: false }),
+        property("effort", { kind: "number" }),
         property("note"),
       ],
       types: [
-        { key: "requirement", properties: ["title", "acceptance-criteria", "topic"] },
+        { key: "requirement", properties: ["title", "acceptance-criteria", "topic", "effort", "gone"] },
         { key: "system-requirement", properties: ["title", "acceptance-criteria", "rationale", "note"] },
         { key: "glossary-term", properties: [] },
       ],
-    } as unknown as Parameters<typeof markdownProperties>[0]);
-    expect(marked).toEqual(
+    } as unknown as Parameters<typeof propertyModel>[0]);
+    expect(model).toEqual(
       new Map([
-        ["requirement", new Set(["acceptance-criteria"])],
-        ["system-requirement", new Set(["acceptance-criteria", "rationale"])],
-        ["glossary-term", new Set()],
+        [
+          "requirement",
+          new Map([
+            ["title", { kind: "text", many: false, markdown: false }],
+            ["acceptance-criteria", { kind: "text", many: true, markdown: true }],
+            ["topic", { kind: "text", many: false, markdown: false }],
+            ["effort", { kind: "number", many: false, markdown: false }],
+          ]),
+        ],
+        [
+          "system-requirement",
+          new Map([
+            ["title", { kind: "text", many: false, markdown: false }],
+            ["acceptance-criteria", { kind: "text", many: true, markdown: true }],
+            ["rationale", { kind: "text", many: false, markdown: true }],
+            ["note", { kind: "text", many: false, markdown: false }],
+          ]),
+        ],
+        ["glossary-term", new Map()],
       ]),
     );
   });

@@ -176,10 +176,14 @@ describe("Editor", () => {
     await render({ handle });
     const given = handleOf(handle);
     expect(given.doc()).toBe("# Title\n\nbody");
+    expect(given.hasFocus()).toBe(false);
     given.focus();
     expect(view().hasFocus).toBe(true);
+    expect(given.hasFocus()).toBe(true);
     given.focus("end");
     expect(view().state.selection.main.head).toBe(13);
+    given.focus("start");
+    expect(view().state.selection.main.head).toBe(0);
     given.replace("# Title\n\nbody\n");
     expect(given.doc()).toBe("# Title\n\nbody\n");
     expect(undo(view())).toBe(false);

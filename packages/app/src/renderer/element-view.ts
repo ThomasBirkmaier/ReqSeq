@@ -1,6 +1,11 @@
 // What the element buffer shows of an element: its properties and relations, from the command output as
 // it is. Empty properties are not shown (D-062: only what means something).
-import type { DataExportElement, DataExportRelation, MetamodelGetOutput } from "@logreq/core";
+import type {
+  DataExportElement,
+  DataExportRelation,
+  MetamodelGetOutput,
+  MetamodelProperty,
+} from "@logreq/core";
 import { outdatedKey } from "./editor/references.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
@@ -38,21 +43,42 @@ export const propertyBoxes = (element: DataExportElement): PropertyBox[] => {
     .filter((box) => box.lines.length > 0);
 };
 
-/** The keys of the properties marked `markdown` (SR-127), by the key of the type that has them. */
-export type MarkdownProperties = ReadonlyMap<string, ReadonlySet<string>>;
+/** What the app needs to know of a property to edit its box (D-012, SR-104): from `metamodel.get`. */
+export interface PropertyInfo {
+  readonly kind: MetamodelProperty["kind"];
+  /** The value is a list: one value per line in its box. */
+  readonly many: boolean;
+  /** The values are Markdown like the text and show formatted (SR-127). */
+  readonly markdown: boolean;
+}
+
+/** The properties of each type, by the key of the type and then of the property, with the inherited ones. */
+export type PropertyModel = ReadonlyMap<string, ReadonlyMap<string, PropertyInfo>>;
 
 /**
- * The properties that show their values formatted like the text: those the metamodel marks `markdown`
- * (`metamodel.get`, SR-127 AK5), per type with the inherited ones. The app only reads the flag.
+ * The properties of each type as the metamodel defines them (`metamodel.get`, SR-127 AK5): kind, list or
+ * single value, and whether the values are Markdown. The app only reads what core says; a key a type does
+ * not list is not in its map (D-012), so its box stays as it is shown.
  */
-export const markdownProperties = (
-  metamodel: Pick<MetamodelGetOutput, "types" | "properties">,
-): MarkdownProperties => {
-  const marked = new Set(
-    metamodel.properties.filter((property) => property.markdown === true).map((p) => p.key),
-  );
+export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "properties">): PropertyModel => {
+  const defined = new Map(metamodel.properties.map((property) => [property.key, property]));
   return new Map(
-    metamodel.types.map((type) => [type.key, new Set(type.properties.filter((key) => marked.has(key)))]),
+    metamodel.types.map((type) => [
+      type.key,
+      new Map(
+        type.properties.flatMap((key): [string, PropertyInfo][] => {
+          const property = defined.get(key);
+          return property === undefined
+            ? []
+            : [
+                [
+                  key,
+                  { kind: property.kind, many: property.many === true, markdown: property.markdown === true },
+                ],
+              ];
+        }),
+      ),
+    ]),
   );
 };
 

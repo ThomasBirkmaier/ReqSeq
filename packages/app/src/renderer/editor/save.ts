@@ -1,10 +1,5 @@
 // What the element buffer does around a save, as pure functions (autosave, #401, uses them too). The
-// only write is `element.update { ref, text }`; the saved text is exactly the editor document.
-
-export const saveInput = (ref: string, text: string): { readonly ref: string; readonly text: string } => ({
-  ref,
-  text,
-});
+// saved text is exactly the editor document; the input of `element.update` is built in `property-edit.ts`.
 
 /** Whether the document differs from the text last loaded or saved. */
 export const dirty = (doc: string, baseline: string): boolean => doc !== baseline;

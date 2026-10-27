@@ -70,6 +70,26 @@ describe("copy", () => {
     ]);
   });
 
+  it("[SR-128/AK2] copies what the editor of a box holds, the unsaved input included, else the lines as shown", () => {
+    const docs = new Map([["criteria", "first\nsecond\nthird"]]);
+    const from = copyable(
+      element(),
+      () => "doc",
+      (key) => docs.get(key),
+    );
+    expect(from.fields.map((field) => field.text())).toEqual([
+      "Measure wind",
+      "doc",
+      "Wind",
+      "first\nsecond\nthird",
+      "3",
+      "N-1 Need\nN-000002",
+      "SR-000009 Child",
+    ]);
+    docs.set("criteria", "");
+    expect(from.fields.find((field) => field.label === "criteria")?.text()).toBe("");
+  });
+
   it("[SR-128/AK2] copies the text as the editor holds it, and the heading as the buffer shows it", () => {
     let doc = "saved";
     const from = copyable(element({ title: "" }), () => doc);

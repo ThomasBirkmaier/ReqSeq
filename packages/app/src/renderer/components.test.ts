@@ -21,11 +21,12 @@ import type { Call } from "./call.js";
 import { savedStep } from "./list-filters.js";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
+import { focusEffect } from "./editor/preview.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
-import type { MarkdownProperties } from "./element-view.js";
+import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import type { PackageModel } from "./package-page.js";
 import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -1555,11 +1556,33 @@ describe("ElementView", () => {
       ...extra,
     }) as DataExportElement;
 
+  /** Takes the element buffer away, so the next mount starts a new one (a mount over a mounted one is a reload). */
+  const fresh = async (): Promise<void> => {
+    await act(async () => {
+      root.render(null);
+      await Promise.resolve();
+    });
+  };
+  /** Puts the caret of an editor at `anchor` and gives it the focus (a selection moved while focused needs the browser). */
+  const caretAt = async (view: EditorView, anchor: number): Promise<void> => {
+    await act(async () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      // (happy-dom sends no focus event to the editor; the preview learns of the focus by this effect.)
+      view.dispatch({ selection: { anchor }, effects: focusEffect.of(true) });
+      view.focus();
+      await Promise.resolve();
+    });
+  };
+
+  /** The properties of the type of `read()` (or of another type): the model the buffer gets from `metamodel.get`. */
+  const modelOf = (properties: Record<string, PropertyInfo>, type = "system-requirement"): PropertyModel =>
+    new Map([[type, new Map(Object.entries(properties))]]);
+
   const mount = async (
     call: Call,
     revision = 0,
     draft?: Draft,
-    extra: { packages?: PackageModel; markdown?: MarkdownProperties; buffer?: ElementBuffer } = {},
+    extra: { packages?: PackageModel; properties?: PropertyModel; buffer?: ElementBuffer } = {},
   ) => {
     const dispatched: BufferAction[] = [];
     const data: [string, BufferData | undefined][] = [];
@@ -1587,7 +1610,7 @@ describe("ElementView", () => {
         onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
         packages: extra.packages,
-        markdown: extra.markdown ?? new Map(),
+        properties: extra.properties ?? new Map(),
         dispatch: (action) => dispatched.push(action),
       });
     await render(node(revision));
@@ -2309,7 +2332,10 @@ describe("ElementView", () => {
     const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
     const VERSION = "n1:1aac78aad3b5e6a8";
     const KEY = "acceptance-criteria";
-    const markdown: MarkdownProperties = new Map([["system-requirement", new Set([KEY])]]);
+    const markdown: PropertyModel = modelOf({
+      [KEY]: { kind: "text", many: true, markdown: true },
+      topic: { kind: "text", many: false, markdown: false },
+    });
     const FIRST = "**Gegeben** ein *Satz*, `wenn` er gilt.";
     const SECOND = `**Dann** gilt [D-017](logreq:${TARGET}?version=${VERSION}).`;
     const hint = (place: string, message = "points to an older version") => ({
@@ -2329,16 +2355,12 @@ describe("ElementView", () => {
         problems,
         ...more,
       } as unknown as Partial<DataExportElement>);
-    const mountCriteria = (
-      criteria: string[],
-      problems: object[] = [],
-      shown: MarkdownProperties = markdown,
-    ) => {
+    const mountCriteria = (criteria: string[], problems: object[] = [], shown: PropertyModel = markdown) => {
       let current = { criteria, problems };
       const call = fakeCall({
         "element.get": () => ({ element: element(current.criteria, current.problems) }),
       });
-      const mounted = mount(asCall(call), 0, undefined, { markdown: shown });
+      const mounted = fresh().then(() => mount(asCall(call), 0, undefined, { properties: shown }));
       return {
         mounted,
         change: (next: { criteria: string[]; problems: object[] }) => {
@@ -2355,22 +2377,47 @@ describe("ElementView", () => {
         }
         return found;
       });
+    const lines = (): (string | null)[] => [...box().querySelectorAll(".cm-line")].map((l) => l.textContent);
 
     it("[SR-127/AK1] shows the values of a markdown property formatted like the text: bold, italic and code without their marks", async () => {
       await mountCriteria([FIRST, SECOND]).mounted;
-      expect(boxViews()).toHaveLength(2);
-      const lines = [...box().querySelectorAll(".cm-content")].map((content) => content.textContent);
-      expect(lines).toEqual(["Gegeben ein Satz, wenn er gilt.", "Dann gilt D-017."]);
+      // One editor for the box, one value per line.
+      expect(boxViews()).toHaveLength(1);
+      expect(lines()).toEqual(["Gegeben ein Satz, wenn er gilt.", "Dann gilt D-017."]);
       expect(box().querySelector(".cm-lr-strong")?.textContent).toBe("Gegeben");
       expect(box().querySelector(".cm-lr-em")?.textContent).toBe("Satz");
       expect(box().querySelector(".cm-lr-code")?.textContent).toBe("wenn");
       expect(box().textContent).not.toContain("*");
       expect(box().textContent).not.toContain("`");
       expect(query(`[data-field="${KEY}"] .key`).textContent).toBe(KEY);
-      // The values are read-only (editing the boxes comes with #400) and named by the key.
+      // The box is editable and named by the key.
       const content = box().querySelector(".cm-content");
-      expect(content?.getAttribute("contenteditable")).toBe("false");
+      expect(content?.getAttribute("contenteditable")).toBe("true");
       expect(content?.getAttribute("aria-label")).toBe(KEY);
+    });
+
+    it("[SR-127/AK1] shows the source only on the line with the caret; the other values stay formatted", async () => {
+      await mountCriteria([FIRST, SECOND]).mounted;
+      const [view] = boxViews();
+      if (view === undefined) {
+        throw new Error("no editor");
+      }
+      await caretAt(view, 3);
+      expect(view.hasFocus).toBe(true);
+      // The first value shows its marks, the second is formatted.
+      expect(lines()).toEqual([FIRST, "Dann gilt D-017."]);
+      // The caret goes down: the second value shows its source, the first is formatted again.
+      await caretAt(view, FIRST.length + 3);
+      expect(lines()).toEqual(["Gegeben ein Satz, wenn er gilt.", SECOND]);
+      // No caret in the box any more: all values are formatted.
+      act(() => {
+        query(`[data-field="${KEY}"]`).focus();
+      });
+      expect(view.hasFocus).toBe(false);
+      act(() => {
+        view.dispatch({ effects: focusEffect.of(false) });
+      });
+      expect(lines()).toEqual(["Gegeben ein Satz, wenn er gilt.", "Dann gilt D-017."]);
     });
 
     it("[SR-127/AK1] shows the label of a reference in a value and opens its element on a click", async () => {
@@ -2394,7 +2441,7 @@ describe("ElementView", () => {
         "points to an older version",
       );
       expect(box().textContent).toContain("D-017 outdated");
-      // The editors stay (focus and selection would too) while the hints are the same.
+      // The editor stays (focus and selection would too) while the hints are the same.
       const [before] = boxViews();
       await again(1);
       expect(boxViews()[0]).toBe(before);
@@ -2409,7 +2456,7 @@ describe("ElementView", () => {
       expect(boxViews()[0]).toBe(before);
     });
 
-    it("[SR-127/AK3] Follow reference with the focus in a box opens the first reference of the box, or says there is none", async () => {
+    it("[SR-127/AK3] Follow reference with the focus on the box opens the first reference of the box, or says there is none", async () => {
       const { mounted } = mountCriteria([FIRST, SECOND, `[x](logreq:uuid-2)`]);
       const { controls, opened, echoed } = await mounted;
       act(() => {
@@ -2432,21 +2479,41 @@ describe("ElementView", () => {
       expect(echoed).toEqual([]);
     });
 
-    it("[SR-127/AK5] shows the title and a property that is not marked markdown as they are, marks visible", async () => {
+    it("[SR-127/AK3] Follow reference with the caret in a value opens the reference at the caret, or says there is none", async () => {
+      const { controls, opened, echoed } = await mountCriteria([FIRST, SECOND]).mounted;
+      const [view] = boxViews();
+      if (view === undefined) {
+        throw new Error("no editor");
+      }
+      await caretAt(view, 2);
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([]);
+      expect(echoed.at(-1)).toBe("No element reference at the cursor");
+      const at = FIRST.length + 1 + SECOND.indexOf("D-017") + 1;
+      await caretAt(view, at);
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("[SR-127/AK5] shows the title as it is, and a property that is not marked markdown as plain text with its marks", async () => {
       await mountCriteria([FIRST]).mounted;
       expect(query("h1").textContent).toBe("**Measure**");
       const topic = query('[data-field="topic"]');
-      expect(topic.querySelector(".line")?.textContent).toBe("**Wind**");
-      expect(topic.querySelector(".cm-editor")).toBeNull();
-      // Only the text has an editor besides the marked box.
-      expect(container.querySelectorAll(".cm-editor")).toHaveLength(2);
+      expect(topic.querySelector(".cm-content")?.textContent).toBe("**Wind**");
+      expect(topic.querySelector(".cm-lr-strong")).toBeNull();
+      // The text, the marked box and the plain box have an editor each.
+      expect(container.querySelectorAll(".cm-editor")).toHaveLength(3);
     });
 
-    it("[SR-127/AK5] shows a property as it is when the metamodel marks none for the type of the element", async () => {
+    it("[SR-127/AK5] shows a property as it is when the metamodel has none for the type of the element", async () => {
       await mountCriteria([FIRST, SECOND], [], new Map()).mounted;
       expect(box().querySelector(".cm-editor")).toBeNull();
       expect(texts(`[data-field="${KEY}"] .line`)).toEqual([FIRST, SECOND]);
-      await mountCriteria([FIRST], [], new Map([["need", new Set([KEY])]])).mounted;
+      await mountCriteria([FIRST], [], modelOf({}, "need")).mounted;
       expect(box().querySelector(".cm-editor")).toBeNull();
     });
 
@@ -2459,27 +2526,583 @@ describe("ElementView", () => {
 
     it("[SR-127/AK1] sets inline formatting only: a heading, a list item and a quote in a value keep their source", async () => {
       await mountCriteria(["# x", "- y", "> z", "1. n", "**b** and # c"]).mounted;
-      const content = [...box().querySelectorAll(".cm-content")].map((node) => node.textContent);
-      expect(content).toEqual(["# x", "- y", "> z", "1. n", "b and # c"]);
+      expect(lines()).toEqual(["# x", "- y", "> z", "1. n", "b and # c"]);
       expect(box().querySelector(".cm-lr-h1, .cm-lr-bullet, .cm-lr-quote, .cm-lr-task")).toBeNull();
       expect(box().querySelector(".cm-lr-strong")?.textContent).toBe("b");
     });
 
-    it("[SR-127/AK1] a value of a box is no draft: the text alone is what can be saved", async () => {
-      const { drafts } = await mountCriteria([FIRST]).mounted;
-      const [value] = boxViews();
-      await act(async () => {
-        value?.dispatch({ changes: { from: 0, insert: "x" } });
-        await Promise.resolve();
-      });
-      await press(query(`[data-field="${KEY}"] .cm-content`), "Escape");
-      expect(drafts).toEqual([]);
+    it("[SR-127/AK1] never pairs a mark across two values, though they are lines of one document", async () => {
+      await mountCriteria(["*a*", "b*", "**c", "d**", "x_", "_y"]).mounted;
+      expect(box().querySelectorAll(".cm-lr-em")).toHaveLength(1);
+      expect(box().querySelector(".cm-lr-em")?.textContent).toBe("a");
+      expect(box().querySelector(".cm-lr-strong")).toBeNull();
+      expect(lines()).toEqual(["a", "b*", "**c", "d**", "x_", "_y"]);
     });
 
     it("[SR-128/AK2] copies the stored source of a markdown property, one value per line", async () => {
       const { copies } = await mountCriteria([FIRST, SECOND]).mounted;
       await click(query(`[data-field="${KEY}"] > .copy`));
       expect(copies).toEqual([[KEY, `${FIRST}\n${SECOND}`]]);
+    });
+  });
+
+  describe("property boxes (SR-104)", () => {
+    const KEY = "acceptance-criteria";
+    const model = modelOf({
+      topic: { kind: "text", many: false, markdown: false },
+      [KEY]: { kind: "text", many: true, markdown: false },
+      effort: { kind: "number", many: false, markdown: false },
+      synonyms: { kind: "text", many: true, markdown: false },
+      area: { kind: "choice", many: false, markdown: false },
+    });
+    const withProperties = (properties: Record<string, unknown>, more: Partial<DataExportElement> = {}) =>
+      read({ text: "Text", relations: [], properties, ...more });
+    const mountBoxes = async (
+      properties: Record<string, unknown>,
+      more: Partial<DataExportElement> = {},
+      draft?: Draft,
+      update?: (input: Record<string, unknown>) => unknown,
+    ) => {
+      let current = { properties, more };
+      const call = fakeCall({
+        "element.get": () => ({ element: withProperties(current.properties, current.more) }),
+        "element.update": update ?? (() => new Error("no update expected")),
+      });
+      await fresh();
+      const mounted = await mount(asCall(call), 0, draft, { properties: model });
+      return {
+        ...mounted,
+        call,
+        change: (next: Record<string, unknown>, nextMore: Partial<DataExportElement> = {}) => {
+          current = { properties: next, more: nextMore };
+        },
+      };
+    };
+    const field = (key: string): HTMLElement => query(`[data-field="${key}"]`);
+    const viewOf = (key: string): EditorView => {
+      const found = EditorView.findFromDOM(query(`[data-field="${key}"] .cm-editor`));
+      if (found === null) {
+        throw new Error("no editor");
+      }
+      return found;
+    };
+    const typeIn = async (key: string, insert: string, at?: number): Promise<void> => {
+      await act(async () => {
+        const view = viewOf(key);
+        const from = at ?? view.state.doc.length;
+        view.dispatch({ changes: { from, insert }, selection: { anchor: from + insert.length } });
+        await Promise.resolve();
+      });
+    };
+    const replaceIn = async (key: string, doc: string): Promise<void> => {
+      await act(async () => {
+        const view = viewOf(key);
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: doc } });
+        await Promise.resolve();
+      });
+    };
+    const save = async (controls: () => ElementControls): Promise<void> => {
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await flush();
+    };
+    const updates = (call: ReturnType<typeof fakeCall>) =>
+      call.mock.calls.filter(([name]) => name === "element.update").map(([, input]) => input);
+    const savedWith = (properties: Record<string, unknown>) => ({
+      element: withProperties(properties),
+      files: ["a.md"],
+      affected: 0,
+    });
+
+    it("[SR-104/AK1] shows every filled property as a box below the text, and none for an empty one", async () => {
+      await mountBoxes({
+        topic: "Wind",
+        empty: "",
+        blank: "   ",
+        none: null,
+        list: [],
+        mapping: {},
+        [KEY]: ["first", "second"],
+      });
+      const names = [...container.querySelectorAll<HTMLElement>("[data-field]")].map(
+        (f) => f.dataset["field"],
+      );
+      expect(names).toEqual(["Title", "Text", "topic", KEY]);
+      // The boxes come after the text in the document.
+      const all = [...container.querySelectorAll("[data-field]")];
+      expect(all.indexOf(field("Text"))).toBeLessThan(all.indexOf(field("topic")));
+      expect(viewOf(KEY).state.doc.toString()).toBe("first\nsecond");
+    });
+
+    it("[SR-104/AK4] saves a box that was emptied with unset, and the box is gone with the property", async () => {
+      const { controls, call, drafts, echoed } = await mountBoxes(
+        { topic: "Wind", [KEY]: ["first", "second"] },
+        {},
+        undefined,
+        (input) => {
+          expect(input).toEqual({ ref: "uuid-1", unset: [KEY] });
+          return savedWith({ topic: "Wind" });
+        },
+      );
+      await replaceIn(KEY, "");
+      expect(drafts.at(-1)?.[1]?.boxes?.get(KEY)).toEqual({ doc: "", base: "first\nsecond" });
+      // The box stays, empty, until it is saved.
+      expect(container.querySelector(`[data-field="${KEY}"]`)).not.toBeNull();
+      await save(controls);
+      expect(updates(call)).toHaveLength(1);
+      expect(container.querySelector(`[data-field="${KEY}"]`)).toBeNull();
+      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+      expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+    });
+
+    it("[SR-104/AK4] treats a box with nothing but blank lines as emptied", async () => {
+      const { controls, call } = await mountBoxes({ [KEY]: ["first"], topic: "Wind" }, {}, undefined, () =>
+        savedWith({ topic: "Wind" }),
+      );
+      await replaceIn(KEY, "  \n\n \t");
+      await replaceIn("topic", "   ");
+      await save(controls);
+      expect(updates(call)).toEqual([{ ref: "uuid-1", unset: [KEY, "topic"] }]);
+    });
+
+    it("saves the text and the boxes that changed together, and only those", async () => {
+      const { controls, call, drafts } = await mountBoxes(
+        { topic: "Wind", [KEY]: ["first", "second"], effort: "3" },
+        {},
+        undefined,
+        () => savedWith({ topic: "Wind!", [KEY]: ["first", "third"], effort: "3" }),
+      );
+      await typeIn("topic", "!");
+      await replaceIn(KEY, "first\n\n  third \n");
+      await act(async () => {
+        editorView().dispatch({ changes: { from: 0, insert: "More " } });
+        await Promise.resolve();
+      });
+      await save(controls);
+      // Blank lines go, every other line is kept byte for byte, an untouched box is not sent.
+      expect(updates(call)).toEqual([
+        { ref: "uuid-1", text: "More Text", set: { topic: "Wind!", [KEY]: ["first", "  third "] } },
+      ]);
+      expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      expect(viewOf(KEY).state.doc.toString()).toBe("first\nthird");
+    });
+
+    it("sends only a box whose document differs from the stored one, and keeps the bytes of the others", async () => {
+      const { controls, call, echoed } = await mountBoxes({
+        topic: "Wind",
+        [KEY]: ["first", "", "second"],
+      });
+      // The document is the stored value as it is: a blank item stays, nothing is trimmed.
+      expect(viewOf(KEY).state.doc.toString()).toBe("first\n\nsecond");
+      await typeIn("topic", "!");
+      await replaceIn("topic", "Wind");
+      await save(controls);
+      expect(updates(call)).toEqual([]);
+      expect(echoed.at(-1)).toBe("No changes to save");
+    });
+
+    it("sends a decimal literal of a number property as a number, anything else as the text typed", async () => {
+      const { controls, call } = await mountBoxes({ effort: "1", topic: "t" }, {}, undefined, () =>
+        savedWith({ effort: 2.5, topic: "t" }),
+      );
+      await replaceIn("effort", "2.5");
+      await save(controls);
+      await replaceIn("effort", "0x10");
+      await save(controls);
+      await replaceIn("effort", "-3");
+      await save(controls);
+      expect(updates(call)).toEqual([
+        { ref: "uuid-1", set: { effort: 2.5 } },
+        { ref: "uuid-1", set: { effort: "0x10" } },
+        { ref: "uuid-1", set: { effort: -3 } },
+      ]);
+    });
+
+    it("keeps the draft and the caret and says why when core refuses the update", async () => {
+      const { controls, echoed, drafts } = await mountBoxes({ topic: "Wind" }, {}, undefined, () => {
+        return new Error("Type system-requirement has no property topic");
+      });
+      await typeIn("topic", "!");
+      await save(controls);
+      expect(echoed.at(-1)).toBe("Type system-requirement has no property topic");
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
+      expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "Wind" });
+    });
+
+    it("appends the first hint about a saved key to the echo", async () => {
+      const { controls, echoed } = await mountBoxes({ effort: "1", topic: "t" }, {}, undefined, () => ({
+        ...savedWith({ effort: "abc", topic: "t" }),
+        problems: [
+          { code: "element.wrong-value-kind", severity: "warning", message: "topic is odd" },
+          { code: "element.wrong-value-kind", severity: "warning", message: "effort expects a number" },
+        ],
+      }));
+      await replaceIn("effort", "abc");
+      await save(controls);
+      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind. effort expects a number");
+    });
+
+    it("keeps input typed while the save ran as a draft, and shows the saved value in a box that was not touched", async () => {
+      let answer: (value: unknown) => void = () => undefined;
+      const call = vi.fn((name: string) =>
+        name === "element.update"
+          ? new Promise((resolve) => {
+              answer = resolve;
+            })
+          : Promise.resolve({
+              ok: true,
+              output:
+                name === "trace.neighbourhood"
+                  ? alone({ ref: "uuid-1" })
+                  : { element: withProperties({ topic: "Wind", [KEY]: ["a"] }) },
+            }),
+      );
+      const { controls, drafts } = await mount(asCall(call as never), 0, undefined, { properties: model });
+      await typeIn("topic", "!");
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await typeIn("topic", "?");
+      await act(async () => {
+        answer({ ok: true, output: savedWith({ topic: "Wind!", [KEY]: ["a"] }) });
+        await Promise.resolve();
+      });
+      await flush();
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind!?");
+      expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!?", base: "Wind!" });
+    });
+
+    it("is read-only for a read-only element, and for a property the type does not know", async () => {
+      const { controls, echoed } = await mountBoxes({ topic: "Wind", unknown: "x" }, { readOnly: true });
+      expect(field("topic").querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+      await mountBoxes({ topic: "Wind", unknown: "x" });
+      expect(field("unknown").querySelector(".cm-editor")).toBeNull();
+      expect(texts('[data-field="unknown"] .line')).toEqual(["x"]);
+    });
+
+    it("shows a choice property and a value that is no text as they are", async () => {
+      await mountBoxes({ area: "performance", topic: "t", effort: { nested: true } });
+      expect(field("area").querySelector(".cm-editor")).toBeNull();
+      expect(texts('[data-field="area"] .line')).toEqual(["performance"]);
+      expect(field("effort").querySelector(".cm-editor")).toBeNull();
+    });
+
+    it("makes a list with a value that holds a line break read-only and says so on entering it", async () => {
+      const { echoed } = await mountBoxes({ [KEY]: ["one\ntwo", "three"] });
+      expect(field(KEY).querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+      act(() => {
+        field(KEY).focus();
+      });
+      expect(echoed.at(-1)).toBe(`${KEY} has a value with a line break: edit it in the file`);
+      // A single value may hold a line break.
+      await mountBoxes({ topic: "one\ntwo" });
+      expect(field("topic").querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("true");
+    });
+
+    it("keeps the unsaved boxes as a draft for the app, and drops a box that is the stored value again", async () => {
+      const { drafts } = await mountBoxes({ topic: "Wind", [KEY]: ["a", "b"] });
+      await typeIn("topic", "!");
+      expect(drafts.at(-1)).toEqual([
+        "element:spec:uuid-1",
+        { text: "Text", base: "Text", boxes: new Map([["topic", { doc: "Wind!", base: "Wind" }]]) },
+      ]);
+      await typeIn(KEY, "\nc");
+      expect(drafts.at(-1)?.[1]?.boxes?.size).toBe(2);
+      await replaceIn("topic", "Wind");
+      await replaceIn(KEY, "a\nb");
+      expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+    });
+
+    it("shows the boxes of a draft in place of the stored values, and compares them with the file", async () => {
+      const draft: Draft = {
+        text: "Text",
+        base: "Text",
+        boxes: new Map([["topic", { doc: "Mine", base: "Wind" }]]),
+      };
+      const { drafts, echoed } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] }, {}, draft);
+      expect(viewOf("topic").state.doc.toString()).toBe("Mine");
+      expect(viewOf(KEY).state.doc.toString()).toBe("a");
+      expect(drafts).toEqual([]);
+      expect(echoed).toEqual([]);
+      // The file changed meanwhile: the draft is kept on the new value, with the interim echo.
+      const other = await mountBoxes({ topic: "Gust" }, {}, draft);
+      expect(viewOf("topic").state.doc.toString()).toBe("Mine");
+      expect(other.echoed.at(-1)).toBe(
+        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+      );
+      expect(other.drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Mine", base: "Gust" });
+      // The file holds the draft now: nothing is unsaved.
+      const same = await mountBoxes({ topic: "Mine" }, {}, draft);
+      expect(same.drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      expect(same.echoed).toEqual([]);
+    });
+
+    it("lets a box without input follow the file on a reload, and keeps a box with input and says so", async () => {
+      const { again, change, echoed, drafts } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
+      await typeIn("topic", "!");
+      change({ topic: "Gust", [KEY]: ["b"] });
+      await again(1);
+      expect(viewOf(KEY).state.doc.toString()).toBe("b");
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
+      expect(echoed.at(-1)).toBe(
+        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+      );
+      expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "Gust" });
+      // A property that appears or disappears in the file appears or disappears as a box.
+      change({ topic: "Gust", synonyms: ["x"] });
+      await again(2);
+      expect(container.querySelector(`[data-field="${KEY}"]`)).toBeNull();
+      expect(viewOf("synonyms").state.doc.toString()).toBe("x");
+    });
+
+    it("does not say the file changed when an unrelated box changed on disk and none was edited", async () => {
+      const { again, change, echoed, drafts } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
+      change({ topic: "Wind", [KEY]: ["b"] });
+      await again(1);
+      expect(echoed).toEqual([]);
+      // (The editor following the file reports its change; there is nothing unsaved.)
+      expect(drafts.every(([, kept]) => kept === undefined)).toBe(true);
+    });
+
+    it("shows the file text, not the old one, when a draft of boxes alone comes back after the text changed on disk", async () => {
+      const draft: Draft = {
+        text: "Text",
+        base: "Text",
+        boxes: new Map([["topic", { doc: "Mine", base: "Wind" }]]),
+      };
+      const { drafts, echoed } = await mountBoxes({ topic: "Wind" }, { text: "Changed on disk" }, draft);
+      expect(editorView().state.doc.toString()).toBe("Changed on disk");
+      expect(viewOf("topic").state.doc.toString()).toBe("Mine");
+      // The draft is on the new file text, so the next input cannot bring the old text back.
+      expect(drafts.at(-1)?.[1]).toEqual({
+        text: "Changed on disk",
+        base: "Changed on disk",
+        boxes: new Map([["topic", { doc: "Mine", base: "Wind" }]]),
+      });
+      expect(echoed).toEqual([]);
+      await typeIn("topic", "!");
+      expect(drafts.at(-1)?.[1]).toEqual({
+        text: "Changed on disk",
+        base: "Changed on disk",
+        boxes: new Map([["topic", { doc: "Mine!", base: "Wind" }]]),
+      });
+    });
+
+    it("keeps the typed text of a draft, on the new file text", async () => {
+      const draft: Draft = { text: "Mine", base: "Text" };
+      const { drafts, echoed } = await mountBoxes({ topic: "Wind" }, { text: "Changed on disk" }, draft);
+      expect(editorView().state.doc.toString()).toBe("Mine");
+      expect(drafts.at(-1)?.[1]).toEqual({ text: "Mine", base: "Changed on disk" });
+      expect(echoed.at(-1)).toBe(
+        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+      );
+    });
+
+    it("follows a text that changed on disk while only a box has input, and keeps the draft on the new text", async () => {
+      const { again, change, drafts, echoed } = await mountBoxes({ topic: "Wind" });
+      await typeIn("topic", "!");
+      change({ topic: "Wind" }, { text: "Changed on disk" });
+      await again(1);
+      expect(editorView().state.doc.toString()).toBe("Changed on disk");
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
+      expect(echoed).toEqual([]);
+      expect(drafts.at(-1)?.[1]).toEqual({
+        text: "Changed on disk",
+        base: "Changed on disk",
+        boxes: new Map([["topic", { doc: "Wind!", base: "Wind" }]]),
+      });
+    });
+
+    it("says so when the file lost a property whose box has input", async () => {
+      const { again, change, echoed } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
+      await typeIn("topic", "!");
+      change({ [KEY]: ["a"] });
+      await again(1);
+      expect(container.querySelector('[data-field="topic"]')).toBeNull();
+      expect(echoed.at(-1)).toBe(
+        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+      );
+    });
+
+    it("shows a box that appears again as it is stored, not as the draft it was first shown with", async () => {
+      const draft: Draft = {
+        text: "Text",
+        base: "Text",
+        boxes: new Map([["topic", { doc: "Mine", base: "Wind" }]]),
+      };
+      const { again, change } = await mountBoxes({ topic: "Wind" }, {}, draft);
+      expect(viewOf("topic").state.doc.toString()).toBe("Mine");
+      change({});
+      await again(1);
+      expect(container.querySelector('[data-field="topic"]')).toBeNull();
+      change({ topic: "Wind" });
+      await again(2);
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind");
+    });
+
+    it("Follow reference in a box that is not Markdown says there is none in it, and does not take the text's", async () => {
+      const { controls, opened, echoed } = await mountBoxes(
+        { topic: "Wind" },
+        { text: "[x](logreq:uuid-2)" },
+      );
+      await caretAt(viewOf("topic"), 1);
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([]);
+      expect(echoed.at(-1)).toBe("No element reference in topic");
+    });
+
+    it("Enter in a single value leaves the box, Enter in a list starts a new value at the caret", async () => {
+      await mountBoxes({ topic: "Wind", [KEY]: ["ab"] });
+      const topic = field("topic");
+      const content = (key: string): Element => query(`[data-field="${key}"] .cm-content`);
+      await press(content("topic"), "Enter");
+      expect(document.activeElement).toBe(topic);
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind");
+      // Shift+Enter is Enter: no key puts a line break inside a value.
+      await press(content("topic"), "Enter", { shiftKey: true });
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind");
+      // In a list: a new value, split at the caret.
+      act(() => {
+        viewOf(KEY).dispatch({ selection: { anchor: 1 } });
+      });
+      await press(content(KEY), "Enter");
+      expect(viewOf(KEY).state.doc.toString()).toBe("a\nb");
+      await press(content(KEY), "Enter", { shiftKey: true });
+      expect(viewOf(KEY).state.doc.toString()).toBe("a\n\nb");
+    });
+
+    it("Escape leaves a box for the box itself, and Escape on the box for the buffer; Enter on the box edits it", async () => {
+      await mountBoxes({ topic: "Wind" });
+      const topic = field("topic");
+      const content = query('[data-field="topic"] .cm-content');
+      await press(content, "Escape");
+      expect(document.activeElement).toBe(topic);
+      await press(topic, "Escape");
+      expect(document.activeElement).toBe(query("article"));
+      act(() => {
+        topic.focus();
+      });
+      await press(topic, "Enter");
+      expect(viewOf("topic").hasFocus).toBe(true);
+      expect(viewOf("topic").state.selection.main.head).toBe(4);
+    });
+
+    it("Enter on the title or on a box that is not edited in place edits the text, as before", async () => {
+      await mountBoxes({ area: "performance" });
+      act(() => {
+        field("area").focus();
+      });
+      await press(field("area"), "Enter");
+      expect(editorView().hasFocus).toBe(true);
+      act(() => {
+        field("Title").focus();
+      });
+      await press(field("Title"), "Enter");
+      expect(editorView().hasFocus).toBe(true);
+    });
+
+    it("gives each box one Tab stop: the box itself, not its editor", async () => {
+      await mountBoxes({ topic: "Wind" });
+      expect(field("topic").getAttribute("tabindex")).toBe("0");
+      expect(field("topic").querySelectorAll('[tabindex="0"]')).toHaveLength(0);
+      expect(field("topic").querySelector(".cm-content")?.getAttribute("tabindex")).toBe("-1");
+    });
+
+    it("moves with Down and Up between the text and the boxes, from the last and the first line", async () => {
+      await mountBoxes({ topic: "Wind", [KEY]: ["a", "b"] });
+      const content = (key: string): Element => query(`[data-field="${key}"] .cm-content`);
+      act(() => {
+        editorView().dispatch({ selection: { anchor: 4 } });
+      });
+      await press(query(".cm-content"), "ArrowDown");
+      expect(viewOf("topic").hasFocus).toBe(true);
+      expect(viewOf("topic").state.selection.main.head).toBe(0);
+      await press(content("topic"), "ArrowDown");
+      expect(viewOf(KEY).hasFocus).toBe(true);
+      expect(viewOf(KEY).state.selection.main.head).toBe(0);
+      // On the last line of the last box there is nowhere to go: the key is the editor's.
+      await caretAt(viewOf(KEY), 3);
+      await press(content(KEY), "ArrowDown");
+      expect(viewOf(KEY).hasFocus).toBe(true);
+      await caretAt(viewOf(KEY), 0);
+      await press(content(KEY), "ArrowUp");
+      expect(viewOf("topic").hasFocus).toBe(true);
+      expect(viewOf("topic").state.selection.main.head).toBe(4);
+      await press(content("topic"), "ArrowUp");
+      expect(editorView().hasFocus).toBe(true);
+      expect(editorView().state.selection.main.head).toBe(4);
+    });
+
+    it("leaves Down to the editor when the element has no box", async () => {
+      await mountBoxes({});
+      await press(query(".cm-content"), "ArrowDown");
+      expect(editorView().state.selection.main.head).toBe(4);
+    });
+
+    it("moves between the fields that are not edited with Down and Up, without starting to edit, and skips what cannot take the focus", async () => {
+      await mountBoxes({ topic: "Wind", area: "performance", [KEY]: ["a"] });
+      act(() => {
+        field("Title").focus();
+      });
+      await press(field("Title"), "ArrowDown");
+      expect(editorView().hasFocus).toBe(true);
+      await press(query(".cm-content"), "Escape");
+      act(() => {
+        field("topic").focus();
+      });
+      await press(field("topic"), "ArrowDown");
+      expect(document.activeElement).toBe(field("area"));
+      await press(field("area"), "ArrowDown");
+      expect(document.activeElement).toBe(field(KEY));
+      expect(viewOf(KEY).hasFocus).toBe(false);
+      await press(field(KEY), "ArrowUp");
+      expect(document.activeElement).toBe(field("area"));
+      await press(field("area"), "ArrowUp");
+      expect(document.activeElement).toBe(field("topic"));
+      // Up from the first box goes into the text; from the title nowhere.
+      await press(field("topic"), "ArrowUp");
+      expect(editorView().hasFocus).toBe(true);
+      act(() => {
+        field("Title").focus();
+      });
+      await press(field("Title"), "ArrowUp");
+      expect(document.activeElement).toBe(field("Title"));
+      // Down from the last box has nowhere to go (a package page goes into its elements).
+      act(() => {
+        field(KEY).focus();
+      });
+      await press(field(KEY), "ArrowDown");
+      expect(document.activeElement).toBe(field(KEY));
+    });
+
+    it("skips the text of a read-only element on the way down from the title", async () => {
+      await mountBoxes({ topic: "Wind" }, { readOnly: true });
+      act(() => {
+        field("Title").focus();
+      });
+      await press(field("Title"), "ArrowDown");
+      expect(document.activeElement).toBe(field("topic"));
+    });
+
+    it("copies what the editor of a box holds, the unsaved input included, one value per line", async () => {
+      const { copies } = await mountBoxes({ [KEY]: ["a", "b"], area: "performance" });
+      await typeIn(KEY, "\nc");
+      await click(query(`[data-field="${KEY}"] > .copy`));
+      await click(query('[data-field="area"] > .copy'));
+      expect(copies).toEqual([
+        [KEY, "a\nb\nc"],
+        ["area", "performance"],
+      ]);
     });
   });
 

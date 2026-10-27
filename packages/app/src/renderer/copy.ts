@@ -40,13 +40,21 @@ export const docOf = (editor: { readonly doc: () => string } | undefined): strin
  * The fields the element buffer shows: the title, the text (`doc` gives what the editor holds, the
  * unsaved input included), each property box and each group of relations (SR-128 "jedes angezeigten
  * Feldes"); and the ID that the status line names the element by: the identifier when it has one, else
- * the short ID (#457 Q1a).
+ * the short ID (#457 Q1a). A box with an editor (SR-104) copies what the editor holds, one value per line,
+ * the unsaved input included like the text; `boxDoc` gives it by key, or none for a box without editor.
  */
-export const copyable = (element: DataExportElement, doc: () => string): Copyable => ({
+export const copyable = (
+  element: DataExportElement,
+  doc: () => string,
+  boxDoc: (key: string) => string | undefined = () => undefined,
+): Copyable => ({
   fields: [
     { label: "Title", text: () => heading(element) },
     { label: "Text", text: doc },
-    ...propertyBoxes(element).map((box) => ({ label: box.key, text: () => fieldText(box.lines) })),
+    ...propertyBoxes(element).map((box) => ({
+      label: box.key,
+      text: () => boxDoc(box.key) ?? fieldText(box.lines),
+    })),
     ...relationGroups(element.relations).map((group) => ({
       label: group.heading,
       text: () => fieldText(group.relations.map(relationLabel)),

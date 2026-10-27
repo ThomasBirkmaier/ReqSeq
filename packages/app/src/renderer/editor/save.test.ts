@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { afterSave, dirty, saveInput } from "./save.js";
+import { afterSave, dirty } from "./save.js";
 
 describe("save", () => {
-  it("sends the reference and the text exactly as they are", () => {
-    expect(saveInput("uuid-1", "# T\n")).toEqual({ ref: "uuid-1", text: "# T\n" });
-  });
-
   it("is dirty when the document differs from the baseline", () => {
     expect(dirty("a", "a")).toBe(false);
     expect(dirty("a ", "a")).toBe(true);
