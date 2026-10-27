@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
@@ -82,6 +83,33 @@ describe("element.get", () => {
     expect(await get(opened, { ref: WIND.id, versionDate: true })).toEqual({ ...byId, versionDate: null });
     expect(await get(opened, { ref: "SR-e88fb3" })).toEqual(byId);
     expect(await get(opened, { ref: "SR-6328cee88fb3" })).toEqual(byId);
+  });
+
+  it("gives the SHA-256 of the element file it was read from, the write precondition of element.update (SR-106)", async () => {
+    const opened = await open(TWO);
+    const sha256 = async (): Promise<string> =>
+      createHash("sha256")
+        .update(await fs.readFile(opened.fixture.path(WIND.file)))
+        .digest("hex");
+    const shown = async (): Promise<CommandOutput<"element.get">> =>
+      (await invoke(
+        "element.get",
+        { ref: WIND.id },
+        { workspace: opened.workspace },
+      )) as CommandOutput<"element.get">;
+    const first = await shown();
+    expect(first.fileSha256).toBe(await sha256());
+    // A change that does not count to the version (the title) still changes the hash, read from the file now.
+    await opened.workspace.get(elementStoreState);
+    const file = opened.fixture.path(WIND.file);
+    await fs.writeFile(
+      file,
+      (await fs.readFile(file, "utf8")).replace("title: Show wind speed", "title: Other"),
+    );
+    const second = await shown();
+    expect(second.element.version).toBe(first.element.version);
+    expect(second.fileSha256).toBe(await sha256());
+    expect(second.fileSha256).not.toBe(first.fileSha256);
   });
 
   it("writes no file and changes no status", async () => {

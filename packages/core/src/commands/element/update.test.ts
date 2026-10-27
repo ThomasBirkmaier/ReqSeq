@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createFixtureWorkspace } from "@logreq/testkit";
@@ -417,6 +418,166 @@ describe("element.update", () => {
     await opened.workspace.get(elementStoreState);
     await fs.writeFile(opened.fixture.path(WIND.file), "---\ntitle: no longer an element\n---\n");
     expect((await updateError(opened, { ref: WIND.id, title: "x" })).code).toBe("file.changed-on-disk");
+  });
+});
+
+/** The SHA-256 of a file of the fixture as it is on disk now, as `fileSha256` gives it. */
+const sha256Of = async (opened: Opened, file: string): Promise<string> =>
+  createHash("sha256")
+    .update(await fs.readFile(opened.fixture.path(file)))
+    .digest("hex");
+
+describe("element.update: the write precondition expectedFileSha256 (SR-106)", () => {
+  const OLD = "0".repeat(64);
+
+  it("gives the SHA-256 of the file as written, or as read when nothing changed (SR-106)", async () => {
+    const opened = await open();
+    const unchanged = await update(opened, { ref: WIND.id });
+    expect([unchanged.files, unchanged.fileSha256]).toEqual([[], await sha256Of(opened, WIND.file)]);
+    const written = await update(opened, { ref: WIND.id, text: "Mine\n" });
+    expect(written.files).toEqual([WIND.file]);
+    expect(written.fileSha256).toBe(await sha256Of(opened, WIND.file));
+    expect(written.fileSha256).not.toBe(unchanged.fileSha256);
+  });
+
+  it("writes with the hash element.get gave, and chains saves on the hash each save gives (SR-106)", async () => {
+    const opened = await open();
+    const shown = (await invoke(
+      "element.get",
+      { ref: WIND.id },
+      { workspace: opened.workspace },
+    )) as CommandOutput<"element.get">;
+    expect(shown.fileSha256).toBe(await sha256Of(opened, WIND.file));
+    const first = await update(opened, { ref: WIND.id, text: "One\n", expectedFileSha256: shown.fileSha256 });
+    const second = await update(opened, {
+      ref: WIND.id,
+      text: "Two\n",
+      expectedFileSha256: first.fileSha256,
+    });
+    expect(second.element.text).toBe("Two\n");
+    expect(await read(opened, WIND.file)).toContain("\nTwo\n");
+    // The hash of a save that changed nothing is the file's, so the chain goes on.
+    const same = await update(opened, { ref: WIND.id, expectedFileSha256: second.fileSha256 });
+    expect([same.files, same.fileSha256]).toEqual([[], second.fileSha256]);
+  });
+
+  it("refuses with file.changed-on-disk and writes nothing when the store already read the change (SR-106)", async () => {
+    const opened = await open();
+    const before = await sha256Of(opened, WIND.file);
+    await opened.workspace.get(elementStoreState);
+    // Someone else changes the title, which does not count to the version, and the store reads it.
+    const changed = (await read(opened, WIND.file)).replace(
+      "title: Show wind speed",
+      "title: Changed elsewhere",
+    );
+    await fs.writeFile(opened.fixture.path(WIND.file), changed);
+    await opened.workspace.reset(elementStoreState);
+    const store = await opened.workspace.get(elementStoreState);
+    const reset = vi.spyOn(opened.workspace, "reset");
+    const error = await updateError(opened, {
+      ref: WIND.id,
+      title: "Show wind speed",
+      expectedFileSha256: before,
+    });
+    expect([error.code, error.details, error.message]).toEqual([
+      "file.changed-on-disk",
+      { file: WIND.file, repository: "system" },
+      `Not written: ${WIND.file} changed on disk since it was read. Read it again first.`,
+    ]);
+    expect(await read(opened, WIND.file)).toBe(changed);
+    // Store and file agree, only the caller's hash is old: the element store is not read again (N-036).
+    expect(reset).not.toHaveBeenCalled();
+    await invoke("element.get", { ref: WIND.id }, { workspace: opened.workspace });
+    expect(await opened.workspace.get(elementStoreState)).toBe(store);
+  });
+
+  it("refuses an old hash also when the input would change nothing (SR-106)", async () => {
+    const opened = await open();
+    const before = await read(opened, WIND.file);
+    const error = await updateError(opened, { ref: WIND.id, expectedFileSha256: OLD });
+    expect([error.code, error.details]).toEqual([
+      "file.changed-on-disk",
+      { file: WIND.file, repository: "system" },
+    ]);
+    expect(await read(opened, WIND.file)).toBe(before);
+  });
+
+  it("refuses with file.changed-on-disk when the store has not read the change yet, and reads it again (SR-106)", async () => {
+    const opened = await open();
+    const before = await sha256Of(opened, WIND.file);
+    await opened.workspace.get(elementStoreState);
+    const changed = (await read(opened, WIND.file)).replace("Show wind speed", "Changed elsewhere");
+    await fs.writeFile(opened.fixture.path(WIND.file), changed);
+    const error = await updateError(opened, { ref: WIND.id, text: "Mine\n", expectedFileSha256: before });
+    expect([error.code, error.details]).toEqual([
+      "file.changed-on-disk",
+      { file: WIND.file, repository: "system" },
+    ]);
+    expect(await read(opened, WIND.file)).toBe(changed);
+    // With the hash of the file as it is now, the save goes through.
+    const out = await update(opened, {
+      ref: WIND.id,
+      text: "Mine\n",
+      expectedFileSha256: await sha256Of(opened, WIND.file),
+    });
+    expect(out.element).toMatchObject({ title: "Changed elsewhere", text: "Mine\n" });
+  });
+
+  it("checks the input before the precondition", async () => {
+    const opened = await open();
+    const error = await updateError(opened, { ref: WIND.id, set: { nope: "x" }, expectedFileSha256: OLD });
+    expect(error.code).toBe("input.invalid");
+    for (const hash of ["", "A".repeat(64), "0".repeat(63)]) {
+      expect((await updateError(opened, { ref: WIND.id, expectedFileSha256: hash })).code).toBe(
+        "input.invalid",
+      );
+    }
+  });
+});
+
+describe("element.update: one copy of a duplicate by its repository (SR-088, #255)", () => {
+  /** SR-004/three-repositories, with a copy of the system requirement in the sensor repository. */
+  const SPEED = { id: "2525fbab-1344-4bcf-8a35-4b4da63a2dd1", file: "requirements/SR-4b4da63a2dd1.md" };
+  const COPY = "sensor/copies/SR-4b4da63a2dd1.md";
+
+  const openCopies = async (): Promise<Opened> => {
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-004/three-repositories",
+      files: {
+        [COPY]: await fs.readFile(
+          new URL(`../../../../../fixtures/SR-004/three-repositories/system/${SPEED.file}`, import.meta.url),
+        ),
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    return { fixture, workspace };
+  };
+
+  it("changes only the copy in the repository given, as element.get picks it", async () => {
+    const opened = await openCopies();
+    const original = await fs.readFile(opened.fixture.path(`system/${SPEED.file}`), "utf8");
+    expect((await updateError(opened, { ref: SPEED.id, title: "x" })).code).toBe("ref.ambiguous");
+    const out = await update(opened, { ref: SPEED.id, repository: "sensor", title: "The copy" });
+    expect([out.element.repository, out.element.file, out.element.title]).toEqual([
+      "sensor",
+      "copies/SR-4b4da63a2dd1.md",
+      "The copy",
+    ]);
+    expect(await fs.readFile(opened.fixture.path(COPY), "utf8")).toContain("title: The copy");
+    expect(await fs.readFile(opened.fixture.path(`system/${SPEED.file}`), "utf8")).toBe(original);
+    const shown = await invoke(
+      "element.get",
+      { ref: SPEED.id, repository: "sensor" },
+      { workspace: opened.workspace },
+    );
+    expect(shown).toMatchObject({ element: { title: "The copy" }, fileSha256: out.fileSha256 });
+    const elsewhere = await updateError(opened, { ref: SPEED.id, repository: "product", title: "x" });
+    expect([elsewhere.code, elsewhere.details]).toMatchObject([
+      "ref.unknown",
+      { ref: SPEED.id, repository: "product" },
+    ]);
   });
 });
 

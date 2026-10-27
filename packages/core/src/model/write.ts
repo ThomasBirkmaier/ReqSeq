@@ -88,6 +88,8 @@ export interface UpdateElementResult extends ElementWriteResult {
    * that counts has no normal form): what the version is computed from is compared (#276).
    */
   readonly affected: number;
+  /** The SHA-256 of the element file as written, or as read when nothing changed (SR-106). */
+  readonly fileSha256: string;
 }
 
 export interface CreateElementInput {
@@ -105,6 +107,10 @@ export interface UpdateElementInput {
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly string[];
+  /** Which of the elements `ref` names: the workspace name of its repository (`resolveRef`, #255). */
+  readonly repository?: string;
+  /** Write precondition (SR-106): the SHA-256 the element file must still have (`expectedFile`). */
+  readonly expectedFileSha256?: string;
 }
 
 const invalid = (message: string, details: Record<string, unknown>): CommandError =>
@@ -695,6 +701,14 @@ export const readUnchanged = async (
   return unchanged(workspace, record, repository, await readElement(repository, record.file));
 };
 
+/** `file.changed-on-disk` for the file of `record`: nothing was written. */
+const changedOnDisk = (record: ElementRecord): CommandError =>
+  new CommandError(
+    "file.changed-on-disk",
+    `Not written: ${record.file} changed on disk since it was read. Read it again first.`,
+    { file: record.file, repository: record.repository },
+  );
+
 /** `current` (the file of `record` as read now) when it is unchanged; see `readUnchanged`. */
 const unchanged = async (
   workspace: Workspace,
@@ -704,13 +718,24 @@ const unchanged = async (
 ): Promise<UnchangedElement> => {
   if (current?.file.snapshot.sha256 !== record.snapshot.sha256) {
     await workspace.reset(elementStoreState);
-    throw new CommandError(
-      "file.changed-on-disk",
-      `Not written: ${record.file} changed on disk since it was read. Read it again first.`,
-      { file: record.file, repository: record.repository },
-    );
+    throw changedOnDisk(record);
   }
   return { repository, current };
+};
+
+/**
+ * The write precondition of the caller (SR-106, `element.update` input `expectedFileSha256`): throws
+ * `file.changed-on-disk`, with the same message and details as `readUnchanged`, when the file as read
+ * for the write (`current`, which `readUnchanged` found equal to the store) no longer has the
+ * SHA-256 the caller's change was made on. The element store is not reset: it already holds the file
+ * as it is, only the caller's hash is old (N-036). A precondition on the bytes, not the version
+ * (ADR-0005): a change of the title, the status or a property that does not count to the version is
+ * caught too.
+ */
+const expectedFile = (record: ElementRecord, current: ReadElement, expected: string | undefined): void => {
+  if (expected !== undefined && expected !== current.file.snapshot.sha256) {
+    throw changedOnDisk(record);
+  }
 };
 
 /**
@@ -894,7 +919,11 @@ export const writeElementFiles = async (
  * lines of changed keys and the text are rewritten; unknown keys, comments, quoting, key order,
  * line endings and the file name stay (SR-001 AK2, SR-016 AK2). The UUID, the type and the status
  * are never touched (SR-002 AK2, ADR-0002 rule 6). Refused with `file.changed-on-disk` when the file
- * changed since the element store read it; the store is then read again on the next call. A save
+ * changed since the element store read it; the store is then read again on the next call. Also
+ * refused, before anything is planned and without reading the store again, when the caller gives
+ * `expectedFileSha256` and the file no longer has it (SR-106, `expectedFile`), even when the input
+ * would change nothing. `repository` picks one copy of a duplicate as in `element.get` (`resolveRef`,
+ * #255). `fileSha256` is the SHA-256 of the file as written, or as read when nothing changed. A save
  * that writes the file also sets the stored titles of its same-repository relation targets to their
  * current titles (`withCurrentTitles`, decision on #307); a save that changes nothing writes nothing.
  * `affected`: the number of directly affected elements when the version changed (SR-024 AK2, AK3).
@@ -907,7 +936,7 @@ export const updateElement = async (
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
   const shortIds = await workspace.get(shortIdState);
-  const record = resolveRef(store, shortIds, input.ref);
+  const record = resolveRef(store, shortIds, input.ref, { repository: input.repository });
   const type = assertElementWritable(metamodel, record);
   const titleKey = titleKeyFor(metamodel, type, "element.update");
   const setKeys = Object.keys(input.set ?? {});
@@ -921,6 +950,7 @@ export const updateElement = async (
   // Before the file is read: a choice value that is no choice is refused at once.
   const given = withChoiceKeys(metamodel, Object.entries(input.set ?? {}), "set");
   const { repository, current } = await readUnchanged(workspace, layout, record);
+  expectedFile(record, current, input.expectedFileSha256);
   const set = await withTargets(context, record.repository, given, current.record.data);
   const text =
     input.text === undefined
@@ -932,6 +962,7 @@ export const updateElement = async (
     keyOrder: type.properties,
   });
   let result: ElementWriteResult & { readonly affected?: number };
+  let fileSha256 = current.file.snapshot.sha256;
   if (edited.changed) {
     // The stored titles of same-repository targets follow their targets (decision on #307).
     let { bytes } = edited;
@@ -948,6 +979,7 @@ export const updateElement = async (
       bytes,
       await writeFileAtomic(repository.folder, record.file, decode(bytes), record.snapshot),
     );
+    fileSha256 = written.file.snapshot.sha256;
     result = await finish(workspace, written, context, {
       shortIds,
       titleKey,
@@ -960,5 +992,5 @@ export const updateElement = async (
     result = await finish(workspace, current, context, { shortIds, titleKey, files: [], extraFindings });
   }
   // Nothing written: nothing affected (AK3).
-  return { ...result, affected: result.affected ?? 0 };
+  return { ...result, affected: result.affected ?? 0, fileSha256 };
 };

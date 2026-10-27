@@ -100,6 +100,7 @@ file <path>\n<sha256 hex | missing>\n         (paths sorted by code point)
 - Reformatting a table makes evidence outdated, as D-027 wants.
 - The date lookup needs Git history; in a shallow clone the date is unknown (`null`), like uncommitted content. The schema has one `null` for both.
 - The cache (ADR-0008) must key a cached version on the embedded files too (size and mtime, or their hash), not only on the element file; otherwise a changed image keeps a stale version.
+- The version is no write precondition, since a change of the title, the status or a property that does not count leaves it as it is; `element.get` and `element.update` give the SHA-256 of the element file (`fileSha256`) for that, and `element.update` refuses a write when `expectedFileSha256` differs from it (SR-106); that hash is never stored in a relation, so the rejection of a whole-file hash as version below stands.
 
 ## Rejected
 

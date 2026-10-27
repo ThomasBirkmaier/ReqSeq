@@ -41,6 +41,11 @@
       "type": "string",
       "pattern": "^n[1-9][0-9]*:[0-9a-f]{16}$"
     },
+    "fileSha256": {
+      "description": "SHA-256 of the bytes of an element file, lower-case hex: a write precondition, never stored and not a version (ADR-0005).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "key": {
       "description": "Fixed metamodel key of a type, property, relation kind or status value. Readable English, lower case, dashes (D-043, SR-010 AK2).",
       "type": "string",

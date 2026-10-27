@@ -5,6 +5,7 @@
 // renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
 // commands join automatically with a default scenario (input `{}`); add explicit scenarios below when a
 // command is implemented.
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -24,6 +25,15 @@ import { createFixtureWorkspace } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EXIT, argvFor, runCli } from "../src/index.js";
+
+/** The SHA-256 of SR-e88fb3 in SR-004/one-repository, as element.get gives it (`fileSha256`, SR-106). */
+const WIND_SHA256 = createHash("sha256")
+  .update(
+    readFileSync(
+      new URL("../../../fixtures/SR-004/one-repository/requirements/SR-6328cee88fb3.md", import.meta.url),
+    ),
+  )
+  .digest("hex");
 
 /** The product catalog and implementations; outputs are checked against the catalog (vitest.config.ts). */
 const runtime = createCommandRuntime();
@@ -668,6 +678,16 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
+    {
+      name: "a save with the SHA-256 of the file as read is written (SR-106)",
+      input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: WIND_SHA256 },
+      expect: "output",
+    },
+    {
+      name: "a save with an old SHA-256 writes nothing: file.changed-on-disk (SR-106)",
+      input: { ref: "SR-e88fb3", title: "Show the wind speed", expectedFileSha256: "0".repeat(64) },
+      expect: "error",
+    },
     {
       name: "change the text of an element two others point at: affected 2 (SR-024 AK2)",
       fixture: AFFECTED,

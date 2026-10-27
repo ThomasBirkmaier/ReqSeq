@@ -86,7 +86,7 @@ export default defineCommand({
     }
     const copy = { repository: input.repository, file: input.file };
     try {
-      const element = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
+      const { element } = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
       return { element, current: currentOf(version, element.version) };
     } catch (error) {
       if (error instanceof CommandError && error.code === "ref.unknown") {

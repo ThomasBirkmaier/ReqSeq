@@ -459,10 +459,14 @@
           "element": {
             "$ref": "../data-export.schema.json#/$defs/element",
             "description": "Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. Later stages add `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage."
+          },
+          "fileSha256": {
+            "$ref": "../common.schema.json#/$defs/fileSha256",
+            "description": "Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106)."
           }
         },
         "additionalProperties": false,
-        "required": ["element"]
+        "required": ["element", "fileSha256"]
       }
     },
     {
@@ -779,14 +783,17 @@
         "SR-064",
         "SR-065",
         "SR-087",
-        "SR-102"
+        "SR-102",
+        "SR-106"
       ],
       "arguments": [
         { "field": "ref", "complete": "element" },
         { "field": "title", "complete": "text" },
         { "field": "text", "complete": "text" },
         { "field": "set", "complete": "json" },
-        { "field": "unset", "complete": "property", "of": "ref" }
+        { "field": "unset", "complete": "property", "of": "ref" },
+        { "field": "repository", "complete": "repository" },
+        { "field": "expectedFileSha256", "complete": "text" }
       ],
       "input": {
         "type": "object",
@@ -826,6 +833,15 @@
                 }
               ]
             }
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates."
+          },
+          "expectedFileSha256": {
+            "$ref": "../common.schema.json#/$defs/fileSha256",
+            "description": "Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change."
           }
         },
         "additionalProperties": false,
@@ -836,6 +852,10 @@
         "properties": {
           "element": {
             "$ref": "../data-export.schema.json#/$defs/element"
+          },
+          "fileSha256": {
+            "$ref": "../common.schema.json#/$defs/fileSha256",
+            "description": "Of the file as written, or as read when nothing changed (SR-106)."
           },
           "files": {
             "type": "array",
@@ -856,7 +876,7 @@
           }
         },
         "additionalProperties": false,
-        "required": ["element", "files", "affected"]
+        "required": ["element", "fileSha256", "files", "affected"]
       }
     },
     {

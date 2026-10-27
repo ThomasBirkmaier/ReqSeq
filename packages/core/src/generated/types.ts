@@ -75,6 +75,12 @@ export type ElementId = string;
 export type Version = string;
 
 /**
+ * SHA-256 of the bytes of an element file, lower-case hex: a write precondition, never stored and not a version (ADR-0005).
+ * Schema: `schemas/common.schema.json#/$defs/fileSha256`.
+ */
+export type FileSha256 = string;
+
+/**
  * Fixed metamodel key of a type, property, relation kind or status value. Readable English, lower case, dashes (D-043, SR-010 AK2).
  * Schema: `schemas/common.schema.json#/$defs/key`.
  */
@@ -1103,6 +1109,8 @@ export interface ElementGetInput {
 export interface ElementGetOutput {
   /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. Later stages add `verification` and `validation`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
   readonly element: DataExportElement;
+  /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
+  readonly fileSha256: FileSha256;
 }
 
 /**
@@ -1239,6 +1247,10 @@ export interface ElementUpdateInput {
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly Key[];
+  /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
+  readonly repository?: string;
+  /** Write precondition (SR-106): the fileSha256 the change was made on. If the file has other bytes now, nothing is written: file.changed-on-disk, also when nothing would change. */
+  readonly expectedFileSha256?: FileSha256;
 }
 
 /**
@@ -1247,6 +1259,8 @@ export interface ElementUpdateInput {
  */
 export interface ElementUpdateOutput {
   readonly element: DataExportElement;
+  /** Of the file as written, or as read when nothing changed (SR-106). */
+  readonly fileSha256: FileSha256;
   readonly files: readonly string[];
   /** The number of directly affected elements (SR-024 AK2): the distinct elements other than this one whose files hold a relation or an inline reference to it, the elements at distance 1 of `trace.affected`. Counted only when the save changed the version (the content, D-013); 0 when only the title or properties that do not count to the version changed, or nothing changed (SR-024 AK3). For an element without a version (a value that counts has no normal form, ADR-0005) what the version is computed from is compared, so a save of only its title or status also gives 0 (#276). */
   readonly affected: number;

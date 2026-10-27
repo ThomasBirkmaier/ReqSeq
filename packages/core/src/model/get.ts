@@ -90,13 +90,22 @@ export type ElementHints = (
   withDate: boolean,
 ) => Promise<readonly LocatableFinding[]>;
 
+/** An element as `showElement` read it, with the SHA-256 of its file (SR-106). */
+export interface ShownElement {
+  readonly element: DataExportElement;
+  /** The SHA-256 of the bytes of the file the element was read from, lower-case hex. */
+  readonly fileSha256: string;
+}
+
 /**
  * The element `ref` names (`resolveRef`: `ref.unknown`, `ref.ambiguous`), in the repository and file
  * of `copy` when given (#255), read from its file now.
  * A file that changed since the store read it is shown as it is now, like a relation target is
  * stored (`currentTarget`). A file that is gone or no longer holds this element is `ref.unknown`,
  * and the element store is read again so the next call works on the files as they are; a file
- * that the new store reports as faulty (SR-008) is `file.faulty` with its errors instead.
+ * that the new store reports as faulty (SR-008) is `file.faulty` with its errors instead. With the
+ * element comes the SHA-256 of the file it was read from (`fileSha256`, the write precondition of
+ * `element.update`, SR-106).
  */
 export const showElement = async (
   context: ShowContext,
@@ -106,7 +115,7 @@ export const showElement = async (
   withDate: boolean,
   /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
   copy: ElementCopy = {},
-): Promise<DataExportElement> => {
+): Promise<ShownElement> => {
   const { workspace, layout, metamodel, store, shortIds } = context;
   const stored = resolveRef(store, shortIds, ref, copy);
   const repository = layout.repositories.find((r) => r.name === stored.repository);
@@ -178,11 +187,14 @@ export const showElement = async (
   }
   const [writable, date] = await Promise.all([isWritableFolder(repository.folder), dateOf(element.version)]);
   return {
-    ...element,
-    ...date,
-    // The repository root folder, as workspace.status checks it; a folder below it is not asked.
-    readOnly: !metamodel.valid || findType(metamodel, record.type) === undefined || writable === false,
-    problems,
+    element: {
+      ...element,
+      ...date,
+      // The repository root folder, as workspace.status checks it; a folder below it is not asked.
+      readOnly: !metamodel.valid || findType(metamodel, record.type) === undefined || writable === false,
+      problems,
+    },
+    fileSha256: read.file.snapshot.sha256,
   };
 };
 
@@ -195,7 +207,7 @@ export const getElement = async (
   withDate: boolean,
   /** Which of the elements `ref` names (`element.get` inputs `repository` and `file`, #255). */
   copy: ElementCopy = {},
-): Promise<DataExportElement> =>
+): Promise<ShownElement> =>
   showElement(
     {
       workspace,

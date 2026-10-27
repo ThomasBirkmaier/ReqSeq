@@ -134,7 +134,7 @@ export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";
 export type { SupersedeInput, SupersedeResult } from "./supersede.js";
 export { getElement, showElement } from "./get.js";
-export type { ElementHints, ShowContext } from "./get.js";
+export type { ElementHints, ShowContext, ShownElement } from "./get.js";
 export {
   elementLabel,
   invalidStatuses,
