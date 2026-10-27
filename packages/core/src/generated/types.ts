@@ -840,6 +840,28 @@ export interface MetamodelStatus {
 }
 
 /**
+ * `recent-workspaces.json` in `<OS cache>/logreq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * Schema: `schemas/recent-workspaces.schema.json#`.
+ */
+export interface RecentWorkspacesFile {
+  readonly format: 1;
+  /** The most recent first; no two entries with the same `key`. */
+  readonly workspaces: readonly RecentWorkspacesWorkspace[];
+}
+
+/**
+ * One workspace that was opened: its root, its canonical name and when it was opened last.
+ * Schema: `schemas/recent-workspaces.schema.json#/$defs/workspace`.
+ */
+export interface RecentWorkspacesWorkspace {
+  /** The absolute path of the workspace root as it was opened last (the folder that holds `logreq-workspace.yaml`); shown, and opened as it is. */
+  readonly root: string;
+  /** The canonical root (absolute, symbolic links resolved, lower case on Windows), computed when the workspace was opened: two names of one folder are one entry. Never resolved again on reading. */
+  readonly key: string;
+  readonly opened: IsoDateTime;
+}
+
+/**
  * Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */

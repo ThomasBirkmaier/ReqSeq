@@ -295,6 +295,12 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       onDraft(key, undefined);
     },
     drafted: (key) => drafts.current.has(key),
+    // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
+    workspaces: {
+      name: view?.name,
+      list: () => bridge.recentWorkspaces(),
+      open: (root) => bridge.openWorkspace(root),
+    },
   };
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
@@ -307,30 +313,42 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const revisionNow = useRef(seen);
   revisionNow.current = seen;
   useEffect(() => {
-    bridge.commands().then(
-      (commands) => {
-        catalog.current = commands;
-      },
-      (error: unknown) => {
-        // Without the catalog the command prompt has the app's actions only; say why.
-        setEcho(String(error));
-      },
-    );
+    const load = (): void => {
+      bridge.commands().then(
+        (commands) => {
+          catalog.current = commands;
+        },
+        (error: unknown) => {
+          // Without the catalog the command prompt has the app's actions only; say why.
+          setEcho(String(error));
+        },
+      );
+    };
+    load();
+    // After a start without a workspace there was no core process to ask: ask the one just opened.
+    return bridge.on("workspace-changed", (change) => {
+      if (change.reason === "opened" && catalog.current.length === 0) {
+        load();
+      }
+    });
   }, [bridge]);
   // The command prompt: the actions that apply now and the catalog's read commands (#85).
   const commands = useCallback((): Prompt => {
     const now = latest.current;
-    const items = catalogItems(
-      {
-        ...now,
-        revision: () => revisionNow.current,
-        reopen: () => {
-          ask(commands());
-        },
-      },
-      catalog.current,
-      ACTIONS,
-    );
+    // Without a workspace no catalog command can run: the prompt offers the actions that apply then.
+    const items = now.workspace
+      ? catalogItems(
+          {
+            ...now,
+            revision: () => revisionNow.current,
+            reopen: () => {
+              ask(commands());
+            },
+          },
+          catalog.current,
+          ACTIONS,
+        )
+      : [];
     return commandPrompt(now, promptUse(appStorage), items);
   }, [ask]);
   useEffect(() => {
@@ -340,12 +358,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         return;
       }
       const now = latest.current;
-      if (!now.workspace) {
-        return;
-      }
+      // The command prompt opens also without a workspace ("Open workspace", SR-131); nothing else does.
       if (matches(event, COMMAND_SHORTCUT, now.mac)) {
         event.preventDefault();
         ask(commands());
+        return;
+      }
+      if (!now.workspace) {
         return;
       }
       const action = actionFor(now, (shortcut) => matches(event, shortcut, now.mac));
@@ -475,9 +494,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         echo={echoLine(echo, view)}
         prompt={prompt}
         onCommand={() => {
-          if (latest.current.workspace) {
-            ask(commands());
-          }
+          ask(commands());
         }}
         onClose={() => {
           setPrompt(undefined);

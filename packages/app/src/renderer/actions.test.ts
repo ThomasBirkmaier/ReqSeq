@@ -1154,3 +1154,53 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(left).toEqual([]);
   });
 });
+
+describe("Open workspace (SR-131)", () => {
+  const workspaces = {
+    name: "Weather station",
+    list: () => Promise.resolve([{ root: "/req/buoy", state: "found" as const }]),
+    open: () => Promise.resolve({ ok: true as const }),
+  };
+
+  it("Open workspace is offered with and without an open workspace", async () => {
+    for (const open of [true, false]) {
+      const { context, asked } = setup(open ? [list] : [], {}, open, { workspaces });
+      const items = commandPrompt(context).items;
+      expect(
+        items.some((item) => item.name === "Open workspace"),
+        String(open),
+      ).toBe(true);
+      if (!open) {
+        // Without a workspace it is the one action that applies.
+        expect(items.map((item) => item.name)).toEqual(["Open workspace"]);
+      }
+      runAction(action("open-workspace"), context);
+      expect(asked.at(-1)?.label).toBe("Workspace");
+      expect((await asked.at(-1)?.fill)?.items?.map((item) => item.name)).toEqual(["/req/buoy"]);
+    }
+  });
+
+  it("is not offered where the window has no workspaces to offer, and does nothing there", () => {
+    const { context, asked } = setup([list]);
+    expect(action("open-workspace").available(context)).toBe(false);
+    action("open-workspace").run(context);
+    expect(asked).toEqual([]);
+  });
+
+  it("names the buffer with unsaved input instead of switching", async () => {
+    const open = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { context, asked, echoed } = setup([element, list], {}, true, {
+      workspaces: { ...workspaces, open },
+      drafted: (key) => key === element.key,
+    });
+    runAction(action("open-workspace"), context);
+    (await asked[0]?.fill)?.items?.[0]?.run();
+    expect(open).not.toHaveBeenCalled();
+    expect(echoed).toEqual(["Unsaved input in SR-036 Title: save it before opening another workspace"]);
+    // Without unsaved input it switches.
+    const clean = setup([element, list], {}, true, { workspaces: { ...workspaces, open } });
+    runAction(action("open-workspace"), clean.context);
+    (await clean.asked[0]?.fill)?.items?.[0]?.run();
+    expect(open).toHaveBeenCalledExactlyOnceWith("/req/buoy");
+  });
+});

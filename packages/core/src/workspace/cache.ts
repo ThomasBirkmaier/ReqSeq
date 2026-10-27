@@ -6,11 +6,14 @@ import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { PrivateLock } from "../files/index.js";
-import { lockPrivateFile, removePrivateFile, writePrivateFile } from "../files/index.js";
+// The private-file modules of the files block, not its index: the app's main process loads
+// `recent.ts`, and with it this module, without the parsers and writers of element files.
+import type { PrivateLock } from "../files/lock.js";
+import { lockPrivateFile } from "../files/lock.js";
+import { removePrivateFile, writePrivateFile } from "../files/private.js";
 
-export { LOCK_STALE_MS, processRuns } from "../files/index.js";
-export type { PrivateLock } from "../files/index.js";
+export { LOCK_STALE_MS, processRuns } from "../files/lock.js";
+export type { PrivateLock } from "../files/lock.js";
 
 /** Where the OS keeps caches; tests pass their own values. */
 export interface CacheEnvironment {

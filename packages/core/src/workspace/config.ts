@@ -7,9 +7,9 @@ import { CommandError } from "../catalog.js";
 import { readYamlFile } from "../files/index.js";
 import type { WorkspaceFile, WorkspaceLocalFile, WorkspaceRepository } from "../generated/types.js";
 import { describeViolations, fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
+import { WORKSPACE_FILE } from "./workspace-file.js";
 
-/** In the root of the main repository; the folder that holds it is `Workspace.root`. */
-export const WORKSPACE_FILE = "logreq-workspace.yaml";
+export { WORKSPACE_FILE };
 
 /** Local overrides of one person, next to the workspace file; never committed. */
 export const LOCAL_FILE = ".logreq/local.yaml";

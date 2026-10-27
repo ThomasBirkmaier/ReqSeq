@@ -1,7 +1,12 @@
 import { MessageChannel } from "node:worker_threads";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
-import { COPY_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
+import {
+  COPY_CHANNEL,
+  OPEN_WORKSPACE_CHANNEL,
+  RECENT_WORKSPACES_CHANNEL,
+  WORKSPACE_CHANNEL,
+} from "../shared/protocol.js";
 import type { IpcRendererLike } from "./bridge.js";
 import { createBridge } from "./bridge.js";
 
@@ -251,5 +256,31 @@ describe("createBridge", () => {
     expect(await bridge.copyText("x")).toBe(false);
     ipc.answer = new Error("No handler registered");
     expect(await bridge.copyText("x")).toBe(false);
+  });
+
+  it("recentWorkspaces and openWorkspace go to main, never reject, and drop answers of the wrong shape", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const entries = [
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/station", state: "open" },
+    ];
+    ipc.answer = entries;
+    expect(await bridge.recentWorkspaces()).toEqual(entries);
+    ipc.answer = { ok: true };
+    expect(await bridge.openWorkspace("/req/buoy")).toEqual({ ok: true });
+    expect(ipc.invoked).toEqual([
+      { channel: RECENT_WORKSPACES_CHANNEL, args: [] },
+      { channel: OPEN_WORKSPACE_CHANNEL, args: ["/req/buoy"] },
+    ]);
+    ipc.answer = { ok: false, reason: "missing" };
+    expect(await bridge.openWorkspace("/req/gone")).toEqual({ ok: false, reason: "missing" });
+    // Another shape, and a failure, are an empty list and a refusal.
+    ipc.answer = "nonsense";
+    expect(await bridge.recentWorkspaces()).toEqual([]);
+    expect(await bridge.openWorkspace("/req/buoy")).toEqual({ ok: false, reason: "refused" });
+    ipc.answer = new Error("No handler registered");
+    expect(await bridge.recentWorkspaces()).toEqual([]);
+    expect(await bridge.openWorkspace("/req/buoy")).toEqual({ ok: false, reason: "refused" });
   });
 });

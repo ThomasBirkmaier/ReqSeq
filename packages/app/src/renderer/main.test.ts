@@ -23,6 +23,8 @@ describe("renderer entry", () => {
       commands: () => Promise.resolve([]),
       on: () => () => undefined,
       copyText: () => Promise.resolve(true),
+      recentWorkspaces: () => Promise.resolve([]),
+      openWorkspace: () => Promise.resolve({ ok: true }),
     };
     Object.defineProperty(window, "logreq", { value: bridge, configurable: true });
     document.body.innerHTML = '<div id="root"></div>';

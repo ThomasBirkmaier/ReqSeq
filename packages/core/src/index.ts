@@ -16,6 +16,19 @@ export {
   writeCacheFile,
 } from "./workspace/cache.js";
 export type { CacheEnvironment, PrivateLock } from "./workspace/cache.js";
+export {
+  EXISTS_TIMEOUT_MS,
+  RECENT_WORKSPACES_FILE,
+  RECENT_WORKSPACES_KEEP,
+  readRecentWorkspaces,
+  recentWorkspaceStates,
+  recentWorkspacesFolder,
+  rememberWorkspace,
+  workspaceExists,
+  workspaceKey,
+} from "./workspace/recent.js";
+export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
+export { recordOpenedWorkspace } from "./model/recent-record.js";
 export { isTempFile } from "./files/index.js";
 export * from "./version/version.js";
 export { watchWorkspace } from "./model/watch.js";

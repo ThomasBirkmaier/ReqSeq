@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./recent-workspaces": {
+      "types": "./dist/workspace/recent.d.ts",
+      "default": "./dist/workspace/recent.js"
     }
   },
   "scripts": {

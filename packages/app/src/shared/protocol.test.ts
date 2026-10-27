@@ -7,8 +7,10 @@ import {
   coreRequest,
   externalChange,
   isBridgeEvent,
+  openWorkspaceResult,
   portMessage,
   portRequest,
+  recentWorkspaceEntries,
 } from "./protocol.js";
 
 /** An access as `workspace.activity` gives it. */
@@ -58,6 +60,13 @@ describe("portRequest: what the renderer may ask", () => {
 describe("coreRequest: what the main process sends the core process", () => {
   it("takes open, connect, file and stop", () => {
     expect(coreRequest({ type: "open", folder: "/w" })).toEqual({ type: "open", folder: "/w" });
+    // An exact open: a root of the list of recent workspaces (SR-131); only `true` counts.
+    expect(coreRequest({ type: "open", folder: "/w", exact: true })).toEqual({
+      type: "open",
+      folder: "/w",
+      exact: true,
+    });
+    expect(coreRequest({ type: "open", folder: "/w", exact: "yes" })).toEqual({ type: "open", folder: "/w" });
     expect(coreRequest({ type: "connect", extra: 1 })).toEqual({ type: "connect" });
     expect(coreRequest({ type: "file", id: 4, url: "logreq-file://a/b.png" })).toEqual({
       type: "file",
@@ -84,7 +93,13 @@ describe("coreRequest: what the main process sends the core process", () => {
 describe("coreMessage: what the core process sends the main process", () => {
   it("takes ready and file answers; a file answer without data is not found", () => {
     const data = new Uint8Array([1, 2]);
-    expect(coreMessage({ type: "ready", root: "/w" })).toEqual({ type: "ready", root: "/w" });
+    expect(coreMessage({ type: "ready", root: "/w", key: "/real/w" })).toEqual({
+      type: "ready",
+      root: "/w",
+      key: "/real/w",
+    });
+    expect(coreMessage({ type: "ready", root: "/w" })).toBeUndefined();
+    expect(coreMessage({ type: "ready", key: "/w" })).toBeUndefined();
     expect(coreMessage({ type: "file", id: 1, status: 200, mimeType: "image/png", data })).toEqual({
       type: "file",
       id: 1,
@@ -238,6 +253,47 @@ describe("portMessage: what the core process sends a window", () => {
       { id: 1, result: "ok" },
     ]) {
       expect(portMessage(value)).toBeUndefined();
+    }
+  });
+});
+
+describe("the answers of the main process about recent workspaces (SR-131)", () => {
+  it("recentWorkspaceEntries and openWorkspaceResult accept only their shapes", () => {
+    const entries = [
+      { root: "/a", state: "open" },
+      { root: "/b", state: "found" },
+      { root: "/c", state: "missing" },
+    ];
+    expect(recentWorkspaceEntries(entries)).toEqual(entries);
+    // Only the fields of an entry are kept.
+    expect(recentWorkspaceEntries([{ root: "/a", state: "open", key: "/x" }])).toEqual([
+      { root: "/a", state: "open" },
+    ]);
+    expect(recentWorkspaceEntries([])).toEqual([]);
+    for (const value of [
+      undefined,
+      null,
+      "x",
+      { root: "/a", state: "open" },
+      [{ root: "/a", state: "gone" }],
+      [{ root: 1, state: "open" }],
+      [null],
+      [...entries, "x"],
+    ]) {
+      expect(recentWorkspaceEntries(value)).toEqual([]);
+    }
+    expect(openWorkspaceResult({ ok: true })).toEqual({ ok: true });
+    expect(openWorkspaceResult({ ok: false, reason: "missing" })).toEqual({ ok: false, reason: "missing" });
+    for (const value of [
+      { ok: false, reason: "refused" },
+      { ok: false, reason: "other" },
+      { ok: false },
+      { ok: "true" },
+      true,
+      undefined,
+      null,
+    ]) {
+      expect(openWorkspaceResult(value)).toEqual({ ok: false, reason: "refused" });
     }
   });
 });

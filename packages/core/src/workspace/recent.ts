@@ -1,0 +1,309 @@
+// The workspaces the app opened last (SR-131): `<OS cache>/logreq/recent-workspaces.json`
+// (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
+// one per folder. The app's core process records the root it opened (`model/recent-record.ts`); the
+// app's main process reads the list and checks which roots still hold a workspace.
+//
+// Main loads this module on its own (`@logreq/core/recent-workspaces`), so it imports only `node:*`,
+// `cache.ts` (with the private-file part of the files block) and `workspace-file.ts`: no schema
+// validator, no command. Main makes no synchronous file-system call through it: reading the list never
+// resolves a root again (the canonical `key` is stored), and the existence check is asynchronous and
+// bounded (`createExistenceChecker`).
+import fs from "node:fs/promises";
+import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import type { RecentWorkspacesFile } from "../generated/types.js";
+import type { CacheEnvironment } from "./cache.js";
+import { canonicalRoot, lockCacheFile, osCacheFolder, readCacheFile, writeCacheFile } from "./cache.js";
+import { WORKSPACE_FILE } from "./workspace-file.js";
+
+/** The file in `<OS cache>/logreq/`. */
+export const RECENT_WORKSPACES_FILE = "recent-workspaces.json";
+
+/** How many workspaces the list keeps (a product choice of SR-131, named in its PR). */
+export const RECENT_WORKSPACES_KEEP = 20;
+
+/** A larger file is not LogReq's: it reads as an empty list, and the next open overwrites it. */
+export const RECENT_WORKSPACES_MAX_BYTES = 64 * 1024;
+
+/** The longest root the list holds, in characters (as the app's main process accepts one). */
+export const MAX_ROOT_LENGTH = 4096;
+
+/** An existence check that has no answer this long after it was asked counts as missing. */
+export const EXISTS_TIMEOUT_MS = 1_000;
+
+/** At most this many `stat`s of the existence check run at once (libuv has 4 threads). */
+export const EXISTS_SLOTS = 2;
+
+/** How long a record waits once for a lock that another process holds, before it skips. */
+export const LOCK_RETRY_MS = 200;
+
+const FORMAT = 1;
+
+/** An RFC 3339 date and time (`common.schema.json#/$defs/dateTime`). */
+const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i;
+
+/** One entry of the list. */
+export interface RecentWorkspace {
+  /** The absolute root as it was opened last; shown, and opened as it is. */
+  readonly root: string;
+  /** The canonical root (`canonicalRoot`) when it was opened: two names of one folder are one entry. */
+  readonly key: string;
+  /** When it was opened last (RFC 3339). */
+  readonly opened: string;
+}
+
+/** An entry with whether its root still holds `logreq-workspace.yaml`. */
+export interface RecentWorkspaceState extends RecentWorkspace {
+  readonly exists: boolean;
+}
+
+/** Answers, for each root, whether `<root>/logreq-workspace.yaml` is a file (in the order of the roots). */
+export type ExistenceChecker = (roots: readonly string[]) => Promise<readonly boolean[]>;
+
+export interface ExistenceOptions {
+  /** Default `fs.promises.stat`; tests inject one. */
+  readonly stat?: (file: string) => Promise<{ isFile(): boolean }>;
+  readonly timeoutMs?: number;
+  readonly slots?: number;
+}
+
+const pathsOf = (platform: NodeJS.Platform): path.PlatformPath =>
+  platform === "win32" ? path.win32 : path.posix;
+
+const platformOf = (environment: CacheEnvironment | undefined): NodeJS.Platform =>
+  environment?.platform ?? process.platform;
+
+/** `<OS cache>/logreq`, the folder of the list (next to the cache folders of the copies). */
+export function recentWorkspacesFolder(environment?: CacheEnvironment): string {
+  return pathsOf(platformOf(environment)).join(osCacheFolder(environment), "logreq");
+}
+
+/** The key of a root: its canonical name (absolute, links resolved, lower case on Windows). */
+export function workspaceKey(root: string, platform: NodeJS.Platform = process.platform): string {
+  return canonicalRoot(root, platform);
+}
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null;
+
+const isRoot = (value: unknown, platform: NodeJS.Platform): value is string =>
+  typeof value === "string" && value.length <= MAX_ROOT_LENGTH && pathsOf(platform).isAbsolute(value);
+
+const isEntry = (value: unknown, platform: NodeJS.Platform): value is RecentWorkspace =>
+  isRecord(value) &&
+  isRoot(value["root"], platform) &&
+  typeof value["key"] === "string" &&
+  value["key"] !== "" &&
+  typeof value["opened"] === "string" &&
+  DATE_TIME.test(value["opened"]);
+
+/**
+ * The entries of the text of the file: none for no file, and for content that is not JSON, of another
+ * format or with an entry of the wrong shape (the next record overwrites it). A key listed twice counts
+ * once (the first), and at most RECENT_WORKSPACES_KEEP are kept.
+ */
+export function parseRecentWorkspaces(
+  text: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+): readonly RecentWorkspace[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(text ?? "null");
+  } catch {
+    return [];
+  }
+  if (!isRecord(data) || data["format"] !== FORMAT || !Array.isArray(data["workspaces"])) {
+    return [];
+  }
+  const entries: readonly unknown[] = data["workspaces"];
+  if (!entries.every((entry) => isEntry(entry, platform))) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const list: RecentWorkspace[] = [];
+  for (const { root, key, opened } of entries) {
+    if (!seen.has(key)) {
+      seen.add(key);
+      list.push({ root, key, opened });
+    }
+  }
+  return list.slice(0, RECENT_WORKSPACES_KEEP);
+}
+
+/** The text of the file for `workspaces`; the oldest are left out while it would be too large. */
+const serialize = (workspaces: readonly RecentWorkspace[]): string => {
+  let kept = workspaces.slice(0, RECENT_WORKSPACES_KEEP);
+  const render = (): string =>
+    `${JSON.stringify({ format: FORMAT, workspaces: kept } satisfies RecentWorkspacesFile, null, 2)}\n`;
+  let text = render();
+  // One entry is far below the bound (its root has at most MAX_ROOT_LENGTH characters).
+  while (Buffer.byteLength(text, "utf8") > RECENT_WORKSPACES_MAX_BYTES) {
+    kept = kept.slice(0, -1);
+    text = render();
+  }
+  return text;
+};
+
+/** The list, the most recent first; empty when there is none or it cannot be read. Never rejects. */
+export async function readRecentWorkspaces(
+  environment?: CacheEnvironment,
+): Promise<readonly RecentWorkspace[]> {
+  try {
+    const text = await readCacheFile(
+      recentWorkspacesFolder(environment),
+      RECENT_WORKSPACES_FILE,
+      RECENT_WORKSPACES_MAX_BYTES,
+    );
+    return parseRecentWorkspaces(text, platformOf(environment));
+  } catch {
+    return [];
+  }
+}
+
+export interface RememberOptions {
+  readonly environment?: CacheEnvironment;
+  /** The time of the open; default now. */
+  readonly now?: Date;
+  /** The key of the root when the caller computed it already (`workspaceKey`). */
+  readonly key?: string;
+}
+
+/**
+ * Puts `root` (absolute) first in the list, as opened now: the entry with the same key goes, and the
+ * list keeps RECENT_WORKSPACES_KEEP. Read, change and write run under the lock of the file; while
+ * another process holds it, the record waits once (LOCK_RETRY_MS) and then skips: the list is a
+ * convenience. Resolves `true` when recorded, `false` when skipped (also for a root that is not absolute
+ * or longer than MAX_ROOT_LENGTH); rejects with the Node error when the file cannot be written.
+ */
+export async function rememberWorkspace(root: string, options: RememberOptions = {}): Promise<boolean> {
+  const { environment } = options;
+  const platform = platformOf(environment);
+  if (!isRoot(root, platform)) {
+    return false;
+  }
+  const key = options.key ?? workspaceKey(root, platform);
+  const folder = recentWorkspacesFolder(environment);
+  let lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
+  if (lock === undefined) {
+    await sleep(LOCK_RETRY_MS);
+    lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
+  }
+  if (lock === undefined) {
+    return false;
+  }
+  try {
+    let text: string | undefined;
+    try {
+      text = await readCacheFile(folder, RECENT_WORKSPACES_FILE, RECENT_WORKSPACES_MAX_BYTES);
+    } catch {
+      // Unreadable (a folder in its place, no rights): it is replaced.
+      text = undefined;
+    }
+    const opened = (options.now ?? new Date()).toISOString();
+    const rest = parseRecentWorkspaces(text, platform).filter((entry) => entry.key !== key);
+    await writeCacheFile(folder, RECENT_WORKSPACES_FILE, serialize([{ root, key, opened }, ...rest]));
+    return true;
+  } finally {
+    await lock.release();
+  }
+}
+
+/** Whether `<root>/logreq-workspace.yaml` is a file; never rejects. The root itself, never a folder above. */
+const holdsWorkspace = async (
+  stat: NonNullable<ExistenceOptions["stat"]>,
+  root: string,
+): Promise<boolean> => {
+  try {
+    return (await stat(path.join(root, WORKSPACE_FILE))).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * An existence check with a bound on the threads it takes and on the time it takes. A `stat` that hangs
+ * (a share or an automount that does not answer) cannot be cancelled and keeps its libuv thread, so:
+ * - at most `slots` `stat`s run at once, across all calls of this checker; a slot is freed only when its
+ *   `stat` returns, never at the timeout;
+ * - `timeoutMs` counts from the call: a root without an answer by then counts as missing, and a root
+ *   still waiting for a slot then gets no `stat` at all.
+ */
+export function createExistenceChecker(options: ExistenceOptions = {}): ExistenceChecker {
+  const stat = options.stat ?? fs.stat;
+  const timeoutMs = options.timeoutMs ?? EXISTS_TIMEOUT_MS;
+  const slots = options.slots ?? EXISTS_SLOTS;
+  let running = 0;
+  const queue: (() => Promise<void>)[] = [];
+  const pump = (): void => {
+    while (running < slots) {
+      const job = queue.shift();
+      if (job === undefined) {
+        return;
+      }
+      running += 1;
+      void job().finally(() => {
+        running -= 1;
+        pump();
+      });
+    }
+  };
+  return (roots) =>
+    new Promise((resolve) => {
+      const found = roots.map(() => false);
+      let left = roots.length;
+      let done = false;
+      const jobs: (() => Promise<void>)[] = [];
+      const finish = (): void => {
+        done = true;
+        clearTimeout(timer);
+        // Roots still waiting for a slot get no `stat`.
+        for (const job of jobs) {
+          const at = queue.indexOf(job);
+          if (at >= 0) {
+            queue.splice(at, 1);
+          }
+        }
+        resolve(found);
+      };
+      for (const [index, root] of roots.entries()) {
+        jobs.push(async () => {
+          const holds = await holdsWorkspace(stat, root);
+          if (!done) {
+            found[index] = holds;
+            left -= 1;
+            if (left === 0) {
+              finish();
+            }
+          }
+        });
+      }
+      const timer = setTimeout(finish, timeoutMs);
+      if (left === 0) {
+        finish();
+        return;
+      }
+      queue.push(...jobs);
+      pump();
+    });
+}
+
+/** The checker of this process (the app's main process uses one). */
+const checkWorkspaces: ExistenceChecker = createExistenceChecker();
+
+/** Whether `<root>/logreq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. */
+export async function workspaceExists(
+  root: string,
+  check: ExistenceChecker = checkWorkspaces,
+): Promise<boolean> {
+  const [exists] = await check([root]);
+  return exists === true;
+}
+
+/** The list with whether each root still holds a workspace (`createExistenceChecker`); never rejects. */
+export async function recentWorkspaceStates(
+  options: { readonly environment?: CacheEnvironment; readonly check?: ExistenceChecker } = {},
+): Promise<readonly RecentWorkspaceState[]> {
+  const list = await readRecentWorkspaces(options.environment);
+  const exists = await (options.check ?? checkWorkspaces)(list.map((entry) => entry.root));
+  return list.map((entry, index) => ({ ...entry, exists: exists[index] === true }));
+}

@@ -2,7 +2,12 @@ import { EventEmitter } from "node:events";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { CoreRequest } from "../shared/protocol.js";
-import { COPY_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
+import {
+  COPY_CHANNEL,
+  OPEN_WORKSPACE_CHANNEL,
+  RECENT_WORKSPACES_CHANNEL,
+  WORKSPACE_CHANNEL,
+} from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
 import type { ShellElectron, ShellOptions } from "./shell.js";
 import { startShell } from "./shell.js";
@@ -203,7 +208,12 @@ describe("startShell", () => {
   it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
     const { electron, ipcHandlers, windows } = await start();
     const contents = windows[0]?.webContents;
-    expect([...ipcHandlers.keys()]).toEqual([COPY_CHANNEL]);
+    // The three channels from the renderer: the clipboard (SR-128) and the recent workspaces (SR-131).
+    expect([...ipcHandlers.keys()]).toEqual([
+      COPY_CHANNEL,
+      RECENT_WORKSPACES_CHANNEL,
+      OPEN_WORKSPACE_CHANNEL,
+    ]);
     const copied = await ipcHandlers.get(COPY_CHANNEL)?.(
       { sender: contents, senderFrame: contents?.mainFrame },
       "x",

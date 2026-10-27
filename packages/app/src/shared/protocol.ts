@@ -9,17 +9,49 @@ import type { ActivityAccess, CatalogEntry, CommandErrorObject } from "@logreq/c
 export const WORKSPACE_CHANNEL = "logreq:workspace";
 
 /**
- * Renderer to main: the text to put on the system clipboard (SR-128). The one channel from the renderer
- * to the main process; `ipcMain.handle` answers `true` when the text was copied, else `false`.
+ * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`
+ * when the text was copied, else `false`. One of the three channels from the renderer to the main
+ * process, each with the sender check of `main/sender.ts`.
  */
 export const COPY_CHANNEL = "logreq:copy";
+
+/**
+ * Renderer to main: the workspaces opened last (SR-131), answered with `RecentWorkspaceEntry[]`. Main
+ * reads them, because without an open workspace there is no core process and no port.
+ */
+export const RECENT_WORKSPACES_CHANNEL = "logreq:recent-workspaces";
+
+/**
+ * Renderer to main: open this root of the list of recent workspaces in the window (SR-131), answered
+ * with `OpenWorkspaceResult`. Switching the workspace of the window is main's job (ADR-0010).
+ */
+export const OPEN_WORKSPACE_CHANNEL = "logreq:open-workspace";
+
+/** The longest root the main process accepts from the renderer, in characters. */
+export const MAX_ROOT_LENGTH = 4096;
+
+/** A workspace of the list: `open` in this window, `found`, or `missing` (no workspace there, SR-131 AK4). */
+export type RecentWorkspaceStatus = "open" | "found" | "missing";
+
+/** One entry of the list of recent workspaces, the most recent first. */
+export interface RecentWorkspaceEntry {
+  readonly root: string;
+  readonly state: RecentWorkspaceStatus;
+}
+
+/**
+ * What opening a recent workspace gave: opened, or not because its root holds no workspace any more
+ * (`missing`, the open workspace stays) or the request was refused (not a root of the list).
+ */
+export type OpenWorkspaceResult =
+  { readonly ok: true } | { readonly ok: false; readonly reason: "missing" | "refused" };
 
 /** The longest text the main process copies, in characters (16 Mi). */
 export const MAX_COPY_LENGTH = 16 * 1024 * 1024;
 
 /** Why the workspace of the window changed (`window.logreq.on("workspace-changed", ...)`). */
 export type WorkspaceChangeReason =
-  /** Another workspace was opened (File > Open Workspace). */
+  /** Another workspace was opened (File > Open Workspace, "Open workspace"). */
   | "opened"
   /** The core process stopped unexpectedly and was started again on the same workspace. */
   | "restarted"
@@ -78,7 +110,7 @@ export type AgentActivity = ActivityAccess;
 /**
  * The events the core process and the main process send a window, by name, with what the listeners of
  * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and one
- * check in `EVENT_DATA`, and the bridge stays at its four functions (ADR-0010).
+ * check in `EVENT_DATA`, and the bridge keeps its six functions (ADR-0010).
  */
 export interface BridgeEvents {
   /** The workspace of the window changed (`WorkspaceChangeReason`). */
@@ -131,6 +163,17 @@ export interface LogReqBridge {
    * with `element get`).
    */
   copyText(text: string): Promise<boolean>;
+  /**
+   * The workspaces opened last, the most recent first, each `open`, `found` or `missing` (SR-131); an
+   * empty list when there are none or they cannot be read, never rejects. From the main process, since
+   * no core process runs while no workspace is open.
+   */
+  recentWorkspaces(): Promise<readonly RecentWorkspaceEntry[]>;
+  /**
+   * Opens `root`, a root of `recentWorkspaces()`, in this window in place of the open workspace (SR-131
+   * AK2); never rejects. The window learns it as `workspace-changed` with `opened`.
+   */
+  openWorkspace(root: string): Promise<OpenWorkspaceResult>;
 }
 
 /** Renderer to core process, over the port. */
@@ -146,10 +189,12 @@ export type PortMessage =
 
 /**
  * Main to core process, over the parent port. `open` comes first and once; `connect` carries the port
- * of one window; `stop` closes the workspace and ends the process.
+ * of one window; `stop` closes the workspace and ends the process. An `exact` open (a root of the list of
+ * recent workspaces) opens the folder itself as the root and fails when it holds no workspace file;
+ * otherwise the root is found upwards (File > Open Workspace, `--workspace`).
  */
 export type CoreRequest =
-  | { readonly type: "open"; readonly folder: string }
+  | { readonly type: "open"; readonly folder: string; readonly exact?: boolean }
   | { readonly type: "connect" }
   | { readonly type: "file"; readonly id: number; readonly url: string }
   | { readonly type: "stop" };
@@ -161,7 +206,8 @@ export type FileAnswer =
 
 /** Core process to main, over the parent port. */
 export type CoreMessage =
-  | { readonly type: "ready"; readonly root: string }
+  /** The workspace is open: its root, and its key in the list of recent workspaces (`workspaceKey`). */
+  | { readonly type: "ready"; readonly root: string; readonly key: string }
   | ({ readonly type: "file"; readonly id: number } & FileAnswer);
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -187,7 +233,9 @@ export const coreRequest = (value: unknown): CoreRequest | undefined => {
   }
   switch (value["type"]) {
     case "open":
-      return typeof value["folder"] === "string" ? { type: "open", folder: value["folder"] } : undefined;
+      return typeof value["folder"] === "string"
+        ? { type: "open", folder: value["folder"], ...(value["exact"] === true ? { exact: true } : {}) }
+        : undefined;
     case "file":
       return typeof value["id"] === "number" && typeof value["url"] === "string"
         ? { type: "file", id: value["id"], url: value["url"] }
@@ -206,7 +254,9 @@ export const coreMessage = (value: unknown): CoreMessage | undefined => {
     return undefined;
   }
   if (value["type"] === "ready") {
-    return typeof value["root"] === "string" ? { type: "ready", root: value["root"] } : undefined;
+    return typeof value["root"] === "string" && typeof value["key"] === "string"
+      ? { type: "ready", root: value["root"], key: value["key"] }
+      : undefined;
   }
   if (value["type"] !== "file" || typeof value["id"] !== "number") {
     return undefined;
@@ -341,4 +391,29 @@ export const portMessage = (value: unknown): PortMessage | undefined => {
   return isRecord(value["result"])
     ? { id: value["id"], result: value["result"] as unknown as InvokeResult }
     : undefined;
+};
+
+const STATUSES: readonly unknown[] = ["open", "found", "missing"] satisfies readonly RecentWorkspaceStatus[];
+
+/** `value` as main's list of recent workspaces, with only their fields; anything else is the empty list. */
+export const recentWorkspaceEntries = (value: unknown): readonly RecentWorkspaceEntry[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const entries: readonly unknown[] = value;
+  return entries.every(
+    (entry) => isRecord(entry) && typeof entry["root"] === "string" && STATUSES.includes(entry["state"]),
+  )
+    ? (entries as readonly RecentWorkspaceEntry[]).map(({ root, state }) => ({ root, state }))
+    : [];
+};
+
+/** `value` as main's answer to an open; anything else is a refusal. */
+export const openWorkspaceResult = (value: unknown): OpenWorkspaceResult => {
+  if (isRecord(value) && value["ok"] === true) {
+    return { ok: true };
+  }
+  return isRecord(value) && value["ok"] === false && value["reason"] === "missing"
+    ? { ok: false, reason: "missing" }
+    : { ok: false, reason: "refused" };
 };

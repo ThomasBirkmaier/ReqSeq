@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron } from "@playwright/test";
+import { rememberWorkspace } from "@logreq/core/recent-workspaces";
 
 const execFileAsync = promisify(execFile);
 
@@ -27,10 +28,12 @@ const ELECTRON = createRequire(import.meta.url)("electron") as string;
 
 /**
  * A copy of a case folder of `fixtures/` (`fixture`) or of any workspace folder (`folder`, an absolute
- * path), plus `files` (relative path to content), in a temporary folder.
+ * path), plus `files` (relative path to content), in a temporary folder, as the folder `name` (default
+ * `workspace`).
  */
 export type Fixture = ({ readonly fixture: string } | { readonly folder: string }) & {
   readonly files?: Readonly<Record<string, string | Uint8Array>>;
+  readonly name?: string;
 };
 
 /** The copied workspace: its root (links resolved) and how to remove it. */
@@ -39,11 +42,12 @@ export interface FixtureWorkspace {
   cleanup(): Promise<void>;
 }
 
-const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
+/** Copies a fixture workspace into a temporary folder (`launchApp` does it for the workspace it opens). */
+export const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
   const { files = {} } = source;
   const from = "folder" in source ? source.folder : path.join(FIXTURES, ...source.fixture.split("/"));
   const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-fixture-")));
-  const root = path.join(top, "workspace");
+  const root = path.join(top, source.name ?? "workspace");
   await fs.cp(from, root, { recursive: true });
   for (const [relative, content] of Object.entries(files)) {
     const file = path.join(root, ...relative.split("/"));
@@ -179,6 +183,13 @@ export interface LaunchOptions {
   readonly colorScheme?: "light" | "dark" | null;
   /** The workspace and the user data of an earlier start (`close({ keep: true })`): the app restarts. */
   readonly kept?: Kept;
+  /** With `kept`: start without `--workspace`, as the packaged app starts (SR-131 AK6). */
+  readonly withoutWorkspace?: boolean;
+  /**
+   * Roots to put in the list of recent workspaces before the start, the most recent first (SR-131), as
+   * core's core process records them, in the test's OS cache folder.
+   */
+  readonly recent?: readonly string[];
 }
 
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
@@ -200,6 +211,13 @@ export const launchApp = async (
       ? await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")))
       : kept.home;
   const userData = path.join(home, "user-data");
+  const recent = options.recent ?? [];
+  for (const [index, root] of recent.toReversed().entries()) {
+    await rememberWorkspace(root, {
+      environment: { platform: process.platform, env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home }, home },
+      now: new Date(Date.now() - (recent.length - index) * 60_000),
+    });
+  }
   const env = {
     ...process.env,
     HOME: home,
@@ -215,7 +233,9 @@ export const launchApp = async (
     args: [
       APP_FOLDER,
       `--user-data-dir=${userData}`,
-      ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
+      ...(workspace === undefined || options.withoutWorkspace === true
+        ? []
+        : ["--workspace", workspace.root]),
     ],
     env,
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),

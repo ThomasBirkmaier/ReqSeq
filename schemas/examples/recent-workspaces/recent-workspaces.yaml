@@ -1,0 +1,9 @@
+# The file itself is JSON (recent-workspaces.json); shown here as YAML, which reads the same.
+format: 1
+workspaces:
+  - root: /home/ada/req/weather-station
+    key: /home/ada/req/weather-station
+    opened: 2026-10-27T10:00:00.000Z
+  - root: /home/ada/Links/buoy
+    key: /srv/projects/buoy
+    opened: 2026-10-26T16:42:10.512Z

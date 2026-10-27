@@ -4,15 +4,21 @@
 // root found upwards from the folder (else the folder itself, so `workspace.init` works there), the
 // model cache in the cache folder of the copy, the watcher first and then the load (SR-007, SR-082).
 // It also watches the accesses that agents make through the API or MCP on the copy (SR-117), and the
-// host sends each to the windows, as it sends each batch of the watcher (SR-116, SR-106).
+// host sends each to the windows, as it sends each batch of the watcher (SR-116, SR-106). Once
+// open, it records the root in the list of recent workspaces (SR-131), which "Open workspace"
+// shows; `stop` waits for that write.
 import type { CommandRuntime, Workspace } from "@logreq/core";
 import {
   Workspace as CoreWorkspace,
+  WORKSPACE_FILE,
   cacheFolder,
   findWorkspaceRoot,
+  recordOpenedWorkspace,
   warmWorkspace,
   watchActivity,
   watchWorkspace,
+  workspaceExists,
+  workspaceKey,
 } from "@logreq/core";
 import type { CoreMessage } from "../shared/protocol.js";
 import { coreRequest } from "../shared/protocol.js";
@@ -46,6 +52,8 @@ export interface CoreProcessOptions {
   readonly log: (line: string) => void;
   /** Default: the workspace with the model cache in the cache folder of the copy, as the CLI opens it. */
   readonly openWorkspace?: (root: string) => Workspace;
+  /** Default: core's `recordOpenedWorkspace` (the list of recent workspaces in the OS cache folder). */
+  readonly record?: (workspace: Workspace, key: string) => Promise<unknown>;
 }
 
 /** A window's MessagePortMain as a channel of the host. */
@@ -70,22 +78,50 @@ export const channelOfPort = (port: MainPort): Channel => ({
 const cachedWorkspace = (root: string): Workspace =>
   new CoreWorkspace(root, { cacheFolder: cacheFolder(root) });
 
+const recordWorkspace = (workspace: Workspace, key: string): Promise<unknown> =>
+  recordOpenedWorkspace(workspace, { key });
+
+/** The root to open for `folder`: itself for an exact open, which needs its workspace file, else found upwards. */
+const rootOf = async (folder: string, exact: boolean): Promise<string | undefined> => {
+  if (!exact) {
+    return findWorkspaceRoot(folder);
+  }
+  if (!(await workspaceExists(folder))) {
+    throw new Error(`${folder} holds no ${WORKSPACE_FILE}`);
+  }
+  return folder;
+};
+
 /** Serves the main process on `parentPort` until it sends `stop`. */
 export const serveCoreProcess = (options: CoreProcessOptions): void => {
   const { parentPort, runtime } = options;
   const openWorkspace = options.openWorkspace ?? cachedWorkspace;
+  const record = options.record ?? recordWorkspace;
   /** The host of the open workspace; undefined inside when it could not be opened. */
   let host: Promise<CoreHost | undefined> | undefined;
+  /** The record in the list of recent workspaces; `stop` waits for it. */
+  let recorded: Promise<unknown> = Promise.resolve();
 
-  const open = async (folder: string): Promise<CoreHost> => {
-    const root = (await findWorkspaceRoot(folder)) ?? folder;
+  const open = async (folder: string, exact: boolean): Promise<CoreHost> => {
+    const found = await rootOf(folder, exact);
+    const root = found ?? folder;
     const workspace = openWorkspace(root);
     // The workspace loads only once the folders are watched, so a change during the load is seen.
     const watcher = watchWorkspace(workspace);
     await watcher.ready;
     // A cold load can take up to 30 s at 50,000 elements (SR-082 AK2); the first command waits for it.
     void warmWorkspace(workspace);
-    parentPort.postMessage({ type: "ready", root });
+    const key = workspaceKey(root);
+    parentPort.postMessage({ type: "ready", root, key });
+    // A folder without a workspace (opened for `workspace.init`) is no recent workspace. The record is a
+    // convenience: nothing waits for it but `stop`, and a failure is a log line.
+    if (found !== undefined) {
+      recorded = record(workspace, key).catch((error: unknown) => {
+        options.log(
+          `The workspace could not be recorded as opened: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    }
     // Why agents cannot be followed (no cache folder outside the repositories, no watch) is a log line.
     return createCoreHost({
       runtime,
@@ -101,7 +137,7 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
       case "open":
         // A workspace that cannot be opened ends the process; the main process starts it again or
         // tells the window that it keeps stopping.
-        host ??= open(request.folder).catch((error: unknown) => {
+        host ??= open(request.folder, request.exact === true).catch((error: unknown) => {
           options.log(
             `The core process could not open the workspace: ${error instanceof Error ? error.message : String(error)}`,
           );
@@ -128,9 +164,13 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
           });
         return;
       case "stop":
-        // The process ends either way; a disposal that fails has nobody left to tell.
+        // The process ends either way; a disposal that fails has nobody left to tell. The record of the
+        // open workspace finishes first.
         void (host ?? Promise.resolve(undefined))
-          .then((h) => h?.close())
+          .then(async (h) => {
+            await recorded;
+            await h?.close();
+          })
           .then(
             () => {
               options.exit(0);

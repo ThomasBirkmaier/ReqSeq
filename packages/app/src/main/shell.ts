@@ -3,6 +3,7 @@
 // process, which the renderer reaches over a port.
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
+import { handleWorkspaces } from "./workspaces.js";
 import { CoreProcess } from "./core-process.js";
 import { menuTemplate } from "./menu.js";
 import { APP_SCHEMES, RENDERER_URL, rendererFiles, workspaceFiles } from "./protocols.js";
@@ -60,8 +61,10 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
       : {}),
     webPreferences: webPreferences(options.paths.preload),
   });
-  // The renderer asks for a copy to the clipboard over the one channel it has (SR-128).
+  // The renderer asks for a copy to the clipboard (SR-128), for the workspaces opened last and to open
+  // one of them in this window (SR-131): the three channels it has to the main process.
   handleCopy(electron, window.webContents);
+  handleWorkspaces(electron, window.webContents, { core, log: options.log });
   window.webContents.on("did-finish-load", () => {
     core.attach(window.webContents);
   });

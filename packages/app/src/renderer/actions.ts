@@ -39,6 +39,8 @@ import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
 import type { PromptUse } from "./usage.js";
+import type { WorkspaceControls } from "./workspaces.js";
+import { workspacePrompt } from "./workspaces.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
 export interface Choice {
@@ -131,6 +133,8 @@ export interface ActionContext {
   readonly discard: (key: string) => void;
   /** The buffer with this key has unsaved changes. */
   readonly drafted: (key: string) => boolean;
+  /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
+  readonly workspaces?: WorkspaceControls;
 }
 
 export interface Action {
@@ -202,6 +206,11 @@ const hasBuffers = (context: ActionContext): boolean =>
 const isOverview = (context: ActionContext): boolean => context.buffers[0]?.kind === "overview";
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
+/** The name of an open buffer with unsaved changes, else undefined. */
+const unsavedBuffer = (context: ActionContext): string | undefined => {
+  const drafted = context.buffers.find((buffer) => context.drafted(buffer.key));
+  return drafted === undefined ? undefined : bufferName(drafted);
+};
 
 /** An action on the shown list; without one it does nothing. */
 const onList =
@@ -812,6 +821,20 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const scheme = context.theme.toggle();
       context.echo(scheme === "dark" ? "Dark mode until the app quits" : "Light mode until the app quits");
+    },
+  },
+  {
+    // Also without an open workspace: then it is the one action of the command prompt (SR-131).
+    id: "open-workspace",
+    title: "Open workspace",
+    available: (context: ActionContext): boolean => context.workspaces !== undefined,
+    run: (context: ActionContext): void => {
+      const { workspaces } = context;
+      if (workspaces !== undefined) {
+        context.ask(
+          workspacePrompt({ workspaces, echo: context.echo, unsaved: () => unsavedBuffer(context) }),
+        );
+      }
     },
   },
   {

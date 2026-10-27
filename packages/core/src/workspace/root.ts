@@ -2,7 +2,7 @@
 // Read only: it looks at file metadata, never at contents.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { WORKSPACE_FILE } from "./config.js";
+import { WORKSPACE_FILE } from "./workspace-file.js";
 
 export { WORKSPACE_FILE };
 

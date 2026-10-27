@@ -20,6 +20,28 @@ export {
 } from "./init.js";
 export type { NewWorkspace } from "./init.js";
 export { findWorkspaceRoot } from "./root.js";
+export {
+  EXISTS_SLOTS,
+  EXISTS_TIMEOUT_MS,
+  MAX_ROOT_LENGTH,
+  RECENT_WORKSPACES_FILE,
+  RECENT_WORKSPACES_KEEP,
+  createExistenceChecker,
+  parseRecentWorkspaces,
+  readRecentWorkspaces,
+  recentWorkspaceStates,
+  recentWorkspacesFolder,
+  rememberWorkspace,
+  workspaceExists,
+  workspaceKey,
+} from "./recent.js";
+export type {
+  ExistenceChecker,
+  ExistenceOptions,
+  RecentWorkspace,
+  RecentWorkspaceState,
+  RememberOptions,
+} from "./recent.js";
 export type { CheckedWorkspaceFile } from "./config.js";
 export {
   DEFAULT_FOLDERS,

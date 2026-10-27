@@ -598,8 +598,11 @@ const canonicalFolder = (folder: string): string => {
   return canonicalRoot(path.join(canonicalRoot(existing), ...rest));
 };
 
-/** Whether `folder` is a repository folder of `layout` or lies inside one. */
-const insideRepository = (folder: string, layout: WorkspaceLayout): boolean => {
+/**
+ * Whether `folder` is a repository folder of `layout` or lies inside one (also through a symbolic link,
+ * and before it exists). A cache file there would become part of a working tree.
+ */
+export const insideRepository = (folder: string, layout: WorkspaceLayout): boolean => {
   const canonical = canonicalFolder(folder);
   return availableRepositories(layout).some((repository) => {
     const relative = path.relative(canonicalRoot(repository.folder), canonical);

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/recent-workspaces.schema.json",
+  "title": "Recent workspaces file",
+  "description": "`recent-workspaces.json` in `<OS cache>/logreq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
+  "type": "object",
+  "required": ["format", "workspaces"],
+  "properties": {
+    "format": { "const": 1 },
+    "workspaces": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/workspace" },
+      "description": "The most recent first; no two entries with the same `key`."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "workspace": {
+      "description": "One workspace that was opened: its root, its canonical name and when it was opened last.",
+      "type": "object",
+      "required": ["root", "key", "opened"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "The absolute path of the workspace root as it was opened last (the folder that holds `logreq-workspace.yaml`); shown, and opened as it is."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The canonical root (absolute, symbolic links resolved, lower case on Windows), computed when the workspace was opened: two names of one folder are one entry. Never resolved again on reading."
+        },
+        "opened": { "$ref": "common.schema.json#/$defs/dateTime" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

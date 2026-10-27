@@ -270,4 +270,45 @@ describe("CoreProcess", () => {
     await core.open("/ws");
     expect(target.sent).toEqual([]);
   });
+
+  it("key is the key of the ready message of the running core process, and none once it stopped, restarted or failed to start", async () => {
+    const { core, children } = setup();
+    expect(core.key).toBeUndefined();
+    await core.open("/ws");
+    const first = children[0];
+    expect(core.key).toBeUndefined();
+    first?.emit("message", { type: "ready", root: "/ws", key: "/real/ws" });
+    expect(core.key).toBe("/real/ws");
+    // Other messages leave it.
+    first?.emit("message", { type: "ready", root: "/ws" });
+    first?.emit("message", "nonsense");
+    expect(core.key).toBe("/real/ws");
+    // A restart opens again: no key until the new core process is ready.
+    first?.exit(5);
+    expect(core.key).toBeUndefined();
+    children.at(-1)?.emit("message", { type: "ready", root: "/ws", key: "/real/ws" });
+    expect(core.key).toBe("/real/ws");
+    // Stopped: none.
+    const running = children.at(-1);
+    if (running !== undefined) {
+      exitOnStop(running);
+    }
+    await core.stop();
+    expect(core.key).toBeUndefined();
+  });
+
+  it("opens a root of the recent workspaces exactly, also when it starts the core process again", async () => {
+    const { core, children } = setup();
+    await core.open("/ws", { exact: true });
+    expect(children[0]?.sent[0]?.message).toEqual({ type: "open", folder: "/ws", exact: true });
+    children[0]?.exit(5);
+    expect(children[1]?.sent[0]?.message).toEqual({ type: "open", folder: "/ws", exact: true });
+    // A folder of File > Open Workspace is not exact.
+    const second = children[1];
+    if (second !== undefined) {
+      exitOnStop(second);
+    }
+    await core.open("/other");
+    expect(children[2]?.sent[0]?.message).toEqual({ type: "open", folder: "/other" });
+  });
 });

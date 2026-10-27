@@ -4,7 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
-import { Workspace, cacheFolder, createCommandRuntime } from "@logreq/core";
+import {
+  Workspace,
+  cacheFolder,
+  createCommandRuntime,
+  readRecentWorkspaces,
+  workspaceKey,
+} from "@logreq/core";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -93,7 +99,10 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.cleanup()));
 });
 
-const start = (openWorkspace?: (root: string) => Workspace) => {
+const start = (
+  openWorkspace?: (root: string) => Workspace,
+  record?: (workspace: Workspace, key: string) => Promise<unknown>,
+) => {
   const parent = new FakeParentPort();
   const exit = vi.fn<(code: number) => void>();
   const log = vi.fn<(line: string) => void>();
@@ -103,6 +112,7 @@ const start = (openWorkspace?: (root: string) => Workspace) => {
     exit,
     log,
     ...(openWorkspace === undefined ? {} : { openWorkspace }),
+    ...(record === undefined ? {} : { record }),
   });
   return { parent, exit, log };
 };
@@ -131,7 +141,7 @@ describe("serveCoreProcess", () => {
     await waitUntil(() => received.length === 1);
     expect(core.started).toBe(true);
     expect(received[0]).toMatchObject({ id: 1, result: { ok: true, output: { name: "Weather station" } } });
-    expect(parent.sent).toEqual([{ type: "ready", root: fixture.root }]);
+    expect(parent.sent).toEqual([{ type: "ready", root: fixture.root, key: workspaceKey(fixture.root) }]);
     parent.send({ type: "file", id: 5, url: "logreq-file://workspace/system/images/dot.png" });
     await waitUntil(() => parent.sent.length === 2);
     expect(parent.sent[1]).toEqual({
@@ -157,28 +167,99 @@ describe("serveCoreProcess", () => {
     });
     parent.send({ type: "stop" });
     await waitUntil(() => exit.mock.calls.length === 1 && closed);
+    // It recorded the root in the list of recent workspaces in the OS cache folder (SR-131).
+    expect((await readRecentWorkspaces()).map((entry) => entry.root)).toEqual([fixture.root]);
   });
 
   it("opens the folder itself when no workspace lies above it", async () => {
     const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-no-workspace-")));
     try {
       const opened: string[] = [];
+      const record = vi.fn(() => Promise.resolve());
       const { parent, exit, log } = start((root) => {
         opened.push(root);
         return new Workspace(root);
-      });
+      }, record);
       parent.send({ type: "open", folder });
       await waitUntil(() => parent.sent.length === 1);
-      expect(parent.sent).toEqual([{ type: "ready", root: folder }]);
+      expect(parent.sent).toEqual([{ type: "ready", root: folder, key: workspaceKey(folder) }]);
       expect(opened).toEqual([folder]);
       // Without a workspace file no agent can be followed; the log says why, and the process serves on.
       await waitUntil(() => log.mock.calls.length === 1);
       expect(log.mock.calls[0]?.[0]).toMatch(/^Agents cannot be followed: the workspace cannot be read/);
       parent.send({ type: "stop" });
       await waitUntil(() => exit.mock.calls.length === 1);
+      // A folder without a workspace (opened for workspace.init) is no recent workspace (SR-131).
+      expect(record).not.toHaveBeenCalled();
     } finally {
       await fs.rm(folder, { recursive: true, force: true });
     }
+  });
+
+  it("[SR-131/AK6] the core process records the root it opened, and stop waits for that write", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    let written: () => void = () => undefined;
+    const record = vi.fn<(workspace: Workspace, key: string) => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          written = resolve;
+        }),
+    );
+    const { parent, exit } = start(undefined, record);
+    parent.send({ type: "open", folder: path.join(fixture.root, "requirements") });
+    await waitUntil(() => record.mock.calls.length === 1);
+    const [workspace, key] = record.mock.calls[0] ?? [];
+    expect(workspace?.root).toBe(fixture.root);
+    expect(key).toBe(workspaceKey(fixture.root));
+    parent.send({ type: "stop" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(exit).not.toHaveBeenCalled();
+    written();
+    await waitUntil(() => exit.mock.calls.length === 1);
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("logs a record that fails and serves on", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    // Something that is no Error object as well, as a dependency might reject with one.
+    for (const failure of [new Error("EROFS: read-only file system"), "odd" as unknown as Error]) {
+      const { parent, exit, log } = start(undefined, () => Promise.reject(failure));
+      parent.send({ type: "open", folder: fixture.root });
+      await waitUntil(() => log.mock.calls.length === 1);
+      expect(log.mock.calls[0]?.[0]).toBe(
+        `The workspace could not be recorded as opened: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+      parent.send({ type: "stop" });
+      await waitUntil(() => exit.mock.calls.length === 1);
+      expect(exit).toHaveBeenCalledWith(0);
+    }
+  });
+
+  it("an exact open (a root of the list of recent workspaces) opens the folder itself, or ends with 1 when it holds no workspace", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    const record = vi.fn(() => Promise.resolve());
+    const opened = start(undefined, record);
+    opened.parent.send({ type: "open", folder: fixture.root, exact: true });
+    await waitUntil(() => opened.parent.sent.length === 1);
+    expect(opened.parent.sent).toEqual([
+      { type: "ready", root: fixture.root, key: workspaceKey(fixture.root) },
+    ]);
+    opened.parent.send({ type: "stop" });
+    await waitUntil(() => opened.exit.mock.calls.length === 1);
+    // A folder inside it: never the workspace above it.
+    const inside = start(undefined, record);
+    const folder = path.join(fixture.root, "requirements");
+    inside.parent.send({ type: "open", folder, exact: true });
+    await waitUntil(() => inside.exit.mock.calls.length === 1);
+    expect(inside.exit).toHaveBeenCalledWith(1);
+    expect(inside.log).toHaveBeenCalledWith(
+      `The core process could not open the workspace: ${folder} holds no logreq-workspace.yaml`,
+    );
+    expect(inside.parent.sent).toEqual([]);
+    expect(record).toHaveBeenCalledOnce();
   });
 
   it("sends each access an agent makes through MCP on the copy to its windows (SR-117)", async () => {

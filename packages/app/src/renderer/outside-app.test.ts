@@ -167,6 +167,8 @@ const fake = () => {
       return () => listeners.delete(changed);
     },
     copyText: () => Promise.resolve(true),
+    recentWorkspaces: () => Promise.resolve([]),
+    openWorkspace: () => Promise.resolve({ ok: true }),
   };
   /** Sends changes to the window, all before it renders. */
   const send = async (...changes: WorkspaceChange[]): Promise<void> => {

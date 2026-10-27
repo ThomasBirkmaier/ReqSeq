@@ -1,9 +1,11 @@
 // `window.logreq` (ADR-0010): the only thing the sandboxed renderer can reach. The main process sends
 // the window's workspace on WORKSPACE_CHANNEL, with a port to the core process when one is open; every
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
-// command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The one facility of the window is
-// `copyText` (SR-128), which asks the main process to write the clipboard. Nothing rejects across the
-// context bridge, which would keep only an error's message: a failure is the error object of every access.
+// command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
+// facilities of the window ask the main process: `copyText` writes the clipboard (SR-128),
+// `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them in the
+// window (SR-131). Nothing rejects across the context bridge, which would keep only an error's message:
+// a failure is the error object of every access, an empty list or a refusal.
 import type {
   CommandListing,
   InvokeResult,
@@ -12,7 +14,16 @@ import type {
   PortRequest,
   WorkspaceMessage,
 } from "../shared/protocol.js";
-import { COPY_CHANNEL, WORKSPACE_CHANNEL, isBridgeEvent, portMessage } from "../shared/protocol.js";
+import {
+  COPY_CHANNEL,
+  OPEN_WORKSPACE_CHANNEL,
+  RECENT_WORKSPACES_CHANNEL,
+  WORKSPACE_CHANNEL,
+  isBridgeEvent,
+  openWorkspaceResult,
+  portMessage,
+  recentWorkspaceEntries,
+} from "../shared/protocol.js";
 
 /** The part of Electron's `ipcRenderer` the bridge uses. */
 export interface IpcRendererLike {
@@ -137,6 +148,21 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
         return (await ipc.invoke(COPY_CHANNEL, text)) === true;
       } catch {
         return false;
+      }
+    },
+    // Main's answers are checked like the port's: anything of another shape is an empty list or a refusal.
+    recentWorkspaces: async () => {
+      try {
+        return recentWorkspaceEntries(await ipc.invoke(RECENT_WORKSPACES_CHANNEL));
+      } catch {
+        return [];
+      }
+    },
+    openWorkspace: async (root) => {
+      try {
+        return openWorkspaceResult(await ipc.invoke(OPEN_WORKSPACE_CHANNEL, root));
+      } catch {
+        return { ok: false, reason: "refused" };
       }
     },
     // The renderer is not trusted to keep to the types: any other name subscribes nothing.

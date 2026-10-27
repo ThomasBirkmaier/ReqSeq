@@ -169,6 +169,8 @@ const bridge = () => {
       invoke,
       commands: () => Promise.resolve([]),
       copyText: () => Promise.resolve(true),
+      recentWorkspaces: () => Promise.resolve([]),
+      openWorkspace: () => Promise.resolve({ ok: true }),
       on: () => () => undefined,
     } satisfies LogReqBridge,
   };

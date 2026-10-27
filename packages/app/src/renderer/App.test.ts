@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import type { CommandListing, InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
 import { App } from "./App.js";
 import { DEFAULT_SORT } from "./buffers.js";
@@ -27,6 +27,8 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     );
   });
   const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
+  const recentWorkspaces = vi.fn<LogReqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
+  const openWorkspace = vi.fn<LogReqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
@@ -40,6 +42,8 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       return () => listeners.delete(changed);
     },
     copyText,
+    recentWorkspaces,
+    openWorkspace,
   };
   const change = async (reason: WorkspaceChange["reason"]): Promise<void> => {
     await act(async () => {
@@ -49,7 +53,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
-  return { bridge, invoke, change, listeners, handlers, copyText };
+  return { bridge, invoke, change, listeners, handlers, copyText, recentWorkspaces, openWorkspace };
 };
 
 const row = (n: number, extra: object = {}) => ({
@@ -246,6 +250,8 @@ describe("App", () => {
       commands: () => Promise.resolve([]),
       on: () => () => undefined,
       copyText: () => Promise.resolve(true),
+      recentWorkspaces: () => Promise.resolve([]),
+      openWorkspace: () => Promise.resolve({ ok: true }),
     };
     await render(bridge);
     expect(container.querySelector('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
@@ -298,16 +304,77 @@ describe("App", () => {
     expect(document.activeElement).toBe(query('[role="listbox"]'));
   });
 
-  it("says why no workspace is open, and then has no buffer and no shortcuts", async () => {
+  it("says why no workspace is open, and then has no buffer and no shortcut but the command prompt", async () => {
     const { bridge, invoke } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
     expect(text("Modeline")).toBe("No workspace");
     expect(text("Minibuffer")).toBe("No workspace is open. Open one with File > Open Workspace.");
     expect(container.querySelector('[role="listbox"]')).toBeNull();
-    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    await click(query(".echo"));
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(window, "F", { ctrlKey: true, shiftKey: true });
     expect(container.querySelector("input")).toBeNull();
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("without a workspace the command prompt opens and offers Open workspace only", async () => {
+    const { bridge, recentWorkspaces, openWorkspace } = fakeBridge({
+      "workspace.status": () => NO_WORKSPACE,
+    });
+    // A catalog (from an earlier workspace): no command of it can run without one.
+    bridge.commands = () =>
+      Promise.resolve([
+        {
+          name: "workspace.status",
+          title: "Show workspace status",
+          effect: "read",
+          implemented: true,
+        } as unknown as CommandListing,
+      ]);
+    recentWorkspaces.mockResolvedValue([
+      { root: "/req/buoy", state: "found" },
+      { root: "/req/gone", state: "missing" },
+    ]);
+    await render(bridge);
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    expect(query("label").textContent).toBe("Command");
+    expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
+    await keyDown(query("input"), "Escape");
+    // A click on the idle line asks for a command too.
+    await click(query(".echo"));
+    expect(texts('[role="option"] .name')).toEqual(["Open workspace"]);
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("Workspace");
+    expect(texts('[role="option"] .name')).toEqual(["/req/buoy", "/req/gone"]);
+    expect(texts('[role="option"] .hint')).toEqual(["not found"]);
+    await keyDown(query("input"), "ArrowDown");
+    await keyDown(query("input"), "Enter");
+    expect(openWorkspace).not.toHaveBeenCalled();
+    expect(text("Minibuffer")).toBe("/req/gone is not found; no workspace is open");
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    await keyDown(query("input"), "Enter");
+    await keyDown(query("input"), "Enter");
+    expect(openWorkspace).toHaveBeenCalledExactlyOnceWith("/req/buoy");
+  });
+
+  it("asks for the catalog again when a workspace opens after a start without one", async () => {
+    const { bridge, change, handlers } = fakeBridge({
+      ...workspace(),
+      "workspace.status": () => NO_WORKSPACE,
+    });
+    const commands = vi.fn(() => Promise.resolve([] as CommandListing[]));
+    bridge.commands = commands;
+    await render(bridge);
+    expect(commands).toHaveBeenCalledOnce();
+    handlers["workspace.status"] = () => STATUS;
+    await change("opened");
+    expect(commands).toHaveBeenCalledTimes(2);
+    // A catalog it has is kept: the commands are the same in every workspace.
+    commands.mockResolvedValue([{ name: "workspace.status" } as unknown as CommandListing]);
+    await change("opened");
+    await change("opened");
+    expect(commands).toHaveBeenCalledTimes(3);
+    await change("restarted");
+    expect(commands).toHaveBeenCalledTimes(3);
   });
 
   it("opens the command prompt with Ctrl+Shift+P or Cmd+Shift+P, lists what applies and closes it with Escape", async () => {
@@ -620,7 +687,8 @@ describe("App", () => {
         answer = resolve;
       });
     await render(bridge);
-    expect(listeners.size).toBe(1);
+    // The workspace's changes, and the catalog after a start without a workspace.
+    expect(listeners.size).toBe(2);
     act(() => {
       root.unmount();
     });
