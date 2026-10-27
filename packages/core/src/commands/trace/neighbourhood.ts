@@ -36,7 +36,12 @@ export default defineCommand({
       );
     }
     const shortIds = await ctx.workspace.get(shortIdState);
-    const root = resolveRef(store, shortIds, input.ref);
+    const root = resolveRef(
+      store,
+      shortIds,
+      input.ref,
+      input.repository === undefined ? {} : { repository: input.repository },
+    );
     const view =
       input.view === undefined
         ? undefined

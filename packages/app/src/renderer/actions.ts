@@ -7,12 +7,14 @@
 // The prompt finds the app's actions. Catalog commands come with #85: they need arguments, so they wait
 // for argument entry.
 import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
-import type { BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
+import type { Buffer, BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
   bufferName,
+  elementBuffer,
   filteredList,
   listBuffer,
+  neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
   searchBuffer,
@@ -109,6 +111,9 @@ export interface Action {
 /** Ctrl/Cmd+S saves the text of the shown element. */
 const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
 
+/** Ctrl/Cmd+J shows the neighbourhood of the shown element (SR-107), and on the neighbourhood the element again. */
+const NEIGHBOURHOOD_SHORTCUT: Shortcut = { mod: true, shift: false, key: "j" };
+
 /** The command prompt itself; it is not listed in itself. */
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
 
@@ -121,6 +126,7 @@ const isList = (context: ActionContext): boolean => currentList(context) !== und
 const isFiltered = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 0;
 const isChained = (context: ActionContext): boolean => (currentList(context)?.steps.length ?? 0) > 1;
 const isElement = (context: ActionContext): boolean => context.buffers[0]?.kind === "element";
+const isNeighbourhood = (context: ActionContext): boolean => context.buffers[0]?.kind === "neighbourhood";
 /** The shown element buffer when it is a package page (SR-112); its elements are a list that sorts like any list. */
 const packagePage = (context: ActionContext): ElementBuffer | undefined => {
   const shown = context.buffers[0];
@@ -143,6 +149,15 @@ const onList =
       run(context, list);
     }
   };
+
+/** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
+const showBuffer = (context: ActionContext, buffer: Buffer): void => {
+  context.dispatch(
+    context.buffers.some((open) => open.key === buffer.key)
+      ? { type: "switch", key: buffer.key }
+      : { type: "open", buffer },
+  );
+};
 
 const choice = (name: string, run: () => void): Choice => ({ id: name, name, run });
 
@@ -561,6 +576,30 @@ export const ACTIONS: readonly Action[] = [
           .then((answer) => {
             context.echo(answer.ok ? versionLine(answer.output.element) : answer.message);
           });
+      }
+    },
+  },
+  {
+    id: "neighbourhood",
+    title: "Show neighbourhood",
+    shortcut: NEIGHBOURHOOD_SHORTCUT,
+    available: isElement,
+    run: (context: ActionContext): void => {
+      const current = context.buffers[0];
+      if (current?.kind === "element") {
+        showBuffer(context, neighbourhoodBuffer(current.id, current.repository, current.name));
+      }
+    },
+  },
+  {
+    id: "neighbourhood-back",
+    title: "Show element",
+    shortcut: NEIGHBOURHOOD_SHORTCUT,
+    available: isNeighbourhood,
+    run: (context: ActionContext): void => {
+      const current = context.buffers[0];
+      if (current?.kind === "neighbourhood") {
+        showBuffer(context, elementBuffer(current.id, current.repository, current.name));
       }
     },
   },

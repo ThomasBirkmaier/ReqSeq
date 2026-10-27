@@ -29,7 +29,7 @@ export interface Row {
   readonly markLabel: boolean;
 }
 
-const rowOf = (
+export const rowOf = (
   element: {
     readonly id: string;
     readonly repository: string;

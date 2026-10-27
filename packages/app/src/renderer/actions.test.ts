@@ -16,6 +16,7 @@ import {
   filteredList,
   listBuffer,
   listSort,
+  neighbourhoodBuffer,
   overviewBuffer,
   searchBuffer,
 } from "./buffers.js";
@@ -145,6 +146,7 @@ describe("the command prompt", () => {
       "Follow reference",
       "Copy field",
       "Show element ID and version",
+      "Show neighbourhood",
       "Toggle dark mode",
     ]);
     expect(items.map((item) => item.hint)).toEqual([
@@ -159,6 +161,7 @@ describe("the command prompt", () => {
       "Ctrl+Enter",
       "Ctrl+Shift+C",
       undefined,
+      "Ctrl+J",
       undefined,
     ]);
     expect(commandPrompt({ ...element$.context, mac: true }).items[6]?.hint).toBe("⌘S");
@@ -791,6 +794,7 @@ describe("save element and edit text", () => {
       setup([list]).context,
       setup([filtered]).context,
       setup([overviewBuffer()]).context,
+      setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
       setup([], {}, true).context,
     ];
     // Shortcuts as written: `shift` may be left out.

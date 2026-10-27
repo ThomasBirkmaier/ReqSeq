@@ -84,6 +84,14 @@ const workspace = (): Record<string, Handler> => ({
       ],
     }),
   }),
+  // No parents, children or incoming links: the parents line stays away.
+  "trace.neighbourhood": (input) => ({
+    root: input["ref"],
+    nodes: [{ ...row(Number(String(input["ref"]).replace("uuid-", ""))), depth: 0, expanded: true }],
+    total: 1,
+    edges: [],
+    incomplete: false,
+  }),
   "element.search": () => ({
     hits: [{ ...row(2), score: 1, fields: ["title"], terms: ["title"] }],
     total: 1,

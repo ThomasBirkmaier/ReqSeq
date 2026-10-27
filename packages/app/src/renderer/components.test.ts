@@ -63,10 +63,22 @@ const render = async (node: React.ReactElement): Promise<void> => {
   await flush();
 };
 
-/** A call that answers each command with `handlers[name](input)`; an Error is the error of the command. */
+/** The answer of `trace.neighbourhood` for an element without parents, children and incoming links. */
+const alone = (input: Record<string, unknown>): unknown => ({
+  root: input["ref"],
+  nodes: [{ id: input["ref"], repository: "spec", depth: 0, expanded: true }],
+  total: 1,
+  edges: [],
+  incomplete: false,
+});
+
+/**
+ * A call that answers each command with `handlers[name](input)`; an Error is the error of the command.
+ * Unless a handler says otherwise, an element has no neighbourhood (the parents line asks on every page).
+ */
 const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => unknown>) =>
   vi.fn((name: string, input: Record<string, unknown>) => {
-    const output = handlers[name]?.(input);
+    const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : undefined))?.(input);
     return Promise.resolve(
       output instanceof Error
         ? { ok: false, code: "x.failed", message: output.message }
@@ -502,7 +514,12 @@ const listHarness = async (
   const Harness = ({ revision }: { revision: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial]);
     const current = buffers[0];
-    if (current === undefined || current.kind === "element" || current.kind === "overview") {
+    if (
+      current === undefined ||
+      current.kind === "element" ||
+      current.kind === "overview" ||
+      current.kind === "neighbourhood"
+    ) {
       return createElement("p", { id: "elsewhere" }, current === undefined ? "none" : bufferName(current));
     }
     return createElement(ListView, {
@@ -1963,7 +1980,11 @@ describe("ElementView", () => {
         ? new Promise((resolve) => {
             answer = resolve;
           })
-        : Promise.resolve({ ok: true, output: { element: read({ text: "base" }) } }),
+        : Promise.resolve({
+            ok: true,
+            output:
+              name === "trace.neighbourhood" ? alone({ ref: "uuid-1" }) : { element: read({ text: "base" }) },
+          }),
     );
     const { controls, drafts, echoed } = await mount(asCall(call as never));
     await typeInto("!");
@@ -2284,8 +2305,9 @@ describe("ElementView", () => {
 
   it("reads again after an error, with no editor to ask", async () => {
     let fail = true;
+    let text = "first";
     const call = fakeCall({
-      "element.get": () => (fail ? new Error("busy") : { element: read({ text: "first" }) }),
+      "element.get": () => (fail ? new Error("busy") : { element: read({ text }) }),
     });
     const { again } = await mount(asCall(call));
     expect(container.querySelector(".cm-editor")).toBeNull();
@@ -2296,10 +2318,7 @@ describe("ElementView", () => {
     await again(2);
     expect(query(".quiet").textContent).toBe("busy");
     fail = false;
-    const changed = call;
-    changed.mockImplementation(() =>
-      Promise.resolve({ ok: true, output: { element: read({ text: "other" }) } }),
-    );
+    text = "other";
     await again(3);
     expect(editorView().state.doc.toString()).toBe("other");
   });
@@ -2340,7 +2359,8 @@ describe("ElementView", () => {
     const call = fakeCall({ "element.get": () => ({ element: read() }) });
     const { again } = await mount(asCall(call));
     await again(1);
-    expect(call).toHaveBeenCalledTimes(2);
+    // Each time the element and its parents.
+    expect(call).toHaveBeenCalledTimes(4);
     let answer: (value: unknown) => void = () => undefined;
     const slow = vi.fn(
       () =>
@@ -2444,7 +2464,7 @@ describe("ElementView", () => {
         "element.list": () => members(),
       });
       await mount(asCall(call), 0, undefined, { packages: model });
-      expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+      expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get", "trace.neighbourhood"]);
       expect(container.querySelector(".members")).toBeNull();
       // Down keeps scrolling the text of an element that has no elements to go into.
       const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
@@ -2459,7 +2479,7 @@ describe("ElementView", () => {
       root = createRoot(container);
       const pkg = fakeCall({ "element.get": () => ({ element: page() }), "element.list": () => members() });
       await mount(asCall(pkg));
-      expect(pkg.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
+      expect(pkg.mock.calls.map(([name]) => name)).toEqual(["element.get", "trace.neighbourhood"]);
     });
 
     it("shows no heading and nothing to select when no element names the package", async () => {

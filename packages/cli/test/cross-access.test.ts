@@ -910,6 +910,18 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: `${NB}0b0000000001`, kinds: ["nope"] },
       expect: "error",
     },
+    {
+      name: "the element in the repository the app names (SR-107)",
+      fixture: NEIGHBOURHOOD,
+      input: { ref: `${NB}0b0000000001`, repository: "system", direction: "down", meanings: ["derivation"] },
+      expect: "output",
+    },
+    {
+      name: "a repository that holds no such element",
+      fixture: NEIGHBOURHOOD,
+      input: { ref: `${NB}0b0000000001`, repository: "vault" },
+      expect: "error",
+    },
     { name: "unknown reference", fixture: NEIGHBOURHOOD, input: { ref: "SR-ffffff" }, expect: "error" },
   ],
   "trace.related": [

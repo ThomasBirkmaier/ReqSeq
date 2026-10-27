@@ -1563,6 +1563,8 @@ export interface TraceAffectedOutput {
  */
 export interface TraceNeighbourhoodInput {
   readonly ref: ElementRef;
+  /** The workspace name of the repository of the element ref names, as in element.get (#255). */
+  readonly repository?: string;
   /** `up`: along the links the element's file stores (its parents, the targets of its other relations and relation properties, its inline references). `down`: along the links that point at it (its children and every element whose file has a relation or an inline reference to it). The source of a link is placed below its target (ADR-0004). */
   readonly direction: "up" | "down" | "both";
   /** The deepest depth in each direction; 0: the root only. Omitted: 1 (the direct neighbours), unless `allLevels` is true. */

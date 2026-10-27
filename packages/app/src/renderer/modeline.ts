@@ -46,6 +46,7 @@ export const workspaceView = (result: InvokeResult): WorkspaceView => {
 export type BufferData =
   | { readonly kind: "list" | "search"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
+  | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
 /** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */
@@ -57,6 +58,27 @@ export const shownElement = (
 
 /** What a list says when a repository is missing for its answer. */
 export const INCOMPLETE = "incomplete: a repository is missing";
+
+/** The parts for an element: ID, type and status in one, then what is worth a mark. */
+const elementParts = (
+  data: Extract<BufferData, { readonly kind: "element" }>,
+  typeNames: ReadonlyMap<string, string>,
+): string[] => {
+  const { element } = data;
+  const outdated = element.relations.filter((relation) => relation.outdated === true).length;
+  const hints = element.problems?.length ?? 0;
+  return [
+    [
+      element.identifier ?? element.shortId,
+      typeNames.get(element.type) ?? element.type,
+      ...(element.status === undefined ? [] : [element.status]),
+    ].join(" · "),
+    ...(data.modified === true ? ["modified"] : []),
+    ...(element.readOnly === true ? ["read-only"] : []),
+    ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
+    ...(hints > 0 ? [plural(hints, "hint")] : []),
+  ];
+};
 
 /**
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
@@ -73,20 +95,10 @@ export const bufferView = (
     return [bufferName(buffer)];
   }
   if (data.kind === "element") {
-    const { element } = data;
-    const outdated = element.relations.filter((relation) => relation.outdated === true).length;
-    const hints = element.problems?.length ?? 0;
-    return [
-      [
-        element.identifier ?? element.shortId,
-        typeNames.get(element.type) ?? element.type,
-        ...(element.status === undefined ? [] : [element.status]),
-      ].join(" · "),
-      ...(data.modified === true ? ["modified"] : []),
-      ...(element.readOnly === true ? ["read-only"] : []),
-      ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
-      ...(hints > 0 ? [plural(hints, "hint")] : []),
-    ];
+    return elementParts(data, typeNames);
+  }
+  if (data.kind === "neighbourhood") {
+    return [bufferName(buffer), ...(data.incomplete ? [INCOMPLETE] : [])];
   }
   return [
     bufferName(buffer),

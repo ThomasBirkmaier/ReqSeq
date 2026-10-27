@@ -1612,6 +1612,11 @@
         "type": "object",
         "properties": {
           "ref": { "$ref": "../common.schema.json#/$defs/elementRef" },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The workspace name of the repository of the element ref names, as in element.get (#255)."
+          },
           "direction": {
             "enum": ["up", "down", "both"],
             "default": "both",

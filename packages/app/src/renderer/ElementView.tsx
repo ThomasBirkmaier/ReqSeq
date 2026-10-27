@@ -22,6 +22,7 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Draft } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
 import { ListView } from "./ListView.js";
+import { ParentsLine } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
 import { memberCount, memberList, memberSummary, packageOf, packageSelection } from "./package-page.js";
@@ -359,6 +360,14 @@ export const ElementView = ({
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
         {view.status === "ok" ? (
           <>
+            <ParentsLine
+              call={call}
+              id={buffer.id}
+              repository={buffer.repository}
+              revision={revision}
+              dispatch={dispatch}
+              onEcho={onEcho}
+            />
             <FieldBox label="Title" focusable onCopy={copy}>
               <h1>{heading(view.element)}</h1>
             </FieldBox>

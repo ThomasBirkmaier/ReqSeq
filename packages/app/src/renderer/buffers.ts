@@ -58,7 +58,24 @@ export interface OverviewBuffer {
   readonly cursor: number;
 }
 
-export type Buffer = ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer;
+/**
+ * The neighbourhood of one element (SR-107): its parents, the tree of its children and its incoming
+ * relations. `repository` and `id` identify the element as in `ElementBuffer`.
+ */
+export interface NeighbourhoodBuffer {
+  readonly kind: "neighbourhood";
+  readonly key: string;
+  readonly id: string;
+  readonly repository: string;
+  /** "<identifier or short ID> <title>" of the element. */
+  readonly name: string;
+  /** The rows of the tree whose children are shown, as `<repository>:<id>`. */
+  readonly open: readonly string[];
+  /** Index of the selected row: first the rows of the tree, then those of the incoming groups. */
+  readonly cursor: number;
+}
+
+export type Buffer = ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer | NeighbourhoodBuffer;
 
 /** Open buffers, the most recent first; the first one is shown. */
 export type Buffers = readonly Buffer[];
@@ -156,6 +173,16 @@ export const elementBuffer = (id: string, repository: string, name: string): Ele
   name,
 });
 
+export const neighbourhoodBuffer = (id: string, repository: string, name: string): NeighbourhoodBuffer => ({
+  kind: "neighbourhood",
+  key: `neighbourhood:${repository}:${id}`,
+  id,
+  repository,
+  name,
+  open: [],
+  cursor: 0,
+});
+
 /** The buffer of an element as a list row, a hit or a read element shows it. */
 export const elementBufferOf = (element: {
   readonly id: string;
@@ -247,6 +274,8 @@ export const bufferName = (buffer: Buffer): string => {
       return buffer.name;
     case "overview":
       return "Overview";
+    case "neighbourhood":
+      return `Neighbourhood: ${buffer.name}`;
   }
 };
 

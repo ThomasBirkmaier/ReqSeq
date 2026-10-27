@@ -18,6 +18,7 @@ import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
+import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
@@ -296,6 +297,16 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             recents={overview.recents}
             dispatch={dispatch}
             onData={onData}
+          />
+        ) : current.kind === "neighbourhood" ? (
+          <NeighbourhoodView
+            key={current.key}
+            call={call}
+            buffer={current}
+            revision={revision}
+            dispatch={dispatch}
+            onData={onData}
+            onEcho={setEcho}
           />
         ) : (
           <ListView

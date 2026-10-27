@@ -1,5 +1,6 @@
 // trace.neighbourhood through `invoke` (SR-107, D-031, D-062): the data of the four acceptance
 // criteria on fixtures/SR-107/neighbourhood. The walks themselves: trace/neighbourhood.test.ts.
+import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -411,5 +412,22 @@ describe("trace.neighbourhood (SR-107)", () => {
     const up = await neighbourhood(workspace, { ref: ID.S2, direction: "up", meanings: ["derivation"] });
     expect(up.nodes.map((n) => nameOf(n.id))).toEqual(["S2", "N1", "N2"]);
     expect(up.incomplete).toBe(true);
+  });
+  it("picks the copy of a duplicated UUID in the given repository", async () => {
+    const id = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+    const file = "anemometer/SR-1e0f9a8b7c6d.md";
+    const fixture = await createFixtureWorkspace({ fixture: "SR-089/missing-targets" });
+    onTestFinished(() => fixture.cleanup());
+    await fs.mkdir(fixture.path("system/anemometer"), { recursive: true });
+    await fs.copyFile(fixture.path(`sensor/${file}`), fixture.path(`system/${file}`));
+    const workspace = new Workspace(fixture.path("system"));
+    onTestFinished(() => workspace.close());
+    expect((await failure(workspace, { ref: id })).code).toBe("ref.ambiguous");
+    for (const repository of ["system", "sensor"]) {
+      const output = await neighbourhood(workspace, { ref: id, repository });
+      expect([output.root, output.nodes[0]?.repository]).toEqual([id, repository]);
+    }
+    const none = await failure(workspace, { ref: id, repository: "vault" });
+    expect([none.code, none.details]).toMatchObject(["ref.unknown", { ref: id }]);
   });
 });
