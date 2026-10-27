@@ -2,6 +2,7 @@
 // with SR-46fb54, SR-0b0036, SR-0c0037 and SR-0d0038 (identifier SR-036), an empty evidence folder
 // `evidence/` and the result files in `results/` (see the fixture's README). The same output on every
 // access: packages/cli/test/cross-access.test.ts; the CLI: packages/cli/test/e2e/evidence-enrich-junit.test.ts.
+import { writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -180,6 +181,29 @@ describe("evidence.enrichJunit (SR-029)", () => {
     for (const date of dates) {
       expect(Math.abs(Date.parse(date.slice("logreq:date=".length)) - Date.now())).toBeLessThan(60_000);
     }
+  });
+
+  it("refuses an in-place enrich when the input changed after it was read, and keeps the change (N5 of the PR #584 review)", async () => {
+    const { fixture, workspace } = await open();
+    const file = fixture.path("results/pytest.xml");
+    const changed = Buffer.concat([await fs.readFile(file), Buffer.from("<!-- changed meanwhile -->\n")]);
+    // The store is first asked after the input is read: the input changes right then, before the write.
+    const store = workspace.get(elementStoreState);
+    let armed = false;
+    const changing = new Proxy(await store, {
+      get: (target, key, receiver): unknown => {
+        if (armed) {
+          armed = false;
+          writeFileSync(file, changed);
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    expect(await workspace.replace(elementStoreState, store, Promise.resolve(changing))).toBe(true);
+    armed = true;
+    const error = await failure(workspace, { file: "results/pytest.xml" });
+    expect([error.code, armed]).toEqual(["file.changed-on-disk", false]);
+    expect(await fs.readFile(file)).toEqual(changed);
   });
 
   it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {

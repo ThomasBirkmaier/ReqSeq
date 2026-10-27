@@ -182,10 +182,11 @@ export type {
 } from "./watch.js";
 export { addRelation, removeRelation } from "./relation-write.js";
 export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
-export { addAttachment, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
+export { addAttachment, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
 export {
   assertElementWritable,
   createElement,
+  refuseUnlisted,
   updateElement,
   workspacePath,
   writtenElement,

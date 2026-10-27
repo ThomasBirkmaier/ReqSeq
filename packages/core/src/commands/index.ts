@@ -21,6 +21,7 @@ import elementUpdate from "./element/update.js";
 import evidenceCoverage from "./evidence/coverage.js";
 import evidenceEnrichJunit from "./evidence/enrichJunit.js";
 import evidenceList from "./evidence/list.js";
+import evidenceRecord from "./evidence/record.js";
 import evidenceStatus from "./evidence/status.js";
 import filterList from "./filter/list.js";
 import filterSave from "./filter/save.js";
@@ -58,6 +59,7 @@ export const commands: readonly AnyCommand[] = [
   evidenceCoverage,
   evidenceEnrichJunit,
   evidenceList,
+  evidenceRecord,
   evidenceStatus,
   filterList,
   filterSave,

@@ -157,6 +157,12 @@ export interface RelationTargetInput {
 export type IsoDate = string;
 
 /**
+ * The item under test (Prüfling): the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.
+ * Schema: `schemas/common.schema.json#/$defs/item`.
+ */
+export type Item = string;
+
+/**
  * A date and time with time zone (RFC 3339 date-time), for example 2026-10-26T09:30:00Z.
  * Schema: `schemas/common.schema.json#/$defs/dateTime`.
  */
@@ -2150,28 +2156,39 @@ export interface EvidenceListOutput {
 }
 
 /**
- * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record; ID and current version are filled in.
+ * Input of `evidence.record` as `run` gets it: validated, properties with a `default` filled in. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
  * Schema: `schemas/commands/catalog.json evidence.record input`.
  */
 export interface EvidenceRecordInput {
+  /** The element the record is about. Its UUID and current version are written into the record; neither is an input (D-026). */
   readonly ref: ElementRef;
+  /** Verification (Nachweis) of a requirement, or validation of a need or a requirement (D-007, D-012). A validation record counts for the validation status only (SR-030 AK3). */
   readonly kind: "verification" | "validation";
+  /** Required for verification. */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
   readonly result: "passed" | "failed";
-  readonly item?: string;
+  /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
+  readonly item?: Item;
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. */
   readonly variant?: ElementRef;
+  /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
+  /** Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; LogReq never opens it (D-007). */
   readonly evidence?: string;
+  /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
+  /** The folder to write into: an evidence location of the workspace file or a folder below one, relative to the workspace root (the folder of the main repository) with `/`, for example `evidence/manual` or `../tests/evidence`. Missing folders below the location are created. Default: the first evidence location whose repository is on this machine. */
   readonly folder?: string;
 }
 
 /**
- * Output of `evidence.record`. Write a manual verification or validation record; ID and current version are filled in.
+ * Output of `evidence.record`. Write a manual verification or validation record (Markdown, evidence-record.schema.json) into an evidence folder of the workspace; the element's UUID and current version are filled in. A verification names a requirement, a validation a need or a requirement (D-012). Never replaces a file: a name that is taken gets -2, -3, ...
  * Schema: `schemas/commands/catalog.json evidence.record output`.
  */
 export interface EvidenceRecordOutput {
   readonly files: readonly string[];
+  /** The record as the Markdown reader reads it back from the written file (`source: markdown`, its repository and file, line 1), with the UUID and current version of the element. */
+  readonly record: DataExportEvidenceRecord;
   readonly problems?: readonly Problem[];
 }
 
@@ -2183,7 +2200,7 @@ export interface EvidenceEnrichJunitInput {
   /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026). */
   readonly file: LocalPath;
   /** The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
-  readonly item: string;
+  readonly item: Item;
   /** The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */

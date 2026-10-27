@@ -65,6 +65,26 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: GUSTS, status: "obsolete" },
     { ref: WIND, status: "draft" },
   ],
+  // A record is only ever created, a taken name gets -2 (SR-030); `records` is the evidence location.
+  "evidence.record": [
+    {
+      ref: WIND,
+      kind: "verification",
+      result: "passed",
+      method: "test",
+      item: "build-1",
+      date: "2026-10-27T10:00:00Z",
+    },
+    {
+      ref: WIND,
+      kind: "verification",
+      result: "failed",
+      method: "test",
+      item: "build-1",
+      date: "2026-10-27T10:00:00Z",
+    },
+    { ref: "SR-ffffff", kind: "validation", result: "passed" },
+  ],
   // Enriching replaces the JUnit file in place or writes a new one; the input stays (SR-029).
   "evidence.enrichJunit": [
     { file: "new/results.xml", item: "build-1", date: "2026-10-27T10:00:00Z", output: "new/enriched.xml" },
@@ -133,6 +153,9 @@ describe("no delete of an element (SR-099, D-045)", () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
         files: {
+          "logreq-workspace.yaml":
+            'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+            "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: records }\n",
           "new/.keep": "",
           "new/layout.png": "an image",
           "new/results.xml":

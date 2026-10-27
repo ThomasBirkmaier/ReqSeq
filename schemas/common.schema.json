@@ -107,6 +107,11 @@
       "type": "string",
       "format": "date"
     },
+    "item": {
+      "description": "The item under test (Prüfling): the concrete build or sample that was checked. No white space at either end and no control characters other than tab, line feed and carriage return.",
+      "type": "string",
+      "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])\\S(?:[\\s\\S]*\\S)?$"
+    },
     "dateTime": {
       "description": "A date and time with time zone (RFC 3339 date-time), for example 2026-10-26T09:30:00Z.",
       "type": "string",

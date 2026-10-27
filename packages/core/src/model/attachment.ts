@@ -119,7 +119,7 @@ const readSource = async (root: string, sourcePath: string): Promise<Source> => 
 };
 
 /** How names are compared for a clash: after NFC and in lower case, as macOS and Windows compare them. */
-const clashKey = (name: string): string => name.normalize("NFC").toLowerCase();
+export const clashKey = (name: string): string => name.normalize("NFC").toLowerCase();
 
 /** The entries of `folder` (relative to the repository, `/`); none when it does not exist yet. */
 const entriesOf = async (repository: RepositoryLocation, folder: string): Promise<Dirent[]> => {

@@ -52,7 +52,10 @@ export interface ElementStore {
    * (a copied file); reporting that is SR-088.
    */
   readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
-  /** Markdown files that are not elements (SR-003 AK2). LogReq never writes them. */
+  /**
+   * Markdown files that are not elements (SR-003 AK2). LogReq never changes them; the only ones it
+   * writes are new evidence records (`evidence.record`, SR-030), which it creates and never replaces.
+   */
   readonly nonElements: readonly RepositoryFile[];
   /**
    * With `repository` set, per repository in the order of the workspace file: folders that cannot

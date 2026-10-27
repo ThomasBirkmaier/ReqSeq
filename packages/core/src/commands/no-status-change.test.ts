@@ -166,6 +166,38 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { file: "results/gone.xml", item: "build-513" },
   ],
   "evidence.list": [{ ref: WIND }, { ref: OBSOLETE, view: "core" }, { ref: "SR-ffffff" }],
+  // Records of every status (SR-030): a verification and a validation of the requirements, validations
+  // of the approved and the retired need; a verification of a need is refused (D-012).
+  "evidence.record": [
+    {
+      ref: WIND,
+      kind: "verification",
+      result: "passed",
+      method: "inspection",
+      item: "unit 7",
+      date: "2026-10-27T10:00:00Z",
+    },
+    {
+      ref: OBSOLETE,
+      kind: "verification",
+      result: "failed",
+      method: "test",
+      item: "build-513",
+      date: "2026-10-27T10:00:00Z",
+    },
+    { ref: WIND, kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },
+    { ref: OBSOLETE, kind: "validation", result: "failed", date: "2026-10-27T10:00:00Z" },
+    { ref: APPROVED, kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },
+    { ref: RETIRED, kind: "validation", result: "failed", date: "2026-10-27T10:00:00Z" },
+    {
+      ref: APPROVED,
+      kind: "verification",
+      result: "passed",
+      method: "test",
+      item: "build-513",
+      date: "2026-10-27T10:00:00Z",
+    },
+  ],
   "evidence.status": [
     {},
     { selection: { where: { verification: ["open", "verified"] } }, limit: 1 },
@@ -327,7 +359,12 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       expect(outcomes).toContain("output");
       expect(outcomes).toContain("error");
       // A created element has the initial status; it is no change of a status.
-      const added = Object.entries(statusLines(fixture.root)).filter(([file]) => !(file in STATUS_LINES));
+      // A record (evidence.record, SR-030) has no status; every other new Markdown file is an element.
+      const added = Object.entries(statusLines(fixture.root)).filter(
+        ([file]) =>
+          !(file in STATUS_LINES) &&
+          !fs.readFileSync(path.join(fixture.root, file), "utf8").startsWith("---\nlogreq-record: 1\n"),
+      );
       expect(added.map(([, line]) => line).filter((line) => line !== "status: draft")).toEqual([]);
       if (name === "element.create") {
         expect(added).toHaveLength(3);

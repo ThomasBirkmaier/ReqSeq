@@ -46,3 +46,5 @@ export {
 export type { VersionReader, WorkspaceStatus } from "./verification.js";
 export { chainEvidenceOf, listedRecords, recordHoldsIn, testCasesIn } from "./views.js";
 export type { ElementEvidence, RecordKind } from "./views.js";
+export { recordDate, recordEvidence, recordFileName, renderRecordFile, withRecord } from "./write-record.js";
+export type { PlacedRecord, RecordDeps, RecordFields } from "./write-record.js";

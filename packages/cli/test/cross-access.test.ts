@@ -849,6 +849,29 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  // The date is given: without it the time of the call would differ between the accesses.
+  "evidence.record": [
+    {
+      name: "a manual inspection record of a requirement in the evidence folder (SR-030 AK1, AK2)",
+      fixture: EVIDENCE,
+      input: {
+        ref: "SR-e88fb3",
+        kind: "verification",
+        result: "passed",
+        method: "inspection",
+        item: "unit 7",
+        date: "2026-10-27T10:00:00Z",
+        evidence: "photos/unit-7.jpg",
+      },
+      expect: "output",
+    },
+    {
+      name: "an unknown element gives the same error",
+      fixture: EVIDENCE,
+      input: { ref: "SR-ffffff", kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },
+      expect: "error",
+    },
+  ],
   "evidence.status": [
     {
       name: "the verification status of a workspace with an evidence location (#535, SR-031)",
