@@ -20,12 +20,12 @@ The evidence records (Datensätze) of a workspace as an in-memory list, indexed 
 - the location folder itself follows the walk rules: one that is or lies below a link, in `.git` or `node_modules`, matched by an `ignore` glob, in another repository of the workspace (name that repository in the location) or in a nested Git repository is `file.skipped` (warning); one that does not exist (or is a file) is `evidence.folder-missing` (info); one that cannot be looked at (`EACCES`) is `file.unreadable` (error). An `ignore` glob that keeps the store out of an evidence folder hides its records too;
 - a file or walk problem two locations both reach is listed once.
 
-Nobody shows the problems yet; SR-028 shows them through its `evidenceProblemsState` (`workspace.check`).
+`evidenceProblemsState` (`match.ts`, below) shows the problems in `workspace.check`.
 
 ## State
 
 - `evidenceReadState` (`state.ts`, depends on `workspaceLayoutState`): `readEvidence(layout, readers)`: the files of `evidenceFiles`, each given with its bytes to the reader of its extension, 16 at a time; `{ records, skipped, problems, incomplete }`. A file without a reader is not read; one that cannot be read is `file.unreadable`.
-- `EVIDENCE_READERS`: one `EvidenceReader` (`{ extension, read(file, bytes) }`) per extension: the JUnit reader (`xml`, SR-093); SR-028 adds the Markdown reader (`md`), one line. A reader reads nothing else and gives nothing for a file that is no record of its kind.
+- `EVIDENCE_READERS`: one `EvidenceReader` (`{ extension, read(file, bytes) }`) per extension: `MARKDOWN_READER` (`md`, SR-028) and the JUnit reader (`xml`, SR-093). A reader reads nothing else and gives nothing for a file that is no record of its kind.
 - `evidenceRecordsState` (depends on `evidenceReadState`): the records alone, an array. It is the seam through which tests and consumers get records without files (#127 option 1): `workspace.replace(evidenceRecordsState, current, Promise.resolve(records))`. Skipped test cases are injected by replacing `evidenceReadState` first (replacing it resets `evidenceRecordsState`). The check of SR-025 AK4 (`hints/evidence.ts`) reads it.
 
 ## Index
@@ -39,7 +39,23 @@ Nobody shows the problems yet; SR-028 shows them through its `evidenceProblemsSt
 
 ## Markdown reader
 
-SR-028 (#40).
+SR-028 (#40). `readMarkdownRecord(file, bytes)` (`markdown.ts`), registered as `MARKDOWN_READER` for `md`: one record per Markdown file whose frontmatter has the key `logreq-record` (`RECORD_KEY`), checked against `evidence-record.schema.json` (`fileSchemaValidator`).
+
+- The bytes are parsed as an element file is (`parseFileBytes`: strict UTF-8, BOM, CRLF, conflict markers, YAML 1.2). A file that does not parse gives the problem of the files block (`file.invalid-yaml`, `file.conflict-markers`, `file.unreadable`, with the repository) and no record.
+- A file without frontmatter, or whose frontmatter is no mapping with `logreq-record`, is no record (a README in an evidence folder): nothing, not even its YAML warnings. A record keeps its YAML warnings (`file.yaml-warning`).
+- A key the format does not know: warning `evidence.invalid-record` naming the key, at its line; the record counts without it (spec question #533 Q1, assumption: as D-012 does for unknown properties of elements).
+- Any other violation (a required key missing, a wrong value, `logreq-record` other than 1): error `evidence.invalid-record` per violation, at the line of its key (1 for a missing key); the file gives no record, and the warnings on unknown keys say so.
+- The lines of the keys come from `keyLinesOf` of the model block (one pass over the frontmatter, also for thousands of keys); the problems of a file are in line order.
+- The record: the frontmatter without `logreq-record`, `test-case` as `testCase`, `source: markdown`, the repository and file, `line: 1`.
+
+## Findings
+
+`evidenceProblemsState` (`match.ts`; depends on the layout, the element store, `evidenceReadState` and `evidenceRecordsState`) is the evidence entry of `FINDING_STATES` in `workspace.check`, after the cycles and before the outdated evidence (SR-025 AK4):
+
+- the problems of `evidenceReadState` (walk and readers), without those the element store reports for the same code, repository, file and line: the store reads every Markdown file of every available repository, evidence folders included, so a record with broken YAML shows once;
+- `recordElementProblems(records, store, layout)` over the records of `evidenceRecordsState` (injected ones too), in their order: `evidence.unknown-element` (warning, SR-028 AK3) for a UUID the store does not have, with a note naming the repositories that are not on this machine; `evidence.ambiguous-element` (warning) for a UUID with several copies (SR-088). Both carry the record's repository, file and line and the UUID as `targetId`, never as `elementId`: they are about the record, not confirmable and not in `hint.list` (spec question #533 Q2, assumption).
+
+Nothing here needs the metamodel, so the findings show while it is not valid.
 
 ## JUnit reader
 
@@ -50,7 +66,7 @@ SR-093 (#105). `readJunitRecords(location, bytes)` (`junit.ts`), registered as `
 - A test case that names a requirement but has no `logreq:version` gives no record. The file gets one `evidence.not-enriched` warning with the number of such test cases and the line of the first (spec question #529 Q3), not one per test case, so an unenriched CI file of thousands of test cases gives one line.
 - An enriched test case marked `<skipped>` gives no record, so it never counts as passed (AK3); it is a `SkippedTestCase`, a test case without execution (SR-033 AK3).
 - An enriched test case whose properties do not fit gives no record and an `evidence.invalid-record` error with its line: a `logreq:element` that is no UUID (a short ID left by hand: enrich writes the UUID, #529 Q4), element and version counts that differ, an element given twice with different versions, a malformed version, item, date or variant, or item, date or variant given twice with different values. A file the scanner refuses is `evidence.invalid-record` with the scanner's line; XML whose root is not `testsuites`/`testsuite` gives nothing.
-- Problems of a file come by line. Nobody shows them yet; SR-028's `evidenceProblemsState` shows the problems of `evidenceReadState` in `workspace.check`.
+- Problems of a file come by line. `evidenceProblemsState` (SR-028, "Findings" above) shows them in `workspace.check`.
 - Cost: linear in the file; the JUnit model is most of it (a 29 MB file with 50,000 enriched test cases reads in a few seconds). Memory is the larger risk: the model holds about 17 times the file (an 18 MB file, 313 MB heap), and `readEvidence` reads 16 files at a time, so many large CI files at once can need several GB. E4 measures peak heap next to time and, if needed, lowers the concurrency for `xml` or bounds the bytes in flight.
 
 ## Writing records

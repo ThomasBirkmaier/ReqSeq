@@ -146,8 +146,8 @@ describe("hint.list (SR-026)", () => {
     const hints = check.problems.filter(isHint);
     expect(hints.length).toBeGreaterThan(5);
     expect((await list(workspace)).hints).toEqual(hints);
-    // The finding states it leaves out give no hint.
-    expect(FINDING_STATES.filter((s) => !(HINT_STATES as readonly unknown[]).includes(s))).toHaveLength(2);
+    // The finding states it leaves out give no hint (duplicate IDs, missing targets, evidence records).
+    expect(FINDING_STATES.filter((s) => !(HINT_STATES as readonly unknown[]).includes(s))).toHaveLength(3);
     expect(HINT_STATES.every((s) => (FINDING_STATES as readonly unknown[]).includes(s))).toBe(true);
   });
 

@@ -10,7 +10,7 @@ import { evidenceIndexState } from "./by-element.js";
 import type { EvidenceFile } from "./folders.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
 import type { EvidenceReader } from "./state.js";
-import { evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
+import { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
 
 const SR = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 
@@ -48,6 +48,16 @@ describe("evidence states", () => {
       problems: [],
       incomplete: false,
     });
+  });
+
+  it("evidenceRecordsState holds the records the readers of EVIDENCE_READERS give", async () => {
+    // The Markdown reader (SR-028) and the JUnit reader (SR-093).
+    expect(EVIDENCE_READERS.map((r) => r.extension)).toEqual(["md", "xml"]);
+    const { workspace } = await open();
+    expect((await workspace.get(evidenceRecordsState)).map((r) => [r.source, r.file])).toEqual([
+      ["markdown", "evidence/2026-10-20-SR-e88fb3-inspection.md"],
+      ["junit", "evidence/ci/results.xml"],
+    ]);
   });
 
   it("evidenceRecordsState gives each file to the reader of its extension", async () => {

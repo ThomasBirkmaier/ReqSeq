@@ -8,7 +8,7 @@ export {
   listMarkdownFiles,
   listsFile,
 } from "./discover.js";
-export { classifyFile, isUuid } from "./elements.js";
+export { classifyFile, isUuid, keyLinesOf } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";

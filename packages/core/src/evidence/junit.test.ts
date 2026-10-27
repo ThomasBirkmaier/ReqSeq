@@ -242,10 +242,12 @@ describe("JUnit reader (SR-093)", () => {
     });
     const SR = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
     const read = await workspace.get(evidenceReadState);
-    expect(brief(read.records)).toEqual([
+    // The fixture's Markdown record is read too (SR-028); the JUnit file gives one record.
+    const junit = read.records.filter((r) => r.source === "junit");
+    expect(brief(junit)).toEqual([
       [SR, "n1:2eb0feee31fc1d89", "passed", "test_shows_wind_speed[SR-e88fb3]", "4"],
     ]);
-    expect(read.records[0]).toMatchObject({ file: "evidence/ci/results.xml", className: "tests.test_wind" });
+    expect(junit[0]).toMatchObject({ file: "evidence/ci/results.xml", className: "tests.test_wind" });
     expect(read.skipped).toEqual([
       {
         name: "test_shows_gusts[SR-e88fb3]",

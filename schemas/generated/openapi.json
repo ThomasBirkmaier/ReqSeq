@@ -604,7 +604,7 @@
     "/v1/commands/workspace.check": {
       "post": {
         "operationId": "workspace_check",
-        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
+        "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations, evidence records that cannot be read or name an unknown element. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
         "tags": [
           "workspace"
         ],
@@ -617,6 +617,7 @@
           "SR-019",
           "SR-020",
           "SR-025",
+          "SR-028",
           "SR-085",
           "SR-086",
           "SR-088",

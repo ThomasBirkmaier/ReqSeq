@@ -66,9 +66,9 @@ describe("logreq reads JUnit XML as records (SR-093)", () => {
   });
 
   it("[SR-093/AK2] logreq workspace check passes over test cases that name no requirement without a problem", async () => {
-    // A pytest file whose test cases name no requirement (parameter lists, a skipped one). Until
-    // SR-028's evidenceProblemsState (#556) shows the problems of the read state in workspace check,
-    // this proves only that no record arises; after it, also that the reader reports nothing.
+    // A pytest file whose test cases name no requirement (parameter lists, a skipped one). Workspace
+    // check shows the problems of the read state (SR-028's evidenceProblemsState), so this proves
+    // that no record arises and that the reader reports nothing.
     const pytest =
       '<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" tests="3">' +
       '<testcase classname="test_sample" name="test_add[1-2]" time="0.001"/>' +

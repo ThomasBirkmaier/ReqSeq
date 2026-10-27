@@ -1,5 +1,5 @@
-// workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-040, SR-072, SR-085, SR-086,
-// SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
+// workspace.check (SR-019; aggregates SR-008, SR-015, SR-016, SR-028, SR-040, SR-072, SR-085,
+// SR-086, SR-088, SR-089 and SR-090): every finding of the whole workspace against the metamodel, as
 // `problems`, and `ok`, from which the CLI takes its exit code (ADR-0009). Each finding comes from
 // the whole-workspace state of its block, which is kept until the element store or the metamodel is
 // reset, so a second check of an unchanged workspace reads no file again.
@@ -32,13 +32,15 @@
 //   versions are checked first (images the watcher does not report, ADR-0008), so the state is built
 //   on the versions of now; their state keeps findings, and their problems get the dates of both
 //   versions per call (`datedProblems`), since a new commit changes them without a file change.
-//   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1).
+//   Outdated evidence (SR-025 AK4) has its records from stage 4 on (#127 option 1); the problems of
+//   reading them and the records of unknown elements are `evidenceProblemsState` (SR-028 AK3).
 // - Folders a running watcher cannot watch (`workspace.not-watched`) are left to `workspace.status`:
 //   they are about the running process, not about the files.
 // - `durationMs` is left out: it differs between calls, and the same call gives the same output in
 //   every access (SR-080 AK2).
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
+import { evidenceProblemsState } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import {
   changedFiles,
@@ -81,6 +83,7 @@ export const FINDING_STATES = [
   duplicateIdentifierProblemsState, // #305
   missingTargetProblemsState, // SR-089
   derivationCycleProblemsState, // SR-090
+  evidenceProblemsState, // SR-028
   outdatedEvidenceProblemsState, // SR-025 AK4
 ] as const;
 

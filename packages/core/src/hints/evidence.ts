@@ -1,8 +1,8 @@
 // Outdated evidence (SR-025 AK4, D-013): an element whose newest evidence record (Datensatz) belongs
 // to an older version than its current one. The records come from `evidenceRecordsState` of the
-// evidence block (ADR-0012); until its readers are in (SR-028 #40, SR-093 #105) it is empty, and the
-// check of AK4 is tested at core level with records given through it (decision on #127, option 1).
-// SR-028 adds the CLI test.
+// evidence block (ADR-0012): the Markdown records since SR-028 (#40), the JUnit records with SR-093
+// (#105). The check of AK4 is tested at core level with records given through it (decision on #127,
+// option 1) and end to end on record files (`packages/cli/test/e2e/evidence-records.test.ts`).
 //
 // - Per element, kind (verification, validation) and variant (none: the core, SR-047) the newest
 //   record by `date` decides (SR-025 AK4: "dessen neuester Datensatz zu einer älteren Fassung
@@ -15,7 +15,7 @@
 //   record's version as `storedVersion` and the current one as `currentVersion`.
 //   No hint ID: such a hint is not confirmed, a new record settles it (ADR-0012).
 // - Records of elements that are not in the store, or whose current version is unknown, are left
-//   out (an unknown element is SR-029's `evidence.unknown-element`, stage 4).
+//   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
 // - Order: by element in store order, then kind, then variant as the records give them.
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecord } from "../evidence/index.js";

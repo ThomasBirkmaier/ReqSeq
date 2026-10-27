@@ -37,7 +37,7 @@ export type ParseOutcome =
   | { readonly kind: "problem"; readonly problem: Problem };
 
 /** First line of frontmatter YAML is line 2 of the file (line 1 is the opening `---`). */
-const FRONTMATTER_FIRST_LINE = 2;
+export const FRONTMATTER_FIRST_LINE = 2;
 const BOM = "\uFEFF";
 
 export const fileProblem = (code: ProblemCode, file: string, message: string, line?: number): Problem =>

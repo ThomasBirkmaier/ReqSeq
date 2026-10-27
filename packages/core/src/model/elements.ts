@@ -3,7 +3,8 @@
 // is never written. A type the metamodel does not know still makes an element (SR-016 AK3).
 import { Scalar, isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
-import type { FileSnapshot, LineEnding, ParsedFile } from "../files/index.js";
+import type { FileSnapshot, LineEnding, ParsedContent, ParsedFile } from "../files/index.js";
+import { FRONTMATTER_FIRST_LINE } from "../files/index.js";
 import type { PropertyReference, TextReference } from "./references.js";
 import { propertyReferences, textReferences } from "./references.js";
 import { isUuid } from "./uuid.js";
@@ -82,20 +83,44 @@ export const lineOf = (file: ParsedFile, path: readonly (string | number)[]): nu
 };
 
 /**
+ * The line of each top-level key of the frontmatter (line 1 is the opening `---`), the first of a
+ * name that appears twice, in one pass over the keys and the text: linear in the size of the
+ * frontmatter, also for one with many thousand keys (SR-028: records from other tools). Keys that
+ * are no plain string (an alias `*k : ...`, a number, `null`) are left out; empty for a frontmatter
+ * that is no mapping.
+ */
+export const keyLinesOf = (
+  file: Pick<ParsedContent, "document" | "frontmatter">,
+): ReadonlyMap<string, number> => {
+  const { contents } = file.document;
+  const lines = new Map<string, number>();
+  let at = 0;
+  let line = FRONTMATTER_FIRST_LINE;
+  // The keys of a mapping are in the order of the text, so the newlines are counted once.
+  for (const pair of isMap(contents) ? contents.items : []) {
+    const key = isScalar(pair.key) && typeof pair.key.value === "string" ? pair.key : undefined;
+    const range = key?.range;
+    if (!range) {
+      continue;
+    }
+    for (let nl = file.frontmatter.indexOf("\n", at); nl !== -1 && nl < range[0];) {
+      line += 1;
+      nl = file.frontmatter.indexOf("\n", nl + 1);
+    }
+    at = range[0];
+    if (!lines.has(key.value as string)) {
+      lines.set(key.value as string, line);
+    }
+  }
+  return lines;
+};
+
+/**
  * The line of the top-level key `key` itself (line 1 is the opening `---`): for a block value the
  * line above its first line. Undefined when no plain key has that name, for example a key written
  * as an alias (`*k : ...`), or when the frontmatter is no mapping.
  */
-export const keyLineOf = (file: ParsedFile, key: string): number | undefined => {
-  const { contents } = file.document;
-  const items = isMap(contents) ? contents.items : [];
-  const node = items.find((pair) => isScalar(pair.key) && pair.key.value === key)?.key;
-  const range = isNode(node) ? node.range : undefined;
-  if (!range) {
-    return undefined;
-  }
-  return file.frontmatter.slice(0, range[0]).split("\n").length + 1;
-};
+export const keyLineOf = (file: ParsedFile, key: string): number | undefined => keyLinesOf(file).get(key);
 
 /** The line of the value at `key` (and list position `item`) and whether it is a block scalar. */
 const placeOf = (

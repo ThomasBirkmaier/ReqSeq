@@ -6,7 +6,7 @@ export { createFolder } from "./folder.js";
 export { resolveInRoot } from "./paths.js";
 export { splitFrontmatter } from "./frontmatter.js";
 export type { FrontmatterSplit, LineEnding } from "./frontmatter.js";
-export { parseFileBytes, parseYamlFileBytes } from "./parse.js";
+export { FRONTMATTER_FIRST_LINE, parseFileBytes, parseYamlFileBytes } from "./parse.js";
 export type { ParsedContent, ParsedYaml, ParseOutcome, YamlParseOutcome } from "./parse.js";
 export {
   readElementBodySync,

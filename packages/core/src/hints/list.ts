@@ -70,8 +70,9 @@ const COMMAND: CommandName = "hint.list";
 
 /**
  * The whole-workspace finding states that can give hints, in the order of `workspace.check`
- * (`FINDING_STATES`; the outdated relations follow them). Its other states give errors only:
- * duplicate UUIDs (SR-088) and missing targets (SR-089).
+ * (`FINDING_STATES`; the outdated relations follow them). Its other states give no hint: duplicate
+ * UUIDs (SR-088) and missing targets (SR-089) give errors only, and the findings of the evidence
+ * records (SR-028) name no element by `elementId` (spec question #533 Q2).
  */
 export const HINT_STATES = [
   requiredProblemsState, // SR-015

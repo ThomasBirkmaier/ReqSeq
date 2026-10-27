@@ -7,8 +7,8 @@
 //   the records a test needs. Skipped test cases are given by replacing `evidenceReadState` (do that
 //   first: replacing it resets `evidenceRecordsState`).
 //
-// The readers are registered in `EVIDENCE_READERS`, one per extension: the Markdown reader comes with
-// SR-028 (#40), the JUnit reader (`junit.ts`) with SR-093 (#105).
+// The readers are registered in `EVIDENCE_READERS`, one per extension: the Markdown reader of SR-028
+// (#40, `markdown.ts`) and the JUnit reader of SR-093 (#105, `junit.ts`).
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
@@ -17,6 +17,7 @@ import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceExtension, EvidenceFile } from "./folders.js";
 import { evidenceFiles } from "./folders.js";
 import { JUNIT_READER } from "./junit.js";
+import { MARKDOWN_READER } from "./markdown.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
 
 /** What a reader found in one file. */
@@ -39,7 +40,10 @@ export interface EvidenceReader {
 }
 
 /** The readers of the product, one per extension (see the file comment). */
-export const EVIDENCE_READERS: readonly EvidenceReader[] = [JUNIT_READER];
+export const EVIDENCE_READERS: readonly EvidenceReader[] = [
+  MARKDOWN_READER, // SR-028
+  JUNIT_READER, // SR-093
+];
 
 /** Everything read from the evidence folders of a workspace. */
 export interface EvidenceRead {
