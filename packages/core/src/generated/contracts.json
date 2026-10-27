@@ -472,6 +472,7 @@
             "evidence.not-enriched",
             "evidence.folder-missing",
             "evidence.ambiguous-element",
+            "baseline.invalid",
             "filter.invalid",
             "filter.duplicate-name",
             "metamodel.invalid",
@@ -958,7 +959,7 @@
               "items": {
                 "type": "string"
               },
-              "description": "Names of the baseline files that contain the version of the record (SR-032 AK2). Only `evidence.list` fills it."
+              "description": "The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it."
             }
           },
           "allOf": [
@@ -4930,7 +4931,7 @@
             },
             "records": {
               "type": "array",
-              "description": "The evidence records of an older version of the element (SR-024 AK4): records whose `version` is not its current one. Evidence records are read from stage 4 on (SR-028); until then the list is empty.",
+              "description": "The evidence records of an older version of the element (SR-024 AK4): its records in the evidence folders (SR-028, SR-093) whose `version` is not its current one, newest first. Empty when its current version cannot be computed (its file no longer holds it, an embedded image cannot be read).",
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
               }
@@ -6248,7 +6249,8 @@
               "$ref": "../common.schema.json#/$defs/elementRef"
             },
             "view": {
-              "$ref": "../common.schema.json#/$defs/view"
+              "$ref": "../common.schema.json#/$defs/view",
+              "description": "`core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element."
             }
           },
           "additionalProperties": false,
@@ -6261,7 +6263,7 @@
           "properties": {
             "records": {
               "type": "array",
-              "description": "The evidence records of the element (SR-028, SR-093), newest first; each with the baselines that contain its version (`baselines`, SR-032 AK2).",
+              "description": "The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does).",
               "items": {
                 "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
               }
@@ -6275,14 +6277,21 @@
             },
             "problems": {
               "type": "array",
+              "description": "Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`.",
               "items": {
                 "$ref": "../common.schema.json#/$defs/problem"
               }
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete",
+              "description": "True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen (SR-006 AK2)."
             }
           },
           "additionalProperties": false,
           "required": [
-            "records"
+            "records",
+            "problems",
+            "incomplete"
           ]
         }
       },

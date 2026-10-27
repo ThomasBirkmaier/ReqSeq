@@ -17,6 +17,7 @@ import {
   MODEL_CACHE_FILE,
   MODEL_CACHE_FORMAT,
   RACY_MS,
+  changeStamp,
   codeFingerprint,
   computeCodeFingerprint,
   fingerprintFile,
@@ -688,6 +689,19 @@ describe("parseModelCache", () => {
     expect(statKeys({ ino: -1n, ctimeNs: 5n })).toEqual(["18446744073709551615", "5"]);
     expect(statKeys({ ino: 7n, ctimeNs: 0n })).toEqual(["7", "0"]);
     expect(statKeys({ ino: 7n, ctimeNs: -1n })).toBeUndefined();
+  });
+
+  it("stamps a file for a reader that keeps it, and not while a change could go unseen", () => {
+    const ns = (ms: number): bigint => BigInt(ms) * 1_000_000n;
+    const readAt = 1_761_400_000_000;
+    const old = { size: 10n, mtimeNs: ns(readAt - 5_000), ino: -1n, ctimeNs: ns(readAt - 4_000) };
+    expect(changeStamp(old, readAt)).toBe(
+      `10:${String(ns(readAt - 5_000))}:18446744073709551615:${String(ns(readAt - 4_000))}`,
+    );
+    // The later of modification and change time counts; a change time before 1970 is never stamped.
+    expect(changeStamp({ ...old, ctimeNs: ns(readAt - RACY_MS) }, readAt)).toBeUndefined();
+    expect(changeStamp({ ...old, mtimeNs: ns(readAt + 60_000) }, readAt)).toBeUndefined();
+    expect(changeStamp({ ...old, ctimeNs: -1n }, readAt)).toBeUndefined();
   });
 
   it("keeps a 64-bit file ID and a change time in nanoseconds exactly", () => {

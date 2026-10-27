@@ -19,7 +19,14 @@ SR-036 (#48), `evidence.coverage` (`commands/evidence/coverage.ts`), block file 
 
 ## Evidence list and baselines
 
-SR-032.
+SR-032 (#44), `evidence.list` (`commands/evidence/list.ts`), block file `evidence/views.ts`; the baselines come from the read-only reader of the [baselines block](baselines.md):
+
+- `listedRecords(records, view, containing)`: the element's records of the index (`byElement`, newest first) that hold for the view (`recordHoldsIn`: the core takes the records without a variant, a variant the records for it, SR-047; no view every record), each with `baselines`, the names `containing(element, version)` gives (an empty list when no baseline holds the version). The fields of AK1 (version, item, date, result, evidence) are the record's own, shown as read; the evidence (Beleg) is text and is never fetched or opened (offline).
+- The command adds `problems`: those of the baseline files (a faulty file names no baseline), and `incomplete`: an evidence location (`evidenceReadState`) or the baselines folder is in a repository that is not on this machine (SR-006 AK2).
+- `testCases` (the element's test cases) come with SR-033.
+- Cost: the element's records, and for each record one set lookup per baseline file; the baseline files are parsed once and kept by size and time (`baselineFilesState`).
+- `trace.affected` (SR-024 AK4) takes its records from the same index: the element's records whose version is not its current one (`currentVersionsOf`, only when it has records); none while its current version cannot be computed.
+- The element view of the app shows this list in a later PR (SR-032 AK1 in the app).
 
 ## Test cases in the chain and the matrix
 

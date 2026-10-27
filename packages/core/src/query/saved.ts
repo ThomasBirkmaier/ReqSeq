@@ -16,13 +16,11 @@
 // - New files (`newFilterFile`): the letters and digits of the name in lower case, without accents,
 //   `-` between, at most 64 characters, then `-2`, `-3` ... while the folder has an entry of that
 //   name ignoring case. Names of Windows devices (`con`, `nul`, `com1` ...) get `-filter`.
-import fs from "node:fs/promises";
 import path from "node:path";
-import { isNode } from "yaml";
 import type { CommandName } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { YamlFile } from "../files/index.js";
-import { readYamlFile } from "../files/index.js";
+import { listFolderFiles, readYamlFile, yamlPointerLine } from "../files/index.js";
 import type {
   FilterFile,
   FilterSortKeyWithDefaults,
@@ -90,42 +88,6 @@ const filterProblem = (
   ...(line === undefined ? {} : { line }),
 });
 
-/** The line of the value a schema violation points at, or of the closest one above it. */
-const violationLine = (yaml: YamlFile, pointer: string): number | undefined => {
-  const segments =
-    pointer === ""
-      ? []
-      : pointer
-          .slice(1)
-          .split("/")
-          .map((s) => s.replaceAll("~1", "/").replaceAll("~0", "~"));
-  for (let n = segments.length; n >= 0; n--) {
-    const node: unknown = yaml.document.getIn(segments.slice(0, n), true);
-    if (isNode(node) && node.range) {
-      return yaml.lines.linePos(node.range[0]).line;
-    }
-  }
-  return undefined;
-};
-
-type Listing =
-  | { readonly kind: "names"; readonly names: readonly string[]; readonly entries: ReadonlySet<string> }
-  | { readonly kind: "missing" }
-  | { readonly kind: "error"; readonly reason: string };
-
-/** The files of the folder that are not hidden, sorted (code units), and every entry name folded. */
-const listFolder = async (folder: string): Promise<Listing> => {
-  try {
-    const entries = await fs.readdir(folder, { withFileTypes: true });
-    const names = entries.filter((e) => !e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name);
-    return { kind: "names", names: [...names].sort(), entries: new Set(entries.map((e) => fold(e.name))) };
-  } catch (error) {
-    // Errors of `readdir` carry a code.
-    const { code } = error as NodeJS.ErrnoException;
-    return code === "ENOENT" ? { kind: "missing" } : { kind: "error", reason: String(code) };
-  }
-};
-
 type CheckedFilter =
   | {
       readonly kind: "valid";
@@ -159,7 +121,7 @@ const checkFilterFile = async (repository: RepositoryLocation, file: string): Pr
         repository.name,
         file,
         `Invalid saved filter ${file}: ${message}`,
-        violationLine(yaml, violation.path),
+        yamlPointerLine(yaml, violation.path),
       ),
     );
   }
@@ -185,7 +147,7 @@ export const readSavedFilters = async (layout: WorkspaceLayout): Promise<SavedFi
   const folder = path.relative(repository.folder, located.folder).split(path.sep).join("/");
   const at = (name: string): string => path.posix.join(folder, name);
   const shown = folder === "" ? "." : folder;
-  const listing = await listFolder(located.folder);
+  const listing = await listFolderFiles(located.folder);
   if (listing.kind !== "names") {
     const problems =
       listing.kind === "missing"
@@ -246,7 +208,7 @@ export const readSavedFilters = async (layout: WorkspaceLayout): Promise<SavedFi
           repository.name,
           file,
           `Saved filter ${file} has the name ${JSON.stringify(data.name)} of ${first.path}, which is used; rename one`,
-          violationLine(yaml, "/name"),
+          yamlPointerLine(yaml, "/name"),
         ),
       );
       continue;
@@ -270,7 +232,7 @@ export const readSavedFilters = async (layout: WorkspaceLayout): Promise<SavedFi
     filters,
     problems,
     faultyNames,
-    entries: listing.entries,
+    entries: new Set(listing.entries.map(fold)),
     incomplete: false,
   };
 };

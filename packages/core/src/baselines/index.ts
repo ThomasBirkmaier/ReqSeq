@@ -1,0 +1,12 @@
+// The `baselines` block (D-039, architecture README §5). Stage 4 has the read-only reader of baseline
+// files (SR-032 AK2, spec question #530); creating and comparing baselines comes with stage 5. Core
+// blocks and commands import it relatively; it never imports `commands`. Block doc: docs/baselines.md.
+export {
+  BASELINE_FILE_EXTENSION,
+  MAX_VIOLATIONS,
+  baselineFilesState,
+  baselinesContaining,
+  readBaselines,
+  workspaceBaselines,
+} from "./read.js";
+export type { Baseline, BaselineFiles, Baselines } from "./read.js";

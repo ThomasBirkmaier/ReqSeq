@@ -40,3 +40,4 @@ export type {
   VerificationEntries,
   WorkspaceStatus,
 } from "./status.js";
+export { listedRecords, recordHoldsIn } from "./views.js";

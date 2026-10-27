@@ -233,6 +233,7 @@
         "evidence.not-enriched",
         "evidence.folder-missing",
         "evidence.ambiguous-element",
+        "baseline.invalid",
         "filter.invalid",
         "filter.duplicate-name",
         "metamodel.invalid",

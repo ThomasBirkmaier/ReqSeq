@@ -1,0 +1,7 @@
+logreq-baseline: 1
+name: Beta
+date: 2026-09-01T09:00:00Z
+repositories:
+  - { name: system, commit: 1abcdef01abcdef01abcdef01abcdef01abcdef0 }
+elements:
+  - { id: 32032032-0000-4000-8000-0000000032a1, version: n1:1111111111111111 }

@@ -421,6 +421,25 @@ export const statKeys = (
   stat.ctimeNs < 0n ? undefined : [inoKey(stat.ino), String(stat.ctimeNs)];
 
 /**
+ * What a reader that keeps parsed files in memory (the baseline reader) compares to tell whether a
+ * file changed since it was read at `readAt`: size, modification time, inode and change time of a
+ * `bigint` `lstat` taken before the read, as one string. Undefined while a change could go unseen,
+ * as for the cache entries above: the file changed (modification or change time, the later one)
+ * less than `RACY_MS` before `readAt`, or its change time lies before 1970. Such a file is read
+ * again on the next use.
+ */
+export const changeStamp = (
+  stat: Pick<BigIntStats, "size" | "mtimeNs" | "ino" | "ctimeNs">,
+  readAt: number,
+): string | undefined => {
+  const keys = statKeys(stat);
+  const latest = stat.mtimeNs > stat.ctimeNs ? stat.mtimeNs : stat.ctimeNs;
+  return keys === undefined || msOf(latest) >= readAt - RACY_MS
+    ? undefined
+    : `${String(stat.size)}:${String(stat.mtimeNs)}:${keys[0]}:${keys[1]}`;
+};
+
+/**
  * `model.json` for `store`: every file whose contribution has a snapshot, survives JSON exactly and
  * still has the size and modification time of its snapshot and whose change time lies at least
  * `RACY_MS` before `startedAt`, with its inode and change time now, per repository of the store.

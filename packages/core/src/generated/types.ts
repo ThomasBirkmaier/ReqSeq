@@ -250,6 +250,7 @@ export type ProblemCode =
   | "evidence.not-enriched"
   | "evidence.folder-missing"
   | "evidence.ambiguous-element"
+  | "baseline.invalid"
   | "filter.invalid"
   | "filter.duplicate-name"
   | "metamodel.invalid"
@@ -451,7 +452,7 @@ export interface DataExportEvidenceRecord {
   readonly line?: number;
   /** The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record. */
   readonly className?: string;
-  /** Names of the baseline files that contain the version of the record (SR-032 AK2). Only `evidence.list` fills it. */
+  /** The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it. */
   readonly baselines?: readonly string[];
 }
 
@@ -1703,7 +1704,7 @@ export interface TraceAffectedOutput {
   }[];
   /** The number of all affected elements; `affected` holds the page of `limit` from `offset`. */
   readonly total: number;
-  /** The evidence records of an older version of the element (SR-024 AK4): records whose `version` is not its current one. Evidence records are read from stage 4 on (SR-028); until then the list is empty. */
+  /** The evidence records of an older version of the element (SR-024 AK4): its records in the evidence folders (SR-028, SR-093) whose `version` is not its current one, newest first. Empty when its current version cannot be computed (its file no longer holds it, an embedded image cannot be read). */
   readonly records: readonly DataExportEvidenceRecord[];
   /** True while a repository of the workspace file is not on this machine: elements there may point at the element (SR-006 AK2). */
   readonly incomplete: Incomplete;
@@ -2081,6 +2082,7 @@ export interface FilterSaveOutput {
  */
 export interface EvidenceListInput {
   readonly ref: ElementRef;
+  /** `core`: only the records without a variant; a variant: only the records for that variant (SR-047 AK1, AK2); absent: every record of the element. */
   readonly view?: View;
 }
 
@@ -2089,11 +2091,14 @@ export interface EvidenceListInput {
  * Schema: `schemas/commands/catalog.json evidence.list output`.
  */
 export interface EvidenceListOutput {
-  /** The evidence records of the element (SR-028, SR-093), newest first; each with the baselines that contain its version (`baselines`, SR-032 AK2). */
+  /** The evidence records of the element (SR-028, SR-093), newest first, each with its version, item, date, result and evidence (SR-032 AK1) and the baselines that contain its version (`baselines`, SR-032 AK2; empty when none does). */
   readonly records: readonly DataExportEvidenceRecord[];
   /** The test cases that name the element, each with the element's own records only (SR-033). */
   readonly testCases?: readonly DataExportTestCase[];
-  readonly problems?: readonly Problem[];
+  /** Findings in the baseline files (`baseline.invalid`, `file.invalid-yaml`, ...): a baseline file that cannot be read names no baseline in `baselines`. */
+  readonly problems: readonly Problem[];
+  /** True when an evidence location or the baselines folder lies in a repository that is not on this machine: records or baselines there are not seen (SR-006 AK2). */
+  readonly incomplete: Incomplete;
 }
 
 /**

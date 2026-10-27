@@ -21,9 +21,9 @@
 //   the workspace file lists a repository that is not on this machine, elements there may point at
 //   an affected element unseen (as `childrenOf`, assumption #262 option 1).
 // - Evidence records (AK4): the records of an older version of the element appear with it. They
-//   come through the evidence seam (`AffectedOptions.evidence`): evidence records are read from
-//   stage 4 on (SR-028), so the command passes none and the core tests pass their own (#127
-//   option 1). A record of another version than the current one is a record of an old version.
+//   come through the evidence seam (`AffectedOptions.evidence`): the command passes the element's
+//   records of the evidence index with its current version (SR-032), the core tests pass their own
+//   (#127 option 1). A record of another version than the current one is a record of an old version.
 import type { TraceAffectedOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord, IncomingLink, ShortIds } from "../model/index.js";
@@ -35,8 +35,8 @@ export type AffectedRecord = TraceAffectedOutput["records"][number];
 
 export interface AffectedOptions {
   /**
-   * The evidence seam (stage 4, SR-028): the current version of the element and its evidence
-   * records. Default: none.
+   * The evidence seam: the current version of the element and its evidence records (the command
+   * passes them, SR-032). Default: none.
    */
   readonly evidence?: { readonly version: string; readonly records: readonly AffectedRecord[] };
 }

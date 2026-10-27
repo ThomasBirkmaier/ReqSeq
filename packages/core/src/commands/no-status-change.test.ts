@@ -140,6 +140,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: [WIND, OBSOLETE, RETIRED] } },
     { selection: { ids: ["SR-ffffff"] } },
   ],
+  "evidence.list": [{ ref: WIND }, { ref: OBSOLETE, view: "core" }, { ref: "SR-ffffff" }],
   "evidence.status": [
     {},
     { selection: { where: { verification: ["open", "verified"] } }, limit: 1 },

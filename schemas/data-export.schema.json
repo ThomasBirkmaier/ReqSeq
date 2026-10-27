@@ -281,7 +281,7 @@
         "baselines": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Names of the baseline files that contain the version of the record (SR-032 AK2). Only `evidence.list` fills it."
+          "description": "The `name` of every baseline file (`baseline.schema.json`, in the `baselines` folder of the workspace file) that lists the element of the record with its version (SR-032 AK2), in file order, each name once. Only `evidence.list` fills it."
         }
       },
       "allOf": [

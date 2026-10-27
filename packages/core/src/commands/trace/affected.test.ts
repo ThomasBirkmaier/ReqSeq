@@ -3,8 +3,11 @@
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureOptions } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { writeFile } from "node:fs/promises";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
+import type { EvidenceRecord } from "../../evidence/index.js";
+import { evidenceRecordsState } from "../../evidence/index.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../../metamodel/standard-model.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -27,6 +30,32 @@ const open = async (options: FixtureOptions = AFFECTED): Promise<Workspace> => {
   const workspace = new Workspace(fixture.root);
   onTestFinished(() => workspace.close());
   return workspace;
+};
+
+/** A verification record of `element` at `version` on `date`. */
+const record = (element: string, version: string, date: string): EvidenceRecord => ({
+  kind: "verification",
+  element,
+  version,
+  method: "test",
+  item: `build-${date.slice(5, 10)}`,
+  result: "passed",
+  date,
+});
+
+/** Gives `workspace` the evidence records `records` (#127 option 1). */
+const withRecords = async (workspace: Workspace, records: readonly EvidenceRecord[]): Promise<void> => {
+  const empty = workspace.get(evidenceRecordsState);
+  expect(await empty).toEqual([]);
+  await workspace.replace(evidenceRecordsState, empty, Promise.resolve(records));
+};
+
+/** The current version of an element, as element.get gives it. */
+const versionOf = async (workspace: Workspace, ref: string): Promise<string> => {
+  const { version } = ((await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">)
+    .element;
+  expect(version).toBeTypeOf("string");
+  return String(version);
 };
 
 const affected = async (workspace: Workspace, input: Record<string, unknown>): Promise<Output> =>
@@ -142,6 +171,36 @@ describe("trace.affected (SR-024)", () => {
     });
     const output = await affected(workspace, { ref: "SR-00b001" });
     expect([output.affected.length, output.incomplete]).toEqual([3, true]);
+  });
+
+  it("[SR-024/AK4] lists the records of an older version of the element from the evidence folders, newest first", async () => {
+    const workspace = await open();
+    const current = await versionOf(workspace, "SR-00b001");
+    const older = record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z");
+    const oldest = record(SPEED, "n1:0000000000000000", "2026-08-01T08:00:00Z");
+    const now = record(SPEED, current, "2026-10-01T08:00:00Z");
+    await withRecords(workspace, [
+      oldest,
+      now,
+      older,
+      record(GUSTS, "n1:2222222222222222", "2026-09-02T08:00:00Z"),
+    ]);
+    const output = await affected(workspace, { ref: "SR-00b001" });
+    expect(output.records).toEqual([older, oldest]);
+    expect(rows(output)).toHaveLength(3);
+    expect((await affected(workspace, { ref: "SR-00b004" })).records).toEqual([]);
+  });
+
+  it("[SR-024/AK4] lists no record as old while the current version of the element cannot be computed", async () => {
+    const fixture = await createFixtureWorkspace(AFFECTED);
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    await withRecords(workspace, [record(SPEED, "n1:1111111111111111", "2026-09-01T08:00:00Z")]);
+    expect((await affected(workspace, { ref: "SR-00b002" })).records).toEqual([]);
+    // The file no longer holds the element; the store has not seen the change (no watcher).
+    await writeFile(fixture.path("requirements/SR-00000000b001.md"), "No element any more.\n");
+    expect((await affected(workspace, { ref: "SR-00b001" })).records).toEqual([]);
   });
 
   it("[SR-024/AK1] names an unknown element", async () => {

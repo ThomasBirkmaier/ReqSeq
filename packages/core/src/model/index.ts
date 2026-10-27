@@ -166,7 +166,7 @@ export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionConte
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";
 export { startWatcher, watchWorkspace, watcherProblems } from "./watch.js";
-export { MODEL_CACHE_FILE } from "./model-cache.js";
+export { MODEL_CACHE_FILE, RACY_MS, changeStamp } from "./model-cache.js";
 export { warmModel } from "./warm.js";
 export { FolderTree } from "./watch-tree.js";
 export type { FolderTreeOptions } from "./watch-tree.js";

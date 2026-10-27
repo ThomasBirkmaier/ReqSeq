@@ -125,7 +125,7 @@ flowchart TB
 | `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) | 2 |
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) | 3 |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) | 4 |
-| `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1) | 1, 5 |
+| `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1); the read-only reader of baseline files first (SR-032 AK2, stage 4) | 1, 4, 5 |
 | `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059) | 6 |
 
 Rules: adapters depend only on `@logreq/core`'s public exports; inside `core`, `commands` may use every block, blocks never import `commands`; `git` is the only module that spawns processes; `files` is the only module that writes to disk.

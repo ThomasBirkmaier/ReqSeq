@@ -733,6 +733,35 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
   ],
+  "evidence.list": [
+    {
+      name: "the records of a requirement with the baselines of their version, and a faulty baseline file (SR-032)",
+      fixture: {
+        ...EVIDENCE,
+        files: {
+          "baselines/release-1.0.yaml":
+            "logreq-baseline: 1\nname: Release 1.0\ndate: 2026-10-24T09:30:00Z\nrepositories:\n" +
+            "  - { name: system, commit: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad }\nelements:\n" +
+            "  - { id: e8df96ea-a168-4d90-8d65-6328cee88fb3, version: n1:2eb0feee31fc1d89 }\n",
+          "baselines/broken.yaml": "logreq-baseline: 1\nname: Broken\n",
+        },
+      },
+      input: { ref: "SR-e88fb3" },
+      expect: "output",
+    },
+    {
+      name: "the records of the core of a requirement and its baselines (SR-032 AK2)",
+      fixture: { fixture: "SR-032/baselines", git: true },
+      input: { ref: "SR-0032a1", view: "core" },
+      expect: "output",
+    },
+    {
+      name: "an unknown element gives the same error",
+      fixture: EVIDENCE,
+      input: { ref: "SR-ffffff" },
+      expect: "error",
+    },
+  ],
   "evidence.status": [
     {
       name: "the verification status of a workspace with an evidence location (#535, SR-031)",
