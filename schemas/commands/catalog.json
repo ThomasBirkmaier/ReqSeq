@@ -5,10 +5,16 @@
   "commands": [
     {
       "name": "workspace.init",
+      "title": "Initialise workspace",
       "summary": "Create a workspace with the standard model in an existing folder.",
       "effect": "write-files",
       "stage": 1,
       "implements": ["SR-014"],
+      "arguments": [
+        { "field": "path", "complete": "text" },
+        { "field": "name", "complete": "text" },
+        { "field": "metamodel", "complete": "json" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -58,10 +64,12 @@
     },
     {
       "name": "workspace.status",
+      "title": "Show workspace status",
       "summary": "Repositories of the workspace, which are available, where the metamodel comes from, read-only state.",
       "effect": "read",
       "stage": 1,
       "implements": ["SR-004", "SR-006", "SR-011", "SR-018"],
+      "arguments": [],
       "input": {
         "type": "object",
         "properties": {},
@@ -131,6 +139,7 @@
     },
     {
       "name": "workspace.check",
+      "title": "Check workspace",
       "summary": "Check the whole workspace against the metamodel: files, required and unknown properties, statuses outside the type and missing statuses, missing targets, cycles, duplicate IDs, outdated relations. ok is false, and the CLI exits 1, on findings at or above failOn (default error).",
       "effect": "read",
       "stage": 1,
@@ -147,6 +156,12 @@
         "SR-089",
         "SR-090",
         "SR-092"
+      ],
+      "arguments": [
+        { "field": "changedFiles", "complete": "text" },
+        { "field": "changedSince", "complete": "text" },
+        { "field": "severity", "complete": "choice" },
+        { "field": "failOn", "complete": "choice" }
       ],
       "input": {
         "type": "object",
@@ -226,10 +241,12 @@
     },
     {
       "name": "metamodel.get",
+      "title": "Show metamodel",
       "summary": "The effective metamodel: types with inherited properties and statuses, properties, relation kinds, statuses, meanings.",
       "effect": "read",
       "stage": 1,
       "implements": ["SR-012", "SR-013"],
+      "arguments": [],
       "input": {
         "type": "object",
         "properties": {},
@@ -299,6 +316,7 @@
     },
     {
       "name": "element.create",
+      "title": "Create element",
       "summary": "Create an element with a new random UUID. Only title, text and required properties are needed; empty required properties give a hint (SR-064). New elements always get the initial status of the metamodel (D-030); when their type lacks it or it is marked invalid, the first status of the type in metamodel order that is not marked invalid, and no status for a type without status or with only invalid statuses (#306, #344).",
       "effect": "write-files",
       "stage": 1,
@@ -312,6 +330,14 @@
         "SR-084",
         "SR-091",
         "SR-102"
+      ],
+      "arguments": [
+        { "field": "type", "complete": "type" },
+        { "field": "title", "complete": "text" },
+        { "field": "text", "complete": "text" },
+        { "field": "properties", "complete": "json" },
+        { "field": "repository", "complete": "repository" },
+        { "field": "folder", "complete": "text" }
       ],
       "input": {
         "type": "object",
@@ -368,6 +394,7 @@
     },
     {
       "name": "element.get",
+      "title": "Get element",
       "summary": "One element with text, properties, relations, version (and on request its date), hints, and which variants replace or exclude it.",
       "effect": "read",
       "stage": 1,
@@ -384,6 +411,13 @@
         "SR-086",
         "SR-088",
         "SR-091"
+      ],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "view", "complete": "text" },
+        { "field": "versionDate", "complete": "boolean" },
+        { "field": "repository", "complete": "repository" },
+        { "field": "file", "complete": "text" }
       ],
       "input": {
         "type": "object",
@@ -433,10 +467,18 @@
     },
     {
       "name": "element.resolve",
+      "title": "Resolve reference",
       "summary": "Resolve a reference from another tool (UUID, short ID or identifier, optional version) and tell whether the version is current.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-060"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "version", "complete": "text" },
+        { "field": "versionDate", "complete": "boolean" },
+        { "field": "repository", "complete": "repository" },
+        { "field": "file", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -490,10 +532,18 @@
     },
     {
       "name": "element.list",
+      "title": "List all elements",
       "summary": "Elements of a selection, sorted; optionally as derivation tree.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-043", "SR-048", "SR-069", "SR-070", "SR-075", "SR-101"],
+      "arguments": [
+        { "field": "selection", "complete": "selection" },
+        { "field": "sort", "complete": "json" },
+        { "field": "withText", "complete": "boolean" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -586,10 +636,15 @@
     },
     {
       "name": "element.facets",
+      "title": "Show facets",
       "summary": "Types, statuses and property values of the elements of a selection, with counts, to choose a filter from.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-069", "SR-124", "SR-118"],
+      "arguments": [
+        { "field": "selection", "complete": "selection" },
+        { "field": "maxValues", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -709,6 +764,7 @@
     },
     {
       "name": "element.update",
+      "title": "Update element",
       "summary": "Change title, text or properties of one element. Unknown properties are kept; status changes only via element.setStatus.",
       "effect": "write-files",
       "stage": 1,
@@ -724,6 +780,13 @@
         "SR-065",
         "SR-087",
         "SR-102"
+      ],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "title", "complete": "text" },
+        { "field": "text", "complete": "text" },
+        { "field": "set", "complete": "json" },
+        { "field": "unset", "complete": "property", "of": "ref" }
       ],
       "input": {
         "type": "object",
@@ -798,10 +861,15 @@
     },
     {
       "name": "element.setStatus",
+      "title": "Set status",
       "summary": "Set or remove the status of elements on explicit request of the caller. Only a status of each element's type is taken (`statuses` of the type in metamodel.get, #306); an element of a type without status gets none. `status: null` removes the status line where the type's status is optional (#343). The only command besides element.supersede that changes a status; no command changes a status on its own (D-030, SR-087).",
       "effect": "write-files",
       "stage": 1,
       "implements": ["SR-017", "SR-087"],
+      "arguments": [
+        { "field": "refs", "complete": "element" },
+        { "field": "status", "complete": "status", "of": "refs" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -842,10 +910,17 @@
     },
     {
       "name": "element.supersede",
+      "title": "Supersede element",
       "summary": "Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
       "effect": "write-files",
       "stage": 1,
       "implements": ["SR-072", "SR-087", "SR-099"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "status", "complete": "invalidStatus", "of": "ref" },
+        { "field": "successor", "complete": "element" },
+        { "field": "relation", "complete": "relationKind", "of": "successor" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -890,10 +965,19 @@
     },
     {
       "name": "element.bulkUpdate",
+      "title": "Bulk update elements",
       "summary": "Set, add to or remove one property for all elements of a selection. Without `confirm` only previews: the number of affected elements and the skipped ones, whose type does not have the property. With `confirm` writes only that property's lines (SR-102). Never id, type or status (element.setStatus takes several refs).",
       "effect": "write-files",
       "stage": 3,
       "implements": ["SR-071", "SR-101"],
+      "arguments": [
+        { "field": "selection", "complete": "selection" },
+        { "field": "property", "complete": "property" },
+        { "field": "operation", "complete": "choice" },
+        { "field": "value", "complete": "value", "of": "property" },
+        { "field": "confirm", "complete": "boolean" },
+        { "field": "expected", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1016,10 +1100,15 @@
     },
     {
       "name": "element.addAttachment",
+      "title": "Add attachment",
       "summary": "Copy an image into the folder named like the element file, next to it, and return the Markdown that embeds it relatively; once the text embeds it, the image counts to the version (SR-097, D-057). Never replaces a file.",
       "effect": "write-files",
       "stage": 3,
       "implements": ["SR-065", "SR-097"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "sourcePath", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1052,10 +1141,15 @@
     },
     {
       "name": "relation.options",
+      "title": "Show relation options",
       "summary": "Relation kinds the metamodel allows from an element, each with the types its target may have (SR-067); search a target with element.search and selection.where: { type: targetTypes }.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-012", "SR-067"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "kind", "complete": "relationKind", "of": "ref" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1106,10 +1200,16 @@
     },
     {
       "name": "relation.add",
+      "title": "Create relation",
       "summary": "Add a relation; stores target UUID and current version, plus the title only within the same repository.",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-005", "SR-021", "SR-041", "SR-067"],
+      "arguments": [
+        { "field": "source", "complete": "element" },
+        { "field": "kind", "complete": "relationKind", "of": "source" },
+        { "field": "target", "complete": "relationTarget", "of": "kind" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1148,10 +1248,17 @@
     },
     {
       "name": "relation.remove",
+      "title": "Remove relation",
       "summary": "Remove a relation from the source file.",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-067"],
+      "arguments": [
+        { "field": "source", "complete": "element" },
+        { "field": "kind", "complete": "relation", "of": "source" },
+        { "field": "target", "complete": "relation", "of": "kind" },
+        { "field": "repository", "complete": "repository" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1195,10 +1302,19 @@
     },
     {
       "name": "trace.chain",
+      "title": "Show trace chain",
       "summary": "Chain up to the top parents and down to evidence, with depth, gaps and cycles; one page of nodes at a time, total counts all.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-006", "SR-022", "SR-033"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "direction", "complete": "choice" },
+        { "field": "view", "complete": "text" },
+        { "field": "maxDepth", "complete": "number" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1419,10 +1535,19 @@
     },
     {
       "name": "trace.related",
+      "title": "Show related elements",
       "summary": "All children of a set of parents, or all parents of a set of requirements, each once, optionally up to a depth; one page at a time, total counts all.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-023"],
+      "arguments": [
+        { "field": "refs", "complete": "element" },
+        { "field": "direction", "complete": "choice" },
+        { "field": "maxDepth", "complete": "number" },
+        { "field": "view", "complete": "text" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1482,10 +1607,16 @@
     },
     {
       "name": "trace.affected",
+      "title": "Show affected elements",
       "summary": "Elements affected by a change of one element, with path and distance.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-006", "SR-024"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1604,10 +1735,23 @@
     },
     {
       "name": "trace.neighbourhood",
+      "title": "Show neighbourhood",
       "summary": "The surroundings of one element over every relation kind and inline reference, up and down to a depth; each edge says whether it repeats an element and whether it is outdated. One page of nodes at a time.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-107"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "repository", "complete": "repository" },
+        { "field": "direction", "complete": "choice" },
+        { "field": "maxDepth", "complete": "number" },
+        { "field": "allLevels", "complete": "boolean" },
+        { "field": "kinds", "complete": "text" },
+        { "field": "meanings", "complete": "choice" },
+        { "field": "view", "complete": "text" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1777,10 +1921,18 @@
     },
     {
       "name": "trace.matrix",
+      "title": "Show traceability matrix",
       "summary": "Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-125"],
+      "arguments": [
+        { "field": "selection", "complete": "selection" },
+        { "field": "sort", "complete": "json" },
+        { "field": "kinds", "complete": "relationKind" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1937,10 +2089,18 @@
     },
     {
       "name": "hint.list",
+      "title": "List hints",
       "summary": "Open hints of the workspace, filterable by kind, type, package or variant.",
       "effect": "read",
       "stage": 2,
       "implements": ["SR-026", "SR-040", "SR-045", "SR-072", "SR-103"],
+      "arguments": [
+        { "field": "kind", "complete": "text" },
+        { "field": "type", "complete": "type" },
+        { "field": "package", "complete": "element" },
+        { "field": "variant", "complete": "element" },
+        { "field": "ref", "complete": "element" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -1994,10 +2154,17 @@
     },
     {
       "name": "hint.confirm",
+      "title": "Confirm hints",
       "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-027", "SR-087", "SR-102"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "target", "complete": "element" },
+        { "field": "kind", "complete": "text" },
+        { "field": "hintIds", "complete": "hint", "of": "ref" }
+      ],
       "input": {
         "type": "object",
         "description": "Give `hintIds`, `ref`, `target` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (those with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `kind` narrows only that selection and needs `ref` or `target`. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): each once, `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning.",
@@ -2055,10 +2222,18 @@
     },
     {
       "name": "element.search",
+      "title": "Search elements",
       "summary": "Full-text search over title, text, properties and IDs of the elements of a selection, typo tolerant, in any case, the best first.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-066", "SR-068", "SR-098"],
+      "arguments": [
+        { "field": "query", "complete": "text" },
+        { "field": "selection", "complete": "selection" },
+        { "field": "fields", "complete": "choice" },
+        { "field": "limit", "complete": "number" },
+        { "field": "offset", "complete": "number" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2168,10 +2343,12 @@
     },
     {
       "name": "filter.list",
+      "title": "List saved filters",
       "summary": "Saved filters of the workspace, with their definitions.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-070"],
+      "arguments": [],
       "input": {
         "type": "object",
         "properties": {},
@@ -2230,10 +2407,18 @@
     },
     {
       "name": "filter.save",
+      "title": "Save filter",
       "summary": "Save a named filter as YAML in the repository; an existing name replaces that filter.",
       "effect": "write-files",
       "stage": 3,
       "implements": ["SR-070"],
+      "arguments": [
+        { "field": "name", "complete": "text" },
+        { "field": "where", "complete": "json" },
+        { "field": "description", "complete": "text" },
+        { "field": "view", "complete": "text" },
+        { "field": "sort", "complete": "json" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2284,10 +2469,15 @@
     },
     {
       "name": "evidence.list",
+      "title": "List evidence",
       "summary": "Evidence records of an element with version, item, date, result, evidence location and baselines that contain the version.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "view", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2329,10 +2519,23 @@
     },
     {
       "name": "evidence.record",
+      "title": "Record evidence",
       "summary": "Write a manual verification or validation record; ID and current version are filled in.",
       "effect": "write-files",
       "stage": 4,
       "implements": ["SR-030"],
+      "arguments": [
+        { "field": "ref", "complete": "element" },
+        { "field": "kind", "complete": "choice" },
+        { "field": "result", "complete": "choice" },
+        { "field": "method", "complete": "choice" },
+        { "field": "item", "complete": "text" },
+        { "field": "variant", "complete": "element" },
+        { "field": "date", "complete": "text" },
+        { "field": "evidence", "complete": "text" },
+        { "field": "testCase", "complete": "text" },
+        { "field": "folder", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2393,10 +2596,17 @@
     },
     {
       "name": "evidence.enrichJunit",
+      "title": "Enrich JUnit file",
       "summary": "Add UUID, version, item and date to every test case of a JUnit XML file that names a short ID. CLI exits 1 on unknown IDs.",
       "effect": "write-files",
       "stage": 4,
       "implements": ["SR-029", "SR-063"],
+      "arguments": [
+        { "field": "file", "complete": "text" },
+        { "field": "item", "complete": "text" },
+        { "field": "date", "complete": "text" },
+        { "field": "output", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2453,10 +2663,12 @@
     },
     {
       "name": "evidence.status",
+      "title": "Show evidence status",
       "summary": "Verification and validation status of a selection per view, including indirect verification and missing children.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-031", "SR-034", "SR-035", "SR-038", "SR-047", "SR-093"],
+      "arguments": [{ "field": "selection", "complete": "selection" }],
       "input": {
         "type": "object",
         "properties": {
@@ -2489,10 +2701,12 @@
     },
     {
       "name": "evidence.coverage",
+      "title": "Show evidence coverage",
       "summary": "Coverage of a selection per level: how many have children, how many have evidence; with the element lists.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-036", "SR-042", "SR-101"],
+      "arguments": [{ "field": "selection", "complete": "selection" }],
       "input": {
         "type": "object",
         "properties": {
@@ -2552,10 +2766,12 @@
     },
     {
       "name": "evidence.degree",
+      "title": "Show verification degree",
       "summary": "Verification degree of a selection: share verified and count per status.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-037", "SR-042", "SR-101"],
+      "arguments": [{ "field": "selection", "complete": "selection" }],
       "input": {
         "type": "object",
         "properties": {
@@ -2594,10 +2810,12 @@
     },
     {
       "name": "data.export",
+      "title": "Export data",
       "summary": "Data of the current state as JSON for external evaluation.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-061", "SR-101"],
+      "arguments": [{ "field": "selection", "complete": "selection" }],
       "input": {
         "type": "object",
         "properties": {
@@ -2614,10 +2832,15 @@
     },
     {
       "name": "data.store",
+      "title": "Store data",
       "summary": "Write the data of the current state to a folder, file name contains the commit.",
       "effect": "write-files",
       "stage": 4,
       "implements": ["SR-062"],
+      "arguments": [
+        { "field": "folder", "complete": "text" },
+        { "field": "selection", "complete": "selection" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2654,10 +2877,12 @@
     },
     {
       "name": "variant.diff",
+      "title": "Show variant difference",
       "summary": "What a variant adds, replaces and excludes compared to the core.",
       "effect": "read",
       "stage": 5,
       "implements": ["SR-044", "SR-103"],
+      "arguments": [{ "field": "variant", "complete": "element" }],
       "input": {
         "type": "object",
         "properties": {
@@ -2706,10 +2931,16 @@
     },
     {
       "name": "variant.exclude",
+      "title": "Exclude requirements from variant",
       "summary": "Exclude core requirements for a variant; written into the variant file only.",
       "effect": "write-files",
       "stage": 5,
       "implements": ["SR-042"],
+      "arguments": [
+        { "field": "variant", "complete": "element" },
+        { "field": "refs", "complete": "element" },
+        { "field": "undo", "complete": "boolean" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2753,10 +2984,15 @@
     },
     {
       "name": "baseline.create",
+      "title": "Create baseline",
       "summary": "Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.",
       "effect": "write-files",
       "stage": 5,
       "implements": ["SR-050", "SR-101"],
+      "arguments": [
+        { "field": "name", "complete": "text" },
+        { "field": "selection", "complete": "selection" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2793,10 +3029,12 @@
     },
     {
       "name": "baseline.list",
+      "title": "List baselines",
       "summary": "Baseline files of the workspace.",
       "effect": "read",
       "stage": 5,
       "implements": ["SR-051"],
+      "arguments": [],
       "input": {
         "type": "object",
         "properties": {},
@@ -2831,10 +3069,15 @@
     },
     {
       "name": "baseline.get",
+      "title": "Show baseline",
       "summary": "Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.",
       "effect": "read",
       "stage": 5,
       "implements": ["SR-032", "SR-051", "SR-094"],
+      "arguments": [
+        { "field": "baseline", "complete": "text" },
+        { "field": "withEvidence", "complete": "boolean" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2876,10 +3119,15 @@
     },
     {
       "name": "baseline.compare",
+      "title": "Compare baseline",
       "summary": "The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.",
       "effect": "read",
       "stage": 5,
       "implements": ["SR-051", "SR-083"],
+      "arguments": [
+        { "field": "baseline", "complete": "text" },
+        { "field": "ref", "complete": "element" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2921,10 +3169,15 @@
     },
     {
       "name": "reqif.analyze",
+      "title": "Analyse ReqIF file",
       "summary": "Read a ReqIF file: types and attributes without mapping, and for a repeated delivery the new, changed and dropped requirements. Writes nothing.",
       "effect": "read",
       "stage": 6,
       "implements": ["SR-055", "SR-056"],
+      "arguments": [
+        { "field": "file", "complete": "text" },
+        { "field": "mapping", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -2988,10 +3241,16 @@
     },
     {
       "name": "reqif.import",
+      "title": "Import ReqIF file",
       "summary": "Import a ReqIF 1.2 file with a mapping; updates existing elements by IDENTIFIER, records origin, reports losses.",
       "effect": "write-files",
       "stage": 6,
       "implements": ["SR-053", "SR-056", "SR-057", "SR-087", "SR-095"],
+      "arguments": [
+        { "field": "file", "complete": "text" },
+        { "field": "mapping", "complete": "text" },
+        { "field": "delivery", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -3058,10 +3317,15 @@
     },
     {
       "name": "reqif.saveMapping",
+      "title": "Save ReqIF mapping",
       "summary": "Save or change the mapping of a source to the own metamodel.",
       "effect": "write-files",
       "stage": 6,
       "implements": ["SR-054", "SR-059"],
+      "arguments": [
+        { "field": "mapping", "complete": "json" },
+        { "field": "file", "complete": "text" }
+      ],
       "input": {
         "type": "object",
         "properties": {
@@ -3098,10 +3362,19 @@
     },
     {
       "name": "reqif.export",
+      "title": "Export ReqIF",
       "summary": "Export a selection or a saved export profile as ReqIF 1.2; IDENTIFIER is the UUID, or the source IDENTIFIER for statements.",
       "effect": "write-files",
       "stage": 6,
       "implements": ["SR-052", "SR-058", "SR-059", "SR-101"],
+      "arguments": [
+        { "field": "output", "complete": "text" },
+        { "field": "selection", "complete": "selection" },
+        { "field": "profile", "complete": "text" },
+        { "field": "mapping", "complete": "text" },
+        { "field": "omitProperties", "complete": "property" },
+        { "field": "statements", "complete": "boolean" }
+      ],
       "input": {
         "type": "object",
         "properties": {

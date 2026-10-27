@@ -124,10 +124,12 @@ describe("CommandError", () => {
         commands: [
           {
             name: "test.fail",
+            title: "Test command",
             summary: "Always fails (test only).",
             effect: "read",
             stage: 1,
             implements: ["SR-080"],
+            arguments: [],
             input: { type: "object" },
             output: { type: "object", $ref: "../common.schema.json#/$defs/error" },
           },

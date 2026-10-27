@@ -903,12 +903,41 @@ export interface CommandCatalog {
   readonly commands: readonly {
     /** group.action; CLI `logreq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
     readonly name: string;
+    /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045). */
+    readonly title: string;
     readonly summary: string;
     /** No command writes to Git (D-036). No command deletes elements (D-045). */
     readonly effect: "read" | "write-files";
     /** Stage of D-035 in which the command is built. */
     readonly stage: number;
     readonly implements: readonly string[];
+    /** How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on; without it, the nearest earlier field of the matching kind, and if there is none, every value of the metamodel. `validate-schemas.mjs` checks the coverage, the order and `of`. */
+    readonly arguments: readonly {
+      /** A top-level property of `input`. */
+      readonly field: string;
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of`. invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of`. relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: values of existing relations of the elements in `of`. property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of`. filter: saved filters. repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      readonly complete:
+        | "element"
+        | "type"
+        | "status"
+        | "invalidStatus"
+        | "relationKind"
+        | "relationTarget"
+        | "relation"
+        | "property"
+        | "value"
+        | "hint"
+        | "filter"
+        | "repository"
+        | "selection"
+        | "choice"
+        | "text"
+        | "number"
+        | "boolean"
+        | "json";
+      /** An earlier field of `arguments`. */
+      readonly of?: string;
+    }[];
     readonly input: Readonly<Record<string, unknown>>;
     /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
     readonly output: {

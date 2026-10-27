@@ -23,10 +23,12 @@ import { EXIT, runCli } from "./main.js";
 
 const entry = (name: string) => ({
   name,
+  title: "Test command",
   summary: `Test command ${name}.`,
   effect: "read",
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input: { type: "object" },
   output: { type: "object" },
 });

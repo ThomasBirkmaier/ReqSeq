@@ -13,6 +13,8 @@ export interface McpToolAnnotations {
 /** A tool as in schemas/generated/mcp-tools.json: `$ref`s point into the shared `$defs`. */
 export interface McpTool {
   readonly name: string;
+  /** The title of the catalog entry: the name for people (MCP `Tool.title`). */
+  readonly title: string;
   readonly description: string;
   readonly annotations: McpToolAnnotations;
   readonly inputSchema: JsonSchema;
@@ -83,6 +85,7 @@ const definitions = (contracts: Contracts): Record<string, JsonSchema> =>
 
 const tool = (entry: CatalogEntry): McpTool => ({
   name: toolName(entry.name),
+  title: entry.title,
   description: entry.summary,
   annotations: { readOnlyHint: entry.effect === "read", destructiveHint: false, openWorldHint: false },
   // Command schemas sit in schemas/commands/; their refs name the file, so the file here is a fallback only.

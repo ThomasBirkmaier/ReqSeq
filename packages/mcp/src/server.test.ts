@@ -20,10 +20,12 @@ import { LineTransport } from "./transport.js";
 
 const entry = (name: string, effect = "read", input: Record<string, unknown> = {}) => ({
   name,
+  title: `Title of ${name.replace(".", " ")}`,
   summary: `Test command ${name}.`,
   effect,
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input: { type: "object", additionalProperties: false, ...input },
   output: { type: "object" },
 });
@@ -199,10 +201,10 @@ describe("serveMcp", () => {
     const { client } = await open();
     expect(client.getServerVersion()).toMatchObject({ name: "logreq", version: PRODUCT_VERSION });
     const { tools } = await client.listTools();
-    expect(tools.map((t) => [t.name, t.annotations?.readOnlyHint, t.description])).toEqual([
-      ["test_echo", true, "Test command test.echo."],
-      ["test_fail", true, "Test command test.fail."],
-      ["test_wait", true, "Test command test.wait."],
+    expect(tools.map((t) => [t.name, t.title, t.annotations?.readOnlyHint, t.description])).toEqual([
+      ["test_echo", "Title of test echo", true, "Test command test.echo."],
+      ["test_fail", "Title of test fail", true, "Test command test.fail."],
+      ["test_wait", "Title of test wait", true, "Test command test.wait."],
     ]);
     expect(tools[0]?.inputSchema).toEqual(catalog.commands[0]?.input);
     // No output schemas: MCP does not need them for structured content, and they made up most of the list.

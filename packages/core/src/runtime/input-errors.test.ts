@@ -16,10 +16,12 @@ const keywordCatalog = {
   commands: [
     {
       name: "test.fields",
+      title: "Test command",
       summary: "Fields of every kind (test only).",
       effect: "read",
       stage: 1,
       implements: ["SR-080"],
+      arguments: [],
       input: {
         type: "object",
         properties: {

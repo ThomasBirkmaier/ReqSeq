@@ -1,0 +1,116 @@
+import { describe, expect, it } from "vitest";
+import { loadContracts } from "./load.mjs";
+import { checkCatalog } from "./catalog-checks.mjs";
+
+const input = {
+  type: "object",
+  properties: {
+    ref: { type: "string" },
+    kind: { type: "string" },
+    limit: { type: "integer" },
+    deep: { type: "boolean" },
+    direction: { enum: ["up", "down"] },
+    meanings: { type: "array", items: { enum: ["a", "b"] } },
+  },
+  required: ["ref"],
+};
+const arg = (field, complete, of) => (of ? { field, complete, of } : { field, complete });
+const ALL = [
+  arg("ref", "element"),
+  arg("kind", "relationKind", "ref"),
+  arg("limit", "number"),
+  arg("deep", "boolean"),
+  arg("direction", "choice"),
+  arg("meanings", "choice"),
+];
+const command = (name, title, args = ALL, schema = input) => ({
+  name,
+  title,
+  arguments: args,
+  input: schema,
+});
+const check = (...commands) => checkCatalog({ commands });
+
+describe("catalog checks (titles and argument sources, SR-108)", () => {
+  it("accepts the product catalog", () => {
+    expect(checkCatalog(loadContracts().catalog)).toEqual([]);
+  });
+
+  it("accepts a complete argument list", () => {
+    expect(check(command("test.one", "One"))).toEqual([]);
+  });
+
+  it("every title is unique and delete words are only for relations (D-045)", () => {
+    expect(check(command("test.one", "Same"), command("test.two", "Same"))).toEqual([
+      'catalog.json: test.two: title "Same" is also the title of test.one',
+    ]);
+    expect(check(command("test.one", "Remove it"))).toEqual([
+      'catalog.json: test.one: title "Remove it": elements are superseded, never deleted (D-045)',
+    ]);
+    expect(check(command("relation.one", "Remove relation"))).toEqual([]);
+  });
+
+  it("lists every input field exactly once", () => {
+    expect(check(command("test.one", "One", ALL.slice(1)))).toEqual([
+      'catalog.json: test.one: arguments: input field "ref" must be listed exactly once in arguments (found 0)',
+      'catalog.json: test.one: arguments: "kind": "of" must name an earlier field, not "ref"',
+    ]);
+    expect(check(command("test.one", "One", [...ALL, arg("limit", "number")]))).toEqual([
+      'catalog.json: test.one: arguments: input field "limit" must be listed exactly once in arguments (found 2)',
+    ]);
+    expect(check(command("test.one", "One", [...ALL, arg("other", "text")]))).toEqual([
+      'catalog.json: test.one: arguments: "other" is no input field',
+    ]);
+  });
+
+  it("asks the required fields first", () => {
+    const args = [ALL[2], ALL[0], ALL[1], ALL[3], ALL[4], ALL[5]];
+    expect(check(command("test.one", "One", args))).toEqual([
+      'catalog.json: test.one: arguments: required "ref" comes after optional "limit"',
+    ]);
+  });
+
+  it("`of` names an earlier field and only a source that reads one", () => {
+    const later = [ALL[0], arg("kind", "relationKind", "limit"), ...ALL.slice(2)];
+    expect(check(command("test.one", "One", later))).toEqual([
+      'catalog.json: test.one: arguments: "kind": "of" must name an earlier field, not "limit"',
+    ]);
+    const text = [ALL[0], arg("kind", "text", "ref"), ...ALL.slice(2)];
+    expect(check(command("test.one", "One", text))).toEqual([
+      'catalog.json: test.one: arguments: "kind": text takes no "of"',
+    ]);
+  });
+
+  it("a source that reads a field needs one before it", () => {
+    const first = { ...input, required: ["kind"] };
+    const args = [arg("kind", "value"), ...ALL.filter((a) => a.field !== "kind")];
+    expect(check(command("test.one", "One", args, first))).toEqual([
+      'catalog.json: test.one: arguments: "kind": value needs an earlier field',
+    ]);
+  });
+
+  it("typed sources fit their field", () => {
+    const wrong = [
+      ALL[0],
+      ALL[1],
+      arg("limit", "boolean"),
+      arg("deep", "number"),
+      arg("direction", "boolean"),
+      arg("meanings", "number"),
+    ];
+    expect(check(command("test.one", "One", wrong))).toEqual([
+      'catalog.json: test.one: arguments: "limit": boolean needs a boolean field',
+      'catalog.json: test.one: arguments: "deep": number needs an integer field',
+      'catalog.json: test.one: arguments: "direction": boolean needs a boolean field',
+      'catalog.json: test.one: arguments: "meanings": number needs an integer field',
+    ]);
+    const choice = [ALL[0], arg("kind", "choice"), ...ALL.slice(2)];
+    expect(check(command("test.one", "One", choice))).toEqual([
+      'catalog.json: test.one: arguments: "kind": choice needs an inline enum',
+    ]);
+  });
+
+  it("an input without properties has no arguments", () => {
+    expect(check(command("test.one", "One", [], { type: "object" }))).toEqual([]);
+  });
+});

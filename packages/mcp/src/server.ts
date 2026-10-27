@@ -27,6 +27,7 @@ export interface McpServerOptions {
 /** A tool as `tools/list` sends it. */
 const listed = (tool: ServerTool): Tool => ({
   name: tool.name,
+  title: tool.title,
   description: tool.description,
   // Every catalog input schema has `type: "object"` at its root (catalog.meta.schema.json), as MCP requires.
   inputSchema: tool.inputSchema as Tool["inputSchema"],

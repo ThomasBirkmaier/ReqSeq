@@ -8,7 +8,9 @@ Every function must be available through app, CLI, API and MCP with the same res
 
 ## Decision
 
-1. **One catalog.** `schemas/commands/catalog.json` lists every command: `name` (`group.action`), `summary`, `effect` (`read` or `write-files`), `stage` (D-035), `implements` (SR IDs), JSON Schema for `input` and `output`. It is the contract; a change is its own PR, announced to Thomas in the stage epic (D-051).
+1. **One catalog.** `schemas/commands/catalog.json` lists every command: `name` (`group.action`), `title`, `summary`, `effect` (`read` or `write-files`), `stage` (D-035), `implements` (SR IDs), `arguments`, JSON Schema for `input` and `output`. It is the contract; a change is its own PR, announced to the product owner in the stage epic (D-051).
+   - `title` is the name for people: English, sentence case, at most 40 characters, unique, free of delete words except for relations. It is what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. Where an app action does the same as a command, the title is the action's name, so the prompt lists it once.
+   - `arguments` says how a prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked, as flat entries `{ field, complete, of? }`. `complete` is a closed list of sources (`element`, `type`, `status`, `invalidStatus`, `relationKind`, `relationTarget`, `relation`, `property`, `value`, `hint`, `filter`, `repository`, `selection`, `choice`, `text`, `number`, `boolean`, `json`); `of` names an earlier field the source depends on (default: the nearest earlier field of the matching kind). A client maps each source to one existing read command (`metamodel.get`, `relation.options`, `element.search`, `hint.list`, `filter.list`, `workspace.status`) and shows what core returns; it decides nothing about what is allowed. There is no command for completion: every allowed value already comes from a read command on every access. `scripts/contracts/validate-schemas.mjs` checks titles and arguments (`catalog-checks.mjs`).
 2. **One implementation per command** in `packages/core/src/commands/<group>/<action>.ts`, registered with `defineCommand` (`packages/core/src/catalog.ts`). The definition holds only the catalog name and `run`; summary, effect and the input and output schemas are taken from the catalog entry, so they match by construction. A test (`packages/core/src/commands/registry.test.ts`) checks that every implementation has a catalog entry and is registered under the name of its file, and that every catalog entry of a completed stage (`COMPLETED_STAGES`, set when the stage is done) has exactly one implementation (entries of stages in progress arrive one SR at a time).
 3. **Adapters are generic.** They know nothing about individual commands:
    - CLI: `logreq <group> <action>` with flags derived from the input schema, `--input <json|@file>`, `--json` for machine output.
@@ -24,7 +26,7 @@ Every function must be available through app, CLI, API and MCP with the same res
 ## Consequences
 
 - SR-080 holds by construction; adding a function means adding a catalog entry and one implementation.
-- The catalog is long-lived API; removing or changing an input field is a breaking change and needs a new ADR.
+- The catalog is long-lived API; removing or changing an input field is a breaking change and needs a new ADR. `title` and `arguments` (#404) are additions only: no existing field changed.
 - Command names are English (D-019).
 
 ## Rejected

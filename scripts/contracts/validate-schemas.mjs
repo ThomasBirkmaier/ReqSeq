@@ -6,6 +6,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE } from "./load.mjs";
+import { checkCatalog } from "./catalog-checks.mjs";
 
 const errors = [];
 const { ajv, schemas, catalog } = loadContracts();
@@ -39,6 +40,11 @@ for (const cmd of catalog.commands) {
       errors.push(`catalog.json: ${cmd.name}.${part}: ${e.message}`);
     }
   }
+}
+
+// Titles and argument sources of the command prompt (SR-108); needs a catalog that matches the meta-schema.
+if (validCatalog.errors === null) {
+  errors.push(...checkCatalog(catalog));
 }
 
 function parseExample(f, text) {

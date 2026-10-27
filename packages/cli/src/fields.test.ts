@@ -6,10 +6,12 @@ import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
 
 const entry = (input: JsonSchema, name = "test.fields"): CatalogEntry => ({
   name,
+  title: "Fields",
   summary: "Fields for the classifier (test only).",
   effect: "read",
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input,
   output: { type: "object" },
 });

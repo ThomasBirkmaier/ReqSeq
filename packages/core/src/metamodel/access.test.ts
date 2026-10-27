@@ -13,10 +13,12 @@ import { assertWritable, workspaceAccess } from "./access.js";
 // in `invoke` is checked with stand-ins that have the effects of the real catalog entries.
 const entry = (name: string, effect: "read" | "write-files"): Record<string, unknown> => ({
   name,
+  title: "Test command",
   summary: `${name} (test only).`,
   effect,
   stage: 1,
   implements: ["SR-011"],
+  arguments: [],
   input: { type: "object", additionalProperties: false },
   output: {
     type: "object",

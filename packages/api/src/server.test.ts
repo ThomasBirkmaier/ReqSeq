@@ -36,10 +36,12 @@ const unused = (): void => undefined;
 // Test-only catalog: echo, every error class, a crash, a command that waits for its signal, odd outputs.
 const entry = (name: string, input: Record<string, unknown> = {}) => ({
   name,
+  title: "Test command",
   summary: `Test command ${name}.`,
   effect: "read",
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input: { type: "object", additionalProperties: true, ...input },
   output: { type: "object" },
 });

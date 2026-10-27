@@ -15,10 +15,12 @@ const testCatalog = {
   commands: [
     {
       name: "test.echo",
+      title: "Test command",
       summary: "Echo the input (test only).",
       effect: "read",
       stage: 1,
       implements: ["SR-080"],
+      arguments: [],
       input: {
         type: "object",
         required: ["ref"],
@@ -44,10 +46,12 @@ const testCatalog = {
     },
     {
       name: "test.unimplemented",
+      title: "Test command",
       summary: "Has no implementation (test only).",
       effect: "read",
       stage: 2,
       implements: ["SR-080"],
+      arguments: [],
       input: { type: "object" },
       output: { type: "object" },
     },

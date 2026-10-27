@@ -802,10 +802,12 @@ describe("every command names the short ID of the element of each problem (#315)
       commands: [
         {
           name: "test.recursive",
+          title: "Test command",
           summary: "Problems in a schema that refers back to itself (test only).",
           effect: "read",
           stage: 1,
           implements: ["SR-080"],
+          arguments: [],
           input: { type: "object" },
           output: recursive,
         },
@@ -834,10 +836,12 @@ describe("every command names the short ID of the element of each problem (#315)
       commands: [
         {
           name: "test.named",
+          title: "Test command",
           summary: "A problem about an element (test only).",
           effect: "read",
           stage: 1,
           implements: ["SR-080"],
+          arguments: [],
           input: { type: "object" },
           output: { type: "object", properties: { problems: PROBLEMS } },
         },

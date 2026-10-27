@@ -156,6 +156,7 @@ const mcp = {
     const toRef = refTo("#/$defs/", "common.schema.json");
     return {
       name: cmd.name.replace(".", "_"),
+      title: cmd.title,
       description: cmd.summary,
       annotations: { readOnlyHint: cmd.effect === "read", destructiveHint: false, openWorldHint: false },
       inputSchema: rewrite(cmd.input, toRef),

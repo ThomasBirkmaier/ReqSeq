@@ -20,10 +20,12 @@ import { EXIT, exitCodeFor, runCli } from "./main.js";
 // Test-only catalog: every field form the CLI knows, findings, errors and an unimplemented command.
 const entry = (name: string, input: Record<string, unknown>, summary = `Test command ${name}.`) => ({
   name,
+  title: "Test command",
   summary,
   effect: "read",
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input: { type: "object", additionalProperties: false, ...input },
   output: { type: "object" },
 });

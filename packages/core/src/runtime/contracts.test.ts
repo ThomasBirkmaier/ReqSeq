@@ -19,10 +19,12 @@ const entry = (
   output: object = { type: "object" },
 ): object => ({
   name,
+  title: "Test command",
   summary: "Test-only command.",
   effect: "read",
   stage: 1,
   implements: ["SR-080"],
+  arguments: [],
   input,
   output,
 });

@@ -184,10 +184,12 @@ describe("metamodel in its own repository (SR-018)", () => {
     // `effect`, so every element command behaves like these.
     const entry = (name: string, effect: "read" | "write-files"): Record<string, unknown> => ({
       name,
+      title: "Test command",
       summary: `${name} (test only).`,
       effect,
       stage: 1,
       implements: ["SR-018"],
+      arguments: [],
       input: { type: "object", additionalProperties: false },
       output: {
         type: "object",

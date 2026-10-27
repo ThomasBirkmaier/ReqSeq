@@ -29,6 +29,13 @@ describe("catalogTools", () => {
     expect(list.$defs).toEqual(file["$defs"]);
   });
 
+  it("gives every tool the title of its catalog entry (MCP `title`; the arguments stay out of MCP)", () => {
+    const contracts = loadContracts();
+    const list = catalogTools(contracts);
+    expect(list.tools.map((tool) => tool.title)).toEqual(contracts.commands.map((entry) => entry.title));
+    expect(list.tools.every((tool) => tool.title.length > 0 && !("arguments" in tool))).toBe(true);
+  });
+
   it("publishes only patterns a client compiles without the Unicode flag (D-029, #305)", async () => {
     const published = JSON.parse(await fs.readFile(generated, "utf8")) as {
       $defs: { common: { $defs: { elementRef: { pattern: string } } } };
@@ -55,10 +62,12 @@ describe("catalogTools", () => {
       commands: [
         {
           name: "test.ref",
+          title: "Test command",
           summary: "Refers to a remote schema.",
           effect: "read",
           stage: 1,
           implements: ["SR-080"],
+          arguments: [],
           input: { type: "object", properties: { a: { $ref: "https://example.com/a.json" } } },
           output: { type: "object" },
         },
@@ -76,10 +85,12 @@ describe("serverTools", () => {
     commands: [
       {
         name: "test.read",
+        title: "Read with definitions",
         summary: "A read command with shared definitions.",
         effect: "read",
         stage: 1,
         implements: ["SR-080"],
+        arguments: [],
         input: {
           type: "object",
           properties: {
@@ -91,10 +102,12 @@ describe("serverTools", () => {
       },
       {
         name: "test.write",
+        title: "Test command",
         summary: "A write command, never implemented here.",
         effect: "write-files",
         stage: 2,
         implements: ["SR-080"],
+        arguments: [],
         input: { type: "object" },
         output: { type: "object" },
       },
@@ -107,9 +120,9 @@ describe("serverTools", () => {
 
   it("names tools group_action, marks read commands and leaves out commands without implementation", () => {
     const tools = serverTools(runtime);
-    expect(tools.map((t) => [t.name, t.command, t.annotations.readOnlyHint, t.description])).toEqual([
-      ["test_read", "test.read", true, "A read command with shared definitions."],
-    ]);
+    expect(tools.map((t) => [t.name, t.title, t.command, t.annotations.readOnlyHint, t.description])).toEqual(
+      [["test_read", "Read with definitions", "test.read", true, "A read command with shared definitions."]],
+    );
     expect(tools[0]?.annotations).toEqual({
       readOnlyHint: true,
       destructiveHint: false,

@@ -122,10 +122,12 @@ const field = (
 const invocation = (parts: Partial<Invocation>): Invocation => ({
   entry: {
     name: "test.echo",
+    title: "Echo",
     summary: "Echo (test only).",
     effect: "read",
     stage: 1,
     implements: ["SR-080"],
+    arguments: [],
     input: {},
     output: { type: "object" },
   },
