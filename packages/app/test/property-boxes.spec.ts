@@ -101,6 +101,8 @@ const openElement = async (window: Page): Promise<void> => {
   await window.keyboard.press("Enter");
   await expect(window.locator("article h1")).toHaveText(SR_TITLE);
   await expect(window.locator("article")).toBeFocused();
+  // The keys of the element (Ctrl/Cmd+Alt+A) reach it once its text editor is there (#505).
+  await expect(window.locator('article [data-field="Text"] .cm-content')).toBeVisible();
 };
 
 /** The field the focus is in (its label), or "" when the focus is outside the fields. */
@@ -324,7 +326,8 @@ test.describe("property boxes of an element", () => {
     await expect(window.locator('.candidates [role="option"]')).toHaveCount(0);
     await window.keyboard.press("Enter");
     await expect(promptLabel(window)).toHaveText("Requirement Type");
-    await window.keyboard.press("Control+A");
+    // Select all of the prompt's input: Cmd+A on macOS, where the physical Ctrl+A goes to the line start.
+    await window.keyboard.press("ControlOrMeta+A");
     await window.keyboard.type("qual");
     await window.keyboard.press("Enter");
     await expect(field(window, "requirement-type")).toBeFocused();
@@ -351,7 +354,7 @@ test.describe("property boxes of an element", () => {
     await window.keyboard.type(SR_TITLE);
     await window.waitForTimeout(400);
     await expect(window.locator('.candidates [role="option"]')).toHaveCount(0);
-    await window.keyboard.press("Control+A");
+    await window.keyboard.press("ControlOrMeta+A");
     await window.keyboard.type("Display");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Display");
     await window.keyboard.press("Enter");

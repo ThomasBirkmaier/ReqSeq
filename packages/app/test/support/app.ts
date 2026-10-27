@@ -91,8 +91,16 @@ export const launchApp = async (
   const workspace =
     kept === undefined ? (fixture === undefined ? undefined : await copyFixture(fixture)) : kept.workspace;
   // The OS cache folder (model cache, ADR-0008) and the user data of Electron (its local storage, where
-  // the recent elements of the overview are, SR-118) lie in a temporary folder on every OS.
-  const home = kept === undefined ? await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")) : kept.home;
+  // the recent elements of the overview and the use of the command prompt are, SR-118, SR-121) lie in a
+  // temporary folder on every OS. The environment below moves the cache folder; the user data folder needs
+  // Chromium's `--user-data-dir` switch, because on macOS Electron takes `appData` from Foundation
+  // (~/Library/Application Support of the account), which does not follow HOME (#505). Without it, every
+  // test on a Mac shared the real user data of the LogReq app of that account.
+  const home =
+    kept === undefined
+      ? await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")))
+      : kept.home;
+  const userData = path.join(home, "user-data");
   const env = {
     ...process.env,
     HOME: home,
@@ -105,7 +113,11 @@ export const launchApp = async (
   };
   const app = await electron.launch({
     executablePath: ELECTRON,
-    args: [APP_FOLDER, ...(workspace === undefined ? [] : ["--workspace", workspace.root])],
+    args: [
+      APP_FOLDER,
+      `--user-data-dir=${userData}`,
+      ...(workspace === undefined ? [] : ["--workspace", workspace.root]),
+    ],
     env,
     ...(options.colorScheme === undefined ? {} : { colorScheme: options.colorScheme }),
   });
@@ -114,6 +126,16 @@ export const launchApp = async (
     stderr += chunk.toString("utf8");
   });
   const window = await app.firstWindow();
+  // A test never runs on the user data of a real installation, and a restart finds what the start before kept.
+  const used = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
+  const same = await fs.realpath(used).then(
+    (real) => real === userData,
+    () => false,
+  );
+  if (!same) {
+    await app.close();
+    throw new Error(`The app uses the user data folder ${used}, not the test's ${userData}`);
+  }
   return {
     app,
     window,

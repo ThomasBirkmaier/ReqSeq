@@ -7,6 +7,7 @@ import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
+import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
 import { markdownSupport } from "./markdown.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
@@ -179,6 +180,7 @@ export const Editor = ({
             ...standardKeymap,
           ]),
           EditorView.lineWrapping,
+          releaseCaretSide,
           EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {

@@ -215,7 +215,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     // The Undo item of the menu (the native role) goes back one step as well, not two. The key itself
     // never reaches it: CodeMirror handles Ctrl/Cmd+Z; the real keyboard is checked by hand
     // (verification/SR-065.md).
-    await app.evaluate(({ BrowserWindow, Menu }) => {
+    const found = await app.evaluate(({ app: electronApp, BrowserWindow, Menu }, mac) => {
       const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
         for (const item of items) {
           if (item.role === "undo") {
@@ -229,8 +229,30 @@ test.describe("the Markdown editor in the element buffer", () => {
         return undefined;
       };
       const window = BrowserWindow.getAllWindows()[0];
-      find(Menu.getApplicationMenu()?.items ?? [])?.click(undefined, window, window?.webContents);
-    });
+      const item = find(Menu.getApplicationMenu()?.items ?? []);
+      if (item === undefined || window === undefined) {
+        return false;
+      }
+      if (mac) {
+        // On macOS Electron leaves the editing roles to Cocoa: `click()` of such an item does nothing, and
+        // the menu sends the role's action (`undo:`) to the first responder, the page of the focused window.
+        // This does what a click on Edit > Undo does there (#505).
+        electronApp.focus({ steal: true });
+        window.focus();
+        window.webContents.focus();
+        Menu.sendActionToFirstResponder("undo:");
+      } else {
+        // Electron types `click` as `Function`; it takes the event, the window and its page.
+        const click = item.click as (
+          event: undefined,
+          focused: Electron.BrowserWindow,
+          contents: Electron.WebContents,
+        ) => void;
+        click.call(item, undefined, window, window.webContents);
+      }
+      return true;
+    }, process.platform === "darwin");
+    expect(found).toBe(true);
     await expect.poll(() => shown(window)).not.toContain("BBB ");
     expect(await shown(window)).toContain("AAA ");
   });
