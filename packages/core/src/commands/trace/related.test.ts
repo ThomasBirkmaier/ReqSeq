@@ -181,7 +181,7 @@ describe("trace.related (SR-023)", () => {
     });
   });
 
-  it("gives each element as element.get shows it, without text, hints and readOnly", async () => {
+  it("gives each element as element.get shows it, without text, hints, readOnly and the verification status", async () => {
     const opened = await open();
     const out = await related(opened, { refs: [N1, N2], direction: "children" });
     for (const element of out.elements) {
@@ -190,7 +190,9 @@ describe("trace.related (SR-023)", () => {
         { ref: element.id },
         { workspace: opened.workspace },
       )) as CommandOutput<"element.get">;
-      const { text, problems, readOnly, ...rest } = shown;
+      // The verification status is element.get's (SR-031); a list of related elements leaves it out.
+      const { text, problems, readOnly, verification, ...rest } = shown;
+      expect(verification === undefined || Array.isArray(verification)).toBe(true);
       expect([text, problems, readOnly]).toEqual([
         expect.any(String),
         expect.any(Array),

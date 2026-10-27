@@ -37,8 +37,11 @@ export interface EvidenceIndex {
   readonly testCasesOf: (id: string) => readonly TestCase[];
 }
 
-/** `date` as an instant; a date that cannot be read counts as the oldest. */
-const instantOf = (date: string): number => {
+/**
+ * `date` as an instant; a date that cannot be read counts as the oldest. The one reading of "newer"
+ * for the index order, the status (SR-031) and the outdated hint (SR-025 AK4).
+ */
+export const instantOf = (date: string): number => {
   const time = Date.parse(date);
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
 };

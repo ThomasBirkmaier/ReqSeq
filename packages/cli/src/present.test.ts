@@ -289,6 +289,62 @@ describe("renderHuman: one element", () => {
   });
 });
 
+describe("renderHuman: verification status (SR-031)", () => {
+  const requirement = (id: string, verification?: unknown): Record<string, unknown> => ({
+    id,
+    shortId: `SR-${id}`,
+    status: "approved",
+    title: `Title ${id}`,
+    ...(verification === undefined ? {} : { verification }),
+  });
+
+  it("[SR-031/AK2] shows the verification status per view after the title, apart from the element's own status", () => {
+    const elements = [
+      requirement("1", [
+        { view: "core", status: "verified" },
+        { view: "v1", status: "open" },
+        { view: "v9", status: "failed" },
+      ]),
+      requirement("2", []),
+      requirement("3"),
+      { id: "v1", shortId: "VAR-1", title: "Pro", status: "draft" },
+    ];
+    expect(renderHuman({ elements, total: 4 })).toBe(
+      lines(
+        "elements:",
+        "  SR-1  approved  Title 1  [verification: core verified, VAR-1 open, v9 failed]",
+        "  SR-2  approved  Title 2",
+        "  SR-3  approved  Title 3",
+        "  VAR-1  draft  Pro",
+        "total: 4",
+      ),
+    );
+  });
+
+  it("shows it on the line of one element, not again in its details", () => {
+    const element = {
+      ...requirement("1", [
+        { view: "core", status: "outdated" },
+        { view: "v2", status: "open" },
+      ]),
+      type: "system-requirement",
+      relations: [
+        { kind: "validity", direction: "out", id: "v2", shortId: "VAR-2", title: "Basic", property: true },
+      ],
+    };
+    expect(renderHuman({ element })).toBe(
+      lines(
+        "SR-1  approved  Title 1  [verification: core outdated, VAR-2 open]",
+        '  id: "1"',
+        "  type: system-requirement",
+        '  file: ":"',
+        "  relations:",
+        "    - -> validity  VAR-2  Basic",
+      ),
+    );
+  });
+});
+
 describe("renderHuman: identifiers (#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {

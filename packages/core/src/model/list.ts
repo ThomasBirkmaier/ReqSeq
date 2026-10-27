@@ -40,6 +40,12 @@ export interface ListContext {
 export interface ListOptions {
   /** Also give the text of each element (see the file comment). Default: false. */
   readonly withText?: boolean;
+  /**
+   * Adds the fields of a block that imports the model to each element (the verification status of
+   * `evidence.status`, SR-031), given the record the element was listed from (as its file holds it
+   * now) and the element as listed. Default: none.
+   */
+  readonly extend?: (record: ElementRecord, element: DataExportElement) => DataExportElement;
 }
 
 /**
@@ -64,6 +70,7 @@ export const listElements = async (
   const { layout, metamodel, store, shortIds } = context;
   const folders = new Map(layout.repositories.map((r) => [r.name, r.folder]));
   const text = options.withText === true ? (record: ElementRecord) => textNow(folders, record) : () => ({});
+  const extend = options.extend ?? ((_record: ElementRecord, element: DataExportElement) => element);
   const versions = await currentVersionsOf(workspace, records);
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
   const titleKey = titleKeyOrEmpty(metamodel);
@@ -75,12 +82,15 @@ export const listElements = async (
     const record = version.kind === "version" ? (version.element ?? stored) : stored;
     const input = { record, metamodel, store, shortIds, titleKey, layout, successionsOf };
     elements.push(
-      version.kind === "version"
-        ? { ...listedElement(input, version.version), ...text(record) }
-        : {
-            ...listedElement(input, undefined),
-            problems: [noVersionProblem(stored, version.message)],
-          },
+      extend(
+        record,
+        version.kind === "version"
+          ? { ...listedElement(input, version.version), ...text(record) }
+          : {
+              ...listedElement(input, undefined),
+              problems: [noVersionProblem(stored, version.message)],
+            },
+      ),
     );
   }
   return elements;

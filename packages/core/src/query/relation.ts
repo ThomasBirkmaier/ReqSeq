@@ -20,8 +20,8 @@
 //   incoming relation index (`model/incoming.ts`, built once per store and only when a condition
 //   needs it). With `to`, their source must meet it.
 // - No direction: `up` or `down`.
-// - `evidence`: the evidence records that point at the element, from the evidence provider
-//   (evidence.ts); it takes no `kind`, `meaning` or `to`.
+// - `evidence`: the verification records that point at the element in the view of the selection,
+//   else in the core, from the evidence provider (evidence.ts); it takes no `kind`, `meaning` or `to`.
 // - Inline references are no relations (ADR-0004).
 import type { FilterRelationCondition } from "../generated/types.js";
 import { keyDefinition, relationKindsWithMeaning, requireMeaning } from "../metamodel/index.js";
@@ -113,7 +113,9 @@ export const compileRelation = async (
       );
     }
     const { hasEvidence } = await context.evidence();
-    has = hasEvidence;
+    // In the view of the selection, else in the core, as `verification` without `variant`.
+    const view = context.view ?? { kind: "core" };
+    has = (e) => hasEvidence(e, view);
   } else {
     const keys = keysOf(context, relation, at);
     const to =

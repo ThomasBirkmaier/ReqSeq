@@ -4,8 +4,9 @@
 // command of the catalog is covered. `--json` prints the output unchanged, `--yaml` all of it.
 //
 // - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
-//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305); a list of them one
-//   such line per element. A read command (element.get) shows the element's details below
+//   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305) and its verification
+//   status per view at the end, apart from its own status (`[verification: core verified]`, SR-031,
+//   D-030); a list of them one such line per element. A read command (element.get) shows the element's details below
 //   its line, a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
 //   front, its gaps, cycles and the edges to an element listed elsewhere marked.
@@ -83,10 +84,41 @@ const viaText = (element: Rec, name: Namer): string => {
   return `[via ${how}${from}]`;
 };
 
-/** `SHORT-ID  status  title`; an element with a distance has it in front, and how it points behind. */
+/** Names a view of `verification` (`core` or a variant's UUID): the variant's short ID when the list has it. */
+type ViewNamer = (view: string) => string;
+
+/** A view namer from the elements of a list. */
+const viewNamerOf =
+  (elements: readonly Rec[]): ViewNamer =>
+  (view) =>
+    text(elements.find((e) => e["id"] === view)?.["shortId"]) || view;
+
+/**
+ * The verification status of an element per view (SR-031), apart from its own status:
+ * `[verification: core verified, VAR-0000c1 open]`; nothing for an element without one. A variant
+ * is named by its short ID from the list, else from the element's own relations (its validity),
+ * else by its UUID.
+ */
+const verificationText = (element: Rec, view: ViewNamer): string => {
+  const entries = listOf(element["verification"]).filter(isRecord);
+  const own = viewNamerOf(listOf(element["relations"]).filter(isRecord));
+  const named = (id: string): string => {
+    const listed = view(id);
+    return listed === id ? own(id) : listed;
+  };
+  return entries.length === 0
+    ? ""
+    : `[verification: ${entries.map((e) => `${named(text(e["view"]))} ${text(e["status"])}`).join(", ")}]`;
+};
+
+/**
+ * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind and
+ * its verification status per view last.
+ */
 const elementLine = (
   element: Rec & { readonly shortId: string; readonly title: string },
   name: Namer = namerOf([]),
+  view: ViewNamer = viewNamerOf([]),
 ): string => {
   const distance = element["distance"];
   return join(
@@ -95,6 +127,7 @@ const elementLine = (
     text(element["status"]),
     element.title,
     viaText(element, name),
+    verificationText(element, view),
   );
 };
 
@@ -121,6 +154,7 @@ const elementDetails = (element: Rec): string[] => {
     status: _status,
     title: _title,
     problems: _problems,
+    verification: _verification,
     repository,
     file,
     relations,
@@ -169,7 +203,8 @@ const valueLines = (key: string, value: unknown, details: boolean, lifted: unkno
     }
     if (value.every(isElement)) {
       const name = namerOf(value);
-      return [`${key}:`, ...indent(value.map((element) => elementLine(element, name)))];
+      const view = viewNamerOf(value);
+      return [`${key}:`, ...indent(value.map((element) => elementLine(element, name, view)))];
     }
     if (value.every(isProblem)) {
       return [`${key}:`, ...indent(value.map(findingLine))];

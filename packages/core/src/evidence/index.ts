@@ -5,6 +5,7 @@ export {
   evidenceIndex,
   evidenceIndexState,
   hasVerificationRecord,
+  instantOf,
   newestFirst,
   sortNewestFirst,
 } from "./by-element.js";
@@ -22,3 +23,20 @@ export { testCaseKey, testCaseKeyOf } from "./record.js";
 export type { EvidenceRecord, SkippedTestCase, TestCase, TestCaseName } from "./record.js";
 export { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence } from "./state.js";
 export type { EvidenceFileRead, EvidenceRead, EvidenceReader } from "./state.js";
+export {
+  holdsIn,
+  recordStatusOf,
+  statusSource,
+  verificationIn,
+  verificationOf,
+  verificationStatusOf,
+  withVerification,
+  workspaceStatus,
+} from "./status.js";
+export type {
+  RecordStatus,
+  RecordVerificationStatus,
+  StatusSource,
+  VerificationEntries,
+  WorkspaceStatus,
+} from "./status.js";

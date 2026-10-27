@@ -535,7 +535,8 @@ describe("element.get, more of what stage 1 shows", () => {
         targetId: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
       },
     ]);
-    // element.update returns the same element, with the same hint (get adds only readOnly).
+    // element.update returns the same element, with the same hint (get adds only readOnly and the
+    // verification status of SR-031; #554 adds it to element.update).
     const updated = (
       (await invoke(
         "element.update",
@@ -543,7 +544,7 @@ describe("element.get, more of what stage 1 shows", () => {
         { workspace: opened.workspace },
       )) as CommandOutput<"element.update">
     ).element;
-    expect({ ...updated, readOnly: element.readOnly }).toEqual(element);
+    expect({ ...updated, readOnly: element.readOnly, verification: element.verification }).toEqual(element);
     const unaffected = await open({ fixture: "SR-040/validity" });
     const plain = await get(unaffected, { ref: "40a0e000-0000-4000-8000-000000000ab2" });
     expect(hints(plain).filter((p) => p.code === "variant.superseded-in-validity")).toEqual([]);

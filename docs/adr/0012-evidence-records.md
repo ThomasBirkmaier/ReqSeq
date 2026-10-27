@@ -51,3 +51,9 @@ How LogReq reads JUnit files (stage 4 enabler E2, #536; plan review B3, S2, S3).
 ## Status rules
 
 Nachweisstatus and Validierungsstatus are derived views; they never change the element's `status` (D-030).
+
+- **Which records count** (SR-031, SR-047): per element and view the records of one kind (`verification` for the Nachweisstatus; `validation`, SR-038, for the Validierungsstatus; D-007 keeps them apart). In the core a record without `variant` counts, in a variant a record for that variant; a record for a variant the element does not apply in (SR-040) counts nowhere.
+- **Which record decides** (SR-031 AK2, AK3): of the counted records of the element's current version, the newest by `date` (compared as an instant; a date that cannot be read is the oldest). Passed gives verified, failed gives failed. **Ties:** when several records of the current version share the newest date and one of them failed, the status is failed: two runs of one pipeline on two platforms are not verified when one failed (spec question #525 Q2, assumption until answered).
+- **Outdated and open** (AK4, AK1): counted records only of other versions give outdated, none gives open. An element without a current version (a counted value without a normal form, #276) has no record of it: outdated with records, open without.
+- **Which elements**: only elements whose type has the meaning `requirement` have a Nachweisstatus (D-012), in the core and in each variant they apply in (`$defs/element` `verification`). While the metamodel is not valid, the records are not compared (the versions follow the metamodel): every requirement is open.
+- **The hint "Nachweis veraltet"** (SR-025 AK4) still takes the newest record of all versions per element, kind and variant, so a requirement can be verified and carry the hint when a newer record belongs to an older version (#43). Whether the hint follows the status is spec question #525 Q1; until it is answered, SR-025's tested rule stays.

@@ -17,9 +17,13 @@
 // - Records of elements that are not in the store, or whose current version is unknown, are left
 //   out (an unknown element is `evidence.unknown-element` of `evidence/match.ts`, SR-028 AK3).
 // - Order: by element in store order, then kind, then variant as the records give them.
+// - The verification status (SR-031, evidence/status.ts) takes the newest record of the current
+//   version instead, so a verified requirement can carry this hint (#43). Whether the hint follows
+//   the status is spec question #525 Q1; until it is answered this rule stays (ADR-0012 "Status
+//   rules").
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecord } from "../evidence/index.js";
-import { evidenceRecordsState } from "../evidence/index.js";
+import { evidenceRecordsState, instantOf } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
@@ -40,12 +44,6 @@ export type EvidenceVersion = Pick<
   EvidenceRecord,
   "kind" | "element" | "version" | "date" | "variant" | "repository" | "file" | "line"
 >;
-
-/** `date` as an instant; a date that cannot be read counts as the oldest (NaN would compare false either way). */
-const instantOf = (date: string): number => {
-  const time = Date.parse(date);
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
-};
 
 /** The newest record of each element, kind and variant (`date` compared as an instant), the current one on a tie. */
 const newestRecords = (

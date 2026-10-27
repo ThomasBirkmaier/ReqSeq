@@ -70,6 +70,7 @@ const SELECTION_TOOLS: readonly string[] = [
   "trace_matrix",
   "element_search",
   "filter_save",
+  "evidence_status",
   "evidence_coverage",
 ];
 /**

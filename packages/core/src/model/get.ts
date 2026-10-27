@@ -20,8 +20,9 @@
 //   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast);
 // - one copy of an element whose UUID several files share (SR-088), picked by the inputs `repository`
 //   and `file` among the candidates of `ref.ambiguous` (#255, `ElementCopy`).
-// Left out until later stages: the other incoming relations, `verification` and `validation`, and
-// the variants that replace or exclude the element (SR-046; the schema has no field for them yet).
+// `verification` (SR-031) is added by `element.get` from the evidence block, which imports the model.
+// Left out until later stages: the other incoming relations, `validation` (SR-038), and the variants
+// that replace or exclude the element (SR-046; the schema has no field for them yet).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
@@ -93,6 +94,8 @@ export type ElementHints = (
 /** An element as `showElement` read it, with the SHA-256 of its file (SR-106). */
 export interface ShownElement {
   readonly element: DataExportElement;
+  /** The element as its file holds it now, which `element` shows (for the views of other blocks, SR-031). */
+  readonly record: ElementRecord;
   /** The SHA-256 of the bytes of the file the element was read from, lower-case hex. */
   readonly fileSha256: string;
 }
@@ -194,6 +197,7 @@ export const showElement = async (
       readOnly: !metamodel.valid || findType(metamodel, record.type) === undefined || writable === false,
       problems,
     },
+    record,
     fileSha256: read.file.snapshot.sha256,
   };
 };

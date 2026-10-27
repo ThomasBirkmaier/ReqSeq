@@ -202,7 +202,7 @@ describe("logreq binary", () => {
     expect(JSON.parse(positional.stdout)).toMatchObject({ element: { title: "Show calm" } });
     const shown = await logreq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(
-      /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
+      /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
     );
   });
 
@@ -212,7 +212,9 @@ describe("logreq binary", () => {
     const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
     const shown = await run("element", "get", "sr-036");
     expect([shown.code, shown.stderr]).toEqual([0, ""]);
-    expect(shown.stdout.split("\n")[0]).toBe("SR-0b0036 (SR-036)  draft  Accept identifiers as references");
+    expect(shown.stdout.split("\n")[0]).toBe(
+      "SR-0b0036 (SR-036)  draft  Accept identifiers as references  [verification: core open]",
+    );
     expect(shown.stdout).toContain(
       "    - -> derives-from  N-0a0001 (N-001)  Name elements by their spec ID\n",
     );

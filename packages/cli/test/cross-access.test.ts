@@ -733,6 +733,26 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
   ],
+  "evidence.status": [
+    {
+      name: "the verification status of a workspace with an evidence location (#535, SR-031)",
+      fixture: EVIDENCE,
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "the verification status per view of requirements valid for variants, one page (SR-031, SR-047)",
+      fixture: FILTER,
+      input: { selection: { where: { verification: ["open"] }, view: "VAR-0000c1" }, limit: 3, offset: 1 },
+      expect: "output",
+    },
+    {
+      name: "unknown element in the selection",
+      fixture: EVIDENCE,
+      input: { selection: { ids: ["SR-ffffff"] } },
+      expect: "error",
+    },
+  ],
   "filter.list": [
     {
       name: "hand-written filters with their definitions, and a faulty file (SR-070 AK2)",
