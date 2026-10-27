@@ -15,6 +15,8 @@ const P = "5e111a7d-2b4f-4c61-9d08-";
 const ID = {
   S1: `${P}0b0000000001`,
   N1: `${P}0a0000000001`,
+  CR1: `${P}0c0000000001`,
+  CR2: `${P}0c0000000002`,
   CR5: `${P}0c0000000005`,
 } as const;
 const REPOSITORY = "system";
@@ -241,7 +243,9 @@ test.describe("the graph of an element on a fixture workspace", () => {
   let running: RunningApp;
   const launch = async (): Promise<RunningApp> => {
     running = await launchApp({ fixture: "SR-111/graph" });
-    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
+    // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
+    // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
     return running;
   };
   test.afterEach(async () => {
@@ -307,35 +311,51 @@ test.describe("the graph of an element on a fixture workspace", () => {
     await openElement(window, "SR-b0000000001", "Show wind speed");
     const output = await traced(running, { ref: ID.S1, maxDepth: 1 });
     await showGraph(window, output.nodes.length);
-    const strokes = await window.evaluate(() => {
-      const probe = document.createElement("span");
-      document.body.append(probe);
-      const colour = (token: string): string => {
-        probe.style.color = `var(${token})`;
-        return getComputedStyle(probe).color;
-      };
-      const tokens = { accent: colour("--accent-outdated"), text: colour("--text") };
-      probe.remove();
-      const paths = [...document.querySelectorAll<SVGPathElement>("path.graph-edge")].map((path) => ({
-        classes: path.getAttribute("class") ?? "",
-        stroke: getComputedStyle(path).stroke,
-      }));
-      return { ...tokens, paths };
-    });
-    // S1 → D2 (a reference) and C2 → S1 (a derivation) are outdated links of the selected element; D2's
-    // reference to C1 does not touch it, so the element's links are lit up.
-    const outdated = strokes.paths.filter((path) => path.classes.split(" ").includes("outdated"));
+    /** The classes and stroke of every drawn link, and the colours of the accent and the text. */
+    const strokes = (): Promise<{
+      accent: string;
+      text: string;
+      paths: { source: string; classes: string[]; stroke: string }[];
+    }> =>
+      window.evaluate(() => {
+        const probe = document.createElement("span");
+        document.body.append(probe);
+        const colour = (token: string): string => {
+          probe.style.color = `var(${token})`;
+          return getComputedStyle(probe).color;
+        };
+        const tokens = { accent: colour("--accent-outdated"), text: colour("--text") };
+        probe.remove();
+        const paths = [...document.querySelectorAll<SVGPathElement>("path.graph-edge")].map((path) => ({
+          source: path.dataset["source"] ?? "",
+          classes: (path.getAttribute("class") ?? "").split(" "),
+          stroke: getComputedStyle(path).stroke,
+        }));
+        return { ...tokens, paths };
+      });
+    // 10 of the 13 drawn links touch the element, more than half: the graph opens calm, and its two
+    // outdated links (S1 → D2, C2 → S1) are in the accent colour.
+    const calm = await strokes();
+    expect(calm.paths.filter((path) => path.classes.includes("selected"))).toEqual([]);
+    const outdated = calm.paths.filter((path) => path.classes.includes("outdated"));
     expect(outdated).toHaveLength(2);
-    for (const path of outdated) {
-      expect(path.classes.split(" ")).toContain("selected");
-      expect(path.stroke).toBe(strokes.accent);
-    }
-    const lit = strokes.paths.filter(
-      (path) => path.classes.split(" ").includes("selected") && !path.classes.split(" ").includes("outdated"),
-    );
-    expect(lit.length).toBeGreaterThan(0);
-    expect(lit.every((path) => path.stroke === strokes.text)).toBe(true);
-    expect(strokes.accent).not.toBe(strokes.text);
+    expect(outdated.every((path) => path.stroke === calm.accent)).toBe(true);
+    // Down to C2: its one drawn link, C2 → S1, is outdated and lit up, and keeps the accent colour.
+    await window.keyboard.press("ArrowDown");
+    expect(await selectedNode(window)).toBe(key(REPOSITORY, ID.CR2));
+    const one = await strokes();
+    const lit = one.paths.filter((path) => path.classes.includes("selected"));
+    expect(lit.map((path) => [path.source, path.classes.includes("outdated"), path.stroke])).toEqual([
+      [key(REPOSITORY, ID.CR2), true, one.accent],
+    ]);
+    // Left to C1: its four links are lit up in the text colour.
+    await window.keyboard.press("ArrowLeft");
+    expect(await selectedNode(window)).toBe(key(REPOSITORY, ID.CR1));
+    const four = await strokes();
+    const plain = four.paths.filter((path) => path.classes.includes("selected"));
+    expect(plain).toHaveLength(4);
+    expect(plain.every((path) => !path.classes.includes("outdated") && path.stroke === four.text)).toBe(true);
+    expect(four.accent).not.toBe(four.text);
   });
 
   test("[SR-111/AK4] each node shows title and type name, and the mark words only on marked nodes", async () => {

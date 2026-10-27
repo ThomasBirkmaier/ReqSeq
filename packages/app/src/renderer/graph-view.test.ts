@@ -153,7 +153,6 @@ describe("GraphView", () => {
     expect(query(`[data-node="${key("O1")}"]`).getAttribute("aria-label")).toBe(
       "O1 System Requirement Title O1 superseded no evidence",
     );
-    expect(query(`[data-node="${key("C1")}"]`).getAttribute("title")).toBe("Title C1");
     expect(data.at(-1)).toEqual([S1.key, { kind: "graph", nodes: 10, truncated: false, incomplete: false }]);
     expect(performance.getEntriesByName(GRAPH_MARKS.layout).length).toBeGreaterThan(0);
   });
@@ -168,7 +167,9 @@ describe("GraphView", () => {
     expect(view.getAttribute("aria-activedescendant")).toBe("gnode-0");
     const paths = [...container.querySelectorAll<SVGPathElement>("path.graph-edge")];
     expect(paths).toHaveLength(13);
-    const touching = paths.map((path) => path.classList.contains("selected"));
+    const touching = paths.map(
+      (path) => path.dataset["source"] === key("S1") || path.dataset["target"] === key("S1"),
+    );
     // The curves of the selected node are drawn last, over the others.
     expect(touching.indexOf(true)).toBe(touching.length - touching.filter(Boolean).length);
   });
@@ -228,14 +229,57 @@ describe("GraphView", () => {
   });
 
   it("[SR-111/AK1] lights up the selected node's links when other links are drawn too", async () => {
-    await mount(asCall(fakeCall()));
+    // C1 is selected: 4 of the 13 drawn links touch it (to S1 and D1, from D2 and C3).
+    await mount(asCall(fakeCall()), { ...S1, selected: key("C1") });
+    expect(selected()).toBe(key("C1"));
+    const lit = [...container.querySelectorAll<SVGPathElement>("path.graph-edge.selected")];
+    expect(
+      lit.map((path) => `${path.dataset["source"] ?? ""}>${path.dataset["target"] ?? ""}`).sort(),
+    ).toEqual([
+      `${key("C1")}>${key("D1")}`,
+      `${key("C1")}>${key("S1")}`,
+      `${key("C3")}>${key("C1")}`,
+      `${key("D2")}>${key("C1")}`,
+    ]);
+    // S1 derives from N1: a link that does not touch C1, never lit up.
+    expect(query(`path[data-target="${key("N1")}"]`).classList.contains("selected")).toBe(false);
+  });
+
+  it("[SR-111/AK1] opens a package graph calm: its links are more than half of the drawn ones, so none is lit up", async () => {
+    // A package with five members, two of which refine another member: 5 of the 7 drawn links touch it.
+    const members = ["M1", "M2", "M3", "M4", "M5"];
+    const pkg = graphOutput(
+      [graphNode("S1", 0, { type: "package" }), ...members.map((name) => graphNode(name, 1))],
+      [
+        ...members.map((name) => graphEdge(name, "S1", { kind: "packages", property: true })),
+        graphEdge("M2", "M1", BASED_ON),
+        graphEdge("M3", "M1", BASED_ON),
+      ],
+    );
+    await mount(asCall(fakeCall(() => pkg)));
+    expect(container.querySelectorAll("path.graph-edge")).toHaveLength(7);
+    expect(container.querySelectorAll("path.graph-edge.selected")).toHaveLength(0);
+    // The element keeps its mark and the selection while none of its links is lit up.
+    expect(query(".graph-node.root").dataset["node"]).toBe(key("S1"));
+    expect(selected()).toBe(key("S1"));
+    // Down into a member: its few links light up.
+    await press("ArrowDown");
+    const member = selected();
+    expect(member).not.toBe(key("S1"));
     const lit = [...container.querySelectorAll<SVGPathElement>("path.graph-edge.selected")];
     expect(lit.length).toBeGreaterThan(0);
-    expect(
-      lit.every((path) => path.dataset["source"] === key("S1") || path.dataset["target"] === key("S1")),
-    ).toBe(true);
-    // D2 references C1: a link that does not touch S1, never lit up.
-    expect(query(`path[data-source="${key("D2")}"]`).classList.contains("selected")).toBe(false);
+    expect(lit.every((path) => path.dataset["source"] === member || path.dataset["target"] === member)).toBe(
+      true,
+    );
+  });
+
+  it("[SR-111/AK4] a node's hover text gives its ID, type and title, so a type the box cuts can be read", async () => {
+    await mount(asCall(fakeCall()));
+    expect(query(`[data-node="${key("C1")}"]`).getAttribute("title")).toBe(
+      "C1 · System Requirement\nTitle C1",
+    );
+    // Without an identifier, the short ID; a type without a name in the metamodel, by its key.
+    expect(query(`[data-node="${key("PKG")}"]`).getAttribute("title")).toBe("PKG-1 · package\nTitle PKG");
   });
 
   it("[SR-111/AK5] a click opens the node as the current element", async () => {

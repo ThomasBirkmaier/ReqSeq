@@ -90,17 +90,28 @@ describe("what a node shows", () => {
     ).toBe("graph-edge derivation outdated");
   });
 
-  it("lights up the selected node's links only when some drawn link does not touch it", () => {
+  it("lights up the selected node's links only when they are at most half of the drawn links", () => {
     const fan = [
       { source: "C1", target: "S1" },
+      { source: "C2", target: "S1" },
       { source: "S1", target: "P" },
     ];
     // Every link touches S1 (a graph of depth 1): nothing is lit up.
     expect(spotlit(fan, "S1")).toBe(false);
-    // A link between two other nodes: S1's links stand out.
-    expect(spotlit([...fan, { source: "G", target: "C1" }], "S1")).toBe(true);
-    // Selected elsewhere, the links of C1 stand out among S1's.
+    // Three of four links touch S1, more than half: a big fan stays calm.
+    expect(spotlit([...fan, { source: "G", target: "C1" }], "S1")).toBe(false);
+    // Three of six, exactly half: S1's links stand out.
+    const wider = [
+      ...fan,
+      { source: "G", target: "C1" },
+      { source: "H", target: "C1" },
+      { source: "C2", target: "P" },
+    ];
+    expect(spotlit(wider, "S1")).toBe(true);
+    // Selected elsewhere, the one link of C1 stands out among S1's.
     expect(spotlit(fan, "C1")).toBe(true);
+    // A node without drawn links, and a graph without links: nothing to light up.
+    expect(spotlit(fan, "G")).toBe(false);
     expect(spotlit([], "S1")).toBe(false);
   });
 });

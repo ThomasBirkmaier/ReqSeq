@@ -2,7 +2,9 @@
 // - on a copy of the repository's own specification (`spec/`): the graph of SR-111 at depth 1 and at all
 //   levels over every kind (the chain up to its need and down through the references of the decisions),
 //   that of the package Stufe-3 with its members in one wide layer, and the whole chain of the glossary
-//   term GL-f81ba9 (a node whose walk parent took its level from the other walk, #519);
+//   term GL-f81ba9 (a node whose walk parent took its level from the other walk, #519), the decision
+//   D-062 at depth 1 (a fan of 30 links among 43) and the largest whole chain, that of D-035;
+// - on fixtures/SR-111/graph: the graph of S1 at depth 1, with a fan on each edge of the element;
 // - on the generated workspaces of SR-111 AK6: a package graph of 500 nodes at depth 1 and a whole chain
 //   of 500 nodes, both laid out in the layers of their levels (#500).
 // The window is 1280×800. The PNGs go to `test-results/electron/screenshots/` (or the folder in
@@ -43,6 +45,8 @@ const nodeCount = async (running: RunningApp, input: Record<string, unknown>): P
 
 for (const scheme of ["light", "dark"] as const) {
   test(`screenshots of the graph on the specification workspace (${scheme})`, async () => {
+    // Six graphs, among them the largest of spec/.
+    test.setTimeout(120_000);
     const running = await launchApp({ folder: SPEC }, { colorScheme: scheme });
     const { window } = running;
     try {
@@ -52,7 +56,9 @@ for (const scheme of ["light", "dark"] as const) {
       await running.app.evaluate(({ BrowserWindow }) => {
         BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
       });
-      await expect(window.getByLabel("Modeline")).toContainText("elements");
+      // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
+      // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+      await expect(window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
 
       // SR-111 at depth 1, then at all levels over every kind: `+` up to the whole chain.
       await open(window, "SR-111", "Graph des aktuellen Elements zeigen");
@@ -85,6 +91,44 @@ for (const scheme of ["light", "dark"] as const) {
       const term = await nodeCount(running, { ref: "GL-f81ba9", allLevels: true });
       await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(term));
       await shot("glossary-all-levels");
+
+      // D-062 at depth 1: 30 of its 43 drawn links touch it.
+      await open(window, "D-062", "Oberfläche als weißes Blatt");
+      await window.keyboard.press("ControlOrMeta+Shift+G");
+      const fan = await nodeCount(running, { ref: "D-062", maxDepth: 1 });
+      await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(fan));
+      await shot("decision-depth-1");
+
+      // The largest whole chain of spec/, that of D-035.
+      await open(window, "D-035", "Umsetzung in sechs Stufen");
+      await window.keyboard.press("ControlOrMeta+Shift+G");
+      for (let press = 0; press < 9; press += 1) {
+        await window.keyboard.press("+");
+      }
+      await expect(window.getByLabel("Modeline")).toContainText("whole chain");
+      const largest = await nodeCount(running, { ref: "D-035", allLevels: true });
+      await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(largest));
+      await shot("largest-all-levels");
+    } finally {
+      await running.close();
+    }
+  });
+
+  test(`screenshots of the graph on the fixture workspace (${scheme})`, async () => {
+    const running = await launchApp({ fixture: "SR-111/graph" }, { colorScheme: scheme });
+    const { window } = running;
+    try {
+      await fs.mkdir(OUT, { recursive: true });
+      await running.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+      });
+      // Until the workspace is loaded, within the test's own bound (as above).
+      await expect(window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
+      await open(window, "SR-b0000000001", "Show wind speed");
+      await window.keyboard.press("ControlOrMeta+Shift+G");
+      const s1 = await nodeCount(running, { ref: "SR-b0000000001", maxDepth: 1 });
+      await expect(window.locator(".graph")).toHaveAttribute("data-laid-out", String(s1));
+      await window.screenshot({ path: path.join(OUT, `sr-111-fixture-s1-${scheme}.png`) });
     } finally {
       await running.close();
     }

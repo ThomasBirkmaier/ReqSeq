@@ -123,43 +123,88 @@ const route = (from: PlacedNode, to: PlacedNode, bends: readonly Point[], ports:
   return [start, { x: start.x, y: start.y + step }, ...bends, { x: end.x, y: end.y - step }, end];
 };
 
-/** The ports of one drawn link, and the nodes it leaves and enters. */
-interface Ported {
+/** A drawn link: its nodes and links, and dagre's bend points from its target to its source. */
+interface Bent {
   readonly pair: Pair<PlacedNode>;
+  /** None for a link drawn after the layout. */
+  readonly bends: readonly Point[];
+}
+
+/** A drawn link and its ports. */
+interface Ported extends Bent {
   from: number;
   to: number;
 }
 
 /**
- * The ports of the drawn links, each from its target (above) to its source (below), the way dagre's
- * layout edge runs: the ends on one edge of a node (top or bottom) are spread along it in the x-order of
- * the nodes at their other ends (ties in the order of the output), so the curves of a fan leave apart
- * and do not cross near the node. A node with one link on an edge meets it in the middle.
+ * Where a curve without bends (drawn after the layout) is half a layer gap from the edge of `node`, the
+ * height of a bend next to it: on the straight line between the centres of the two nodes. For an arch
+ * (both nodes in one layer), the other node's centre. Two nodes of different layers are at least a layer
+ * gap apart, so the point is never past the other node.
  */
-const portsOf = (pairs: readonly Pair<PlacedNode>[]): Ported[] => {
-  const edges = new Map<
-    string,
-    {
-      readonly link: Ported;
-      readonly end: keyof Ports;
-      readonly node: PlacedNode;
-      readonly other: PlacedNode;
-    }[]
-  >();
-  const add = (side: string, node: PlacedNode, end: keyof Ports, link: Ported, other: PlacedNode): void => {
-    const edge = `${side}:${node.key}`;
-    edges.set(edge, [...(edges.get(edge) ?? []), { link, end, node, other }]);
+const lean = (node: PlacedNode, other: PlacedNode): number => {
+  if (node.y === other.y) {
+    return centreX(other);
+  }
+  const gap = Math.abs(node.y - other.y) - NODE_HEIGHT;
+  return centreX(node) + (centreX(other) - centreX(node)) * (RANK_SEP / 2 / gap);
+};
+
+/**
+ * Where a bent curve passes the height of its bend next to `node`: a uniform B-spline does not pass
+ * through a bend but through (previous + 4 · bend + next) / 6 of the points around it. The previous point
+ * is the port, which is not known yet, so the node's centre stands for it.
+ */
+const near = (node: PlacedNode, bend: Point, next: number): number => (centreX(node) + 4 * bend.x + next) / 6;
+
+/**
+ * The ports of the drawn links, each from its target (above) to its source (below), the way dagre's
+ * layout edge runs. The ends on one edge of a node (top or bottom) are spread along it in the order of
+ * where each curve is half a layer gap from that edge (#555): a bent curve where it passes its first bend
+ * (its last at the `to` end), a curve without bends on the straight line to the other node. So bent and
+ * straight curves are compared at one height. Ties go by the same at the link's other end, so two links
+ * between the same two nodes keep one order at both ends; then by the order of the output. Ordered so,
+ * the curves of one edge seldom cross near it, but a curve that swings back after that height still can.
+ * A node with one link on an edge meets it in the middle.
+ */
+const portsOf = (links: readonly Bent[]): Ported[] => {
+  interface End {
+    readonly link: Ported;
+    readonly end: keyof Ports;
+    readonly node: PlacedNode;
+    readonly heading: number;
+    readonly far: number;
+  }
+  const edges = new Map<string, End[]>();
+  const add = (side: string, end: End): void => {
+    const edge = `${side}:${end.node.key}`;
+    const ends = edges.get(edge);
+    if (ends === undefined) {
+      edges.set(edge, [end]);
+    } else {
+      ends.push(end);
+    }
   };
-  const ported = pairs.map((pair): Ported => {
+  const ported = links.map(({ pair, bends }): Ported => {
     const { target: from, source: to } = pair;
-    const link = { pair, from: centreX(from), to: centreX(to) };
+    const link = { pair, bends, from: centreX(from), to: centreX(to) };
+    const first = bends[0];
+    const last = bends.at(-1);
+    const atFrom = first === undefined ? lean(from, to) : near(from, first, bends[1]?.x ?? centreX(to));
+    const atTo = last === undefined ? lean(to, from) : near(to, last, bends.at(-2)?.x ?? centreX(from));
     const down = from.y < to.y;
-    add(down ? "bottom" : "top", from, "from", link, to);
-    add(down || from.y === to.y ? "top" : "bottom", to, "to", link, from);
+    add(down ? "bottom" : "top", { link, end: "from", node: from, heading: atFrom, far: atTo });
+    add(down || from.y === to.y ? "top" : "bottom", {
+      link,
+      end: "to",
+      node: to,
+      heading: atTo,
+      far: atFrom,
+    });
     return link;
   });
   for (const ends of edges.values()) {
-    ends.sort((a, b) => a.other.x - b.other.x);
+    ends.sort((a, b) => a.heading - b.heading || a.far - b.far);
     for (const [index, { link, end, node }] of ends.entries()) {
       link[end] = node.x + PORT_INSET + ((index + 0.5) * (NODE_WIDTH - 2 * PORT_INSET)) / ends.length;
     }
@@ -356,18 +401,17 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   const layers = tops.map((_, layer) =>
     placed.filter((node) => node.layer === layer).sort((a, b) => a.x - b.x),
   );
-  const paths = portsOf(pairsOf(output, byKey, (placedNode) => placedNode.node.level)).map(
-    (link): EdgePath => {
-      const { source, target } = link.pair;
-      const points = link.pair.drawnAfter ? [] : graph.edge(target.key, source.key).points.slice(1, -1);
-      return {
-        source: source.key,
-        target: target.key,
-        links: link.pair.links,
-        d: edgePath(route(target, source, points, link)),
-      };
-    },
-  );
+  // The bends first: the ports on a node's edge follow where each curve heads.
+  const bent = pairsOf(output, byKey, (placedNode) => placedNode.node.level).map((pair): Bent => ({
+    pair,
+    bends: pair.drawnAfter ? [] : graph.edge(pair.target.key, pair.source.key).points.slice(1, -1),
+  }));
+  const paths = portsOf(bent).map((link): EdgePath => ({
+    source: link.pair.source.key,
+    target: link.pair.target.key,
+    links: link.pair.links,
+    d: edgePath(route(link.pair.target, link.pair.source, link.bends, link)),
+  }));
   return { width: label.width, height: label.height, nodes: placed, byKey, layers, paths };
 };
 

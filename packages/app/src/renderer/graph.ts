@@ -82,11 +82,15 @@ export const edgeClasses = (links: readonly GraphEdge[], selected: boolean): str
   ].join(" ");
 
 /**
- * Whether the links of the selected node are lit up (drawn in the text colour): only when some drawn link
- * does not touch it, so that lighting up says something (D-062). In a graph of depth 1 every link touches
- * the element, and it opens calm.
+ * Whether the links of the selected node are lit up (drawn in the text colour): only when it has at least
+ * one and they are at most half of the drawn links, so that lighting up says something and a big fan
+ * does not darken the sheet (D-062). A graph of depth 1 or a package graph, where most links touch the
+ * element, opens calm; a node with few links among many stands out.
  */
 export const spotlit = (
   paths: readonly { readonly source: string; readonly target: string }[],
   selected: string,
-): boolean => paths.some((path) => path.source !== selected && path.target !== selected);
+): boolean => {
+  const touching = paths.filter((path) => path.source === selected || path.target === selected).length;
+  return touching > 0 && 2 * touching <= paths.length;
+};

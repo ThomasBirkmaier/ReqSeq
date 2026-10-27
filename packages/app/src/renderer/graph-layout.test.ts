@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TraceGraphOutput } from "@logreq/core";
 import type { GraphEdge } from "./graph.js";
-import type { GraphLayout, PlacedNode } from "./graph-layout.js";
+import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import {
   LEVEL_LAYERS_ABOVE,
   NODE_HEIGHT,
@@ -111,6 +111,77 @@ const generated = (seed: number, size: number, extra: number): TraceGraphOutput 
       .map(([source, target]) => graphEdge(source, target, pick([REFERENCE, BASED_ON, {}]))),
   );
 };
+
+interface Spot {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A curve that `edgePath` drew, as a line through 12 points of each cubic piece. */
+const lineOf = (d: string): Spot[] => {
+  const spots: Spot[] = [];
+  for (const [, command = "", numbers = ""] of d.matchAll(/([MLC])([^MLC]*)/g)) {
+    const values = numbers.trim().split(/[ ,]/).map(Number);
+    const [x1 = 0, y1 = 0, x2 = 0, y2 = 0, x3 = 0, y3 = 0] = values;
+    const last = spots.at(-1) ?? { x: x1, y: y1 };
+    if (command === "C") {
+      for (let step = 1; step <= 12; step += 1) {
+        const t = step / 12;
+        const u = 1 - t;
+        spots.push({
+          x: u * u * u * last.x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
+          y: u * u * u * last.y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3,
+        });
+      }
+    } else {
+      spots.push({ x: x1, y: y1 });
+    }
+  }
+  return spots;
+};
+
+/** Where the segments a–b and c–d cross each other (not where one only touches the other). */
+const crossing = (a: Spot, b: Spot, c: Spot, d: Spot): Spot | undefined => {
+  const side = (p: Spot, q: Spot, r: Spot): number => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const [ca, cb, ac, ad] = [side(c, d, a), side(c, d, b), side(a, b, c), side(a, b, d)];
+  if (ca * cb >= 0 || ac * ad >= 0) {
+    return undefined;
+  }
+  const t = ca / (ca - cb);
+  return { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) };
+};
+
+/** Every place where two drawn curves cross, as "<source>><target> x <source>><target>". */
+const crossingsOf = (layout: GraphLayout): { readonly curves: string; readonly at: Spot }[] => {
+  const lines = layout.paths.map((path) => ({ path, line: lineOf(path.d) }));
+  const name = (path: EdgePath): string =>
+    `${path.source.replace("spec:uuid-", "")}>${path.target.replace("spec:uuid-", "")}`;
+  return lines.flatMap(({ path, line }, index) =>
+    lines.slice(index + 1).flatMap((other) =>
+      line.slice(1).flatMap((b, i) =>
+        other.line.slice(1).flatMap((d, j) => {
+          const at = crossing(line[i] ?? b, b, other.line[j] ?? d, d);
+          return at === undefined ? [] : [{ curves: `${name(path)} x ${name(other.path)}`, at }];
+        }),
+      ),
+    ),
+  );
+};
+
+/** The crossings of two curves of one box within half a layer gap of that box. */
+const crossingsAtABox = (layout: GraphLayout): string[] =>
+  crossingsOf(layout).flatMap(({ curves, at: spot }) => {
+    const boxes = curves
+      .split(" x ")
+      .map((pair) => pair.split(">"))
+      .reduce((a, b) => a.filter((box) => b.includes(box)));
+    return boxes.flatMap((box) => {
+      const node = at(layout, box);
+      const dx = Math.max(node.x - spot.x, 0, spot.x - node.x - NODE_WIDTH);
+      const dy = Math.max(node.y - spot.y, 0, spot.y - node.y - NODE_HEIGHT);
+      return Math.hypot(dx, dy) <= RANK_SEP / 2 ? [`${curves} at ${box}`] : [];
+    });
+  });
 
 describe("layoutGraph", () => {
   it("[SR-111/AK1] puts what the element links to above it and what links to it below, also with links against the levels", () => {
@@ -407,7 +478,7 @@ describe("layoutGraph", () => {
     expect(JSON.stringify(layoutGraph(S1_GRAPH))).toBe(JSON.stringify(layout));
   });
 
-  it("spreads the ends of a fan along the node's edge, in the x-order of the other ends", () => {
+  it("spreads the ends of a fan along the node's edge, apart and off its corners, and meets a lone link in the middle", () => {
     const layout = layoutGraph(
       graphOutput(
         [graphNode("S1", 0), graphNode("A", 1), graphNode("B", 1), graphNode("C", 1), graphNode("P", -1)],
@@ -425,9 +496,8 @@ describe("layoutGraph", () => {
       .sort((a, b) => a.child.x - b.child.x);
     expect(fan).toHaveLength(3);
     const xs = fan.map((end) => end.from.x);
-    // Apart, left to right as their children, within the bottom edge and off its corners.
+    // Apart, within the bottom edge and off its corners.
     expect(new Set(xs).size).toBe(3);
-    expect(xs).toEqual([...xs].sort((a, b) => a - b));
     for (const end of fan) {
       expect(end.from.y).toBe(root.y + NODE_HEIGHT);
       expect(end.from.x).toBeGreaterThan(root.x + 12);
@@ -436,6 +506,37 @@ describe("layoutGraph", () => {
     // The one link on the top edge leaves from its middle.
     const up = layout.paths.find((path) => path.target === key("P"));
     expect(up?.d.endsWith(`L${String(root.x + NODE_WIDTH / 2)},${String(root.y)}`)).toBe(true);
+  });
+
+  it("orders the ends on each edge of a node by where their curves are half a layer gap from it, so the curves of S1's graph do not cross at a box", () => {
+    // Ordered by the boxes at their other ends, C3's curve would cross C2's at S1's bottom edge (C3
+    // stands left of C2, but its curve heads right of C2's). Ordered by dagre's first bend against the
+    // other box's centre for a link without bends (#555, a7e640c), D1's two links would cross above S1,
+    // and the outdated reference to D2, which swings out right from its bend under D2, would cross the
+    // reference from D2 to C1 under D2.
+    const layout = layoutGraph(S1_GRAPH);
+    expect(crossingsAtABox(layout)).toEqual([]);
+    // One crossing is left, away from the boxes: the outdated reference from S1 up to D2 and the link
+    // from C1 up to D1 cross between the layers.
+    expect(crossingsOf(layout).map(({ curves }) => curves)).toEqual(["S1>D2 x C1>D1"]);
+    // Both kinds of ends are in it: bent curves and curves drawn after the layout (four points without
+    // bends, so three cubic pieces).
+    const pieces = layout.paths.map((path) => path.d.split("C").length - 1);
+    expect(pieces).toContain(3);
+    expect(pieces.some((count) => count > 3)).toBe(true);
+  });
+
+  it("draws the two links between two nodes that link each other side by side, the one against the levels too", () => {
+    // The whole chain of the glossary term GL-f81ba9: A links to K and K to A (one ranked, one drawn
+    // after the layout), and C, two levels down, links to K.
+    const layout = layoutGraph(
+      graphOutput(
+        [graphNode("A", 0), graphNode("K", -1), graphNode("C", 2)],
+        [graphEdge("A", "K", REFERENCE), graphEdge("K", "A", REFERENCE), graphEdge("C", "K", REFERENCE)],
+      ),
+    );
+    expect(layout.paths).toHaveLength(3);
+    expect(crossingsOf(layout)).toEqual([]);
   });
 
   it("places a lone element, and nothing for an output without nodes", () => {

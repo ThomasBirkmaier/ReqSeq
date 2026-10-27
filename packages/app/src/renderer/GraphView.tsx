@@ -275,7 +275,7 @@ export const GraphView = ({
                   role="option"
                   aria-selected={placed.key === selected}
                   aria-label={nodeLabel(placed.node, typeName)}
-                  title={placed.node.title}
+                  title={`${nodeId(placed.node)} · ${typeName}\n${placed.node.title}`}
                   data-node={placed.key}
                   style={{ left: placed.x, top: placed.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
                   onClick={() => {
