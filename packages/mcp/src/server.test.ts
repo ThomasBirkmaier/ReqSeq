@@ -52,9 +52,10 @@ const catalog = {
  * the recursive filter condition with the short semantics of each operator (agents learn them from these
  * descriptions only) and the definitions they use. It is the same in every tool with a selection, and every
  * such tool repeats it, because MCP has no `$defs` shared across tools and ADR-0009 makes each input schema
- * self-contained. So it has its own bound (6.6 KB with #336), and the rest of each tool keeps the bound of #303.
+ * self-contained. So it has its own bound (6.6 KB with #336, 7 KB until #595, now 7.5 KB: SR-035's `emergent`
+ * operator, SR-062 and stage 5 need room, ADR-0009), and the rest of each tool keeps the bound of #303.
  */
-const SELECTION_MAX_BYTES = 7 * 1024;
+const SELECTION_MAX_BYTES = 7.5 * 1024;
 /** Where the selection part starts (see above). */
 const SELECTION_ROOTS = ["common.selection", "filter.condition"];
 /** Each tool without its selection part. */

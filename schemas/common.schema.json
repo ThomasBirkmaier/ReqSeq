@@ -316,7 +316,7 @@
         },
         "baseline": {
           "type": "string",
-          "description": "Baseline name or file; data.export only."
+          "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet."
         },
         "view": {
           "$ref": "#/$defs/view"

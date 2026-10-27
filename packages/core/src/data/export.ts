@@ -25,9 +25,11 @@
 //   (`dirty` comes with SR-062, #531 Q2); `incomplete` (SR-006 AK2): the selection is incomplete or an
 //   evidence location is in a repository that is not on this machine.
 // - Workspace problems (A6): the schema has no place for them. Element problems stay in
-//   `elements[].problems`; a repository, evidence location or baselines folder that is not here sets
-//   `incomplete`; layout, metamodel and record problems and a refused Git (`git.unavailable`, then
-//   there is no `commit`) are left to `workspace check`. A broken workspace is exported (#590 Q3).
+//   `elements[].problems`; a repository or evidence location that is not here sets `incomplete`. A
+//   baselines folder that is not here holds no baseline, so `selection.baseline` is `input.invalid`
+//   with the reason (query/selection.ts), never an empty export. Layout, metamodel and record
+//   problems and a refused Git (`git.unavailable`, then there is no `commit`) are left to
+//   `workspace check`. A broken workspace is exported (#590 Q3).
 // - A baseline selection exports the elements as they are now: one changed since the baseline has
 //   another `version` than the baseline lists, and nothing marks it (A1, #530 Q4).
 // Cost (N-036): the versions of the selection are read once (`listElements`), those the status needs

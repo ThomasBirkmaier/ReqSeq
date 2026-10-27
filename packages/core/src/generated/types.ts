@@ -315,7 +315,7 @@ export interface ElementSelection {
   readonly filter?: string;
   readonly where?: FilterCondition;
   readonly package?: ElementRef;
-  /** Baseline name or file; data.export only. */
+  /** Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet. */
   readonly baseline?: string;
   readonly view?: View;
 }
@@ -363,7 +363,7 @@ export interface DataExportFile {
     /** Uncommitted changes to LogReq files. */
     readonly dirty?: boolean;
   }[];
-  /** A repository of the workspace is not on this machine (SR-006 AK2): its elements, the records of its evidence locations or, with `selection.baseline`, the baselines folder are missing. */
+  /** A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
   readonly incomplete?: Incomplete;
   /** Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`. */
   readonly elements: readonly DataExportElement[];
@@ -2304,7 +2304,7 @@ export interface EvidenceDegreeOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export input`.
  */
 export interface DataExportInput {
@@ -2312,7 +2312,7 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;

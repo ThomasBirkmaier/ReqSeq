@@ -3,10 +3,11 @@
 // saved filter and baselines (the fixture's README lists the elements, versions and the expected
 // selections). The same output on every access: cross-access.test.ts; the CLI end to end:
 // packages/cli/test/e2e/data-export.test.ts.
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { verificationState } from "../../evidence/index.js";
@@ -193,7 +194,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     ]);
   });
 
-  it("[SR-061/AK1] names each repository with its commit and marks the export incomplete when one is not on this machine", async () => {
+  it("[SR-061/AK1] names each repository with its commit and is complete when every repository is here", async () => {
     const ws = await fixture();
     const out = await exportOf(open(ws));
     expect(out.repositories).toEqual([
@@ -341,5 +342,21 @@ describe("data.export: the documented schema (SR-061 AK3)", () => {
       const out = await exportOf(workspace, input);
       expect([input, validate(out), validate.errors ?? null]).toEqual([input, true, null]);
     }
+  });
+
+  it("gives what the schema example of a package selection shows, but for the time and the commits", async () => {
+    const ws = await fixture();
+    const example = parse(
+      await readFile(
+        new URL("../../../../../schemas/examples/data-export/export-package.yaml", import.meta.url),
+        "utf8",
+      ),
+    ) as Output;
+    const out = await exportOf(open(ws), { selection: { package: "PKG-0000d1" } });
+    expect(out.repositories.map((r) => [r.name, r.available, typeof r.commit])).toEqual([
+      ["system", true, "string"],
+      ["sensor", true, "string"],
+    ]);
+    expect({ ...out, generated: example.generated, repositories: example.repositories }).toEqual(example);
   });
 });

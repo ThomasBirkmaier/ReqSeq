@@ -46,7 +46,7 @@
     },
     "incomplete": {
       "$ref": "common.schema.json#/$defs/incomplete",
-      "description": "A repository of the workspace is not on this machine (SR-006 AK2): its elements, the records of its evidence locations or, with `selection.baseline`, the baselines folder are missing."
+      "description": "A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`."
     },
     "elements": {
       "type": "array",

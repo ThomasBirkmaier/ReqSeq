@@ -550,7 +550,7 @@
             },
             "baseline": {
               "type": "string",
-              "description": "Baseline name or file; data.export only."
+              "description": "Name of a baseline, or its file name in the baselines folder (with or without .yaml). Not every command takes it yet."
             },
             "view": {
               "$ref": "#/$defs/common/$defs/view"
@@ -656,7 +656,7 @@
         },
         "incomplete": {
           "$ref": "#/$defs/common/$defs/incomplete",
-          "description": "A repository of the workspace is not on this machine (SR-006 AK2): its elements, the records of its evidence locations or, with `selection.baseline`, the baselines folder are missing."
+          "description": "A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`."
         },
         "elements": {
           "type": "array",
@@ -5959,7 +5959,7 @@
     {
       "name": "data_export",
       "title": "Export data",
-      "description": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.",
+      "description": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
