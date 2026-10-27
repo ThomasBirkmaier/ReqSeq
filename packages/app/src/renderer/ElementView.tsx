@@ -743,7 +743,7 @@ export const ElementView = ({
       onField(key, label, currentTarget);
     } else if (hasMembers && !event.defaultPrevented && ctrlStep(event) === 1) {
       // Ctrl+N on the page of a package selects its first element (SR-122 AK4). Not from an editor or the
-      // list itself (they are not the buffer); Ctrl+P is not the page's: it stays "Go to".
+      // list itself (they are not the buffer); Ctrl+P is not the page's: it is the window's.
       event.preventDefault();
       dispatch({ type: "cursor", key: buffer.key, cursor: 0 });
       intoMembers(currentTarget);

@@ -70,10 +70,12 @@ describe("Show graph and Show element", () => {
           key: "G",
           ...modifiers,
         };
-        expect(actionFor(context(buffers).full, (shortcut) => matches(pressed, shortcut))?.title).toBe(title);
+        expect(actionFor(context(buffers).full, (shortcut) => matches(pressed, shortcut, false))?.title).toBe(
+          title,
+        );
       }
       const plain = { ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, key: "g" };
-      expect(actionFor(context(buffers).full, (shortcut) => matches(plain, shortcut))).toBeUndefined();
+      expect(actionFor(context(buffers).full, (shortcut) => matches(plain, shortcut, false))).toBeUndefined();
     }
     const hint = (mac: boolean) =>
       commandPrompt(context([element], mac).full).items.find((item) => item.name === "Show graph")?.hint;

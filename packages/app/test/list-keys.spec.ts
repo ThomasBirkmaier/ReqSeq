@@ -7,6 +7,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
+import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 /** 14 elements with a derivation tree, types, statuses and the package Sensors (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -144,13 +145,15 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test('[SR-122/AK5] with no row selected Ctrl+P is still "Go to": after the start, and on a package page outside its list', async () => {
+  test('[SR-122/AK5] with no row selected Ctrl+P is still "Go to" on Linux and Windows (Cmd+P on macOS): after the start, and on a package page outside its list', async () => {
     const { window } = running;
-    await window.keyboard.press("Control+P");
+    // macOS: the physical Ctrl+P is never "Go to" (see the test of macOS below); Cmd+P is.
+    const goTo = process.platform === "darwin" ? "Meta+P" : "Control+P";
+    await window.keyboard.press(goTo);
     await expect(promptLabel(window)).toHaveText("Go to");
     await window.keyboard.press("Escape");
     await openPackage(window);
-    await window.keyboard.press("Control+P");
+    await window.keyboard.press(goTo);
     await expect(promptLabel(window)).toHaveText("Go to");
     await window.keyboard.press("Escape");
   });
@@ -199,5 +202,68 @@ test.describe("Ctrl+N and Ctrl+P in the neighbourhood", () => {
     await expect(selectedRow(window)).toHaveAttribute("id", `nrow-${String(treeRows)}`);
     await expect(selectedRow(window)).not.toHaveRole("treeitem");
     await expect(promptLabel(window)).toHaveCount(0);
+  });
+});
+
+/** The fixture with the demo element, whose text has many lines (support/demo.ts). */
+const WITH_DEMO = { fixture: "SR-069/filter", files: DEMO_FILES };
+
+test.describe("the physical Ctrl key under macOS", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp(WITH_DEMO);
+    const { app, window } = running;
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    // The renderer and CodeMirror know macOS by navigator.platform; a Mac runner reports it anyway.
+    await app.context().addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "platform", { get: () => "MacIntel" });
+    });
+    await window.reload();
+    await expect(window.locator(".overview .line").first()).toBeVisible();
+    expect(await window.evaluate(() => navigator.platform)).toBe("MacIntel");
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test('[SR-122/AK5] under macOS Ctrl+P on an element and in its text editor is not "Go to": the editor moves the caret a line up; Cmd+P jumps', async () => {
+    const { window } = running;
+    await window.keyboard.press("Meta+P");
+    await expect(promptLabel(window)).toHaveText("Go to");
+    await window.keyboard.type(DEMO_TITLE);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(DEMO_TITLE);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText(DEMO_TITLE);
+    const article = window.locator("article");
+    await expect(article).toBeFocused();
+    // On the element (product owner decision, 2026-10-27): Ctrl+P is not "Go to".
+    await window.keyboard.press("Control+P");
+    await expect(promptLabel(window)).toHaveCount(0);
+    await expect(article).toBeFocused();
+    // In the text editor Ctrl+P is CodeMirror's "line up" of macOS: from the end, one line up.
+    await window.keyboard.press("Enter");
+    const content = window.locator('[data-field="Text"] .cm-content');
+    await expect(content).toBeFocused();
+    await window.keyboard.press("Control+P");
+    await window.keyboard.type("X");
+    // The X went in above the last line, which is as it was.
+    await expect.poll(() => content.innerText()).toContain("X");
+    const lines = (await content.innerText()).split("\n").filter((line) => line.trim() !== "");
+    expect(lines.at(-1)?.trim()).toBe("Siehe das Beispiel.");
+    await expect(promptLabel(window)).toHaveCount(0);
+    // On the first line, where the editor cannot go further up, it is still no "Go to".
+    for (let line = 0; line < 40; line += 1) {
+      await window.keyboard.press("Control+P");
+    }
+    await window.keyboard.press("Control+A");
+    await window.keyboard.press("Control+P");
+    await expect(promptLabel(window)).toHaveCount(0);
+    await expect(content).toBeFocused();
+    await window.keyboard.type("Y");
+    await expect.poll(() => content.innerText()).toMatch(/^Y# Übersicht/);
+    // Cmd+P jumps, also from the editor.
+    await window.keyboard.press("Meta+P");
+    await expect(promptLabel(window)).toHaveText("Go to");
+    await window.keyboard.press("Escape");
   });
 });

@@ -135,6 +135,7 @@ describe("the matrix as a mode of the list (SR-125)", () => {
         matches(
           { ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, key: "t", ...modifiers },
           shortcut,
+          false,
         );
       expect(actionFor(start([sample]).context, press)?.id).toBe("matrix");
       expect(actionFor(start([matrixList]).context, press)?.id).toBe("matrix-list");

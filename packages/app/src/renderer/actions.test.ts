@@ -1139,7 +1139,7 @@ describe("Next buffer and Previous buffer (SR-115 AK5)", () => {
       shiftKey: false,
     });
     const found = (key: string, code: string) =>
-      actionFor(context, (shortcut) => matches(press(key, code), shortcut))?.id;
+      actionFor(context, (shortcut) => matches(press(key, code), shortcut, false))?.id;
     expect(found("n", "KeyN")).toBe("next-buffer");
     expect(found("p", "KeyP")).toBe("previous-buffer");
     expect(found("Dead", "KeyN")).toBe("next-buffer");

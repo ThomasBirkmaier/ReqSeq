@@ -5,7 +5,7 @@
 // frame, so the strip is checked here with the renderer told it runs on macOS.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, modifier } from "./support/app.js";
 import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -78,8 +78,8 @@ test("on macOS a strip of the sheet moves the window and names it, in the colour
     expect(await style(window, ".titlebar", "-webkit-app-region")).toBe("drag");
     expect(await style(window, ".titlebar", "background-color")).toBe(SHEET.light);
     await expect(strip.locator("button, input, a, [tabindex]")).toHaveCount(0);
-    // Toggle dark mode: the strip follows the sheet.
-    await window.keyboard.press("ControlOrMeta+Shift+P");
+    // Toggle dark mode: the strip follows the sheet. The emulated macOS takes Cmd only (#543).
+    await window.keyboard.press(`${await modifier(window)}+Shift+P`);
     await window.keyboard.type("Toggle dark mode");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Toggle dark mode");
     await window.keyboard.press("Enter");

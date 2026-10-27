@@ -1,5 +1,7 @@
 // Keyboard shortcuts of the main view: how a key press is matched and how a shortcut is written. The
-// modifier is Ctrl, or Cmd on macOS; a press with either counts, so the same keys work everywhere.
+// modifier is Ctrl, or Cmd on macOS. On Linux and Windows a press with Ctrl or Cmd (the Windows or Super
+// key) counts; on macOS only Cmd does, because there Ctrl with a letter is the key of the text and the
+// lists (Ctrl+P one line up, Ctrl+N one line down, Ctrl+A to the start of the line; SR-122 AK5).
 
 /** A shortcut: the modifier key (Ctrl or Cmd), optionally Shift or Alt (Option on macOS), and a letter. */
 export interface Shortcut {
@@ -48,8 +50,16 @@ const sameKey = (event: KeyPress, shortcut: Shortcut): boolean =>
     event.code === `Key${shortcut.key.toUpperCase()}` &&
     (event.metaKey || (!event.ctrlKey && event.isComposing !== true && !LETTER.test(event.key))));
 
-export const matches = (event: KeyPress, shortcut: Shortcut): boolean =>
-  (event.ctrlKey || event.metaKey) === shortcut.mod &&
+/**
+ * Whether `event` is `shortcut`, under macOS when `mac`. There the modifier is Cmd only, and a press with
+ * the physical Ctrl key is no shortcut at all: it is left to the editor (CodeMirror's Ctrl+P, Ctrl+N,
+ * Ctrl+A, Ctrl+E, ...) and to the lists (`ctrlStep`), so Ctrl+P on macOS never jumps (product owner
+ * decision, 2026-10-27). On Linux and Windows Ctrl or Cmd counts, as before.
+ */
+export const matches = (event: KeyPress, shortcut: Shortcut, mac: boolean): boolean =>
+  (mac
+    ? !event.ctrlKey && event.metaKey === shortcut.mod
+    : (event.ctrlKey || event.metaKey) === shortcut.mod) &&
   event.shiftKey === shortcut.shift &&
   event.altKey === (shortcut.alt ?? false) &&
   sameKey(event, shortcut);
@@ -92,9 +102,9 @@ export const rowStep = (event: KeyPress): 1 | -1 | undefined =>
  *
  * - Down and Ctrl+N go one row down; with no row selected, to the first.
  * - Up and Ctrl+P go one row up. With no row selected, Up selects the first row, and Ctrl+P is not the
- *   list's: it stays Ctrl+P "Go to" (SR-118 AK3, SR-115 AK1). With a row selected, the physical Ctrl+P
- *   only moves the selection, also on the first row (AK5), on every platform; Cmd+P on macOS always
- *   jumps.
+ *   list's: on Linux and Windows it stays Ctrl+P "Go to" (SR-118 AK3, SR-115 AK1); on macOS, where "Go
+ *   to" is Cmd+P only, it does nothing. With a row selected, the physical Ctrl+P only moves the
+ *   selection, also on the first row (AK5), on every platform; Cmd+P on macOS always jumps.
  * - A list without rows takes neither Ctrl+N nor Ctrl+P.
  * - Page Down and Page Up go `screen` rows (none when the list has no `screen`), Home to the first row,
  *   End to the last.

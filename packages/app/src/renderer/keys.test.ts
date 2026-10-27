@@ -20,30 +20,61 @@ describe("keys", () => {
   const palette = { mod: true, shift: true, key: "p" };
 
   it("matches Ctrl or Cmd with the letter in any case, and the exact modifiers", () => {
-    expect(matches(press("P", { ctrlKey: true, shiftKey: true }), palette)).toBe(true);
-    expect(matches(press("p", { metaKey: true, shiftKey: true }), palette)).toBe(true);
-    expect(matches(press("P", { shiftKey: true }), palette)).toBe(false);
-    expect(matches(press("p", { ctrlKey: true }), palette)).toBe(false);
-    expect(matches(press("p", { ctrlKey: true, shiftKey: true, altKey: true }), palette)).toBe(false);
-    expect(matches(press("f", { ctrlKey: true, shiftKey: true }), palette)).toBe(false);
-    expect(matches(press("p", { ctrlKey: true }), { mod: true, shift: false, key: "p" })).toBe(true);
+    expect(matches(press("P", { ctrlKey: true, shiftKey: true }), palette, false)).toBe(true);
+    expect(matches(press("p", { metaKey: true, shiftKey: true }), palette, false)).toBe(true);
+    expect(matches(press("P", { shiftKey: true }), palette, false)).toBe(false);
+    expect(matches(press("p", { ctrlKey: true }), palette, false)).toBe(false);
+    expect(matches(press("p", { ctrlKey: true, shiftKey: true, altKey: true }), palette, false)).toBe(false);
+    expect(matches(press("f", { ctrlKey: true, shiftKey: true }), palette, false)).toBe(false);
+    expect(matches(press("p", { ctrlKey: true }), { mod: true, shift: false, key: "p" }, false)).toBe(true);
+  });
+
+  it("[SR-122/AK5] under macOS the modifier is Cmd only: the physical Ctrl key with a letter is no shortcut, so Ctrl+P does not jump", () => {
+    const goTo = { mod: true, shift: false, key: "p" };
+    const next = { mod: false, shift: false, alt: true, key: "n" };
+    // Cmd+P jumps, Cmd+Shift+P is the command prompt, Cmd+Option+A adds a property.
+    expect(matches(press("p", { metaKey: true }), goTo, true)).toBe(true);
+    expect(matches(press("p", { metaKey: true, shiftKey: true }), { ...goTo, shift: true }, true)).toBe(true);
+    expect(
+      matches(
+        press("å", { metaKey: true, altKey: true, code: "KeyA" }),
+        { ...goTo, alt: true, key: "a" },
+        true,
+      ),
+    ).toBe(true);
+    // The physical Ctrl key: the caret keys of the editor and the row keys of a list, never a shortcut.
+    expect(matches(press("p", { ctrlKey: true }), goTo, true)).toBe(false);
+    expect(matches(press("p", { ctrlKey: true, shiftKey: true }), { ...goTo, shift: true }, true)).toBe(
+      false,
+    );
+    expect(matches(press("p", { ctrlKey: true, metaKey: true }), goTo, true)).toBe(false);
+    expect(matches(press("Dead", { ctrlKey: true, altKey: true, code: "KeyN" }), next, true)).toBe(false);
+    // Option+N alone switches the buffer; a shortcut without the modifier is no Cmd shortcut.
+    expect(matches(press("Dead", { altKey: true, code: "KeyN" }), next, true)).toBe(true);
+    expect(matches(press("p"), goTo, true)).toBe(false);
+    // Linux and Windows: Ctrl+P still jumps.
+    expect(matches(press("p", { ctrlKey: true }), goTo, false)).toBe(true);
   });
 
   it("matches Alt (Option) only when the shortcut has it; Cmd+Option counts the physical key, Ctrl+Alt (AltGr) does not", () => {
     const add = { mod: true, shift: false, alt: true, key: "a" };
-    expect(matches(press("a", { ctrlKey: true, altKey: true }), add)).toBe(true);
-    expect(matches(press("a", { metaKey: true, altKey: true }), add)).toBe(true);
-    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyA" }), add)).toBe(true);
-    expect(matches(press("ą", { ctrlKey: true, altKey: true, code: "KeyA" }), add)).toBe(false);
-    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyB" }), add)).toBe(false);
-    expect(matches(press("a", { ctrlKey: true }), add)).toBe(false);
-    expect(matches(press("a", { ctrlKey: true, altKey: true, shiftKey: true }), add)).toBe(false);
+    expect(matches(press("a", { ctrlKey: true, altKey: true }), add, false)).toBe(true);
+    expect(matches(press("a", { metaKey: true, altKey: true }), add, false)).toBe(true);
+    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyA" }), add, false)).toBe(true);
+    expect(matches(press("ą", { ctrlKey: true, altKey: true, code: "KeyA" }), add, false)).toBe(false);
+    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyB" }), add, false)).toBe(false);
+    expect(matches(press("a", { ctrlKey: true }), add, false)).toBe(false);
+    expect(matches(press("a", { ctrlKey: true, altKey: true, shiftKey: true }), add, false)).toBe(false);
     expect(
-      matches(press("å", { metaKey: true, altKey: true, code: "KeyA" }), {
-        mod: true,
-        shift: false,
-        key: "a",
-      }),
+      matches(
+        press("å", { metaKey: true, altKey: true, code: "KeyA" }),
+        {
+          mod: true,
+          shift: false,
+          key: "a",
+        },
+        false,
+      ),
     ).toBe(false);
   });
 
@@ -51,34 +82,36 @@ describe("keys", () => {
     const next = { mod: false, shift: false, alt: true, key: "n" };
     const previous = { mod: false, shift: false, alt: true, key: "p" };
     // Linux and Windows: the letter.
-    expect(matches(press("n", { altKey: true, code: "KeyN" }), next)).toBe(true);
-    expect(matches(press("p", { altKey: true }), previous)).toBe(true);
+    expect(matches(press("n", { altKey: true, code: "KeyN" }), next, false)).toBe(true);
+    expect(matches(press("p", { altKey: true }), previous, false)).toBe(true);
     // macOS: Option+N is the dead key of "~", Option+P is "π"; the physical key counts.
-    expect(matches(press("Dead", { altKey: true, code: "KeyN" }), next)).toBe(true);
-    expect(matches(press("π", { altKey: true, code: "KeyP" }), previous)).toBe(true);
-    expect(matches(press("Dead", { altKey: true, code: "KeyU" }), next)).toBe(false);
-    expect(matches(press("Dead", { altKey: true }), next)).toBe(false);
+    expect(matches(press("Dead", { altKey: true, code: "KeyN" }), next, false)).toBe(true);
+    expect(matches(press("π", { altKey: true, code: "KeyP" }), previous, false)).toBe(true);
+    expect(matches(press("Dead", { altKey: true, code: "KeyU" }), next, false)).toBe(false);
+    expect(matches(press("Dead", { altKey: true }), next, false)).toBe(false);
     // A non-Latin layout on Linux (Russian Alt+N is "т"): the physical key.
-    expect(matches(press("т", { altKey: true, code: "KeyN" }), next)).toBe(true);
+    expect(matches(press("т", { altKey: true, code: "KeyN" }), next, false)).toBe(true);
     // Dvorak on Linux: the letter, not the place ("b" lies where QWERTY has N; "n" where it has L).
-    expect(matches(press("b", { altKey: true, code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("n", { altKey: true, code: "KeyL" }), next)).toBe(true);
+    expect(matches(press("b", { altKey: true, code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("n", { altKey: true, code: "KeyL" }), next, false)).toBe(true);
     // An input method that composes keeps the key.
-    expect(matches(press("Process", { altKey: true, code: "KeyN", isComposing: true }), next)).toBe(false);
+    expect(matches(press("Process", { altKey: true, code: "KeyN", isComposing: true }), next, false)).toBe(
+      false,
+    );
   });
 
   it("[SR-115/AK5] Alt+N is Alt alone: Ctrl+Alt (AltGr), Cmd+Option, Shift or no Alt do not count", () => {
     const next = { mod: false, shift: false, alt: true, key: "n" };
-    expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("n", { ctrlKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("Dead", { metaKey: true, altKey: true, code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("N", { altKey: true, shiftKey: true, code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("n", { code: "KeyN" }), next)).toBe(false);
-    expect(matches(press("n", { ctrlKey: true, code: "KeyN" }), next)).toBe(false);
+    expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("n", { ctrlKey: true, altKey: true, code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("Dead", { metaKey: true, altKey: true, code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("N", { altKey: true, shiftKey: true, code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("n", { code: "KeyN" }), next, false)).toBe(false);
+    expect(matches(press("n", { ctrlKey: true, code: "KeyN" }), next, false)).toBe(false);
     // Ctrl+Alt+... shortcuts keep their rule: "ñ" with Ctrl+Alt is no Ctrl+Alt+N.
-    expect(matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), { ...next, mod: true })).toBe(
-      false,
-    );
+    expect(
+      matches(press("ñ", { ctrlKey: true, altKey: true, code: "KeyN" }), { ...next, mod: true }, false),
+    ).toBe(false);
   });
 
   it("[SR-115/AK5] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {

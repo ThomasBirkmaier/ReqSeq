@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, modifier } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
@@ -38,16 +38,17 @@ for (const [scheme, mac] of [
         await window.reload();
       }
       await listAll(window);
+      const mod = await modifier(window);
       const shot = (name: string): Promise<Buffer> =>
         window.screenshot({ path: path.join(OUT, `look-${platform}${scheme}-${name}.png`) });
-      await window.keyboard.press("ControlOrMeta+P");
+      await window.keyboard.press(`${mod}+P`);
       await window.keyboard.type("SR-066");
       await expect(window.locator('.candidates [role="option"]').first()).toContainText(ELEMENT);
       await window.keyboard.press("Enter");
       await expect(window.locator("article h1")).toHaveText(ELEMENT);
       await expect(window.locator(".cm-content").first()).toBeVisible();
       await shot("element");
-      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.press(`${mod}+Shift+P`);
       await expect(window.locator('.candidates [role="option"]').first()).toBeVisible();
       await shot("commands");
     } finally {

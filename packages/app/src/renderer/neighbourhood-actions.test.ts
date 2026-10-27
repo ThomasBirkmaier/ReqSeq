@@ -62,13 +62,14 @@ describe("Show neighbourhood and Show element", () => {
           matches(
             { ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, key: "j", ...modifiers },
             shortcut,
+            false,
           ),
         );
         expect(found?.title).toBe(title);
       }
     }
     const other = actionFor(context([element]).full, (shortcut) =>
-      matches({ ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, key: "k" }, shortcut),
+      matches({ ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, key: "k" }, shortcut, false),
     );
     expect(other).toBeUndefined();
     const hint = (mac: boolean) =>

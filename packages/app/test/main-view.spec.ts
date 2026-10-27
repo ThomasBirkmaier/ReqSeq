@@ -268,8 +268,8 @@ test.describe("the main view on a fixture workspace", () => {
     // Ctrl+P in the prompt moves up; it does not turn the command prompt into "Go to".
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Command");
     await window.keyboard.press("Escape");
-    // The go-to prompt: hits of element.search, moved with Ctrl+N and Ctrl+P.
-    await window.keyboard.press("Control+P");
+    // The go-to prompt (Cmd+P on macOS): hits of element.search, moved with Ctrl+N and Ctrl+P.
+    await window.keyboard.press("ControlOrMeta+P");
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
     await window.keyboard.type("wind");
     const options = window.locator('.candidates [role="option"]');

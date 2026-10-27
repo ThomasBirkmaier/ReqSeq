@@ -323,12 +323,12 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       if (!now.workspace) {
         return;
       }
-      if (matches(event, COMMAND_SHORTCUT)) {
+      if (matches(event, COMMAND_SHORTCUT, now.mac)) {
         event.preventDefault();
         ask(commands());
         return;
       }
-      const action = actionFor(now, (shortcut) => matches(event, shortcut));
+      const action = actionFor(now, (shortcut) => matches(event, shortcut, now.mac));
       if (action !== undefined) {
         event.preventDefault();
         runAction(action, now);

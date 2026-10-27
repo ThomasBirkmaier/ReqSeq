@@ -6,7 +6,7 @@ import { NEXT_BUFFER_SHORTCUT, PREVIOUS_BUFFER_SHORTCUT } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
 import type { Ranked } from "./fuzzy.js";
-import { listStep, matches } from "./keys.js";
+import { isMac, listStep, matches } from "./keys.js";
 import { rankByUse } from "./usage.js";
 
 export interface MinibufferProps {
@@ -182,10 +182,12 @@ const PromptLine = ({
     }
   }, [filled]);
 
+  // The modifier of the shortcuts: Cmd only under macOS (`matches`).
+  const mac = isMac(navigator.platform);
   // Ctrl/Cmd+Enter (`more`) and Backspace in an empty input (one argument back, catalog commands); never
   // "Follow reference". Whether the key was taken.
   const argumentKey = (event: React.KeyboardEvent): boolean => {
-    if (matches(event, { mod: true, shift: false, key: "enter" })) {
+    if (matches(event, { mod: true, shift: false, key: "enter" }, mac)) {
       event.preventDefault();
       event.stopPropagation();
       more();
@@ -215,7 +217,7 @@ const PromptLine = ({
     }
     // Alt+N and Alt+P (Option on macOS) switch no buffer while a prompt is open: they type what the
     // layout gives (Option+N "~" on a German Mac), and go no further.
-    if (matches(event, NEXT_BUFFER_SHORTCUT) || matches(event, PREVIOUS_BUFFER_SHORTCUT)) {
+    if (matches(event, NEXT_BUFFER_SHORTCUT, mac) || matches(event, PREVIOUS_BUFFER_SHORTCUT, mac)) {
       event.stopPropagation();
       return;
     }

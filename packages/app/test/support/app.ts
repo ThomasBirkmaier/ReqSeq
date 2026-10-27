@@ -167,11 +167,19 @@ export const launchApp = async (
   };
 };
 
+/**
+ * The modifier of the app's shortcuts for `window`: Meta (Cmd) when the renderer is on macOS, also when a
+ * test emulates it by `navigator.platform` on another OS, else `ControlOrMeta`. Under macOS the app takes
+ * only Cmd (#543), and Playwright's `ControlOrMeta` follows the OS of the runner, not the emulated one.
+ */
+export const modifier = async (window: Page): Promise<"Meta" | "ControlOrMeta"> =>
+  (await window.evaluate(() => navigator.platform.startsWith("Mac"))) ? "Meta" : "ControlOrMeta";
+
 /** The app starts with the overview; this opens the list of all elements, as a person does (SR-118 AK4). */
 export const listAll = async (window: Page): Promise<void> => {
   // Keys count once the workspace is open and its first buffer is shown.
   await window.locator('[aria-label="Sheet"] > *').first().waitFor();
-  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.press(`${await modifier(window)}+Shift+P`);
   await window.keyboard.type("List all elements");
   await window.keyboard.press("Enter");
   await window.locator(".row").first().waitFor();

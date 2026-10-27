@@ -209,8 +209,12 @@ const click = async (target: Element): Promise<void> => {
 };
 
 /** Opens the command prompt, types `name` and runs the first candidate. */
+/** The modifier of the shortcuts on the platform of the test: Cmd under macOS, else Ctrl. */
+const mod = (): { readonly ctrlKey: true } | { readonly metaKey: true } =>
+  navigator.platform.startsWith("Mac") ? { metaKey: true } : { ctrlKey: true };
+
 const runCommand = async (name: string): Promise<void> => {
-  await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+  await keyDown(window, "P", { ...mod(), shiftKey: true });
   await type(name);
   await keyDown(query("input"), "Enter");
 };
@@ -661,7 +665,7 @@ describe("App", () => {
       const selected = (): string | undefined =>
         container.querySelector('.candidates [aria-selected="true"]')?.textContent ?? undefined;
       // The command prompt: Ctrl+P must not jump.
-      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      await keyDown(window, "P", { ...mod(), shiftKey: true });
       const first = selected();
       await keyDown(query("input"), "n", { ctrlKey: true });
       expect(selected()).not.toBe(first);
@@ -670,8 +674,8 @@ describe("App", () => {
       expect(selected()).toBe(first);
       expect(query("label").textContent).toBe("Command");
       await keyDown(query("input"), "Escape");
-      // The jump prompt: Ctrl+P in it moves the selection and stays "Go to".
-      await keyDown(window, "p", { ctrlKey: true });
+      // The jump prompt (Cmd+P under macOS): Ctrl+P in it moves the selection and stays "Go to".
+      await keyDown(window, "p", mod());
       expect(query("label").textContent).toBe("Go to");
       await keyDown(query("input"), "p", { ctrlKey: true });
       expect(query("label").textContent).toBe("Go to");
@@ -767,7 +771,7 @@ describe("App", () => {
     },
   );
 
-  it.each(PLATFORMS)(
+  it.each(["Win32", "Linux x86_64"])(
     "[SR-122/AK5] on %s, with no row selected Ctrl+P is still Go to: on the overview after the start, and on a list without rows",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
@@ -787,6 +791,26 @@ describe("App", () => {
       expect(prompt()).toBe("Go to");
     },
   );
+
+  it("[SR-122/AK5] on macOS, with no row selected the physical Ctrl+P is not Go to, Cmd+P is: on the overview after the start, and on a list without rows", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    const handlers = workspace();
+    await render(fakeBridge(handlers).bridge);
+    const fresh = await pressed(query('[role="listbox"]'), "p", ctrl);
+    expect(fresh.defaultPrevented).toBe(false);
+    expect(prompt()).toBeUndefined();
+    expect(selectedRow()).toBeUndefined();
+    await keyDown(query('[role="listbox"]'), "p", { metaKey: true });
+    expect(prompt()).toBe("Go to");
+    await keyDown(query("input"), "Escape");
+    handlers["element.list"] = () => ({ elements: [], total: 0 });
+    await listAll();
+    expect(query(".list .quiet").textContent).toBe("No elements");
+    expect((await pressed(query('[role="listbox"]'), "p", ctrl)).defaultPrevented).toBe(false);
+    expect(prompt()).toBeUndefined();
+    await keyDown(query('[role="listbox"]'), "p", { metaKey: true });
+    expect(prompt()).toBe("Go to");
+  });
 
   it("[SR-122/AK5] Ctrl+P on an overview without lines is Go to", async () => {
     const handlers = workspace();
@@ -1644,7 +1668,7 @@ describe("App, the package page (SR-112)", () => {
   const openPackage = async (handlers = withPackage()) => {
     const fake = fakeBridge(handlers);
     await render(fake.bridge);
-    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(window, "p", mod());
     await type("stufe");
     await keyDown(query("input"), "Enter");
     return fake;
@@ -1897,7 +1921,7 @@ describe("App, the package page (SR-112)", () => {
     expect(document.activeElement).toBe(query("article"));
   });
 
-  it.each(["MacIntel", "Win32", "Linux x86_64"])(
+  it.each(["Win32", "Linux x86_64"])(
     "[SR-122/AK5] on %s, Ctrl+P on a package page outside its elements is still Go to",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
@@ -1907,6 +1931,15 @@ describe("App, the package page (SR-112)", () => {
       expect(query("label").textContent).toBe("Go to");
     },
   );
+
+  it("[SR-122/AK5] on macOS, the physical Ctrl+P on a package page outside its elements is not Go to; Cmd+P is", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    await openPackage();
+    expect((await pressed(query("article"), "p", { ctrlKey: true })).defaultPrevented).toBe(false);
+    expect(container.querySelector("label")).toBeNull();
+    await keyDown(query("article"), "p", { metaKey: true });
+    expect(query("label").textContent).toBe("Go to");
+  });
 
   it("Ctrl+N typed in the text editor of a package page stays in the editor and chooses no element", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
