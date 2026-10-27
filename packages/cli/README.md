@@ -15,6 +15,7 @@ logreq hint confirm --target N-46fb54   # confirm every outdated relation to N-4
 logreq element create need --title "See the wind"   # a positional field can be given as a flag too
 logreq workspace check --fail-on warning  # exit code 1 on a warning too (default: error; info is the lowest)
 logreq workspace check --severity error   # show errors only and count the rest; the exit code is --fail-on's
+logreq workspace activity              # the element an agent read or changed last through the API or MCP (SR-117)
 logreq element update SR-46fb54 --input @change.json   # objects only via --input (JSON, @file or - for stdin)
 ```
 

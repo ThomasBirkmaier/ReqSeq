@@ -215,6 +215,16 @@ describe("writeCacheFile", () => {
     await expect(removeCacheFile(folder, "api.json")).resolves.toBeUndefined();
   });
 
+  it("reads a cache file of at most maxBytes, and gives undefined for a larger one or none", async () => {
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
+    await writeCacheFile(folder, "api.json", "1234");
+    expect(await readCacheFile(folder, "api.json", 4)).toBe("1234");
+    await writeCacheFile(folder, "api.json", "12345");
+    expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
+    expect(await readCacheFile(folder, "api.json")).toBe("12345");
+  });
+
   it("locks a cache file with <name>.lock next to it, once at a time", async () => {
     folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
     const lock = await lockCacheFile(folder, "api.json");
@@ -234,6 +244,9 @@ describe("writeCacheFile", () => {
     folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
     await fs.mkdir(path.join(folder, "api.json"));
     await expect(readCacheFile(folder, "api.json")).rejects.toMatchObject({
+      code: expect.stringMatching(/^(EISDIR|EPERM|EACCES)$/) as unknown,
+    });
+    await expect(readCacheFile(folder, "api.json", 1 << 20)).rejects.toMatchObject({
       code: expect.stringMatching(/^(EISDIR|EPERM|EACCES)$/) as unknown,
     });
   });

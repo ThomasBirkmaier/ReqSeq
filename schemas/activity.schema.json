@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logreq.dev/schemas/activity.schema.json",
+  "title": "Activity file",
+  "description": "`activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is internal and private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.",
+  "type": "object",
+  "required": ["version", "process", "seq", "sha256", "access"],
+  "properties": {
+    "version": { "const": 1 },
+    "process": {
+      "type": "string",
+      "pattern": "^[0-9]+-[0-9a-f]{8}$",
+      "description": "The writer: its process ID and 8 random hex digits, new whenever a workspace of the process starts recording. With `seq` it tells a new access from one already seen."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Counts the writes of `process`, from 1."
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 (hex) of the element's file as the call left it, so that a reader can tell whether it sees that state of the file yet."
+    },
+    "access": { "$ref": "#/$defs/access" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "access": {
+      "description": "One call that read or changed one element: which access made it, the command, its effect, when it ended and the element.",
+      "type": "object",
+      "required": ["access", "command", "effect", "at", "element"],
+      "properties": {
+        "access": {
+          "enum": ["cli", "api", "mcp", "app"],
+          "description": "The access the call came through (ADR-0002 rule 4). Only calls through the API and the MCP server are recorded."
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^[a-z]+\\.[a-z][A-Za-z]*$",
+          "description": "The catalog command of the call."
+        },
+        "effect": {
+          "enum": ["read", "write-files"],
+          "description": "The effect of the command in the catalog."
+        },
+        "at": { "$ref": "common.schema.json#/$defs/dateTime" },
+        "element": {
+          "type": "object",
+          "required": ["id", "repository"],
+          "properties": {
+            "id": { "$ref": "common.schema.json#/$defs/uuid" },
+            "repository": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Workspace name of the repository of the element's file."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

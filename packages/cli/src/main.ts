@@ -1,7 +1,7 @@
 // `logreq`: the command line adapter over the command catalog (ADR-0002, ADR-0009). It only translates
 // transport: argv to a command input, the output to stdout, errors to stderr and an exit code.
 import path from "node:path";
-import type { CommandErrorClass, CommandErrorCode, CommandRuntime } from "@logreq/core";
+import type { CommandErrorClass, CommandErrorCode, CommandRuntime, InvokeContext } from "@logreq/core";
 import {
   CommandError,
   PRODUCT_VERSION,
@@ -113,7 +113,10 @@ async function call(
 ): Promise<unknown> {
   const input = await buildInput(invocation, options.cwd, options.stdin);
   const workspace = openWorkspace(await workspaceRoot(invocation.workspace, options.cwd));
-  const context = options.signal === undefined ? { workspace } : { workspace, signal: options.signal };
+  const context: InvokeContext =
+    options.signal === undefined
+      ? { workspace, access: "cli" }
+      : { workspace, signal: options.signal, access: "cli" };
   const result = await settle(runtime.invoke(invocation.entry.name, input, context));
   const closed = await settle(workspace.close());
   if (!result.ok) {

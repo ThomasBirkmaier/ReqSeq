@@ -181,6 +181,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: [GUSTS, OBSOLETE, RETIRED], direction: "parents", view: "core" },
     { refs: ["SR-ffffff"], direction: "children" },
   ],
+  "workspace.activity": [{}, { extra: true }],
   "workspace.check": [
     {},
     { severity: "error" },

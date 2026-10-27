@@ -1,11 +1,14 @@
 // The one entry point of the adapters (CLI, API, MCP, app): `invoke(name, input, { workspace })`.
 // Validates the input against the catalog, runs the command and maps every failure to a
 // CommandError with a code from common.schema.json#/$defs/error (ADR-0002 rule 4). Adds the short
-// ID of the element each problem of the output names (`withElementShortIds`, #315).
+// ID of the element each problem of the output names (`withElementShortIds`, #315). Records the
+// element of an API or MCP call as the last access of the copy (`recordAccess`, SR-117).
 import type { AnyCommand } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { commands as productCommands } from "../commands/index.js";
 import { assertWritable } from "../metamodel/index.js";
+import type { AccessCall, AccessName, NotedAccess } from "../model/activity.js";
+import { FOLLOWED_ACCESSES, accessSubject, noteAccess, recordAccess } from "../model/activity.js";
 import type { Contracts } from "./contracts.js";
 import { SCHEMA_BASE, describeViolations, loadContracts, schemaViolations } from "./contracts.js";
 import type { ProblemLocator } from "./element-short-ids.js";
@@ -18,6 +21,13 @@ export interface InvokeContext {
   readonly workspace: Workspace;
   /** Abort when the caller goes away. Default: a signal that never aborts. */
   readonly signal?: AbortSignal;
+  /**
+   * The access the call comes through: each adapter passes its own name (ADR-0002 rule 4). It never
+   * changes the result. Core records the element a successful call names as the last access of the
+   * copy when the access is one of `FOLLOWED_ACCESSES` (API and MCP, SR-117) and the workspace has
+   * a cache folder; left out, nothing is recorded.
+   */
+  readonly access?: AccessName;
 }
 
 export interface CommandRuntimeOptions {
@@ -81,6 +91,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   // Where the output of each command holds problems, from its output schema (#315); built on the
   // first call of the command, since a CLI process runs one (#319).
   const locators = new Map<string, () => ProblemLocator | undefined>();
+  // Which element a call of each command names, from its catalog entry (SR-117).
+  const calls = new Map<string, Omit<AccessCall, "access">>();
   for (const command of options.commands ?? productCommands) {
     const entry = contracts.entry(command.name);
     if (entry === undefined) {
@@ -101,6 +113,7 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       };
       return located.locator;
     });
+    calls.set(command.name, { command: command.name, effect: entry.effect, subject: accessSubject(entry) });
     if (entry.effect === "write-files" && !CREATES_WORKSPACE.has(command.name)) {
       guarded.add(command.name);
     }
@@ -142,6 +155,13 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       );
     }
     const signal = ctx.signal ?? new AbortController().signal;
+    const { access } = ctx;
+    const known = calls.get(name);
+    const call: AccessCall | undefined =
+      access !== undefined && FOLLOWED_ACCESSES.includes(access) && known !== undefined
+        ? { ...known, access }
+        : undefined;
+    let noted: Promise<NotedAccess | undefined> | undefined;
     let output: unknown;
     try {
       // Background work of the workspace (the search index) waits while the command runs.
@@ -153,7 +173,18 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
         const locator = locators.get(name)?.();
         const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
         // Every problem that names an element names its short ID too (#315).
-        return withElementShortIds(ctx.workspace, locator, result);
+        const shown = await withElementShortIds(ctx.workspace, locator, result);
+        if (call !== undefined) {
+          // The states the command left, taken now; nothing waits for it (SR-117). Inputs and
+          // outputs of catalog commands are objects (catalog.meta.schema.json).
+          noted = noteAccess(
+            ctx.workspace,
+            call,
+            checked as Readonly<Record<string, unknown>>,
+            shown as Readonly<Record<string, unknown>>,
+          );
+        }
+        return shown;
       });
     } catch (error) {
       throw toCommandError(name, error, signal);
@@ -171,6 +202,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
           },
         );
       }
+    }
+    if (noted !== undefined) {
+      recordAccess(ctx.workspace, noted);
     }
     return output;
   }

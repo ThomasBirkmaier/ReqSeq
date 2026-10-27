@@ -43,7 +43,7 @@ export async function callTool(
   signal: AbortSignal,
 ): Promise<CallToolResult> {
   try {
-    const output = await runtime.invoke(command, args, { workspace, signal });
+    const output = await runtime.invoke(command, args, { workspace, signal, access: "mcp" });
     // Catalog outputs are objects (catalog.meta.schema.json), checked in tests and debug builds.
     const structured = output as Record<string, unknown>;
     return { content: [{ type: "text", text: JSON.stringify(output) }], structuredContent: structured };

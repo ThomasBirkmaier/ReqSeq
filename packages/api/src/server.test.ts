@@ -860,6 +860,15 @@ describe("commands", () => {
     expect(commands[0]).toMatchObject(catalog.commands[0] ?? {});
   });
 
+  it("passes its access to core, which records the element of an API call (SR-117)", async () => {
+    const spy = vi.spyOn(runtime, "invoke");
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    await request({ body: "{}" });
+    expect(spy.mock.calls.at(-1)?.[2]).toMatchObject({ access: "api" });
+  });
+
   it("runs a command with the body as input and answers with its output as JSON", async () => {
     const reply = await request({ body: JSON.stringify({ a: [1, "ü"] }) });
     expect(reply.status).toBe(200);

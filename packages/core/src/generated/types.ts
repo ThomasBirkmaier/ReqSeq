@@ -2,6 +2,40 @@
 // change the schema or the catalog and run `pnpm contracts:generate`.
 
 /**
+ * `activity.json` in the cache folder of the working copy (ADR-0008): the last call through the local API or the MCP server that read or changed one element of the copy (SR-117). Every API and MCP process of the copy rewrites it after such a call (the last writer wins); the app watches it. It is internal and private (mode 0600, like `api.json`): scripts ask `workspace.activity`, which gives `access`. It holds no element content, only the UUID, repository, command, time and the hash of the element's file. Removing it is safe.
+ * Schema: `schemas/activity.schema.json#`.
+ */
+export interface ActivityFile {
+  readonly version: 1;
+  /** The writer: its process ID and 8 random hex digits, new whenever a workspace of the process starts recording. With `seq` it tells a new access from one already seen. */
+  readonly process: string;
+  /** Counts the writes of `process`, from 1. */
+  readonly seq: number;
+  /** SHA-256 (hex) of the element's file as the call left it, so that a reader can tell whether it sees that state of the file yet. */
+  readonly sha256: string;
+  readonly access: ActivityAccess;
+}
+
+/**
+ * One call that read or changed one element: which access made it, the command, its effect, when it ended and the element.
+ * Schema: `schemas/activity.schema.json#/$defs/access`.
+ */
+export interface ActivityAccess {
+  /** The access the call came through (ADR-0002 rule 4). Only calls through the API and the MCP server are recorded. */
+  readonly access: "cli" | "api" | "mcp" | "app";
+  /** The catalog command of the call. */
+  readonly command: string;
+  /** The effect of the command in the catalog. */
+  readonly effect: "read" | "write-files";
+  readonly at: IsoDateTime;
+  readonly element: {
+    readonly id: Uuid;
+    /** Workspace name of the repository of the element's file. */
+    readonly repository: string;
+  };
+}
+
+/**
  * `api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.
  * Schema: `schemas/api-endpoint.schema.json#`.
  */
@@ -1039,6 +1073,21 @@ export interface WorkspaceCheckOutput {
   readonly checkedElements?: number;
   /** Time the check took in milliseconds. Not given yet: it differs between calls, and the cross-access test compares outputs (SR-080 AK2). */
   readonly durationMs?: number;
+}
+
+/**
+ * Input of `workspace.activity` as `run` gets it: validated, properties with a `default` filled in. The element read or changed last through the local API or the MCP server on this working copy: which access, command and effect, when, and the element (UUID, repository); null when none is recorded.
+ * Schema: `schemas/commands/catalog.json workspace.activity input`.
+ */
+export type WorkspaceActivityInput = Readonly<Record<string, never>>;
+
+/**
+ * Output of `workspace.activity`. The element read or changed last through the local API or the MCP server on this working copy: which access, command and effect, when, and the element (UUID, repository); null when none is recorded.
+ * Schema: `schemas/commands/catalog.json workspace.activity output`.
+ */
+export interface WorkspaceActivityOutput {
+  /** The last call through the API or the MCP server that named one element (the element reference it was given, or else the one element file a write wrote), as an API or MCP process of this copy recorded it in the cache folder of the copy (ADR-0008). null when there is none, the copy has no usable cache folder, or the record cannot be read. Calls of the command line and of the app are not recorded. */
+  readonly activity: ActivityAccess | null;
 }
 
 /**
@@ -2342,6 +2391,7 @@ export interface CommandTypes {
   readonly "workspace.init": { readonly input: WorkspaceInitInput; readonly output: WorkspaceInitOutput };
   readonly "workspace.status": { readonly input: WorkspaceStatusInput; readonly output: WorkspaceStatusOutput };
   readonly "workspace.check": { readonly input: WorkspaceCheckInput; readonly output: WorkspaceCheckOutput };
+  readonly "workspace.activity": { readonly input: WorkspaceActivityInput; readonly output: WorkspaceActivityOutput };
   readonly "metamodel.get": { readonly input: MetamodelGetInput; readonly output: MetamodelGetOutput };
   readonly "element.create": { readonly input: ElementCreateInput; readonly output: ElementCreateOutput };
   readonly "element.get": { readonly input: ElementGetInput; readonly output: ElementGetOutput };

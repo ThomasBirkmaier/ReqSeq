@@ -33,7 +33,7 @@ export { sha256 } from "./snapshot.js";
 export type { FileSnapshot } from "./snapshot.js";
 export { LOCK_STALE_MS, lockPrivateFile, processRuns } from "./lock.js";
 export type { PrivateLock } from "./lock.js";
-export { removePrivateFile, writePrivateFile } from "./private.js";
+export { createPrivateFolder, removePrivateFile, writePrivateFile } from "./private.js";
 export { isTempFile, TEMP_FILE_PATTERN, writeFileAtomic } from "./write.js";
 export type { FileKind, WriteOptions } from "./write.js";
 export { editElementFile } from "./edit.js";

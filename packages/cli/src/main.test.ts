@@ -276,6 +276,16 @@ describe("logreq <group> <action>", () => {
     });
   });
 
+  it("passes its access to core, which records no command-line call (SR-117, #481)", async () => {
+    const spy = vi.spyOn(runtime, "invoke");
+    try {
+      await run(["test", "echo", ref, "n", "--json"]);
+      expect(spy.mock.calls.at(-1)?.[2]).toMatchObject({ access: "cli" });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("fills defaults and false booleans through core", async () => {
     const result = await run(["test", "echo", ref, "n", "--no-verbose", "--json"]);
     expect(JSON.parse(result.stdout)).toEqual({ input: { ref, name: "n", verbose: false, level: "low" } });

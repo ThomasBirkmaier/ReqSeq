@@ -1,0 +1,13 @@
+# The file itself is JSON (activity.json); shown here as YAML, which reads the same.
+version: 1
+process: 41213-9f3c20ab
+seq: 17
+sha256: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+access:
+  access: mcp
+  command: element.get
+  effect: read
+  at: 2026-10-27T09:30:00.000Z
+  element:
+    id: 589ca6a5-8bda-42d7-a3b7-b3062489ed27
+    repository: system

@@ -22,7 +22,7 @@ const removeQuietly = async (file: string): Promise<void> => {
  */
 export async function writePrivateFile(file: string, text: string): Promise<void> {
   const folder = path.dirname(file);
-  await fs.mkdir(folder, { recursive: true, mode: 0o700 });
+  await createPrivateFolder(folder);
   const temp = path.join(folder, `.${path.basename(file)}.${randomBytes(4).toString("hex")}.logreq-tmp`);
   try {
     const handle = await fs.open(temp, "wx", 0o600);
@@ -37,6 +37,15 @@ export async function writePrivateFile(file: string, text: string): Promise<void
     await removeQuietly(temp);
     throw error;
   }
+}
+
+/**
+ * Create the private folder `folder` (absolute path) and the missing folders above it, each with mode 0700;
+ * an existing folder is left as it is. Rejects with the Node error when it cannot be created. Only for
+ * LogReq's own folders outside the working tree (the cache), never for a folder in a repository.
+ */
+export async function createPrivateFolder(folder: string): Promise<void> {
+  await fs.mkdir(folder, { recursive: true, mode: 0o700 });
 }
 
 /**

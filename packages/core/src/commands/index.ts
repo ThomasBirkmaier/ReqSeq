@@ -31,6 +31,7 @@ import traceGraph from "./trace/graph.js";
 import traceMatrix from "./trace/matrix.js";
 import traceNeighbourhood from "./trace/neighbourhood.js";
 import traceRelated from "./trace/related.js";
+import workspaceActivity from "./workspace/activity.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
 import workspaceStatus from "./workspace/status.js";
@@ -61,6 +62,7 @@ export const commands: readonly AnyCommand[] = [
   traceMatrix,
   traceNeighbourhood,
   traceRelated,
+  workspaceActivity,
   workspaceCheck,
   workspaceInit,
   workspaceStatus,

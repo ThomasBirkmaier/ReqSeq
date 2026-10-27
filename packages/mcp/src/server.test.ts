@@ -13,7 +13,7 @@ import {
   loadContracts,
 } from "@logreq/core";
 import { Client } from "@modelcontextprotocol/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { callTool, serveMcp } from "./server.js";
 import { toolName } from "./tools.js";
 import { LineTransport } from "./transport.js";
@@ -263,6 +263,16 @@ describe("serveMcp", () => {
     const { client } = await open();
     await client.callTool({ name: "test_echo", arguments: { text: "x" } });
     expect(network()).toEqual(before);
+  });
+
+  it("passes its access to core, which records the element of an MCP call (SR-117)", async () => {
+    const spy = vi.spyOn(runtime, "invoke");
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    const { client } = await open();
+    await client.callTool({ name: "test_echo", arguments: { text: "x" } });
+    expect(spy.mock.calls.at(-1)?.[2]).toMatchObject({ access: "mcp" });
   });
 
   it("answers a call with the command output as structured content and as JSON text", async () => {

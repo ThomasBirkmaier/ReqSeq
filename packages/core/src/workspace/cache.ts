@@ -98,11 +98,21 @@ const cacheFile = (folder: string, name: string): string => {
 
 /**
  * The text of a cache file, or `undefined` when there is none (also when a folder on its path is a file).
- * Rejects with the Node error otherwise.
+ * With `maxBytes`, a file larger than that gives `undefined` as well, and at most `maxBytes + 1` bytes of
+ * it are read (a file that the app reads on every event of the folder, e.g. `activity.json`). Rejects with
+ * the Node error otherwise.
  */
-export async function readCacheFile(folder: string, name: string): Promise<string | undefined> {
+export async function readCacheFile(
+  folder: string,
+  name: string,
+  maxBytes?: number,
+): Promise<string | undefined> {
+  const file = cacheFile(folder, name);
   try {
-    return await fs.readFile(cacheFile(folder, name), "utf8");
+    if (maxBytes === undefined) {
+      return await fs.readFile(file, "utf8");
+    }
+    return await readAtMost(file, maxBytes);
   } catch (error) {
     if (MISSING.includes(String((error as NodeJS.ErrnoException).code))) {
       return undefined;
@@ -110,6 +120,26 @@ export async function readCacheFile(folder: string, name: string): Promise<strin
     throw error;
   }
 }
+
+/**
+ * The text of `file` when it has at most `maxBytes` bytes, else undefined. It reads at most `maxBytes + 1`
+ * bytes, and judges the bytes it read, not a size looked at before (a file written in place meanwhile).
+ */
+const readAtMost = async (file: string, maxBytes: number): Promise<string | undefined> => {
+  const handle = await fs.open(file, "r");
+  try {
+    const buffer = Buffer.alloc(maxBytes + 1);
+    let length = 0;
+    let bytesRead: number;
+    do {
+      ({ bytesRead } = await handle.read(buffer, length, buffer.length - length, length));
+      length += bytesRead;
+    } while (bytesRead > 0 && length < buffer.length);
+    return length > maxBytes ? undefined : buffer.toString("utf8", 0, length);
+  } finally {
+    await handle.close();
+  }
+};
 
 /** Remove a cache file if it is there. Rejects with the Node error when it cannot be removed. */
 export async function removeCacheFile(folder: string, name: string): Promise<void> {

@@ -200,7 +200,11 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
     try {
       const input = parseBody(text);
       const signal = AbortSignal.any([gone.signal, options.signal]);
-      const output = await options.runtime.invoke(name, input, { workspace: options.workspace, signal });
+      const output = await options.runtime.invoke(name, input, {
+        workspace: options.workspace,
+        signal,
+        access: "api",
+      });
       send(response, 200, output ?? null);
     } catch (error) {
       sendError(response, error);

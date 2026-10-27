@@ -17,7 +17,7 @@ try {
 }
 ```
 
-`invoke(name, input, { workspace, signal? })`:
+`invoke(name, input, { workspace, signal?, access? })`:
 
 1. Looks up the implementation. A catalog command without implementation gives `command.not-implemented` ("Command X is not implemented yet"), a name outside the catalog `input.invalid` ("Unknown command: X").
 2. Copies the input, fills in `default` values from the catalog schema and validates it with Ajv against the entry's `input` schema in `schemas/commands/catalog.json`. `$ref`s like `../common.schema.json#/$defs/uuid` resolve against `schemas/*.schema.json`. A mismatch gives `input.invalid` with `details.errors` (`path`, `keyword`, `message`, `params` per check). `run` is not called.
@@ -25,6 +25,7 @@ try {
 4. Calls `run(ctx, input)` with `ctx = { workspace, signal }`, then gives each problem of the output that names an element (`elementId`) the short ID of that element (`elementShortId`, #315; `runtime/element-short-ids.ts`) and, when it has one, its identifier (`elementIdentifier`, #305). Where an output holds problems follows from its output schema (every reference to `common.schema.json#/$defs/problem`, `problemLocator`), never from the command name, so no command adds the field itself. The short IDs are those the workspace has built, else built in memory from its element store and metamodel when both are built (a check against an invalid metamodel needs no short IDs of its own); nothing is read, and the field is left out when the store or the metamodel is not built or the element is not in the store (ADR-0008). Problems kept in workspace states are not changed: a changed output is a copy.
 5. Maps failures: a thrown `CommandError` passes through unchanged; anything else becomes `internal` with the message `Internal error in X`. The original error, and its text, is only in `cause`, never in what adapters send. An abort (the signal fired, or an `AbortError`) is `internal` with `details.aborted: true` (ADR-0009).
 6. With output validation on (`LOGREQ_VALIDATE_OUTPUT=1`, always in tests via `vitest.config.ts`, and in debug builds) the output is checked against the entry's `output` schema; a mismatch is `internal`.
+7. `access` names the access the call comes through (`cli`, `api`, `mcp`, `app`; each adapter passes its own). After a successful call through the API or the MCP server (`FOLLOWED_ACCESSES`) on a workspace with a cache folder, the element the call names is recorded in the background as the last access of the copy (SR-117, `model/activity.ts`, `docs/model-store.md` "Agent activity"). Recording never changes the output or the error and nothing waits for it.
 
 Findings are never thrown: commands return them as `problems` (`common.schema.json#/$defs/problem`). Adapters map a `CommandError` code with `errorClass(code)` (`input`, `not-found`, `conflict`, `unavailable`, `not-implemented`, `internal`; the table is `COMMAND_ERROR_CLASSES`); how each class becomes an exit code, HTTP status or MCP tool error is ADR-0009.
 
