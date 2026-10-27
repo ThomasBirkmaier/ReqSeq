@@ -98,7 +98,8 @@ const workspace = (): Record<string, Handler> => ({
     incomplete: false,
   }),
   "metamodel.get": () => ({
-    types: [{ key: "need", name: "Need" }],
+    types: [{ key: "need", name: "Need", properties: [] }],
+    properties: [],
     statuses: [{ key: "draft" }],
     meanings: {},
   }),
@@ -535,7 +536,15 @@ describe("App", () => {
     act(() => {
       root.unmount();
     });
-    names({ ok: true, output: { types: [{ key: "need", name: "Need" }], statuses: [], meanings: {} } });
+    names({
+      ok: true,
+      output: {
+        types: [{ key: "need", name: "Need", properties: [] }],
+        properties: [],
+        statuses: [],
+        meanings: {},
+      },
+    });
     await Promise.resolve();
     root = createRoot(container);
   });
@@ -1207,9 +1216,10 @@ describe("App, the package page (SR-112)", () => {
     const members = [row(2), row(3), row(4)];
     handlers["metamodel.get"] = () => ({
       types: [
-        { key: "need", name: "Need" },
-        { key: "package", name: "Package", meaning: "package" },
+        { key: "need", name: "Need", properties: [] },
+        { key: "package", name: "Package", meaning: "package", properties: [] },
       ],
+      properties: [],
       statuses: [{ key: "draft" }],
       meanings: { package: ["package"], packages: ["packages"] },
     });

@@ -1,6 +1,6 @@
 // What the element buffer shows of an element: its properties and relations, from the command output as
 // it is. Empty properties are not shown (D-062: only what means something).
-import type { DataExportElement, DataExportRelation } from "@logreq/core";
+import type { DataExportElement, DataExportRelation, MetamodelGetOutput } from "@logreq/core";
 import { outdatedKey } from "./editor/references.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
@@ -38,6 +38,24 @@ export const propertyBoxes = (element: DataExportElement): PropertyBox[] => {
     .filter((box) => box.lines.length > 0);
 };
 
+/** The keys of the properties marked `markdown` (SR-127), by the key of the type that has them. */
+export type MarkdownProperties = ReadonlyMap<string, ReadonlySet<string>>;
+
+/**
+ * The properties that show their values formatted like the text: those the metamodel marks `markdown`
+ * (`metamodel.get`, SR-127 AK5), per type with the inherited ones. The app only reads the flag.
+ */
+export const markdownProperties = (
+  metamodel: Pick<MetamodelGetOutput, "types" | "properties">,
+): MarkdownProperties => {
+  const marked = new Set(
+    metamodel.properties.filter((property) => property.markdown === true).map((p) => p.key),
+  );
+  return new Map(
+    metamodel.types.map((type) => [type.key, new Set(type.properties.filter((key) => marked.has(key)))]),
+  );
+};
+
 export interface RelationGroup {
   /** The relation kind; incoming relations have an arrow before it ("← derives-from"). */
   readonly heading: string;
@@ -55,20 +73,27 @@ export const relationGroups = (relations: readonly DataExportRelation[]): Relati
 };
 
 // The hint of an inline reference has the place `.../@text/<target>?version=<v>[&repository=<name>]&n=<k>`
-// in its ID (`hintId`); a hint on a relation item has a metamodel key instead of `@text`.
-const TEXT_HINT = /\/@text\/[^/?]+\?(.*)$/;
+// in its ID (`hintId`), and `.../@text:<key>/<target>?...` when the link is in a property marked
+// `markdown` (SR-127); a hint on a relation item has a metamodel key instead of `@text`.
+const TEXT_HINT = /\/@text(?::([^/?]+))?\/[^/?]+\?(.*)$/;
 
 /**
  * The outdated inline references of an element for the editor: `outdatedKey` of the target, the stored
  * version and the repository the link names, to the message of the hint. The hints come from core; the
- * first one of a reference wins.
+ * first one of a reference wins. Without `property` those of the text, else those in the values of that
+ * property (SR-127): every occurrence of a reference has the same state, so the key tells enough.
  */
-export const outdatedReferences = (element: DataExportElement): ReadonlyMap<string, string> => {
+export const outdatedReferences = (
+  element: DataExportElement,
+  property?: string,
+): ReadonlyMap<string, string> => {
   const found = new Map<string, string>();
   for (const problem of element.problems ?? []) {
-    const query = TEXT_HINT.exec(problem.hintId ?? "")?.[1];
+    const place = TEXT_HINT.exec(problem.hintId ?? "");
+    const query = place?.[2];
     if (
       problem.code === "relation.outdated" &&
+      place?.[1] === property &&
       query !== undefined &&
       problem.targetId !== undefined &&
       problem.storedVersion !== undefined

@@ -9,7 +9,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 import { minimalChange } from "./diff.js";
 import { markdownSupport } from "./markdown.js";
-import type { EditorPlugins } from "./plugins.js";
+import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
 
 export interface EditorHandle {
@@ -31,14 +31,22 @@ export interface EditorProps {
   readonly onChange: (doc: string) => void;
   readonly onEscape: () => void;
   readonly plugins?: EditorPlugins;
+  /** The built-in preview rules; all of them by default. A Markdown property box has the inline ones only (SR-127). */
+  readonly rules?: readonly PreviewRule[];
+  /** The accessible name of the text; the element's text is "Text", a property box has its key. */
+  readonly label?: string;
   readonly handle?: (handle: EditorHandle | undefined) => void;
 }
 
 const NO_PLUGINS: EditorPlugins = {};
 
-const configuration = (readOnly: boolean, plugins: EditorPlugins): Extension => [
+const configuration = (
+  readOnly: boolean,
+  plugins: EditorPlugins,
+  rules: readonly PreviewRule[],
+): Extension => [
   markdownSupport(plugins),
-  livePreview([...BUILT_IN_RULES, ...(plugins.rules ?? [])]),
+  livePreview([...rules, ...(plugins.rules ?? [])]),
   EditorState.readOnly.of(readOnly),
   EditorView.editable.of(!readOnly),
   ...(plugins.extensions ?? []),
@@ -132,6 +140,8 @@ export const Editor = ({
   onChange,
   onEscape,
   plugins = NO_PLUGINS,
+  rules = BUILT_IN_RULES,
+  label = "Text",
   handle,
 }: EditorProps): React.JSX.Element => {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
@@ -165,14 +175,14 @@ export const Editor = ({
             ...standardKeymap,
           ]),
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ "aria-label": "Text", spellcheck: "false" }),
+          EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               latest.current.onChange(update.state.doc.toString());
             }
           }),
           theme,
-          config.current.of(configuration(readOnly, plugins)),
+          config.current.of(configuration(readOnly, plugins, rules)),
         ],
       }),
     });
@@ -203,7 +213,7 @@ export const Editor = ({
       (applied.current.readOnly !== readOnly || applied.current.plugins !== plugins)
     ) {
       applied.current = { readOnly, plugins };
-      view.dispatch({ effects: config.current.reconfigure(configuration(readOnly, plugins)) });
+      view.dispatch({ effects: config.current.reconfigure(configuration(readOnly, plugins, rules)) });
     }
   }, [view, readOnly, plugins]);
 

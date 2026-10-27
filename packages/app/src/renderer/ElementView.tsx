@@ -1,20 +1,23 @@
 // The element buffer: one element as `element.get` gives it. The text is edited in the Markdown editor
 // with live preview (SR-065, D-061); the properties and the relations stay boxes and lists below it,
-// read-only (property editing comes with #400). Empty properties are left out; the UUID and the version
+// read-only (property editing comes with #400). A property the metamodel marks `markdown` shows its
+// values formatted like the text (SR-127, `MarkdownBox.tsx`); the others show their text as it is.
+// Empty properties are left out; the UUID and the version
 // are shown on request only. The only write is `element.update { ref, text }` (ADR-0002), on the action
 // "Save element"; the unsaved text is a draft that the app keeps while another buffer is shown.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { relationBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { NOTHING, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
+import type { MarkdownProperties } from "./element-view.js";
 import { outdatedReferences, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { mergePlugins } from "./editor/plugins.js";
-import { referenceAt, references } from "./editor/references.js";
+import { referenceAt, references, referencesIn } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { afterSave, dirty, saveInput } from "./editor/save.js";
 import { slashMenu } from "./editor/slash-menu.js";
@@ -22,6 +25,7 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Draft } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
 import { ListView } from "./ListView.js";
+import { MarkdownBox } from "./MarkdownBox.js";
 import { ParentsLine } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
@@ -54,6 +58,8 @@ export interface ElementViewProps {
   readonly register: (controls: ElementControls | undefined) => void;
   /** The types that are packages (SR-112); an element of one shows the elements that name it. */
   readonly packages: PackageModel | undefined;
+  /** The properties the metamodel marks `markdown` (SR-127), by type: their boxes show formatted values. */
+  readonly markdown: MarkdownProperties;
   /** For the list of the elements of a package page: its selected row, and opening one of them. */
   readonly dispatch: (action: BufferAction) => void;
 }
@@ -122,6 +128,7 @@ export const ElementView = ({
   onDraft,
   register,
   packages,
+  markdown,
   dispatch,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<View>({ status: "loading" });
@@ -192,19 +199,17 @@ export const ElementView = ({
       }),
     [],
   );
+  // Following a reference, in the text and in the boxes. One function, so a box keeps its plugins.
+  const follow = useCallback((reference: Reference): void => {
+    now.current.onOpenTarget(reference.id, reference.repository);
+  }, []);
   const plugins = useMemo(
-    () =>
-      mergePlugins(
-        references({
-          outdated: outdated ?? new Map(),
-          follow: (reference: Reference) => {
-            now.current.onOpenTarget(reference.id, reference.repository);
-          },
-        }),
-        slash,
-      ),
+    () => mergePlugins(references({ outdated: outdated ?? new Map(), follow }), slash),
     [signature, slash],
   );
+  // The Markdown boxes of the element, and the editors of their values (by key and position).
+  const markdownKeys = view.status === "ok" ? markdown.get(view.element.type) : undefined;
+  const boxEditors = useRef(new Map<string, Map<number, EditorHandle>>());
 
   const setBaseline = (next: string): void => {
     baseline.current = next;
@@ -311,6 +316,21 @@ export const ElementView = ({
         copy(cursorField(document.activeElement, lastField.current));
       },
       follow: () => {
+        // The focus in a Markdown box follows the first reference of that box (there is no cursor in it
+        // until the boxes are editable, #400); anywhere else the reference at the cursor of the text.
+        const box = cursorField(document.activeElement, lastField.current) ?? "";
+        const editors = boxEditors.current.get(box);
+        if (editors !== undefined) {
+          const first = [...editors.entries()]
+            .sort(([a], [b]) => a - b)
+            .flatMap(([, editor]) => referencesIn(editor.state()))[0];
+          if (first === undefined) {
+            now.current.onEcho(`No element reference in ${box}`);
+          } else {
+            follow(first);
+          }
+          return;
+        }
         const state = handle.state();
         const reference = referenceAt(state, state.selection.main.head);
         if (reference === undefined) {
@@ -394,11 +414,29 @@ export const ElementView = ({
                 <div className="box">
                   <span className="key">{box.key}</span>
                   <span className="value">
-                    {box.lines.map((line, at) => (
-                      <span className="line" key={at}>
-                        {line}
-                      </span>
-                    ))}
+                    {markdownKeys?.has(box.key) === true ? (
+                      <MarkdownBox
+                        label={box.key}
+                        lines={box.lines}
+                        outdated={outdatedReferences(view.element, box.key)}
+                        follow={follow}
+                        onHandle={(at, editor) => {
+                          const editors = boxEditors.current.get(box.key) ?? new Map<number, EditorHandle>();
+                          if (editor === undefined) {
+                            editors.delete(at);
+                          } else {
+                            editors.set(at, editor);
+                          }
+                          boxEditors.current.set(box.key, editors);
+                        }}
+                      />
+                    ) : (
+                      box.lines.map((line, at) => (
+                        <span className="line" key={at}>
+                          {line}
+                        </span>
+                      ))
+                    )}
                   </span>
                 </div>
               </FieldBox>

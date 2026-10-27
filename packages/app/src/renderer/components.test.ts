@@ -25,6 +25,7 @@ import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
+import type { MarkdownProperties } from "./element-view.js";
 import type { PackageModel } from "./package-page.js";
 import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -1558,7 +1559,7 @@ describe("ElementView", () => {
     call: Call,
     revision = 0,
     draft?: Draft,
-    extra: { packages?: PackageModel; buffer?: ElementBuffer } = {},
+    extra: { packages?: PackageModel; markdown?: MarkdownProperties; buffer?: ElementBuffer } = {},
   ) => {
     const dispatched: BufferAction[] = [];
     const data: [string, BufferData | undefined][] = [];
@@ -1586,6 +1587,7 @@ describe("ElementView", () => {
         onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
         packages: extra.packages,
+        markdown: extra.markdown ?? new Map(),
         dispatch: (action) => dispatched.push(action),
       });
     await render(node(revision));
@@ -2300,6 +2302,184 @@ describe("ElementView", () => {
       });
       expect(event.defaultPrevented).toBe(false);
       expect(editorView().hasFocus).toBe(false);
+    });
+  });
+
+  describe("Markdown properties (SR-127)", () => {
+    const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
+    const VERSION = "n1:1aac78aad3b5e6a8";
+    const KEY = "acceptance-criteria";
+    const markdown: MarkdownProperties = new Map([["system-requirement", new Set([KEY])]]);
+    const FIRST = "**Gegeben** ein *Satz*, `wenn` er gilt.";
+    const SECOND = `**Dann** gilt [D-017](logreq:${TARGET}?version=${VERSION}).`;
+    const hint = (place: string, message = "points to an older version") => ({
+      code: "relation.outdated",
+      severity: "warning",
+      message,
+      targetId: TARGET,
+      storedVersion: VERSION,
+      hintId: `relation.outdated/spec/a.md/uuid-1/${place}/${TARGET}?version=${VERSION}&n=1`,
+    });
+    const element = (criteria: string[], problems: object[] = [], more: Partial<DataExportElement> = {}) =>
+      read({
+        title: "**Measure**",
+        text: "",
+        properties: { topic: "**Wind**", [KEY]: criteria },
+        relations: [],
+        problems,
+        ...more,
+      } as unknown as Partial<DataExportElement>);
+    const mountCriteria = (
+      criteria: string[],
+      problems: object[] = [],
+      shown: MarkdownProperties = markdown,
+    ) => {
+      let current = { criteria, problems };
+      const call = fakeCall({
+        "element.get": () => ({ element: element(current.criteria, current.problems) }),
+      });
+      const mounted = mount(asCall(call), 0, undefined, { markdown: shown });
+      return {
+        mounted,
+        change: (next: { criteria: string[]; problems: object[] }) => {
+          current = next;
+        },
+      };
+    };
+    const box = (): HTMLElement => query(`[data-field="${KEY}"]`);
+    const boxViews = (): EditorView[] =>
+      [...box().querySelectorAll<HTMLElement>(".cm-editor")].map((editor) => {
+        const found = EditorView.findFromDOM(editor);
+        if (found === null) {
+          throw new Error("no editor");
+        }
+        return found;
+      });
+
+    it("[SR-127/AK1] shows the values of a markdown property formatted like the text: bold, italic and code without their marks", async () => {
+      await mountCriteria([FIRST, SECOND]).mounted;
+      expect(boxViews()).toHaveLength(2);
+      const lines = [...box().querySelectorAll(".cm-content")].map((content) => content.textContent);
+      expect(lines).toEqual(["Gegeben ein Satz, wenn er gilt.", "Dann gilt D-017."]);
+      expect(box().querySelector(".cm-lr-strong")?.textContent).toBe("Gegeben");
+      expect(box().querySelector(".cm-lr-em")?.textContent).toBe("Satz");
+      expect(box().querySelector(".cm-lr-code")?.textContent).toBe("wenn");
+      expect(box().textContent).not.toContain("*");
+      expect(box().textContent).not.toContain("`");
+      expect(query(`[data-field="${KEY}"] .key`).textContent).toBe(KEY);
+      // The values are read-only (editing the boxes comes with #400) and named by the key.
+      const content = box().querySelector(".cm-content");
+      expect(content?.getAttribute("contenteditable")).toBe("false");
+      expect(content?.getAttribute("aria-label")).toBe(KEY);
+    });
+
+    it("[SR-127/AK1] shows the label of a reference in a value and opens its element on a click", async () => {
+      const { mounted } = mountCriteria([FIRST, SECOND]);
+      const { opened } = await mounted;
+      expect(box().querySelector(".cm-lr-ref")?.textContent).toBe("D-017");
+      expect(box().textContent).not.toContain("logreq:");
+      await act(async () => {
+        query(`[data-field="${KEY}"] .cm-lr-ref`).dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+        );
+        await Promise.resolve();
+      });
+      expect(opened).toEqual([[TARGET, undefined]]);
+    });
+
+    it("[SR-127/AK3] marks an outdated reference in a value like one in the text, from the hint of that property only", async () => {
+      const { mounted, change } = mountCriteria([FIRST, SECOND], [hint(`@text:${KEY}`)]);
+      const { again } = await mounted;
+      expect(box().querySelector(".cm-lr-outdated")?.getAttribute("title")).toBe(
+        "points to an older version",
+      );
+      expect(box().textContent).toContain("D-017 outdated");
+      // The editors stay (focus and selection would too) while the hints are the same.
+      const [before] = boxViews();
+      await again(1);
+      expect(boxViews()[0]).toBe(before);
+      // The hint of another property or of the text is no mark in this box; a hint that is gone drops it.
+      change({ criteria: [FIRST, SECOND], problems: [hint("@text:rationale", "other"), hint("@text")] });
+      await again(2);
+      expect(box().querySelector(".cm-lr-outdated")).toBeNull();
+      expect(box().querySelector(".cm-lr-ref")?.textContent).toBe("D-017");
+      change({ criteria: [FIRST, SECOND], problems: [hint(`@text:${KEY}`, "changed")] });
+      await again(3);
+      expect(box().querySelector(".cm-lr-outdated")?.getAttribute("title")).toBe("changed");
+      expect(boxViews()[0]).toBe(before);
+    });
+
+    it("[SR-127/AK3] Follow reference with the focus in a box opens the first reference of the box, or says there is none", async () => {
+      const { mounted } = mountCriteria([FIRST, SECOND, `[x](logreq:uuid-2)`]);
+      const { controls, opened, echoed } = await mounted;
+      act(() => {
+        box().focus();
+      });
+      act(() => {
+        controls().follow();
+      });
+      expect(opened).toEqual([[TARGET, undefined]]);
+      const none = mountCriteria([FIRST]);
+      const again = await none.mounted;
+      act(() => {
+        box().focus();
+      });
+      act(() => {
+        again.controls().follow();
+      });
+      expect(again.opened).toEqual([]);
+      expect(again.echoed.at(-1)).toBe(`No element reference in ${KEY}`);
+      expect(echoed).toEqual([]);
+    });
+
+    it("[SR-127/AK5] shows the title and a property that is not marked markdown as they are, marks visible", async () => {
+      await mountCriteria([FIRST]).mounted;
+      expect(query("h1").textContent).toBe("**Measure**");
+      const topic = query('[data-field="topic"]');
+      expect(topic.querySelector(".line")?.textContent).toBe("**Wind**");
+      expect(topic.querySelector(".cm-editor")).toBeNull();
+      // Only the text has an editor besides the marked box.
+      expect(container.querySelectorAll(".cm-editor")).toHaveLength(2);
+    });
+
+    it("[SR-127/AK5] shows a property as it is when the metamodel marks none for the type of the element", async () => {
+      await mountCriteria([FIRST, SECOND], [], new Map()).mounted;
+      expect(box().querySelector(".cm-editor")).toBeNull();
+      expect(texts(`[data-field="${KEY}"] .line`)).toEqual([FIRST, SECOND]);
+      await mountCriteria([FIRST], [], new Map([["need", new Set([KEY])]])).mounted;
+      expect(box().querySelector(".cm-editor")).toBeNull();
+    });
+
+    it("[SR-127/AK1] shows no image, no slash menu and no reference search in a value", async () => {
+      await mountCriteria(["![x](a.png) and /heading and [[wind"]).mounted;
+      expect(box().querySelector("img:not(.cm-widgetBuffer)")).toBeNull();
+      expect(box().querySelector(".cm-content")?.textContent).toBe("![x](a.png) and /heading and [[wind");
+      expect(container.querySelector(".cm-tooltip-autocomplete")).toBeNull();
+    });
+
+    it("[SR-127/AK1] sets inline formatting only: a heading, a list item and a quote in a value keep their source", async () => {
+      await mountCriteria(["# x", "- y", "> z", "1. n", "**b** and # c"]).mounted;
+      const content = [...box().querySelectorAll(".cm-content")].map((node) => node.textContent);
+      expect(content).toEqual(["# x", "- y", "> z", "1. n", "b and # c"]);
+      expect(box().querySelector(".cm-lr-h1, .cm-lr-bullet, .cm-lr-quote, .cm-lr-task")).toBeNull();
+      expect(box().querySelector(".cm-lr-strong")?.textContent).toBe("b");
+    });
+
+    it("[SR-127/AK1] a value of a box is no draft: the text alone is what can be saved", async () => {
+      const { drafts } = await mountCriteria([FIRST]).mounted;
+      const [value] = boxViews();
+      await act(async () => {
+        value?.dispatch({ changes: { from: 0, insert: "x" } });
+        await Promise.resolve();
+      });
+      await press(query(`[data-field="${KEY}"] .cm-content`), "Escape");
+      expect(drafts).toEqual([]);
+    });
+
+    it("[SR-128/AK2] copies the stored source of a markdown property, one value per line", async () => {
+      const { copies } = await mountCriteria([FIRST, SECOND]).mounted;
+      await click(query(`[data-field="${KEY}"] > .copy`));
+      expect(copies).toEqual([[KEY, `${FIRST}\n${SECOND}`]]);
     });
   });
 

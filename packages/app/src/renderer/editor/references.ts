@@ -79,6 +79,20 @@ export const referenceAt = (state: EditorState, pos: number): Reference | undefi
   return link === undefined ? undefined : referenceOf(state, link);
 };
 
+/** The inline references of the document, in the order they are written. */
+export const referencesIn = (state: EditorState): Reference[] => {
+  const found: Reference[] = [];
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      const reference = node.name === "Link" ? referenceOf(state, node.node) : undefined;
+      if (reference !== undefined) {
+        found.push(reference);
+      }
+    },
+  });
+  return found;
+};
+
 /**
  * The key of an outdated reference: its target, the version it stores and the repository it names,
  * percent-encoded as in the ID of the hint (`hintId`), where core writes it that way ("" for none).

@@ -4,7 +4,7 @@ import type { DecorationSet } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
 import { BUILT_IN_RULES, focusState, previewDecorations } from "./preview.js";
-import { outdatedKey, parseReference, referenceAt, references } from "./references.js";
+import { outdatedKey, parseReference, referenceAt, references, referencesIn } from "./references.js";
 import type { GlyphWidget } from "./widgets.js";
 
 const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
@@ -157,5 +157,18 @@ describe("the preview of references", () => {
   it("marks nothing for a link that is no reference or has no label", () => {
     const found = decorate(`[a](https://example.com) [](logreq:${ID}?version=n1:aa)`, new Map());
     expect(found.some((entry) => entry.class === "cm-lr-ref")).toBe(false);
+  });
+});
+
+describe("referencesIn", () => {
+  it("[SR-127/AK3] gives the inline references of the document in order, and none for other links or images", () => {
+    const other = "[x](https://example.com) ![i](logreq:" + ID + ")";
+    const doc = `${other} ${THOMAS} and [w](logreq:${ID}?repository=r)`;
+    const found = referencesIn(stateOf(doc));
+    expect(found.map((reference) => [reference.id, reference.version, reference.repository])).toEqual([
+      [ID, "n1:1aac78aad3b5e6a8", undefined],
+      [ID, undefined, "r"],
+    ]);
+    expect(referencesIn(stateOf("plain"))).toEqual([]);
   });
 });

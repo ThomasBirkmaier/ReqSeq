@@ -116,7 +116,12 @@ const neighbourhood = (input: Record<string, unknown>) => {
 const bridge = (): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } => {
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     "workspace.status": () => ({ name: "Weather station", readOnly: false }),
-    "metamodel.get": () => ({ types: [{ key: "need", name: "Need" }], statuses: [], meanings: {} }),
+    "metamodel.get": () => ({
+      types: [{ key: "need", name: "Need", properties: [] }],
+      statuses: [],
+      properties: [],
+      meanings: {},
+    }),
     "element.facets": () => ({ total: 3, types: [], statuses: [], properties: [], incomplete: false }),
     "element.list": () => ({ elements: ELEMENTS, total: 3 }),
     "element.search": () => ({

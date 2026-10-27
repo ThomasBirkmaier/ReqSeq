@@ -111,7 +111,8 @@ const setextHeading = (level: number): PreviewRule => ({
   },
 });
 
-const inline: PreviewRule = {
+/** Inline formatting only: emphasis, strikethrough, code, links (what a Markdown property box shows, SR-127). */
+export const inline: PreviewRule = {
   nodes: INLINE_NODES,
   decorate: (node, { sourceLine }) => {
     const markup = inlineMarkup(node.node);

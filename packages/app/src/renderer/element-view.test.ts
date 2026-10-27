@@ -1,6 +1,7 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import {
+  markdownProperties,
   outdatedReferences,
   propertyBoxes,
   propertyLines,
@@ -129,5 +130,60 @@ describe("relationLabel", () => {
     expect(relationLabel(relation({ shortId: "N-000001", title: "Need" }))).toBe("N-000001 Need");
     expect(relationLabel(relation({ shortId: "N-000001" }))).toBe("N-000001");
     expect(relationLabel(relation({ id: "uuid-9" }))).toBe("uuid-9");
+  });
+});
+
+describe("markdownProperties", () => {
+  const property = (key: string, extra: object = {}) => ({ key, name: key, kind: "text", ...extra });
+
+  it("[SR-127/AK5] lists, per type, the properties of the type that the metamodel marks markdown", () => {
+    const marked = markdownProperties({
+      properties: [
+        property("title", { meaning: "title" }),
+        property("acceptance-criteria", { markdown: true, many: true }),
+        property("rationale", { markdown: true }),
+        property("topic", { markdown: false }),
+        property("note"),
+      ],
+      types: [
+        { key: "requirement", properties: ["title", "acceptance-criteria", "topic"] },
+        { key: "system-requirement", properties: ["title", "acceptance-criteria", "rationale", "note"] },
+        { key: "glossary-term", properties: [] },
+      ],
+    } as unknown as Parameters<typeof markdownProperties>[0]);
+    expect(marked).toEqual(
+      new Map([
+        ["requirement", new Set(["acceptance-criteria"])],
+        ["system-requirement", new Set(["acceptance-criteria", "rationale"])],
+        ["glossary-term", new Set()],
+      ]),
+    );
+  });
+});
+
+describe("outdatedReferences in a property (SR-127)", () => {
+  const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
+  const hint = (place: string, message: string) => ({
+    code: "relation.outdated",
+    severity: "warning",
+    message,
+    targetId: TARGET,
+    storedVersion: "n1:aa",
+    hintId: `relation.outdated/spec/f.md/src/${place}/${TARGET}?version=n1:aa&n=1`,
+  });
+  const element = {
+    problems: [
+      hint("@text", "in the text"),
+      hint("@text:acceptance-criteria", "in the criteria"),
+      hint("@text:rationale", "in the rationale"),
+    ],
+  } as unknown as DataExportElement;
+
+  it("[SR-127/AK3] keeps the hints of the text and of each property apart", () => {
+    const key = `${TARGET} n1:aa `;
+    expect(outdatedReferences(element)).toEqual(new Map([[key, "in the text"]]));
+    expect(outdatedReferences(element, "acceptance-criteria")).toEqual(new Map([[key, "in the criteria"]]));
+    expect(outdatedReferences(element, "rationale")).toEqual(new Map([[key, "in the rationale"]]));
+    expect(outdatedReferences(element, "topic").size).toBe(0);
   });
 });

@@ -289,6 +289,11 @@ mark {
   display: block;
 }
 
+/* The editor of a Markdown value (SR-127) is part of the box: no margin of its own. */
+.element .box .editor {
+  margin: 0;
+}
+
 .element ul {
   margin: 0;
   padding: 0;
