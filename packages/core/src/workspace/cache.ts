@@ -125,12 +125,24 @@ export async function readCacheFile(
 }
 
 /**
- * The text of `file` when it has at most `maxBytes` bytes, else undefined. It reads at most `maxBytes + 1`
- * bytes, and judges the bytes it read, not a size looked at before (a file written in place meanwhile).
+ * Opening never waits: a FIFO or a device in place of the file opens at once and is then no file. Windows
+ * has no O_NONBLOCK (undefined, which `|` takes as 0) and no FIFO at a path.
+ */
+const READ_NOW = fs.constants.O_RDONLY | fs.constants.O_NONBLOCK;
+
+/**
+ * The text of `file` when it is a file of at most `maxBytes` bytes, else undefined. It reads at most
+ * `maxBytes + 1` bytes, and judges the bytes it read, not a size looked at before (a file written in
+ * place meanwhile). A FIFO or a device at the path is never read and gives undefined: it is looked at on
+ * the opened handle, which never waits (READ_NOW). A folder rejects, as a file that cannot be read.
  */
 const readAtMost = async (file: string, maxBytes: number): Promise<string | undefined> => {
-  const handle = await fs.open(file, "r");
+  const handle = await fs.open(file, READ_NOW);
   try {
+    const stats = await handle.stat();
+    if (!stats.isFile() && !stats.isDirectory()) {
+      return undefined;
+    }
     const buffer = Buffer.alloc(maxBytes + 1);
     let length = 0;
     let bytesRead: number;

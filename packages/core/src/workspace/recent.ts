@@ -3,6 +3,9 @@
 // one per folder. The app's core process records the root it opened (`model/recent-record.ts`); the
 // app's main process reads the list and checks which roots still hold a workspace.
 //
+// "Open workspace" also takes a typed folder path (AK5): `typedWorkspaceFolder` checks it by its text
+// alone, before any file-system call, and `findTypedWorkspace` finds the workspace from it upwards.
+//
 // Main loads this module on its own (`@logreq/core/recent-workspaces`), so it imports only `node:*`,
 // `cache.ts` (with the private-file part of the files block) and `workspace-file.ts`: no schema
 // validator, no command. Main makes no synchronous file-system call through it: reading the list never
@@ -86,13 +89,17 @@ export function workspaceKey(root: string, platform: NodeJS.Platform = process.p
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null;
 
+/** A text of at most MAX_ROOT_LENGTH characters without NUL (a root or a key the list can hold). */
+const isPathText = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= MAX_ROOT_LENGTH && !value.includes("\0");
+
 const isRoot = (value: unknown, platform: NodeJS.Platform): value is string =>
-  typeof value === "string" && value.length <= MAX_ROOT_LENGTH && pathsOf(platform).isAbsolute(value);
+  isPathText(value) && pathsOf(platform).isAbsolute(value);
 
 const isEntry = (value: unknown, platform: NodeJS.Platform): value is RecentWorkspace =>
   isRecord(value) &&
   isRoot(value["root"], platform) &&
-  typeof value["key"] === "string" &&
+  isPathText(value["key"]) &&
   value["key"] !== "" &&
   typeof value["opened"] === "string" &&
   DATE_TIME.test(value["opened"]);
@@ -172,8 +179,9 @@ export interface RememberOptions {
  * Puts `root` (absolute) first in the list, as opened now: the entry with the same key goes, and the
  * list keeps RECENT_WORKSPACES_KEEP. Read, change and write run under the lock of the file; while
  * another process holds it, the record waits once (LOCK_RETRY_MS) and then skips: the list is a
- * convenience. Resolves `true` when recorded, `false` when skipped (also for a root that is not absolute
- * or longer than MAX_ROOT_LENGTH); rejects with the Node error when the file cannot be written.
+ * convenience. Resolves `true` when recorded, `false` when skipped (also for a root that is not absolute,
+ * holds NUL or is longer than MAX_ROOT_LENGTH, and for a key that long); rejects with the Node error when
+ * the file cannot be written.
  */
 export async function rememberWorkspace(root: string, options: RememberOptions = {}): Promise<boolean> {
   const { environment } = options;
@@ -182,6 +190,10 @@ export async function rememberWorkspace(root: string, options: RememberOptions =
     return false;
   }
   const key = options.key ?? workspaceKey(root, platform);
+  // Links resolved, the key can be longer than the root; a list with it would not read.
+  if (!isPathText(key) || key === "") {
+    return false;
+  }
   const folder = recentWorkspacesFolder(environment);
   let lock = await lockCacheFile(folder, RECENT_WORKSPACES_FILE);
   if (lock === undefined) {
@@ -287,13 +299,35 @@ export function createExistenceChecker(options: ExistenceOptions = {}): Existenc
     });
 }
 
-/** The checker of this process (the app's main process uses one). */
-const checkWorkspaces: ExistenceChecker = createExistenceChecker();
+/** The existence checks of a process: one for the list, one for the root a person chose. */
+export interface WorkspaceChecks {
+  /** The roots of the list when it is shown: EXISTS_SLOTS `stat`s at once. */
+  readonly list: ExistenceChecker;
+  /**
+   * The root chosen to open (it is checked again) and the folders of a typed path: one slot of its own,
+   * so roots of the list that hang on a dead share cannot keep a local workspace from opening. A root
+   * that hangs in the list counts as missing there and is never chosen to open.
+   */
+  readonly chosen: ExistenceChecker;
+}
 
-/** Whether `<root>/logreq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. */
+/** The two checkers of a process; `stat` and the timeout for tests. */
+export function createWorkspaceChecks(
+  options: Pick<ExistenceOptions, "stat" | "timeoutMs"> = {},
+): WorkspaceChecks {
+  return { list: createExistenceChecker(options), chosen: createExistenceChecker({ ...options, slots: 1 }) };
+}
+
+/** The checkers of this process (the app's main process uses them): at most 3 `stat`s at once. */
+const checks: WorkspaceChecks = createWorkspaceChecks();
+
+/**
+ * Whether `<root>/logreq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default
+ * with the checker for a chosen root (`WorkspaceChecks.chosen`).
+ */
 export async function workspaceExists(
   root: string,
-  check: ExistenceChecker = checkWorkspaces,
+  check: ExistenceChecker = checks.chosen,
 ): Promise<boolean> {
   const [exists] = await check([root]);
   return exists === true;
@@ -304,6 +338,65 @@ export async function recentWorkspaceStates(
   options: { readonly environment?: CacheEnvironment; readonly check?: ExistenceChecker } = {},
 ): Promise<readonly RecentWorkspaceState[]> {
   const list = await readRecentWorkspaces(options.environment);
-  const exists = await (options.check ?? checkWorkspaces)(list.map((entry) => entry.root));
+  const exists = await (options.check ?? checks.list)(list.map((entry) => entry.root));
   return list.map((entry, index) => ({ ...entry, exists: exists[index] === true }));
+}
+
+export interface TypedPathOptions {
+  /** Default the platform of this process. */
+  readonly platform?: NodeJS.Platform;
+  /** The home folder, which `~` stands for (`os.homedir()`). */
+  readonly home: string;
+}
+
+/**
+ * The folder a typed path names (SR-131 AK5), by its text alone, before any file-system call; undefined
+ * when it is refused. `~` and `~/…` stand for the home folder. Refused: a relative path, NUL, more than
+ * MAX_ROOT_LENGTH characters, and on Windows a path that starts with two separators (`\\host\share`,
+ * `\\?\…`, `\\.\…`, `//host`), whose check would make Windows open a connection to that host (SR-078).
+ * The path is normalised (`.` and `..` by their text) and has no separator at its end.
+ */
+export function typedWorkspaceFolder(text: string, options: TypedPathOptions): string | undefined {
+  const platform = options.platform ?? process.platform;
+  const paths = pathsOf(platform);
+  if (!isPathText(text)) {
+    return undefined;
+  }
+  const windows = platform === "win32";
+  // Two separators at the start: a UNC or device path on Windows (before and after normalising).
+  const remote = (folder: string): boolean => windows && /^[\\/]{2}/.test(folder);
+  const home = windows ? /^~[\\/]/ : /^~\//;
+  const expanded =
+    text === "~" ? options.home : home.test(text) ? paths.join(options.home, text.slice(2)) : text;
+  if (!paths.isAbsolute(expanded) || remote(expanded)) {
+    return undefined;
+  }
+  let folder = paths.normalize(expanded);
+  while (folder.endsWith(paths.sep) && folder.length > paths.parse(folder).root.length) {
+    folder = folder.slice(0, -1);
+  }
+  return isPathText(folder) && !remote(folder) ? folder : undefined;
+}
+
+/**
+ * The nearest folder, from `folder` (absolute, from `typedWorkspaceFolder`) upwards, whose
+ * `logreq-workspace.yaml` is a file, as `--workspace` of the CLI finds it; undefined when none up to the
+ * root of the file system has one. Each folder is checked with the bounded checker for chosen roots;
+ * never rejects.
+ */
+export async function findTypedWorkspace(
+  folder: string,
+  options: { readonly platform?: NodeJS.Platform; readonly check?: ExistenceChecker } = {},
+): Promise<string | undefined> {
+  const paths = pathsOf(options.platform ?? process.platform);
+  for (let dir = folder; ;) {
+    if (await workspaceExists(dir, options.check)) {
+      return dir;
+    }
+    const parent = paths.dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
 }

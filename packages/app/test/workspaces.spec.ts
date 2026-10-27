@@ -1,8 +1,10 @@
 // "Open workspace" on the built app (SR-131): the command prompt lists the workspaces opened last, the
 // most recent first, narrows them as typed, and opens the chosen one in the same window; one that is gone
-// is marked and keeps the open workspace; the list outlives a restart. The two workspaces lie in folders
+// is marked and keeps the open workspace; the list outlives a restart; unsaved input is in its file
+// before a switch, also from File > Open Workspace; a typed folder path opens its workspace. The two workspaces lie in folders
 // whose names share no letters in order with each other or the temporary folder, so narrowing cannot pass
 // by chance. Keys use ControlOrMeta, so the same tests run on Linux and macOS.
+import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -39,6 +41,27 @@ const openWorkspacePrompt = async (window: Page): Promise<void> => {
   await expect(names(window).first()).toHaveText("Open workspace");
   await window.keyboard.press("Enter");
   await expect(window.locator("label.prompt-label")).toHaveText("Workspace");
+};
+
+/** The element of the first workspace that the AK3 tests type in, and its file. */
+const ICING = { title: "Survive icing", file: "requirements/SR-0000000000b3.md" };
+
+/** Opens the element with this title by "Go to" and types `text` at the end of its text, unsaved. */
+const typeUnsaved = async (window: Page, title: string, text: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+P");
+  await window.keyboard.type(title);
+  await expect(options(window).first()).toContainText(title);
+  await window.keyboard.press("Enter");
+  await expect(window.locator("article h1")).toHaveText(title);
+  await expect(window.locator("article")).toBeFocused();
+  // Enter edits the text, with the cursor at its end.
+  await window.keyboard.press("Enter");
+  await expect(window.getByRole("textbox", { name: "Text" })).toBeFocused();
+  await window.keyboard.insertText(text);
+  await expect(window.getByLabel("Modeline")).toContainText("modified");
+  // Leave the editor: the input stays unsaved.
+  await window.keyboard.press("Escape");
+  await expect(window.locator("article")).toBeFocused();
 };
 
 /** Whether "Go to" finds an element with this title in the open workspace. */
@@ -146,6 +169,66 @@ test.describe("Open workspace", () => {
     await expect(options(window).locator(".hint")).toHaveCount(0);
     // And it opens one.
     await window.keyboard.press("Enter");
+    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+  });
+
+  test("[SR-131/AK3] unsaved input in the editor is in the file before the workspace changes", async () => {
+    running = await launchApp(STATION, { recent: [buoy.root] });
+    const { window } = running;
+    const file = path.join(running.workspace?.root ?? "", ...ICING.file.split("/"));
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await typeUnsaved(window, ICING.title, "Typed before the switch.");
+    expect(await fs.readFile(file, "utf8")).not.toContain("Typed before the switch.");
+    await openWorkspacePrompt(window);
+    await window.keyboard.type("quokka");
+    await expect(names(window)).toHaveText([buoy.root]);
+    await window.keyboard.press("Enter");
+    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    expect(await fs.readFile(file, "utf8")).toContain("Typed before the switch.");
+  });
+
+  test("[SR-131/AK3] File > Open Workspace saves the unsaved input first too, in the same window", async () => {
+    running = await launchApp(STATION);
+    const { app, window } = running;
+    const file = path.join(running.workspace?.root ?? "", ...ICING.file.split("/"));
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await typeUnsaved(window, ICING.title, "Typed before the dialog.");
+    // The native dialog answers with the second workspace; the menu item is clicked as a person does.
+    await app.evaluate(({ dialog, Menu }, folder) => {
+      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [folder] });
+      const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
+      file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
+    }, buoy.root);
+    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    expect(app.windows()).toEqual([window]);
+    expect(await fs.readFile(file, "utf8")).toContain("Typed before the dialog.");
+  });
+
+  test("[SR-131/AK5] a typed folder path opens its workspace and lists it first afterwards", async () => {
+    running = await launchApp(STATION);
+    const { app, window } = running;
+    const station = running.workspace?.root ?? "";
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await openWorkspacePrompt(window);
+    // Not in the list: only the open workspace is.
+    await expect(names(window)).toHaveText([station]);
+    // A folder inside the workspace: the workspace is found upwards, as `--workspace` finds it.
+    const typed = path.join(buoy.root, "requirements");
+    await window.keyboard.type(typed);
+    await expect(names(window).first()).toHaveText(`Open ${typed}`);
+    await window.keyboard.press("Enter");
+    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    expect(app.windows()).toEqual([window]);
+    expect(await goToFinds(window, "Show wind speed")).toBe(true);
+    await openWorkspacePrompt(window);
+    await expect(names(window)).toHaveText([buoy.root, station]);
+    await expect(options(window).first().locator(".hint")).toHaveText("open");
+    // A folder without a workspace opens nothing, and says so.
+    await window.keyboard.type(os.tmpdir());
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Minibuffer")).toHaveText(
+      `No workspace in ${os.tmpdir()} or a folder above it; Ocean buoy stays open`,
+    );
     await expect(window).toHaveTitle("Ocean buoy - LogReq");
   });
 });

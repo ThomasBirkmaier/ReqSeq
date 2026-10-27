@@ -72,6 +72,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
   const listeners = {
     "workspace-changed": new Set<(data: never) => void>(),
     "agent-activity": new Set<(data: never) => void>(),
+    "save-expired": new Set<(data: never) => void>(),
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
     const output = handlers[name]?.(input);
@@ -92,6 +93,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
     copyText: () => Promise.resolve(true),
     recentWorkspaces: () => Promise.resolve([]),
     openWorkspace: () => Promise.resolve({ ok: true }),
+    onSave: () => () => undefined,
   };
   const emit = async (event: keyof typeof listeners, data: unknown): Promise<void> => {
     await act(async () => {

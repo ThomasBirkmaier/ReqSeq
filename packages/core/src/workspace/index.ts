@@ -34,6 +34,9 @@ export {
   rememberWorkspace,
   workspaceExists,
   workspaceKey,
+  createWorkspaceChecks,
+  findTypedWorkspace,
+  typedWorkspaceFolder,
 } from "./recent.js";
 export type {
   ExistenceChecker,
@@ -41,6 +44,8 @@ export type {
   RecentWorkspace,
   RecentWorkspaceState,
   RememberOptions,
+  TypedPathOptions,
+  WorkspaceChecks,
 } from "./recent.js";
 export type { CheckedWorkspaceFile } from "./config.js";
 export {

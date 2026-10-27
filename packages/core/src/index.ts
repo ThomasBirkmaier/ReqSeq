@@ -26,6 +26,8 @@ export {
   rememberWorkspace,
   workspaceExists,
   workspaceKey,
+  findTypedWorkspace,
+  typedWorkspaceFolder,
 } from "./workspace/recent.js";
 export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
 export { recordOpenedWorkspace } from "./model/recent-record.js";

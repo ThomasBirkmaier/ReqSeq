@@ -13,11 +13,14 @@ import {
   RECENT_WORKSPACES_KEEP,
   RECENT_WORKSPACES_MAX_BYTES,
   createExistenceChecker,
+  createWorkspaceChecks,
+  findTypedWorkspace,
   parseRecentWorkspaces,
   readRecentWorkspaces,
   recentWorkspaceStates,
   recentWorkspacesFolder,
   rememberWorkspace,
+  typedWorkspaceFolder,
   workspaceExists,
   workspaceKey,
 } from "./recent.js";
@@ -160,7 +163,10 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
       JSON.stringify({ format: 1, workspaces: [{ ...entry, root: "relative" }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, root: 3 }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, root: `/${"x".repeat(MAX_ROOT_LENGTH)}` }] }),
+      JSON.stringify({ format: 1, workspaces: [{ ...entry, root: `${a}\0` }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, key: "" }] }),
+      JSON.stringify({ format: 1, workspaces: [{ ...entry, key: `/${"x".repeat(MAX_ROOT_LENGTH)}` }] }),
+      JSON.stringify({ format: 1, workspaces: [{ ...entry, key: `${a}\0` }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, key: 1 }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, opened: "yesterday" }] }),
       JSON.stringify({ format: 1, workspaces: [{ ...entry, opened: 1 }] }),
@@ -226,6 +232,11 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
     // A root that is no absolute path of at most 4096 characters is not recorded.
     expect(await rememberWorkspace("relative", { environment })).toBe(false);
     expect(await rememberWorkspace(`/${"x".repeat(MAX_ROOT_LENGTH)}`, { environment })).toBe(false);
+    expect(await rememberWorkspace(`${a}\0`, { environment })).toBe(false);
+    // Nor one whose key (links resolved) is longer than 4096 characters, or empty: the list would not read.
+    for (const key of [`/${"x".repeat(MAX_ROOT_LENGTH)}`, ""]) {
+      expect(await rememberWorkspace(a, { environment, key })).toBe(false);
+    }
     expect(await roots()).toEqual([a]);
   });
 });
@@ -314,5 +325,104 @@ describe("existence of the recent workspaces", () => {
     expect(next).toHaveBeenCalledExactlyOnceWith([false]);
     // No roots: answered at once.
     expect(await check([])).toEqual([]);
+  });
+});
+
+describe("the checkers of a process", () => {
+  it("the re-check of a chosen root has a slot of its own, so stats of the list that hang do not block it", async () => {
+    vi.useFakeTimers();
+    const hanging = new Set<string>();
+    const asked: string[] = [];
+    const stat = (file: string): Promise<{ isFile(): boolean }> => {
+      const root = path.basename(path.dirname(file));
+      asked.push(root);
+      return hanging.has(root) ? new Promise(() => undefined) : Promise.resolve({ isFile: () => true });
+    };
+    const checks = createWorkspaceChecks({ stat });
+    hanging.add("nfs-a").add("nfs-b");
+    const listed = vi.fn();
+    void checks.list(["nfs-a", "nfs-b", "local"].map((name) => path.join(top, name))).then(listed);
+    await vi.advanceTimersByTimeAsync(1_000);
+    // The two slots of the list hang for good: "local" got no stat there and counts as missing.
+    expect(listed).toHaveBeenCalledExactlyOnceWith([false, false, false]);
+    expect(asked).toEqual(["nfs-a", "nfs-b"]);
+    // The chosen root is still checked, with its own slot.
+    expect(await workspaceExists(path.join(top, "local"), checks.chosen)).toBe(true);
+    // The list's slots stay taken: a later list still gets no stat.
+    const again = vi.fn();
+    void checks.list([path.join(top, "local")]).then(again);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(again).toHaveBeenCalledExactlyOnceWith([false]);
+    expect(asked).toEqual(["nfs-a", "nfs-b", "local"]);
+  });
+});
+
+describe("a typed folder path (SR-131 AK5)", () => {
+  it("[SR-131/AK5] typedWorkspaceFolder takes an absolute path or ~, and refuses relative, UNC, NUL and overlong paths by their text", () => {
+    const linux = { platform: "linux" as const, home: "/home/ada" };
+    expect(typedWorkspaceFolder("/req/spec", linux)).toBe("/req/spec");
+    expect(typedWorkspaceFolder("/req/spec/", linux)).toBe("/req/spec");
+    expect(typedWorkspaceFolder("/req/./old/../spec//", linux)).toBe("/req/spec");
+    expect(typedWorkspaceFolder("/", linux)).toBe("/");
+    expect(typedWorkspaceFolder("~", linux)).toBe("/home/ada");
+    expect(typedWorkspaceFolder("~/req/spec", linux)).toBe("/home/ada/req/spec");
+    for (const text of [
+      "",
+      "req/spec",
+      "./spec",
+      "~ada/spec",
+      "~req",
+      "C:\\Work",
+      "/req\0/spec",
+      `/${"x".repeat(MAX_ROOT_LENGTH)}`,
+    ]) {
+      expect(typedWorkspaceFolder(text, linux), text).toBeUndefined();
+    }
+    // `~` that would make the path too long is refused too.
+    expect(typedWorkspaceFolder(`~/${"x".repeat(MAX_ROOT_LENGTH - 3)}`, linux)).toBeUndefined();
+
+    const windows = { platform: "win32" as const, home: "C:\\Users\\ada" };
+    expect(typedWorkspaceFolder("C:\\Work\\Spec\\", windows)).toBe("C:\\Work\\Spec");
+    expect(typedWorkspaceFolder("C:/Work/Spec", windows)).toBe("C:\\Work\\Spec");
+    expect(typedWorkspaceFolder("C:\\", windows)).toBe("C:\\");
+    expect(typedWorkspaceFolder("~\\Spec", windows)).toBe("C:\\Users\\ada\\Spec");
+    expect(typedWorkspaceFolder("~/Spec", windows)).toBe("C:\\Users\\ada\\Spec");
+    // UNC and device paths would make Windows connect to the host: refused before any file-system call.
+    for (const text of [
+      "\\\\host\\share\\spec",
+      "//host/share/spec",
+      "\\/host\\share",
+      "/\\host\\share",
+      "\\\\?\\C:\\Work",
+      "\\\\.\\pipe\\x",
+      "C:Work",
+      "Work\\Spec",
+    ]) {
+      expect(typedWorkspaceFolder(text, windows), text).toBeUndefined();
+    }
+    // A home folder on a share (a roaming profile) is no way around it.
+    expect(typedWorkspaceFolder("~", { platform: "win32", home: "\\\\host\\home\\ada" })).toBeUndefined();
+    // The platform of this process by default.
+    expect(typedWorkspaceFolder(path.join(top, "a"), { home: top })).toBe(path.join(top, "a"));
+  });
+
+  it("[SR-131/AK5] findTypedWorkspace finds the workspace from the typed folder upwards, and none when no folder up to the root holds one", async () => {
+    const root = await folder("station");
+    const inside = await folder("station/requirements/system", false);
+    expect(await findTypedWorkspace(root)).toBe(root);
+    expect(await findTypedWorkspace(inside)).toBe(root);
+    // A folder that does not exist (yet): its parents count all the same, as for `--workspace`.
+    expect(await findTypedWorkspace(path.join(inside, "missing"))).toBe(root);
+    // No workspace up to the root: the checker answers for every folder.
+    const asked: string[] = [];
+    const check: ExistenceChecker = (list) => {
+      asked.push(...list);
+      return Promise.resolve(list.map(() => false));
+    };
+    expect(await findTypedWorkspace("/req/spec", { platform: "linux", check })).toBeUndefined();
+    expect(asked).toEqual(["/req/spec", "/req", "/"]);
+    asked.length = 0;
+    expect(await findTypedWorkspace("C:\\Work\\Spec", { platform: "win32", check })).toBeUndefined();
+    expect(asked).toEqual(["C:\\Work\\Spec", "C:\\Work", "C:\\"]);
   });
 });

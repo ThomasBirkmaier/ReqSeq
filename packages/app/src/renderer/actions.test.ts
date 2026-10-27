@@ -1197,7 +1197,7 @@ describe("Open workspace (SR-131)", () => {
     expect(asked).toEqual([]);
   });
 
-  it("names the buffer with unsaved input instead of switching", async () => {
+  it("asks main to open also while a buffer has unsaved input: main has the window save it first (SR-131 AK3)", async () => {
     const open = vi.fn(() => Promise.resolve({ ok: true as const }));
     const { context, asked, echoed } = setup([element, list], {}, true, {
       workspaces: { ...workspaces, open },
@@ -1205,12 +1205,7 @@ describe("Open workspace (SR-131)", () => {
     });
     runAction(action("open-workspace"), context);
     (await asked[0]?.fill)?.items?.[0]?.run();
-    expect(open).not.toHaveBeenCalled();
-    expect(echoed).toEqual(["Unsaved input in SR-036 Title: save it before opening another workspace"]);
-    // Without unsaved input it switches.
-    const clean = setup([element, list], {}, true, { workspaces: { ...workspaces, open } });
-    runAction(action("open-workspace"), clean.context);
-    (await clean.asked[0]?.fill)?.items?.[0]?.run();
     expect(open).toHaveBeenCalledExactlyOnceWith("/req/buoy");
+    expect(echoed).toEqual([]);
   });
 });

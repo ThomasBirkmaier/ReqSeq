@@ -61,11 +61,22 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
       : {}),
     webPreferences: webPreferences(options.paths.preload),
   });
+  // Only a loaded page can hold unsaved input (SR-131 AK3); a reload drops the page with its input.
+  let pageLoaded = false;
+  window.webContents.on("did-start-loading", () => {
+    pageLoaded = false;
+  });
   // The renderer asks for a copy to the clipboard (SR-128), for the workspaces opened last and to open
-  // one of them in this window (SR-131): the three channels it has to the main process.
+  // one of them in this window, and answers whether its input is saved before a switch (SR-131): the
+  // four channels it has to the main process.
   handleCopy(electron, window.webContents);
-  handleWorkspaces(electron, window.webContents, { core, log: options.log });
+  const workspaces = handleWorkspaces(electron, window.webContents, {
+    core,
+    loaded: () => pageLoaded,
+    log: options.log,
+  });
   window.webContents.on("did-finish-load", () => {
+    pageLoaded = true;
     core.attach(window.webContents);
   });
   const openWorkspace = async (): Promise<void> => {
@@ -74,8 +85,9 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
       properties: ["openDirectory"],
     });
     const [folder] = chosen.filePaths;
+    // The folder stays in main: the window only saves its unsaved input first (SR-131 AK3).
     if (!chosen.canceled && folder !== undefined) {
-      await core.open(folder);
+      await workspaces.openFolder(folder);
     }
   };
   electron.Menu.setApplicationMenu(

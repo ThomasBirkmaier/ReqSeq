@@ -16,7 +16,7 @@ import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@logreq/api";
 import type { Channel, IpcRendererLike } from "@logreq/app";
-import { WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
+import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
 import type { CatalogEntry, CommandName } from "@logreq/core";
 import { CommandError, Workspace, createCommandRuntime } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
@@ -1509,11 +1509,16 @@ const connectApp = (
   host.connect(nodeChannel(port1));
   let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
   const bridge = createBridge({
+    // The workspace of the window, and main's requests to save before a switch (SR-131), which no
+    // command sends.
     on: (channel, listener) => {
-      expect(channel).toBe(WORKSPACE_CHANNEL);
-      deliver = listener;
+      expect([WORKSPACE_CHANNEL, SAVE_CHANNEL]).toContain(channel);
+      if (channel === WORKSPACE_CHANNEL) {
+        deliver = listener;
+      }
     },
     invoke: () => Promise.resolve(false),
+    send: () => undefined,
   });
   deliver?.({ ports: [port2] }, { open: true });
   return { bridge, close: () => host.close() };

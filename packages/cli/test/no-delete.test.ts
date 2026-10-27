@@ -237,10 +237,14 @@ describe("the app offers no delete (SR-099)", () => {
     });
     let deliver: Parameters<IpcRendererLike["on"]>[1] | undefined;
     const bridge = createBridge({
-      on: (_channel, listener) => {
-        deliver = listener;
+      // The workspace of the window; main's requests to save (SR-131) do not come here.
+      on: (channel, listener) => {
+        if (channel === "logreq:workspace") {
+          deliver = listener;
+        }
       },
       invoke: () => Promise.resolve(false),
+      send: () => undefined,
     });
     deliver?.({ ports: [port2] }, { open: true });
     return { bridge, close: () => host.close() };
@@ -249,12 +253,14 @@ describe("the app offers no delete (SR-099)", () => {
   it("[SR-099/AK1] offers invoke over the catalog, lists only catalog commands and refuses unknown delete commands", async () => {
     const app = connect(new Workspace(fixture.root));
     try {
-      // Besides the catalog: the clipboard (SR-128) and the recent workspaces of the window (SR-131).
+      // Besides the catalog: the clipboard (SR-128), the recent workspaces of the window and saving
+      // before a switch (SR-131).
       expect(Object.keys(app.bridge).sort()).toEqual([
         "commands",
         "copyText",
         "invoke",
         "on",
+        "onSave",
         "openWorkspace",
         "recentWorkspaces",
       ]);

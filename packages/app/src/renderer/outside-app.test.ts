@@ -170,6 +170,7 @@ const fake = () => {
     copyText: () => Promise.resolve(true),
     recentWorkspaces: () => Promise.resolve([]),
     openWorkspace: () => Promise.resolve({ ok: true }),
+    onSave: () => () => undefined,
   };
   /** Sends changes to the window, all before it renders. */
   const send = async (...changes: WorkspaceChange[]): Promise<void> => {

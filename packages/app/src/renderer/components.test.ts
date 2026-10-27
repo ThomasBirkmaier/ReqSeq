@@ -215,6 +215,37 @@ describe("Minibuffer", () => {
     expect(texts("mark")).toEqual([]);
   });
 
+  it("[SR-131/AK5] puts the choice for the typed text first, so Enter takes it and Down reaches the others", async () => {
+    const typed = vi.fn();
+    const literal = vi.fn((text: string): Choice | undefined =>
+      text.startsWith("/")
+        ? choice(`folder:${text}`, `Open ${text}`, { hint: "folder", run: typed })
+        : undefined,
+    );
+    const station = choice("w1", "/req/station");
+    const { closed } = await mount({
+      label: "Workspace",
+      items: [station, choice("w2", "/req/buoy")],
+      literal,
+    });
+    // Nothing typed: no choice of its own.
+    expect(texts('[role="option"] .name')).toEqual(["/req/station", "/req/buoy"]);
+    await type(input(), "/req/sta");
+    expect(texts('[role="option"] .name')).toEqual(["Open /req/sta", "/req/station"]);
+    expect(texts(".hint")).toEqual(["folder"]);
+    await press(input(), "ArrowDown");
+    expect(container.querySelector('[aria-selected="true"] .name')?.textContent).toBe("/req/station");
+    await press(input(), "ArrowUp");
+    await press(input(), "Enter");
+    expect(closed).toHaveBeenCalledOnce();
+    expect(typed).toHaveBeenCalledOnce();
+    expect(station.run).not.toHaveBeenCalled();
+    // A text that is no folder path is narrowed as usual.
+    await mount({ label: "Workspace", items: [station], literal });
+    await type(input(), "stat");
+    expect(texts('[role="option"] .name')).toEqual(["/req/station"]);
+  });
+
   describe("argument entry of catalog commands (#85)", () => {
     it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
       await mount({

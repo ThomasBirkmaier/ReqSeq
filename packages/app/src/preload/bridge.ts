@@ -3,8 +3,9 @@
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
 // facilities of the window ask the main process: `copyText` writes the clipboard (SR-128),
-// `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them in the
-// window (SR-131). Nothing rejects across the context bridge, which would keep only an error's message:
+// `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
+// workspace of a typed folder, in the window (SR-131), and `onSave` sets what saves the window's unsaved
+// input when main asks before such a switch (AK3). Nothing rejects across the context bridge, which would keep only an error's message:
 // a failure is the error object of every access, an empty list or a refusal.
 import type {
   CommandListing,
@@ -18,20 +19,24 @@ import {
   COPY_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
+  SAVED_CHANNEL,
+  SAVE_CHANNEL,
   WORKSPACE_CHANNEL,
   isBridgeEvent,
   openWorkspaceResult,
   portMessage,
   recentWorkspaceEntries,
+  saveRequest,
 } from "../shared/protocol.js";
 
 /** The part of Electron's `ipcRenderer` the bridge uses. */
 export interface IpcRendererLike {
   on(
     channel: string,
-    listener: (event: { readonly ports: readonly MessagePort[] }, message: WorkspaceMessage) => void,
+    listener: (event: { readonly ports: readonly MessagePort[] }, message: unknown) => void,
   ): unknown;
   invoke(channel: string, ...args: readonly unknown[]): Promise<unknown>;
+  send(channel: string, ...args: readonly unknown[]): void;
 }
 
 const NO_WORKSPACE: InvokeResult = {
@@ -112,7 +117,9 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
   let received = false;
   // Calls before the first message of the main process wait for it.
   let current = new Promise<Connection | undefined>((first) => {
-    ipc.on(WORKSPACE_CHANNEL, (event, message) => {
+    ipc.on(WORKSPACE_CHANNEL, (event, value) => {
+      // From the main process, which is trusted.
+      const message = value as WorkspaceMessage;
       const [port] = event.ports;
       const next = message.open && port !== undefined ? new Connection(port, emit) : undefined;
       if (!received) {
@@ -126,6 +133,31 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
         emit({ event: "workspace-changed", data: { reason: message.reason } });
       }
     });
+  });
+
+  // What saves the window's unsaved input when main asks (SR-131 AK3); without one nothing is unsaved.
+  let saver: (() => Promise<boolean>) | undefined;
+  ipc.on(SAVE_CHANNEL, (_event, value) => {
+    const request = saveRequest(value);
+    if (request === undefined) {
+      return;
+    }
+    // Main gave up waiting (a timeout): the window learns it as an event.
+    if (request.expired === true) {
+      emit({ event: "save-expired", data: {} });
+      return;
+    }
+    const save = saver;
+    // The renderer is not trusted to keep to the types: only `true` is saved, a rejection is not.
+    void Promise.resolve()
+      .then((): unknown => (save === undefined ? true : save()))
+      .then(
+        (saved) => saved === true,
+        () => false,
+      )
+      .then((saved) => {
+        ipc.send(SAVED_CHANNEL, { id: request.id, saved });
+      });
   });
 
   return {
@@ -158,12 +190,23 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
         return [];
       }
     },
-    openWorkspace: async (root) => {
+    openWorkspace: async (root, options) => {
       try {
-        return openWorkspaceResult(await ipc.invoke(OPEN_WORKSPACE_CHANNEL, root));
+        const typed = options?.typed === true;
+        return openWorkspaceResult(
+          await ipc.invoke(OPEN_WORKSPACE_CHANNEL, root, ...(typed ? [{ typed }] : [])),
+        );
       } catch {
         return { ok: false, reason: "refused" };
       }
+    },
+    onSave: (save) => {
+      saver = save;
+      return () => {
+        if (saver === save) {
+          saver = undefined;
+        }
+      };
     },
     // The renderer is not trusted to keep to the types: any other name subscribes nothing.
     on: (event: string, listener: (data: never) => void) => {

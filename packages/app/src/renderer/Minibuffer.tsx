@@ -69,7 +69,15 @@ const PromptLine = ({
     };
   }, [given.fill]);
 
-  const ranked = rankByUse(prompt.items, (choice) => choice.name, query, prompt.use);
+  // The choice for the typed text itself comes first (a folder path of "Open workspace", SR-131 AK5).
+  const literalOf = (text: string): Choice[] => {
+    const choice = prompt.literal?.(text);
+    return choice === undefined ? [] : [choice];
+  };
+  const ranked: Ranked<Choice>[] = [
+    ...literalOf(query).map((item) => ({ item, ranges: [] })),
+    ...rankByUse(prompt.items, (choice) => choice.name, query, prompt.use),
+  ];
   const known = new Set(ranked.map(({ item }) => item.id));
   const rows: Ranked<Choice>[] = [
     ...ranked,
@@ -113,6 +121,7 @@ const PromptLine = ({
           // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
           waiting.current = 0;
           const [first] = [
+            ...literalOf(value),
             ...rankByUse(prompt.items, (item) => item.name, value, prompt.use).map(({ item }) => item),
             ...choices,
           ];

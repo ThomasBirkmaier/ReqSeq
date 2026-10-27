@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, describe, expect, it } from "vitest";
@@ -224,6 +226,19 @@ describe("writeCacheFile", () => {
     expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
     expect(await readCacheFile(folder, "api.json")).toBe("12345");
   });
+
+  it.runIf(process.platform !== "win32")(
+    "gives undefined for a FIFO or a device in place of a cache file of at most maxBytes, without waiting",
+    async () => {
+      folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+      // No process writes into the FIFO: a blocking open would wait for one for ever.
+      await promisify(execFile)("mkfifo", [path.join(folder, "api.json")]);
+      expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
+      await fs.rm(path.join(folder, "api.json"));
+      await fs.symlink("/dev/zero", path.join(folder, "api.json"));
+      expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
+    },
+  );
 
   it("locks a cache file with <name>.lock next to it, once at a time", async () => {
     folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));

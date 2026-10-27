@@ -70,6 +70,7 @@ const bridge: LogReqBridge = {
   copyText: () => Promise.resolve(true),
   recentWorkspaces: () => Promise.resolve([]),
   openWorkspace: () => Promise.resolve({ ok: true }),
+  onSave: () => () => undefined,
 };
 
 let container: HTMLElement;

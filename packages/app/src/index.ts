@@ -5,5 +5,5 @@ export { createCoreHost } from "./core/host.js";
 export type { Channel, CoreHost, CoreHostOptions } from "./core/host.js";
 export { createBridge } from "./preload/bridge.js";
 export type { IpcRendererLike } from "./preload/bridge.js";
-export { WORKSPACE_CHANNEL } from "./shared/protocol.js";
+export { SAVE_CHANNEL, WORKSPACE_CHANNEL } from "./shared/protocol.js";
 export type * from "./shared/protocol.js";

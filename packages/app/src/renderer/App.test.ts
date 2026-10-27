@@ -29,11 +29,26 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
   const recentWorkspaces = vi.fn<LogReqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
   const openWorkspace = vi.fn<LogReqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
+  // The window's saver, which main calls before a switch (SR-131 AK3).
+  const savers: (() => Promise<boolean>)[] = [];
+  const onSave = vi.fn<LogReqBridge["onSave"]>((save) => {
+    savers.push(save);
+    return () => {
+      savers.splice(savers.indexOf(save), 1);
+    };
+  });
+  // Main gave up waiting for the save (SR-131 AK3).
+  const expired = new Set<() => void>();
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
     // Only the workspace's changes; `agent-activity` (SR-117) subscribes nothing here (follow-app.test.ts).
     on: (event: string, listener: (data: never) => void) => {
+      if (event === "save-expired") {
+        const heard = listener as () => void;
+        expired.add(heard);
+        return () => expired.delete(heard);
+      }
       if (event !== "workspace-changed") {
         return () => undefined;
       }
@@ -44,6 +59,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     copyText,
     recentWorkspaces,
     openWorkspace,
+    onSave,
   };
   const change = async (reason: WorkspaceChange["reason"]): Promise<void> => {
     await act(async () => {
@@ -53,7 +69,27 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
-  return { bridge, invoke, change, listeners, handlers, copyText, recentWorkspaces, openWorkspace };
+  const expire = async (): Promise<void> => {
+    await act(async () => {
+      for (const listener of expired) {
+        listener();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+  return {
+    bridge,
+    invoke,
+    change,
+    expire,
+    expired,
+    listeners,
+    handlers,
+    copyText,
+    recentWorkspaces,
+    openWorkspace,
+    savers,
+  };
 };
 
 const row = (n: number, extra: object = {}) => ({
@@ -253,6 +289,7 @@ describe("App", () => {
       copyText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
+      onSave: () => () => undefined,
     };
     await render(bridge);
     expect(container.querySelector('main[aria-label="Sheet"]')?.childElementCount).toBe(0);
@@ -1357,6 +1394,124 @@ describe("App, the text editor", () => {
     await typeText("?");
     await keyDown(window, "s", { metaKey: true });
     expect(calls(invoke, "element.update")).toHaveLength(2);
+  });
+
+  it("[SR-131/AK3] saves the unsaved text when main asks before a switch, and says so when it could not", async () => {
+    const { invoke, savers, handlers } = await openElement();
+    expect(savers).toHaveLength(1);
+    await typeText("!");
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await savers[0]?.();
+    });
+    await flush();
+    expect(saved).toBe(true);
+    expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", text: "Hello!" }]);
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
+    // A save that fails keeps the open workspace and names the element.
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await typeText("?");
+    await act(async () => {
+      saved = await savers[0]?.();
+    });
+    await flush();
+    expect(saved).toBe(false);
+    expect(text("Minibuffer")).toBe(
+      "SR-000001 Title 1 could not be saved (The element is read-only); the workspace was not changed",
+    );
+    expect(text("Modeline")).toContain("modified");
+    expect(query(".sheet").inert).toBe(false);
+  });
+
+  it("[SR-131/AK3] while it saves and the other workspace opens, the window takes no input and says so", async () => {
+    const { invoke, savers, change } = await openElement();
+    await typeText("!");
+    let written: (result: InvokeResult) => void = () => undefined;
+    const answer = invoke.getMockImplementation();
+    invoke.mockImplementation((name, input) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            written = resolve;
+          })
+        : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
+    );
+    let saved: Promise<boolean> | undefined;
+    await act(async () => {
+      saved = savers[0]?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(query(".sheet").inert).toBe(true);
+    expect(text("Minibuffer")).toBe("Opening another workspace…");
+    // No command, no prompt, no other key while it is busy.
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    await click(query(".echo"));
+    expect(container.querySelector('[role="option"]')).toBeNull();
+    expect(text("Minibuffer")).toBe("Opening another workspace…");
+    written({ ok: true, output: { element: row(1, { text: "Hello!" }), files: [], affected: 0 } });
+    await act(async () => {
+      expect(await saved).toBe(true);
+    });
+    // Saved: still busy until the other workspace is open.
+    expect(query(".sheet").inert).toBe(true);
+    await change("written");
+    expect(query(".sheet").inert).toBe(true);
+    // Opened, but the other workspace is still loading: the old buffers take no input until they are gone.
+    let status: () => void = () => undefined;
+    invoke.mockImplementation((name, input) =>
+      name === "workspace.status"
+        ? new Promise((resolve) => {
+            status = () => {
+              void answer?.(name, input).then(resolve);
+            };
+          })
+        : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
+    );
+    await change("opened");
+    expect(query(".sheet").inert).toBe(true);
+    expect(text("Minibuffer")).toBe("Opening another workspace…");
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    expect(container.querySelector('[role="option"]')).toBeNull();
+    expect(text("Modeline")).toContain("SR-000001");
+    await act(async () => {
+      status();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await flush();
+    expect(query(".sheet").inert).toBe(false);
+    expect(text("Modeline")).toContain("Overview");
+    expect(text("Minibuffer")).not.toBe("Opening another workspace…");
+  });
+
+  it("[SR-131/AK3] says so when main gave up waiting for the save, and takes input again", async () => {
+    const { savers, expire, expired } = await openElement();
+    expect(expired.size).toBe(1);
+    await typeText("!");
+    await act(async () => {
+      await savers[0]?.();
+    });
+    await flush();
+    expect(query(".sheet").inert).toBe(true);
+    await expire();
+    expect(query(".sheet").inert).toBe(false);
+    expect(text("Minibuffer")).toBe("The unsaved input was not saved in time; Weather station stays open");
+  });
+
+  it("[SR-131/AK3] a save that throws keeps the open workspace and says so", async () => {
+    const { invoke, savers } = await openElement();
+    await typeText("!");
+    invoke.mockImplementationOnce(() => Promise.reject(new Error("port closed")));
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await savers[0]?.();
+    });
+    await flush();
+    expect(saved).toBe(false);
+    expect(query(".sheet").inert).toBe(false);
+    expect(text("Minibuffer")).toBe(
+      "The unsaved input could not be saved (Error: port closed); the workspace was not changed",
+    );
+    expect(text("Modeline")).toContain("modified");
   });
 
   it("keeps the editor, with its undo history, when the save is reported as a change of the workspace", async () => {

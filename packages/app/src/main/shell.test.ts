@@ -6,6 +6,8 @@ import {
   COPY_CHANNEL,
   OPEN_WORKSPACE_CHANNEL,
   RECENT_WORKSPACES_CHANNEL,
+  SAVED_CHANNEL,
+  SAVE_CHANNEL,
   WORKSPACE_CHANNEL,
 } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
@@ -30,9 +32,14 @@ class FakeChild extends EventEmitter {
 class FakeContents extends EventEmitter {
   readonly mainFrame = { url: RENDERER_URL };
   readonly posted: { channel: string; message: unknown }[] = [];
+  readonly sent: { channel: string; message: unknown }[] = [];
 
   postMessage(channel: string, message: unknown): void {
     this.posted.push({ channel, message });
+  }
+
+  send(channel: string, message: unknown): void {
+    this.sent.push({ channel, message });
   }
 
   isDestroyed(): boolean {
@@ -45,6 +52,7 @@ type Handler = (...args: unknown[]) => unknown;
 const fakeElectron = (dark = false) => {
   const appHandlers = new Map<string, Handler>();
   const ipcHandlers = new Map<string, Handler>();
+  const ipcListeners = new Map<string, Handler>();
   const protocolHandlers = new Map<string, (request: { url: string }) => Promise<Response>>();
   const windows: { options: unknown; webContents: FakeContents; loadURL: ReturnType<typeof vi.fn> }[] = [];
   const children: FakeChild[] = [];
@@ -80,6 +88,9 @@ const fakeElectron = (dark = false) => {
       handle: vi.fn((channel: string, handler: Handler) => {
         ipcHandlers.set(channel, handler);
       }),
+      on: vi.fn((channel: string, handler: Handler) => {
+        ipcListeners.set(channel, handler);
+      }),
     },
     clipboard: { writeText: vi.fn(() => Promise.resolve()) },
     BrowserWindow: class {
@@ -109,7 +120,7 @@ const fakeElectron = (dark = false) => {
       readonly port2 = { port: 2 };
     },
   };
-  return { electron, appHandlers, ipcHandlers, protocolHandlers, windows, children };
+  return { electron, appHandlers, ipcHandlers, ipcListeners, protocolHandlers, windows, children };
 };
 
 const CWD = path.resolve("/home/me");
@@ -206,14 +217,16 @@ describe("startShell", () => {
   });
 
   it("[SR-128/AK2] answers the copy channel of the window and nothing else puts text on the clipboard", async () => {
-    const { electron, ipcHandlers, windows } = await start();
+    const { electron, ipcHandlers, ipcListeners, windows } = await start();
     const contents = windows[0]?.webContents;
-    // The three channels from the renderer: the clipboard (SR-128) and the recent workspaces (SR-131).
+    // The four channels from the renderer: the clipboard (SR-128), the recent workspaces and the answer
+    // whether the window saved before a switch (SR-131).
     expect([...ipcHandlers.keys()]).toEqual([
       COPY_CHANNEL,
       RECENT_WORKSPACES_CHANNEL,
       OPEN_WORKSPACE_CHANNEL,
     ]);
+    expect([...ipcListeners.keys()]).toEqual([SAVED_CHANNEL]);
     const copied = await ipcHandlers.get(COPY_CHANNEL)?.(
       { sender: contents, senderFrame: contents?.mainFrame },
       "x",
@@ -253,6 +266,45 @@ describe("startShell", () => {
       expect(children).toHaveLength(1);
     });
     expect(children[0]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
+  });
+
+  it("[SR-131/AK3] File > Open Workspace has the loaded window save its input first, and keeps the workspace when it could not", async () => {
+    const { electron, children, windows, ipcListeners } = await start(["electron", ".", "--workspace=/ws"]);
+    const contents = windows[0]?.webContents;
+    const answer = (id: number, saved: boolean): void => {
+      ipcListeners.get(SAVED_CHANNEL)?.(
+        { sender: contents, senderFrame: contents?.mainFrame },
+        { id, saved },
+      );
+    };
+    const click = openWorkspaceItem(electron);
+    contents?.emit("did-start-loading");
+    contents?.emit("did-finish-load");
+    electron.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ["/chosen"] });
+    click();
+    await vi.waitFor(() => {
+      expect(contents?.sent).toEqual([{ channel: SAVE_CHANNEL, message: { id: 1 } }]);
+    });
+    // The folder stays in main, and nothing opens until the window answers.
+    expect(children).toHaveLength(1);
+    answer(1, false);
+    click();
+    await vi.waitFor(() => {
+      expect(contents?.sent).toHaveLength(2);
+    });
+    expect(children).toHaveLength(1);
+    answer(2, true);
+    await vi.waitFor(() => {
+      expect(children).toHaveLength(2);
+    });
+    expect(children[1]?.sent[0]).toEqual({ type: "open", folder: "/chosen" });
+    // While the page reloads it holds no input: the switch does not ask.
+    contents?.emit("did-start-loading");
+    click();
+    await vi.waitFor(() => {
+      expect(children).toHaveLength(3);
+    });
+    expect(contents?.sent).toHaveLength(2);
   });
 
   it("closes the workspace before the app quits", async () => {

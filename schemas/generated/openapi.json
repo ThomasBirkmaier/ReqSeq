@@ -11602,6 +11602,7 @@
               "key": {
                 "type": "string",
                 "minLength": 1,
+                "maxLength": 4096,
                 "description": "The canonical root (absolute, symbolic links resolved, lower case on Windows), computed when the workspace was opened: two names of one folder are one entry. Never resolved again on reading."
               },
               "opened": {

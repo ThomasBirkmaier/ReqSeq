@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentActivity } from "./protocol.js";
 import {
   BRIDGE_EVENTS,
+  MAX_ROOT_LENGTH,
   MAX_CHANGED_IDS,
   coreMessage,
   coreRequest,
@@ -11,7 +12,10 @@ import {
   portMessage,
   portRequest,
   recentWorkspaceEntries,
+  saveAnswer,
+  saveRequest,
 } from "./protocol.js";
+import { MAX_ROOT_LENGTH as CORE_MAX_ROOT_LENGTH } from "@logreq/core/recent-workspaces";
 
 /** An access as `workspace.activity` gives it. */
 const ACTIVITY: AgentActivity = {
@@ -158,7 +162,7 @@ describe("portMessage: what the core process sends a window", () => {
   });
 
   it("[SR-117/AK4] the port carries only the two events, and no mode with them", () => {
-    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity"]);
+    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired"]);
     expect(BRIDGE_EVENTS.filter(isBridgeEvent)).toEqual(BRIDGE_EVENTS);
     for (const name of ["follow-mode", "follow", "mode", "toString", "__proto__", 1, undefined]) {
       expect(isBridgeEvent(name)).toBe(false);
@@ -283,7 +287,9 @@ describe("the answers of the main process about recent workspaces (SR-131)", () 
       expect(recentWorkspaceEntries(value)).toEqual([]);
     }
     expect(openWorkspaceResult({ ok: true })).toEqual({ ok: true });
-    expect(openWorkspaceResult({ ok: false, reason: "missing" })).toEqual({ ok: false, reason: "missing" });
+    for (const reason of ["missing", "unsaved", "timeout", "busy", "no-workspace"]) {
+      expect(openWorkspaceResult({ ok: false, reason, more: 1 })).toEqual({ ok: false, reason });
+    }
     for (const value of [
       { ok: false, reason: "refused" },
       { ok: false, reason: "other" },
@@ -326,5 +332,37 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
       event: "workspace-changed",
       data: change,
     });
+  });
+
+  it("saveRequest and saveAnswer accept only their shapes", () => {
+    expect(saveRequest({ id: 3, more: true })).toEqual({ id: 3 });
+    expect(saveRequest({ id: 3, expired: true })).toEqual({ id: 3, expired: true });
+    expect(saveRequest({ id: 3, expired: "yes" })).toEqual({ id: 3 });
+    for (const value of [{ id: "3" }, { id: 1.5 }, { id: Number.MAX_VALUE }, {}, null, 3]) {
+      expect(saveRequest(value)).toBeUndefined();
+    }
+    expect(saveAnswer({ id: 3, saved: true, more: 1 })).toEqual({ id: 3, saved: true });
+    expect(saveAnswer({ id: 4, saved: false })).toEqual({ id: 4, saved: false });
+    for (const value of [
+      { id: 3, saved: "true" },
+      { id: 3 },
+      { saved: true },
+      { id: -0.5, saved: true },
+      null,
+    ]) {
+      expect(saveAnswer(value)).toBeUndefined();
+    }
+  });
+
+  it("the longest root main takes from the renderer is the longest root core's list holds", () => {
+    expect(MAX_ROOT_LENGTH).toBe(CORE_MAX_ROOT_LENGTH);
+  });
+
+  it("save-expired carries nothing, and only an object is one", () => {
+    expect(portMessage({ event: "save-expired", data: { more: 1 } })).toEqual({
+      event: "save-expired",
+      data: {},
+    });
+    expect(portMessage({ event: "save-expired", data: "x" })).toBeUndefined();
   });
 });

@@ -181,6 +181,7 @@ const bridge = (
       copyText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
+      onSave: () => () => undefined,
       on: () => () => undefined,
     },
   };

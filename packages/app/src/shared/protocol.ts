@@ -10,7 +10,7 @@ export const WORKSPACE_CHANNEL = "logreq:workspace";
 
 /**
  * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`
- * when the text was copied, else `false`. One of the three channels from the renderer to the main
+ * when the text was copied, else `false`. One of the four channels from the renderer to the main
  * process, each with the sender check of `main/sender.ts`.
  */
 export const COPY_CHANNEL = "logreq:copy";
@@ -22,10 +22,38 @@ export const COPY_CHANNEL = "logreq:copy";
 export const RECENT_WORKSPACES_CHANNEL = "logreq:recent-workspaces";
 
 /**
- * Renderer to main: open this root of the list of recent workspaces in the window (SR-131), answered
- * with `OpenWorkspaceResult`. Switching the workspace of the window is main's job (ADR-0010).
+ * Renderer to main: open this root of the list of recent workspaces in the window, or (`typed`) the
+ * workspace of a typed folder path (SR-131 AK5), answered with `OpenWorkspaceResult`. Switching the
+ * workspace of the window is main's job (ADR-0010).
  */
 export const OPEN_WORKSPACE_CHANNEL = "logreq:open-workspace";
+
+/**
+ * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
+ * opens in it (SR-131 AK3); the window answers on SAVED_CHANNEL.
+ */
+export const SAVE_CHANNEL = "logreq:save";
+
+/**
+ * Renderer to main: the answer to a SAVE_CHANNEL request (`SaveAnswer`), with the sender check of
+ * `main/sender.ts`. Main opens the other workspace only when it is `saved`.
+ */
+export const SAVED_CHANNEL = "logreq:saved";
+
+/**
+ * Main's request to save, by its number; with `expired`, main gave up waiting for the answer to it (a
+ * timeout): the open workspace stays.
+ */
+export interface SaveRequest {
+  readonly id: number;
+  readonly expired?: true;
+}
+
+/** The window's answer to request `id`: whether all its unsaved input is in the files now. */
+export interface SaveAnswer {
+  readonly id: number;
+  readonly saved: boolean;
+}
 
 /** The longest root the main process accepts from the renderer, in characters. */
 export const MAX_ROOT_LENGTH = 4096;
@@ -39,12 +67,29 @@ export interface RecentWorkspaceEntry {
   readonly state: RecentWorkspaceStatus;
 }
 
-/**
- * What opening a recent workspace gave: opened, or not because its root holds no workspace any more
- * (`missing`, the open workspace stays) or the request was refused (not a root of the list).
- */
+/** How `openWorkspace` takes its path: a root of the list (default), or a typed folder path (SR-131 AK5). */
+export interface OpenWorkspaceOptions {
+  readonly typed?: boolean;
+}
+
+/** Why a workspace was not opened; the open workspace stays. */
+export type OpenWorkspaceRefusal =
+  /** The root of the list holds no workspace any more (SR-131 AK4). */
+  | "missing"
+  /** Not a root of the list, or a typed path that is relative, a UNC path, too long or holds NUL. */
+  | "refused"
+  /** The unsaved input of the window could not be saved (SR-131 AK3); the window said which. */
+  | "unsaved"
+  /** The window did not answer in time whether its input is saved (SR-131 AK3). */
+  | "timeout"
+  /** Another switch runs: one at a time. */
+  | "busy"
+  /** No folder from the typed one upwards holds a workspace (SR-131 AK5). */
+  | "no-workspace";
+
+/** What opening a workspace gave: opened, or not, and why. */
 export type OpenWorkspaceResult =
-  { readonly ok: true } | { readonly ok: false; readonly reason: "missing" | "refused" };
+  { readonly ok: true } | { readonly ok: false; readonly reason: OpenWorkspaceRefusal };
 
 /** The longest text the main process copies, in characters (16 Mi). */
 export const MAX_COPY_LENGTH = 16 * 1024 * 1024;
@@ -110,14 +155,22 @@ export type AgentActivity = ActivityAccess;
 /**
  * The events the core process and the main process send a window, by name, with what the listeners of
  * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and one
- * check in `EVENT_DATA`, and the bridge keeps its six functions (ADR-0010).
+ * check in `EVENT_DATA`, and the bridge keeps its seven functions (ADR-0010).
  */
 export interface BridgeEvents {
   /** The workspace of the window changed (`WorkspaceChangeReason`). */
   readonly "workspace-changed": WorkspaceChange;
   /** An agent read or changed an element through the API or MCP (SR-117); sent as it arrives. */
   readonly "agent-activity": AgentActivity;
+  /**
+   * Main gave up waiting for the window to save before a switch (SR-131 AK3, a timeout): the open
+   * workspace stays. From the main process (SAVE_CHANNEL `expired`), not the port.
+   */
+  readonly "save-expired": SaveExpired;
 }
+
+/** The data of `save-expired`: nothing more than that it happened. */
+export type SaveExpired = Readonly<Record<string, never>>;
 
 export type BridgeEvent = keyof BridgeEvents;
 
@@ -171,9 +224,18 @@ export interface LogReqBridge {
   recentWorkspaces(): Promise<readonly RecentWorkspaceEntry[]>;
   /**
    * Opens `root`, a root of `recentWorkspaces()`, in this window in place of the open workspace (SR-131
-   * AK2); never rejects. The window learns it as `workspace-changed` with `opened`.
+   * AK2), or with `typed` the workspace found from a typed folder path upwards (AK5); never rejects.
+   * Main first has the window save its unsaved input (`onSave`, AK3). The window learns the switch as
+   * `workspace-changed` with `opened`.
    */
-  openWorkspace(root: string): Promise<OpenWorkspaceResult>;
+  openWorkspace(root: string, options?: OpenWorkspaceOptions): Promise<OpenWorkspaceResult>;
+  /**
+   * Sets the function that saves the unsaved input of the window when main asks, before another
+   * workspace opens in it (SR-131 AK3): it resolves `true` when everything is saved; `false`, or a
+   * rejection, keeps the open workspace. Returns the function that unsets it. Without one, main is told
+   * that nothing is unsaved.
+   */
+  onSave(save: () => Promise<boolean>): () => void;
 }
 
 /** Renderer to core process, over the port. */
@@ -363,6 +425,7 @@ const agentActivity = (value: unknown): AgentActivity | undefined => {
 const EVENT_DATA: { readonly [E in BridgeEvent]: (value: unknown) => BridgeEvents[E] | undefined } = {
   "workspace-changed": workspaceChange,
   "agent-activity": agentActivity,
+  "save-expired": (value) => (isRecord(value) ? {} : undefined),
 };
 
 /** The names of the bridge's events, in the order of `EVENT_DATA`. */
@@ -408,12 +471,33 @@ export const recentWorkspaceEntries = (value: unknown): readonly RecentWorkspace
     : [];
 };
 
+const REFUSALS: readonly unknown[] = [
+  "missing",
+  "refused",
+  "unsaved",
+  "timeout",
+  "busy",
+  "no-workspace",
+] satisfies readonly OpenWorkspaceRefusal[];
+
 /** `value` as main's answer to an open; anything else is a refusal. */
 export const openWorkspaceResult = (value: unknown): OpenWorkspaceResult => {
   if (isRecord(value) && value["ok"] === true) {
     return { ok: true };
   }
-  return isRecord(value) && value["ok"] === false && value["reason"] === "missing"
-    ? { ok: false, reason: "missing" }
+  return isRecord(value) && value["ok"] === false && REFUSALS.includes(value["reason"])
+    ? { ok: false, reason: value["reason"] as OpenWorkspaceRefusal }
     : { ok: false, reason: "refused" };
 };
+
+/** `value` as main's request to save, or undefined. */
+export const saveRequest = (value: unknown): SaveRequest | undefined =>
+  isRecord(value) && Number.isSafeInteger(value["id"])
+    ? { id: value["id"] as number, ...(value["expired"] === true ? { expired: true } : {}) }
+    : undefined;
+
+/** `value` as the window's answer to a request to save, or undefined (the renderer is not trusted). */
+export const saveAnswer = (value: unknown): SaveAnswer | undefined =>
+  isRecord(value) && Number.isSafeInteger(value["id"]) && typeof value["saved"] === "boolean"
+    ? { id: value["id"] as number, saved: value["saved"] }
+    : undefined;

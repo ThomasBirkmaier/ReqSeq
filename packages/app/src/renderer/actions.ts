@@ -82,6 +82,11 @@ export interface Prompt {
   readonly find?: (query: string) => Promise<readonly Choice[]>;
   /** Free text: Enter runs it (the search prompt). */
   readonly text?: (text: string) => void;
+  /**
+   * A choice for the typed text itself, when it is one ("Open workspace": a folder path, SR-131 AK5): it
+   * comes first, so Enter takes it, and Down reaches the others.
+   */
+  readonly literal?: (query: string) => Choice | undefined;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
   /** Backspace in an empty input: one argument back (catalog commands). */
@@ -243,12 +248,6 @@ const hasBuffers = (context: ActionContext): boolean =>
 const isOverview = (context: ActionContext): boolean => context.buffers[0]?.kind === "overview";
 const hasElementText = (context: ActionContext): boolean =>
   isElement(context) && context.element !== undefined;
-/** The name of an open buffer with unsaved changes, else undefined. */
-const unsavedBuffer = (context: ActionContext): string | undefined => {
-  const drafted = context.buffers.find((buffer) => context.drafted(buffer.key));
-  return drafted === undefined ? undefined : bufferName(drafted);
-};
-
 /** An action on the shown list; without one it does nothing. */
 const onList =
   (run: (context: ActionContext, list: ListBuffer) => void) =>
@@ -928,9 +927,7 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const { workspaces } = context;
       if (workspaces !== undefined) {
-        context.ask(
-          workspacePrompt({ workspaces, echo: context.echo, unsaved: () => unsavedBuffer(context) }),
-        );
+        context.ask(workspacePrompt({ workspaces, echo: context.echo }));
       }
     },
   },

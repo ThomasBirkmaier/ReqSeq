@@ -18,7 +18,6 @@ const setup = (
     readonly entries?: readonly RecentWorkspaceEntry[];
     readonly name?: string | undefined;
     readonly answer?: OpenWorkspaceResult;
-    readonly unsaved?: string;
   } = {},
 ) => {
   const echoed: string[] = [];
@@ -28,11 +27,7 @@ const setup = (
     list: () => Promise.resolve(options.entries ?? ENTRIES),
     open,
   };
-  const prompt = workspacePrompt({
-    workspaces,
-    echo: (message) => echoed.push(message),
-    unsaved: () => options.unsaved,
-  });
+  const prompt = workspacePrompt({ workspaces, echo: (message) => echoed.push(message) });
   return { prompt, open, echoed };
 };
 
@@ -114,12 +109,63 @@ describe("the prompt Open workspace", () => {
     expect(echoed).toEqual(["/req/buoy could not be opened"]);
   });
 
-  it("with unsaved input the prompt opens nothing and names the buffer", async () => {
-    const { prompt, open, echoed } = setup({ unsaved: "SR-036 Show wind speed" });
+  it("[SR-131/AK3] says nothing more when the window could not save its input: it named the element", async () => {
+    const { prompt, open, echoed } = setup({ answer: { ok: false, reason: "unsaved" } });
     await choose(await filled(prompt.fill), "/req/buoy");
-    expect(open).not.toHaveBeenCalled();
-    expect(echoed).toEqual([
-      "Unsaved input in SR-036 Show wind speed: save it before opening another workspace",
+    expect(open).toHaveBeenCalledExactlyOnceWith("/req/buoy");
+    expect(echoed).toEqual([]);
+  });
+
+  it("[SR-131/AK3] says why nothing opened when the save took too long, or another switch runs", async () => {
+    const late = setup({ answer: { ok: false, reason: "timeout" } });
+    await choose(await filled(late.prompt.fill), "/req/buoy");
+    const busy = setup({ answer: { ok: false, reason: "busy" }, name: undefined });
+    await choose(await filled(busy.prompt.fill), "/req/buoy");
+    expect([...late.echoed, ...busy.echoed]).toEqual([
+      "The unsaved input was not saved in time; Weather station stays open",
+      "Another workspace is being opened; no workspace is open",
+    ]);
+  });
+
+  it("[SR-131/AK5] a typed path is the first choice and Enter opens it", async () => {
+    const { prompt, open, echoed } = setup();
+    const literal = (text: string): Choice | undefined => prompt.literal?.(text);
+    for (const text of ["/home/ada/req", "~", "~/req", "C:\\Work\\Spec", "c:/work", "\\\\host\\share"]) {
+      expect(literal(text)?.name, text).toBe(`Open ${text}`);
+      expect(literal(text)?.hint).toBe("folder");
+    }
+    // Spaces around the path are not part of it.
+    expect(literal("  /req/buoy  ")?.name).toBe("Open /req/buoy");
+    // Only path-like text: names of the list are narrowed as usual.
+    for (const text of ["", "buoy", "req/buoy", "C:Work", "C:"]) {
+      expect(literal(text), text).toBeUndefined();
+    }
+    literal("  ~/req/kestrel ")?.run();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(open).toHaveBeenCalledExactlyOnceWith("~/req/kestrel", { typed: true });
+    // Opened: the window learns it as `workspace-changed`; the prompt says nothing.
+    expect(echoed).toEqual([]);
+  });
+
+  it("says why a typed path was not opened, and that the open workspace stays", async () => {
+    const run = async (answer: OpenWorkspaceResult, open = true) => {
+      const { prompt, echoed } = setup(open ? { answer } : { answer, name: undefined });
+      prompt.literal?.("/home/ada/notes")?.run();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return echoed;
+    };
+    expect(await run({ ok: false, reason: "no-workspace" })).toEqual([
+      "No workspace in /home/ada/notes or a folder above it; Weather station stays open",
+    ]);
+    expect(await run({ ok: false, reason: "no-workspace" }, false)).toEqual([
+      "No workspace in /home/ada/notes or a folder above it; no workspace is open",
+    ]);
+    expect(await run({ ok: false, reason: "refused" })).toEqual([
+      "/home/ada/notes is not an absolute path of a local folder",
+    ]);
+    expect(await run({ ok: false, reason: "unsaved" })).toEqual([]);
+    expect(await run({ ok: false, reason: "missing" })).toEqual([
+      "/home/ada/notes is not found; Weather station stays open",
     ]);
   });
 });

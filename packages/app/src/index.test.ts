@@ -3,6 +3,11 @@ import * as app from "./index.js";
 
 describe("@logreq/app", () => {
   it("exports the parts of the IPC that run without Electron", () => {
-    expect(Object.keys(app).sort()).toEqual(["WORKSPACE_CHANNEL", "createBridge", "createCoreHost"]);
+    expect(Object.keys(app).sort()).toEqual([
+      "SAVE_CHANNEL",
+      "WORKSPACE_CHANNEL",
+      "createBridge",
+      "createCoreHost",
+    ]);
   });
 });

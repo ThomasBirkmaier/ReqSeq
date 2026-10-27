@@ -44,6 +44,7 @@ import { OverviewView, useOverview } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import { ResultView } from "./ResultView.js";
+import { notSaved, notSavedInTime, saveDrafts } from "./switch.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
@@ -141,6 +142,17 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
   const [stopped, setStopped] = useState(false);
+  // Another workspace is being opened (SR-131 AK3): from main's request to save until it is open, or
+  // until it is not. The sheet takes no input then, so nothing is typed that the switch would drop.
+  const [switching, setSwitching] = useState(false);
+  const switchingNow = useRef(false);
+  // Counts the switches, so a save that ends after its switch was given up leaves the state alone.
+  const switchRun = useRef(0);
+  const leaveSwitching = useCallback((): void => {
+    switchRun.current += 1;
+    switchingNow.current = false;
+    setSwitching(false);
+  }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
   const { notice, copy } = useCopyNotice(bridge);
   const [buffers, dispatch] = useReducer(reduceBuffers, []);
@@ -215,6 +227,12 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         // The first buffer is the calm overview, not the list of all elements (SR-118).
         dispatch({ type: "reset", ...(result.ok ? { buffer: overviewBuffer() } : {}) });
       }
+      // A switch ends once the buffers of the old workspace are gone (SR-131 AK3): until then the window
+      // takes no input, which would be dropped with the drafts or saved into the other workspace.
+      if (reason === "opened" || reason === "restarted") {
+        setEcho(MESSAGES[reason] ?? "");
+        leaveSwitching();
+      }
       const key = recentKey(result);
       if (key !== scope.current) {
         scope.current = key;
@@ -247,11 +265,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         }
       }
       // A save of this window reports `written`, its message ("Saved ...") stays; a change from outside
-      // is quiet (D-062).
-      if (change.reason !== "written" && change.reason !== "external") {
-        setEcho(MESSAGES[change.reason] ?? "");
-      }
+      // is quiet (D-062). The core process stopped for good: a switch ends now, no refresh follows.
+      // Opened and restarted say so, and end a switch, after their refresh.
       if (change.reason === "stopped") {
+        setEcho(STOPPED);
+        leaveSwitching();
         stoppedRef.current = true;
         setStopped(true);
       } else {
@@ -332,13 +350,60 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     workspaces: {
       name: view?.name,
       list: () => bridge.recentWorkspaces(),
-      open: (root) => bridge.openWorkspace(root),
+      open: (...request) => bridge.openWorkspace(...request),
     },
   };
 
   // The shortcuts are read from the latest context, so one listener serves all renders.
   const latest = useRef(context);
   latest.current = context;
+  const propertiesNow = useRef(properties);
+  propertiesNow.current = properties;
+  // Before another workspace opens in this window (also from File > Open Workspace), main asks to save
+  // the unsaved input; it switches only when all is saved (SR-131 AK3, `switch.ts`). From then on the
+  // window is switching: the sheet takes no input and the minibuffer says so, until the other workspace
+  // is open, the save failed, or main gave up waiting (`save-expired`).
+  useEffect(() => {
+    const unset = bridge.onSave(async () => {
+      switchRun.current += 1;
+      const run = switchRun.current;
+      switchingNow.current = true;
+      setSwitching(true);
+      setPrompt(undefined);
+      latest.current.leaveEditor();
+      setEcho("Opening another workspace…");
+      let saved = false;
+      try {
+        const result = await saveDrafts({
+          call,
+          buffers: latest.current.buffers,
+          drafts: drafts.current,
+          properties: propertiesNow.current,
+          saved: (key) => {
+            onDraft(key, undefined);
+          },
+        });
+        saved = result.ok;
+        if (!result.ok) {
+          setEcho(notSaved(result));
+        }
+      } catch (error) {
+        setEcho(`The unsaved input could not be saved (${String(error)}); the workspace was not changed`);
+      }
+      if (!saved && run === switchRun.current) {
+        leaveSwitching();
+      }
+      return saved;
+    });
+    const unsubscribe = bridge.on("save-expired", () => {
+      leaveSwitching();
+      setEcho(notSavedInTime(latest.current.workspaces?.name));
+    });
+    return () => {
+      unset();
+      unsubscribe();
+    };
+  }, [bridge, call]);
   // The catalog, read once (it is the same for every workspace), and the revision now, read when a command runs.
   const catalog = useRef<readonly CommandListing[]>([]);
   // What a view that shows several elements reads again on: any change of the workspace, also from outside.
@@ -392,6 +457,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         return;
       }
       const now = latest.current;
+      // While another workspace opens, no key acts on the one that is closing (SR-131 AK3).
+      if (switchingNow.current) {
+        event.preventDefault();
+        return;
+      }
       // The command prompt opens also without a workspace ("Open workspace", SR-131); nothing else does.
       if (matches(event, COMMAND_SHORTCUT, now.mac)) {
         event.preventDefault();
@@ -462,7 +532,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   return (
     <div className="shell">
       <TitleBar shown={context.mac} title={windowTitle(view)} />
-      <main className="sheet" aria-label="Sheet" ref={sheet}>
+      <main className="sheet" aria-label="Sheet" ref={sheet} inert={switching}>
         {current === undefined ? null : current.kind === "element" ? (
           <ElementView
             key={current.key}
@@ -531,7 +601,9 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         echo={echoLine(echo, view)}
         prompt={prompt}
         onCommand={() => {
-          ask(commands());
+          if (!switchingNow.current) {
+            ask(commands());
+          }
         }}
         onClose={(cancelled) => {
           follow.closed(cancelled);
