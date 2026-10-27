@@ -1,6 +1,6 @@
 import { MessageChannel } from "node:worker_threads";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
+import type { AgentActivity, WorkspaceChange, WorkspaceMessage } from "../shared/protocol.js";
 import { COPY_CHANNEL, WORKSPACE_CHANNEL } from "../shared/protocol.js";
 import type { IpcRendererLike } from "./bridge.js";
 import { createBridge } from "./bridge.js";
@@ -60,6 +60,15 @@ const STOPPED = {
     message: "The core process stopped before it answered",
     details: { aborted: true },
   },
+};
+
+/** An access as `workspace.activity` gives it. */
+const ACTIVITY: AgentActivity = {
+  access: "mcp",
+  command: "element.update",
+  effect: "write-files",
+  at: "2026-10-27T09:30:00.123Z",
+  element: { id: "0f3c6a1e-2b4d-4e8f-9a1b-46fb54e88fb3", repository: "system" },
 };
 
 describe("createBridge", () => {
@@ -157,26 +166,76 @@ describe("createBridge", () => {
     ipc.send({ open: true }, [port]);
     core.postMessage("noise");
     core.postMessage({ id: 99, result: { ok: true, output: 1 } });
-    core.postMessage({ event: "workspace-changed", change: { reason: "written" } });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
     await vi.waitFor(() => {
       expect(listener).toHaveBeenCalledTimes(2);
     });
     expect(listener).toHaveBeenCalledWith({ reason: "written" });
     twice();
-    core.postMessage({ event: "workspace-changed", change: { reason: "written" } });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
     await vi.waitFor(() => {
       expect(listener).toHaveBeenCalledTimes(3);
     });
   });
 
-  it("has no other events", () => {
-    const bridge = createBridge(new FakeIpc());
-    const listener = vi.fn();
-    const off = (bridge.on as (event: string, listener: () => void) => () => void)(
-      "element-deleted",
-      listener,
-    );
+  it("passes an agent's access to the listeners of agent-activity only, each event to its own", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const { port, core } = fakeCore(() => undefined);
+    ipc.send({ open: true }, [port]);
+    const changes: WorkspaceChange[] = [];
+    bridge.on("workspace-changed", (change) => changes.push(change));
+    // Nobody listens to agent-activity yet: the access goes nowhere.
+    core.postMessage({ event: "agent-activity", data: ACTIVITY });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(1);
+    });
+    const activities: AgentActivity[] = [];
+    const off = bridge.on("agent-activity", (activity) => activities.push(activity));
+    core.postMessage({ event: "agent-activity", data: { ...ACTIVITY, effect: "delete" } });
+    core.postMessage({ event: "agent-activity", data: ACTIVITY });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(2);
+    });
+    expect(activities).toEqual([ACTIVITY]);
+    expect(changes).toEqual([{ reason: "written" }, { reason: "written" }]);
     off();
+    core.postMessage({ event: "agent-activity", data: ACTIVITY });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(3);
+    });
+    expect(activities).toEqual([ACTIVITY]);
+  });
+
+  it("has no other events", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const listener = vi.fn();
+    // The renderer may pass any name.
+    const on = (name: string, listener: () => void): (() => void) =>
+      (bridge.on as (event: string, listener: () => void) => () => void)(name, listener);
+    const offs = ["element-deleted", "follow-mode", "toString", "__proto__"].map((name) =>
+      on(name, listener),
+    );
+    const { port, core } = fakeCore(() => undefined);
+    ipc.send({ open: true }, [port]);
+    const heard = vi.fn();
+    bridge.on("workspace-changed", heard);
+    for (const event of ["element-deleted", "follow-mode", "toString", "__proto__"]) {
+      core.postMessage({ event, data: { reason: "written" } });
+    }
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(heard).toHaveBeenCalledTimes(1);
+    });
+    ipc.send({ open: false, reason: "stopped" });
+    expect(heard).toHaveBeenCalledTimes(2);
+    for (const off of offs) {
+      off();
+    }
     expect(listener).not.toHaveBeenCalled();
   });
 

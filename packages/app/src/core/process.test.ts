@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
-import { Workspace, createCommandRuntime } from "@logreq/core";
+import { Workspace, cacheFolder, createCommandRuntime } from "@logreq/core";
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -160,7 +160,7 @@ describe("serveCoreProcess", () => {
     const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-no-workspace-")));
     try {
       const opened: string[] = [];
-      const { parent, exit } = start((root) => {
+      const { parent, exit, log } = start((root) => {
         opened.push(root);
         return new Workspace(root);
       });
@@ -168,11 +168,49 @@ describe("serveCoreProcess", () => {
       await waitUntil(() => parent.sent.length === 1);
       expect(parent.sent).toEqual([{ type: "ready", root: folder }]);
       expect(opened).toEqual([folder]);
+      // Without a workspace file no agent can be followed; the log says why, and the process serves on.
+      await waitUntil(() => log.mock.calls.length === 1);
+      expect(log.mock.calls[0]?.[0]).toMatch(/^Agents cannot be followed: the workspace cannot be read/);
       parent.send({ type: "stop" });
       await waitUntil(() => exit.mock.calls.length === 1);
     } finally {
       await fs.rm(folder, { recursive: true, force: true });
     }
+  });
+
+  it("sends each access an agent makes through MCP on the copy to its windows (SR-117)", async () => {
+    const fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
+    fixtures.push(fixture);
+    const { parent, exit, log } = start();
+    parent.send({ type: "open", folder: fixture.root });
+    const { core, window, received } = windowPort();
+    parent.send({ type: "connect" }, [core]);
+    await waitUntil(() => parent.sent.length === 1);
+    // An MCP server of the same copy: the same cache folder, so the same activity file.
+    const agent = new Workspace(fixture.root, { cacheFolder: cacheFolder(fixture.root) });
+    try {
+      // The file there when the watch starts is never reported, so the agent reads until one arrives.
+      for (const end = Date.now() + 10_000; received.length === 0 && Date.now() < end;) {
+        await runtime.invoke("element.get", { ref: "SR-e88fb3" }, { workspace: agent, access: "mcp" });
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      expect(received[0]).toEqual({
+        event: "agent-activity",
+        data: {
+          access: "mcp",
+          command: "element.get",
+          effect: "read",
+          at: expect.any(String) as unknown,
+          element: { id: "e8df96ea-a168-4d90-8d65-6328cee88fb3", repository: "system" },
+        },
+      });
+    } finally {
+      await agent.close();
+    }
+    expect(log).not.toHaveBeenCalled();
+    parent.send({ type: "stop" });
+    await waitUntil(() => exit.mock.calls.length === 1);
+    window.close();
   });
 
   it("before open: closes ports, finds no files, and ends on stop", async () => {

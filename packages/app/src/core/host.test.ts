@@ -7,8 +7,8 @@ import { CommandError, Workspace, createCommandRuntime, defineWorkspaceState } f
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PortMessage } from "../shared/protocol.js";
-import type { Channel } from "./host.js";
+import type { AgentActivity, PortMessage } from "../shared/protocol.js";
+import type { Channel, CoreHostOptions } from "./host.js";
 import { FILE_HOST, createCoreHost, lexicalTarget } from "./host.js";
 
 const runtime = createCommandRuntime();
@@ -75,7 +75,11 @@ afterEach(async () => {
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 
 const setup = async (
-  options: { runtime?: CommandRuntime; files?: Record<string, string | Uint8Array> } = {},
+  options: {
+    runtime?: CommandRuntime;
+    files?: Record<string, string | Uint8Array>;
+    activity?: CoreHostOptions["activity"];
+  } = {},
 ) => {
   const fixture = await createFixtureWorkspace({
     fixture: "SR-004/one-repository",
@@ -84,7 +88,11 @@ const setup = async (
   fixtures.push(fixture);
   const workspace = new Workspace(fixture.root);
   workspaces.push(workspace);
-  const host = createCoreHost({ runtime: options.runtime ?? runtime, workspace });
+  const host = createCoreHost({
+    runtime: options.runtime ?? runtime,
+    workspace,
+    ...(options.activity === undefined ? {} : { activity: options.activity }),
+  });
   const connect = (): Window => {
     const { port1, port2 } = new MessageChannel();
     host.connect(nodeChannel(port1));
@@ -165,8 +173,8 @@ describe("createCoreHost: catalog calls", () => {
     const created = await writer.answer(2);
     expect(created).toMatchObject({ id: 2, result: { ok: true } });
     await waitUntil(() => other.received.length === 1 && writer.received.length === 3);
-    expect(other.received).toEqual([{ event: "workspace-changed", change: { reason: "written" } }]);
-    expect(writer.received.at(-1)).toEqual({ event: "workspace-changed", change: { reason: "written" } });
+    expect(other.received).toEqual([{ event: "workspace-changed", data: { reason: "written" } }]);
+    expect(writer.received.at(-1)).toEqual({ event: "workspace-changed", data: { reason: "written" } });
     writer.close();
     other.close();
   });
@@ -227,6 +235,76 @@ describe("createCoreHost: catalog calls", () => {
     await host.close();
     await waitUntil(() => closed);
     expect(() => workspace.get(defineWorkspaceState("probe", () => 1))).toThrow();
+  });
+});
+
+describe("createCoreHost: access and agent activity (SR-117)", () => {
+  const ACTIVITY: AgentActivity = {
+    access: "mcp",
+    command: "element.get",
+    effect: "read",
+    at: "2026-10-27T09:30:00.123Z",
+    element: { id: "0f3c6a1e-2b4d-4e8f-9a1b-46fb54e88fb3", repository: "system" },
+  };
+
+  it("calls core with the access app (ADR-0002 rule 4), reads, writes and its own status alike", async () => {
+    const accesses: [string, unknown][] = [];
+    const recording: CommandRuntime = {
+      ...runtime,
+      invoke: (name, input, ctx) => {
+        accesses.push([name, ctx.access]);
+        return runtime.invoke(name, input, ctx);
+      },
+    };
+    const { host, connect } = await setup({ runtime: recording });
+    const window = connect();
+    window.send({ id: 1, kind: "invoke", name: "element.get", input: { ref: "SR-e88fb3" } });
+    window.send({ id: 2, kind: "invoke", name: "element.create", input: {} });
+    await window.answer(1);
+    await window.answer(2);
+    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toMatchObject({ status: 200 });
+    expect(accesses.sort()).toEqual([
+      ["element.create", "app"],
+      ["element.get", "app"],
+      ["workspace.status", "app"],
+    ]);
+    window.close();
+  });
+
+  it("sends each access an agent made to every window, past a port that is gone", async () => {
+    let report: (activity: AgentActivity) => void = () => undefined;
+    const close = vi.fn();
+    const { host, connect } = await setup({
+      activity: (onAccess) => {
+        report = onAccess;
+        return { close };
+      },
+    });
+    const first = connect();
+    const second = connect();
+    const gone: Channel = {
+      post: () => {
+        throw new Error("The port is closed");
+      },
+      onMessage: () => undefined,
+      onClose: () => undefined,
+      close: () => undefined,
+    };
+    host.connect(gone);
+    report(ACTIVITY);
+    await waitUntil(() => first.received.length === 1 && second.received.length === 1);
+    expect(first.received).toEqual([{ event: "agent-activity", data: ACTIVITY }]);
+    expect(second.received).toEqual(first.received);
+    expect(close).not.toHaveBeenCalled();
+    await host.close();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("without a watch, closes as before", async () => {
+    const { host, connect } = await setup();
+    const window = connect();
+    await host.close();
+    expect(window.received).toEqual([]);
   });
 });
 
@@ -436,7 +514,7 @@ describe("createCoreHost: shutdown", () => {
     writer.close();
     finish();
     await waitUntil(() => other.received.length === 1);
-    expect(other.received).toEqual([{ event: "workspace-changed", change: { reason: "written" } }]);
+    expect(other.received).toEqual([{ event: "workspace-changed", data: { reason: "written" } }]);
     other.close();
   });
 

@@ -3,12 +3,15 @@
 // one `connect` with a port per window load. The workspace opens as `logreq serve api` opens it: the
 // root found upwards from the folder (else the folder itself, so `workspace.init` works there), the
 // model cache in the cache folder of the copy, the watcher first and then the load (SR-007, SR-082).
+// It also watches the accesses that agents make through the API or MCP on the copy (SR-117), and the
+// host sends each to the windows.
 import type { CommandRuntime, Workspace } from "@logreq/core";
 import {
   Workspace as CoreWorkspace,
   cacheFolder,
   findWorkspaceRoot,
   warmWorkspace,
+  watchActivity,
   watchWorkspace,
 } from "@logreq/core";
 import type { CoreMessage } from "../shared/protocol.js";
@@ -82,7 +85,12 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
     // A cold load can take up to 30 s at 50,000 elements (SR-082 AK2); the first command waits for it.
     void warmWorkspace(workspace);
     parentPort.postMessage({ type: "ready", root });
-    return createCoreHost({ runtime, workspace });
+    // Why agents cannot be followed (no cache folder outside the repositories, no watch) is a log line.
+    return createCoreHost({
+      runtime,
+      workspace,
+      activity: (onAccess) => watchActivity(workspace, { onAccess, log: options.log }),
+    });
   };
 
   parentPort.on("message", ({ data, ports }) => {

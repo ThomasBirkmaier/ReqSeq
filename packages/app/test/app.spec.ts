@@ -99,6 +99,33 @@ test.describe("on a fixture workspace", () => {
         details: { command: "element.delete" },
       },
     });
+    // `on` is one function for the events of the window (ADR-0010); any other name subscribes nothing.
+    const heard = await running.window.evaluate(async () => {
+      const names: string[] = [];
+      const on = (name: string, listener: () => void): (() => void) =>
+        (window.logreq.on as (event: string, listener: () => void) => () => void)(name, listener);
+      const offs = ["element-deleted", "follow-mode", "toString"].map((name) =>
+        on(name, () => names.push(name)),
+      );
+      let off: () => void = () => undefined;
+      const written = new Promise<void>((resolve) => {
+        off = window.logreq.on("workspace-changed", ({ reason }) => {
+          names.push(reason);
+          resolve();
+        });
+      });
+      await window.logreq.invoke("element.create", {
+        type: "system-requirement",
+        title: "Show gusts",
+        properties: { "requirement-type": "functional", "acceptance-criteria": ["Shown."] },
+      });
+      await written;
+      for (const unsubscribe of [off, ...offs]) {
+        unsubscribe();
+      }
+      return names;
+    });
+    expect(heard).toEqual(["written"]);
   });
 
   test("the renderer is sandboxed: no Node, no require, no process", async () => {

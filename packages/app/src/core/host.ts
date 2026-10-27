@@ -2,12 +2,19 @@
 // one open workspace and answers the windows' requests by calling the command catalog, nothing else
 // (ADR-0002). Outputs and error objects go back unchanged, so the app gives what CLI, API and MCP give
 // (SR-080 AK2). Transport only: which command runs and with which input is the renderer's choice, and
-// every check is core's.
+// every check is core's. The one push besides the answers are the events (`BridgeEvents`): a write of
+// a window, and an access of an agent through the API or MCP (SR-117) that the activity watch reports.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
+import type { AccessName, CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
 import { CommandError } from "@logreq/core";
-import type { CommandListing, FileAnswer, InvokeResult, PortMessage } from "../shared/protocol.js";
+import type {
+  AgentActivity,
+  CommandListing,
+  FileAnswer,
+  InvokeResult,
+  PortMessage,
+} from "../shared/protocol.js";
 import { decodedPath, isInside } from "../shared/paths.js";
 import { portRequest } from "../shared/protocol.js";
 
@@ -37,6 +44,12 @@ export interface CoreHost {
 export interface CoreHostOptions {
   readonly runtime: CommandRuntime;
   readonly workspace: Workspace;
+  /**
+   * Starts the watch of the accesses agents make through the API or MCP on this copy (SR-117; the core
+   * process passes core's `watchActivity`). The host sends each access to every window as the event
+   * `agent-activity` and closes the watch first on `close`. Without it, no window hears of agents.
+   */
+  readonly activity?: (onAccess: (activity: AgentActivity) => void) => { close(): void };
 }
 
 /**
@@ -96,7 +109,10 @@ const fileOf = (url: string): { readonly repository: string; readonly relative: 
 const errorObject = (error: unknown): CommandErrorObject =>
   error instanceof CommandError ? error.toJSON() : { code: "internal", message: "Internal error in the app" };
 
-export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHost => {
+/** The access of every call of the app (ADR-0002 rule 4); core does not record it (SR-117). */
+const ACCESS: AccessName = "app";
+
+export const createCoreHost = ({ runtime, workspace, activity }: CoreHostOptions): CoreHost => {
   const entries = new Map<string, CatalogEntry>(runtime.contracts.commands.map((e) => [e.name, e]));
   const channels = new Map<Channel, AbortController>();
   /** The requests being answered, so that close waits for the writes among them. */
@@ -107,7 +123,7 @@ export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHos
   const repositoryFolders = (): Promise<ReadonlyMap<string, string>> => {
     if (folders === undefined) {
       const loading = (async () => {
-        const status = (await runtime.invoke("workspace.status", {}, { workspace })) as {
+        const status = (await runtime.invoke("workspace.status", {}, { workspace, access: ACCESS })) as {
           readonly repositories: readonly { name: string; available: boolean; path?: string }[];
         };
         return new Map(
@@ -127,17 +143,26 @@ export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHos
     return folders;
   };
 
+  /** Sends `message` to every window; a port that is gone already (and throws) does not stop the others. */
   const broadcast = (message: PortMessage): void => {
     for (const channel of channels.keys()) {
-      channel.post(message);
+      try {
+        channel.post(message);
+      } catch {
+        // Its close event follows and removes the channel; nobody there waits for the event.
+      }
     }
   };
+
+  const watch = activity?.((access) => {
+    broadcast({ event: "agent-activity", data: access });
+  });
 
   const isWrite = (name: string): boolean => entries.get(name)?.effect === "write-files";
 
   const invoke = async (name: string, input: unknown, signal: AbortSignal): Promise<InvokeResult> => {
     // A write gets no abort signal: it runs to its end even when its window goes away.
-    const context = isWrite(name) ? { workspace } : { workspace, signal };
+    const context = isWrite(name) ? { workspace, access: ACCESS } : { workspace, access: ACCESS, signal };
     try {
       return { ok: true, output: await runtime.invoke(name, input, context) };
     } catch (error) {
@@ -165,7 +190,7 @@ export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHos
     }
     if (result.ok && isWrite(request.name)) {
       folders = undefined;
-      broadcast({ event: "workspace-changed", change: { reason: "written" } });
+      broadcast({ event: "workspace-changed", data: { reason: "written" } });
     }
   };
 
@@ -209,6 +234,7 @@ export const createCoreHost = ({ runtime, workspace }: CoreHostOptions): CoreHos
     },
 
     close: async () => {
+      watch?.close();
       for (const controller of channels.values()) {
         controller.abort();
       }

@@ -76,7 +76,7 @@ The app follows the system's light or dark setting at start and while it runs (`
 ## Processes
 
 - **Main** (`src/main/`, `out/main/index.js`) opens one window, the menu and the folder dialog. The menu is minimal: File > Open Workspace (Ctrl/Cmd+O), Quit (Close on macOS) and Edit. An unpackaged build adds Developer > Reload (F5) and Developer Tools (F12). Other keys stay free for the minibuffer and buffers. The menu bar hides until Alt on Windows and Linux. It also handles the protocols and the security settings. `--workspace <folder>` opens that folder at start.
-- **Core process** (`src/core/`, `out/main/core.js`) is an Electron utility process (plain Node) with one workspace. That workspace is the root found upwards from the chosen folder, or else the folder itself. Its model cache lies in the cache folder of the copy, and the watcher and the load run as in `logreq serve api`. Opening another workspace stops the core process and starts a new one. Before it stops, it aborts running reads, lets running writes finish and closes its workspace; after 5 s it is killed. The app stops it the same way before it quits. A write command also runs to its end when its window goes away. If the workspace cannot be opened, the core process logs it and ends with exit code 1. A core process that stops by itself is started again; after more than 3 stops within 60 s it is not started again.
+- **Core process** (`src/core/`, `out/main/core.js`) is an Electron utility process (plain Node) with one workspace. That workspace is the root found upwards from the chosen folder, or else the folder itself. Its model cache lies in the cache folder of the copy, and the watcher and the load run as in `logreq serve api`. Opening another workspace stops the core process and starts a new one. Before it stops, it aborts running reads, lets running writes finish and closes its workspace; after 5 s it is killed. The app stops it the same way before it quits. A write command also runs to its end when its window goes away. It also watches the accesses agents make through the API or MCP on the copy (SR-117, `agent-activity`); why it cannot (no cache folder outside the repositories, no watch) is a line on standard error. Every call of the app passes the access `app` (ADR-0002 rule 4). If the workspace cannot be opened, the core process logs it and ends with exit code 1. A core process that stops by itself is started again; after more than 3 stops within 60 s it is not started again.
 - **Renderer** (`src/renderer/`, React) is sandboxed and loaded from `app://logreq/index.html`. It reaches only `window.logreq`.
 
 Main gives each page load a `MessagePort` to the core process (`logreq:workspace`, `src/shared/protocol.ts`). The renderer talks to the core process over that port directly.
@@ -86,15 +86,17 @@ Main gives each page load a `MessagePort` to the core process (`logreq:workspace
 - `invoke(name, input = {})` resolves to `{ ok: true, output }` or `{ ok: false, error }`, where `error` is the error object of every access. It never rejects, because the context bridge would keep only an error's message. Without a workspace it gives `workspace.not-found`.
 - `commands()` returns the catalog entries, each with `implemented`, as `GET /v1/commands` of the API does (for the command palette, SR-073 AK2).
 - `copyText(text)` (SR-128) puts a text on the system clipboard and resolves `true`, or `false` when it could not; it never rejects. It sends the one message from the renderer to main (`logreq:copy`), which writes the clipboard only for a string of at most 16 Mi characters from the main frame of the LogReq window (`app://logreq`). It is a facility of the window like the theme, not a catalog command, and it reads nothing.
-- `on("workspace-changed", listener)` returns the function that unsubscribes. The listener gets `{ reason }`:
-  - `opened`: another workspace was opened.
-  - `restarted`: the core process was started again.
-  - `stopped`: the core process stopped and is not started again.
-  - `written`: a write command of a window changed files.
+- `on(event, listener)` returns the function that unsubscribes; a name that is not an event subscribes nothing. The events share one channel (`BridgeEvents` in `src/shared/protocol.ts`); the bridge checks the data of each as its schema does and passes on only those fields.
+  - `workspace-changed`: the listener gets `{ reason }`:
+    - `opened`: another workspace was opened.
+    - `restarted`: the core process was started again.
+    - `stopped`: the core process stopped and is not started again.
+    - `written`: a write command of a window changed files.
 
-  Files changed outside the app do not send the event yet; that needs a change event of core's watcher (#331).
+    Files changed outside the app do not send the event yet; that needs a change event of core's watcher (#331).
+  - `agent-activity` (SR-117): the listener gets an access an agent made through the API or the MCP server of this copy, as `workspace.activity` gives it: `{ access, command, effect, at, element: { id, repository } }`, no content. The core process watches `activity.json` in the cache folder of the copy (core's `watchActivity`) and sends each new access to every window, once its store holds the state of the element the access saw (at most 1 s later). Nothing is sent when a window connects; `workspace.activity` gives the last access. The app's own calls are never recorded (they pass the access `app`).
 
-The bridge offers nothing else, and in particular no delete (SR-099): `invoke` and `commands` are generic over the catalog, `on` is the one event, `copyText` the one facility of the window.
+The bridge offers nothing else, and in particular no delete (SR-099): `invoke` and `commands` are generic over the catalog, `on` is the one subscription (two events), `copyText` the one facility of the window.
 
 ## Security (SR-077, SR-078)
 

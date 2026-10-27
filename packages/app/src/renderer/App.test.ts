@@ -30,9 +30,14 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
-    on: (_event, listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+    // Only the workspace's changes: the app subscribes nothing else yet.
+    on: (event: string, listener: (data: never) => void) => {
+      if (event !== "workspace-changed") {
+        return () => undefined;
+      }
+      const changed = listener as (change: WorkspaceChange) => void;
+      listeners.add(changed);
+      return () => listeners.delete(changed);
     },
     copyText,
   };

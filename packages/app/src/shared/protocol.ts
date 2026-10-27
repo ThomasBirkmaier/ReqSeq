@@ -3,7 +3,7 @@
 // the app gives what CLI, API and MCP give (ADR-0002, SR-080). The renderer reaches the core process
 // over a MessagePort that the main process hands over; the main process talks to the core process over
 // the utility process's parent port.
-import type { CatalogEntry, CommandErrorObject } from "@logreq/core";
+import type { ActivityAccess, CatalogEntry, CommandErrorObject } from "@logreq/core";
 
 /** Main to preload: the workspace of the window, with the port to its core process when one is open. */
 export const WORKSPACE_CHANNEL = "logreq:workspace";
@@ -32,6 +32,31 @@ export interface WorkspaceChange {
   readonly reason: WorkspaceChangeReason;
 }
 
+/**
+ * An element an agent read or changed through the API or the MCP server of this copy (SR-117): the
+ * access as `workspace.activity` gives it (`schemas/activity.schema.json#/$defs/access`), no content.
+ */
+export type AgentActivity = ActivityAccess;
+
+/**
+ * The events the core process and the main process send a window, by name, with what the listeners of
+ * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and one
+ * check in `EVENT_DATA`, and the bridge stays at its four functions (ADR-0010).
+ */
+export interface BridgeEvents {
+  /** The workspace of the window changed (`WorkspaceChangeReason`). */
+  readonly "workspace-changed": WorkspaceChange;
+  /** An agent read or changed an element through the API or MCP (SR-117); sent as it arrives. */
+  readonly "agent-activity": AgentActivity;
+}
+
+export type BridgeEvent = keyof BridgeEvents;
+
+/** An event on the port: its name and what its listeners get. */
+export type PortEvent = {
+  readonly [E in BridgeEvent]: { readonly event: E; readonly data: BridgeEvents[E] };
+}[BridgeEvent];
+
 /** The body of a WORKSPACE_CHANNEL message; with `open`, the message carries the port. */
 export interface WorkspaceMessage {
   readonly open: boolean;
@@ -57,8 +82,12 @@ export interface LogReqBridge {
   invoke(name: string, input?: unknown): Promise<InvokeResult>;
   /** Every catalog command, for the command palette (SR-073 AK2). */
   commands(): Promise<readonly CommandListing[]>;
-  /** Calls `listener` whenever the workspace changed; returns the function that unsubscribes it. */
-  on(event: "workspace-changed", listener: (change: WorkspaceChange) => void): () => void;
+  /**
+   * Calls `listener` with each `event` (`BridgeEvents`): `workspace-changed` whenever the workspace
+   * changed, `agent-activity` whenever an agent read or changed an element through the API or MCP
+   * (SR-117). Returns the function that unsubscribes it; any other name subscribes nothing.
+   */
+  on<E extends BridgeEvent>(event: E, listener: (data: BridgeEvents[E]) => void): () => void;
   /**
    * Puts `text` on the system clipboard (SR-128); resolves `false` when it could not, never rejects. A
    * facility of the window like the theme, so it is no catalog command (CLI, API and MCP give the values
@@ -76,7 +105,7 @@ export type PortRequest =
 export type PortMessage =
   | { readonly id: number; readonly result: InvokeResult }
   | { readonly id: number; readonly commands: readonly CommandListing[] }
-  | { readonly event: "workspace-changed"; readonly change: WorkspaceChange };
+  | PortEvent;
 
 /**
  * Main to core process, over the parent port. `open` comes first and once; `connect` carries the port
@@ -160,15 +189,81 @@ export const coreMessage = (value: unknown): CoreMessage | undefined => {
     : { type: "file", id, status: 404 };
 };
 
+const REASONS: readonly unknown[] = [
+  "opened",
+  "restarted",
+  "stopped",
+  "written",
+] satisfies readonly WorkspaceChangeReason[];
+
+const workspaceChange = (value: unknown): WorkspaceChange | undefined =>
+  isRecord(value) && REASONS.includes(value["reason"])
+    ? { reason: value["reason"] as WorkspaceChangeReason }
+    : undefined;
+
+// The checks of `schemas/activity.schema.json#/$defs/access`, kept here because the preload and the
+// renderer bundle no part of core.
+const ACCESSES: readonly unknown[] = [
+  "cli",
+  "api",
+  "mcp",
+  "app",
+] satisfies readonly AgentActivity["access"][];
+const EFFECTS: readonly unknown[] = ["read", "write-files"] satisfies readonly AgentActivity["effect"][];
+const COMMAND = /^[a-z]+\.[a-z][A-Za-z]*$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/** An RFC 3339 date and time (`common.schema.json#/$defs/dateTime`). */
+const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i;
+
+const isText = (value: unknown, pattern: RegExp): value is string =>
+  typeof value === "string" && pattern.test(value);
+
+/** `value` as an agent's access, with only the fields of the schema; undefined when it is none. */
+const agentActivity = (value: unknown): AgentActivity | undefined => {
+  if (!isRecord(value) || !isRecord(value["element"])) {
+    return undefined;
+  }
+  const { access, command, effect, at } = value;
+  const { id, repository } = value["element"];
+  return ACCESSES.includes(access) &&
+    isText(command, COMMAND) &&
+    EFFECTS.includes(effect) &&
+    isText(at, DATE_TIME) &&
+    isText(id, UUID) &&
+    typeof repository === "string" &&
+    repository !== ""
+    ? {
+        access: access as AgentActivity["access"],
+        command,
+        effect: effect as AgentActivity["effect"],
+        at,
+        element: { id, repository },
+      }
+    : undefined;
+};
+
+/** What each event carries, checked; a new event needs its entry here. */
+const EVENT_DATA: { readonly [E in BridgeEvent]: (value: unknown) => BridgeEvents[E] | undefined } = {
+  "workspace-changed": workspaceChange,
+  "agent-activity": agentActivity,
+};
+
+/** The names of the bridge's events, in the order of `EVENT_DATA`. */
+export const BRIDGE_EVENTS = Object.keys(EVENT_DATA) as readonly BridgeEvent[];
+
+/** Whether `name` is an event of the bridge (the renderer is not trusted to keep to the types). */
+export const isBridgeEvent = (name: unknown): name is BridgeEvent =>
+  typeof name === "string" && Object.hasOwn(EVENT_DATA, name);
+
 /** `value` as a message from the core process on the port, or undefined. */
 export const portMessage = (value: unknown): PortMessage | undefined => {
   if (!isRecord(value)) {
     return undefined;
   }
-  if (value["event"] === "workspace-changed") {
-    return isRecord(value["change"])
-      ? { event: "workspace-changed", change: value["change"] as unknown as WorkspaceChange }
-      : undefined;
+  if (value["event"] !== undefined) {
+    const event = value["event"];
+    const data = isBridgeEvent(event) ? EVENT_DATA[event](value["data"]) : undefined;
+    return data === undefined ? undefined : ({ event, data } as PortEvent);
   }
   if (typeof value["id"] !== "number") {
     return undefined;
