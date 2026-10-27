@@ -11,6 +11,7 @@ export const ModelineBar = ({
   parts,
   view,
   stopped,
+  follow,
   element,
   onCopy,
   notice,
@@ -21,6 +22,8 @@ export const ModelineBar = ({
   readonly view: WorkspaceView | undefined;
   /** The core process stopped for good. */
   readonly stopped: boolean;
+  /** The mark of the mode „Agent folgen“ (SR-117 AK3); undefined while it is off. */
+  readonly follow?: string | undefined;
   /** The element that the shown buffer is: its ID, at the start of the first part, is a field to copy. */
   readonly element: DataExportElement | undefined;
   /** Copies a field (its name and its value). */
@@ -62,11 +65,13 @@ export const ModelineBar = ({
           </span>
           <span className="workspace">
             <span className="segment name">{view.name ?? "No workspace"}</span>
-            {[...view.marks, ...(stopped ? ["stopped"] : [])].map((mark) => (
-              <span key={mark} className="segment">
-                {mark}
-              </span>
-            ))}
+            {[...view.marks, ...(follow === undefined ? [] : [follow]), ...(stopped ? ["stopped"] : [])].map(
+              (mark) => (
+                <span key={mark} className="segment">
+                  {mark}
+                </span>
+              ),
+            )}
           </span>
         </>
       )}

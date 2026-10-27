@@ -45,6 +45,7 @@ import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
+import { useFollow } from "./use-follow.js";
 import { promptUse } from "./usage.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
@@ -263,6 +264,21 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     [],
   );
 
+  // The mode „Agent folgen“ (SR-117): display state of the window, off at the start.
+  const follow = useFollow({
+    bridge,
+    call,
+    buffers,
+    dispatch,
+    drafts: drafts.current.size,
+    prompt: prompt !== undefined,
+    drafted: (key) => drafts.current.has(key),
+    echo: setEcho,
+    refresh: () => {
+      setRevision((count) => count + 1);
+    },
+  });
+
   // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
   const opened = useRef<readonly string[]>([]);
   opened.current = openingOrder(opened.current, buffers);
@@ -295,6 +311,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       onDraft(key, undefined);
     },
     drafted: (key) => drafts.current.has(key),
+    follow: follow.controls,
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
     workspaces: {
       name: view?.name,
@@ -388,9 +405,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     }
   }, [prompt, current?.key, inMatrix(current)]);
 
-  // An element that is shown (opened or switched to) is the newest of the recent elements.
+  // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
+  // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
   useEffect(() => {
-    if (current?.kind === "element" && scope.current !== undefined) {
+    const byMode = follow.seen(current?.key);
+    if (!byMode && current?.kind === "element" && scope.current !== undefined) {
       recentRef.current = remember(recentRef.current, { id: current.id, repository: current.repository });
       setRecent(recentRef.current);
       saveRecent(appStorage, scope.current, recentRef.current);
@@ -486,6 +505,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         parts={parts}
         view={view}
         stopped={stopped}
+        follow={follow.mark}
         element={shownElement(current, loaded)}
         onCopy={copy}
         notice={notice}
@@ -496,7 +516,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         onCommand={() => {
           ask(commands());
         }}
-        onClose={() => {
+        onClose={(cancelled) => {
+          follow.closed(cancelled);
           setPrompt(undefined);
         }}
       />

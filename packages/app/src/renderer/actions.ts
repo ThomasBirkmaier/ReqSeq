@@ -103,6 +103,13 @@ export interface ElementControls {
   readonly members?: boolean;
 }
 
+/** The mode „Agent folgen“ (SR-117, `use-follow.ts`): display state of the app, switched only by its two actions (AK4). */
+export interface FollowControls {
+  readonly on: boolean;
+  readonly start: () => void;
+  readonly stop: () => void;
+}
+
 export interface ActionContext {
   /** A workspace is open. */
   readonly workspace: boolean;
@@ -133,6 +140,8 @@ export interface ActionContext {
   readonly discard: (key: string) => void;
   /** The buffer with this key has unsaved changes. */
   readonly drafted: (key: string) => boolean;
+  /** The mode „Agent folgen“ (SR-117); absent where the window offers no such mode. */
+  readonly follow?: FollowControls;
   /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
   readonly workspaces?: WorkspaceControls;
 }
@@ -179,6 +188,12 @@ export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
  */
 export const NEXT_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "n" };
 export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, alt: true, key: "p" };
+
+/**
+ * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
+ * graph (SR-111); Ctrl/Cmd+G stays free for the keyboard-quit, Ctrl/Cmd+K is the reserved prefix (#472).
+ */
+export const FOLLOW_SHORTCUT: Shortcut = { mod: true, shift: true, key: "o" };
 
 const currentList = (context: ActionContext): ListBuffer | undefined => {
   const current = context.buffers[0];
@@ -844,6 +859,24 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       context.theme.follow();
       context.echo("Light or dark as the system says");
+    },
+  },
+  {
+    id: "follow-agent",
+    title: "Follow agent",
+    shortcut: FOLLOW_SHORTCUT,
+    available: (context: ActionContext): boolean => context.workspace && context.follow?.on === false,
+    run: (context: ActionContext): void => {
+      context.follow?.start();
+    },
+  },
+  {
+    id: "stop-following-agent",
+    title: "Stop following agent",
+    shortcut: FOLLOW_SHORTCUT,
+    available: (context: ActionContext): boolean => context.workspace && context.follow?.on === true,
+    run: (context: ActionContext): void => {
+      context.follow?.stop();
     },
   },
 ];

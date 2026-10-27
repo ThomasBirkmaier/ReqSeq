@@ -977,6 +977,16 @@ describe("save element and edit text", () => {
       // The graph (SR-111): Ctrl/Cmd+Shift+G back to the element.
       setup([graphBuffer("uuid", "spec", "X")]).context,
       setup([], {}, true).context,
+      // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
+      ...[false, true].flatMap((on) =>
+        [[element], [list], [graphBuffer("uuid", "spec", "X")], [overviewBuffer()]].map(
+          (buffers) =>
+            setup(buffers, {}, true, {
+              element: controls,
+              follow: { on, start: vi.fn(), stop: vi.fn() },
+            }).context,
+        ),
+      ),
     ];
     // Shortcuts as written: `shift` may be left out.
     const written = (shortcut: { mod: boolean; shift?: boolean; key: string }): string =>

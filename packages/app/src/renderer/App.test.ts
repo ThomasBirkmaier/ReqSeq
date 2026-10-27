@@ -32,7 +32,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
-    // Only the workspace's changes: the app subscribes nothing else yet.
+    // Only the workspace's changes; `agent-activity` (SR-117) subscribes nothing here (follow-app.test.ts).
     on: (event: string, listener: (data: never) => void) => {
       if (event !== "workspace-changed") {
         return () => undefined;
@@ -687,8 +687,9 @@ describe("App", () => {
         answer = resolve;
       });
     await render(bridge);
-    // The workspace's changes, and the catalog after a start without a workspace.
-    expect(listeners.size).toBe(2);
+    // The workspace's changes, the catalog after a start without a workspace, and the mode „Agent folgen“
+    // (SR-117, a restart asks again).
+    expect(listeners.size).toBe(3);
     act(() => {
       root.unmount();
     });

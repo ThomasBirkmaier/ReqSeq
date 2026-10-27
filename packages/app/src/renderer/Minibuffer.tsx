@@ -16,8 +16,8 @@ export interface MinibufferProps {
   readonly prompt: { readonly serial: number; readonly prompt: Prompt } | undefined;
   /** A click on the idle line: ask for a command. */
   readonly onCommand: () => void;
-  /** The prompt ends: Escape, or an answer. */
-  readonly onClose: () => void;
+  /** The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. */
+  readonly onClose: (cancelled: boolean) => void;
 }
 
 const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
@@ -28,7 +28,7 @@ const PromptLine = ({
   onClose,
 }: {
   readonly prompt: Prompt;
-  readonly onClose: () => void;
+  readonly onClose: (cancelled: boolean) => void;
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -87,7 +87,7 @@ const PromptLine = ({
     if (prompt.items.some((item) => item.id === choice.id)) {
       prompt.use?.record(typed, choice.id);
     }
-    onClose();
+    onClose(false);
     (more ? (choice.more ?? choice.run) : choice.run)();
   };
 
@@ -127,7 +127,7 @@ const PromptLine = ({
   // Enter: the selected candidate, the typed text, or (empty input) the end of a list argument.
   const enter = (): void => {
     if (query === "" && prompt.empty !== undefined) {
-      onClose();
+      onClose(false);
       prompt.empty(false);
     } else if (loading) {
       early.current = "enter";
@@ -138,7 +138,7 @@ const PromptLine = ({
     } else if (current !== undefined) {
       choose(current.item, query);
     } else if (prompt.text !== undefined) {
-      onClose();
+      onClose(false);
       prompt.text(query);
     }
   };
@@ -148,7 +148,7 @@ const PromptLine = ({
   // empty input it ends a list argument, as Enter does, and offers the optional arguments.
   const more = (): void => {
     if (query === "" && prompt.empty !== undefined) {
-      onClose();
+      onClose(false);
       prompt.empty(true);
     } else if (loading) {
       early.current = "more";
@@ -158,7 +158,7 @@ const PromptLine = ({
     } else if (current?.item.more !== undefined) {
       choose(current.item, query, true);
     } else if (current === undefined && prompt.more !== undefined) {
-      onClose();
+      onClose(false);
       prompt.more(query);
     } else {
       enter();
@@ -199,7 +199,7 @@ const PromptLine = ({
     event.stopPropagation();
     if (prompt.back !== undefined) {
       event.preventDefault();
-      onClose();
+      onClose(false);
       prompt.back();
     }
     return true;
@@ -233,7 +233,7 @@ const PromptLine = ({
         event.preventDefault();
         prompt.cancel?.();
         waiting.current = 0;
-        onClose();
+        onClose(true);
         break;
     }
   };

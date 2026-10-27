@@ -89,6 +89,10 @@ export interface RunningApp {
 export interface McpSession {
   /** Calls a tool; resolves to its `structuredContent`, rejects with the text of an error result. */
   call(tool: string, args: Readonly<Record<string, unknown>>): Promise<unknown>;
+  /** The names of the tools the server offers (SR-117 AK4). */
+  tools(): Promise<string[]>;
+  /** What the server wrote to standard error so far. */
+  stderr(): string;
   close(): Promise<void>;
 }
 
@@ -165,6 +169,12 @@ const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promis
       }
       return result.structuredContent;
     },
+    tools: async () => {
+      const answer = await request("tools/list", {});
+      const result = answer["result"] as { tools: { name: string }[] };
+      return result.tools.map((tool) => tool.name);
+    },
+    stderr: () => stderr,
     close: async () => {
       if (child.exitCode === null) {
         const ended = new Promise((resolve) => child.once("exit", resolve));
