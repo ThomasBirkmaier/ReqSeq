@@ -136,26 +136,24 @@ export const promptUse = (storage: () => UsageStorage, now: () => number = Date.
 };
 
 /**
- * The items that match `query`, the best match first (`rank`). Two equally good matches go by use:
- * the one in use more and more recently first (SR-108 AK3); a better match is never overtaken. The
- * item chosen the last time for exactly this text comes first when it matches now (SR-121 AK2).
+ * The items that match `query`, the best match first (`rank`). Two equally good matches, and the items
+ * when nothing is typed, go first by fit: the ones that fit the shown view first (SR-133); then by use:
+ * the one in use more and more recently first (SR-108 AK3); a better match is never overtaken. The item
+ * chosen the last time for exactly this text comes first when it matches now (SR-121 AK2).
  */
-export const rankByUse = <T extends { readonly id: string }>(
+export const rankByUse = <T extends { readonly id: string; readonly fits?: boolean }>(
   items: readonly T[],
   name: (item: T) => string,
   query: string,
   use: PromptUse | undefined,
 ): Ranked<T>[] => {
-  if (use === undefined) {
-    return rank(items, name, query);
-  }
-  // `rank` keeps the order it is given among equal matches, so the order of use is the tie-breaker.
-  const byUse = items
-    .map((item) => ({ item, score: use.score(item.id) }))
-    .sort((a, b) => b.score - a.score)
+  // `rank` keeps the order it is given among equal matches, so this order is the tie-breaker.
+  const ordered = items
+    .map((item) => ({ item, fits: item.fits === true ? 1 : 0, score: use?.score(item.id) ?? 0 }))
+    .sort((a, b) => b.fits - a.fits || b.score - a.score)
     .map(({ item }) => item);
-  const ranked = rank(byUse, name, query);
-  const remembered = use.remembered(query);
+  const ranked = rank(ordered, name, query);
+  const remembered = use?.remembered(query);
   const first = ranked.findIndex(({ item }) => item.id === remembered);
   return first <= 0
     ? ranked

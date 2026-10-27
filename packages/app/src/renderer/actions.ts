@@ -50,6 +50,8 @@ export interface Choice {
   readonly run: () => void;
   /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
   readonly more?: () => void;
+  /** It fits the shown view (SR-133): it comes before the others when nothing is typed and among equal matches. */
+  readonly fits?: boolean;
 }
 
 /** What the minibuffer asks for. */
@@ -786,7 +788,8 @@ const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
 
 /**
  * The command prompt: the actions that apply now, with their shortcuts, then `commands` (the catalog's,
- * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2).
+ * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2). An action is shown only where it
+ * applies, so each one fits the view (SR-133 AK1).
  */
 export const commandPrompt = (
   context: ActionContext,
@@ -800,6 +803,7 @@ export const commandPrompt = (
       id: action.id,
       name: action.title,
       ...hintOf(action, context.mac),
+      fits: true,
       run: () => {
         runAction(action, context);
       },

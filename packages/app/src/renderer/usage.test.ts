@@ -291,3 +291,60 @@ describe("the usage record", () => {
     expect(setItem).toHaveBeenCalled();
   });
 });
+
+describe("ranking by fit to the shown view", () => {
+  /** The commands, of which `fitting` fit the view; ranked for `query` with the use of `storage`. */
+  const fitOrder = (query: string, fitting: readonly string[], storage?: UsageStorage): string[] =>
+    rankByUse(
+      COMMANDS.map((command) => ({ ...command, fits: fitting.includes(command.id) })),
+      (command) => command.name,
+      query,
+      storage === undefined
+        ? undefined
+        : promptUse(
+            () => storage,
+            () => NOW,
+          ),
+    ).map(({ item }) => item.id);
+
+  it("[SR-133/AK1] shows an empty text with the fitting commands first, the others below in the same order", () => {
+    expect(fitOrder("", ["close-all", "status"])).toEqual([
+      "status",
+      "close-all",
+      "type",
+      "property",
+      "sort",
+      "all",
+      "close",
+    ]);
+    // Use orders within each group, and lifts no command above the fitting ones.
+    expect(
+      fitOrder("", ["close-all", "status"], used(["", "close-all", 1], ["", "sort", 1], ["", "sort", 1])),
+    ).toEqual(["close-all", "status", "sort", "type", "property", "all", "close"]);
+  });
+
+  it("[SR-133/AK1] keeps every command reachable by search, fitting or not", () => {
+    for (const { id, name } of COMMANDS) {
+      expect(fitOrder(name, ["type"])[0]).toBe(id);
+    }
+  });
+
+  it("[SR-133/AK2] puts the fitting command first among equally good matches, before the one in use more", () => {
+    expect(fitOrder("cl", [])).toEqual(["close", "close-all"]);
+    expect(fitOrder("cl", ["close-all"])).toEqual(["close-all", "close"]);
+    expect(fitOrder("cl", ["close-all"], used(["", "close", 0], ["", "close", 0]))).toEqual([
+      "close-all",
+      "close",
+    ]);
+  });
+
+  it("[SR-133/AK2] never lets fit lift a command above a better match", () => {
+    // "Sort list" is the weaker match for "list" and stays below "List all elements", fitting or not.
+    expect(fitOrder("list", ["sort"]).slice(0, 2)).toEqual(["all", "sort"]);
+  });
+
+  it("[SR-133/AK2] keeps the command chosen for a typed text first, though another one fits", () => {
+    expect(fitOrder("fl", ["type"])[0]).toBe("type");
+    expect(fitOrder("fl", ["type"], used(["fl", "property", 1]))[0]).toBe("property");
+  });
+});

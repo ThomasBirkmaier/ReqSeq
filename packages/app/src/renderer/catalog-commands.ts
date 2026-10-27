@@ -112,6 +112,26 @@ const offered = (context: ActionContext, command: CommandListing): boolean =>
       context.buffers[0]?.kind === "list",
   );
 
+/**
+ * Whether the command fits the shown view (SR-133 AK1): the view gives one of its arguments. A list gives
+ * its selection; an element buffer or a neighbourhood gives its element to a required element argument,
+ * which the prompt offers first for it. A selection counts even when it is optional, because `inputOf`
+ * fills it in from the list without asking, so the command runs on what the list shows. An optional
+ * element argument does not count: it is asked only after Ctrl/Cmd+Enter and the command runs without
+ * it, so the shown element plays no part in a plain run.
+ */
+export const fits = (context: ActionContext, command: CommandListing): boolean => {
+  const shown = context.buffers[0]?.kind;
+  const required = requiredOf(command);
+  return command.arguments.some((arg) =>
+    arg.complete === "selection"
+      ? shown === "list"
+      : arg.complete === "element" &&
+        required.includes(arg.field) &&
+        (shown === "element" || shown === "neighbourhood"),
+  );
+};
+
 const numberOr = (text: string): unknown => {
   const value = Number(text);
   return text.trim() !== "" && Number.isFinite(value) ? value : text;
@@ -434,7 +454,8 @@ export const startCommand = (context: CatalogContext, command: CommandListing, m
 
 /**
  * The catalog commands the command prompt offers now: implemented read commands that no action covers
- * (by title or by `covers`), each by its title. Write commands follow with #85 PR 5b.
+ * (by title or by `covers`), each by its title and whether it fits the shown view (SR-133). Write
+ * commands follow with #85 PR 5b.
  */
 export const catalogItems = (
   context: CatalogContext,
@@ -454,6 +475,7 @@ export const catalogItems = (
     .map((command) => ({
       id: `command:${command.name}`,
       name: command.title,
+      fits: fits(context, command),
       run: () => {
         startCommand(context, command, false);
       },

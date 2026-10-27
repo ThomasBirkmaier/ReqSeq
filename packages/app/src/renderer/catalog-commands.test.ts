@@ -4,11 +4,12 @@ import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, listBuffer, neighbourhoodBuffer, resultBuffer } from "./buffers.js";
+import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
-import { catalogItems, contextField } from "./catalog-commands.js";
+import { catalogItems, contextField, fits } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
+import { rankByUse } from "./usage.js";
 
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
@@ -556,5 +557,60 @@ describe("catalog commands in the command prompt", () => {
     expect(contextField(args, 4)).toBeUndefined();
     expect(contextField(args, 0)).toBeUndefined();
     expect(contextField(args, 9)).toBeUndefined();
+  });
+});
+
+describe("the commands that fit the shown view", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const around = neighbourhoodBuffer("uuid-1", "spec", "SR-1 Title 1");
+  /** The command prompt with nothing typed and nothing used, as the minibuffer orders it. */
+  const prompt = (buffers: Buffers): Choice[] => {
+    const { context } = setup(buffers);
+    const { items } = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS));
+    return rankByUse(items, (choice) => choice.name, "", undefined).map(({ item: choice }) => choice);
+  };
+
+  it("[SR-133/AK1] fits a command with a required element argument to a shown element, one with the selection to a list", () => {
+    const fitting = (buffers: Buffers, name: string): boolean => fits(setup(buffers).context, command(name));
+    for (const buffers of [[shown], [around]]) {
+      expect(fitting(buffers, "trace.chain")).toBe(true);
+      expect(fitting(buffers, "relation.options")).toBe(true);
+      // An element argument that is not required, the selection, or no argument: the view gives nothing.
+      expect(fitting(buffers, "hint.list")).toBe(false);
+      expect(fitting(buffers, "element.facets")).toBe(false);
+      expect(fitting(buffers, "baseline.list")).toBe(false);
+    }
+    expect(fitting([list], "element.facets")).toBe(true);
+    expect(fitting([list], "evidence.coverage")).toBe(true);
+    expect(fitting([list], "trace.chain")).toBe(false);
+    expect(fitting([list], "workspace.status")).toBe(false);
+    expect(fitting([overviewBuffer()], "trace.chain")).toBe(false);
+    expect(fitting([], "element.facets")).toBe(false);
+  });
+
+  it("[SR-133/AK1] shows the actions and the fitting commands above the others when nothing is typed", () => {
+    for (const buffers of [[shown], [list], [overviewBuffer()]]) {
+      const items = prompt(buffers);
+      const below = items.findIndex((choice) => choice.fits !== true);
+      // The fitting ones come first, all of them: none is below the first that does not fit.
+      expect(below).toBeGreaterThan(0);
+      expect(items.slice(below).filter((choice) => choice.fits === true)).toEqual([]);
+      // Every action shown fits; the others are catalog commands, still in the prompt.
+      expect(items.slice(below).every((choice) => choice.id.startsWith("command:"))).toBe(true);
+    }
+    /** The `wanted` names in the order the prompt shows them; a name that is missing fails the check. */
+    const order = (buffers: Buffers, wanted: readonly string[]): string[] =>
+      prompt(buffers)
+        .map((choice) => choice.name)
+        .filter((name) => wanted.includes(name));
+    // In the catalog "Show workspace status" comes first; in an element it is below the element's commands.
+    expect(
+      order(
+        [shown],
+        ["Show relation options", "Show trace chain", "Show workspace status", "Check workspace"],
+      ),
+    ).toEqual(["Show relation options", "Show trace chain", "Show workspace status", "Check workspace"]);
+    expect(order([list], ["Show trace chain", "Show facets"])).toEqual(["Show facets", "Show trace chain"]);
   });
 });

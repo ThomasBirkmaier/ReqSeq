@@ -1,5 +1,6 @@
-// The command prompt on the built app (SR-108, SR-121, #85): what was chosen for a typed text comes first the
-// next time, also after the app restarts; a catalog command asks its arguments with the values core gives.
+// The command prompt on the built app (SR-108, SR-121, SR-133, #85): what was chosen for a typed text comes
+// first the next time, also after the app restarts; the commands that fit the shown view come first; a catalog
+// command asks its arguments with the values core gives.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With LOGREQ_SCREENSHOTS set, the argument
 // entry is also saved as a screenshot there.
 import path from "node:path";
@@ -93,5 +94,24 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".modeline")).toContainText("Show relation options SR-0000b1 Derives from");
     await expect(window.locator(".result .line").first()).toHaveText("kinds1");
     await expect(window.locator(".result")).toContainText("derives-from");
+  });
+
+  test("[SR-133/AK1] in an element, the commands with an element argument come before the others when nothing is typed", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Measure wind speed");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Measure wind speed");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(names(window).filter({ hasText: "Show workspace status" })).toHaveCount(1);
+    const wanted = ["Show relation options", "Show trace chain", "Show workspace status"];
+    const shown = (await names(window).allTextContents()).filter((name) => wanted.includes(name));
+    // In the catalog "Show workspace status" comes first; it needs no element, so it is below them now. A
+    // missing name fails the check too.
+    expect(shown).toEqual(wanted);
+    await window.keyboard.press("Escape");
   });
 });
