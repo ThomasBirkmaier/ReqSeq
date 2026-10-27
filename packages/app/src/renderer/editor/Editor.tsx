@@ -6,10 +6,11 @@ import { history, historyKeymap, standardKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { releaseCaretSide } from "./caret-side.js";
 import { minimalChange } from "./diff.js";
 import { markdownSupport } from "./markdown.js";
+import { parseAhead } from "./parsed.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
 
@@ -158,7 +159,9 @@ export const Editor = ({
   const latest = useRef({ onChange, onEscape, handle });
   latest.current = { onChange, onEscape, handle };
 
-  useEffect(() => {
+  // A layout effect: the editor and its handle are there in the same task as the render that shows the
+  // element, and so are the controls the buffer registers with them, before any key can come.
+  useLayoutEffect(() => {
     if (host === null) {
       return undefined;
     }
@@ -192,6 +195,8 @@ export const Editor = ({
         ],
       }),
     });
+    // An ordinary text is shown formatted from the first paint, so its height does not change later (`parsed.ts`).
+    parseAhead(editor);
     setView(editor);
     latest.current.handle?.({
       focus: (at) => {

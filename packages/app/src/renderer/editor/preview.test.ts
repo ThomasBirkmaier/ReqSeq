@@ -28,8 +28,10 @@ const stateOf = (doc: string, cursor?: number, to?: number): EditorState => {
     ...(cursor === undefined ? {} : { selection: { anchor: cursor, head: to ?? cursor } }),
     extensions: [markdownSupport({}), focusState],
   });
+  // `ensureSyntaxTree` parses to the end, but the state keeps the tree it was created with (the first parse
+  // stops after 20 ms on a busy machine); the empty update hands the whole tree to the state (#542).
   ensureSyntaxTree(state, doc.length, 1e9);
-  return state;
+  return state.update({}).state;
 };
 
 const describeSet = (set: DecorationSet, length: number): Deco[] => {
@@ -308,8 +310,9 @@ describe("plugin rules", () => {
 describe("livePreview", () => {
   const make = (doc: string): EditorState => {
     const state = EditorState.create({ doc, extensions: [markdownSupport({}), livePreview(BUILT_IN_RULES)] });
+    // As in `stateOf`: the empty update hands the whole tree to the state.
     ensureSyntaxTree(state, doc.length, 1e9);
-    return state;
+    return state.update({}).state;
   };
 
   it("is computed unfocused first and again when the focus, the selection or the text changes", () => {

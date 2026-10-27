@@ -1,11 +1,11 @@
 // The entries of the slash menu (SR-129) and what taking one writes into the text. Pure functions over the
 // editor state: the menu itself (`slash-menu.ts`) only lists, ranks and calls `applyEntry`. The menu edits
 // the Markdown source and nothing else; the file is saved by the existing `element.update` (ADR-0002).
-import { syntaxTree } from "@codemirror/language";
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { EditorSelection } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import { nth } from "../lists.js";
+import { parsedTree } from "./parsed.js";
 
 /** Where the caret or the selection lands in the inserted text: a line (0 = the first), a column, a length. */
 interface Caret {
@@ -143,7 +143,7 @@ const TABLE = new Set(["Table", "TableHeader", "TableRow"]);
 const ancestors = (state: EditorState, pos: number): string[] => {
   const names: string[] = [];
   for (
-    let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, -1);
+    let node: SyntaxNode | null = parsedTree(state, pos).resolveInner(pos, -1);
     node !== null;
     node = node.parent
   ) {

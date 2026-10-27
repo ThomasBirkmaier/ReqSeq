@@ -2,7 +2,10 @@
 // happy-dom fires `selectionchange` inside the call; CodeMirror then updates while it updates. The root vitest
 // config loads this setup, but a run without it (`pnpm vitest run <file>` in packages/app) needs it too (#460).
 import "../../../../../scripts/test-support/dom-selection.mjs";
+import { syntaxTree } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { markdownSupport } from "./markdown.js";
 import { undo } from "@codemirror/commands";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
@@ -73,6 +76,54 @@ const view = (): EditorView => {
 };
 
 describe("Editor", () => {
+  /** Renders with a clock that runs 10 ms on every look: CodeMirror's own first parse stops after a few steps. */
+  const renderSlowly = async (text: string): Promise<void> => {
+    let clock = 0;
+    const slow = vi.spyOn(Date, "now").mockImplementation(() => (clock += 10));
+    try {
+      await render({ text });
+    } finally {
+      slow.mockRestore();
+    }
+  };
+
+  it("parses an ordinary text on beyond CodeMirror's first slice before it is shown, so it is formatted from the start (#542)", async () => {
+    await renderSlowly("One.\n\nTwo.\n\nThree.\n\nFour **bold**.");
+    expect(syntaxTree(view().state).length).toBe(view().state.doc.length);
+    expect(element(".cm-lr-strong").textContent).toBe("bold");
+  });
+
+  it("stops the parse of a long text before the first paint at its budget; Enter at the end still continues the list (#542)", async () => {
+    const text = `${"A paragraph.\n\n".repeat(200)}- a`;
+    await renderSlowly(text);
+    // The budget ran out: the tree the editor holds does not reach the end.
+    expect(syntaxTree(view().state).length).toBeLessThan(text.length);
+    act(() => {
+      view().dispatch({ selection: { anchor: text.length } });
+      view().contentDOM.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(view().state.doc.toString()).toBe(`${text}\n- `);
+  });
+
+  it("keeps what it parsed of a long text within the budget for the first paint: past the viewport, further than CodeMirror's own slice (#542)", async () => {
+    const text = "A paragraph.\n\n".repeat(3000);
+    let clock = 0;
+    // 2 ms on every look: neither CodeMirror's slice nor the budget reaches the end.
+    const slow = vi.spyOn(Date, "now").mockImplementation(() => (clock += 2));
+    try {
+      const alone = syntaxTree(EditorState.create({ doc: text, extensions: markdownSupport({}) })).length;
+      await render({ text });
+      const shown = syntaxTree(view().state).length;
+      expect(shown).toBeLessThan(text.length);
+      expect(shown).toBeGreaterThan(alone);
+      expect(shown).toBeGreaterThanOrEqual(view().viewport.to);
+    } finally {
+      slow.mockRestore();
+    }
+  });
+
   it("shows the text as the document, with a label, and the live preview", async () => {
     await render();
     expect(view().state.doc.toString()).toBe("# Title\n\nbody");

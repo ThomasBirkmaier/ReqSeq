@@ -6,8 +6,10 @@ import { inlineSegments } from "./segments.js";
 
 const segments = (doc: string, from = 0, to = doc.length) => {
   const state = EditorState.create({ doc, extensions: [markdownSupport({})] });
+  // `ensureSyntaxTree` parses to the end; the empty update hands that tree to the state, which kept the one of
+  // its first parse (cut short after 20 ms on a busy machine, #542).
   ensureSyntaxTree(state, doc.length, 1e9);
-  return inlineSegments(state, from, to);
+  return inlineSegments(state.update({}).state, from, to);
 };
 
 describe("inlineSegments", () => {

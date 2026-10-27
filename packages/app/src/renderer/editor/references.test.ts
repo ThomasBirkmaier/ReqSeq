@@ -16,8 +16,10 @@ const stateOf = (doc: string, cursor?: number): EditorState => {
     ...(cursor === undefined ? {} : { selection: { anchor: cursor } }),
     extensions: [markdownSupport({}), focusState],
   });
+  // `ensureSyntaxTree` parses to the end; the empty update hands that tree to the state, which kept the one of
+  // its first parse (cut short after 20 ms on a busy machine, #542).
   ensureSyntaxTree(state, doc.length, 1e9);
-  return state;
+  return state.update({}).state;
 };
 
 describe("parseReference", () => {

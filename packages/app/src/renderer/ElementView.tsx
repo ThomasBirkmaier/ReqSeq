@@ -14,7 +14,7 @@
 // element: the editors without input take the new text with the cursor kept at its place in the text, and
 // the fields that changed are highlighted briefly when the file's bytes (`fileSha256`) differ.
 import { Prec } from "@codemirror/state";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
@@ -42,7 +42,7 @@ import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { TextBox } from "./TextBox.js";
-import { ParentsLine } from "./ParentsLine.js";
+import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
 import { memberCount, memberList, memberSummary, packageOf, packageSelection } from "./package-page.js";
@@ -204,6 +204,16 @@ const isLocked = (box: EditableBox): boolean => box.lineBreak || box.unmatched =
 const lockNote = (key: string, box: EditableBox): string =>
   box.lineBreak ? lineBreakNote(key) : `${key} has a target that cannot be read: edit it in the file`;
 
+/** The element the buffer shows: once it is loaded and its parents line has answered too. */
+const shownElement = (view: View, parentsAnswered: boolean): DataExportElement | undefined =>
+  view.status === "ok" && parentsAnswered ? view.element : undefined;
+
+/** Keys that only modify another key: pressed on their own they are no key of the buffer. */
+const MODIFIER_KEYS: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"]);
+
+/** A key on the buffer after Enter that takes back an "Edit text" still waiting for the editor. */
+const takesBackEdit = (key: string): boolean => key !== "Enter" && !MODIFIER_KEYS.has(key);
+
 export const ElementView = ({
   call,
   buffer,
@@ -227,9 +237,11 @@ export const ElementView = ({
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
-  // The same editor at once: `handle` comes with the next render, and a key that arrives before it (Enter
-  // right after the element loaded, under load) must find the editor already.
+  // The same editor at once: `handle` comes with the next render, and a key can come before it.
   const textEditor = useRef<EditorHandle | undefined>(undefined);
+  // "Edit text" (Enter on the buffer) came before the text editor was there, while the element loaded: the
+  // caret goes into the editor when it comes, as long as the focus is still in this buffer.
+  const editAsked = useRef(false);
   const baseline = useRef("");
   const loadedOnce = useRef(false);
   // The changes from outside that named this element since it was shown: each asks for it again.
@@ -496,6 +508,8 @@ export const ElementView = ({
         return;
       }
       if (!answer.ok) {
+        // An "Edit text" that waited for this element is void: it must not act when a later load succeeds.
+        editAsked.current = false;
         setView({ status: "error", message: answer.message });
         onEcho(answer.message);
         return;
@@ -549,12 +563,30 @@ export const ElementView = ({
         loadedOnce.current = true;
       }
       setView({ status: "ok", element });
-      onData(buffer.key, { kind: "element", element });
     });
     return () => {
       current = false;
     };
   }, [call, buffer.key, buffer.id, buffer.repository, revision, touched]);
+  // The parents line is asked for at the same time as the element, and the element is shown with it, so
+  // nothing above the title comes in later and moves the fields under the pointer (#542). Every change from
+  // outside asks for the parents again (SR-116), the element only when the change names it (`touched`);
+  // after such a change the parents can answer after the element, so a parent added outside moves the title
+  // down once.
+  const parents = useParents({
+    call,
+    id: buffer.id,
+    repository: buffer.repository,
+    revision: revision + outside.seq,
+    onEcho,
+  });
+  // The modeline shows the element when the buffer does: once its parents line has answered too.
+  const loadedElement = shownElement(view, parents.answered);
+  useEffect(() => {
+    if (loadedElement !== undefined) {
+      onData(buffer.key, { kind: "element", element: loadedElement });
+    }
+  }, [loadedElement]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft.
@@ -567,7 +599,7 @@ export const ElementView = ({
     sent: { readonly doc: string; readonly edits: readonly BoxEdit[] },
     editor: EditorHandle,
   ): void => {
-    const { buffer: shown, onData: data, onDraft: draftOf, onEcho: echo } = now.current;
+    const { buffer: shown, onDraft: draftOf, onEcho: echo } = now.current;
     const { element } = output;
     // The file as this save wrote it: the reload its `written` brings finds the same bytes.
     held.current = { sha: output.fileSha256, fields: fieldTexts(element) };
@@ -603,7 +635,6 @@ export const ElementView = ({
     setValues(values.current);
     draftOf(shown.key, currentDraft());
     setView({ status: "ok", element });
-    data(shown.key, { kind: "element", element });
     const hint = savedHint(
       output.problems,
       sent.edits.map((edit) => edit.key),
@@ -755,8 +786,12 @@ export const ElementView = ({
       } else {
         openValue(editable);
       }
+    } else if (box !== undefined && !box.state().readOnly) {
+      box.focus("end");
+    } else if (textEditor.current === undefined) {
+      editAsked.current = true;
     } else {
-      (box !== undefined && !box.state().readOnly ? box : textEditor.current)?.focus("end");
+      textEditor.current.focus("end");
     }
   };
   // Enter on a box edits it (on the buffer itself, the text); Escape leaves a box for the buffer; Up and Down
@@ -780,6 +815,11 @@ export const ElementView = ({
     const { key, target, currentTarget } = event;
     if (!forBuffer(target, currentTarget)) {
       return;
+    }
+    // A later key on the buffer (Escape, an arrow) takes back an "Edit text" that still waits for the editor;
+    // a modifier pressed on its own (Shift for a capital letter) does not.
+    if (takesBackEdit(key)) {
+      editAsked.current = false;
     }
     const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
     const label =
@@ -817,7 +857,9 @@ export const ElementView = ({
   const api = useRef({ addProperty, clearProperty, relationFollowed, isRelationBox });
   api.current = { addProperty, clearProperty, relationFollowed, isRelationBox };
 
-  useEffect(() => {
+  // A layout effect, like the editor's: the app has the controls in the same task as the editor (the window's
+  // shortcuts of the element, such as "Copy field", read them), before any key can come.
+  useLayoutEffect(() => {
     if (handle === undefined) {
       return undefined;
     }
@@ -900,16 +942,9 @@ export const ElementView = ({
     >
       <div className="column">
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
-        {view.status === "ok" ? (
+        {view.status === "ok" && parents.answered ? (
           <>
-            <ParentsLine
-              call={call}
-              id={buffer.id}
-              repository={buffer.repository}
-              revision={revision + outside.seq}
-              dispatch={dispatch}
-              onEcho={onEcho}
-            />
+            <ParentsRow parents={parents.parents} dispatch={dispatch} />
             <FieldBox label="Title" focusable onCopy={copy} marked={marked}>
               <h1>{heading(view.element)}</h1>
             </FieldBox>
@@ -930,6 +965,12 @@ export const ElementView = ({
                     keptText.current = undefined;
                   }
                   textEditor.current = editor;
+                  if (editor !== undefined && editAsked.current) {
+                    editAsked.current = false;
+                    if (article?.contains(document.activeElement) === true) {
+                      editor.focus("end");
+                    }
+                  }
                   setHandle(editor);
                 }}
               />

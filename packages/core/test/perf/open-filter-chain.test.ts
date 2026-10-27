@@ -179,6 +179,27 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       )) as CommandOutput<"element.get">
     ).element;
 
+  /**
+   * Opens an element as the app shows it (#542): `element.get` and the parents line, the input of
+   * `parentsInput` in packages/app/src/renderer/neighbourhood.ts, at the same time. The app shows the element
+   * when both have answered, so SR-082 AK3 is the time of both.
+   */
+  const openWithParents = async (
+    opened: Workspace,
+    id: string,
+    repository: string,
+  ): Promise<CommandOutput<"element.get">["element"]> => {
+    const [element] = await Promise.all([
+      openElement(opened, id),
+      invoke(
+        "trace.neighbourhood",
+        { ref: id, repository, direction: "up", meanings: ["derivation"], allLevels: true, limit: 200 },
+        { workspace: opened },
+      ),
+    ]);
+    return element;
+  };
+
   /** A system requirement and the target of its first derives-from relation, both in the store. */
   const relationToTarget = (): { readonly source: ElementRecord; readonly target: ElementRecord } => {
     for (const source of store.elements.slice(Math.floor(ELEMENTS / 4))) {
@@ -204,10 +225,11 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
     const element = tree.elements[Math.floor(ELEMENTS / 2)];
     const id = element?.id ?? "";
     const { result: view, measurement } = await measure(
-      "open one element (look up, read its file, element view)",
-      () => openElement(opened(), id),
+      "open one element (look up, read its file, element view) with its parents line",
+      () => openWithParents(opened(), id, element?.repository ?? ""),
       {
-        basis: "SR-082 AK3 (element.get: store lookup, file read, element view; no git)",
+        basis:
+          "SR-082 AK3 (element.get: store lookup, file read, element view; no git; and trace.neighbourhood up for the parents line, #542)",
         thresholdMs: OPEN_MS,
       },
     );
@@ -521,10 +543,14 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
         ),
       { basis: "SR-082 AK3 (the save before the open; no threshold of its own)" },
     );
+    const repository = tree.elements[Math.floor(ELEMENTS / 2) + 1]?.repository ?? "";
     const { result: view, measurement } = await measure(
-      "open one element right after a save (element.get on the store and short IDs as the save left them)",
-      () => openElement(current, id),
-      { basis: "SR-082 AK3 (element.get after a save, #184)", thresholdMs: OPEN_MS },
+      "open one element right after a save with its parents line (element.get and trace.neighbourhood on the store and short IDs as the save left them)",
+      () => openWithParents(current, id, repository),
+      {
+        basis: "SR-082 AK3 (element.get and the parents line after a save, #184, #542)",
+        thresholdMs: OPEN_MS,
+      },
     );
     expect(view.id).toBe(id);
     expect(view).not.toHaveProperty("versionDate");

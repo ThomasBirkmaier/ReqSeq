@@ -1,7 +1,8 @@
 // The parents of an element in one line above its title (SR-107 AK1): the titles of the parents from the
 // top needs down to the direct parents, each a link to the parent. The line is there only when the
-// element has parents. It is a group, not a navigation: the sheet has none (SR-100). It is asked for
-// after the element is shown, so opening stays fast (SR-082 AK3).
+// element has parents. It is a group, not a navigation: the sheet has none (SR-100). The element buffer asks
+// for it together with the element and shows both at once (`useParents`), so the title never moves down
+// under the pointer after the element is shown (#542); the two calls run side by side.
 import { useEffect, useState } from "react";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -47,16 +48,22 @@ const ParentLink = ({
   </span>
 );
 
-export const ParentsLine = ({
+/** The parents of an element: `answered` once the first answer is there (`parents` is undefined when it failed). */
+export interface AskedParents {
+  readonly answered: boolean;
+  readonly parents: Parents | undefined;
+}
+
+/** Asks for the parents of the element, and again when the workspace changed. */
+export const useParents = ({
   call,
   id,
   repository,
   revision,
-  dispatch,
   onEcho,
-}: ParentsLineProps): React.JSX.Element | null => {
+}: Omit<ParentsLineProps, "dispatch">): AskedParents => {
   // The line keeps what it shows while it is asked again, so the title does not jump with every save.
-  const [parents, setParents] = useState<Parents | undefined>(undefined);
+  const [asked, setAsked] = useState<AskedParents>({ answered: false, parents: undefined });
 
   useEffect(() => {
     let current = true;
@@ -65,9 +72,9 @@ export const ParentsLine = ({
         return;
       }
       if (answer.ok) {
-        setParents(parentLevels(answer.output));
+        setAsked({ answered: true, parents: parentLevels(answer.output) });
       } else {
-        setParents(undefined);
+        setAsked({ answered: true, parents: undefined });
         onEcho(answer.message);
       }
     });
@@ -75,7 +82,17 @@ export const ParentsLine = ({
       current = false;
     };
   }, [call, id, repository, revision]);
+  return asked;
+};
 
+/** The line of parents that are there: nothing without parents. */
+export const ParentsRow = ({
+  parents,
+  dispatch,
+}: {
+  readonly parents: Parents | undefined;
+  readonly dispatch: (action: BufferAction) => void;
+}): React.JSX.Element | null => {
   if (parents === undefined || parents.levels.length === 0) {
     return null;
   }
@@ -98,4 +115,10 @@ export const ParentsLine = ({
       {parents.more ? <span className="sep"> …</span> : null}
     </div>
   );
+};
+
+/** The parents line that asks for its parents itself (the neighbourhood buffer). */
+export const ParentsLine = (props: ParentsLineProps): React.JSX.Element => {
+  const { parents } = useParents(props);
+  return <ParentsRow parents={parents} dispatch={props.dispatch} />;
 };

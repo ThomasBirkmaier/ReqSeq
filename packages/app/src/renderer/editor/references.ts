@@ -3,10 +3,10 @@
 // follow: a click opens its element, and an outdated reference is marked. This is UI only: what is under
 // the pointer or the cursor. Whether a target exists and whether a reference is outdated come from core
 // (`element.get`: the target by its UUID, the hints `relation.outdated`); the app never compares versions.
-import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
+import { parsedTree } from "./parsed.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { focusState, sourceLines } from "./preview.js";
 import { GlyphWidget } from "./widgets.js";
@@ -62,7 +62,7 @@ const referenceOf = (state: EditorState, link: SyntaxNode): Reference | undefine
 /** The Link node around `pos`, looking at the node on `side` of it. */
 const linkAround = (state: EditorState, pos: number, side: -1 | 1): SyntaxNode | undefined => {
   for (
-    let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, side);
+    let node: SyntaxNode | null = parsedTree(state, pos).resolveInner(pos, side);
     node !== null;
     node = node.parent
   ) {
@@ -82,7 +82,7 @@ export const referenceAt = (state: EditorState, pos: number): Reference | undefi
 /** The inline references of the document, in the order they are written. */
 export const referencesIn = (state: EditorState): Reference[] => {
   const found: Reference[] = [];
-  syntaxTree(state).iterate({
+  parsedTree(state).iterate({
     enter: (node) => {
       const reference = node.name === "Link" ? referenceOf(state, node.node) : undefined;
       if (reference !== undefined) {

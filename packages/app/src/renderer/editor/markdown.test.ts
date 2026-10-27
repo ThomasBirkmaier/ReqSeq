@@ -1,6 +1,7 @@
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
+import { markdownKeymap } from "@codemirror/lang-markdown";
 import { markdownSupport } from "./markdown.js";
 
 const names = (extensions: ReturnType<typeof markdownSupport>[], doc: string): string[] => {
@@ -26,5 +27,10 @@ describe("markdownSupport", () => {
     const plugin = { defineNodes: ["Formula"] };
     const state = EditorState.create({ doc: "x", extensions: [markdownSupport({ markdown: [plugin] })] });
     expect(syntaxTree(state).type.name).toBe("Document");
+  });
+
+  it("binds the keys of lang-markdown's own keymap, which it replaces (#542)", () => {
+    // A key that a new version of @codemirror/lang-markdown adds must be added to `markdownKeys` too.
+    expect(markdownKeymap.map((binding) => binding.key)).toEqual(["Enter", "Backspace"]);
   });
 });

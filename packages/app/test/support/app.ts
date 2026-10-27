@@ -202,6 +202,21 @@ export interface LaunchOptions {
   readonly recent?: readonly string[];
 }
 
+/**
+ * Opt-in: `LOGREQ_CPU_THROTTLE=<rate>` slows the window's renderer `rate` times (Chromium's
+ * `Emulation.setCPUThrottlingRate`, 10 to 20 is useful), so that races which only show on a busy CI runner
+ * show locally (#542). Off by default; CI does not set it. Run e.g.
+ * `LOGREQ_CPU_THROTTLE=15 playwright test --config test/playwright.config.ts --repeat-each 20`.
+ */
+const throttle = async (window: Page): Promise<void> => {
+  const rate = Number(process.env["LOGREQ_CPU_THROTTLE"] ?? "1");
+  if (!(rate > 1)) {
+    return;
+  }
+  const session = await window.context().newCDPSession(window);
+  await session.send("Emulation.setCPUThrottlingRate", { rate });
+};
+
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
@@ -256,6 +271,7 @@ export const launchApp = async (
     stderr += chunk.toString("utf8");
   });
   const window = await app.firstWindow();
+  await throttle(window);
   // A test never runs on the user data of a real installation, and a restart finds what the start before kept.
   const used = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
   const same = await fs.realpath(used).then(
