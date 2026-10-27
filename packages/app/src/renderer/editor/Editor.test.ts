@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+// happy-dom fires `selectionchange` inside the call; CodeMirror then updates while it updates. The root vitest
+// config loads this setup, but a run without it (`pnpm vitest run <file>` in packages/app) needs it too (#460).
+import "../../../../../scripts/test-support/dom-selection.mjs";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { act, createElement } from "react";

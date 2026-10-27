@@ -115,7 +115,7 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
 
     // After a choice the system's scheme is offered again; the emulated system here is light.
     await runCommand(window, "toggle dark");
-    expect(await sheet(window)).toBe(DARK.sheet);
+    await expect.poll(() => sheet(window)).toBe(DARK.sheet);
     await runCommand(window, "follow system");
     await expect(window.getByLabel("Minibuffer")).toContainText("Light or dark as the system says");
     expect(await sheet(window)).toBe(LIGHT.sheet);

@@ -234,67 +234,75 @@ describe("logreq binary", () => {
     });
   });
 
-  it("[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (#309)", async () => {
-    const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
-    fixtures.push(ws);
-    const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
-    const REF_FORM =
-      "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)";
-    // SR-036 may be an identifier (#305); this workspace has none, so it names no element.
-    const unknown = await run("element", "get", "SR-036");
-    expect([unknown.code === 0, unknown.stderr]).toEqual([
-      false,
-      'error ref.unknown: No element has the identifier "SR-036"\n',
-    ]);
-    const malformed = await run("element", "get", " SR-036");
-    expect([malformed.code, malformed.stderr]).toEqual([
-      2,
-      `error input.invalid: Invalid input for element.get: <ref> " SR-036" ${REF_FORM}\n`,
-    ]);
-    const lower = await run("element", "get", "n-D4E5F6");
-    expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([0, "N-d4e5f6  approved  See the wind"]);
-    const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");
-    expect([named.code, named.stderr]).toEqual([0, ""]);
-    expect(readFileSync(ws.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toContain("\nstatus: obsolete\n");
-    const notInvalid = await run("element", "supersede", "N-e5f6a7", "Approved");
-    expect([notInvalid.code, notInvalid.stderr]).toEqual([
-      2,
-      "error input.invalid: Approved is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)\n",
-    ]);
-    const pkg = await run("hint", "list", "--package", "Stufe 2 ");
-    expect(pkg.stderr).toBe(
-      `error input.invalid: Invalid input for hint.list: --package "Stufe 2 " ${REF_FORM}\n`,
-    );
-    const init = await logreq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
-    expect([init.code, init.stderr]).toEqual([
-      2,
-      "error input.invalid: Invalid input for workspace.init: <path> is required; <name> is required\n",
-    ]);
-    const choice = await run(
-      "element",
-      "create",
-      "system-requirement",
-      "Show gusts",
-      "--input",
-      '{"properties":{"requirement-type":"Functionall"}}',
-    );
-    expect([choice.code, choice.stdout]).toEqual([2, ""]);
-    expect(choice.stderr).toMatch(
-      /^error input\.invalid: properties\.requirement-type: Functionall is not a value of Requirement Type; the values are: functional \(Functional\), /,
-    );
-    const created = await run(
-      "element",
-      "create",
-      "system-requirement",
-      "Show gusts",
-      "--input",
-      '{"properties":{"requirement-type":"Functional"}}',
-      "--json",
-    );
-    expect(JSON.parse(created.stdout)).toMatchObject({
-      element: { properties: { "requirement-type": "functional" } },
-    });
-  });
+  // Nine spawns of the binary and a Git fixture in one test: 5.5 to 6.7 s on an idle machine, 11 s next to a loaded CPU (#460).
+  // That is above the 5 s default and too close to the 30 s of vitest.e2e.config.ts for a slow runner, so this test
+  // has its own bound (about ten times the measured time); the global timeout stays.
+  const SPAWN_HEAVY_TIMEOUT_MS = 60_000;
+  it(
+    "[SR-060/AK1] answers the input mistakes of the first dogfooding trial readably (#309)",
+    async () => {
+      const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
+      fixtures.push(ws);
+      const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+      const REF_FORM =
+        "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)";
+      // SR-036 may be an identifier (#305); this workspace has none, so it names no element.
+      const unknown = await run("element", "get", "SR-036");
+      expect([unknown.code === 0, unknown.stderr]).toEqual([
+        false,
+        'error ref.unknown: No element has the identifier "SR-036"\n',
+      ]);
+      const malformed = await run("element", "get", " SR-036");
+      expect([malformed.code, malformed.stderr]).toEqual([
+        2,
+        `error input.invalid: Invalid input for element.get: <ref> " SR-036" ${REF_FORM}\n`,
+      ]);
+      const lower = await run("element", "get", "n-D4E5F6");
+      expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([0, "N-d4e5f6  approved  See the wind"]);
+      const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");
+      expect([named.code, named.stderr]).toEqual([0, ""]);
+      expect(readFileSync(ws.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toContain("\nstatus: obsolete\n");
+      const notInvalid = await run("element", "supersede", "N-e5f6a7", "Approved");
+      expect([notInvalid.code, notInvalid.stderr]).toEqual([
+        2,
+        "error input.invalid: Approved is not marked invalid in the metamodel, so it cannot supersede an element; the invalid statuses are: obsolete (Obsolete)\n",
+      ]);
+      const pkg = await run("hint", "list", "--package", "Stufe 2 ");
+      expect(pkg.stderr).toBe(
+        `error input.invalid: Invalid input for hint.list: --package "Stufe 2 " ${REF_FORM}\n`,
+      );
+      const init = await logreq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
+      expect([init.code, init.stderr]).toEqual([
+        2,
+        "error input.invalid: Invalid input for workspace.init: <path> is required; <name> is required\n",
+      ]);
+      const choice = await run(
+        "element",
+        "create",
+        "system-requirement",
+        "Show gusts",
+        "--input",
+        '{"properties":{"requirement-type":"Functionall"}}',
+      );
+      expect([choice.code, choice.stdout]).toEqual([2, ""]);
+      expect(choice.stderr).toMatch(
+        /^error input\.invalid: properties\.requirement-type: Functionall is not a value of Requirement Type; the values are: functional \(Functional\), /,
+      );
+      const created = await run(
+        "element",
+        "create",
+        "system-requirement",
+        "Show gusts",
+        "--input",
+        '{"properties":{"requirement-type":"Functional"}}',
+        "--json",
+      );
+      expect(JSON.parse(created.stdout)).toMatchObject({
+        element: { properties: { "requirement-type": "functional" } },
+      });
+    },
+    SPAWN_HEAVY_TIMEOUT_MS,
+  );
 
   it("opens one copy of a UUID two files share with --file, and exits 2 without it (SR-088, #255)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });

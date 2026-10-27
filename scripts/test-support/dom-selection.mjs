@@ -4,7 +4,11 @@
 // it inside the call and for every call, and CodeMirror (the Markdown editor of the app, SR-065) then
 // updates its view while it is still updating, which it refuses; once deferred, its own reaction to the
 // event would set the selection again and fire the event again without end.
-if (typeof document !== "undefined") {
+// A test file may import this module itself, so that it also passes when vitest starts without the root config
+// (`pnpm vitest run <file>` in packages/app); the guard keeps the wrapper from being installed twice (#460).
+const INSTALLED = Symbol.for("logreq.dom-selection");
+if (typeof document !== "undefined" && !(INSTALLED in document)) {
+  Object.defineProperty(document, INSTALLED, { value: true });
   const dispatch = document.dispatchEvent.bind(document);
   const snapshot = () => {
     const selection = document.getSelection();

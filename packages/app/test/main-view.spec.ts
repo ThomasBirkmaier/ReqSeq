@@ -120,7 +120,7 @@ test.describe("the main view on a fixture workspace", () => {
     await running.window.keyboard.press("Enter");
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
     const stored = await cliJson<Listed>(running, ["element", "list"]);
-    expect(await rowTitles(running.window)).toEqual(stored.elements.map((e) => e.title));
+    await expect(running.window.locator(".row .title")).toHaveText(stored.elements.map((e) => e.title));
     // And back: "Type and ID" is the default again, which says nothing.
     await runCommand(running.window, "sort list");
     await running.window.keyboard.type("type and id");
@@ -132,7 +132,7 @@ test.describe("the main view on a fixture workspace", () => {
       JSON.stringify({ sort: DEFAULT_SORT }),
     ]);
     await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
-    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
+    await expect(running.window.locator(".row .title")).toHaveText(listed.elements.map((e) => e.title));
   });
 
   test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {

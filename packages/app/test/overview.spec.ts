@@ -37,6 +37,17 @@ const jump = async (window: Page, text: string): Promise<void> => {
   await window.keyboard.press("Enter");
 };
 
+/**
+ * Like `jump`, but waits until the hit list shows the expected element before it presses Enter. Without the wait
+ * Enter races `element.search` and finds an empty or stale list (#460).
+ */
+const jumpToHit = async (window: Page, text: string, title: string): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+P");
+  await window.keyboard.type(text);
+  await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
+  await window.keyboard.press("Enter");
+};
+
 const runCommand = async (window: Page, command: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+Shift+P");
   await window.keyboard.type(command);
@@ -87,11 +98,11 @@ test.describe("the overview of a fixture workspace", () => {
 
   test("[SR-118/AK1] below the types the overview shows the elements opened last, newest first", async () => {
     const { window } = running;
-    await jump(window, "icing");
+    await jumpToHit(window, "icing", "Survive icing");
     await expect(window.locator("article h1")).toHaveText("Survive icing");
-    await jump(window, "dial");
+    await jumpToHit(window, "dial", "Show a dial");
     await expect(window.locator("article h1")).toHaveText("Show a dial");
-    await jump(window, "storms");
+    await jumpToHit(window, "storms", "Warn of storms");
     await expect(window.locator("article h1")).toHaveText("Warn of storms");
     await runCommand(window, "show overview");
     await expect(overview(window)).toBeVisible();
@@ -106,9 +117,9 @@ test.describe("the overview of a fixture workspace", () => {
 
   test("[SR-118/AK1] the recent elements are there again after the app restarts", async () => {
     const { window } = running;
-    await jump(window, "icing");
+    await jumpToHit(window, "icing", "Survive icing");
     await expect(window.locator("article h1")).toHaveText("Survive icing");
-    await jump(window, "dial");
+    await jumpToHit(window, "dial", "Show a dial");
     await expect(window.locator("article h1")).toHaveText("Show a dial");
     const { kept } = running;
     await running.close({ keep: true });
@@ -152,7 +163,7 @@ test.describe("the overview of a fixture workspace", () => {
     for (const element of listed.elements) {
       for (const text of [element.shortId, element.title]) {
         // Each round starts like a fresh start: the overview is the only buffer.
-        await jump(window, text);
+        await jumpToHit(window, text, element.title);
         await expect(window.locator("article h1")).toHaveText(element.title);
         await expect(modeline(window)).toContainText(element.shortId);
         await runCommand(window, "close buffer");
@@ -187,9 +198,9 @@ test.describe("the overview of a fixture workspace", () => {
     expect(root).not.toBe("");
     const before = await snapshot(root);
     expect(Object.keys(before).length).toBeGreaterThan(14);
-    await jump(window, "icing");
+    await jumpToHit(window, "icing", "Survive icing");
     await expect(window.locator("article h1")).toHaveText("Survive icing");
-    await jump(window, "dial");
+    await jumpToHit(window, "dial", "Show a dial");
     await expect(window.locator("article h1")).toHaveText("Show a dial");
     await listAll(window);
     await runCommand(window, "show overview");
