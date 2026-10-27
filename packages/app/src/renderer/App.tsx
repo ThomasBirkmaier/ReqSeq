@@ -9,7 +9,7 @@ import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import { COMMAND_SHORTCUT, actionFor, commandPrompt, referencePrompt, runAction } from "./actions.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
-import type { Buffer, ElementBuffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, OverviewBuffer } from "./buffers.js";
 import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
@@ -28,6 +28,7 @@ import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
 import { bufferView, shownElement, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
+import { ResultView } from "./ResultView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { promptUse } from "./usage.js";
@@ -61,20 +62,36 @@ const modelineParts = (
   );
 };
 
-/** A list or a search result as rows, or (a list in matrix mode, SR-125) as the traceability matrix. */
-const ListOrMatrix = (props: ListViewProps): React.JSX.Element =>
-  inMatrix(props.buffer) ? (
-    <MatrixView
-      call={props.call}
-      buffer={props.buffer}
-      revision={props.revision}
-      dispatch={props.dispatch}
-      onData={props.onData}
-      onEcho={props.onEcho}
-    />
+/** The buffers whose view loads its own data from the same props: lists, search results, neighbourhoods and results. */
+type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer>;
+
+/**
+ * The view of such a buffer: a list or a search result as rows, or (a list in matrix mode, SR-125) as the
+ * traceability matrix; a neighbourhood (SR-107); the output of a catalog command (SR-073 AK2).
+ */
+export const LoadingView = ({
+  buffer,
+  ...props
+}: Omit<ListViewProps, "buffer"> & { readonly buffer: LoadingBuffer }): React.JSX.Element => {
+  const shared = {
+    call: props.call,
+    revision: props.revision,
+    dispatch: props.dispatch,
+    onData: props.onData,
+    onEcho: props.onEcho,
+  };
+  if (buffer.kind === "result") {
+    return <ResultView key={buffer.key} buffer={buffer} {...shared} />;
+  }
+  if (buffer.kind === "neighbourhood") {
+    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} />;
+  }
+  return inMatrix(buffer) ? (
+    <MatrixView buffer={buffer} {...shared} />
   ) : (
-    <ListView {...props} />
+    <ListView buffer={buffer} {...props} />
   );
+};
 
 export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
@@ -325,18 +342,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             dispatch={dispatch}
             onData={onData}
           />
-        ) : current.kind === "neighbourhood" ? (
-          <NeighbourhoodView
-            key={current.key}
-            call={call}
-            buffer={current}
-            revision={revision}
-            dispatch={dispatch}
-            onData={onData}
-            onEcho={setEcho}
-          />
         ) : (
-          <ListOrMatrix
+          <LoadingView
             call={call}
             buffer={current}
             revision={revision}

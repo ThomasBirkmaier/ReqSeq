@@ -605,7 +605,8 @@ const listHarness = async (
       current === undefined ||
       current.kind === "element" ||
       current.kind === "overview" ||
-      current.kind === "neighbourhood"
+      current.kind === "neighbourhood" ||
+      current.kind === "result"
     ) {
       return createElement("p", { id: "elsewhere" }, current === undefined ? "none" : bufferName(current));
     }

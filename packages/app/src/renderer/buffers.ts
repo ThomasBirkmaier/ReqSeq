@@ -1,6 +1,11 @@
 // The buffers of the main view (D-062): the window shows one buffer at a time, the most recent one.
 // A buffer is a list, a search result or an element. This module is the model and the reducer, no React.
-import type { DataExportRelation, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
+import type {
+  CommandTypes,
+  DataExportRelation,
+  ElementSelection,
+  FilterSortKeyWithDefaults,
+} from "@logreq/core";
 import { hasSavedFilter } from "./list-filters.js";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
@@ -81,7 +86,27 @@ export interface NeighbourhoodBuffer {
   readonly cursor: number;
 }
 
-export type Buffer = ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer | NeighbourhoodBuffer;
+/**
+ * The output of a catalog command that no other buffer shows (SR-073 AK2), laid out by its shape
+ * (`result.ts`). It holds the output of the call that opened it, with the revision of the workspace it is
+ * from; when the workspace changed, the view asks again with the same input.
+ */
+export interface ResultBuffer {
+  readonly kind: "result";
+  readonly key: string;
+  readonly command: keyof CommandTypes;
+  readonly input: Readonly<Record<string, unknown>>;
+  /** The title of the command and the values given, as the command prompt showed them. */
+  readonly name: string;
+  readonly output: unknown;
+  /** Why the last call failed; the output is then undefined. */
+  readonly error?: string;
+  readonly revision: number;
+  readonly cursor: number;
+}
+
+export type Buffer =
+  ListBuffer | SearchBuffer | ElementBuffer | OverviewBuffer | NeighbourhoodBuffer | ResultBuffer;
 
 /** Open buffers, the most recent first; the first one is shown. */
 export type Buffers = readonly Buffer[];
@@ -207,6 +232,24 @@ export const neighbourhoodBuffer = (id: string, repository: string, name: string
   cursor: 0,
 });
 
+/** The result buffer of `command` with `input`: one per command and input, so running it again replaces it. */
+export const resultBuffer = (
+  command: keyof CommandTypes,
+  input: Readonly<Record<string, unknown>>,
+  name: string,
+  output: unknown,
+  revision: number,
+): ResultBuffer => ({
+  kind: "result",
+  key: `result:${command}:${JSON.stringify(input)}`,
+  command,
+  input,
+  name,
+  output,
+  revision,
+  cursor: 0,
+});
+
 /** The buffer of an element as a list row, a hit or a read element shows it. */
 export const elementBufferOf = (element: {
   readonly id: string;
@@ -300,6 +343,8 @@ export const bufferName = (buffer: Buffer): string => {
       return "Overview";
     case "neighbourhood":
       return `Neighbourhood: ${buffer.name}`;
+    case "result":
+      return buffer.name;
   }
 };
 

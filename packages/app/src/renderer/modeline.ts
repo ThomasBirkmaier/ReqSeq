@@ -47,6 +47,7 @@ export type BufferData =
   | { readonly kind: "list" | "search"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
+  | { readonly kind: "result"; readonly total: number | undefined }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
 
 /** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */
@@ -99,6 +100,9 @@ export const bufferView = (
   }
   if (data.kind === "neighbourhood") {
     return [bufferName(buffer), ...(data.incomplete ? [INCOMPLETE] : [])];
+  }
+  if (data.kind === "result") {
+    return [bufferName(buffer), ...(data.total === undefined ? [] : [`${String(data.total)} in all`])];
   }
   return [
     bufferName(buffer),

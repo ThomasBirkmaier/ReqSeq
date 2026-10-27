@@ -181,6 +181,35 @@ body,
   font-size: 12px;
 }
 
+/* The result buffer: an outline of the output, greys only; element rows open. */
+.result {
+  padding: 0.5rem 0;
+}
+
+.result .line {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.1rem 0.75rem;
+  cursor: default;
+}
+
+.result .line[data-cursor] {
+  background: var(--select);
+}
+
+.result .label {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.result .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 mark {
   background: none;
   color: inherit;
