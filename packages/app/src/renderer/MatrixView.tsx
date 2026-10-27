@@ -16,6 +16,7 @@ import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
+import { useResetOnAsk } from "./use-reset-on-ask.js";
 import { LIST_MAX, LIST_PAGE, activeRow, firstLimit } from "./rows.js";
 
 export interface MatrixViewProps {
@@ -86,14 +87,17 @@ export const MatrixView = ({
   const sort = listSort(buffer);
   const generation = useRef(0);
   const loadingMore = useRef(false);
+  // The rows are asked for again (another list, a filter, a sort, a change): the rows and the cursor in
+  // the old row go in the same render, not in the effect, so no commit shows them under the next name.
+  useResetOnAsk([call, buffer.key, buffer.selection, sort, revision], () => {
+    setTarget(0);
+    setView({ status: "loading" });
+  });
 
   useEffect(() => {
     generation.current += 1;
     const mine = generation.current;
     loadingMore.current = false;
-    // The rows are asked for again (a filter, a sort, a change): the cursor in the old row is gone.
-    setTarget(0);
-    setView({ status: "loading" });
     onData(buffer.key, undefined);
     const limit = firstLimit(buffer.cursor, LIST_PAGE, LIST_MAX);
     void call("trace.matrix", matrixInput(buffer, 0, limit)).then((answer) => {

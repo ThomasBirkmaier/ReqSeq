@@ -13,6 +13,7 @@ import type { KeyPress } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { rowClass, useOutsideMarks } from "./use-outside-marks.js";
+import { useResetOnAsk } from "./use-reset-on-ask.js";
 import type { Row } from "./rows.js";
 import {
   LIST_MAX,
@@ -161,6 +162,14 @@ export const ListView = ({
   const page = kind === "list" ? LIST_PAGE : SEARCH_PAGE;
   const selection = buffer.kind === "list" ? buffer.selection : buffer.query;
   const sort = buffer.kind === "list" ? listSort(buffer) : undefined;
+  const list = JSON.stringify([buffer.key, kind, selection, sort]);
+  // Another list (another buffer, filter or sort) starts empty in the same render, not in the effect: its
+  // name never stands over the rows of the list before, and no key acts on them.
+  useResetOnAsk([list], () => {
+    if (!part) {
+      setView({ status: "loading" });
+    }
+  });
 
   useEffect(() => {
     generation.current += 1;
@@ -169,11 +178,9 @@ export const ListView = ({
     reloading.current = true;
     // A part keeps what it shows until the answer replaces it: the page does not jump when the
     // workspace changes, for example with every save. So does a list that is asked again for a change.
-    const list = JSON.stringify([buffer.key, kind, selection, sort]);
     const same = asked.current === list;
     asked.current = list;
     if (!part && !same) {
-      setView({ status: "loading" });
       onData(buffer.key, undefined);
     }
     const limit = firstLimit(buffer.cursor, page, kind === "list" ? LIST_MAX : SEARCH_MAX);

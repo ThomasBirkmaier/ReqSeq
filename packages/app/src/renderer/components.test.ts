@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { DataExportElement } from "@logreq/core";
-import { act, createElement, useReducer } from "react";
+import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +25,7 @@ import type { ElementControls } from "./actions.js";
 import { focusEffect } from "./editor/preview.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
+import { LoadingView } from "./App.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
@@ -1480,10 +1481,10 @@ const partHarness = async (
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
-  const node = (revision: number): React.ReactElement => {
+  const node = (revision: number, shown: ListBuffer): React.ReactElement => {
     const list = createElement(ListView, {
       call,
-      buffer,
+      buffer: shown,
       revision,
       dispatch: (action: BufferAction) => actions.push(action),
       onData: (key: string, loaded: BufferData | undefined) => data.push([key, loaded]),
@@ -1496,8 +1497,13 @@ const partHarness = async (
       ? list
       : createElement("div", { className: "buffer", id: "enclosing", tabIndex: 0 }, list);
   };
-  await render(node(0));
-  return { actions, data, echoed, show: (revision: number) => render(node(revision)) };
+  await render(node(0, buffer));
+  return {
+    actions,
+    data,
+    echoed,
+    show: (revision: number, shown: ListBuffer = buffer) => render(node(revision, shown)),
+  };
 };
 
 /** As `memberList` makes it: the part starts on its first row, shown while it has the focus. */
@@ -1733,6 +1739,30 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     expect(texts(".row .title")).toEqual(["Title 7"]);
   });
 
+  it("keeps the rows while the elements are asked for again in another sort (#563)", async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    const call = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        }),
+    );
+    const { show } = await partHarness(call as unknown as Call, packageMembers());
+    await act(async () => {
+      answers[0]?.({ ok: true, output: { elements: rowsOf(1, 3), total: 2 } });
+      await Promise.resolve();
+    });
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
+    await show(0, { ...packageMembers(), sort: [{ by: "title", order: "desc" }] });
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
+    await act(async () => {
+      answers[1]?.({ ok: true, output: { elements: [row(2), row(1)], total: 2 } });
+      await Promise.resolve();
+    });
+    expect(texts(".row .title")).toEqual(["Title 2", "Title 1"]);
+  });
+
   it("does not open or page on the old rows while the elements are asked for again", async () => {
     const answers: ((value: unknown) => void)[] = [];
     const call = vi.fn(
@@ -1870,6 +1900,70 @@ describe("ListView, a search", () => {
     const call = fakeCall({ "element.search": () => ({ hits: [], total: 0, incomplete: false }) });
     await listHarness(asCall(call), searchBuffer("zzz"));
     expect(query(".quiet").textContent).toBe("No hits for zzz");
+  });
+});
+
+describe("LoadingView, a list that replaces another list (#563)", () => {
+  it("[SR-122/AK4] starts the next list empty: it never shows the rows of the list before under its name, and Ctrl+N waits for its own rows", async () => {
+    // The search answers when the test says so, as a slow core does.
+    let answerSearch: (value: unknown) => void = () => undefined;
+    const call = vi.fn((name: string) =>
+      name === "element.list"
+        ? Promise.resolve({ ok: true, output: { elements: rowsOf(1, 4), total: 3, incomplete: false } })
+        : new Promise((resolve) => {
+            answerSearch = resolve;
+          }),
+    ) as unknown as Call;
+    // What each commit shows, read before the effects of the commit run (they ask for the next rows).
+    const shown: [string | null | undefined, number][] = [];
+    const Probe = (): null => {
+      useLayoutEffect(() => {
+        shown.push([
+          container.querySelector('[role="listbox"]')?.getAttribute("aria-label"),
+          container.querySelectorAll(".row").length,
+        ]);
+      });
+      return null;
+    };
+    const dispatch = vi.fn();
+    const show = (buffer: ListBuffer | SearchBuffer): Promise<void> =>
+      render(
+        createElement(
+          Fragment,
+          null,
+          createElement(LoadingView, {
+            call,
+            buffer,
+            revision: 0,
+            dispatch,
+            onData: vi.fn(),
+            onEcho: vi.fn(),
+          }),
+          createElement(Probe),
+        ),
+      );
+    await show(listBuffer("All elements"));
+    expect(texts(".row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
+    shown.length = 0;
+    await show(searchBuffer("wind"));
+    expect(shown).toEqual([["Search: wind", 0]]);
+    // Ctrl+N before the hits are there selects nothing; once they are, it selects the first hit.
+    await press(query('[role="listbox"]'), "n", { ctrlKey: true });
+    expect(dispatch).not.toHaveBeenCalled();
+    await act(async () => {
+      answerSearch({
+        ok: true,
+        output: {
+          hits: [7, 8].map((n) => ({ ...row(n), score: 1, fields: ["title"], terms: ["wind"] })),
+          total: 2,
+          incomplete: false,
+        },
+      });
+      await Promise.resolve();
+    });
+    await flush();
+    await press(query('[role="listbox"]'), "n", { ctrlKey: true });
+    expect(dispatch).toHaveBeenCalledWith({ type: "cursor", key: "search:wind", cursor: 0 });
   });
 });
 

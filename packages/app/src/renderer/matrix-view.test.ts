@@ -3,14 +3,15 @@
 // share, one row per element, cells with the other ends, gaps, outdated and missing marks, paging, and the
 // keys that walk through a row and open an element.
 import type { DataExportRelation } from "@logreq/core";
-import { act, createElement, useReducer } from "react";
+import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Buffer, BufferAction, ListBuffer } from "./buffers.js";
-import { DEFAULT_SORT, filteredList, reduceBuffers, withMatrix } from "./buffers.js";
+import { DEFAULT_SORT, bufferName, filteredList, listBuffer, reduceBuffers, withMatrix } from "./buffers.js";
 import type { Call } from "./call.js";
 import { typeStep } from "./list-filters.js";
+import { LoadingView } from "./App.js";
 import { MatrixView } from "./MatrixView.js";
 import type { BufferData } from "./modeline.js";
 
@@ -566,5 +567,49 @@ describe("MatrixView", () => {
       await Promise.resolve();
     });
     expect(container.querySelector("tbody")).toBeNull();
+  });
+});
+
+describe("LoadingView, a matrix that replaces another matrix (#563)", () => {
+  it("starts the next matrix empty: it never shows the rows of the matrix before under its name", async () => {
+    const all = withMatrix(listBuffer("All elements"), true);
+    // The second matrix is still being asked for, as with a slow core.
+    const call = vi.fn((_name: string, input: Record<string, unknown>) =>
+      "selection" in input
+        ? Promise.resolve({ ok: true, output: matrixAnswer() })
+        : new Promise(() => undefined),
+    ) as unknown as Call;
+    // What each commit shows, read before the effects of the commit run (they ask for the next rows).
+    const shown: [string | null | undefined, number][] = [];
+    const Probe = (): null => {
+      useLayoutEffect(() => {
+        shown.push([
+          container.querySelector("table")?.getAttribute("aria-label"),
+          container.querySelectorAll("tbody tr").length,
+        ]);
+      });
+      return null;
+    };
+    const show = (buffer: ListBuffer): Promise<void> =>
+      render(
+        createElement(
+          Fragment,
+          null,
+          createElement(LoadingView, {
+            call,
+            buffer,
+            revision: 0,
+            dispatch: vi.fn(),
+            onData: vi.fn(),
+            onEcho: vi.fn(),
+          }),
+          createElement(Probe),
+        ),
+      );
+    await show(LIST);
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(4);
+    shown.length = 0;
+    await show(all);
+    expect(shown).toEqual([[bufferName(all), 0]]);
   });
 });
