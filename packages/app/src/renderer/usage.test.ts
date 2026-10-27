@@ -1,17 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  MAX_QUERY_LENGTH,
   USAGE_KEEP,
   USAGE_KEY,
   frecency,
   loadUsage,
   promptUse,
   queryKey,
+  rankByUse,
   recordUse,
   rememberedFor,
   saveUsage,
 } from "./usage.js";
 import type { Usage, UsageStorage } from "./usage.js";
-import { rankByUse } from "./usage.js";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 27, 12);
@@ -78,7 +79,7 @@ describe("ranking by use", () => {
     expect(order("cl", used(["", "close-all", 20], ["", "close", 2]))).toEqual(["close", "close-all"]);
   });
 
-  it("[SR-108/AK3] weighs often and recently together: one use today is not worth twenty a year ago", () => {
+  it("[SR-108/AK3] weighs often and recently together: twenty uses a year ago do not outweigh one today", () => {
     const storage = used(...Array.from({ length: 20 }, () => ["", "close-all", 365] as const), [
       "",
       "close",
@@ -229,6 +230,14 @@ describe("the usage record", () => {
     expect(frecency(usage, "a", NOW)).toBe(1);
     expect(frecency(usage, "a", NOW - 2 * DAY)).toBe(2);
     expect(frecency(usage, "b", NOW)).toBe(0);
+  });
+
+  it("counts the use of a text longer than MAX_QUERY_LENGTH but does not remember the text", () => {
+    let usage = loadUsage(() => memory());
+    usage = recordUse(usage, "x".repeat(MAX_QUERY_LENGTH), "a", NOW);
+    usage = recordUse(usage, "x".repeat(MAX_QUERY_LENGTH + 1), "b", NOW);
+    expect(usage.queries).toEqual([["x".repeat(MAX_QUERY_LENGTH), "a"]]);
+    expect(usage.commands.get("b")?.count).toBe(1);
   });
 
   it("keeps at most USAGE_KEEP commands and texts, dropping the ones used longest ago", () => {

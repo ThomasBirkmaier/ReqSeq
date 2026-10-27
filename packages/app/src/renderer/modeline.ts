@@ -2,7 +2,7 @@
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
 import type { DataExportElement } from "@logreq/core";
 import type { InvokeResult } from "../shared/protocol.js";
-import type { Buffer } from "./buffers.js";
+import type { Buffer, ElementBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
@@ -44,11 +44,30 @@ export const workspaceView = (result: InvokeResult): WorkspaceView => {
 
 /** What a buffer has loaded, for its part of the modeline. */
 export type BufferData =
-  | { readonly kind: "list" | "search"; readonly total: number; readonly incomplete: boolean }
+  | {
+      readonly kind: "list" | "search";
+      readonly total: number;
+      readonly incomplete: boolean;
+      /** The elements of the loaded rows, in their order (the selected one is the default of an element argument, #85). */
+      readonly rows?: readonly ElementBuffer[];
+    }
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
   | { readonly kind: "result"; readonly total: number | undefined }
   | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
+
+/** The element of the selected row of the shown list or search; undefined for any other buffer, or while it loads. */
+export const selectedRow = (
+  current: Buffer | undefined,
+  loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
+): ElementBuffer | undefined => {
+  const data = loaded?.key === current?.key ? loaded?.data : undefined;
+  if ((current?.kind !== "list" && current?.kind !== "search") || data?.kind !== current.kind) {
+    return undefined;
+  }
+  const rows = data.rows ?? [];
+  return rows[Math.min(current.cursor, rows.length - 1)];
+};
 
 /** The element that the shown buffer has loaded; undefined for any other buffer, or while it loads. */
 export const shownElement = (

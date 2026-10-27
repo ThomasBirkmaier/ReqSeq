@@ -4,7 +4,7 @@ import { act, createElement, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Choice, Prompt } from "./actions.js";
+import type { Choice, Prompt, PromptFill } from "./actions.js";
 import type { Buffer, BufferAction, ElementBuffer, ListBuffer, SearchBuffer } from "./buffers.js";
 import { nth } from "./lists.js";
 import {
@@ -214,6 +214,190 @@ describe("Minibuffer", () => {
     expect(texts("mark")).toEqual([]);
   });
 
+  describe("argument entry of catalog commands (#85)", () => {
+    it("[SR-108/AK2] marks the matched characters of an argument's candidates", async () => {
+      await mount({
+        label: "Show relation options SR-1 · kind:",
+        items: [choice("a", "derives from"), choice("b", "refines")],
+      });
+      await type(input(), "der");
+      expect(texts('[role="option"]')).toEqual(["derives from"]);
+      expect(texts("mark")).toEqual(["der"]);
+    });
+
+    it("goes back on Backspace in an empty input, and leaves Backspace in a typed text to the input", async () => {
+      const back = vi.fn();
+      const { closed } = await mount({ label: "kind:", items: [choice("a", "refines")], back });
+      await type(input(), "r");
+      await press(input(), "Backspace");
+      expect(back).not.toHaveBeenCalled();
+      await type(input(), "");
+      await press(input(), "Backspace");
+      expect(closed).toHaveBeenCalledTimes(1);
+      expect(back).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes the selected candidate, else the typed text, with Ctrl/Cmd+Enter for the optional arguments", async () => {
+      const more = vi.fn();
+      const text = vi.fn();
+      await mount({ label: "kind:", items: [choice("a", "refines", { more })], more: text });
+      await press(input(), "Enter", { ctrlKey: true });
+      expect(more).toHaveBeenCalledTimes(1);
+      await mount({ label: "maxDepth:", items: [], more: text });
+      await type(input(), "2");
+      await press(input(), "Enter", { metaKey: true });
+      expect(text).toHaveBeenCalledWith("2");
+    });
+
+    it("never lets Ctrl/Cmd+Enter or Backspace in an empty input out of a prompt (no Follow reference)", async () => {
+      const window = vi.fn();
+      document.addEventListener("keydown", window);
+      try {
+        const overview = choice("a", "Overview");
+        const { closed } = await mount({ label: "Go to", items: [overview] });
+        await press(input(), "Backspace");
+        expect(closed).not.toHaveBeenCalled();
+        // Without optional arguments Ctrl/Cmd+Enter takes the candidate, as Enter does.
+        await press(input(), "Enter", { ctrlKey: true });
+        expect(window).not.toHaveBeenCalled();
+        expect(overview.run).toHaveBeenCalledTimes(1);
+      } finally {
+        document.removeEventListener("keydown", window);
+      }
+    });
+
+    describe("parts that come later (`fill`)", () => {
+      /** A `fill` the test resolves. */
+      const later = () => {
+        let resolve: (parts: PromptFill) => void = () => undefined;
+        const fill = new Promise<PromptFill>((done) => {
+          resolve = done;
+        });
+        const arrive = async (parts: PromptFill): Promise<void> => {
+          await act(async () => {
+            resolve(parts);
+            await Promise.resolve();
+          });
+          await flush();
+        };
+        return { fill, arrive };
+      };
+
+      it("is open with its label at once and keeps what is typed while the parts load", async () => {
+        const { fill, arrive } = later();
+        const { closed } = await mount({ label: "Show relation options · kind:", items: [], fill });
+        expect(query("label").textContent).toBe("Show relation options · kind:");
+        expect(document.activeElement).toBe(input());
+        await type(input(), "ref");
+        await arrive({ items: [choice("a", "derives from"), choice("b", "refines")] });
+        expect(input().value).toBe("ref");
+        expect(texts('[role="option"]')).toEqual(["refines"]);
+        expect(closed).not.toHaveBeenCalled();
+      });
+
+      it("takes the candidate on an Enter pressed while they load, once they arrive", async () => {
+        const { fill, arrive } = later();
+        const refines = choice("b", "refines");
+        const { closed } = await mount({ label: "kind:", items: [], fill });
+        await type(input(), "ref");
+        await press(input(), "Enter");
+        expect(closed).not.toHaveBeenCalled();
+        await arrive({ items: [choice("a", "derives from"), refines] });
+        expect(refines.run).toHaveBeenCalledTimes(1);
+        expect(closed).toHaveBeenCalledTimes(1);
+      });
+
+      it("drops an Enter pressed while they load when the text changes afterwards", async () => {
+        const { fill, arrive } = later();
+        const refines = choice("b", "refines");
+        const { closed } = await mount({ label: "kind:", items: [], fill });
+        await type(input(), "ref");
+        await press(input(), "Enter");
+        await type(input(), "re");
+        await arrive({ items: [choice("a", "derives from"), refines] });
+        expect(refines.run).not.toHaveBeenCalled();
+        expect(closed).not.toHaveBeenCalled();
+        expect(texts('[role="option"]')).toEqual(["refines", "derives from"]);
+      });
+
+      it("searches the text typed meanwhile and takes the first hit with the optional arguments on Ctrl/Cmd+Enter", async () => {
+        const { fill, arrive } = later();
+        const hit = choice("e", "SR-4 Title 4", { more: vi.fn() });
+        const find = vi.fn(() => Promise.resolve([hit]));
+        await mount({ label: "ref:", items: [], fill });
+        await type(input(), "tit");
+        await press(input(), "Enter", { ctrlKey: true });
+        await arrive({ items: [], find });
+        expect(find).toHaveBeenCalledWith("tit");
+        expect(hit.more).toHaveBeenCalledTimes(1);
+      });
+
+      it("ends on Escape while they load; parts that arrive later fill nothing", async () => {
+        const { fill, arrive } = later();
+        const cancel = vi.fn();
+        const { closed } = await mount({ label: "kind:", items: [], fill, cancel });
+        await press(input(), "Escape");
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(closed).toHaveBeenCalledTimes(1);
+        await render(
+          createElement(Minibuffer, { echo: "", prompt: undefined, onCommand: vi.fn(), onClose: closed }),
+        );
+        await arrive({ items: [choice("a", "refines")] });
+        expect(container.querySelector("input")).toBeNull();
+      });
+
+      it("shows a label that came later, such as why the values could not be read", async () => {
+        const { fill, arrive } = later();
+        await mount({ label: "kind:", items: [], fill });
+        await arrive({ label: "No workspace · kind:" });
+        expect(query("label").textContent).toBe("No workspace · kind:");
+      });
+    });
+
+    it("ends a list argument with Enter on an empty input, and takes a candidate once something is typed", async () => {
+      const empty = vi.fn();
+      const refines = choice("a", "refines");
+      await mount({ label: "refs:", items: [refines], empty });
+      await press(input(), "Enter");
+      expect(empty).toHaveBeenCalledTimes(1);
+      await mount({ label: "refs:", items: [refines], empty });
+      await type(input(), "ref");
+      await press(input(), "Enter");
+      expect(refines.run).toHaveBeenCalledTimes(1);
+    });
+
+    it("ends a list argument with Ctrl/Cmd+Enter on an empty input instead of taking the first candidate", async () => {
+      const empty = vi.fn();
+      const refines = choice("a", "refines", { more: vi.fn() });
+      const { closed } = await mount({ label: "refs:", items: [refines], empty });
+      await press(input(), "Enter", { ctrlKey: true });
+      expect(empty).toHaveBeenCalledWith(true);
+      expect(refines.run).not.toHaveBeenCalled();
+      expect(refines.more).not.toHaveBeenCalled();
+      expect(closed).toHaveBeenCalledTimes(1);
+      await mount({ label: "refs:", items: [refines], empty });
+      await press(input(), "Enter");
+      expect(empty).toHaveBeenLastCalledWith(false);
+    });
+
+    it("remembers only a choice among the prompt's own items, never an element found for the text", async () => {
+      const record = vi.fn();
+      const use = { score: () => 0, remembered: () => undefined, record };
+      await mount({
+        label: "Command",
+        items: [choice("own", "Overview")],
+        find: () => Promise.resolve([choice("element:1", "SR-1 Zebra")]),
+        use,
+      });
+      await type(input(), "zebra");
+      await press(input(), "Enter");
+      expect(record).not.toHaveBeenCalled();
+      await type(input(), "over");
+      await press(input(), "Enter");
+      expect(record).toHaveBeenCalledWith("over", "own");
+    });
+  });
+
   describe("what was chosen before", () => {
     const use = (remembered: Record<string, string> = {}, scores: Record<string, number> = {}) => ({
       score: (id: string): number => scores[id] ?? 0,
@@ -263,6 +447,20 @@ describe("Minibuffer", () => {
       });
       expect(recorded.record).toHaveBeenLastCalledWith("flt", "type");
       expect(recorded.record).toHaveBeenCalledTimes(2);
+    });
+
+    it("[SR-121/AK2] records the typed text and the command on Ctrl/Cmd+Enter as on Enter", async () => {
+      const recorded = use();
+      const more = vi.fn();
+      const prompt = filters({ use: recorded });
+      await mount({
+        ...prompt,
+        items: [choice("type", "Filter list by type", { more }), ...prompt.items.slice(1)],
+      });
+      await type(input(), "flt");
+      await press(input(), "Enter", { ctrlKey: true });
+      expect(recorded.record).toHaveBeenCalledWith("flt", "type");
+      expect(more).toHaveBeenCalledTimes(1);
     });
 
     it("records nothing for an Escape or for typed text", async () => {
@@ -565,6 +763,34 @@ describe("Minibuffer", () => {
       expect(second.run).toHaveBeenCalledTimes(1);
     });
 
+    it("waits on Ctrl/Cmd+Enter as on Enter, and takes the first hit with the optional arguments", async () => {
+      const { find, answer } = deferred();
+      const { closed } = await mount({ label: "ref:", items: [], find });
+      const stale = choice("old", "S-001 Starts with S", { more: vi.fn() });
+      const wanted = choice("new", "SR-118 Calm start", { more: vi.fn() });
+      await type(input(), "S");
+      await answer("S", [stale]);
+      await type(input(), "SR-118");
+      await press(input(), "Enter", { metaKey: true });
+      expect(stale.more).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
+      await answer("SR-118", [wanted]);
+      expect(wanted.more).toHaveBeenCalledTimes(1);
+      expect(wanted.run).not.toHaveBeenCalled();
+      expect(closed).toHaveBeenCalledTimes(1);
+      // A first hit without optional arguments is taken as with Enter.
+      const plain = deferred();
+      await render(
+        createElement(Minibuffer, { echo: "", prompt: undefined, onCommand: vi.fn(), onClose: vi.fn() }),
+      );
+      await mount({ label: "Go to", items: [], find: plain.find });
+      const hit = choice("e", "SR-119 Other");
+      await type(input(), "SR-119");
+      await press(input(), "Enter", { ctrlKey: true });
+      await plain.answer("SR-119", [hit]);
+      expect(hit.run).toHaveBeenCalledTimes(1);
+    });
+
     it("stops waiting on Escape, and when the prompt is gone", async () => {
       const { find, answer } = deferred();
       const { closed } = await mount({ label: "Go to", items: [], find });
@@ -664,7 +890,18 @@ describe("ListView, a list", () => {
     expect(query('[role="option"]').getAttribute("aria-selected")).toBe("true");
     expect(data).toEqual([
       ["list", undefined],
-      ["list", { kind: "list", total: 2, incomplete: false }],
+      [
+        "list",
+        {
+          kind: "list",
+          total: 2,
+          incomplete: false,
+          rows: [
+            elementBuffer("uuid-1", "spec", "SR-036 Title 1"),
+            elementBuffer("uuid-2", "spec", "SR-000002 Title 2"),
+          ],
+        },
+      ],
     ]);
   });
 
@@ -733,7 +970,7 @@ describe("ListView, a list", () => {
   it("marks incomplete results in the data for the modeline", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(1, 2), total: 1, incomplete: true }) });
     const { data } = await listHarness(asCall(call), listBuffer("All elements"));
-    expect(data.at(-1)?.[1]).toEqual({ kind: "list", total: 1, incomplete: true });
+    expect(data.at(-1)?.[1]).toMatchObject({ kind: "list", total: 1, incomplete: true });
   });
 
   it("moves the selection with the arrow keys, Page Up and Page Down, Home and End, inside the rows", async () => {
@@ -819,7 +1056,7 @@ describe("ListView, a list", () => {
     });
     const { data } = await listHarness(asCall(call), listBuffer("All elements"));
     await press(query('[role="listbox"]'), "End");
-    expect(data.at(-1)?.[1]).toEqual({ kind: "list", total: 390, incomplete: false });
+    expect(data.at(-1)?.[1]).toMatchObject({ kind: "list", total: 390, incomplete: false });
   });
 
   it("asks only once while a page is on its way", async () => {
@@ -1276,7 +1513,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     const empty = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
     const { data } = await partHarness(asCall(empty), packageMembers());
     expect(container.querySelector(".quiet")).toBeNull();
-    expect(data).toEqual([["element:spec:uuid-p", { kind: "list", total: 0, incomplete: false }]]);
+    expect(data).toEqual([["element:spec:uuid-p", { kind: "list", total: 0, incomplete: false, rows: [] }]]);
     act(() => {
       root.unmount();
     });
@@ -1430,7 +1667,12 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     await show(1);
     expect(call).toHaveBeenCalledTimes(2);
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
-    expect(data).toEqual([["element:spec:uuid-p", { kind: "list", total: 2, incomplete: false }]]);
+    expect(data).toEqual([
+      [
+        "element:spec:uuid-p",
+        { kind: "list", total: 2, incomplete: false, rows: expect.any(Array) as unknown },
+      ],
+    ]);
     await act(async () => {
       answers[1]?.({ ok: true, output: { elements: rowsOf(7, 8), total: 1 } });
       await Promise.resolve();
@@ -1543,7 +1785,7 @@ describe("ListView, a search", () => {
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Search: wind");
     expect(data).toEqual([
       ["search:wind", undefined],
-      ["search:wind", { kind: "search", total: 2, incomplete: false }],
+      ["search:wind", { kind: "search", total: 2, incomplete: false, rows: expect.any(Array) as unknown }],
     ]);
   });
 

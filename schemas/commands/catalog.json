@@ -1766,7 +1766,7 @@
         { "field": "direction", "complete": "choice" },
         { "field": "maxDepth", "complete": "number" },
         { "field": "allLevels", "complete": "boolean" },
-        { "field": "kinds", "complete": "text" },
+        { "field": "kinds", "complete": "relationKind", "of": "ref" },
         { "field": "meanings", "complete": "choice" },
         { "field": "view", "complete": "text" },
         { "field": "limit", "complete": "number" },

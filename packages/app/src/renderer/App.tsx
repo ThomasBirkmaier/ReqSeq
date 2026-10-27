@@ -3,10 +3,18 @@
 // element. Nothing else is permanently visible (SR-100). Every datum comes from a catalog command through
 // the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { WorkspaceChangeReason } from "../shared/protocol.js";
+import type { CommandListing, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { LogReqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
-import { COMMAND_SHORTCUT, actionFor, commandPrompt, referencePrompt, runAction } from "./actions.js";
+import {
+  ACTIONS,
+  COMMAND_SHORTCUT,
+  actionFor,
+  commandPrompt,
+  referencePrompt,
+  runAction,
+} from "./actions.js";
+import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer, ElementBuffer, OverviewBuffer } from "./buffers.js";
@@ -26,14 +34,14 @@ import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
-import { bufferView, shownElement, workspaceView } from "./modeline.js";
+import { bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import { ResultView } from "./ResultView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
-import { promptUse } from "./usage.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
+import { promptUse } from "./usage.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -214,6 +222,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     [],
   );
 
+  // The default of an element argument when no element is shown (#85).
+  const row = selectedRow(current, loaded);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     buffers,
@@ -224,6 +234,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     ask,
     echo: setEcho,
     ...(elementControls === undefined ? {} : { element: elementControls }),
+    ...(row === undefined ? {} : { row }),
     modified: current !== undefined && drafts.current.has(current.key),
     closeArmed: (key) => armed.current === key,
     armClose: (key) => {
@@ -238,6 +249,37 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // The shortcuts are read from the latest context, so one listener serves all renders.
   const latest = useRef(context);
   latest.current = context;
+  // The catalog, read once (it is the same for every workspace), and the revision now, read when a command runs.
+  const catalog = useRef<readonly CommandListing[]>([]);
+  const revisionNow = useRef(revision);
+  revisionNow.current = revision;
+  useEffect(() => {
+    bridge.commands().then(
+      (commands) => {
+        catalog.current = commands;
+      },
+      (error: unknown) => {
+        // Without the catalog the command prompt has the app's actions only; say why.
+        setEcho(String(error));
+      },
+    );
+  }, [bridge]);
+  // The command prompt: the actions that apply now and the catalog's read commands (#85).
+  const commands = useCallback((): Prompt => {
+    const now = latest.current;
+    const items = catalogItems(
+      {
+        ...now,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands());
+        },
+      },
+      catalog.current,
+      ACTIONS,
+    );
+    return commandPrompt(now, promptUse(appStorage), items);
+  }, [ask]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       // A key that a control already handled (the minibuffer, the editor, a list) is no shortcut.
@@ -250,7 +292,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       }
       if (matches(event, COMMAND_SHORTCUT)) {
         event.preventDefault();
-        ask(commandPrompt(now, promptUse(appStorage)));
+        ask(commands());
         return;
       }
       const action = actionFor(now, (shortcut) => matches(event, shortcut));
@@ -263,7 +305,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [ask]);
+  }, [ask, commands]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -366,7 +408,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         prompt={prompt}
         onCommand={() => {
           if (latest.current.workspace) {
-            ask(commandPrompt(latest.current, promptUse(appStorage)));
+            ask(commands());
           }
         }}
         onClose={() => {

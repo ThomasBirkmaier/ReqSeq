@@ -53,7 +53,7 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
   it("lists every input field exactly once", () => {
     expect(check(command("test.one", "One", ALL.slice(1)))).toEqual([
       'catalog.json: test.one: arguments: input field "ref" must be listed exactly once in arguments (found 0)',
-      'catalog.json: test.one: arguments: "kind": "of" must name an earlier field, not "ref"',
+      'catalog.json: test.one: arguments: "kind": "of" must name an earlier element or relationTarget field, not "ref"',
     ]);
     expect(check(command("test.one", "One", [...ALL, arg("limit", "number")]))).toEqual([
       'catalog.json: test.one: arguments: input field "limit" must be listed exactly once in arguments (found 2)',
@@ -70,23 +70,34 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
     ]);
   });
 
-  it("`of` names an earlier field and only a source that reads one", () => {
+  it("`of` names an earlier field of a fitting source and only a source that reads one", () => {
     const later = [ALL[0], arg("kind", "relationKind", "limit"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", later))).toEqual([
-      'catalog.json: test.one: arguments: "kind": "of" must name an earlier field, not "limit"',
+      'catalog.json: test.one: arguments: "kind": "of" must name an earlier element or relationTarget field, not "limit"',
     ]);
+    // relation reads the elements of a source, or the kind of a relation asked before.
+    const relation = [ALL[0], arg("kind", "relation", "ref"), arg("limit", "number"), ...ALL.slice(3)];
+    expect(check(command("test.one", "One", relation))).toEqual([]);
     const text = [ALL[0], arg("kind", "text", "ref"), ...ALL.slice(2)];
     expect(check(command("test.one", "One", text))).toEqual([
       'catalog.json: test.one: arguments: "kind": text takes no "of"',
     ]);
   });
 
-  it("a source that reads a field needs one before it", () => {
+  it("a source that reads a field needs a fitting one before it, unless it can give every value", () => {
     const first = { ...input, required: ["kind"] };
     const args = [arg("kind", "value"), ...ALL.filter((a) => a.field !== "kind")];
     expect(check(command("test.one", "One", args, first))).toEqual([
-      'catalog.json: test.one: arguments: "kind": value needs an earlier field',
+      'catalog.json: test.one: arguments: "kind": value needs an earlier property field',
     ]);
+    // An earlier field of another source does not count.
+    const target = [ALL[0], arg("kind", "relationTarget"), ...ALL.slice(2)];
+    expect(check(command("test.one", "One", target))).toEqual([
+      'catalog.json: test.one: arguments: "kind": relationTarget needs an earlier relationKind field',
+    ]);
+    // Every relation kind of the metamodel when no element comes before.
+    const kinds = [arg("kind", "relationKind"), ...ALL.filter((a) => a.field !== "kind")];
+    expect(check(command("test.one", "One", kinds, first))).toEqual([]);
   });
 
   it("typed sources fit their field", () => {

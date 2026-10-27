@@ -156,7 +156,12 @@ export const ListView = ({
       reloading.current = false;
       if (loaded.ok) {
         setView({ status: "ok", rows: loaded.rows, total: loaded.total, incomplete: loaded.incomplete });
-        onData(buffer.key, { kind, total: loaded.total, incomplete: loaded.incomplete });
+        onData(buffer.key, {
+          kind,
+          total: loaded.total,
+          incomplete: loaded.incomplete,
+          rows: loaded.rows.map((row) => row.open),
+        });
       } else {
         setView({ status: "error", message: loaded.message });
         onEcho(loaded.message);
@@ -198,8 +203,14 @@ export const ListView = ({
         return;
       }
       if (loaded.ok) {
-        setView({ ...view, rows: [...view.rows, ...loaded.rows], total: loaded.total });
-        onData(buffer.key, { kind, total: loaded.total, incomplete: loaded.incomplete });
+        const rows = [...view.rows, ...loaded.rows];
+        setView({ ...view, rows, total: loaded.total });
+        onData(buffer.key, {
+          kind,
+          total: loaded.total,
+          incomplete: loaded.incomplete,
+          rows: rows.map((row) => row.open),
+        });
       } else {
         onEcho(loaded.message);
       }

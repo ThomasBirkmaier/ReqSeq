@@ -2179,7 +2179,7 @@
             },
             "arguments": {
               "type": "array",
-              "description": "How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on; without it, the nearest earlier field of the matching kind, and if there is none, every value of the metamodel. `validate-schemas.mjs` checks the coverage, the order and `of`.",
+              "description": "How a command prompt asks for the input (SR-108 AK4): every top-level property of `input` exactly once, the required ones first, in the order they are asked. `complete` says where the values to offer come from (a closed list; the app maps each source to one read command of core and decides nothing about what is allowed). `of` names an earlier field the source depends on. Without it, the nearest earlier field of the fitting source: an `element` or `relationTarget` field for status, invalidStatus, relationKind, hint, property and relation (relation also a `relation` field); a `relationKind` field for relationTarget; a `property` field for value. With no such field, status, invalidStatus, relationKind, hint and property give every value of the metamodel or the workspace; relationTarget, relation and value need one. `validate-schemas.mjs` checks the coverage, the order and `of` (`catalog-checks.mjs`).",
               "items": {
                 "type": "object",
                 "required": [
@@ -2212,7 +2212,7 @@
                       "boolean",
                       "json"
                     ],
-                    "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of`. invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of`. relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: values of existing relations of the elements in `of`. property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of`. filter: saved filters. repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
+                    "description": "element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core."
                   },
                   "of": {
                     "type": "string",
@@ -4627,7 +4627,8 @@
           },
           {
             "field": "kinds",
-            "complete": "text"
+            "complete": "relationKind",
+            "of": "ref"
           },
           {
             "field": "meanings",

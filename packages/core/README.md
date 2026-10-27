@@ -36,7 +36,7 @@ Adapters share one runtime per process: `getCommandRuntime()` returns it (create
 
 ## Writing a command (SR work)
 
-1. The catalog entry exists in `schemas/commands/catalog.json` (name, effect, stage, implements, input and output schema). Changing it is a contract change (ADR-0002 rule 1).
+1. The catalog entry exists in `schemas/commands/catalog.json` (name, `title` for people, summary, effect, stage, implements, `arguments`, input and output schema). `title` is the name the app's command prompt offers and the MCP tool title; `arguments` lists every top-level input field once, the required ones first, with the source a prompt completes it from (`{ field, complete, of? }`, SR-108 AK4; ADR-0002 rule 1, checked by `scripts/contracts/catalog-checks.mjs`). Changing it is a contract change (ADR-0002 rule 1).
 2. Write `src/commands/<group>/<action>.ts`:
 
    ```ts

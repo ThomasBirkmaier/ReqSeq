@@ -684,6 +684,64 @@ describe("App", () => {
   });
 });
 
+describe("App, catalog commands in the command prompt (#85)", () => {
+  const listing = (name: string, extra: object = {}) => ({
+    name,
+    title: name === "filter.list" ? "List saved filters" : "Show affected elements",
+    summary: "A command of the catalog.",
+    effect: "read",
+    stage: 3,
+    implements: ["SR-073"],
+    arguments: name === "filter.list" ? [] : [{ field: "ref", complete: "element" }],
+    input:
+      name === "filter.list" ? { type: "object" } : { type: "object", required: ["ref"], properties: {} },
+    output: { type: "object" },
+    implemented: true,
+    ...extra,
+  });
+
+  it("offers the catalog's read commands by title and shows the output in a result buffer", async () => {
+    const fake = fakeBridge({
+      ...workspace(),
+      "filter.list": () => ({ filters: [{ name: "open", where: {} }] }),
+    });
+    const bridge = {
+      ...fake.bridge,
+      commands: () => Promise.resolve([listing("filter.list"), listing("trace.affected")] as never),
+    };
+    await render(bridge);
+    await runCommand("List saved filters");
+    expect(text("Sheet")).toContain("filters1");
+    expect(text("Modeline")).toContain("List saved filters");
+    // Backspace before the first argument goes back to the command prompt.
+    await runCommand("Show affected elements");
+    expect(query("label").textContent).toBe("Show affected elements · ref:");
+    await keyDown(query("input"), "Backspace");
+    expect(query("label").textContent).toBe("Command");
+  });
+
+  it("puts the selected row of the shown list first for an element argument", async () => {
+    const fake = fakeBridge({ ...workspace(), "trace.affected": () => ({ elements: [], total: 0 }) });
+    const bridge = { ...fake.bridge, commands: () => Promise.resolve([listing("trace.affected")] as never) };
+    await renderList(bridge);
+    await keyDown(query('[role="listbox"]'), "ArrowDown");
+    await runCommand("Show affected elements");
+    expect(query("label").textContent).toBe("Show affected elements · ref:");
+    expect(texts('[role="option"] .name')[0]).toBe("SR-000002 Title 2");
+    await keyDown(query("input"), "Enter");
+    expect(calls(fake.invoke, "trace.affected")).toEqual([{ ref: "uuid-2" }]);
+  });
+
+  it("says why the catalog could not be read, and keeps the app's actions in the command prompt", async () => {
+    const fake = fakeBridge(workspace());
+    const bridge = { ...fake.bridge, commands: () => Promise.reject(new Error("The catalog is unreadable")) };
+    await render(bridge);
+    expect(text("Minibuffer")).toBe("Error: The catalog is unreadable");
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    expect(texts('[role="option"] .name')).toContain("List all elements");
+  });
+});
+
 describe("App, the overview (SR-118)", () => {
   const options = (): string[] =>
     [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);

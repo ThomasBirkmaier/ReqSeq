@@ -4,8 +4,8 @@
 // is a step that narrows the list the one before gave (SR-124 AK1, `list-filters.ts`): the conditions are
 // ANDed in the selection; the values of "Filter list by property" come from `element.facets`.
 //
-// The prompt finds the app's actions. Catalog commands come with #85: they need arguments, so they wait
-// for argument entry.
+// The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, #85); an
+// action that does what a command does covers it, so the prompt lists it once.
 import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
 import type { Buffer, BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
@@ -47,6 +47,8 @@ export interface Choice {
   /** Lower case words of `name` to mark (element hits). */
   readonly terms?: readonly string[];
   readonly run: () => void;
+  /** What Ctrl/Cmd+Enter does with it: take it and offer the optional arguments (catalog commands). */
+  readonly more?: () => void;
 }
 
 /** What the minibuffer asks for. */
@@ -59,9 +61,23 @@ export interface Prompt {
   readonly text?: (text: string) => void;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
+  /** Backspace in an empty input: one argument back (catalog commands). */
+  readonly back?: () => void;
+  /** Ctrl/Cmd+Enter with no candidate: take the typed text and offer the optional arguments. */
+  readonly more?: (text: string) => void;
+  /** Enter on an empty input: end a list argument; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
+  readonly empty?: (more: boolean) => void;
   /** What was chosen before, to order equal matches and to put the command chosen for this text first (the command prompt). */
   readonly use?: PromptUse;
+  /**
+   * The parts that come later (a catalog argument's values): the prompt is open and takes keys while they
+   * load; then they replace the given parts, and Enter or Ctrl/Cmd+Enter pressed meanwhile acts on them.
+   */
+  readonly fill?: Promise<PromptFill>;
 }
+
+/** The parts of a prompt that can come later. */
+export type PromptFill = Partial<Pick<Prompt, "label" | "items" | "find" | "text" | "more">>;
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
 export interface ElementControls {
@@ -95,6 +111,8 @@ export interface ActionContext {
   readonly echo: (message: string) => void;
   /** The shown element buffer, when it has loaded. */
   readonly element?: ElementControls;
+  /** The element of the selected row of the shown list or search, when it has loaded. */
+  readonly row?: ElementBuffer;
   /** The shown buffer has unsaved changes. */
   readonly modified: boolean;
   /** Whether "Close buffer" asked about the unsaved changes of the buffer with this key just now: closing again discards them. */
@@ -113,6 +131,8 @@ export interface Action {
   readonly shortcut?: Shortcut;
   /** Shown in the command prompt in place of a shortcut: a key that only works in the buffer ("Enter"). */
   readonly hint?: string;
+  /** Catalog commands this action does, so the command prompt does not list them as well (#85). */
+  readonly covers?: readonly string[];
   readonly available: (context: ActionContext) => boolean;
   readonly run: (context: ActionContext) => void;
 }
@@ -204,14 +224,23 @@ const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[]) => void
     }),
   );
 
+/** What `findElements` takes besides what choosing a row does. */
+export interface FindOptions {
+  /** Limits the search, such as to the target types of a relation property (SR-104). */
+  readonly selection?: ElementSelection;
+  /** What Ctrl/Cmd+Enter on a row does (a catalog argument: take it and offer the optional arguments, #85). */
+  readonly more?: (row: Row) => void;
+}
+
 /**
  * The elements `element.search` finds for the typed text, as the choices of a prompt; `run` is what
- * choosing one does. The prompts "Go to", "Insert reference" (SR-129) and the one of a relation property
- * (SR-104; `selection` limits it to the target types) find them the same way.
+ * choosing one does. The prompts "Go to", "Insert reference" (SR-129), the one of a relation property
+ * (SR-104) and an element argument of a catalog command (#85) find them the same way.
  */
 export const findElements =
-  (context: Pick<ActionContext, "call" | "echo">, run: (row: Row) => void, selection?: ElementSelection) =>
+  (context: Pick<ActionContext, "call" | "echo">, run: (row: Row) => void, options: FindOptions = {}) =>
   async (query: string): Promise<readonly Choice[]> => {
+    const { selection, more } = options;
     const answer = await context.call("element.search", {
       query,
       ...(selection === undefined ? {} : { selection }),
@@ -229,6 +258,13 @@ export const findElements =
       run: () => {
         run(row);
       },
+      ...(more === undefined
+        ? {}
+        : {
+            more: () => {
+              more(row);
+            },
+          }),
     }));
   };
 
@@ -384,6 +420,7 @@ export const ACTIONS: readonly Action[] = [
     id: "go-to",
     title: "Go to element or buffer",
     shortcut: { mod: true, shift: false, key: "p" },
+    covers: ["element.get"],
     available: hasWorkspace,
     run: (context: ActionContext): void => {
       context.ask(jumpPrompt(context));
@@ -712,18 +749,28 @@ const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
   return hint === undefined ? {} : { hint };
 };
 
-/** The command prompt: the actions that apply now, with their shortcuts, ordered by `use` (SR-108 AK3, SR-121 AK2). */
-export const commandPrompt = (context: ActionContext, use?: PromptUse): Prompt => ({
+/**
+ * The command prompt: the actions that apply now, with their shortcuts, then `commands` (the catalog's,
+ * `catalog-commands.ts`), ordered by `use` (SR-108 AK3, SR-121 AK2).
+ */
+export const commandPrompt = (
+  context: ActionContext,
+  use?: PromptUse,
+  commands: readonly Choice[] = [],
+): Prompt => ({
   label: "Command",
   ...(use === undefined ? {} : { use }),
-  items: ACTIONS.filter((action) => action.available(context)).map((action) => ({
-    id: action.id,
-    name: action.title,
-    ...hintOf(action, context.mac),
-    run: () => {
-      runAction(action, context);
-    },
-  })),
+  items: [
+    ...ACTIONS.filter((action) => action.available(context)).map((action) => ({
+      id: action.id,
+      name: action.title,
+      ...hintOf(action, context.mac),
+      run: () => {
+        runAction(action, context);
+      },
+    })),
+    ...commands,
+  ],
 });
 
 /** The action with a shortcut that `pressed` accepts, when it applies now. */

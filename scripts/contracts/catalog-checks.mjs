@@ -1,18 +1,25 @@
 // Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles and the argument
 // sources of the command prompt (SR-108). Returns the error lines; `validate-schemas.mjs` prints them.
 
-/** Sources that read the field named by `of`. */
-const NEEDS_CONTEXT = new Set([
-  "status",
-  "invalidStatus",
-  "relationKind",
-  "relationTarget",
-  "relation",
-  "value",
-  "hint",
-]);
-/** Sources that may be given `of` (property: every property of the metamodel without it). */
-const MAY_HAVE_CONTEXT = new Set([...NEEDS_CONTEXT, "property"]);
+/** Sources that give elements: what `of` of an element source names. */
+const ELEMENTS = ["element", "relationTarget"];
+/**
+ * Sources that read an earlier field, and the sources that field may have. Without `of`, a source reads
+ * the nearest earlier field of such a source (the same rule as `contextField` in the app's
+ * `catalog-commands.ts`).
+ */
+export const CONTEXT = {
+  status: ELEMENTS,
+  invalidStatus: ELEMENTS,
+  relationKind: ELEMENTS,
+  hint: ELEMENTS,
+  property: ELEMENTS,
+  relation: [...ELEMENTS, "relation"],
+  relationTarget: ["relationKind"],
+  value: ["property"],
+};
+/** Sources that give every value of the metamodel or the workspace when no such field comes before. */
+const WITHOUT_CONTEXT = new Set(["status", "invalidStatus", "relationKind", "hint", "property"]);
 
 /** The inline schema of a field, or of the items of an array field. */
 const itemOf = (property) => (property.type === "array" ? (property.items ?? {}) : property);
@@ -45,21 +52,22 @@ function checkKind(arg, property) {
   return [];
 }
 
-/** `of`: only for sources that read a field, and only an earlier one. */
+/** `of`: only for sources that read a field, and only an earlier field of a fitting source. */
 function checkContext(arg, earlier) {
-  if (arg.of === undefined) {
-    return NEEDS_CONTEXT.has(arg.complete) && earlier.length === 0
-      ? [`"${arg.field}": ${arg.complete} needs an earlier field`]
-      : [];
+  const fitting = CONTEXT[arg.complete];
+  if (fitting === undefined) {
+    return arg.of === undefined ? [] : [`"${arg.field}": ${arg.complete} takes no "of"`];
   }
-  const errors = [];
-  if (!MAY_HAVE_CONTEXT.has(arg.complete)) {
-    errors.push(`"${arg.field}": ${arg.complete} takes no "of"`);
+  const kinds = fitting.join(" or ");
+  if (arg.of !== undefined) {
+    const named = earlier.find((e) => e.field === arg.of);
+    return named !== undefined && fitting.includes(named.complete)
+      ? []
+      : [`"${arg.field}": "of" must name an earlier ${kinds} field, not "${arg.of}"`];
   }
-  if (!earlier.includes(arg.of)) {
-    errors.push(`"${arg.field}": "of" must name an earlier field, not "${arg.of}"`);
-  }
-  return errors;
+  return WITHOUT_CONTEXT.has(arg.complete) || earlier.some((e) => fitting.includes(e.complete))
+    ? []
+    : [`"${arg.field}": ${arg.complete} needs an earlier ${kinds} field`];
 }
 
 /** Every input field exactly once, the required ones first, each source fitting its field. */
@@ -86,7 +94,7 @@ function checkArguments(cmd) {
     } else if (optionalSeen) {
       errors.push(`required "${arg.field}" comes after optional "${optionalSeen}"`);
     }
-    errors.push(...checkContext(arg, fields.slice(0, index)), ...checkKind(arg, property));
+    errors.push(...checkContext(arg, cmd.arguments.slice(0, index)), ...checkKind(arg, property));
   });
   return errors.map((e) => `arguments: ${e}`);
 }

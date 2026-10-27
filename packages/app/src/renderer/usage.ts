@@ -33,6 +33,9 @@ const EMPTY: Usage = { commands: new Map(), queries: [] };
 /** A typed text as it is compared: no case, no space at the ends, one space between words. */
 export const queryKey = (query: string): string => query.trim().toLowerCase().split(/\s+/).join(" ");
 
+/** The longest typed text that is remembered for its command (SR-121 AK2). */
+export const MAX_QUERY_LENGTH = 200;
+
 /** `usage` after the command `id` was chosen at `now` for the typed text `query`. */
 export const recordUse = (usage: Usage, query: string, id: string, now: number): Usage => {
   const known = usage.commands.get(id);
@@ -41,9 +44,10 @@ export const recordUse = (usage: Usage, query: string, id: string, now: number):
   const key = queryKey(query);
   return {
     commands: new Map(kept),
-    // An empty text counts for the command but is no text to remember.
+    // An empty text counts for the command but is no text to remember, nor is a text too long to be
+    // typed again (it would only fill the storage).
     queries:
-      key === ""
+      key === "" || key.length > MAX_QUERY_LENGTH
         ? usage.queries
         : [[key, id] as const, ...usage.queries.filter(([old]) => old !== key)].slice(0, USAGE_KEEP),
   };
@@ -151,7 +155,8 @@ export const rankByUse = <T extends { readonly id: string }>(
     .sort((a, b) => b.score - a.score)
     .map(({ item }) => item);
   const ranked = rank(byUse, name, query);
-  const first = ranked.findIndex(({ item }) => item.id === use.remembered(query));
+  const remembered = use.remembered(query);
+  const first = ranked.findIndex(({ item }) => item.id === remembered);
   return first <= 0
     ? ranked
     : [...ranked.slice(first, first + 1), ...ranked.slice(0, first), ...ranked.slice(first + 1)];

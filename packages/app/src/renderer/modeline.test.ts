@@ -1,7 +1,7 @@
 import type { DataExportElement } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import { elementBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { bufferView, shownElement, workspaceView } from "./modeline.js";
+import { bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
@@ -171,6 +171,37 @@ describe("bufferView", () => {
       "Search: wind",
       "0 hits",
     ]);
+  });
+});
+
+describe("selectedRow", () => {
+  const rows = [elementBuffer("uuid-1", "spec", "SR-1 One"), elementBuffer("uuid-2", "spec", "SR-2 Two")];
+  const data = (kind: "list" | "search", given = rows) => ({
+    kind,
+    total: 2,
+    incomplete: false,
+    rows: given,
+  });
+
+  it("is the element of the selected row of the shown list or search, the last one past the end", () => {
+    const list = { ...listBuffer("All elements"), cursor: 1 };
+    expect(selectedRow(list, { key: list.key, data: data("list") })).toBe(rows[1]);
+    const search = { ...searchBuffer("two"), cursor: 5 };
+    expect(selectedRow(search, { key: search.key, data: data("search") })).toBe(rows[1]);
+  });
+
+  it("is undefined for another buffer, data of another buffer or kind, or no rows", () => {
+    const list = listBuffer("All elements");
+    expect(selectedRow(undefined, undefined)).toBeUndefined();
+    expect(selectedRow(list, undefined)).toBeUndefined();
+    expect(selectedRow(list, { key: "other", data: data("list") })).toBeUndefined();
+    expect(selectedRow(list, { key: list.key, data: data("search") })).toBeUndefined();
+    expect(selectedRow(list, { key: list.key, data: data("list", []) })).toBeUndefined();
+    expect(
+      selectedRow(list, { key: list.key, data: { kind: "list", total: 0, incomplete: false } }),
+    ).toBeUndefined();
+    const element = elementBuffer("uuid-1", "spec", "SR-1 One");
+    expect(selectedRow(element, { key: element.key, data: data("list") })).toBeUndefined();
   });
 });
 

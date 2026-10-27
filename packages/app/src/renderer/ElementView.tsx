@@ -627,7 +627,7 @@ export const ElementView = ({
               findElements(
                 { call: run, echo },
                 take,
-                types === undefined ? undefined : { where: { type: [...types] } },
+                types === undefined ? {} : { selection: { where: { type: [...types] } } },
               ),
         done,
       ),
