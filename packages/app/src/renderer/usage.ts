@@ -39,8 +39,13 @@ export const MAX_QUERY_LENGTH = 200;
 /** `usage` after the command `id` was chosen at `now` for the typed text `query`. */
 export const recordUse = (usage: Usage, query: string, id: string, now: number): Usage => {
   const known = usage.commands.get(id);
-  const commands = new Map(usage.commands).set(id, { count: (known?.count ?? 0) + 1, last: now });
-  const kept = [...commands].sort(([, a], [, b]) => b.last - a.last).slice(0, USAGE_KEEP);
+  // The command just used goes first, so a use in the same millisecond as an older one still counts as
+  // the newer (the sort is stable).
+  const commands: [string, Use][] = [
+    [id, { count: (known?.count ?? 0) + 1, last: now }],
+    ...[...usage.commands].filter(([other]) => other !== id),
+  ];
+  const kept = commands.sort(([, a], [, b]) => b.last - a.last).slice(0, USAGE_KEEP);
   const key = queryKey(query);
   return {
     commands: new Map(kept),

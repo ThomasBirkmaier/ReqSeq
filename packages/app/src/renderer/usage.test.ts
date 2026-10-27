@@ -240,6 +240,15 @@ describe("the usage record", () => {
     expect(usage.commands.get("b")?.count).toBe(1);
   });
 
+  it("keeps the command just used first when an older use has the same time", () => {
+    let usage = loadUsage(() => memory());
+    usage = recordUse(usage, "", "a", NOW);
+    usage = recordUse(usage, "", "b", NOW);
+    expect([...usage.commands.keys()]).toEqual(["b", "a"]);
+    usage = recordUse(usage, "", "a", NOW);
+    expect([...usage.commands.keys()]).toEqual(["a", "b"]);
+  });
+
   it("keeps at most USAGE_KEEP commands and texts, dropping the ones used longest ago", () => {
     let usage = loadUsage(() => memory());
     for (let n = 0; n < USAGE_KEEP + 5; n += 1) {
