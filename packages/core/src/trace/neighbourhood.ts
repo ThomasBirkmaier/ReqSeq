@@ -32,6 +32,8 @@
 //   their walk, so each edge is on one page.
 // - Cost: linear in the elements and links reached; the output adds one short ID and one title per
 //   node of the page, and the current version of each edge target of the page (`versionsOf`).
+import type { CommandName } from "../catalog.js";
+import { CommandError } from "../catalog.js";
 import type { MetamodelRelationKind, TraceNeighbourhoodOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import type {
@@ -42,6 +44,7 @@ import type {
   ShortIds,
 } from "../model/index.js";
 import {
+  currentVersionsOf,
   hasId,
   incomingTo,
   isOutdatedVersion,
@@ -50,6 +53,7 @@ import {
   relationKeysOf,
   targetState,
 } from "../model/index.js";
+import type { Workspace } from "../runtime/workspace.js";
 import type { ChainNode, ChainPage } from "./chain.js";
 import { chainNode, titles, within } from "./chain.js";
 import type { TraceContext } from "./graph.js";
@@ -107,6 +111,27 @@ export const neighbourhoodContext = (
     }),
   );
   return { ...context, keys, references: meanings?.includes("reference") ?? false, unavailable };
+};
+
+/**
+ * Throws `input.invalid` for the keys in `kinds` that are no relation kind and no property of kind
+ * `relation` of `metamodel` (`relationKeysOf`), naming the field `kinds` and the valid keys. Shared by
+ * `trace.neighbourhood` and `trace.matrix`.
+ */
+export const checkRelationKinds = (
+  metamodel: Metamodel,
+  kinds: readonly string[] | undefined,
+  command: CommandName,
+): void => {
+  const valid = [...relationKeysOf(metamodel).keys()];
+  const unknown = (kinds ?? []).filter((key) => !valid.includes(key));
+  if (unknown.length > 0) {
+    throw new CommandError(
+      "input.invalid",
+      `unknown kind of relation: ${unknown.join(", ")}; the keys of relation kinds and relation properties are ${valid.join(", ")}`,
+      { command, fields: ["kinds"], unknown, kinds: valid },
+    );
+  }
 };
 
 const NONE: readonly never[] = Object.freeze([]);
@@ -265,6 +290,21 @@ export type VersionLookup = (element: ElementRecord) => string | undefined;
  * (`currentVersionsOf`); called once, with each element once.
  */
 export type VersionsOf = (targets: readonly ElementRecord[]) => Promise<VersionLookup>;
+
+/**
+ * The `VersionsOf` of a workspace: the current versions as `currentVersionsOf` reads them (only the
+ * files of the targets), undefined for an element that has none. Shared by `trace.neighbourhood` and
+ * `trace.matrix`.
+ */
+export const currentVersionLookup =
+  (workspace: Workspace): VersionsOf =>
+  async (targets) => {
+    const versions = await currentVersionsOf(workspace, targets);
+    return (element) => {
+      const entry = versions.get(element);
+      return entry?.kind === "version" ? entry.version : undefined;
+    };
+  };
 
 type NeighbourhoodEdge = TraceNeighbourhoodOutput["edges"][number];
 

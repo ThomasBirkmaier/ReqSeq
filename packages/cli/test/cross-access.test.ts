@@ -35,6 +35,8 @@ interface Scenario {
   /** Folder of the workspace inside the fixture; default its root. */
   readonly root?: string;
   readonly input: Readonly<Record<string, unknown>>;
+  /** The tag the test name starts with; default `[SR-080/AK2]`. */
+  readonly tag?: string;
   /** What core gives; guards against a scenario that only ever compares the same error. */
   readonly expect: "output" | "error";
   /**
@@ -120,6 +122,9 @@ const TEMPLATE_SETUP = new Map<FixtureOptions, (ws: FixtureWorkspace) => Promise
 /** Every kind of link around a few elements: derivations, a package, an exclusion, inline references (SR-107). */
 const NEIGHBOURHOOD: FixtureOptions = { fixture: "SR-107/neighbourhood", git: true };
 const NB = "5e107a7d-2b4f-4c61-9d08-";
+/** Needs, a decision, packages and system requirements with current, outdated and missing relations (SR-125). */
+const MATRIX: FixtureOptions = { fixture: "SR-125/matrix", git: true };
+const MX = "5e125a7d-2b4f-4c61-9d08-";
 
 /** Relations across repositories, one of them missing; no relation kind has the meaning derivation. */
 /** Spec IDs in a property with the meaning identifier (#305). */
@@ -924,6 +929,66 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "unknown reference", fixture: NEIGHBOURHOOD, input: { ref: "SR-ffffff" }, expect: "error" },
   ],
+  "trace.matrix": [
+    {
+      tag: "[SR-125/AK6]",
+      name: "a package gives the same rows, columns and cells",
+      fixture: MATRIX,
+      input: { selection: { package: "PKG-000001" } },
+      expect: "output",
+    },
+    {
+      tag: "[SR-125/AK6]",
+      name: "a saved filter with its own sort",
+      fixture: MATRIX,
+      input: { selection: { filter: "Stage SRs" } },
+      expect: "output",
+    },
+    {
+      tag: "[SR-125/AK6]",
+      name: "a list of IDs, the sort of the app's list",
+      fixture: MATRIX,
+      input: {
+        selection: { ids: [`${MX}0b0000000005`, `${MX}0b0000000001`, `${MX}0a0000000001`] },
+        sort: [
+          { by: "type", order: "asc" },
+          { by: "identifier", order: "asc" },
+        ],
+      },
+      expect: "output",
+    },
+    {
+      tag: "[SR-125/AK6]",
+      name: "the derivation tree, one page, with the properties named",
+      fixture: MATRIX,
+      input: {
+        selection: { package: "PKG-000001" },
+        sort: [{ by: "hierarchy" }],
+        kinds: ["packages", "derives-from"],
+        limit: 2,
+        offset: 1,
+      },
+      expect: "output",
+    },
+    {
+      name: "relations seen through the core view (SR-125 AK3)",
+      fixture: MATRIX,
+      input: { selection: { package: "PKG-000001", view: "core" } },
+      expect: "output",
+    },
+    {
+      name: "a key that is no relation kind",
+      fixture: MATRIX,
+      input: { selection: { package: "PKG-000001" }, kinds: ["nope"] },
+      expect: "error",
+    },
+    {
+      name: "an unknown saved filter",
+      fixture: MATRIX,
+      input: { selection: { filter: "no such filter" } },
+      expect: "error",
+    },
+  ],
   "trace.related": [
     {
       name: "children of two parents up to a depth, one page (SR-023 AK1, AK2)",
@@ -1515,7 +1580,7 @@ describe(
     for (const entry of runtime.contracts.commands) {
       const explicit = SCENARIOS[entry.name as CommandName] ?? [];
       for (const scenario of [DEFAULT, ...explicit]) {
-        it(`[SR-080/AK2] ${entry.name}, ${scenario.name}`, async () => {
+        it(`${scenario.tag ?? "[SR-080/AK2]"} ${entry.name}, ${scenario.name}`, async () => {
           const results = await runAll(entry, scenario);
           const core = results["core"];
           if (scenario !== DEFAULT) {

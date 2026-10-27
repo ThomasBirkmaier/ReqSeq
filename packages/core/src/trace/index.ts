@@ -85,6 +85,8 @@ export type {
   GapMeaning,
 } from "./chain.js";
 export { chainOutput, traceChain } from "./chain.js";
+export type { MatrixColumn, MatrixContext, MatrixKey, MatrixPlace } from "./matrix.js";
+export { columnOutput, matrixColumns, matrixContext, matrixKeys, matrixRows } from "./matrix.js";
 export type {
   Neighbourhood,
   NeighbourhoodContext,
@@ -97,6 +99,12 @@ export type {
   VersionLookup,
   VersionsOf,
 } from "./neighbourhood.js";
-export { neighbourhoodContext, neighbourhoodOutput, traceNeighbourhood } from "./neighbourhood.js";
+export {
+  checkRelationKinds,
+  currentVersionLookup,
+  neighbourhoodContext,
+  neighbourhoodOutput,
+  traceNeighbourhood,
+} from "./neighbourhood.js";
 export type { RelatedElements, RelatedOptions } from "./related.js";
 export { relatedElements } from "./related.js";

@@ -20,7 +20,7 @@ import type { ElementRecord } from "./elements.js";
 import { STRUCTURAL_KEYS, isUuid } from "./elements.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLine } from "./locate.js";
-import type { RelationKey } from "./relation-keys.js";
+import type { RelationKey, TargetItem } from "./relation-keys.js";
 import { hasId, relationItems } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { targetRepository, targetState } from "./relations.js";
@@ -40,6 +40,9 @@ const text = (value: unknown): string => (typeof value === "string" ? value : ""
 /** The key of the property with the meaning `title` (D-059); undefined when no property has it. */
 export const titleKeyOf = (metamodel: Metamodel): string | undefined =>
   propertyWithMeaning(metamodel, "title")?.key;
+
+/** The key of the property with the meaning `title`, or "" when no property has it: no key is the title, so the title is empty (SR-013 AK3). */
+export const titleKeyOrEmpty = (metamodel: Metamodel): string => titleKeyOf(metamodel) ?? "";
 
 /**
  * The relations to the targets stored under `key`: a relation kind, or a property of kind
@@ -61,39 +64,52 @@ const relationsUnder = (
   key: string,
   relation: Pick<RelationKey, "many">,
   extra: Pick<DataExportRelation, "meaning" | "property">,
-): DataExportRelation[] => {
-  const { record, store, shortIds, titleKey, layout } = input;
-  return relationItems(key, relation, record.data[key]).flatMap(([, item]): DataExportRelation[] => {
-    if (!hasId(item) || !isUuid(item.id)) {
-      return [];
-    }
-    const { id, version, repository: stored } = item;
-    const state = targetState(layout, store, record.repository, { id, repository: stored });
-    const repository = targetRepository(state);
-    const target = state.kind === "available" ? state.element : undefined;
-    const title = target?.data[titleKey];
-    const shortId =
-      target !== undefined
-        ? shortIds.of(target)
-        : state.kind === "inaccessible"
-          ? `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(id)}`
-          : undefined;
-    return [
-      {
-        kind: key,
-        ...extra,
-        direction: "out",
-        id,
-        ...(repository === undefined ? {} : { repository }),
-        ...(shortId === undefined ? {} : { shortId }),
-        ...(target === undefined ? {} : identifierField(shortIds, target)),
-        ...(typeof title === "string" ? { title } : {}),
-        accessible: target !== undefined,
-        targetState: state.kind,
-        ...(isVersion(version) ? { storedVersion: version } : {}),
-      },
-    ];
-  });
+): DataExportRelation[] =>
+  relationItems(key, relation, input.record.data[key]).flatMap(([, item]): DataExportRelation[] =>
+    hasId(item) && isUuid(item.id) ? [relationLink(input, input.record, key, item, extra)] : [],
+  );
+
+/** What a link to or from another element reads: the inputs of a view without the element itself. */
+export type LinkInput = Pick<ListedElementInput, "store" | "shortIds" | "titleKey" | "layout">;
+
+/**
+ * The relation of `source` under `key` to the target `item` (a mapping with a UUID as `id`) as
+ * `element.get` lists it (`relationsUnder`), with `direction: "out"` and the other end's `targetState`.
+ * The one builder of an outgoing relation, shared by the element view and the traceability matrix
+ * (SR-125).
+ */
+export const relationLink = (
+  input: LinkInput,
+  source: ElementRecord,
+  key: string,
+  item: TargetItem,
+  extra: Pick<DataExportRelation, "meaning" | "property">,
+): DataExportRelation => {
+  const { store, shortIds, titleKey, layout } = input;
+  const { id, version, repository: stored } = item;
+  const state = targetState(layout, store, source.repository, { id, repository: stored });
+  const repository = targetRepository(state);
+  const target = state.kind === "available" ? state.element : undefined;
+  const title = target?.data[titleKey];
+  const shortId =
+    target !== undefined
+      ? shortIds.of(target)
+      : state.kind === "inaccessible"
+        ? `${UNKNOWN_TYPE_PREFIX}-${shortIds.tail(id)}`
+        : undefined;
+  return {
+    kind: key,
+    ...extra,
+    direction: "out",
+    id,
+    ...(repository === undefined ? {} : { repository }),
+    ...(shortId === undefined ? {} : { shortId }),
+    ...(target === undefined ? {} : identifierField(shortIds, target)),
+    ...(typeof title === "string" ? { title } : {}),
+    accessible: target !== undefined,
+    targetState: state.kind,
+    ...(isVersion(version) ? { storedVersion: version } : {}),
+  };
 };
 
 /**
@@ -131,25 +147,42 @@ const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
  * when it is one. The superseded element itself has no relation to its successor (D-045).
  */
 const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
-  input.successionsOf(input.record).map(({ source, kind, item }): DataExportRelation => {
-    const state = targetState(input.layout, input.store, source.repository, { id: source.id });
-    const available = state.kind === "available";
-    const title = source.data[input.titleKey];
-    return {
-      kind: kind.key,
-      meaning: "replacement",
-      direction: "in",
-      id: source.id,
-      repository: source.repository,
-      ...(available
-        ? { shortId: input.shortIds.of(source), ...identifierField(input.shortIds, source) }
-        : {}),
-      ...(available && typeof title === "string" ? { title } : {}),
-      accessible: available,
-      targetState: state.kind,
-      ...(isVersion(item["version"]) ? { storedVersion: item["version"] } : {}),
-    };
-  });
+  input
+    .successionsOf(input.record)
+    .map(({ source, kind, item }) => sourceLink(input, source, kind.key, item, { meaning: "replacement" }));
+
+/**
+ * The relation under `key` in `source` that points at an element, as the element it points at sees
+ * it: `direction: "in"`, the other end is `source` with its `targetState` (D-058): `available` when
+ * its repository has exactly one element with its UUID, then also with its short ID and title, also
+ * across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088). It names the
+ * source's repository (#416). `storedVersion` is the version `item` stores, when it is one. The one
+ * builder of an incoming relation, shared by the successors of a superseded element (SR-072 AK3) and
+ * the traceability matrix (SR-125).
+ */
+export const sourceLink = (
+  input: LinkInput,
+  source: ElementRecord,
+  key: string,
+  item: TargetItem,
+  extra: Pick<DataExportRelation, "meaning" | "property">,
+): DataExportRelation => {
+  const state = targetState(input.layout, input.store, source.repository, { id: source.id });
+  const available = state.kind === "available";
+  const title = source.data[input.titleKey];
+  return {
+    kind: key,
+    ...extra,
+    direction: "in",
+    id: source.id,
+    repository: source.repository,
+    ...(available ? { shortId: input.shortIds.of(source), ...identifierField(input.shortIds, source) } : {}),
+    ...(available && typeof title === "string" ? { title } : {}),
+    accessible: available,
+    targetState: state.kind,
+    ...(isVersion(item["version"]) ? { storedVersion: item["version"] } : {}),
+  };
+};
 
 /** The definitions of the properties the element's type has; none for an unknown type. */
 const versionDefinitions = (

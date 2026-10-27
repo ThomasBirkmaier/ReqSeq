@@ -2,7 +2,7 @@
 // import it relatively; it is not part of the package's public API.
 export { ELEMENT_FILE_EXTENSION, listMarkdownFiles, listsFile } from "./discover.js";
 export type { DiscoveredFiles } from "./discover.js";
-export { classifyFile } from "./elements.js";
+export { classifyFile, isUuid } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";
 export type { Classified, ElementMatch, ElementRecord } from "./elements.js";
@@ -118,8 +118,16 @@ export type { ShortIdMatch, ShortIds } from "./short-id.js";
 export { resolveRef } from "./resolve.js";
 export type { ElementCopy } from "./resolve.js";
 export { isN1Version, isOutdatedVersion, isVersion } from "./is-version.js";
-export { elementVersion, elementView, listedElement, titleKeyOf } from "./view.js";
-export type { ElementViewInput, ListedElementInput } from "./view.js";
+export {
+  elementVersion,
+  elementView,
+  listedElement,
+  relationLink,
+  sourceLink,
+  titleKeyOf,
+  titleKeyOrEmpty,
+} from "./view.js";
+export type { ElementViewInput, LinkInput, ListedElementInput } from "./view.js";
 export { listElements } from "./list.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";

@@ -360,7 +360,7 @@ export interface DataExportRelation {
   readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
-  /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the successor's (the other end). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
+  /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
   readonly repository?: string;
   /** Of the other end when it is available; of a target in a repository that is not on this machine with the prefix `UNKNOWN`, since its type is not known (SR-006 AK1, spec question #154). */
   readonly shortId?: ShortId;
@@ -1640,6 +1640,71 @@ export interface TraceNeighbourhoodOutput {
 }
 
 /**
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.
+ * Schema: `schemas/commands/catalog.json trace.matrix input`.
+ */
+export interface TraceMatrixInput {
+  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk. */
+  readonly selection?: ElementSelection;
+  /** As in `element.list`: the rows are in the order `element.list` gives for the same `selection` and `sort` (SR-125 AK1). Without `sort`, the sort of the saved filter in `selection.filter`. `hierarchy` first makes the rows the derivation tree and gives each row its `depth`. */
+  readonly sort?: readonly FilterSortKeyWithDefaults[];
+  /** Keys of the relation kinds or of properties of kind `relation` (such as `packages`) to make columns of. An unknown key is `input.invalid`. Without `kinds`, the columns are the relation kinds of the metamodel (Beziehungsarten, D-043, D-037): relation properties such as the package and the validity are their own built-in meanings (D-012) and form a column only when named here; inline references are no relation kind and never form a column. */
+  readonly kinds?: readonly Key[];
+  /** Rows of the page; `total` counts all. */
+  readonly limit: number;
+  /** Rows skipped before the page, in the order of the list. */
+  readonly offset: number;
+}
+
+/**
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.
+ * Schema: `schemas/commands/catalog.json trace.matrix output`.
+ */
+export interface TraceMatrixOutput {
+  /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation` for now. */
+  readonly columns: readonly {
+    /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. A later type brings its own fields and cell shape. */
+    readonly type: "relation";
+    /** Key of the relation kind, or of the property of kind `relation`. */
+    readonly kind: Key;
+    /** `kind` is the key of a property of kind `relation`, not of a relation kind. */
+    readonly property?: true;
+    /** The meaning of the relation kind; left out for a kind without a meaning and for a property. */
+    readonly meaning?: "derivation" | "replacement" | "exclusion";
+    /** `out`: the relations the row element's file stores. `in`: the relations of other elements that point at it. */
+    readonly direction: "out" | "in";
+    /** For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart. */
+    readonly name: string;
+    /** How many rows of the whole selection have at least one relation in this column (SR-125 AK3), whatever state its other end is in; a relation to a missing target counts. With a view, the relations the cells show. */
+    readonly count: number;
+    /** `count` divided by `total`: the share of the rows of the whole selection. */
+    readonly share: number;
+  }[];
+  /** The page: one row per element of the list, in its order (SR-125 AK1). */
+  readonly rows: readonly {
+    readonly id: Uuid;
+    /** Workspace name of the repository of the element. */
+    readonly repository: string;
+    readonly shortId: ShortId;
+    /** Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none. */
+    readonly identifier?: string;
+    readonly type: string;
+    readonly status?: string;
+    readonly title: string;
+    /** Path relative to the repository. */
+    readonly file: string;
+    /** Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`. */
+    readonly depth?: number;
+    /** One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none: a gap (AK3). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: "missing"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's. */
+    readonly cells: readonly (readonly DataExportRelation[])[];
+  }[];
+  /** The number of rows of the whole selection. */
+  readonly total: number;
+  /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. */
+  readonly incomplete: Incomplete;
+}
+
+/**
  * Input of `hint.list` as `run` gets it: validated, properties with a `default` filled in. Open hints of the workspace, filterable by kind, type, package or variant.
  * Schema: `schemas/commands/catalog.json hint.list input`.
  */
@@ -2178,6 +2243,7 @@ export interface CommandTypes {
   readonly "trace.related": { readonly input: TraceRelatedInput; readonly output: TraceRelatedOutput };
   readonly "trace.affected": { readonly input: TraceAffectedInput; readonly output: TraceAffectedOutput };
   readonly "trace.neighbourhood": { readonly input: TraceNeighbourhoodInput; readonly output: TraceNeighbourhoodOutput };
+  readonly "trace.matrix": { readonly input: TraceMatrixInput; readonly output: TraceMatrixOutput };
   readonly "hint.list": { readonly input: HintListInput; readonly output: HintListOutput };
   readonly "hint.confirm": { readonly input: HintConfirmInput; readonly output: HintConfirmOutput };
   readonly "element.search": { readonly input: ElementSearchInput; readonly output: ElementSearchOutput };

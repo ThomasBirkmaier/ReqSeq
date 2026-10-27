@@ -727,7 +727,7 @@
             },
             "repository": {
               "type": "string",
-              "description": "Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the successor's (the other end). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace)."
+              "description": "Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace)."
             },
             "shortId": {
               "$ref": "common.schema.json#/$defs/shortId",
@@ -4392,6 +4392,197 @@
             "nodes",
             "total",
             "edges",
+            "incomplete"
+          ]
+        }
+      },
+      {
+        "name": "trace.matrix",
+        "summary": "Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.",
+        "effect": "read",
+        "stage": 3,
+        "implements": [
+          "SR-125"
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "selection": {
+              "$ref": "../common.schema.json#/$defs/selection",
+              "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk."
+            },
+            "sort": {
+              "type": "array",
+              "description": "As in `element.list`: the rows are in the order `element.list` gives for the same `selection` and `sort` (SR-125 AK1). Without `sort`, the sort of the saved filter in `selection.filter`. `hierarchy` first makes the rows the derivation tree and gives each row its `depth`.",
+              "items": {
+                "$ref": "../filter.schema.json#/$defs/sortKey"
+              }
+            },
+            "kinds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "../common.schema.json#/$defs/key"
+              },
+              "description": "Keys of the relation kinds or of properties of kind `relation` (such as `packages`) to make columns of. An unknown key is `input.invalid`. Without `kinds`, the columns are the relation kinds of the metamodel (Beziehungsarten, D-043, D-037): relation properties such as the package and the validity are their own built-in meanings (D-012) and form a column only when named here; inline references are no relation kind and never form a column."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 200,
+              "description": "Rows of the page; `total` counts all."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "Rows skipped before the page, in the order of the list."
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "columns": {
+              "type": "array",
+              "description": "One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation` for now.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "relation"
+                    ],
+                    "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. A later type brings its own fields and cell shape."
+                  },
+                  "kind": {
+                    "$ref": "../common.schema.json#/$defs/key",
+                    "description": "Key of the relation kind, or of the property of kind `relation`."
+                  },
+                  "property": {
+                    "const": true,
+                    "description": "`kind` is the key of a property of kind `relation`, not of a relation kind."
+                  },
+                  "meaning": {
+                    "enum": [
+                      "derivation",
+                      "replacement",
+                      "exclusion"
+                    ],
+                    "description": "The meaning of the relation kind; left out for a kind without a meaning and for a property."
+                  },
+                  "direction": {
+                    "enum": [
+                      "out",
+                      "in"
+                    ],
+                    "description": "`out`: the relations the row element's file stores. `in`: the relations of other elements that point at it."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart."
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "How many rows of the whole selection have at least one relation in this column (SR-125 AK3), whatever state its other end is in; a relation to a missing target counts. With a view, the relations the cells show."
+                  },
+                  "share": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "`count` divided by `total`: the share of the rows of the whole selection."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "type",
+                  "kind",
+                  "direction",
+                  "name",
+                  "count",
+                  "share"
+                ]
+              }
+            },
+            "rows": {
+              "type": "array",
+              "description": "The page: one row per element of the list, in its order (SR-125 AK1).",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "../common.schema.json#/$defs/uuid"
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "Workspace name of the repository of the element."
+                  },
+                  "shortId": {
+                    "$ref": "../common.schema.json#/$defs/shortId"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036), for display next to `shortId`; left out when it has none."
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "Path relative to the repository."
+                  },
+                  "depth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`."
+                  },
+                  "cells": {
+                    "type": "array",
+                    "description": "One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none: a gap (AK3). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: \"missing\"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's.",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "../data-export.schema.json#/$defs/relation"
+                      }
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "repository",
+                  "shortId",
+                  "type",
+                  "title",
+                  "file",
+                  "cells"
+                ]
+              }
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The number of rows of the whole selection."
+            },
+            "incomplete": {
+              "$ref": "../common.schema.json#/$defs/incomplete",
+              "description": "The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "columns",
+            "rows",
+            "total",
             "incomplete"
           ]
         }

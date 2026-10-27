@@ -11,7 +11,7 @@ import type { ElementListOutput } from "../../generated/types.js";
 import type { ElementRecord } from "../../model/index.js";
 import { listElements } from "../../model/index.js";
 import type { TreePlace } from "../../query/index.js";
-import { inSavedFilter, resolveSelection, savedSort, sortElements } from "../../query/index.js";
+import { orderedSelection, resolveSelection } from "../../query/index.js";
 
 type TreeEntry = NonNullable<ElementListOutput["tree"]>[number];
 
@@ -31,14 +31,7 @@ export default defineCommand({
   run: async (ctx, input): Promise<CommandOutput<"element.list">> => {
     const command = "element.list";
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
-    // Without `sort`, a saved filter's own (SR-070 AK3: the same elements in the same order).
-    const { filter } = selected;
-    const sorted =
-      input.sort === undefined && filter !== undefined
-        ? inSavedFilter(filter, () =>
-            sortElements({ ...selected, command }, selected.elements, savedSort(filter)),
-          )
-        : sortElements({ ...selected, command }, selected.elements, input.sort ?? []);
+    const sorted = orderedSelection(selected, command, input.sort);
     const end = input.offset + input.limit;
     const page = sorted.elements.slice(input.offset, end);
     const elements = await listElements(ctx.workspace, selected, page, { withText: input.withText === true });

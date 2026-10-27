@@ -1,0 +1,7 @@
+# A third level below the system requirements (SR-022 AK1, AK2): a requirement type by inheritance.
+logreq-metamodel: 1
+types:
+  - key: component-requirement
+    name: Component Requirement
+    prefix: CR
+    extends: system-requirement

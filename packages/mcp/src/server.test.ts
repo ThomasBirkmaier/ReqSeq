@@ -62,6 +62,7 @@ const SELECTION_TOOLS: readonly string[] = [
   "element_list",
   "element_facets",
   "element_bulkUpdate",
+  "trace_matrix",
   "element_search",
   "filter_save",
 ];

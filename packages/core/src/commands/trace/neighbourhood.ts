@@ -6,8 +6,10 @@
 // always complete; the output is one page of `limit` nodes from `offset` with `total` (SR-082 AK4).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { currentVersionsOf, relationKeysOf, resolveRef, shortIdState } from "../../model/index.js";
+import { resolveRef, shortIdState } from "../../model/index.js";
 import {
+  checkRelationKinds,
+  currentVersionLookup,
   neighbourhoodContext,
   neighbourhoodOutput,
   traceContext,
@@ -26,15 +28,7 @@ export default defineCommand({
         fields: ["maxDepth", "allLevels"],
       });
     }
-    const valid = [...relationKeysOf(metamodel).keys()];
-    const unknown = (input.kinds ?? []).filter((key) => !valid.includes(key));
-    if (unknown.length > 0) {
-      throw new CommandError(
-        "input.invalid",
-        `unknown kind of relation: ${unknown.join(", ")}; the keys of relation kinds and relation properties are ${valid.join(", ")}`,
-        { command: "trace.neighbourhood", fields: ["kinds"], unknown, kinds: valid },
-      );
-    }
+    checkRelationKinds(metamodel, input.kinds, "trace.neighbourhood");
     const shortIds = await ctx.workspace.get(shortIdState);
     const root = resolveRef(
       store,
@@ -63,13 +57,7 @@ export default defineCommand({
       neighbourhood,
       { metamodel, shortIds },
       { limit: input.limit, offset: input.offset },
-      async (targets) => {
-        const versions = await currentVersionsOf(ctx.workspace, targets);
-        return (element) => {
-          const entry = versions.get(element);
-          return entry?.kind === "version" ? entry.version : undefined;
-        };
-      },
+      currentVersionLookup(ctx.workspace),
     );
   },
 });

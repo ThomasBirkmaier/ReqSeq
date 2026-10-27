@@ -26,7 +26,7 @@ import type { ElementRecord } from "./elements.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { successionsFor } from "./successors.js";
-import { listedElement, noVersionProblem, titleKeyOf } from "./view.js";
+import { listedElement, noVersionProblem, titleKeyOrEmpty } from "./view.js";
 
 /** The states a list reads: `records` must be elements of `store`, `shortIds` of the same store. */
 export interface ListContext {
@@ -66,7 +66,7 @@ export const listElements = async (
   const text = options.withText === true ? (record: ElementRecord) => textNow(folders, record) : () => ({});
   const versions = await currentVersionsOf(workspace, records);
   // Without the meaning `title` (SR-013 AK3) no key is the title: the title is empty, as in element.get.
-  const titleKey = titleKeyOf(metamodel) ?? "";
+  const titleKey = titleKeyOrEmpty(metamodel);
   const successionsOf = (element: ElementRecord): ReturnType<typeof successionsFor> =>
     successionsFor(workspace, store, metamodel, element);
   const elements: DataExportElement[] = [];

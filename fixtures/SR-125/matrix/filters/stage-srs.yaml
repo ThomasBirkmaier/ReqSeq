@@ -1,0 +1,7 @@
+logreq-filter: 1
+name: Stage SRs
+where:
+  all:
+    - { package: PKG-000001 }
+    - { type: [system-requirement] }
+sort: [{ by: title, order: desc }]

@@ -58,6 +58,8 @@ export interface Selected {
   readonly shortIds: ShortIds;
   /** The saved filter of `filter`, for its `sort`. */
   readonly filter?: SavedFilter;
+  /** The views the elements were selected through: the selection's own and the saved filter's, each if given. */
+  readonly views: readonly View[];
 }
 
 /** The view of a saved filter, when it has one. */
@@ -115,11 +117,10 @@ export const resolveSelection = async (
     tests.push(compiled.predicate);
     notes.push(compiled.notes);
   }
-  for (const shown of [view, savedView]) {
-    if (shown !== undefined) {
-      const validity = validityOf(metamodel);
-      tests.push((e) => appliesIn(validity, e, shown));
-    }
+  const views = [view, savedView].filter((shown): shown is View => shown !== undefined);
+  const validity = validityOf(metamodel);
+  for (const shown of views) {
+    tests.push((e) => appliesIn(validity, e, shown));
   }
   const named =
     selection.ids === undefined
@@ -135,5 +136,6 @@ export const resolveSelection = async (
     store,
     shortIds,
     ...(saved === undefined ? {} : { filter: saved }),
+    views,
   };
 };
