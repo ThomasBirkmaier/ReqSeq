@@ -13,7 +13,7 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0005](0005-version-hash.md) | Version (Fassung) as content hash | D-013, D-027, D-057, D-060 |
 | [0006](0006-read-only-git.md) | Read Git through the git program, read-only | D-036, SR-083 |
 | [0007](0007-parsing-and-writing-files.md) | Parsing and writing YAML and Markdown | D-012, D-056, SR-008, SR-016, SR-065 |
-| [0008](0008-in-memory-model-and-index.md) | In-memory model, search index, cache and file watching | N-036, SR-007, SR-068, SR-081, SR-082 |
+| [0008](0008-in-memory-model-and-index.md) | In-memory model, search index, cache and file watching (details in [`0008/`](0008/)) | N-036, SR-007, SR-068, SR-081, SR-082 |
 | [0009](0009-access-adapters.md) | CLI, local API and MCP server | D-025, D-029, SR-079, SR-080 |
 | [0010](0010-electron-app.md) | Electron app: process model and security | D-003, D-004, SR-073, SR-077, SR-078 |
 | [0011](0011-testing-and-verification.md) | Test tools, evidence and quality gates | D-050, D-051, SR-076..SR-082 |
