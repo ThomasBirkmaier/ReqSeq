@@ -3270,7 +3270,7 @@
     {
       "name": "data.export",
       "title": "Export data",
-      "summary": "Data of the current state as JSON for external evaluation.",
+      "summary": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-061", "SR-101"],

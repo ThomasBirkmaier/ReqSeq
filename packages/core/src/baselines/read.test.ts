@@ -13,6 +13,7 @@ import {
   MAX_VIOLATIONS,
   baselineFilesState,
   baselinesContaining,
+  findBaseline,
   readBaselines,
   workspaceBaselines,
 } from "./read.js";
@@ -294,5 +295,72 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
     const away = { ...layout, repositories: layout.repositories.map((r) => ({ ...r, available: false })) };
     expect((await readBaselines(away as WorkspaceLayout, kept)).incomplete).toBe(true);
     expect(kept.size).toBe(0);
+  });
+});
+
+describe("selection by baseline (data.export, SR-061 AK2)", () => {
+  it("selects the elements a baseline lists in any version, a copy only where an entry names its repository", async () => {
+    const { layout } = await open({
+      "baselines/copies.yaml": baseline(
+        "Copies",
+        `{ id: ${A1}, version: ${V1}, repository: system }`,
+        `{ id: ${A1}, version: ${V2}, repository: sensor }`,
+        `{ id: ${A2}, version: ${V2} }`,
+        `{ id: ${A2}, version: ${V1}, repository: sensor }`,
+        `{ id: ${P}a3, version: ${V1}, repository: system }`,
+        `{ id: ${P}a3, version: ${V1}, repository: system }`,
+      ),
+    });
+    const found = findBaseline(await readBaselines(layout), "Copies");
+    if (found.kind !== "found") {
+      throw new Error(found.kind);
+    }
+    const { selects } = found.baseline;
+    expect([
+      selects({ id: A1, repository: "system" }),
+      selects({ id: A1, repository: "sensor" }),
+      selects({ id: A1, repository: "other" }),
+      // An entry without repository names every copy, whatever came before.
+      selects({ id: A2, repository: "other" }),
+      selects({ id: `${P}a3`, repository: "system" }),
+      selects({ id: `${P}a4`, repository: "system" }),
+    ]).toEqual([true, true, false, true, true, false]);
+  });
+
+  it("finds a baseline by name in any case, then by its file name with or without .yaml", async () => {
+    const { layout } = await open({
+      "baselines/release-1.1.yaml.yaml": baseline("Odd file name"),
+    });
+    const read = await readBaselines(layout);
+    const fileOf = (text: string): unknown => {
+      const found = findBaseline(read, text);
+      return found.kind === "found" ? found.baseline.file : found;
+    };
+    expect(fileOf("release 1.0")).toBe("baselines/release-1.0.yaml");
+    expect(fileOf("beta.yaml")).toBe("baselines/beta.yaml");
+    expect(fileOf("beta")).toBe("baselines/beta.yaml");
+    expect(fileOf("release-1.1.yaml")).toEqual({
+      kind: "ambiguous",
+      files: ["baselines/release-1.1.yaml", "baselines/release-1.1.yaml.yaml"],
+    });
+    expect(fileOf("Release 2")).toEqual({ kind: "none" });
+    // A name is not a path: the folder is not part of the file name.
+    expect(fileOf("baselines/beta.yaml")).toEqual({ kind: "none" });
+  });
+
+  it("tells a name two files share, and a file name of a faulty file", async () => {
+    const { layout } = await open({
+      "baselines/twin.yaml": baseline("Beta"),
+      "baselines/broken.yaml": "logreq-baseline: 1\nname: Broken\n",
+    });
+    const read = await readBaselines(layout);
+    expect(read.faulty).toEqual(["baselines/broken.yaml"]);
+    expect(findBaseline(read, "BETA")).toEqual({
+      kind: "ambiguous",
+      files: ["baselines/beta.yaml", "baselines/twin.yaml"],
+    });
+    expect(findBaseline(read, "broken")).toEqual({ kind: "faulty", file: "baselines/broken.yaml" });
+    // Its `name` is not known: the file is faulty.
+    expect(findBaseline(read, "Broken file")).toEqual({ kind: "none" });
   });
 });

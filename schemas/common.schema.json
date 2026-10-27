@@ -311,7 +311,7 @@
         },
         "baseline": {
           "type": "string",
-          "description": "Path or name of a baseline file."
+          "description": "Baseline name or file; data.export only."
         },
         "view": {
           "$ref": "#/$defs/view"

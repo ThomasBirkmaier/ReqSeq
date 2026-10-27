@@ -6,7 +6,8 @@ export {
   MAX_VIOLATIONS,
   baselineFilesState,
   baselinesContaining,
+  findBaseline,
   readBaselines,
   workspaceBaselines,
 } from "./read.js";
-export type { Baseline, BaselineFiles, Baselines } from "./read.js";
+export type { Baseline, BaselineFiles, Baselines, FoundBaseline } from "./read.js";

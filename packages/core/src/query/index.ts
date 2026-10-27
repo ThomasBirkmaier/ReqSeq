@@ -23,7 +23,7 @@ export {
 export type { FoundFilter, SavedFilter, SavedFilters } from "./saved.js";
 export { orderedSelection } from "./ordered.js";
 export { resolveSelection } from "./selection.js";
-export type { Selected } from "./selection.js";
+export type { Selected, SelectionOptions } from "./selection.js";
 export { sortElements } from "./sort.js";
 export type { SortContext, SortedElements, TreePlace } from "./sort.js";
 export {

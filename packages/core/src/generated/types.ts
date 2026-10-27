@@ -309,7 +309,7 @@ export interface ElementSelection {
   readonly filter?: string;
   readonly where?: FilterCondition;
   readonly package?: ElementRef;
-  /** Path or name of a baseline file. */
+  /** Baseline name or file; data.export only. */
   readonly baseline?: string;
   readonly view?: View;
 }
@@ -345,16 +345,21 @@ export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
 export interface DataExportFile {
   readonly "logreq-data": 1;
   readonly workspace: string;
+  /** Time of the export, UTC, in seconds. */
   readonly generated: IsoDateTime;
+  /** The selection as given; left out when none was given (every element). */
   readonly selection?: ElementSelection;
   readonly repositories: readonly {
     readonly name: string;
     readonly available: boolean;
+    /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
     readonly commit?: Commit;
     /** Uncommitted changes to LogReq files. */
     readonly dirty?: boolean;
   }[];
+  /** A repository of the workspace is not on this machine (SR-006 AK2): its elements, the records of its evidence locations or, with `selection.baseline`, the baselines folder are missing. */
   readonly incomplete?: Incomplete;
+  /** Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`. */
   readonly elements: readonly DataExportElement[];
 }
 
@@ -379,12 +384,14 @@ export interface DataExportElement {
   readonly file: string;
   /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
   readonly readOnly?: boolean;
+  /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
   readonly validity?: readonly Uuid[];
+  /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly {
@@ -2280,7 +2287,7 @@ export interface EvidenceDegreeOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export input`.
  */
 export interface DataExportInput {
@@ -2288,7 +2295,7 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;

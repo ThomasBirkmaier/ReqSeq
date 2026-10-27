@@ -162,6 +162,8 @@ export {
   relationPath,
 } from "./incoming.js";
 export { changedFiles, restrictTo, treeAt } from "./changed.js";
+export { repositoryCommit } from "./repository-commit.js";
+export type { RepositoryCommit } from "./repository-commit.js";
 export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";

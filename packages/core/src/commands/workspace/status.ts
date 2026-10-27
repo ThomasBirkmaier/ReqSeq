@@ -3,9 +3,8 @@
 // workspace is read-only.
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { headCommit, workTreeOf } from "../../git/reader.js";
 import { metamodelState, workspaceAccess } from "../../metamodel/index.js";
-import { treeAt, watcherProblems } from "../../model/index.js";
+import { repositoryCommit, watcherProblems } from "../../model/index.js";
 import type { RepositoryLocation } from "../../workspace/index.js";
 import { isWritableFolder, workspaceLayoutState } from "../../workspace/index.js";
 
@@ -17,46 +16,30 @@ interface Checked {
 }
 
 /**
- * The commit and whether the folder is writable are read on every call, not kept: both change while
- * the workspace is open. A read-only repository (SR-018 AK2) is shown, nothing more: it does not
- * make the workspace read-only, writes into it are refused by the files block (`file.read-only`).
- * `readOnly` is left out where it is unknown (Windows, see `isWritableFolder`).
+ * The commit (`repositoryCommit`) and whether the folder is writable are read on every call, not
+ * kept: both change while the workspace is open. A read-only repository (SR-018 AK2) is shown,
+ * nothing more: it does not make the workspace read-only, writes into it are refused by the files
+ * block (`file.read-only`). `readOnly` is left out where it is unknown (Windows, see
+ * `isWritableFolder`).
  */
 const checkRepository = async (repository: RepositoryLocation): Promise<Checked> => {
   if (!repository.available) {
     return { status: { name: repository.name, available: false, path: repository.path } };
   }
-  const [head, writable] = await Promise.all([
-    headCommit(repository.folder),
+  const [{ commit, problem }, writable] = await Promise.all([
+    repositoryCommit(repository),
     isWritableFolder(repository.folder),
   ]);
-  const located = { name: repository.name, available: true, path: repository.path };
-  const readOnly = writable === undefined ? {} : { readOnly: !writable };
-  if (head.known) {
-    // Below the top level of its work tree, the folder has the commit of the repository above only
-    // where that commit has a tree at the folder: a stray repository that tracks nothing there
-    // (a home folder under Git with `*` ignored) is none of the folder's.
-    if ((await workTreeOf(repository.folder))?.depth !== 0) {
-      const seen = await treeAt(repository.folder, head.commit);
-      if (!seen.known || !seen.tree) {
-        return { status: { ...located, ...readOnly } };
-      }
-    }
-    return { status: { ...located, commit: head.commit, ...readOnly } };
-  }
-  const status = { ...located, ...readOnly };
-  // Only a refusal is worth telling: the person can fix it. Missing git or no repository is normal.
-  return head.reason === "refused"
-    ? {
-        status,
-        problem: {
-          code: "git.unavailable",
-          severity: "info",
-          repository: repository.name,
-          message: `Git refuses to read repository ${repository.name} because another user owns it (see git config safe.directory); its commit is unknown`,
-        },
-      }
-    : { status };
+  return {
+    status: {
+      name: repository.name,
+      available: true,
+      path: repository.path,
+      ...(commit === undefined ? {} : { commit }),
+      ...(writable === undefined ? {} : { readOnly: !writable }),
+    },
+    ...(problem === undefined ? {} : { problem }),
+  };
 };
 
 export default defineCommand({

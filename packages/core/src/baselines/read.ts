@@ -13,6 +13,13 @@
 //   answer (N-036).
 // - Contains: a baseline contains the version of an element when its `elements` list the element's
 //   UUID with that version, in any repository (`elements[].repository` names a copy, SR-088).
+// - Selects (`data.export` with `selection.baseline`, SR-061 AK2, assumption A1 of #530 Q2/Q4): a
+//   baseline selects an element, whatever its version now, when its `elements` list the element's
+//   UUID: an entry with `repository` the copy in that repository, one without every copy (as
+//   `contains`). One index per file read, kept with the file, so a large baseline is indexed once.
+// - Found (`findBaseline`): by `name` first (ignoring case and Unicode normal form, as saved
+//   filters), then by its file name in the folder, with or without `.yaml`. A name two valid files
+//   share is ambiguous; a text that names only a faulty file by its file name names that file.
 // - Read on every call, kept by file: `baselineFilesState` keeps what each file gave with its
 //   `changeStamp` (size, modification time, inode, change time; the model cache's rule, ADR-0008),
 //   and a call lists the folder and reads again only a file that is new, whose stamp changed, or
@@ -51,6 +58,8 @@ export interface Baseline {
   readonly file: string;
   /** Whether it lists the element `id` with `version`. */
   readonly contains: (id: string, version: string) => boolean;
+  /** Whether it lists the element, in any version (see the file comment). */
+  readonly selects: (element: { readonly id: string; readonly repository: string }) => boolean;
 }
 
 /** The baselines folder of a workspace and what it holds. */
@@ -61,6 +70,8 @@ export interface Baselines {
   readonly baselines: readonly Baseline[];
   /** Faulty files and a folder that cannot be read, in file order. */
   readonly problems: readonly Problem[];
+  /** The files that are no valid baseline, relative to their repository, in file order. */
+  readonly faulty: readonly string[];
   /** The repository of the folder is not on this machine: its baselines are not seen (SR-006 AK2). */
   readonly incomplete: boolean;
 }
@@ -95,11 +106,27 @@ const versionKey = (id: string, version: string): string => `${id}\n${version}`;
 /** A valid baseline of `data`. */
 const baselineOf = (data: BaselineFile, repository: string, file: string): Baseline => {
   const versions = new Set(data.elements.map((e) => versionKey(e.id, e.version)));
+  // By UUID: the repositories its entries name, or `true` when an entry names none (every copy).
+  const listed = new Map<string, Set<string> | true>();
+  for (const entry of data.elements) {
+    const before = listed.get(entry.id);
+    if (entry.repository === undefined) {
+      listed.set(entry.id, true);
+    } else if (before === undefined) {
+      listed.set(entry.id, new Set([entry.repository]));
+    } else if (before !== true) {
+      before.add(entry.repository);
+    }
+  }
   return {
     name: data.name,
     repository,
     file,
     contains: (id, version) => versions.has(versionKey(id, version)),
+    selects: (element) => {
+      const copies = listed.get(element.id);
+      return copies === true || (copies?.has(element.repository) ?? false);
+    },
   };
 };
 
@@ -188,7 +215,7 @@ export const readBaselines = async (
 ): Promise<Baselines> => {
   const location = settingLocation(layout, "baselines");
   const { repository, folder: absolute } = locate(layout, location);
-  const none = { location, baselines: [], problems: [] };
+  const none = { location, baselines: [], problems: [], faulty: [] };
   if (repository === undefined || absolute === undefined) {
     kept.clear();
     return { ...none, incomplete: repository !== undefined };
@@ -214,6 +241,7 @@ export const readBaselines = async (
   }
   const baselines: Baseline[] = [];
   const problems: Problem[] = [];
+  const faulty: string[] = [];
   const seen = new Set<string>();
   const names = listing.names.filter(
     (name) => !(repository.main && folder === "" && name === WORKSPACE_FILE),
@@ -238,18 +266,55 @@ export const readBaselines = async (
       continue;
     }
     problems.push(...read.problems);
-    baselines.push(...(read.kind === "valid" ? [read.baseline] : []));
+    if (read.kind === "valid") {
+      baselines.push(read.baseline);
+    } else {
+      faulty.push(file);
+    }
   }
   for (const key of [...kept.keys()].filter((k) => !seen.has(k))) {
     kept.delete(key);
   }
-  return { location, baselines, problems, incomplete: false };
+  return { location, baselines, problems, faulty, incomplete: false };
 };
 
 /** The `name` of every baseline that contains `version` of the element `id`, in file order, each once (SR-032 AK2). */
 export const baselinesContaining = (baselines: Baselines, id: string, version: string): string[] => [
   ...new Set(baselines.baselines.filter((b) => b.contains(id, version)).map((b) => b.name)),
 ];
+
+/** What `findBaseline` found for a text. */
+export type FoundBaseline =
+  | { readonly kind: "found"; readonly baseline: Baseline }
+  /** Several valid files have the name: each file, relative to its repository. */
+  | { readonly kind: "ambiguous"; readonly files: readonly string[] }
+  /** The text names only a faulty file, by its file name: that file, relative to its repository. */
+  | { readonly kind: "faulty"; readonly file: string }
+  | { readonly kind: "none" };
+
+/** A name as names compare (ignoring case and Unicode normal form), as saved filters compare theirs. */
+const fold = (text: string): string => text.normalize("NFC").toLowerCase();
+
+/** Whether `text` names the file `file` in the baselines folder, with or without `.yaml`. */
+const namesFile = (file: string, text: string): boolean => {
+  const name = path.posix.basename(file);
+  return name === text || name === `${text}${BASELINE_FILE_EXTENSION}`;
+};
+
+/** The baseline `text` names in `baselines` (see the file comment). */
+export const findBaseline = (baselines: Baselines, text: string): FoundBaseline => {
+  const key = fold(text);
+  const named = baselines.baselines.filter((b) => fold(b.name) === key);
+  const [first, ...others] =
+    named.length > 0 ? named : baselines.baselines.filter((b) => namesFile(b.file, text));
+  if (first !== undefined) {
+    return others.length === 0
+      ? { kind: "found", baseline: first }
+      : { kind: "ambiguous", files: [first, ...others].map((b) => b.file) };
+  }
+  const file = baselines.faulty.find((f) => namesFile(f, text));
+  return file === undefined ? { kind: "none" } : { kind: "faulty", file };
+};
 
 /** What `readBaselines` read in this workspace, by file (see the file comment). Reset with the layout. */
 export const baselineFilesState = defineWorkspaceState("baseline-files", (): BaselineFiles => new Map(), {

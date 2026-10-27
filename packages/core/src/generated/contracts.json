@@ -553,7 +553,7 @@
             },
             "baseline": {
               "type": "string",
-              "description": "Path or name of a baseline file."
+              "description": "Baseline name or file; data.export only."
             },
             "view": {
               "$ref": "#/$defs/view"
@@ -625,10 +625,12 @@
           "type": "string"
         },
         "generated": {
-          "$ref": "common.schema.json#/$defs/dateTime"
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "Time of the export, UTC, in seconds."
         },
         "selection": {
-          "$ref": "common.schema.json#/$defs/selection"
+          "$ref": "common.schema.json#/$defs/selection",
+          "description": "The selection as given; left out when none was given (every element)."
         },
         "repositories": {
           "type": "array",
@@ -646,7 +648,8 @@
                 "type": "boolean"
               },
               "commit": {
-                "$ref": "common.schema.json#/$defs/commit"
+                "$ref": "common.schema.json#/$defs/commit",
+                "description": "HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell."
               },
               "dirty": {
                 "type": "boolean",
@@ -657,10 +660,12 @@
           }
         },
         "incomplete": {
-          "$ref": "common.schema.json#/$defs/incomplete"
+          "$ref": "common.schema.json#/$defs/incomplete",
+          "description": "A repository of the workspace is not on this machine (SR-006 AK2): its elements, the records of its evidence locations or, with `selection.baseline`, the baselines folder are missing."
         },
         "elements": {
           "type": "array",
+          "description": "Every element of the selection in workspace order, superseded ones included (D-045), without text; in data.export each with `validity`, `packages`, `verification` and its relations with `currentVersion` and `outdated`.",
           "items": {
             "$ref": "#/$defs/element"
           }
@@ -732,13 +737,15 @@
               "type": "array",
               "items": {
                 "$ref": "common.schema.json#/$defs/uuid"
-              }
+              },
+              "description": "Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property."
             },
             "packages": {
               "type": "array",
               "items": {
                 "$ref": "common.schema.json#/$defs/uuid"
-              }
+              },
+              "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
             },
             "emergent": {
               "type": "boolean"
@@ -750,7 +757,7 @@
             },
             "relations": {
               "type": "array",
-              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` once data.export (SR-061) fills them.",
+              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
               "items": {
                 "$ref": "#/$defs/relation"
               }
@@ -6888,7 +6895,7 @@
       {
         "name": "data.export",
         "title": "Export data",
-        "summary": "Data of the current state as JSON for external evaluation.",
+        "summary": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. `data store` writes a whole state to a file.",
         "effect": "read",
         "stage": 4,
         "implements": [

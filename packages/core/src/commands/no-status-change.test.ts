@@ -89,6 +89,12 @@ type Scenario = Readonly<Record<string, unknown>>;
 
 /** Every implemented command except the two status commands, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  "data.export": [
+    {},
+    { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] } } },
+    { selection: { ids: [WIND, OBSOLETE, RETIRED], view: "core" } },
+    { selection: { baseline: "nope" } },
+  ],
   "element.addAttachment": [
     { ref: WIND, sourcePath: "new/layout.png" },
     { ref: OBSOLETE, sourcePath: "new/layout.png" },

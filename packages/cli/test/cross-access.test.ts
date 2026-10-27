@@ -196,8 +196,36 @@ const WITH_IMAGE: FixtureOptions = {
 /** Needs, requirements and a subtype in two repositories, an obsolete child, a saved filter (SR-036). */
 const COVERAGE: FixtureOptions = { fixture: "SR-036/levels", git: ["system", "sensor"] };
 
+/** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
+const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  "data.export": [
+    {
+      name: "the whole workspace with record files",
+      fixture: EXPORT,
+      root: "system",
+      input: {},
+      tag: "[SR-061/AK1]",
+      expect: "output",
+    },
+    {
+      name: "a baseline by its file name and a variant view",
+      fixture: EXPORT,
+      root: "system",
+      input: { selection: { baseline: "release-1", view: "VAR-0000c1" } },
+      tag: "[SR-061/AK2]",
+      expect: "output",
+    },
+    {
+      name: "a baseline in a faulty file",
+      fixture: EXPORT,
+      root: "system",
+      input: { selection: { baseline: "broken" } },
+      expect: "error",
+    },
+  ],
   // `sourcePath` is a localPath, like `path` of workspace.init below: the same file through every access.
   "element.addAttachment": [
     {
@@ -1766,6 +1794,24 @@ const TEST_TIMEOUT = 30_000;
 
 const ACCESSES = ["core", "cli", "api", "mcp", "app"] as const;
 
+/**
+ * Commands whose output has the time of the call at the top (`generated`, data-export.schema.json): it is
+ * checked to lie within the call of each access and then replaced by `<generated>`, every other field compared.
+ */
+const GENERATED_AT_TOP: ReadonlySet<string> = new Set(["data.export", "data.store"]);
+
+/** `outcome` with its top-level `generated` replaced, after checking it lies between `start` and `end` (ms). */
+const withoutGenerated = (access: string, outcome: Outcome, start: number, end: number): Outcome => {
+  if (!("output" in outcome)) {
+    return outcome;
+  }
+  const { generated, ...rest } = outcome.output as { generated?: unknown };
+  expect([access, generated]).toEqual([access, expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/)]);
+  const time = Date.parse(String(generated));
+  expect([access, time >= Math.floor(start / 1000) * 1000 && time <= end]).toEqual([access, true]);
+  return { output: { ...rest, generated: "<generated>" } };
+};
+
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
   readonly outcome: Outcome;
@@ -1787,7 +1833,8 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     const { top, root } = shared ?? (await copy(scenario));
     await scenario.prepare?.({ top, root });
     const input = { ...scenario.input };
-    const outcome =
+    const start = Date.now();
+    const called =
       access === "core"
         ? await viaCore(root, entry, input)
         : access === "cli"
@@ -1797,6 +1844,9 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
             : access === "mcp"
               ? await viaMcp(root, entry, input)
               : await viaApp(root, entry, input);
+    const outcome = GENERATED_AT_TOP.has(entry.name)
+      ? withoutGenerated(access, called, start, Date.now())
+      : called;
     const result = normalized({ outcome, files: await filesOf(top) }, top) as Result;
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);

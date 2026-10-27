@@ -1,0 +1,83 @@
+# What data.export gives for the selection of a package (SR-061 AK2): the two requirements of the
+# package with their validity, packages and verification status per view, and their relations with
+# the current version of the target; the derivation of SR-0000b2 stores an older version of the need,
+# so it is outdated (SR-025). Both repositories are on this machine, each with its commit.
+logreq-data: 1
+workspace: Weather station
+generated: 2026-10-27T08:00:00Z
+selection: { package: PKG-0000d1 }
+repositories:
+  - { name: system, available: true, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }
+  - { name: sensor, available: true, commit: 0123456789abcdef0123456789abcdef01234567 }
+incomplete: false
+elements:
+  - id: 61061061-0000-4000-8000-0000000000b1
+    shortId: SR-0000b1
+    type: system-requirement
+    status: draft
+    title: Show the wind speed
+    version: n1:d7089e63fea26191
+    repository: system
+    file: requirements/SR-0000000000b1.md
+    validity: [61061061-0000-4000-8000-0000000000c1]
+    packages: [61061061-0000-4000-8000-0000000000d1]
+    properties:
+      requirement-type: functional
+      acceptance-criteria: [Given wind, when the station measures it, then it shows the speed.]
+      x-supplier: Anemo Ltd
+    relations:
+      - kind: derives-from
+        meaning: derivation
+        direction: out
+        id: 61061061-0000-4000-8000-0000000000a1
+        repository: system
+        shortId: N-0000a1
+        title: Know the wind
+        accessible: true
+        targetState: available
+        storedVersion: n1:c2b89c0554cf891b
+        currentVersion: n1:c2b89c0554cf891b
+        outdated: false
+      - kind: validity
+        property: true
+        direction: out
+        id: 61061061-0000-4000-8000-0000000000c1
+        repository: system
+        shortId: VAR-0000c1
+        title: Coast
+        accessible: true
+        targetState: available
+        storedVersion: n1:bbd84fb6aed6ac43
+        currentVersion: n1:bbd84fb6aed6ac43
+        outdated: false
+    verification:
+      - { view: 61061061-0000-4000-8000-0000000000c1, status: verified }
+  - id: 61061061-0000-4000-8000-0000000000b2
+    shortId: SR-0000b2
+    type: system-requirement
+    status: draft
+    title: Show the gusts
+    version: n1:46f520a356e92a87
+    repository: system
+    file: requirements/SR-0000000000b2.md
+    validity: []
+    packages: [61061061-0000-4000-8000-0000000000d1]
+    properties:
+      requirement-type: performance
+    relations:
+      - kind: derives-from
+        meaning: derivation
+        direction: out
+        id: 61061061-0000-4000-8000-0000000000a1
+        repository: system
+        shortId: N-0000a1
+        title: Know the wind
+        accessible: true
+        targetState: available
+        storedVersion: n1:0000000000000000
+        currentVersion: n1:c2b89c0554cf891b
+        outdated: true
+    verification:
+      - { view: core, status: failed }
+      - { view: 61061061-0000-4000-8000-0000000000c1, status: open }
+      - { view: 61061061-0000-4000-8000-0000000000c2, status: open }

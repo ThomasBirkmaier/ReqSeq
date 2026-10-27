@@ -17,19 +17,28 @@
 //     view of the selection, else the filter's. `sort` gives its sort for `element.list` (SR-070
 //     AK3: the same elements, in the same order, on every access). An error in a hand-written filter
 //     file names the filter and its file.
-// - Not yet: `baseline` (stage 5). It is refused with `input.invalid`, so no caller takes every
-//   element for a narrower selection.
+// - `baseline`: only for a command that opts in (`SelectionOptions.baseline`); so far only
+//   data.export (SR-061 AK2; data.store joins with SR-062). The elements the baseline file lists, as
+//   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of #530 Q2/Q4). It is found by
+//   name, then by file name (`findBaseline`): none is `input.invalid`, a name two files share too,
+//   a text that names only a faulty file `file.faulty`. Every other command refuses it with
+//   `input.invalid` naming itself and stage 5, where SR-050, SR-051 and SR-094 decide what a
+//   baseline means for it; so no caller takes every element for a narrower selection.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
 //   whose elements may belong to the selection too, or a condition met a target in a repository the
-//   workspace file does not list (relation.ts).
+//   workspace file does not list (relation.ts). A baselines folder in a repository that is not on
+//   this machine holds no baseline here: `baseline` then names none (`input.invalid`, saying so).
 // Cost: the conditions are compiled once per call, then one pass over the store (N-036). Compile per
 // run (#336): a compiled condition holds the states of the store it was compiled against and keeps
 // its `notes` (condition.ts, `CompiledCondition`), so a caller that runs a selection again (a bulk
 // update, #83) calls `resolveSelection` again and never keeps a compiled one; a saved filter is
 // compiled from its file on each call.
+import type { Baseline } from "../baselines/index.js";
+import { findBaseline, workspaceBaselines } from "../baselines/index.js";
 import type { CommandName } from "../catalog.js";
+import { CommandError } from "../catalog.js";
 import type { ElementSelection } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -62,6 +71,70 @@ export interface Selected {
   readonly views: readonly View[];
 }
 
+/** What a command takes beyond the selection every command takes. */
+export interface SelectionOptions {
+  /** `baseline` is taken (see the file comment); else it is refused. Default: false. */
+  readonly baseline?: boolean;
+}
+
+/**
+ * The baseline `text` names for `command` (see the file comment). A baselines folder in a repository
+ * that is not on this machine holds no baseline here, so `text` names none and the message says why.
+ */
+const baselineFor = async (
+  context: Pick<QueryContext, "workspace" | "command">,
+  text: string,
+): Promise<Baseline> => {
+  const baselines = await workspaceBaselines(context.workspace);
+  const found = findBaseline(baselines, text);
+  switch (found.kind) {
+    case "found":
+      return found.baseline;
+    case "faulty":
+      throw new CommandError(
+        "file.faulty",
+        `The baseline ${JSON.stringify(text)} is in a faulty file (${found.file}); workspace check names its problems`,
+        { files: [found.file] },
+      );
+    case "ambiguous":
+      throw invalidAt(
+        context,
+        "selection.baseline",
+        `${String(found.files.length)} baseline files are named ${JSON.stringify(text)} (${found.files.join(", ")}); give its file name`,
+      );
+    case "none": {
+      // The folder in a repository that is not here: its baselines are not seen (SR-006 AK2).
+      const where = baselines.incomplete
+        ? `; the baselines folder is in repository ${baselines.location.repository}, which is not on this machine`
+        : "";
+      throw invalidAt(
+        context,
+        "selection.baseline",
+        `no baseline is named ${JSON.stringify(text)} and no baseline file has that name${where}`,
+      );
+    }
+  }
+};
+
+/** The baseline of `selection.baseline`, when it is given and the command takes it (`options`). */
+const baselineOf = async (
+  context: Pick<QueryContext, "workspace" | "command">,
+  text: string | undefined,
+  options: SelectionOptions,
+): Promise<Baseline | undefined> => {
+  if (text === undefined) {
+    return undefined;
+  }
+  if (options.baseline !== true) {
+    throw invalidAt(
+      context,
+      "selection.baseline",
+      `for ${context.command} a selection by baseline comes with stage 5; leave it out`,
+    );
+  }
+  return baselineFor(context, text);
+};
+
 /** The view of a saved filter, when it has one. */
 const savedViewOf = (
   context: Pick<QueryContext, "metamodel" | "store" | "shortIds">,
@@ -82,15 +155,14 @@ export const resolveSelection = async (
   workspace: Workspace,
   selection: ElementSelection,
   command: CommandName,
+  options: SelectionOptions = {},
 ): Promise<Selected> => {
   const layout = await workspace.get(workspaceLayoutState);
   const metamodel = await workspace.get(metamodelState);
   const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
   const base = { workspace, command, layout, metamodel, store, shortIds };
-  if (selection.baseline !== undefined) {
-    throw invalidAt(base, "selection.baseline", "a selection by baseline comes with stage 5; leave it out");
-  }
+  const baseline = await baselineOf(base, selection.baseline, options);
   const saved: SavedFilter | undefined =
     selection.filter === undefined ? undefined : await savedFilterFor(layout, selection.filter, command);
   const savedView = saved === undefined ? undefined : savedViewOf(base, saved, command);
@@ -107,6 +179,9 @@ export const resolveSelection = async (
     );
     tests.push(compiled.predicate);
     notes.push(compiled.notes);
+  }
+  if (baseline !== undefined) {
+    tests.push(baseline.selects);
   }
   if (selection.package !== undefined) {
     const compiled = await compileWhere(context, { package: selection.package }, "selection");
