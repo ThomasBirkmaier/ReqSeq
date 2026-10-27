@@ -346,6 +346,7 @@
       "enum": ["open", "verified", "indirect", "failed", "outdated"]
     },
     "validationStatus": {
+      "description": "SR-038: open (offen), validated (erfolgreich), failed (nicht erfolgreich), outdated (veraltet).",
       "enum": ["open", "validated", "failed", "outdated"]
     }
   }

@@ -231,6 +231,42 @@ describe("indirect verification in evidence.status, element.get and the filter (
     });
   });
 
+  it("the shared state forgets a changed child and changed records within one open workspace (review of #581, S1)", async () => {
+    const ws = await open();
+    expect((await get(ws, G)).element.verification).toEqual(core("indirect"));
+    expect((await get(ws, P1)).element.verification).toEqual(core("indirect"));
+    const before = await ws.get(verificationState);
+    await invoke("element.update", { ref: C11, text: "Changed text.\n" }, { workspace: ws });
+    expect((await get(ws, P1)).element.verification).toEqual(core("open", [C11]));
+    expect((await get(ws, G)).element.verification).toEqual(core("open", [P1]));
+    const indirect = (await invoke(
+      "element.list",
+      { selection: { where: { verification: ["indirect"] } } },
+      { workspace: ws },
+    )) as CommandOutput<"element.list">;
+    expect(indirect.elements.map((e) => e.id)).toEqual([P3]);
+    const afterUpdate = await ws.get(verificationState);
+    expect(afterUpdate).not.toBe(before);
+    // Records given anew: C11 passed on its new version, C12 failed.
+    const version = async (id: string): Promise<string> => String((await get(ws, id)).element.version);
+    const record = (element: string, v: string, result: EvidenceRecord["result"]): EvidenceRecord => ({
+      element,
+      version: v,
+      kind: "verification",
+      method: "test",
+      item: "build-2",
+      result,
+      date: "2026-10-28T10:00:00Z",
+    });
+    await ws.replace(
+      evidenceRecordsState,
+      ws.get(evidenceRecordsState),
+      Promise.resolve([record(C11, await version(C11), "passed"), record(C12, await version(C12), "failed")]),
+    );
+    expect((await get(ws, P1)).element.verification).toEqual(core("open", [C12]));
+    expect(await ws.get(verificationState)).not.toBe(afterUpdate);
+  });
+
   it("a second element.get of the same parent reads no current version again (plan review B1)", async () => {
     const ws = await open();
     expect((await get(ws, G)).element.verification).toEqual(core("indirect"));

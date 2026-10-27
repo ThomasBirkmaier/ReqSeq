@@ -6,7 +6,8 @@
 // - An element (an object with `shortId` and `title`) is one line, `SHORT-ID  status  title`, with its
 //   identifier next to the short ID when it has one (`SR-3c90b0 (SR-036)`, #305) and its verification
 //   status per view at the end, apart from its own status (`[verification: core verified]`, SR-031,
-//   D-030; the children missing for SR-034 as `core open (missing SR-0000b2)`); a list of them one
+//   D-030; the children missing for SR-034 as `core open (missing SR-0000b2)`), then its validation
+//   status (`[validation: validated]`, SR-038); a list of them one
 //   such line per element. A read command (element.get) shows the element's details below its line,
 //   a write command only the line.
 // - A chain (`nodes` with `depth`, and `edges`) is an indented tree per direction with the depth in
@@ -116,6 +117,12 @@ const verificationText = (element: Rec, view: ViewNamer): string => {
   return entries.length === 0 ? "" : `[verification: ${entries.map(entryText).join(", ")}]`;
 };
 
+/** The validation status of an element (SR-038), apart from its verification status: `[validation: validated]`. */
+const validationText = (element: Rec): string => {
+  const validation = text(element["validation"]);
+  return validation === "" ? "" : `[validation: ${validation}]`;
+};
+
 /**
  * `SHORT-ID  status  title`; an element with a distance has it in front, how it points behind and
  * its verification status per view last.
@@ -133,6 +140,7 @@ const elementLine = (
     element.title,
     viaText(element, name),
     verificationText(element, view),
+    validationText(element),
   );
 };
 
@@ -160,6 +168,7 @@ const elementDetails = (element: Rec): string[] => {
     title: _title,
     problems: _problems,
     verification: _verification,
+    validation: _validation,
     repository,
     file,
     relations,

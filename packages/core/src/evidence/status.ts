@@ -15,9 +15,11 @@
 //   Nachweis verweist immer auf ein Requirement"), in the core and each variant they apply in
 //   (`appliesIn`, SR-040). While the metamodel is not valid the records are not compared (the
 //   versions follow the metamodel): every requirement is `open`, as without records.
+// The validation status (SR-038, `validationStatusOf`) follows the same record rule for the records of
+// kind `validation` of the core.
 // The indirect verification of a requirement without own record (SR-034) is `indirect.ts`; the state
 // that commands and the filter share is `verification.ts`.
-import type { DataExportElement, VerificationStatus } from "../generated/types.js";
+import type { DataExportElement, ValidationStatus, VerificationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
 import type { Validity, View } from "../variants/index.js";
@@ -86,10 +88,33 @@ export const verificationStatusOf = (
   return status === "passed" ? "verified" : status;
 };
 
+const CORE: View = Object.freeze({ kind: "core" });
+
+/**
+ * The validation status of an element from its records (SR-038, ADR-0012 "Status rules"): the
+ * records of kind `validation` that hold in the core (no `variant`, D-026; one validation status per
+ * element, #534 Q2) by the rule of `recordStatusOf`, `passed` named `validated` (AK3). Records only
+ * of other versions give `outdated` (AK2, AK3), none gives `open` (AK3). Verification records never
+ * count (D-007, AK1).
+ */
+export const validationStatusOf = (
+  records: readonly EvidenceRecord[],
+  current: string | undefined,
+): ValidationStatus => {
+  const status = recordStatusOf(records, "validation", current, CORE);
+  return status === "passed" ? "validated" : status;
+};
+
+/** Whether `records` hold a validation record that counts (`validationStatusOf`: the core's). */
+export const hasValidationRecord = (records: readonly EvidenceRecord[]): boolean =>
+  records.some((r) => r.kind === "validation" && holdsIn(r, CORE));
+
 /** What the verification status of the elements of a workspace is computed from. */
 export interface StatusSource {
   /** The effective type keys with the meaning `requirement` (own or inherited, SR-012). */
   readonly requirements: ReadonlySet<string>;
+  /** The effective type keys with the meaning `need`: they have a validation status without record (SR-038, #534). */
+  readonly needs: ReadonlySet<string>;
   readonly validity: Validity | undefined;
   /** The records of an element by UUID; none while the metamodel is not valid. */
   readonly recordsOf: (id: string) => readonly EvidenceRecord[];
@@ -103,6 +128,7 @@ const NO_RECORDS: readonly EvidenceRecord[] = Object.freeze([]);
  */
 export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefined): StatusSource => ({
   requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
+  needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
   validity: validityOf(metamodel),
   recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
 });

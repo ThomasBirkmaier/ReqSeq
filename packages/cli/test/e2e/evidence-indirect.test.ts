@@ -31,7 +31,7 @@ describe("logreq evidence status and element get with indirect verification (SR-
     expect(result.stdout).toBe(
       [
         "elements:",
-        "  N-00a001  approved  Know the weather",
+        "  N-00a001  approved  Know the weather  [validation: open]",
         "  SR-00b100  approved  Show the weather  [verification: core indirect]",
         "  SR-00b110  approved  Show the wind  [verification: core indirect]",
         "  SR-00b111  approved  Show wind speed  [verification: core verified]",

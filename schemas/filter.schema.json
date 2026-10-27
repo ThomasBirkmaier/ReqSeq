@@ -121,7 +121,8 @@
           "properties": {
             "validation": {
               "type": "array",
-              "items": { "$ref": "common.schema.json#/$defs/validationStatus" }
+              "items": { "$ref": "common.schema.json#/$defs/validationStatus" },
+              "description": "Validation status (SR-038). Elements without one never match (#534)."
             }
           },
           "additionalProperties": false

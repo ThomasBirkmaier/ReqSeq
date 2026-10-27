@@ -13,7 +13,7 @@ SR-031 (#43), `status.ts`; the rules are ADR-0012 "Status rules".
 - `statusSource(metamodel, index)`: the requirement types (meaning `requirement`, own or inherited), the validity property and the records by element; without `index` no element has records (the metamodel is not valid: the versions follow the metamodel, so the records are not compared and every requirement is `open`).
 - `verificationState` (`verification.ts`): one memoised workspace state, reset with the metamodel, the element store and the records, that `evidence.status`, `element.get`, `element.resolve` and the filter share, so they give the same status by construction (SR-080 AK2). It holds the source, the variants, the child rules and the evaluator of `indirect.ts`, and the current versions it has read. `prepare(elements, { own })` walks down from `elements` through their counted children (iteratively, each element once for the life of the state), down to the children with an own record in every view they apply in, and reads the versions of those with records it does not know yet in one batch (`currentVersionsOf`); with `own` also those of `elements`. A page or a leaf reads only what it needs, and a repeated `element.get` of the same parent reads nothing (plan review B1, SR-082 AK3); `versionBatches()` counts the batches for tests and measurements. `workspaceStatusOf(source, variants, children, read)` builds it from parts (tests).
 - `verificationOf(status, element, shown?)`: the `verification` entries of `data-export.schema.json#/$defs/element`: the core, then each variant in store order, each where the element applies, with `missingChildren` (SR-034); undefined for an element that is no requirement.
-- `workspaceStatus(workspace, shown)` gets the state and prepares it for the elements shown (a page, or the one element of `element.get`); `withVerification(status, record, element)` adds the entries to a shown element, its own records measured against the `version` it shows (`Shown`, never kept).
+- `workspaceStatus(workspace, shown)` gets the state and prepares it for the elements shown (a page, or the one element of `element.get`); `withEvidenceStatus(status, record, element)` adds the verification entries and the validation status to a shown element, its own records measured against the `version` it shows (`Shown`, never kept). Children are measured against the versions of the store as read: a change made outside LogReq shows once the watcher's batch resets the state (review of #581, N2); every reset of the store, the metamodel or the records builds a new state.
 
 Who shows it:
 
@@ -23,7 +23,7 @@ Who shows it:
 
 Cost at N-036: one pass over the records of each element shown; the filter computes the current versions of the requirements with records once per store (`currentVersionsOf`, the cost #489 measures for `trace.graph`), measured with records in E4. The provider computes them also for a filter that asks only "has evidence", which needs no version (review of #557, N2, noted on #489): E4 measures that path too.
 
-Not yet: `element.create` and `element.update` return their element without `verification` (#554, before the app shows the status, plan §5); the `evidence.outdated` hint of SR-025 AK4 keeps its own rule until spec question #525 Q1 is answered (`hints/evidence.ts`).
+Not yet: `element.create` and `element.update` return their element without `verification` and `validation` (#554, before the app shows the status, plan §5); the `evidence.outdated` hint of SR-025 AK4 keeps its own rule until spec question #525 Q1 is answered (`hints/evidence.ts`).
 
 ## Indirect verification and emergent
 
@@ -41,7 +41,14 @@ Cost at N-036: the filter prepares every requirement once per state (one walk ov
 
 ## Validation status
 
-SR-038.
+SR-038 (#50), `status.ts` and `verification.ts`; the rules are ADR-0012 "Status rules", bullet "Validation status".
+
+- `validationStatusOf(records, current)`: `recordStatusOf` with kind `validation` in the core (a record with `variant` does not count, #534 Q2), `passed` named `validated` (AK3); records only of other versions `outdated` (AK2, AK3), none `open`. `hasValidationRecord(records)`: a validation record that counts.
+- `WorkspaceStatus.validate(element, shown?)`: the validation status for a need (`source.needs`, meaning `need`, own or inherited) and for any other element with a counted validation record (#534); undefined otherwise. Measured against `shown.current` when `shown` is given, also when that is undefined (#276), else against the version `prepare` read. No walk and no memo: one pass over the element's own records; never inherited.
+- `prepare(elements, { own: true })` (the filter) also reads the versions of the elements with a counted validation record, in the same single batch; the child walk below the elements stays on verification records, so a child with only validation records is never read for a parent (S4 of the plan review). `element.get` of a need and an `evidence.status` page read no batch of their own (the version shown is used).
+- Shown by `element.get`, `element.resolve` and `evidence.status` (`withEvidenceStatus`), and by the filter condition `validation` (`query/evidence.ts`), all from `verificationState`. The CLI shows it as its own bracket after the verification status.
+
+Cost at N-036: O(records of the element) per element; the filter adds the validation-recorded elements to its one version batch.
 
 ## Verification degree
 

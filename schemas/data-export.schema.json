@@ -153,7 +153,8 @@
           }
         },
         "validation": {
-          "$ref": "common.schema.json#/$defs/validationStatus"
+          "$ref": "common.schema.json#/$defs/validationStatus",
+          "description": "SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030)."
         },
         "problems": {
           "type": "array",

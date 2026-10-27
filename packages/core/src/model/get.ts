@@ -20,9 +20,10 @@
 //   tell; without it no git runs and the field is left out (SR-082 AK3: opening stays fast);
 // - one copy of an element whose UUID several files share (SR-088), picked by the inputs `repository`
 //   and `file` among the candidates of `ref.ambiguous` (#255, `ElementCopy`).
-// `verification` (SR-031) is added by `element.get` from the evidence block, which imports the model.
-// Left out until later stages: the other incoming relations, `validation` (SR-038), and the variants
-// that replace or exclude the element (SR-046; the schema has no field for them yet).
+// `verification` (SR-031, SR-034) and `validation` (SR-038) are added by `element.get` from the
+// evidence block, which imports the model. Left out until later stages: the other incoming
+// relations and the variants that replace or exclude the element (SR-046; the schema has no field for
+// them yet).
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import { readElementFile } from "../files/index.js";

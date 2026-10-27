@@ -25,12 +25,19 @@ export { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState, readEvidence
 export type { EvidenceFileRead, EvidenceRead, EvidenceReader } from "./state.js";
 export { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
 export type { ChildRules, Shown, VerificationEvaluator, VerificationResult } from "./indirect.js";
-export { holdsIn, recordStatusOf, statusSource, verificationStatusOf } from "./status.js";
+export {
+  hasValidationRecord,
+  holdsIn,
+  recordStatusOf,
+  statusSource,
+  validationStatusOf,
+  verificationStatusOf,
+} from "./status.js";
 export type { RecordStatus, RecordVerificationStatus, StatusSource, VerificationEntries } from "./status.js";
 export {
   verificationOf,
   verificationState,
-  withVerification,
+  withEvidenceStatus,
   workspaceStatus,
   workspaceStatusOf,
 } from "./verification.js";

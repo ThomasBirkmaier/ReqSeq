@@ -15,7 +15,7 @@
 // candidate (prefix changed since, #275).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { withVerification, workspaceStatus } from "../../evidence/index.js";
+import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
 import type { ElementCopy } from "../../model/index.js";
 import { getElement, shortIdState } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
@@ -88,8 +88,8 @@ export default defineCommand({
     const copy = { repository: input.repository, file: input.file };
     try {
       const shown = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
-      // With its verification status, as element.get shows it (SR-031, SR-034).
-      const element = withVerification(
+      // With its verification and validation status, as element.get shows it (SR-031, SR-034, SR-038).
+      const element = withEvidenceStatus(
         await workspaceStatus(ctx.workspace, [shown.record]),
         shown.record,
         shown.element,

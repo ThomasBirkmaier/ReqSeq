@@ -393,6 +393,52 @@ describe("renderHuman: indirect verification (SR-034)", () => {
   });
 });
 
+describe("renderHuman: validation status (SR-038)", () => {
+  it("[SR-038/AK1] shows the validation status in its own bracket after the verification status", () => {
+    const elements = [
+      { id: "n", shortId: "N-1", status: "approved", title: "Need", validation: "validated" },
+      {
+        id: "r",
+        shortId: "SR-1",
+        status: "draft",
+        title: "Requirement",
+        verification: [{ view: "core", status: "failed" }],
+        validation: "validated",
+      },
+      {
+        id: "s",
+        shortId: "SR-2",
+        status: "draft",
+        title: "Other",
+        verification: [{ view: "core", status: "open" }],
+      },
+    ];
+    expect(renderHuman({ elements, total: 3 })).toBe(
+      lines(
+        "elements:",
+        "  N-1  approved  Need  [validation: validated]",
+        "  SR-1  draft  Requirement  [verification: core failed]  [validation: validated]",
+        "  SR-2  draft  Other  [verification: core open]",
+        "total: 3",
+      ),
+    );
+  });
+
+  it("shows it on the line of one element, not again in its details", () => {
+    const element = {
+      id: "n",
+      shortId: "N-1",
+      status: "approved",
+      title: "Need",
+      type: "need",
+      validation: "outdated",
+    };
+    const out = renderHuman({ element });
+    expect(out.split("\n")[0]).toBe("N-1  approved  Need  [validation: outdated]");
+    expect(out.split("\n").filter((line) => line.trimStart().startsWith("validation:"))).toEqual([]);
+  });
+});
+
 describe("renderHuman: identifiers (#305)", () => {
   it("shows the identifier next to the short ID of an element, its relations, a hint and a chain node", () => {
     const element = {

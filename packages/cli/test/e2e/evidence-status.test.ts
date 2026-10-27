@@ -31,7 +31,7 @@ describe("logreq evidence status (SR-031)", () => {
     expect(result.stdout).toBe(
       [
         "elements:",
-        "  N-a0000000001  approved  See the wind",
+        "  N-a0000000001  approved  See the wind  [validation: open]",
         "  SR-b0000000001  draft  Show wind speed  [verification: core open, VAR-c0000000001 open, VAR-c0000000002 open]",
         "  SR-b0000000002  draft  Show gusts  [verification: VAR-c0000000001 open]",
         "  SR-000003  approved  Show wind direction  [verification: core open, VAR-c0000000001 open, VAR-c0000000002 open]",

@@ -2,14 +2,14 @@
 // element with text, properties, version, relations, the successors of a superseded element and its
 // hints, read from its file as it is now, with the SHA-256 of that file (`fileSha256`, the write
 // precondition of element.update, SR-106); `repository` and `file` pick one copy of a duplicate
-// (#255). Its verification status in the core and each variant it applies in comes from the
-// evidence block (SR-031, SR-034, `withVerification`), measured against the version shown, with
-// the children that are missing for an indirect verification. What stage 1
-// leaves out: see model/get.ts. `view` (SR-043, stage 5) is refused until variants exist, so a
+// (#255). Its verification status in the core and each variant it applies in, with the children
+// that are missing for an indirect verification, and its validation status come from the evidence
+// block (SR-031, SR-034, SR-038, `withEvidenceStatus`), measured against the version shown. What
+// stage 1 leaves out: see model/get.ts. `view` (SR-043, stage 5) is refused until variants exist, so a
 // caller never takes the whole element for the view of a variant.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
-import { withVerification, workspaceStatus } from "../../evidence/index.js";
+import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
 import { getElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 
@@ -35,7 +35,7 @@ export default defineCommand({
       },
     );
     return {
-      element: withVerification(await workspaceStatus(ctx.workspace, [record]), record, element),
+      element: withEvidenceStatus(await workspaceStatus(ctx.workspace, [record]), record, element),
       fileSha256,
     };
   },

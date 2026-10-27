@@ -1,8 +1,9 @@
-// The verification status of a workspace's elements (SR-031, SR-034; ADR-0012 "Status rules"), as
-// evidence.status, element.get, element.resolve and the filter (`query/evidence.ts`) show it: one
-// memoised workspace state (`verificationState`) with the status source (`status.ts`), the variants,
-// the child rules of the trace block and the evaluator (`indirect.ts`), so all of them give the same
-// status by construction (SR-080 AK2).
+// The verification status (SR-031, SR-034) and the validation status (SR-038) of a workspace's
+// elements (ADR-0012 "Status rules"), as evidence.status, element.get, element.resolve and the filter
+// (`query/evidence.ts`) show them: one memoised workspace state (`verificationState`) with the
+// status source (`status.ts`), the variants, the child rules of the trace block and the evaluator
+// (`indirect.ts`), so all of them give the same status by construction (SR-080 AK2). The validation
+// status needs no walk: one pass over the element's own records (`validate`), never inherited.
 //
 // Current versions are read lazily and kept for the life of the state: `prepare` walks down from the
 // elements shown through their counted children, down to the children with an own record in every
@@ -10,9 +11,12 @@
 // batch (`currentVersionsOf`: their files, or the whole store when they are a large share of it). A
 // page or a leaf reads only what it needs; a repeated element.get of the same parent reads nothing
 // (plan review B1, SR-082 AK3). The walk is iterative, so a deep chain cannot overflow the stack.
-// The element shown is measured against the version it is shown with (`Shown`), which is never kept.
+// With `own`, `prepare` also reads the versions of the elements themselves that have validation
+// records; the walk below them stays on verification. The element shown is measured against the
+// version it is shown with (`Shown`), which is never kept. Children are measured against the versions
+// of the store as read: a change made outside LogReq shows once the watcher's batch resets the state.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).
-import type { DataExportElement } from "../generated/types.js";
+import type { DataExportElement, ValidationStatus } from "../generated/types.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { CurrentVersion, ElementRecord } from "../model/index.js";
 import { currentVersionsOf, elementStoreState } from "../model/index.js";
@@ -25,7 +29,7 @@ import { evidenceIndexState } from "./by-element.js";
 import type { ChildRules, Shown, VerificationEvaluator } from "./indirect.js";
 import { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
 import type { StatusSource, VerificationEntries } from "./status.js";
-import { statusSource } from "./status.js";
+import { hasValidationRecord, statusSource, validationStatusOf } from "./status.js";
 
 /**
  * The verification entries of `element` (`$defs/element` `verification`): the core and each variant
@@ -79,6 +83,13 @@ export interface WorkspaceStatus {
     options?: { readonly own?: boolean },
   ) => Promise<void>;
   readonly evaluate: VerificationEvaluator;
+  /**
+   * The validation status of `element` (SR-038): for a need, and for any other element with a
+   * counted validation record (#534 assumption); undefined otherwise. Measured against `shown.current`
+   * when given (also when that is undefined, #276), else against the version read by `prepare`
+   * (`own`); `shown` is never kept.
+   */
+  readonly validate: (element: ElementRecord, shown?: Shown) => ValidationStatus | undefined;
   /** How many batches of current versions were read so far (tests and measurements, B1 of the plan review). */
   readonly versionBatches: () => number;
 }
@@ -124,10 +135,20 @@ export const workspaceStatusOf = (
         wanted.add(element);
       }
     };
-    const stack = elements.filter((e) => source.requirements.has(e.type));
     if (own) {
-      stack.forEach(want);
+      // Their own versions: requirements with verification records, any element with a counted
+      // validation record (SR-038). The walk below stays on verification (S4 of the SR-038 plan review).
+      for (const element of elements) {
+        if (
+          !versions.has(element) &&
+          ((source.requirements.has(element.type) && hasRecords(element)) ||
+            hasValidationRecord(source.recordsOf(element.id)))
+        ) {
+          wanted.add(element);
+        }
+      }
     }
+    const stack = elements.filter((e) => source.requirements.has(e.type));
     const done = new Set<string>();
     for (let element = stack.pop(); element !== undefined; element = stack.pop()) {
       const key = `${element.repository}\u0000${element.id}`;
@@ -172,6 +193,13 @@ export const workspaceStatusOf = (
       return run;
     },
     evaluate: verificationEvaluator(source, children, (element) => versions.get(element)),
+    validate: (element, shown) => {
+      const records = source.recordsOf(element.id);
+      if (!source.needs.has(element.type) && !hasValidationRecord(records)) {
+        return undefined;
+      }
+      return validationStatusOf(records, shown === undefined ? versions.get(element) : shown.current);
+    },
     versionBatches: () => batches,
   };
 };
@@ -217,12 +245,21 @@ export const workspaceStatus = async (
   return status;
 };
 
-/** `element` with its verification entries (`verificationOf`), when it has any, measured against its own `version`. */
-export const withVerification = (
+/**
+ * `element` with its verification entries (`verificationOf`, SR-031, SR-034) and its validation status
+ * (`validate`, SR-038), each when it has one, both measured against the `version` it shows.
+ */
+export const withEvidenceStatus = (
   status: WorkspaceStatus,
   record: ElementRecord,
   element: DataExportElement,
 ): DataExportElement => {
-  const verification = verificationOf(status, record, { current: element.version });
-  return verification === undefined ? element : { ...element, verification };
+  const shown: Shown = { current: element.version };
+  const verification = verificationOf(status, record, shown);
+  const validation = status.validate(record, shown);
+  return {
+    ...element,
+    ...(verification === undefined ? {} : { verification }),
+    ...(validation === undefined ? {} : { validation }),
+  };
 };

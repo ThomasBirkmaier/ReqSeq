@@ -186,7 +186,8 @@ describe("evidence.status (SR-031)", () => {
     expect(shownB1.status).toBe("draft");
     expect(shownB2.verification).toEqual([{ view: V1, status: "verified" }]);
     expect(n1.verification).toBeUndefined();
-    expect("validation" in n1).toBe(false);
+    // A need has a validation status (SR-038, open without record, #534), never a verification status.
+    expect(n1.validation).toBe("open");
     // element.resolve shows the element as element.get does, with the same status.
     const resolved = (await invoke(
       "element.resolve",

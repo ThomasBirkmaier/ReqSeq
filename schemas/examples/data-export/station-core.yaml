@@ -1,11 +1,12 @@
-# What data.export gives for two requirements of a weather station (SR-061): the core view, with their
-# verification status per view (SR-031, SR-047 AK3); the parent without own record is verified
-# indirectly in the core and names its missing child in the variant (SR-034). Records and test cases are checked by
+# What data.export gives for a need and two requirements of a weather station (SR-061): the core
+# view, with the verification status per view (SR-031, SR-047 AK3); the parent without own record is
+# verified indirectly in the core and names its missing child in the variant (SR-034); the need and
+# one requirement have a validation status (SR-038). Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
 logreq-data: 1
 workspace: Weather station
 generated: 2026-10-27T08:00:00Z
-selection: { ids: [SR-e88fb3, SR-e88fa0] }
+selection: { ids: [SR-e88fb3, SR-e88fa0, N-e88f00] }
 repositories:
   - { name: system, available: true, commit: 0123456789abcdef0123456789abcdef01234567, dirty: false }
 elements:
@@ -19,10 +20,21 @@ elements:
     repository: system
     file: requirements/SR-6328cee88fb3.md
     properties: {}
-    relations: []
+    relations:
+      - kind: derives-from
+        meaning: derivation
+        direction: out
+        id: e8df96ea-a168-4d90-8d65-6328cee88fa0
+        repository: system
+        shortId: SR-e88fa0
+        title: Show the wind
+        accessible: true
+        targetState: available
+        storedVersion: n1:5c1d0f2e8a7b6c43
     verification:
       - { view: core, status: verified }
       - { view: VAR-0000c2, status: open }
+    validation: validated
   - id: e8df96ea-a168-4d90-8d65-6328cee88fa0
     shortId: SR-e88fa0
     type: system-requirement
@@ -37,3 +49,15 @@ elements:
     verification:
       - { view: core, status: indirect }
       - { view: VAR-0000c2, status: open, missingChildren: [e8df96ea-a168-4d90-8d65-6328cee88fb3] }
+  - id: e8df96ea-a168-4d90-8d65-6328cee88f00
+    shortId: N-e88f00
+    type: need
+    status: approved
+    title: See the wind
+    version: n1:0d9e8f7a6b5c4d3e
+    versionDate: 2026-10-20T12:00:00Z
+    repository: system
+    file: needs/N-6328cee88f00.md
+    properties: {}
+    relations: []
+    validation: outdated

@@ -47,6 +47,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
   const index = evidenceIndex(records);
   return {
     requirements: new Set(["req"]),
+    needs: new Set(["need"]),
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
   };
@@ -224,5 +225,94 @@ describe("verificationOf (SR-031, SR-034)", () => {
     ]);
     expect(verificationOf(status, child)).toEqual([{ view: variant.id, status: "open" }]);
     expect(verificationOf(status, variant)).toBeUndefined();
+  });
+});
+
+describe("workspaceStatusOf: validation status (SR-038)", () => {
+  const validation = (of: ElementRecord, more: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
+    element: of.id,
+    version: CURRENT,
+    kind: "validation",
+    result: "passed",
+    date: "2026-10-27T10:00:00Z",
+    ...more,
+  });
+
+  it("[SR-038/AK3] a need without validation record is open, any element with a validation record has its status", async () => {
+    const [need, requirement, useCase] = [element({}, "need"), element(), element({}, "use-case")];
+    const status = workspaceStatusOf(
+      sourceOf([validation(requirement), validation(useCase, { result: "failed" })]),
+      [],
+      undefined,
+      reader().read,
+    );
+    await status.prepare([need, requirement, useCase], { own: true });
+    expect([status.validate(need), status.validate(requirement), status.validate(useCase)]).toEqual([
+      "open",
+      "validated",
+      "failed",
+    ]);
+  });
+
+  it("a requirement or other element without validation record has no validation status (#534)", () => {
+    const status = workspaceStatusOf(sourceOf([passed(element())]), [], undefined, reader().read);
+    expect([status.validate(element()), status.validate(element({}, "use-case"))]).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("a validation record with a variant gives no status to a non-need, and open to a need (#534 Q2)", () => {
+    const [need, requirement] = [element({}, "need"), element()];
+    const status = workspaceStatusOf(
+      sourceOf([validation(need, { variant: V }), validation(requirement, { variant: V })]),
+      [],
+      undefined,
+      reader().read,
+    );
+    expect([status.validate(need, { current: CURRENT }), status.validate(requirement)]).toEqual([
+      "open",
+      undefined,
+    ]);
+  });
+
+  it("prepare with own reads the versions of validation-recorded elements in the one batch, once", async () => {
+    const [need, requirement, other] = [element({}, "need"), element(), element()];
+    const { asked, read } = reader();
+    const status = workspaceStatusOf(
+      sourceOf([validation(need), passed(requirement), validation(other, { kind: "validation" })]),
+      [],
+      undefined,
+      read,
+    );
+    await status.prepare([need, requirement, other], { own: true });
+    await status.prepare([need, requirement, other], { own: true });
+    expect(asked).toEqual([[need, requirement, other]]);
+    expect(status.versionBatches()).toBe(1);
+  });
+
+  it("the child walk does not read the version of a child that has only a validation record (S4)", async () => {
+    const [parent, child] = [element(), element()];
+    const { asked, read } = reader();
+    const status = workspaceStatusOf(
+      sourceOf([validation(child)]),
+      [],
+      rulesOf(new Map([[parent, [child]]])),
+      read,
+    );
+    await status.prepare([parent]);
+    expect(asked).toEqual([]);
+    expect(status.versionBatches()).toBe(0);
+  });
+
+  it("validate measures against the version shown, also when it has none, and never keeps it (S2)", async () => {
+    const need = element({}, "need");
+    const status = workspaceStatusOf(sourceOf([validation(need)]), [], undefined, reader().read);
+    await status.prepare([need], { own: true });
+    expect(status.validate(need)).toBe("validated");
+    expect(status.validate(need, { current: undefined })).toBe("outdated");
+    expect(status.validate(need, { current: "n1:2222222222222222" })).toBe("outdated");
+    expect(status.validate(need)).toBe("validated");
+    expect(status.versionBatches()).toBe(1);
   });
 });

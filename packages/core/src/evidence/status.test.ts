@@ -1,11 +1,11 @@
-// The verification status from records (SR-031, ADR-0012 "Status rules"), as a pure function of the
-// records of one element, its current version and a view. The commands that show it (evidence.status,
+// The verification status (SR-031) and the validation status (SR-038) from records (ADR-0012 "Status
+// rules"), as pure functions of the records of one element, its current version and a view. The commands that show it (evidence.status,
 // element.get) and the filter are tested in commands/evidence/status.test.ts.
 import { describe, expect, it } from "vitest";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { EvidenceRecord } from "./record.js";
-import { holdsIn, recordStatusOf, verificationStatusOf } from "./status.js";
+import { holdsIn, recordStatusOf, validationStatusOf, verificationStatusOf } from "./status.js";
 
 const P = "5e031a7d-2b4f-4c61-9d08-0";
 const A = `${P}b0000000001`;
@@ -150,5 +150,97 @@ describe("verificationStatusOf (SR-031)", () => {
     // The same rule with the kind validation (SR-038 reuses it).
     expect(recordStatusOf([validation], "validation", CURRENT, CORE)).toBe("failed");
     expect(recordStatusOf([validation], "validation", OLDER, CORE)).toBe("outdated");
+  });
+});
+
+/** A validation record of A. */
+const validation = (
+  date: string,
+  result: EvidenceRecord["result"],
+  more: Partial<EvidenceRecord> = {},
+): EvidenceRecord => ({
+  element: A,
+  version: CURRENT,
+  kind: "validation",
+  result,
+  date,
+  ...more,
+});
+
+/** The validation status of `records` of A against `current`, in the order of the index and reversed. */
+const validationOf = (
+  records: readonly EvidenceRecord[],
+  current: string | undefined = CURRENT,
+): string[] => {
+  const ordered = evidenceIndex(records).byElement.get(A) ?? [];
+  return [validationStatusOf(ordered, current), validationStatusOf([...ordered].reverse(), current)];
+};
+
+describe("validationStatusOf (SR-038)", () => {
+  it("[SR-038/AK3] an element without validation record is open", () => {
+    expect(validationOf([])).toEqual(["open", "open"]);
+  });
+
+  it.each([
+    ["passed", "failed", "failed"],
+    ["failed", "passed", "validated"],
+    ["passed", "passed", "validated"],
+  ] as const)(
+    "[SR-038/AK3] the newest validation record of the current version decides: older %s, newer %s gives %s",
+    (older, newer, status) => {
+      expect(
+        validationOf([validation("2026-01-01T10:00:00Z", older), validation("2026-02-01T10:00:00Z", newer)]),
+      ).toEqual([status, status]);
+    },
+  );
+
+  it("[SR-038/AK2] a validation of an older version gives outdated", () => {
+    expect(validationOf([validation("2026-01-01T10:00:00Z", "passed", { version: OLDER })])).toEqual([
+      "outdated",
+      "outdated",
+    ]);
+  });
+
+  it("[SR-038/AK3] only records of older versions give outdated; a record of the current version beats newer records of an older version", () => {
+    expect(
+      validationOf([
+        validation("2026-01-01T10:00:00Z", "failed", { version: OLDER }),
+        validation("2026-02-01T10:00:00Z", "passed", { version: "n1:2222222222222222" }),
+      ]),
+    ).toEqual(["outdated", "outdated"]);
+    expect(
+      validationOf([
+        validation("2026-01-01T10:00:00Z", "passed"),
+        validation("2026-02-01T10:00:00Z", "failed", { version: OLDER }),
+      ]),
+    ).toEqual(["validated", "validated"]);
+  });
+
+  it("[SR-038/AK1] verification records do not count for the validation status", () => {
+    expect(validationOf([record("2026-01-01T10:00:00Z", "passed")])).toEqual(["open", "open"]);
+    expect(
+      validationOf([record("2026-02-01T10:00:00Z", "failed"), validation("2026-01-01T10:00:00Z", "passed")]),
+    ).toEqual(["validated", "validated"]);
+  });
+
+  it("two newest validation records of the current version with the same date, one failed, give failed (#525 Q2)", () => {
+    expect(
+      validationOf([
+        validation("2026-01-02T10:00:00Z", "passed", { file: "a.md" }),
+        validation("2026-01-02T10:00:00Z", "failed", { file: "b.md" }),
+      ]),
+    ).toEqual(["failed", "failed"]);
+  });
+
+  it("a validation record with a variant does not count: the validation status is the core's (#534 Q2)", () => {
+    expect(validationOf([validation("2026-01-01T10:00:00Z", "passed", { variant: V })])).toEqual([
+      "open",
+      "open",
+    ]);
+  });
+
+  it("an element whose current version is unknown: outdated with records, open without (#276)", () => {
+    expect(validationStatusOf([validation("2026-01-01T10:00:00Z", "passed")], undefined)).toBe("outdated");
+    expect(validationStatusOf([], undefined)).toBe("open");
   });
 });

@@ -261,7 +261,10 @@ describe("logreq binary", () => {
         `error input.invalid: Invalid input for element.get: <ref> " SR-036" ${REF_FORM}\n`,
       ]);
       const lower = await run("element", "get", "n-D4E5F6");
-      expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([0, "N-d4e5f6  approved  See the wind"]);
+      expect([lower.code, lower.stdout.split("\n")[0]]).toEqual([
+        0,
+        "N-d4e5f6  approved  See the wind  [validation: open]",
+      ]);
       const named = await run("element", "supersede", "n-d4e5f6", "Obsolete");
       expect([named.code, named.stderr]).toEqual([0, ""]);
       expect(readFileSync(ws.path("needs/N-a1b2c3d4e5f6.md"), "utf8")).toContain("\nstatus: obsolete\n");

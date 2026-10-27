@@ -70,6 +70,7 @@ const evaluator = (setup: Setup) => {
   const index = evidenceIndex(setup.records ?? []);
   const source: StatusSource = {
     requirements: new Set(["req"]),
+    needs: new Set(["need"]),
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
   };
