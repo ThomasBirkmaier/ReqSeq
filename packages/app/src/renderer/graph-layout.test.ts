@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { TraceGraphOutput } from "@logreq/core";
+import type { GraphEdge } from "./graph.js";
 import type { GraphLayout, PlacedNode } from "./graph-layout.js";
-import { NODE_HEIGHT, NODE_WIDTH, RANK_SEP, edgePath, layoutGraph, viewStart } from "./graph-layout.js";
+import {
+  LEVEL_LAYERS_ABOVE,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  RANK_SEP,
+  edgePath,
+  layoutGraph,
+  viewStart,
+} from "./graph-layout.js";
 import { BASED_ON, REFERENCE, S1_GRAPH, graphEdge, graphNode, graphOutput, key } from "./graph-test-data.js";
 
 const at = (layout: GraphLayout, name: string): PlacedNode => {
@@ -9,6 +19,97 @@ const at = (layout: GraphLayout, name: string): PlacedNode => {
     throw new Error(`no node ${name}`);
   }
   return placed;
+};
+
+/** `output` with level-1 children of the element added until it has `size` nodes. */
+const padded = (output: TraceGraphOutput, size: number): TraceGraphOutput => {
+  const extra = Array.from({ length: size - output.nodes.length }, (_, index) => `PAD${String(index)}`);
+  return graphOutput(
+    [...output.nodes, ...extra.map((name) => graphNode(name, 1))],
+    [...output.edges, ...extra.map((name) => graphEdge(name, "S1"))],
+  );
+};
+
+/** Every node of a level below 0 stands above the element, every node of a level above 0 below it. */
+const offSide = (layout: GraphLayout): string[] => {
+  const [root] = layout.nodes;
+  return layout.nodes
+    .filter(
+      (placed) =>
+        (placed.node.level < 0 && placed.y >= (root?.y ?? 0)) ||
+        (placed.node.level > 0 && placed.y <= (root?.y ?? 0)),
+    )
+    .map((placed) => placed.key);
+};
+
+/** A small deterministic random generator (mulberry32), so a generated output is the same every run. */
+const random = (seed: number): (() => number) => {
+  let state = seed;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+/**
+ * A `trace.graph` output of `size` elements, built the way core builds it: elements with links (each
+ * planned on a level from -2 to 2 and linked to one element a level nearer the element, plus `extra`
+ * random links: within a level, against the levels, long ones, some to or from the element), then the
+ * up walk along the stored links and the down walk along the links pointing at an element, each element
+ * once at the smaller distance (the up walk on a tie), and every link between two of them.
+ */
+const generated = (seed: number, size: number, extra: number): TraceGraphOutput => {
+  const next = random(seed);
+  const pick = <T>(list: readonly T[]): T => list[Math.floor(next() * list.length)] as T;
+  const planned = new Map<number, string[]>([[0, ["S1"]]]);
+  const links: [string, string][] = [];
+  for (let index = 1; index < size; index += 1) {
+    const level = pick([-2, -1, -1, 1, 1, 2, 2, 2]);
+    const name = `G${String(index)}`;
+    const nearer = planned.get(level - Math.sign(level)) ?? ["S1"];
+    // A node below the element links to one a level nearer; one above is linked from one.
+    links.push(level > 0 ? [name, pick(nearer)] : [pick(nearer), name]);
+    planned.set(level, [...(planned.get(level) ?? []), name]);
+  }
+  const names = [...planned.values()].flat();
+  for (let index = 0; index < extra; index += 1) {
+    links.push([pick(names), pick(names)]);
+  }
+  const walk = (step: (name: string) => string[]): Map<string, number> => {
+    const distance = new Map([["S1", 0]]);
+    for (let queue = ["S1"]; queue.length > 0;) {
+      const following: string[] = [];
+      for (const name of queue) {
+        for (const other of step(name)) {
+          if (!distance.has(other)) {
+            distance.set(other, (distance.get(name) ?? 0) + 1);
+            following.push(other);
+          }
+        }
+      }
+      queue = following;
+    }
+    return distance;
+  };
+  const up = walk((name) => links.filter(([source]) => source === name).map(([, target]) => target));
+  const down = walk((name) => links.filter(([, target]) => target === name).map(([source]) => source));
+  const levels = names.flatMap((name): [string, number][] => {
+    const [above, below] = [up.get(name), down.get(name)];
+    if (above === undefined && below === undefined) {
+      return [];
+    }
+    return [[name, above !== undefined && (below === undefined || above <= below) ? -above : (below ?? 0)]];
+  });
+  const kept = new Map(levels);
+  levels.sort(([, a], [, b]) => Math.abs(a) - Math.abs(b) || a - b);
+  return graphOutput(
+    levels.map(([name, level]) => graphNode(name, level)),
+    links
+      .filter(([source, target]) => source !== target && kept.has(source) && kept.has(target))
+      .map(([source, target]) => graphEdge(source, target, pick([REFERENCE, BASED_ON, {}]))),
+  );
 };
 
 describe("layoutGraph", () => {
@@ -64,6 +165,176 @@ describe("layoutGraph", () => {
           .join(">"),
       ),
     );
+  });
+
+  it("[SR-111/AK1] keeps a child of the element below it when its walk parent took its level from the other walk", () => {
+    // The whole chain of GL-f81ba9 in spec/ (#519): S1 and K link to each other, so K is on level -1 (a
+    // tie, the up walk wins); G links to K and is on level 2 from the down walk. Nothing but the side of
+    // its level puts G below S1.
+    const output = graphOutput(
+      [graphNode("S1", 0), graphNode("K", -1), graphNode("G", 2)],
+      [graphEdge("S1", "K", BASED_ON), graphEdge("K", "S1", BASED_ON), graphEdge("G", "K", REFERENCE)],
+    );
+    for (const graph of [output, padded(output, LEVEL_LAYERS_ABOVE + 1)]) {
+      const layout = layoutGraph(graph);
+      expect(offSide(layout), String(graph.nodes.length)).toEqual([]);
+      expect(at(layout, "G").y).toBeGreaterThan(at(layout, "S1").y);
+      expect(at(layout, "K").y).toBeLessThan(at(layout, "S1").y);
+      // The invisible link that keeps G down is not drawn: one curve per pair of the output.
+      expect(layout.paths.map((path) => `${path.source}>${path.target}`).slice(0, 3)).toEqual([
+        `${key("S1")}>${key("K")}`,
+        `${key("K")}>${key("S1")}`,
+        `${key("G")}>${key("K")}`,
+      ]);
+    }
+  });
+
+  it("[SR-111/AK1] keeps a parent of the element above it when its walk child took its level from the other walk", () => {
+    // S1 links to A, A to P, P to S1 and to V: P is on level 1 from the down walk, A on level -1, and V,
+    // on level -3 from the up walk through P, is linked only from P, which stands below S1.
+    const output = graphOutput(
+      [graphNode("S1", 0), graphNode("A", -1), graphNode("P", 1), graphNode("V", -3)],
+      [graphEdge("S1", "A"), graphEdge("A", "P"), graphEdge("P", "S1"), graphEdge("P", "V")],
+    );
+    for (const graph of [output, padded(output, LEVEL_LAYERS_ABOVE + 1)]) {
+      const layout = layoutGraph(graph);
+      expect(offSide(layout), String(graph.nodes.length)).toEqual([]);
+      expect(at(layout, "V").y).toBeLessThan(at(layout, "S1").y);
+      expect(layout.paths).toHaveLength(graph.edges.length);
+    }
+  });
+
+  it("[SR-111/AK1] keeps a parent of the element above it when only a link within its level joins it to the nodes above", () => {
+    // The mirror case above, with a chain S1 > A > B > W and V and W linked both ways on level -3. dagre
+    // breaks the cycle of V and W by reversing one of their links (W comes before V, as core gives it
+    // when A lists B before P), so that link puts V nowhere: V needs its anchor to stay above S1.
+    const output = graphOutput(
+      [
+        graphNode("S1", 0),
+        graphNode("A", -1),
+        graphNode("P", 1),
+        graphNode("B", -2),
+        graphNode("W", -3),
+        graphNode("V", -3),
+      ],
+      [
+        graphEdge("S1", "A"),
+        graphEdge("A", "P"),
+        graphEdge("P", "S1"),
+        graphEdge("P", "V"),
+        graphEdge("A", "B"),
+        graphEdge("B", "W"),
+        graphEdge("V", "W", REFERENCE),
+        graphEdge("W", "V", REFERENCE),
+      ],
+    );
+    const layout = layoutGraph(output);
+    expect(offSide(layout)).toEqual([]);
+    expect(at(layout, "V").y).toBeLessThan(at(layout, "S1").y);
+  });
+
+  it("keeps the layout of a graph of up to 200 nodes that needs no invisible link, as before #500 and #519", () => {
+    // The places of main before this change (dagre 3.1.1 is pinned): a change here moves the graphs of
+    // spec/, which must stay as they are (an upgrade of dagre makes it visible on purpose, ADR-0015).
+    const layout = layoutGraph(S1_GRAPH);
+    expect([layout.width, layout.height]).toEqual([1246, 512]);
+    expect(layout.nodes.map((placed) => [placed.node.identifier ?? "PKG", placed.x, placed.y])).toEqual([
+      ["S1", 526, 142],
+      ["N1", 1022, 0],
+      ["D1", 248, 0],
+      ["PKG", 774, 0],
+      ["O1", 526, 0],
+      ["D2", 0, 0],
+      ["C1", 144, 284],
+      ["C2", 392, 284],
+      ["C3", 335, 426],
+      ["E", 804, 284],
+    ]);
+  });
+
+  it("[SR-111/AK1] ranks the links within a level of a graph of up to 200 nodes, so a node stands under the node it links to", () => {
+    // The diamond: C3 derives from S1 and from C1, all three children of S1 on level 1.
+    const diamond = graphOutput(
+      [graphNode("S1", 0), graphNode("P", -1), graphNode("C1", 1), graphNode("C3", 1)],
+      [graphEdge("S1", "P"), graphEdge("C1", "S1"), graphEdge("C3", "S1"), graphEdge("C3", "C1")],
+    );
+    const ranked = layoutGraph(padded(diamond, LEVEL_LAYERS_ABOVE));
+    expect(ranked.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
+    expect(offSide(ranked)).toEqual([]);
+    expect(at(ranked, "C3").layer).toBe(at(ranked, "C1").layer + 1);
+    // One node more: the levels are the layers, and C3 stands beside C1, joined by an arch above them.
+    const levelled = layoutGraph(padded(diamond, LEVEL_LAYERS_ABOVE + 1));
+    expect(offSide(levelled)).toEqual([]);
+    expect(at(levelled, "C3").y).toBe(at(levelled, "C1").y);
+    expect(levelled.layers.map((layer) => layer.length)).toEqual([1, 1, LEVEL_LAYERS_ABOVE - 1]);
+    const arch = levelled.paths.find((path) => path.source === key("C3") && path.target === key("C1"));
+    expect(arch?.d).toContain(`,${String(at(levelled, "C1").y - RANK_SEP / 2)}`);
+  });
+
+  it("[SR-111/AK1] lays out a graph of more than 200 nodes in the layers of its levels: parents above, children below, a link within a level drawn between its two nodes", () => {
+    // Generated outputs of 240 nodes on levels -2 to 2, with links within a level, against the levels,
+    // long ones and cycles through the element (some nodes then take their level from the other walk).
+    let regular = 0;
+    for (const [seed, extra] of [
+      [1, 0],
+      [2, 40],
+      [3, 120],
+      [4, 240],
+      [5, 400],
+    ] as const) {
+      const output = generated(seed, 240, extra);
+      expect(output.nodes.length).toBeGreaterThan(LEVEL_LAYERS_ABOVE);
+      const layout = layoutGraph(output);
+      const name = `seed ${String(seed)}`;
+      expect(offSide(layout), name).toEqual([]);
+      const pairs = new Set<string>();
+      for (const edge of output.edges) {
+        const source = layout.byKey.get(`spec:${edge.source}`);
+        const target = layout.byKey.get(`spec:${edge.target}`);
+        if (source === undefined || target === undefined) {
+          throw new Error(`no node of ${edge.source} > ${edge.target}`);
+        }
+        pairs.add(`${source.key}>${target.key}`);
+        // A link to a lower level has its target above its source; a link against the levels or within
+        // a level is drawn afterwards, between the two placed nodes.
+        if (target.node.level < source.node.level) {
+          expect(target.y, `${name}: ${edge.source} > ${edge.target}`).toBeLessThan(source.y);
+        }
+      }
+      // Each linked pair is one curve; two nodes of one layer are joined by an arch above them.
+      expect(layout.paths.map((path) => `${path.source}>${path.target}`).sort()).toEqual([...pairs].sort());
+      for (const path of layout.paths) {
+        const [source, target] = [layout.byKey.get(path.source), layout.byKey.get(path.target)];
+        if (source?.y === target?.y) {
+          expect(path.d, `${name}: arch`).toContain(`,${String((source?.y ?? 0) - RANK_SEP / 2)}`);
+        }
+      }
+      // When every node links to a node one level nearer the element the way the walks go (a node of
+      // level d > 0 stores a link to one of level d - 1, a node of level d < 0 is linked from one of
+      // level d + 1), the layers are the levels.
+      const levelOf = new Map(output.nodes.map((node) => [node.id, node.level]));
+      const nearer = new Set(
+        output.edges.flatMap((edge: GraphEdge): string[] => {
+          const [source, target] = [levelOf.get(edge.source) ?? 0, levelOf.get(edge.target) ?? 0];
+          if (source > 0 && target === source - 1) {
+            return [edge.source];
+          }
+          return target < 0 && source === target + 1 ? [edge.target] : [];
+        }),
+      );
+      if (output.nodes.every((node) => node.level === 0 || nearer.has(node.id))) {
+        regular += 1;
+        const levels = [...new Set(output.nodes.map((node) => node.level))].sort((a, b) => a - b);
+        expect(
+          layout.nodes
+            .filter((placed) => placed.layer !== levels.indexOf(placed.node.level))
+            .map((p) => p.key),
+          name,
+        ).toEqual([]);
+      }
+    }
+    // All but seed 2, which has a node whose walk parent took its level from the other walk.
+    expect(regular).toBe(4);
   });
 
   it("draws one curve per pair of nodes, none for a link to itself or to an element that is no node", () => {
@@ -167,10 +438,12 @@ describe("layoutGraph", () => {
     expect(up?.d.endsWith(`L${String(root.x + NODE_WIDTH / 2)},${String(root.y)}`)).toBe(true);
   });
 
-  it("places a lone element", () => {
+  it("places a lone element, and nothing for an output without nodes", () => {
     const layout = layoutGraph(graphOutput([graphNode("S1", 0)], []));
     expect(layout.layers).toEqual([[at(layout, "S1")]]);
     expect(layout.paths).toEqual([]);
+    const empty = layoutGraph(graphOutput([], []));
+    expect([empty.nodes, empty.layers, empty.paths]).toEqual([[], [], []]);
   });
 });
 

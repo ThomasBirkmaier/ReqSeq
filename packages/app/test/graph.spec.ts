@@ -154,8 +154,8 @@ const placement = (element: Box, drawing: Box, view: Box, axis: "x" | "y"): Plac
  * AK1 on the graph shown for `output`: the boxes are the nodes of the CLI, each once; the element is
  * marked, wholly in view, and placed as `placement` says on both axes; every node the element links to
  * (level below 0) stands above it, every node linking to it (level above 0) below it, and every link
- * that does not run against the levels has its target above its source. Gives the placement and the
- * number of links against the levels.
+ * to a lower level has its target above its source (a link within a level or against the levels is
+ * drawn after the layout). Gives the placement and the number of links against the levels.
  */
 const expectElementPlaced = async (
   window: Page,

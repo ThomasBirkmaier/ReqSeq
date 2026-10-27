@@ -1,14 +1,16 @@
 // The layout part of SR-111 AK6 in the performance suite (ADR-0011), on the generated workspace of N-036
 // with 50,000 elements and 200,000 relations: the app's layout (`graph-layout.ts`, dagre) of the graph
-// of 500 nodes that "Whole chain" over every kind gives for the first need, the median of 5 runs. It is
-// recorded, not asserted: SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts),
-// and `packages/core/test/perf/trace-graph.test.ts` records the core part of the same call.
+// of 500 nodes that "Whole chain" over every kind gives for the first need (its layers are the levels,
+// #500), its first run in this process and the median of 5 runs; and of the 200 nearest nodes of the
+// same chain, the largest graph whose links within a level are ranked. It is recorded, not asserted:
+// SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts), and
+// `packages/core/test/perf/trace-graph.test.ts` records the core part of the same call.
 import type { TraceGraphOutput } from "@logreq/core";
 import { Workspace, invoke, warmWorkspace } from "@logreq/core";
 import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
-import { generateLargeWorkspace, measureMedian, writeLargeWorkspace } from "@logreq/testkit";
+import { generateLargeWorkspace, measureMedian, recordValue, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { layoutGraph } from "../../src/renderer/graph-layout.js";
+import { LEVEL_LAYERS_ABOVE, layoutGraph } from "../../src/renderer/graph-layout.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -38,22 +40,41 @@ describe("the layout of a graph of 500 nodes (SR-111 AK6, N-036)", () => {
     await fixture?.cleanup();
   });
 
-  it("records the layout of the whole chain of the first need over every kind", async () => {
+  /** The whole chain of the first need over every kind, at most `limit` nodes. */
+  const wholeChain = async (limit: number): Promise<TraceGraphOutput> => {
     if (workspace === undefined) {
       throw new Error("no workspace");
     }
     const need = tree.elements.find((element) => element.type === "need")?.id ?? "";
-    const output = (await invoke(
+    return (await invoke(
       "trace.graph",
-      { ref: need, allLevels: true, limit: NODES },
+      { ref: need, allLevels: true, limit },
       { workspace },
     )) as TraceGraphOutput;
+  };
+
+  it("records the layout of the whole chain of the first need over every kind", async () => {
+    const output = await wholeChain(NODES);
     expect(output.nodes).toHaveLength(NODES);
-    const { result } = await measureMedian(
-      `graph: app layout of a graph of 500 nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind), median of 5`,
-      () => layoutGraph(output),
-      { basis: "SR-111 AK6 (recorded; asserted end to end in the app)", runs: 5 },
-    );
+    const name = `graph: app layout of a graph of 500 nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind)`;
+    const basis = "SR-111 AK6 (recorded; asserted end to end in the app)";
+    const { result, times } = await measureMedian(`${name}, median of 5`, () => layoutGraph(output), {
+      basis,
+      runs: 5,
+    });
+    // The first layout of the process: dagre's code is cold, as in the app's first graph.
+    await recordValue(`${name}, first run`, times[0] ?? Number.NaN, { basis });
     expect(result.nodes).toHaveLength(NODES);
+  });
+
+  it("records the layout of the 200 nearest nodes of the same chain, the largest graph whose links within a level are ranked", async () => {
+    const output = await wholeChain(LEVEL_LAYERS_ABOVE);
+    expect(output.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
+    const { result } = await measureMedian(
+      `graph: app layout of the ${String(LEVEL_LAYERS_ABOVE)} nearest nodes, ${String(output.edges.length)} links (whole chain of the first need, every kind, ranked), median of 5`,
+      () => layoutGraph(output),
+      { basis: "SR-111 AK6 (recorded; #500)", runs: 5 },
+    );
+    expect(result.nodes).toHaveLength(LEVEL_LAYERS_ABOVE);
   });
 });

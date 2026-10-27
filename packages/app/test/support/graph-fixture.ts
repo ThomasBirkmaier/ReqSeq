@@ -114,7 +114,7 @@ const packageFile = (root: number, title: string): string =>
     "",
   ].join("\n");
 
-const cli = async (folder: string, argv: readonly string[]): Promise<string> =>
+export const cli = async (folder: string, argv: readonly string[]): Promise<string> =>
   (
     await execFileAsync(process.execPath, [CLI, ...argv, "--workspace", folder, "--json"], {
       maxBuffer: 256 * 1024 * 1024,

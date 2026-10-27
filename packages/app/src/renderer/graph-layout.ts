@@ -1,14 +1,23 @@
 // Where the nodes of a graph stand and how its links are drawn (SR-111, D-063): pure display, the only
 // thing outside the catalog (ADR-0002 rule 3, SR-080 AK1). The nodes, levels, edges and marks are the
 // output of `trace.graph`; this module gives them places. dagre (the layout of Mermaid's flowcharts)
-// ranks and orders them in layers, each link's target above its source (ADR-0004), with the `tight-tree`
-// ranker. A link that runs against the levels of the output (its target is farther down than its
-// source, such as a decision above the element whose text references the element) is left out of the
-// ranking and drawn afterwards between the placed nodes: so every node above the element in the output
-// stands above it, every node below it stands below it, and every other link has its target above its
-// source (AK1). dagre's own cycle breaking would reverse a link of the walks instead (its `greedy`
-// acyclicer fails or misplaces such graphs in 3.1.1). The drawn layers may differ from `level`: a node
-// stands one layer under each of its parents, also across levels (a diamond).
+// ranks and orders them in layers from the top down, each link's target above its source (ADR-0004),
+// with the `tight-tree` ranker. Some links are left out of the ranking and drawn afterwards between the
+// placed nodes:
+// - a link that runs against the levels of the output (its target is farther down than its source, such
+//   as a decision above the element whose text references the element). dagre's own cycle breaking
+//   would reverse a link of the walks instead (its `greedy` acyclicer fails or misplaces such graphs in
+//   3.1.1);
+// - above `LEVEL_LAYERS_ABOVE` nodes, a link between two nodes of one level (#500): it would stack a
+//   level into many layers and cost dagre most of SR-111 AK6's second.
+// Up to `LEVEL_LAYERS_ABOVE` nodes the drawn layers are dagre's ranks, not the levels: a node stands one
+// layer under each node it links to, also across levels (a diamond). Above it, the layers follow the
+// levels (every node of a level in one layer, in the order of the levels) when every node links to a
+// node one level nearer the element; with cycles through the element a node may stand a layer off its
+// level. Either way every node of a level below 0 stands above the element and every node of a level
+// above 0 below it (AK1): a node whose links do not put it on its side (its walk reached it through a
+// node that took its level from the other walk) gets an invisible layout link from the element, or to
+// it, which is never drawn.
 import { Graph, layout } from "@dagrejs/dagre";
 import type { TraceGraphOutput } from "@logreq/core";
 import type { GraphEdge, GraphNode } from "./graph.js";
@@ -20,6 +29,15 @@ export const NODE_HEIGHT = 86;
 /** The space between two nodes of a layer, and between two layers. */
 export const NODE_SEP = 24;
 export const RANK_SEP = 56;
+/**
+ * Above this many nodes, the links between two nodes of one level are drawn after the layout, so the
+ * layers follow the levels (#500). It is above every graph of `spec/` today, so those keep their ranked
+ * layout. The 200 nearest nodes of the N-036 chains take about 0.4 of the layout time of their 500-node
+ * graph; the time of a ranked graph is not bounded by its size, though (#538).
+ */
+export const LEVEL_LAYERS_ABOVE = 200;
+/** Parents above, children below (D-063); the ports and `route` assume it. */
+const RANK_DIRECTION = "TB";
 /** How far a link leaves and enters a node straight up or down before it bends. */
 const GUIDE = RANK_SEP / 4;
 /** The ends of a node's links keep this far from its corners. */
@@ -190,8 +208,12 @@ export interface GraphLayout {
 interface Pair<T> {
   readonly source: T;
   readonly target: T;
-  /** The links run against the levels of the output: the target is farther down than the source. */
-  readonly against: boolean;
+  /**
+   * The links are left out of the ranking and drawn after the layout: they run against the levels of the
+   * output (the target is farther down than the source), or the graph has more than
+   * `LEVEL_LAYERS_ABOVE` nodes and both ends are of one level.
+   */
+  readonly drawnAfter: boolean;
   readonly links: GraphEdge[];
 }
 
@@ -204,6 +226,7 @@ const pairsOf = <T>(
   nodes: ReadonlyMap<string, T>,
   level: (node: T) => number,
 ): Pair<T>[] => {
+  const levelled = output.nodes.length > LEVEL_LAYERS_ABOVE;
   const pairs = new Map<string, Pair<T>>();
   for (const edge of output.edges) {
     const sourceKey = nodeKey(edge.sourceRepository, edge.source);
@@ -216,7 +239,13 @@ const pairsOf = <T>(
     const pairKey = `${sourceKey}>${targetKey}`;
     const pair = pairs.get(pairKey);
     if (pair === undefined) {
-      pairs.set(pairKey, { source, target, against: level(target) > level(source), links: [edge] });
+      const [from, to] = [level(target), level(source)];
+      pairs.set(pairKey, {
+        source,
+        target,
+        drawnAfter: from > to || (levelled && from === to),
+        links: [edge],
+      });
     } else {
       pair.links.push(edge);
     }
@@ -224,12 +253,77 @@ const pairsOf = <T>(
   return [...pairs.values()];
 };
 
+/**
+ * Keeps every node on its side of the element (SR-111 AK1, #519). A node of a level above 0 stands below
+ * the element when a chain of layout links between levels leads down to it from the element, and a node
+ * of a level below 0 above it when one leads from it up to the element. Such a link joins two different
+ * levels, so it is in no cycle and dagre never reverses it; a link within a level can be, so it does not
+ * count. A node without such a chain (the walk reached it through a node that took its level from the
+ * other walk, in a cycle through the element) gets an invisible layout link from the element, or to it:
+ * `minlen` 1 puts it on its side, `weight` 0 does not pull it nearer, and it is never drawn. Nodes are
+ * taken nearest first, and an anchored node carries what hangs on it, so anchors are few. A graph whose
+ * nodes all have such a chain gets none and keeps its layout.
+ */
+const anchor = (
+  graph: LayoutGraph,
+  nodes: readonly GraphNode[],
+  ranked: readonly Pair<GraphNode>[],
+): void => {
+  const [first] = nodes;
+  if (first === undefined) {
+    return;
+  }
+  const root = keyOfNode(first);
+  const down = new Map<string, string[]>();
+  const up = new Map<string, string[]>();
+  const add = (next: Map<string, string[]>, from: string, to: string): void => {
+    const list = next.get(from);
+    if (list === undefined) {
+      next.set(from, [to]);
+    } else {
+      list.push(to);
+    }
+  };
+  for (const { source, target } of ranked) {
+    if (source.level !== target.level) {
+      add(down, keyOfNode(target), keyOfNode(source));
+      add(up, keyOfNode(source), keyOfNode(target));
+    }
+  }
+  const reach = (seen: Set<string>, next: ReadonlyMap<string, readonly string[]>, from: string): void => {
+    const stack = [from];
+    seen.add(from);
+    for (let key = stack.pop(); key !== undefined; key = stack.pop()) {
+      for (const other of next.get(key) ?? []) {
+        if (!seen.has(other)) {
+          seen.add(other);
+          stack.push(other);
+        }
+      }
+    }
+  };
+  const below = new Set<string>();
+  const above = new Set<string>();
+  reach(below, down, root);
+  reach(above, up, root);
+  for (const node of nodes) {
+    const key = keyOfNode(node);
+    if (node.level > 0 && !below.has(key)) {
+      graph.setEdge(root, key, { minlen: 1, weight: 0 });
+      reach(below, down, key);
+    } else if (node.level < 0 && !above.has(key)) {
+      graph.setEdge(key, root, { minlen: 1, weight: 0 });
+      reach(above, up, key);
+    }
+  }
+};
+
 /** Places the nodes of `output` and draws its links; deterministic: the same output gives the same layout. */
 export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   const nodes = new Map(output.nodes.map((node) => [keyOfNode(node), node]));
   const graph = new LayoutGraphOf();
   graph.setGraph({
-    rankdir: "TB",
+    rankdir: RANK_DIRECTION,
     ranker: "tight-tree",
     nodesep: NODE_SEP,
     ranksep: RANK_SEP,
@@ -240,11 +334,11 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
     graph.setNode(key, { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
   // One layout edge per ordered pair, from the target (above) to the source (below).
-  for (const pair of pairsOf(output, nodes, (node) => node.level)) {
-    if (!pair.against) {
-      graph.setEdge(keyOfNode(pair.target), keyOfNode(pair.source), { minlen: 1, weight: 1 });
-    }
+  const ranked = pairsOf(output, nodes, (node) => node.level).filter((pair) => !pair.drawnAfter);
+  for (const pair of ranked) {
+    graph.setEdge(keyOfNode(pair.target), keyOfNode(pair.source), { minlen: 1, weight: 1 });
   }
+  anchor(graph, output.nodes, ranked);
   runLayout(graph);
   const label = graph.graph();
   const tops = [...new Set([...nodes.keys()].map((key) => graph.node(key).y))].sort((a, b) => a - b);
@@ -265,7 +359,7 @@ export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   const paths = portsOf(pairsOf(output, byKey, (placedNode) => placedNode.node.level)).map(
     (link): EdgePath => {
       const { source, target } = link.pair;
-      const points = link.pair.against ? [] : graph.edge(target.key, source.key).points.slice(1, -1);
+      const points = link.pair.drawnAfter ? [] : graph.edge(target.key, source.key).points.slice(1, -1);
       return {
         source: source.key,
         target: target.key,
