@@ -48,6 +48,9 @@ def stage_of(e):
         return None
     return ids[0][len("Stufe-"):] if ids[0].startswith("Stufe-") else ids[0].lower()
 
+# Wishes parked during a stage (package Später, Thomas 2026-10-27): no stage yet, so no issue from this script.
+PARKED = "später"
+
 def invalid_statuses():
     """Status keys the metamodel of the spec marks invalid (D-044), e.g. obsolete."""
     return {st["key"] for st in logreq("metamodel", "get")["statuses"] if st.get("invalid")}
@@ -62,6 +65,8 @@ def validate(srs, stages):
         st = stage_of(e)
         if st is None:
             problems.append(f"{sr}: needs exactly one stage package")
+        elif st == PARKED:
+            pass
         elif st not in stages:
             problems.append(f"{sr}: package {st} is no stage ({', '.join(stages)})")
         if not e["properties"].get("topic"):
@@ -151,6 +156,9 @@ def main():
             continue
         p = e["properties"]
         st = stage_of(e)
+        if st == PARKED:
+            print(sr, "parked in Später, skipped (planned at the next stage boundary)", flush=True)
+            continue
         thema = p["topic"]
         text = LINK.sub(r"\1", e.get("text", "")).strip()
         h = content_hash(e, text)
