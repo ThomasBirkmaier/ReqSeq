@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Reads changed paths (one per line, as `git diff --name-only --no-renames` prints them) and prints `true`
-# when the heavy jobs (`test`, `e2e`, `electron`, `perf`) must run, `false` when every path is one that no
-# test, build or check reads except `trace-check` and `static`, which run on every pull request (#520).
+# when the heavy checks must run (build, unit tests, spec:check and e2e in `checks`, the Electron tests in
+# `electron`, and `perf`), `false` when every path is one that no test, build or check reads except the static
+# checks and trace-check, which run on every pull request (#520, #566). CI runs the base branch's copy of this
+# script, so a pull request cannot classify itself with a changed copy.
 #
 # Safe paths, checked against the tests and scripts:
 # - docs/**          ADRs and architecture: read by people and agents only.

@@ -55,7 +55,7 @@ jobs:
         id: changes
         run: |
           files="$(git diff --name-only --no-renames HEAD^1 HEAD)"
-          tests="$(.github/scripts/tests-needed.sh <<< "$files")"
+          tests="$(bash <(git show HEAD^1:.github/scripts/tests-needed.sh) <<< "$files")" # the base branch's copy (#566)
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
           echo "Performance suite needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
 
