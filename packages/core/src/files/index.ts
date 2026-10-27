@@ -16,6 +16,7 @@ export {
   readElementTextSync,
   readElementFiles,
   readFileSha256,
+  readFileSnapshot,
   readFileStat,
   readYamlFile,
 } from "./read.js";
@@ -27,6 +28,7 @@ export type {
   ParsedFile,
   ReadFilesOptions,
   ReadFilesResult,
+  SnapshotReadResult,
   YamlFile,
   YamlReadResult,
 } from "./read.js";

@@ -95,7 +95,7 @@ const CHECKS: readonly ((fields: Fields) => string | undefined)[] = [
 ];
 
 /** What an enriched test case says: the element/version pairs, item, date and variant, or why it does not fit. */
-type Enrichment =
+export type Enrichment =
   | {
       readonly pairs: ReadonlyMap<string, string>;
       readonly item: string;
@@ -104,7 +104,11 @@ type Enrichment =
     }
   | { readonly error: string };
 
-const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
+/**
+ * What an enriched test case (one with a `logreq:version`) says, by the checks of the reader; enrich
+ * (SR-029) uses it to check a test case it keeps and the file it wrote.
+ */
+export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
   const fields: Fields = {
     elements: valuesOf(testCase, ELEMENT).map(uuidOf),
     versions: valuesOf(testCase, VERSION),

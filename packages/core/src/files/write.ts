@@ -19,6 +19,7 @@ import { errorCode, folderInsideRoot, replaceErrorCode, resolveInRoot } from "./
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
+import { scanXml } from "./xml-scan.js";
 
 /** Temp files are `.<file name>.<8 hex>.logreq-tmp` in the target's folder (watchers ignore them). */
 export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.logreq-tmp$/;
@@ -27,9 +28,11 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
 
 /**
  * Which "still parses" check guards a replace: `element` (default) for Markdown element files,
- * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping).
+ * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping), `xml` for
+ * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029) and `json`
+ * for JSON files (`data.store`, SR-062).
  */
-export type FileKind = "element" | "yaml";
+export type FileKind = "element" | "yaml" | "xml" | "json";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
@@ -61,6 +64,20 @@ const REFUSAL: Readonly<Record<FileKind, (file: string, bytes: Uint8Array) => st
   yaml: (file, bytes) => {
     const current = parseYamlFileBytes(file, bytes);
     return current.kind === "problem" ? `is faulty (${current.problem.code}); fix it by hand` : undefined;
+  },
+  xml: (_file, bytes) => {
+    const current = scanXml(bytes);
+    return current.kind === "refused"
+      ? `is no readable XML (line ${String(current.line)}); fix it by hand`
+      : undefined;
+  },
+  json: (_file, bytes) => {
+    try {
+      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      return undefined;
+    } catch {
+      return "is no readable JSON; fix it by hand";
+    }
   },
 };
 

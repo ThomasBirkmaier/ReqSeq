@@ -4,3 +4,5 @@ packages/core/src/generated/** linguist-generated=true -diff
 pnpm-lock.yaml linguist-generated=true
 # Version test vectors (ADR-0005) are byte-exact: no line-ending conversion, no whitespace fixes.
 schemas/examples/version/** -text -whitespace
+# JUnit files of SR-029 are enriched byte for byte: CRLF and the byte order mark must stay.
+fixtures/SR-029/enrich/results/** -text -whitespace

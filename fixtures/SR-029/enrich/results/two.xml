@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="checks">
+  <testsuite name="station" timestamp="2026-10-27T10:00:00" tests="3" failures="1" skipped="1">
+    <!-- Hand-written: CRLF, a byte order mark, a self-closing test case, a timestamp without time zone. -->
+    <testcase classname="station" name="[SR-0b0036] [SR-0c0037] reports a failure"><failure message="Grüße &amp; &lt;stop&gt;"><![CDATA[check <failed> & stopped]]></failure></testcase>
+    <testcase classname="station" name="[SR-46fb54] logs in"/>
+    <testcase classname="station" name="[SR-46fb54] is skipped"><skipped/></testcase>
+  </testsuite>
+</testsuites>

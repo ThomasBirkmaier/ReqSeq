@@ -372,6 +372,37 @@ describe("writeFileAtomic: review findings", () => {
     expect(await text("w.yaml")).toBe("name: other\n");
   });
 
+  it("replaces an XML file that the scanner still reads, and refuses one it does not (SR-029)", async () => {
+    await put("r.xml", "<testsuites/>");
+    await writeFileAtomic(root, "r.xml", "<testsuites></testsuites>", await forge("r.xml"), { kind: "xml" });
+    expect(await text("r.xml")).toBe("<testsuites></testsuites>");
+    await put("bad.xml", "<testsuites>");
+    await expect(
+      writeFileAtomic(root, "bad.xml", "<testsuites/>", await forge("bad.xml"), { kind: "xml" }),
+    ).rejects.toMatchObject({
+      code: "file.faulty",
+      message: expect.stringContaining("is no readable XML (line 1)") as string,
+    });
+    expect(await text("bad.xml")).toBe("<testsuites>");
+  });
+
+  it("replaces a JSON file that still parses, and refuses one that does not (SR-062)", async () => {
+    await put("d.json", "{}");
+    await writeFileAtomic(root, "d.json", '{"a":1}', await forge("d.json"), { kind: "json" });
+    expect(await text("d.json")).toBe('{"a":1}');
+    await put("bad.json", "{");
+    await expect(
+      writeFileAtomic(root, "bad.json", "{}", await forge("bad.json"), { kind: "json" }),
+    ).rejects.toMatchObject({
+      code: "file.faulty",
+      message: expect.stringContaining("is no readable JSON") as string,
+    });
+    await fs.writeFile(abs("latin.json"), Buffer.from([0x22, 0xe4, 0x22]));
+    await expect(
+      writeFileAtomic(root, "latin.json", "{}", await forge("latin.json"), { kind: "json" }),
+    ).rejects.toMatchObject({ code: "file.faulty" });
+  });
+
   it("[SR-008/AK3] refuses to replace a faulty YAML file", async () => {
     await put("w.yaml", "name: [\n");
     await expect(

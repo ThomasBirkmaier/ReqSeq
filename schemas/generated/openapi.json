@@ -7070,7 +7070,7 @@
     "/v1/commands/evidence.enrichJunit": {
       "post": {
         "operationId": "evidence_enrichJunit",
-        "summary": "Add UUID, version, item and date to every test case of a JUnit XML file that names a short ID. CLI exits 1 on unknown IDs.",
+        "summary": "Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.",
         "tags": [
           "evidence"
         ],
@@ -7088,17 +7088,21 @@
                 "type": "object",
                 "properties": {
                   "file": {
-                    "$ref": "#/components/schemas/common/$defs/localPath"
+                    "$ref": "#/components/schemas/common/$defs/localPath",
+                    "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026)."
                   },
                   "item": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^(?![\\s\\S]*[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F])\\S(?:[\\s\\S]*\\S)?$",
+                    "description": "The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return."
                   },
                   "date": {
-                    "$ref": "#/components/schemas/common/$defs/dateTime"
+                    "$ref": "#/components/schemas/common/$defs/dateTime",
+                    "description": "The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
                   },
                   "output": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "Default: overwrite the input file."
+                    "description": "Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist."
                   }
                 },
                 "additionalProperties": false,
@@ -7120,15 +7124,25 @@
                   "properties": {
                     "testCases": {
                       "type": "integer",
-                      "minimum": 0
+                      "minimum": 0,
+                      "description": "The test cases that name at least one element and are enriched: by this call, or already before."
                     },
                     "unknown": {
                       "type": "array",
+                      "description": "Each reference that names no element or more than one, with its test case; that test case stays unchanged.",
                       "items": {
                         "type": "object",
                         "properties": {
                           "testCase": {
                             "type": "string"
+                          },
+                          "className": {
+                            "type": "string"
+                          },
+                          "line": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The line of the `<testcase>` in the file as read."
                           },
                           "ref": {
                             "type": "string"
@@ -7137,21 +7151,31 @@
                         "additionalProperties": false,
                         "required": [
                           "testCase",
+                          "line",
                           "ref"
                         ]
                       }
                     },
                     "files": {
                       "type": "array",
+                      "description": "The written file, relative to the workspace root (the folder of the main repository) with `/` when it lies below it or in another repository of the workspace, else its absolute path. None when nothing is written: nothing to change in place, or `output` holds these bytes already; a given `output` is otherwise written even when nothing changes.",
                       "items": {
                         "type": "string"
+                      }
+                    },
+                    "problems": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/common/$defs/problem"
                       }
                     }
                   },
                   "additionalProperties": false,
                   "required": [
                     "testCases",
-                    "unknown"
+                    "unknown",
+                    "files",
+                    "problems"
                   ]
                 }
               }

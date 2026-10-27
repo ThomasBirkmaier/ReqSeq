@@ -29,7 +29,7 @@ const runtime = createCommandRuntime({ commands });
 const WIND = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 
-/** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image. */
+/** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image and a JUnit file. */
 type Scenario = Readonly<Record<string, unknown>>;
 
 /** Every implemented write command, with calls that succeed and calls that fail. */
@@ -64,6 +64,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: WIND, status: "obsolete", successor: GUSTS, relation: "supersedes" },
     { ref: GUSTS, status: "obsolete" },
     { ref: WIND, status: "draft" },
+  ],
+  // Enriching replaces the JUnit file in place or writes a new one; the input stays (SR-029).
+  "evidence.enrichJunit": [
+    { file: "new/results.xml", item: "build-1", date: "2026-10-27T10:00:00Z", output: "new/enriched.xml" },
+    { file: "new/results.xml", item: "build-1", date: "2026-10-27T10:00:00Z" },
+    { file: "new/gone.xml", item: "build-1" },
   ],
   // Saving under an existing name replaces the filter in its own file; a key left out is removed from
   // the file, never the file (filters are no elements, D-056, but nothing is deleted either).
@@ -126,7 +132,12 @@ describe("no delete of an element (SR-099, D-045)", () => {
     it(`[SR-099/AK1] ${name} never removes or moves a file`, async () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
-        files: { "new/.keep": "", "new/layout.png": "an image" },
+        files: {
+          "new/.keep": "",
+          "new/layout.png": "an image",
+          "new/results.xml":
+            '<testsuites><testsuite name="s"><testcase name="[SR-e88fb3] wind"/></testsuite></testsuites>\n',
+        },
       });
       onTestFinished(() => fixture.cleanup());
       const workspace = new Workspace(fixture.root);

@@ -2155,28 +2155,38 @@ export interface EvidenceRecordOutput {
 }
 
 /**
- * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date to every test case of a JUnit XML file that names a short ID. CLI exits 1 on unknown IDs.
+ * Input of `evidence.enrichJunit` as `run` gets it: validated, properties with a `default` filled in. Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit input`.
  */
 export interface EvidenceEnrichJunitInput {
+  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026). */
   readonly file: LocalPath;
+  /** The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: string;
+  /** The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
-  /** Default: overwrite the input file. */
+  /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
   readonly output?: LocalPath;
 }
 
 /**
- * Output of `evidence.enrichJunit`. Add UUID, version, item and date to every test case of a JUnit XML file that names a short ID. CLI exits 1 on unknown IDs.
+ * Output of `evidence.enrichJunit`. Add UUID, version, item and date to every test case of a JUnit XML file that names an element by short ID, UUID or identifier. Test cases with an unknown reference stay unchanged and are listed; the CLI exits 1.
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit output`.
  */
 export interface EvidenceEnrichJunitOutput {
+  /** The test cases that name at least one element and are enriched: by this call, or already before. */
   readonly testCases: number;
+  /** Each reference that names no element or more than one, with its test case; that test case stays unchanged. */
   readonly unknown: readonly {
     readonly testCase: string;
+    readonly className?: string;
+    /** The line of the `<testcase>` in the file as read. */
+    readonly line: number;
     readonly ref: string;
   }[];
-  readonly files?: readonly string[];
+  /** The written file, relative to the workspace root (the folder of the main repository) with `/` when it lies below it or in another repository of the workspace, else its absolute path. None when nothing is written: nothing to change in place, or `output` holds these bytes already; a given `output` is otherwise written even when nothing changes. */
+  readonly files: readonly string[];
+  readonly problems: readonly Problem[];
 }
 
 /**

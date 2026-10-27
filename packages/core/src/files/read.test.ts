@@ -13,6 +13,7 @@ import {
   readElementFileSync,
   readElementFiles,
   readFileSha256,
+  readFileSnapshot,
   readFileStat,
   readYamlFile,
 } from "./read.js";
@@ -406,6 +407,43 @@ describe("readYamlFile", () => {
       line: 2,
     });
     expect(yamlProblem(await readYamlFile(root, "missing.yaml"))).toMatchObject({ code: "file.unreadable" });
+  });
+});
+
+describe("readFileSnapshot (a file LogReq rewrites as a whole, SR-029)", () => {
+  it("gives the bytes as read and their snapshot", async () => {
+    await put("ci/results.xml", "\uFEFF<testsuites/>\r\n");
+    const r = await readFileSnapshot(path.join(root, "ci"), "results.xml");
+    if (r.kind !== "read") {
+      throw new Error("expected read");
+    }
+    expect(Buffer.from(r.bytes).toString("utf8")).toBe("\uFEFF<testsuites/>\r\n");
+    expect(r.snapshot).toMatchObject({
+      path: "results.xml",
+      size: r.bytes.byteLength,
+      sha256: createHash("sha256").update(r.bytes).digest("hex"),
+    });
+  });
+
+  it("tells a missing file from a link and from a folder", async () => {
+    await put("ci/results.xml", "<testsuites/>");
+    await fs.symlink(path.join(root, "ci", "results.xml"), path.join(root, "ci", "link.xml"));
+    expect(await readFileSnapshot(root, "ci/gone.xml")).toMatchObject({
+      kind: "problem",
+      missing: true,
+      problem: { code: "file.unreadable", file: "ci/gone.xml" },
+    });
+    expect(await readFileSnapshot(root, "ci/results.xml/below.xml")).toMatchObject({ missing: true });
+    expect(await readFileSnapshot(root, "ci/link.xml")).toMatchObject({
+      kind: "problem",
+      missing: false,
+      problem: { message: expect.stringContaining("symbolic link") as string },
+    });
+    expect(await readFileSnapshot(root, "ci")).toMatchObject({
+      kind: "problem",
+      missing: false,
+      problem: { message: expect.stringContaining("not a regular file") as string },
+    });
   });
 });
 

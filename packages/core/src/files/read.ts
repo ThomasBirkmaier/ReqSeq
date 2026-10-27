@@ -47,7 +47,7 @@ const unreadable = (
 
 type RawFile =
   | { readonly kind: "bytes"; readonly file: string; readonly bytes: Uint8Array; readonly mtimeMs: number }
-  | { readonly kind: "problem"; readonly problem: Problem };
+  | { readonly kind: "problem"; readonly problem: Problem; readonly missing?: boolean };
 
 /** Why a file that `lstat` found is not read, or undefined when it is a regular file. */
 const statProblem = (file: string, stat: Stats): RawFile | undefined => {
@@ -76,7 +76,8 @@ const readBytes = async (root: string, relativePath: string): Promise<RawFile> =
     }
     return { kind: "bytes", file, bytes: await fs.readFile(absolute), mtimeMs: stat.mtimeMs };
   } catch (e) {
-    return unreadable(file, String(errorCode(e)));
+    const code = String(errorCode(e));
+    return { ...unreadable(file, code), missing: code === "ENOENT" || code === "ENOTDIR" };
   }
 };
 
@@ -101,7 +102,7 @@ const readBytesSync = (root: string, relativePath: string): RawFile => {
 /** What the bytes of an element file give; `readElementFile` and `readElementFileSync` share it. */
 const elementResult = (raw: RawFile): FileReadResult => {
   if (raw.kind === "problem") {
-    return raw;
+    return { kind: "problem", problem: raw.problem };
   }
   const { file, bytes, mtimeMs } = raw;
   const parsed = parseFileBytes(file, bytes);
@@ -289,6 +290,30 @@ export const readFileStat = async (root: string, relativePath: string): Promise<
   }
 };
 
+/** What `readFileSnapshot` gives. */
+export type SnapshotReadResult =
+  | { readonly kind: "read"; readonly bytes: Uint8Array; readonly snapshot: FileSnapshot }
+  /**
+   * `file.unreadable` with the reason: a symbolic link, not a regular file, a folder linked out of
+   * the root, or an errno code. `missing`: the file or a folder above it does not exist.
+   */
+  | { readonly kind: "problem"; readonly problem: Problem; readonly missing: boolean };
+
+/**
+ * The bytes of any regular file below `root`, read once, with the snapshot to pass to
+ * `writeFileAtomic` (for a file LogReq rewrites as a whole, such as a JUnit file, SR-029). The same
+ * checks as `readElementFile`: no symbolic links, no folder linked out of the root. Never throws for
+ * the file itself; throws only `input.invalid` for a path outside `root`.
+ */
+export const readFileSnapshot = async (root: string, relativePath: string): Promise<SnapshotReadResult> => {
+  const raw = await readBytes(root, relativePath);
+  if (raw.kind === "problem") {
+    return { kind: "problem", problem: raw.problem, missing: raw.missing === true };
+  }
+  const { file, bytes, mtimeMs } = raw;
+  return { kind: "read", bytes, snapshot: makeSnapshot(file, bytes.byteLength, mtimeMs, sha256(bytes)) };
+};
+
 /** A whole-file YAML document (metamodel, workspace, baseline, filter, mapping file). */
 export interface YamlFile extends ParsedYaml {
   readonly path: string;
@@ -304,7 +329,7 @@ export type YamlReadResult =
 export const readYamlFile = async (root: string, relativePath: string): Promise<YamlReadResult> => {
   const raw = await readBytes(root, relativePath);
   if (raw.kind === "problem") {
-    return raw;
+    return { kind: "problem", problem: raw.problem };
   }
   const { file, bytes, mtimeMs } = raw;
   const parsed = parseYamlFileBytes(file, bytes);

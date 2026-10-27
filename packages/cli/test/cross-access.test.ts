@@ -165,6 +165,21 @@ const WITH_VAULT =
  */
 const EVIDENCE: FixtureOptions = { fixture: "enabler-535/evidence", git: true };
 
+/**
+ * The #535 workspace with a JUnit file outside the evidence folder that is not enriched yet (SR-029,
+ * plan review S3), so evidence.enrichJunit writes on every access.
+ */
+const RAW_JUNIT: FixtureOptions = {
+  ...EVIDENCE,
+  files: {
+    "results/raw.xml":
+      '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station" timestamp="2026-10-27T09:00:00">\n' +
+      '    <testcase classname="station" name="[SR-e88fb3] shows the wind speed"/>\n' +
+      '    <testcase classname="station" name="[SR-ffffff] names no element"/>\n' +
+      "  </testsuite>\n</testsuites>\n",
+  },
+};
+
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
 
@@ -742,6 +757,39 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: EVIDENCE,
       input: { selection: { ids: ["SR-e88fb3"] } },
       expect: "output",
+    },
+  ],
+  // `file` and `output` are localPaths (see workspace.init below). The date is given: without it the
+  // time of the call would differ between the accesses.
+  "evidence.enrichJunit": [
+    {
+      name: "a JUnit file in place, with an unknown short ID listed (SR-029 AK1, AK2)",
+      fixture: RAW_JUNIT,
+      input: { file: "results/raw.xml", item: "build-513", date: "2026-10-27T10:00:00Z" },
+      expect: "output",
+    },
+    {
+      name: "a JUnit file into the evidence folder (SR-029 AK3)",
+      fixture: RAW_JUNIT,
+      input: {
+        file: "results/raw.xml",
+        item: "build-513",
+        date: "2026-10-27T10:00:00Z",
+        output: "evidence/ci/raw.xml",
+      },
+      expect: "output",
+    },
+    {
+      name: "an enriched file is kept as it is (D-026)",
+      fixture: EVIDENCE,
+      input: { file: "evidence/ci/results.xml", item: "build-513", date: "2026-10-27T10:00:00Z" },
+      expect: "output",
+    },
+    {
+      name: "a file that is not there",
+      fixture: EVIDENCE,
+      input: { file: "results/gone.xml", item: "build-513" },
+      expect: "error",
     },
   ],
   "evidence.list": [

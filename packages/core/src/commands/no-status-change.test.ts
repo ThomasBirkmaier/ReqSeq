@@ -48,6 +48,18 @@ const EVIDENCE_RECORD = "evidence/2026-10-20-SR-e88fb3-inspection.md";
 const EVIDENCE_JUNIT = "evidence/ci/results.xml";
 
 /**
+ * A JUnit file outside the evidence folder that is not enriched yet, naming elements of every status
+ * by short ID (WIND draft, APPROVED, OBSOLETE, RETIRED), so evidence.enrichJunit writes (SR-029).
+ */
+const RAW_JUNIT = "results/raw.xml";
+const RAW_JUNIT_TEXT =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="station">\n' +
+  ["SR-e88fb3", "N-aaaaaa", "SR-556666", "N-bbbbbb"]
+    .map((ref) => `    <testcase classname="station" name="[${ref}] is checked"/>\n`)
+    .join("") +
+  "  </testsuite>\n</testsuites>\n";
+
+/**
  * Added to SR-001/two-elements: elements approved, obsolete, and `retired`, which the metamodel
  * does not know; an evidence location with a Markdown record and an enriched JUnit file of WIND.
  */
@@ -55,6 +67,7 @@ const FILES: Readonly<Record<string, string>> = {
   "logreq-workspace.yaml": evidenceFixture("logreq-workspace.yaml"),
   [EVIDENCE_RECORD]: evidenceFixture(EVIDENCE_RECORD),
   [EVIDENCE_JUNIT]: evidenceFixture(EVIDENCE_JUNIT),
+  [RAW_JUNIT]: RAW_JUNIT_TEXT,
   "requirements/SR-444455556666.md": `---\nid: ${OBSOLETE}\ntype: system-requirement\nstatus: obsolete\ntitle: Old\n${OUTDATED}---\n`,
   "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
@@ -139,6 +152,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] }, view: "core" } },
     { selection: { ids: [WIND, OBSOLETE, RETIRED] } },
     { selection: { ids: ["SR-ffffff"] } },
+  ],
+  "evidence.enrichJunit": [
+    { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z", output: "evidence/ci/raw.xml" },
+    { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z" },
+    { file: EVIDENCE_JUNIT, item: "build-514" },
+    { file: "results/gone.xml", item: "build-513" },
   ],
   "evidence.list": [{ ref: WIND }, { ref: OBSOLETE, view: "core" }, { ref: "SR-ffffff" }],
   "evidence.status": [
@@ -337,6 +356,18 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
         { workspace },
       ),
     ).resolves.toMatchObject({ files: ["needs/N-bbbbbbbbbbbb.md"] });
+    expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
+  });
+
+  it("[SR-087/AK1] evidence.enrichJunit writes a JUnit file that names elements of every status and changes no status", async () => {
+    const { fixture, workspace } = await open();
+    const out = await runtime.invoke(
+      "evidence.enrichJunit",
+      { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z" },
+      { workspace },
+    );
+    expect(out).toEqual({ testCases: 4, unknown: [], files: [RAW_JUNIT], problems: [] });
+    expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/logreq:version/g)).toHaveLength(4);
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 
