@@ -400,6 +400,41 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect(file?.seq).toBe(writes() - before);
   });
 
+  it("writes an access noted within 100 ms of the last write once the 100 ms are over, before close", async () => {
+    // The burst above reaches the timer only when the timer fires before close; on a fast machine close
+    // writes the pending access first (#511). Here the clock stands still: the second access always
+    // waits for the timer, and only the timer writes it.
+    const opened = await copy(IDENTIFIERS);
+    const { workspace } = opened;
+    await call(workspace, "element.get", { ref: "SR-036" });
+    const first = await noteAccess(workspace, mcpCall("element.get"), { ref: SR_036 }, {});
+    const second = await noteAccess(workspace, mcpCall("element.get"), { ref: SR_037 }, {});
+    const before = writes();
+    // `vi.waitFor` would move fake time on, so this waits on real turns of the event loop, for at most
+    // 10 s of real time (`performance` is not faked).
+    const until = async (done: () => Promise<boolean> | boolean): Promise<void> => {
+      const end = performance.now() + 10_000;
+      while (performance.now() < end && !(await done())) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    };
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    recordAccess(workspace, Promise.resolve(first));
+    recordAccess(workspace, Promise.resolve(second));
+    await until(() => vi.getTimerCount() === 1);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(writes() - before).toBe(1);
+    expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
+
+    vi.advanceTimersByTime(ACTIVITY_WRITE_MS);
+    await until(async () => (await readActivity(opened.cache))?.seq === 2);
+    expect(writes() - before).toBe(2);
+    expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_037);
+  });
+
   it("drops an access noted after the workspace closed, and a write that fails", async () => {
     const opened = await copy(ONE);
     await call(opened.workspace, "element.get", { ref: "SR-e88fb3" });

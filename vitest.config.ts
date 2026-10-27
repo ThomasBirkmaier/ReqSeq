@@ -38,7 +38,8 @@ export default defineConfig({
       provider: "v8",
       include: ["packages/*/src/**/*.{ts,tsx}"],
       exclude: ["**/*.test.ts", "**/*.d.ts"],
-      reporter: ["text-summary", "json-summary", "lcov"],
+      // `text` with skipFull lists only the files below 100 %, so a CI log names what is uncovered (#511).
+      reporter: ["text-summary", ["text", { skipFull: true }], "json-summary", "lcov"],
       reportsDirectory: "coverage",
       thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
     },
