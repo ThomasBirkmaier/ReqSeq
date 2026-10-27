@@ -136,13 +136,70 @@ const sameCycle = (a: WalkCycle<DerivationLink>, b: WalkCycle<DerivationLink>): 
   return b.elements.every((e) => members.has(e));
 };
 
+/**
+ * The steps of the downward chain from an element: its children (`childrenOf`) that are part of the
+ * chain (`includes`). Shared by `traceChain` and `lacksEvidence`, so both count the same children.
+ */
+const childrenWithin = (
+  graph: DerivationGraph,
+  includes: ((element: ElementRecord) => boolean) | undefined,
+): ((element: ElementRecord) => Expansion<DerivationLink>) =>
+  includes === undefined ? (e) => childrenOf(graph, e) : (e) => within(childrenOf(graph, e), includes, true);
+
+/** The type keys of the two gap meanings. */
+interface GapTypes {
+  readonly needs: ReadonlySet<string>;
+  readonly requirements: ReadonlySet<string>;
+}
+
+const gapTypes = (metamodel: Metamodel): GapTypes => ({
+  needs: typeKeys(metamodel, "need"),
+  requirements: typeKeys(metamodel, "requirement"),
+});
+
+/**
+ * The gap of an element whose children were looked at (SR-022 AK3, see the file comment): `no-child`
+ * for a need without a child, `no-evidence` for a requirement without a child and without evidence,
+ * none otherwise. The one rule of `trace.chain` and of the marks of `trace.graph` (SR-111 AK4).
+ */
+const gapOf = (
+  types: GapTypes,
+  element: ElementRecord,
+  hasChild: boolean,
+  leaves: readonly unknown[],
+): GapKind | undefined => {
+  if (hasChild) {
+    return undefined;
+  }
+  if (types.needs.has(element.type)) {
+    return "no-child";
+  }
+  return types.requirements.has(element.type) && leaves.length === 0 ? "no-evidence" : undefined;
+};
+
+/**
+ * Whether an element is a `no-evidence` gap of the downward chain (SR-022 AK3), whatever depth a
+ * chain would look at: its children are counted as the chain's down walk counts them (in the view,
+ * `includes`; a child named only by an ambiguous relation is none, SR-088), and `leaves` is its
+ * evidence. For the marks of `trace.graph` (SR-111 AK4), so the graph and the chain agree.
+ */
+export const lacksEvidence = (
+  graph: DerivationGraph,
+  includes?: (element: ElementRecord) => boolean,
+): ((element: ElementRecord, leaves: readonly unknown[]) => boolean) => {
+  const types = gapTypes(graph.metamodel);
+  const children = childrenWithin(graph, includes);
+  return (element, leaves) =>
+    types.requirements.has(element.type) &&
+    gapOf(types, element, children(element).steps.length > 0, leaves) === "no-evidence";
+};
+
 /** Gaps and evidence of the downward walk (see the file comment). */
 const gapsOf = <L>(
   graph: DerivationGraph,
   down: WalkResult<DerivationLink, L>,
 ): { readonly gaps: ChainGap[]; readonly evidence: ChainEvidence<L>[] } => {
-  const needs = typeKeys(graph.metamodel, "need");
-  const requirements = typeKeys(graph.metamodel, "requirement");
+  const types = gapTypes(graph.metamodel);
   const gaps: ChainGap[] = [];
   const evidence: ChainEvidence<L>[] = [];
   // The walk expands its nodes in order and takes the steps of each one after the other, so the
@@ -160,13 +217,9 @@ const gapsOf = <L>(
     for (const leaf of leaves) {
       evidence.push({ element, depth: depth + 1, leaf });
     }
-    if (parent) {
-      continue;
-    }
-    if (needs.has(element.type)) {
-      gaps.push({ element, kind: "no-child" });
-    } else if (requirements.has(element.type) && leaves.length === 0) {
-      gaps.push({ element, kind: "no-evidence" });
+    const kind = gapOf(types, element, parent, leaves);
+    if (kind !== undefined) {
+      gaps.push({ element, kind });
     }
   }
   return { gaps, evidence };
@@ -193,11 +246,7 @@ export const traceChain = <L = never>(
   }
   let down: WalkResult<DerivationLink, L> | undefined;
   if (direction !== "up") {
-    const expand =
-      includes === undefined
-        ? (e: ElementRecord) => childrenOf(graph, e)
-        : (e: ElementRecord) => within(childrenOf(graph, e), includes, true);
-    down = walk([root], expand, leaves === undefined ? limit : { ...limit, leaves });
+    down = walk([root], childrenWithin(graph, includes), leaves === undefined ? limit : { ...limit, leaves });
     walks.push({ direction: "down", result: down });
   }
   const cycles: WalkCycle<DerivationLink>[] = [];

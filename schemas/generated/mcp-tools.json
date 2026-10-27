@@ -4436,6 +4436,234 @@
       }
     },
     {
+      "name": "trace_graph",
+      "title": "Show graph",
+      "description": "The graph of one element: what its links lead to above it and what links to it below, to a depth, over the chosen kinds. Each element is one node with its level and marks, and each link between two nodes is one edge. At most `limit` nodes, nearest levels first.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "$ref": "#/$defs/common/$defs/elementRef"
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The workspace name of the repository of the element ref names, as in element.get (#255)."
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The deepest level in each direction; 0: the element only. Omitted: 1 (the direct neighbours), unless `allLevels` is true."
+          },
+          "allLevels": {
+            "type": "boolean",
+            "default": false,
+            "description": "Go as far as the links go (the whole chain), within `limit`; not together with `maxDepth`. For the chain alone ask with `meanings: [\"derivation\"]`."
+          },
+          "kinds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/common/$defs/key"
+            },
+            "description": "Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule."
+          },
+          "meanings": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "derivation",
+                "replacement",
+                "exclusion",
+                "reference"
+              ]
+            },
+            "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
+          },
+          "view": {
+            "$ref": "#/$defs/common/$defs/view"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 500,
+            "description": "The most nodes, the element included; the nearest levels first (`truncated` says when more exist)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "ref"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "$ref": "#/$defs/common/$defs/uuid"
+          },
+          "nodes": {
+            "type": "array",
+            "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements that apply in it (SR-040); the element always. At most `limit` nodes.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/common/$defs/uuid"
+                },
+                "shortId": {
+                  "$ref": "#/$defs/common/$defs/shortId"
+                },
+                "identifier": {
+                  "type": "string",
+                  "description": "Its identifier (the value of its property with the meaning `identifier`, such as SR-036, #305), for display next to `shortId`; left out when it has none."
+                },
+                "type": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "repository": {
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string",
+                  "description": "Path relative to the repository."
+                },
+                "expanded": {
+                  "type": "boolean",
+                  "description": "Its links in the direction of its level (both for the element) were looked at and every element they lead to is a node. False at `maxDepth`, where `limit` stopped the walk, and when `limit` left out an element they lead to."
+                },
+                "level": {
+                  "type": "integer",
+                  "description": "0 for the element; -d for an element reached d steps up along the links the files store (its parents, the targets of its other relations and relation properties, its inline references), +d for one reached d steps down along links that point at it. The source of a link is placed below its target (ADR-0004)."
+                },
+                "marks": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "outdated",
+                      "superseded",
+                      "no-evidence"
+                    ]
+                  },
+                  "description": "In this order, only those that hold (SR-111 AK4): `outdated`, the element stores an outdated relation, relation property or inline reference (SR-025, the `relation.outdated` hints of element.get), whatever kinds are followed; `superseded`, its status is one the metamodel marks invalid (D-044); `no-evidence`, the gap rule of trace.chain (SR-022 AK3): a requirement without a derivation child that applies in the view and without evidence, whatever depth is shown. Evidence records come in stage 4: until then every requirement without a child is `no-evidence`. Empty when none holds."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "shortId",
+                "type",
+                "title",
+                "repository",
+                "file",
+                "expanded",
+                "level",
+                "marks"
+              ]
+            }
+          },
+          "edges": {
+            "type": "array",
+            "description": "Every followed link from one node to another, also one the walks did not take (a link between two parents, or from a child to a parent): by source in the order of `nodes`, then in the order its file stores them (relations and relation properties in frontmatter order, then inline references). A link from an element to itself is no edge. Not listed: unresolved links (`element.get` and `workspace.check` report them).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "$ref": "#/$defs/common/$defs/uuid",
+                  "description": "The element whose file stores the link."
+                },
+                "sourceRepository": {
+                  "type": "string",
+                  "description": "Workspace name of the repository of `source`."
+                },
+                "target": {
+                  "$ref": "#/$defs/common/$defs/uuid",
+                  "description": "The element the link points at (ADR-0004)."
+                },
+                "targetRepository": {
+                  "type": "string",
+                  "description": "Workspace name of the repository of `target`."
+                },
+                "link": {
+                  "enum": [
+                    "relation",
+                    "reference"
+                  ],
+                  "description": "A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`."
+                },
+                "kind": {
+                  "$ref": "#/$defs/common/$defs/key",
+                  "description": "The frontmatter key, only for `link: relation`."
+                },
+                "property": {
+                  "const": true,
+                  "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
+                },
+                "meaning": {
+                  "enum": [
+                    "derivation",
+                    "replacement",
+                    "exclusion",
+                    "reference"
+                  ],
+                  "description": "The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property."
+                },
+                "outdated": {
+                  "type": "boolean",
+                  "description": "The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025)."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "source",
+                "sourceRepository",
+                "target",
+                "targetRepository",
+                "link",
+                "outdated"
+              ]
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "More elements are reachable than shown: `limit` stopped a walk or left out a node. The nodes kept are the nearest ones."
+          },
+          "incomplete": {
+            "$ref": "#/$defs/common/$defs/incomplete"
+          },
+          "problems": {
+            "type": "array",
+            "description": "Hints: `metamodel.meaning-unassigned` when no relation kind has the meaning `derivation` or no type the meaning `requirement`, so `no-evidence` cannot be found (SR-013 AK3).",
+            "items": {
+              "$ref": "#/$defs/common/$defs/problem"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "root",
+          "nodes",
+          "edges",
+          "truncated",
+          "incomplete",
+          "problems"
+        ]
+      }
+    },
+    {
       "name": "hint_list",
       "title": "List hints",
       "description": "Open hints of the workspace, filterable by kind, type, package or variant.",

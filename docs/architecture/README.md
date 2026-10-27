@@ -93,7 +93,7 @@ flowchart TB
     files[files<br/>frontmatter, YAML document, atomic write, conflict markers]
     model[model<br/>element store, indexes, cache, watcher]
     version[version<br/>normal form, hash]
-    trace[trace<br/>chain, related, affected, cycles, neighbourhood]
+    trace[trace<br/>chain, related, affected, cycles, neighbourhood, graph]
     hints[hints<br/>outdated relations, core changes, confirm]
     query[query<br/>filter engine, sort, search index]
     evidence[evidence<br/>records, JUnit, status, coverage, degree]

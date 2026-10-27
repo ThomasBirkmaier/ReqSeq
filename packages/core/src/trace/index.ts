@@ -84,7 +84,16 @@ export type {
   GapKind,
   GapMeaning,
 } from "./chain.js";
-export { chainOutput, traceChain } from "./chain.js";
+export { chainOutput, lacksEvidence, traceChain } from "./chain.js";
+export type {
+  ElementGraph,
+  ElementGraphOptions,
+  ElementGraphOutputContext,
+  GraphMark,
+  GraphPlace,
+  MarksOf,
+} from "./element-graph.js";
+export { elementGraph, elementGraphOutput } from "./element-graph.js";
 export type { MatrixColumn, MatrixContext, MatrixKey, MatrixPlace } from "./matrix.js";
 export { columnOutput, matrixColumns, matrixContext, matrixKeys, matrixRows } from "./matrix.js";
 export type {

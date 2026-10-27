@@ -159,6 +159,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: RETIRED, direction: "up" },
     { ref: "SR-ffffff" },
   ],
+  "trace.graph": [
+    { ref: WIND },
+    { ref: APPROVED, allLevels: true, view: "core" },
+    { ref: RETIRED, meanings: ["derivation"], limit: 2 },
+    { ref: "SR-ffffff" },
+  ],
   "trace.matrix": [
     {},
     { selection: { ids: [APPROVED, WIND] }, sort: [{ by: "hierarchy" }] },

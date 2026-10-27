@@ -401,6 +401,41 @@ export const outdatedOfShown = async (
   return candidatesOf(element, { layout, metamodel, shortIds, versions });
 };
 
+/**
+ * The elements of `elements` that store at least one outdated relation, relation property or inline
+ * reference, by the rule of `outdatedOfShown` (the `relation.outdated` hints of element.get, which
+ * the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
+ * targets of all of them; no finding, message or hint ID is built.
+ */
+export const outdatedAmong = async (
+  context: Omit<ShownContext, "shortIds">,
+  elements: readonly ElementRecord[],
+): Promise<ReadonlySet<ElementRecord>> => {
+  const { workspace, layout, metamodel, store } = context;
+  const links = new Map<ElementRecord, StoredLink[]>();
+  const targets = new Set<ElementRecord>();
+  for (const element of elements) {
+    const stored: StoredLink[] = [];
+    eachStoredLink(element, context, (link) => {
+      stored.push(link);
+      targets.add(link.target);
+    });
+    links.set(element, stored);
+  }
+  const outdated = new Set<ElementRecord>();
+  if (targets.size === 0) {
+    return outdated;
+  }
+  const byRecord = await currentVersionsOf(workspace, [...targets]);
+  const versions: CurrentVersions = { store, layout, metamodel, byRecord };
+  for (const [element, stored] of links) {
+    if (stored.some((link) => outdatedAgainst(versions, link.target, link.stored) !== undefined)) {
+      outdated.add(element);
+    }
+  }
+  return outdated;
+};
+
 /** The findings of every element of `elements`, in order, before their lines are looked up; in slices (SR-082). */
 const candidatesOfAll = async (
   elements: Iterable<ElementRecord>,

@@ -12,7 +12,13 @@ export type {
   OutdatedFinding,
   ShownContext,
 } from "./outdated.js";
-export { datedProblems, outdatedFindingsOf, outdatedOfShown, outdatedRelationsState } from "./outdated.js";
+export {
+  datedProblems,
+  outdatedAmong,
+  outdatedFindingsOf,
+  outdatedOfShown,
+  outdatedRelationsState,
+} from "./outdated.js";
 export type { ConfirmedHints } from "./confirm.js";
 export { confirmHints } from "./confirm.js";
 export { elementHints } from "./element.js";

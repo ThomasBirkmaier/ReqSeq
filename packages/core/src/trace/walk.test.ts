@@ -119,6 +119,29 @@ describe("trace walk (breadth first, ADR-0008)", () => {
     expect(walk([r("S")], expand).nodes.every((n) => n.expanded)).toBe(true);
   });
 
+  it("stops expanding once maxNodes elements besides the starts are reached (SR-111)", () => {
+    // S -> A, B, C; A -> D; B -> E; D -> F.
+    const { r, expand, calls } = graphOf({ S: ["A", "B", "C"], A: ["D"], B: ["E"], D: ["F"] });
+    const cut = walk([r("S")], expand, { maxNodes: 4 });
+    // S reaches three, A a fourth; then B is not expanded, nor anything after it.
+    expect(calls).toEqual(["S@0", "A@1"]);
+    expect(cut.nodes.map((n) => [n.element.id, n.depth, n.expanded])).toEqual([
+      ["S", 0, true],
+      ["A", 1, true],
+      ["B", 1, false],
+      ["C", 1, false],
+      ["D", 2, false],
+    ]);
+    expect(cut.cut).toBe(true);
+    // The last element expanded may go past the bound with all its steps.
+    expect(walk([r("S")], expand, { maxNodes: 1 }).nodes).toHaveLength(4);
+    // Reached exactly, with nothing left to expand within maxDepth: not cut.
+    const deep = walk([r("S")], expand, { maxNodes: 3, maxDepth: 1 });
+    expect([deep.nodes.length, deep.cut]).toEqual([4, false]);
+    const whole = walk([r("S")], expand);
+    expect([whole.nodes.length, whole.cut, whole.nodes.every((n) => n.expanded)]).toEqual([7, false, true]);
+  });
+
   it("finds a cycle with all its elements and stops at it", () => {
     // A derives from B, B from C and C from A (SR-090 AK1), entered from S.
     const { r, expand, calls } = graphOf({ S: ["A"], A: ["B"], B: ["C"], C: ["A"] });

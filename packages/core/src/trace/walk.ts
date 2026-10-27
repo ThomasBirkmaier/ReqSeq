@@ -18,6 +18,11 @@
 //   which were, so a node without steps that was expanded is a real end (SR-022 AK3). The cycles
 //   are those of the walked subgraph: a cycle that runs below `maxDepth` and closes only through an
 //   element that was not expanded is not reported.
+// - `maxNodes` (SR-111, the graph of at most `limit` nodes): once the walk has reached that many
+//   elements besides the starts, it expands no further element; the elements it reached keep their
+//   depth, the ones it did not expand say so (`expanded`), and `cut` is set when one of them lies
+//   within `maxDepth`. The reached elements are the first ones of the whole walk, in its order, so
+//   the nearest levels; the bound is `maxNodes` plus the steps of the last element expanded.
 // - What the steps could not follow is collected (`unresolved`), and `incomplete` is set when a
 //   step says so (SR-006 AK2).
 // - Leaves (evidence seam, ADR-0012): `leaves(element)` gives what hangs below each reached element,
@@ -60,6 +65,11 @@ export interface WalkOptions<L> {
   readonly maxDepth?: number;
   /** What hangs below each reached element (evidence records, stage 4). Default: none. */
   readonly leaves?: (element: ElementRecord) => readonly L[];
+  /**
+   * Once this many elements besides the starts are reached, no further element is expanded
+   * (`WalkResult.cut`). Undefined: no bound.
+   */
+  readonly maxNodes?: number;
 }
 
 /** An edge between two elements. */
@@ -82,7 +92,7 @@ export interface WalkNode<E, L> {
   readonly depth: number;
   /** The edge it was first reached through, from an element one level up; undefined for a start. */
   readonly via: WalkEdge<E> | undefined;
-  /** Its steps were asked for (`expand`): false only for an element at `maxDepth`. */
+  /** Its steps were asked for (`expand`): false for an element at `maxDepth` or beyond `maxNodes`. */
   readonly expanded: boolean;
   /** What `WalkOptions.leaves` gave for it, in that order; none without `leaves`. */
   readonly leaves: readonly L[];
@@ -117,6 +127,8 @@ export interface WalkResult<E, L> {
   readonly unresolved: readonly WalkUnresolved<E>[];
   /** Some expanded element said that part of its steps cannot be read here (SR-006 AK2). */
   readonly incomplete: boolean;
+  /** `maxNodes` kept an element within `maxDepth` from being expanded: the walk is not whole. */
+  readonly cut: boolean;
 }
 /** A cycle while it is collected. */
 interface OpenCycle<G> {
@@ -136,6 +148,8 @@ interface Vertex<G> {
   readonly depth: number;
   readonly via: G | undefined;
   readonly out: Vertex<G>[];
+  /** The walk asked for its steps. */
+  expanded: boolean;
   /** The edges into it from vertices not peeled yet (`findCycles`). */
   incoming: number;
   /** Visit number; -1 while not visited. */
@@ -151,6 +165,7 @@ const vertex = <G>(element: ElementRecord, depth: number, via: G | undefined): V
   depth,
   via,
   out: [],
+  expanded: false,
   incoming: 0,
   index: -1,
   low: 0,
@@ -329,7 +344,7 @@ export const walk = <E, L = never>(
   expand: Expand<E>,
   options: WalkOptions<L> = {},
 ): WalkResult<E, L> => {
-  const { maxDepth, leaves } = options;
+  const { maxDepth, leaves, maxNodes = Number.POSITIVE_INFINITY } = options;
   const expands = (depth: number): boolean => maxDepth === undefined || depth < maxDepth;
   const reached = new Map<ElementRecord, Vertex<OpenEdge<E>>>();
   for (const element of starts) {
@@ -340,11 +355,19 @@ export const walk = <E, L = never>(
   const edges: OpenEdge<E>[] = [];
   const unresolved: WalkUnresolved<E>[] = [];
   let incomplete = false;
+  let cut = false;
+  // The elements besides the starts are counted against `maxNodes`.
+  const startCount = reached.size;
   // A Map iterates the entries added while it is read: breadth first, level by level.
   for (const from of reached.values()) {
     if (!expands(from.depth)) {
       continue;
     }
+    if (reached.size - startCount >= maxNodes) {
+      cut = true;
+      break;
+    }
+    from.expanded = true;
     const expansion = expand(from.element, from.depth);
     incomplete ||= expansion.incomplete;
     for (const { link: unfollowed, state } of expansion.unresolved) {
@@ -364,11 +387,11 @@ export const walk = <E, L = never>(
   const vertices = [...reached.values()];
   const cycles = findCycles(vertices);
   markCycleEdges(cycles, edges);
-  const nodes = vertices.map(({ element, depth, via }): WalkNode<E, L> => ({
+  const nodes = vertices.map(({ element, depth, via, expanded }): WalkNode<E, L> => ({
     element,
     depth,
     via,
-    expanded: expands(depth),
+    expanded,
     leaves: leaves?.(element) ?? NO_LEAVES,
   }));
   // Built on first read (`pathTo`): a chain of 40,000 elements does not need it (SR-082 AK4, #227).
@@ -383,6 +406,7 @@ export const walk = <E, L = never>(
     cycles: cycles.map(closed),
     unresolved,
     incomplete,
+    cut,
   };
 };
 

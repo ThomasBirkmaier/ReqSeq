@@ -143,7 +143,10 @@ const NONE: readonly never[] = Object.freeze([]);
  * repository that is not here or not in the workspace file makes the walk incomplete; a missing or
  * ambiguous one is no step (see the file comment).
  */
-const outgoingOf = (context: NeighbourhoodContext, element: ElementRecord): Expansion<IncomingLink> => {
+export const outgoingOf = (
+  context: NeighbourhoodContext,
+  element: ElementRecord,
+): Expansion<IncomingLink> => {
   const { layout, store, keys } = context;
   const steps: Step<IncomingLink>[] = [];
   let incomplete = false;
@@ -230,6 +233,8 @@ export interface NeighbourhoodOptions {
   readonly maxDepth?: number;
   /** Whether an element is part of the neighbourhood, e.g. it applies in a view (SR-040). Default: every one. */
   readonly includes?: (element: ElementRecord) => boolean;
+  /** The bound of each walk (`WalkOptions.maxNodes`, the graph of SR-111). Default: none. */
+  readonly maxNodes?: number;
 }
 
 /** One walk of the neighbourhood. */
@@ -254,8 +259,11 @@ export const traceNeighbourhood = (
   root: ElementRecord,
   options: NeighbourhoodOptions,
 ): Neighbourhood => {
-  const { direction, maxDepth, includes } = options;
-  const limit = maxDepth === undefined ? {} : { maxDepth };
+  const { direction, maxDepth, includes, maxNodes } = options;
+  const limit = {
+    ...(maxDepth === undefined ? {} : { maxDepth }),
+    ...(maxNodes === undefined ? {} : { maxNodes }),
+  };
   const walks: NeighbourhoodWalk[] = [];
   const walkOf = (way: "up" | "down", expand: (element: ElementRecord) => Expansion<IncomingLink>): void => {
     const expansion =
@@ -309,7 +317,7 @@ export const currentVersionLookup =
 type NeighbourhoodEdge = TraceNeighbourhoodOutput["edges"][number];
 
 /** The key's description in the output: whether it is a property, and its relation kind's meaning. */
-const keyInfo = (
+export const keyInfo = (
   metamodel: Metamodel,
 ): ((key: string) => Pick<NeighbourhoodEdge, "property" | "meaning">) => {
   const properties = new Set(metamodel.properties.map((p) => p.key));
