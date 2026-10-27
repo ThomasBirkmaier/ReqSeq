@@ -11,7 +11,7 @@ Adapted from the Capybara skill. Difference: no human confirmation before merge.
 
 1. **Load.** `gh pr view <n> --json title,body,labels,files,mergeable,statusCheckRollup,headRefName`. Read the linked issue and SR file.
 2. **No human gate.** Agents merge every PR themselves, including changes to schemas, ADRs, CLAUDE.md, skills and CI (D-051). For those, post a one-line note to the stage epic so the product owner sees it later. Skip PRs labelled `blocked` or `needs-human`.
-3. **Review (Opus subagent, effort high)** if the workflow review is older than the last push: correctness against SR and AK, edge cases, tests named `[SR-xxx/AKn]` for every AK with method Test, product rules in `CLAUDE.md`, scope (only what the PR claims).
+3. **Review (Opus subagent, effort high; `xhigh` for SR-111 and SR-117)** if the workflow review is older than the last push: correctness against SR and AK, edge cases, tests named `[SR-xxx/AKn]` for every AK with method Test, product rules in `CLAUDE.md`, scope (only what the PR claims).
    Classify findings: blocking, should-fix, nitpick.
 4. **Blocking findings.** If small and in scope: fix on the branch (back through tests and gates). Otherwise open a linked issue with the findings, label the PR `blocked`, comment, and stop.
 5. **Conflicts.** Merge `main` into the branch with `pnpm merge:main` (regenerates generated files; conflicts resolved by hand get a review of that diff), keep the intent of both sides, re-run all gates. If the two sides are incompatible, label `needs-human`, explain the options for the product owner, and stop.
