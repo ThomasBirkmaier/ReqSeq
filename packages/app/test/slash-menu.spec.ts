@@ -9,6 +9,7 @@ import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
 import { launchApp, listAll } from "./support/app.js";
+import { printEventsOnFailure, recordEvents } from "./support/event-log.js";
 import {
   DEMO_FILE,
   DEMO_FILES,
@@ -68,11 +69,17 @@ test.describe("the slash menu in the element buffer", () => {
   let running: RunningApp;
   test.beforeEach(async () => {
     running = await launchApp(FIXTURE);
+    // What took the menu away when a test fails (#573): printed to the job log. No waits, retries or input.
+    await recordEvents(running.window);
     await listAll(running.window);
     await editing(running.window);
   });
   test.afterEach(async () => {
-    await running.close();
+    try {
+      await printEventsOnFailure(running.window, test.info());
+    } finally {
+      await running.close();
+    }
   });
 
   test("[SR-129/AK1] / opens a menu next to the caret with the Markdown elements of the criterion", async () => {

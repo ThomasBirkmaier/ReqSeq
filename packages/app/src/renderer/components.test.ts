@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+// happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
+// run in packages/app needs it too (#460, #573).
+import "../../../../scripts/test-support/dom-selection.mjs";
 import type { DataExportElement } from "@logreq/core";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
