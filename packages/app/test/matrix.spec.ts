@@ -315,4 +315,35 @@ test.describe("the traceability matrix on a fixture workspace", () => {
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Show as list");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(/Ctrl\+T|⌘T/);
   });
+
+  test("the command prompt's candidates lie above the fixed first column of the matrix (#483)", async () => {
+    const { window } = running;
+    // A low window, so that the rows of the matrix reach down behind the candidates.
+    await window.setViewportSize({ width: 900, height: 320 });
+    await requirements(window);
+    await matrixOpen(window, 6);
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    const option = window.locator('.candidates [role="option"]').first();
+    await expect(option).toBeVisible();
+    const box = await option.boundingBox();
+    if (box === null) {
+      throw new Error("no candidate box");
+    }
+    const point = { x: box.x + 8, y: box.y + box.height / 2 };
+    // The test only proves something if a cell of the fixed column lies under that point.
+    const cells = await window.locator("td.element").evaluateAll(
+      (elements, at) =>
+        elements.filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left <= at.x && at.x <= rect.right && rect.top <= at.y && at.y <= rect.bottom;
+        }).length,
+      point,
+    );
+    expect(cells).toBeGreaterThan(0);
+    const onTop = await window.evaluate(
+      (at) => document.elementFromPoint(at.x, at.y)?.closest(".candidates") !== null,
+      point,
+    );
+    expect(onTop).toBe(true);
+  });
 });

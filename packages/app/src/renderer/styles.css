@@ -45,9 +45,12 @@ body,
   height: 100%;
 }
 
+/* Its own stacking context: nothing inside a buffer, such as the matrix's fixed column, can rise above
+   the minibuffer's candidates (#483). */
 .sheet {
   min-height: 0;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .buffer {
