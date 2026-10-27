@@ -68,8 +68,19 @@ const SELECTION_TOOLS: readonly string[] = [
   "element_search",
   "filter_save",
 ];
-/** The list of #303, plus one selection part per selection tool. */
-const TOOLS_LIST_MAX_BYTES = 48 * 1024 + SELECTION_TOOLS.length * SELECTION_MAX_BYTES;
+/**
+ * What each listed tool brings to the bound of the whole list (#496). The tools average 1.85 KB without their
+ * selection part; a tool above 2 KB spends the allowance of the others, so it must shorten once that is used up.
+ */
+const TOOL_ALLOWANCE_BYTES = 2 * 1024;
+/**
+ * The whole list: 2 KB per listed tool plus one selection part per selection tool (#496; ADR-0009). It grows
+ * with the commands, because the context an agent loads grows with the commands it is meant to call. #303's
+ * risk, whole schema files repeated in every tool, is caught per tool by `TOOL_MAX_BYTES`, and per selection
+ * part by `SELECTION_MAX_BYTES`.
+ */
+const toolsListMaxBytes = (tools: number): number =>
+  tools * TOOL_ALLOWANCE_BYTES + SELECTION_TOOLS.length * SELECTION_MAX_BYTES;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,6 +121,32 @@ const sizesOf = (tool: { readonly inputSchema: unknown }): { selection: number; 
   const kept = Object.entries(defs).filter(([name]) => !part.has(name));
   const selection = bytes(Object.fromEntries(Object.entries(defs).filter(([name]) => part.has(name))));
   return { selection, rest: bytes({ ...tool, inputSchema: { ...schema, $defs: Object.fromEntries(kept) } }) };
+};
+
+interface Listed {
+  readonly tools: readonly { readonly name: string; readonly inputSchema: unknown }[];
+}
+
+/** The bounds above that `listed` breaks, as `<what>: <bytes> of <bound>`; empty when it keeps them all. */
+const overBounds = (listed: Listed): string[] => {
+  const max = toolsListMaxBytes(listed.tools.length);
+  const over = bytes(listed) < max ? [] : [`list: ${String(bytes(listed))} of ${String(max)}`];
+  for (const tool of listed.tools) {
+    const { selection, rest } = sizesOf(tool);
+    if (selection >= SELECTION_MAX_BYTES) {
+      over.push(`${tool.name} selection: ${String(selection)} of ${String(SELECTION_MAX_BYTES)}`);
+    }
+    if (rest >= TOOL_MAX_BYTES) {
+      over.push(`${tool.name}: ${String(rest)} of ${String(TOOL_MAX_BYTES)}`);
+    }
+  }
+  return over;
+};
+
+/** A tool of pure filler that is exactly `size` bytes of JSON. */
+const filler = (name: string, size: number): { name: string; description: string; inputSchema: unknown } => {
+  const tool = { name, description: "", inputSchema: { type: "object" } };
+  return { ...tool, description: "x".repeat(size - bytes(tool)) };
 };
 
 let waitAborted: (() => void) | undefined;
@@ -315,6 +352,28 @@ describe("serveMcp", () => {
   });
 });
 
+/** The `tools/list` result and the instructions of a server on the runtime of the process (the product catalog). */
+const productList = async (): Promise<{
+  listed: Awaited<ReturnType<Client["listTools"]>>;
+  instructions: string | undefined;
+}> => {
+  const toServer = new PassThrough();
+  const toClient = new PassThrough();
+  const served = serveMcp({
+    workspace,
+    input: toServer,
+    output: { write: (text) => toClient.write(text) },
+  });
+  const client = new Client({ name: "test", version: "1" });
+  await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
+  const listed = await client.listTools();
+  const instructions = client.getInstructions();
+  toServer.end();
+  await served;
+  await client.close();
+  return { listed, instructions };
+};
+
 describe("callTool", () => {
   it("answers internal without the error text when the runtime fails outside of a CommandError", async () => {
     const broken: CommandRuntime = { ...runtime, invoke: () => Promise.reject(new Error("/secret/path")) };
@@ -331,28 +390,34 @@ describe("callTool", () => {
   });
 
   it("runs on the runtime of the process by default", async () => {
-    const toServer = new PassThrough();
-    const toClient = new PassThrough();
-    const served = serveMcp({
-      workspace,
-      input: toServer,
-      output: { write: (text) => toClient.write(text) },
-    });
-    const client = new Client({ name: "test", version: "1" });
-    await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
-    const listed = await client.listTools();
+    const { listed, instructions } = await productList();
     expect(listed.tools.some((t) => t.name === "workspace_status")).toBe(true);
     // #303: the list was 1 MB when every tool schema carried whole schema files; an agent puts all of it
-    // into its context. Each tool now carries only the definitions it uses (bounds above, #336).
-    expect(bytes(listed)).toBeLessThan(TOOLS_LIST_MAX_BYTES);
+    // into its context. Each tool now carries only the definitions it uses (bounds above, #336, #496).
+    expect(overBounds(listed)).toEqual([]);
     const sizes = listed.tools.map((tool) => ({ name: tool.name, ...sizesOf(tool) }));
     expect(sizes.filter((tool) => tool.selection > 0).map((tool) => tool.name)).toEqual(SELECTION_TOOLS);
-    for (const { name, selection, rest } of sizes) {
-      expect([name, selection < SELECTION_MAX_BYTES, rest < TOOL_MAX_BYTES]).toEqual([name, true, true]);
-    }
-    expect(client.getInstructions()).toContain("workspace_status");
-    toServer.end();
-    await served;
-    await client.close();
+    expect(instructions).toContain("workspace_status");
+  });
+
+  it("bounds the list by 2 KB per tool, so a tool above that must shorten (#496)", async () => {
+    const { listed } = await productList();
+    const headroom = toolsListMaxBytes(listed.tools.length) - bytes(listed);
+    expect(headroom).toBeGreaterThan(0);
+    const adding = (tools: Listed["tools"]): string[] =>
+      overBounds({ ...listed, tools: [...listed.tools, ...tools] });
+    // New tools within their allowance fit, however many come: the bound grows with the catalog.
+    const small = Array.from({ length: 50 }, (_, i) =>
+      filler(`small_${String(i)}`, TOOL_ALLOWANCE_BYTES - 16),
+    );
+    expect(adding(small)).toEqual([]);
+    // Tools of 1 KB above their allowance keep the bound of a tool, but they spend the allowance of the
+    // others: once the headroom is used up, the list fails.
+    const count = Math.ceil(headroom / 1024);
+    const large = Array.from({ length: count }, (_, i) => filler(`large_${String(i)}`, 3 * 1024 - 1));
+    expect(adding(large.slice(1))).toEqual([]);
+    expect(adding(large).map((over) => over.split(":")[0])).toEqual(["list"]);
+    // #303: a tool that carries whole schema files (13 KB of common and filter $defs) fails its own bound.
+    expect(adding([filler("whole", 13 * 1024)])).toContain("whole: 13312 of 6144");
   });
 });
