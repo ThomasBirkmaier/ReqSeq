@@ -78,6 +78,8 @@ jobs:
     runs-on: ${{ fromJSON(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"' || '["self-hosted","logreq-linux"]') }}
     outputs:
       map: ${{ steps.pick.outputs.map }}
+      # `false` only for a pull request whose files no heavy job reads (#520); empty means run.
+      tests: ${{ steps.changes.outputs.tests }}
     steps:
       - name: Pick runners
         id: pick
@@ -106,6 +108,32 @@ jobs:
           map="{\"ubuntu-24.04\":$linux,\"macos-14\":$macos,\"windows-2025\":\"windows-2025\"}"
           echo "map=$map" >> "$GITHUB_OUTPUT"
           echo "Runners: \`$map\`" >> "$GITHUB_STEP_SUMMARY"
+      # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
+      # Markdown at the root; .github/scripts/tests-needed.sh) skip `test`, `e2e` and `electron`, to spare the
+      # three Linux runners (#520). The skipped jobs show as `skipped`. `trace-check` and `static` always run.
+      # Pushes to main, nightly and manual runs always run everything. In this job, after `pick`, so it needs
+      # no runner of its own; if it fails, `tests` stays empty and the heavy jobs run.
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request' && !contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action)
+        with:
+          # The merge commit and its parents: the first parent is the base branch it was merged into.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Changed files
+        id: changes
+        if: github.event_name == 'pull_request' && !contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action)
+        shell: bash
+        run: |
+          # --no-renames: a file moved from packages/ to docs/ lists both paths.
+          files="$(git diff --name-only --no-renames HEAD^1 HEAD)"
+          tests="$(.github/scripts/tests-needed.sh <<< "$files")"
+          echo "tests=$tests" >> "$GITHUB_OUTPUT"
+          {
+            echo "Heavy jobs (test, e2e, electron) needed: \`$tests\` for $(printf '%s\n' "$files" | grep -c .) changed files:"
+            echo '```'
+            printf '%s\n' "$files"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # Static checks run once; they do not depend on the operating system.
   static:
@@ -140,7 +168,7 @@ jobs:
   # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems (macOS nightly).
   test:
     name: test (${{ matrix.os }})
-    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' && needs.runners.outputs.tests != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -178,7 +206,7 @@ jobs:
   # On Linux the suite runs inside a user and network namespace (`unshare -rn`): no network at all.
   e2e:
     name: e2e (${{ matrix.os }})
-    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' && needs.runners.outputs.tests != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -226,7 +254,7 @@ jobs:
     name: electron (${{ matrix.os }})
     # A normal run takes a few minutes (install, build, about 20 s of tests); this only ends a hang.
     timeout-minutes: 20
-    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
+    if: ${{ !cancelled() && github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled' && needs.runners.outputs.tests != 'false' }}
     strategy:
       fail-fast: false
       matrix:

@@ -33,13 +33,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request labelled `perf` that changes only files no test or build reads skips the suite (#520,
+  # .github/scripts/tests-needed.sh, as in ci.yml); `perf` then shows as skipped. Nightly and manual runs skip
+  # this job and run the suite.
+  changes:
+    name: changed files
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'perf') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'perf')
+    runs-on: [self-hosted, logreq-linux]
+    outputs:
+      tests: ${{ steps.changes.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The merge commit and its parents: the first parent is the base branch it was merged into.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Changed files
+        id: changes
+        run: |
+          files="$(git diff --name-only --no-renames HEAD^1 HEAD)"
+          tests="$(.github/scripts/tests-needed.sh <<< "$files")"
+          echo "tests=$tests" >> "$GITHUB_OUTPUT"
+          echo "Performance suite needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
+
   perf:
     name: perf (ubuntu-24.04)
-    # On pull requests only with label `perf`; adding another label does not restart the run.
+    needs: changes
+    # On pull requests only with label `perf`; adding another label does not restart the run. If `changes` fails,
+    # its output is empty and the suite runs.
     if: >-
-      github.event_name != 'pull_request' ||
+      !cancelled() && needs.changes.outputs.tests != 'false' &&
+      (github.event_name != 'pull_request' ||
       (contains(github.event.pull_request.labels.*.name, 'perf') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'perf'))
+      (github.event.action != 'labeled' || github.event.label.name == 'perf')))
     # On the Mac runner (product owner decision, 2026-10-26, #365: no Actions budget); its times are a guide value. A manual run
     # with `github-runners: true` measures on GitHub's runner of the reference size before a stage acceptance.
     runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.github-runners && '"ubuntu-24.04"' || '["self-hosted","logreq-linux"]') }}
