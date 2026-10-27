@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 /** The filter fixture plus two more draft requirements in the package Sensors, on the topics Timing and Wind, so that the topics are shared and the last step narrows. */
@@ -38,7 +38,12 @@ const answer = async (window: Page, label: string, text: string): Promise<void> 
 };
 
 const listedBy = async (running: RunningApp, where: unknown): Promise<Listed> => {
-  const result = await running.cli(["element", "list", "--input", JSON.stringify({ selection: { where } })]);
+  const result = await running.cli([
+    "element",
+    "list",
+    "--input",
+    JSON.stringify({ selection: { where }, sort: DEFAULT_SORT }),
+  ]);
   expect(result.code).toBe(0);
   return JSON.parse(result.stdout) as Listed;
 };
@@ -121,7 +126,7 @@ test.describe("cascading list filters on a fixture workspace", () => {
       "element",
       "list",
       "--input",
-      JSON.stringify({ selection: { where: { all: [TYPE, { text: "icing" }] } } }),
+      JSON.stringify({ selection: { where: { all: [TYPE, { text: "icing" }] } }, sort: DEFAULT_SORT }),
     ]);
     const listed = JSON.parse(result.stdout) as Listed;
     await expect(window.getByLabel("Modeline")).toContainText("type: system-requirement · text: icing");

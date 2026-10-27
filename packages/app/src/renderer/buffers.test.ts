@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_SORT,
   MAX_BUFFERS,
   OVERVIEW_KEY,
   bufferName,
@@ -7,6 +8,7 @@ import {
   elementBufferOf,
   filteredList,
   listBuffer,
+  listSort,
   onlyOverview,
   overviewBuffer,
   reduceBuffers,
@@ -16,10 +18,60 @@ import {
   sortLabel,
 } from "./buffers.js";
 import type { Buffers, FilterStep } from "./buffers.js";
+import { savedStep, typeStep } from "./list-filters.js";
 
 const a = elementBuffer("id-a", "repo", "SR-1 Alpha");
 const b = elementBuffer("id-b", "repo", "SR-2 Beta");
 const list = listBuffer("All elements");
+
+describe("the default sort of the lists (#418)", () => {
+  it("is by type, then by identifier, and says nothing in the label", () => {
+    expect(DEFAULT_SORT).toEqual([
+      { by: "type", order: "asc" },
+      { by: "identifier", order: "asc" },
+    ]);
+    expect(Object.isFrozen(DEFAULT_SORT)).toBe(true);
+    expect(sortLabel(DEFAULT_SORT)).toBe("");
+    // The same keys as another object, as the sort menu sends them, read the same.
+    expect(
+      sortLabel([
+        { by: "type", order: "asc" },
+        { by: "identifier", order: "asc" },
+      ]),
+    ).toBe("");
+    // Not the default: another key, another order, another length.
+    expect(sortLabel([{ by: "type", order: "asc" }])).toBe(" · sorted by type");
+    expect(
+      sortLabel([
+        { by: "type", order: "asc" },
+        { by: "identifier", order: "desc" },
+      ]),
+    ).toBe(" · sorted by type");
+    expect(
+      sortLabel([
+        { by: "type", order: "asc" },
+        { by: "title", order: "asc" },
+      ]),
+    ).toBe(" · sorted by type");
+    expect(bufferName(listBuffer("All elements", undefined, DEFAULT_SORT))).toBe("All elements");
+    expect(bufferName(listBuffer("All elements", undefined, []))).toBe("All elements · workspace order");
+  });
+
+  it("asks for the default when nothing is chosen, for the choice otherwise, and keeps a saved filter's sort", () => {
+    expect(listSort(listBuffer("All elements"))).toBe(DEFAULT_SORT);
+    expect(listSort(filteredList([typeStep("need")]))).toBe(DEFAULT_SORT);
+    // `[]` is a choice (the workspace order), not "nothing chosen".
+    expect(listSort(listBuffer("All elements", undefined, []))).toEqual([]);
+    const title = [{ by: "title", order: "asc" }] as const;
+    expect(listSort(listBuffer("All elements", undefined, title))).toBe(title);
+    // A saved filter holds its own sort until a sort is chosen (SR-070 AK3).
+    expect(listSort(filteredList([savedStep("open")]))).toBeUndefined();
+    expect(listSort(filteredList([typeStep("need"), savedStep("open")]))).toBeUndefined();
+    // "Type and ID" chosen on a list with a saved filter is asked for.
+    expect(listSort(filteredList([savedStep("open")], DEFAULT_SORT))).toBe(DEFAULT_SORT);
+    expect(listSort(filteredList([savedStep("open")], []))).toEqual([]);
+  });
+});
 
 describe("buffers", () => {
   it("names a buffer for the minibuffer and the sheet", () => {
@@ -33,8 +85,10 @@ describe("buffers", () => {
 
   it("describes the sort of a list", () => {
     expect(sortLabel(undefined)).toBe("");
-    expect(sortLabel([])).toBe("");
+    expect(sortLabel([])).toBe(" · workspace order");
     expect(sortLabel([{ by: "hierarchy", order: "asc" }])).toBe(" · tree");
+    expect(sortLabel([{ by: "identifier", order: "asc" }])).toBe(" · sorted by ID");
+    expect(sortLabel([{ by: "identifier", order: "desc" }])).toBe(" · sorted by ID descending");
     expect(sortLabel([{ by: "id", order: "desc" }])).toBe(" · sorted by ID descending");
     expect(sortLabel([{ by: "effort", order: "asc" }])).toBe(" · sorted by effort");
   });

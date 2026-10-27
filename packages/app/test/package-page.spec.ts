@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp } from "./support/app.js";
+import { DEFAULT_SORT, launchApp } from "./support/app.js";
 
 const P = "69069069-0000-4000-8000-0000000000";
 const NAMES_SENSORS = (title: string, extra = ""): string =>
@@ -27,9 +27,9 @@ interface Listed {
   readonly total: number;
 }
 
-/** What the CLI lists for the elements of the package Sensors, with `sort`. */
-const listedBy = async (running: RunningApp, sort?: unknown): Promise<Listed> => {
-  const input = { selection: { where: { package: "PKG-0000d1" } }, ...(sort === undefined ? {} : { sort }) };
+/** What the CLI lists for the elements of the package Sensors, with `sort` (the default sort of the app: type, then ID, #418). */
+const listedBy = async (running: RunningApp, sort: unknown = DEFAULT_SORT): Promise<Listed> => {
+  const input = { selection: { where: { package: "PKG-0000d1" } }, sort };
   const result = await running.cli(["element", "list", "--input", JSON.stringify(input)]);
   expect(result.code).toBe(0);
   return JSON.parse(result.stdout) as Listed;

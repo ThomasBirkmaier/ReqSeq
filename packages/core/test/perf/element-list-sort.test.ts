@@ -96,6 +96,36 @@ describe("element.list sorted and as a derivation tree with 50,000 elements and 
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
+  it("[SR-082/AK4] lists the first page of all elements sorted by type and identifier within 500 ms (#418)", async () => {
+    const { result: page, measurement } = await measure(
+      "list: first page (200) of all elements sorted by type, then identifier (natural order)",
+      () => list({ sort: [{ by: "type" }, { by: "identifier" }] }),
+      {
+        basis: "SR-082 AK4 (element.list, the default sort of the app, one page built)",
+        thresholdMs: RESULT_MS,
+      },
+    );
+    expect(page.elements).toHaveLength(200);
+    // Natural order: within one type the numbers rise.
+    const numberOf = (identifier: string | undefined): number => Number(/\d+$/.exec(identifier ?? "")?.[0]);
+    const riseWithinType = (elements: Output["elements"]): void => {
+      const type = elements[0]?.type;
+      const numbers = elements.filter((e) => e.type === type).map((e) => numberOf(e.identifier));
+      expect(numbers.every((n) => Number.isInteger(n))).toBe(true);
+      expect(numbers).toEqual(numbers.toSorted((x, y) => x - y));
+    };
+    riseWithinType(page.elements);
+    // A page far on holds identifiers of 4 and 5 digits, which a text sort would put before SR-999.
+    const { result: far } = await measure(
+      "list: page (200) at 20,000 of all elements sorted by type, then identifier",
+      () => list({ sort: [{ by: "type" }, { by: "identifier" }], offset: 20_000 }),
+      { basis },
+    );
+    riseWithinType(far.elements);
+    expect(far.elements.some((e) => (e.identifier ?? "").replace(/\D/g, "").length >= 4)).toBe(true);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
   it("records other sorts, a tree of the system requirements and a tree without the incoming index", async () => {
     const { result: byStatus } = await measure(
       "list: first page of all elements by status descending, then short ID",

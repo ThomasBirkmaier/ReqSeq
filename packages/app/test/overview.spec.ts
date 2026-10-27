@@ -7,7 +7,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 
 /** 14 elements: 6 types, 5 of them system requirements (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -129,7 +129,10 @@ test.describe("the overview of a fixture workspace", () => {
       "element",
       "list",
       "--input",
-      JSON.stringify({ selection: { where: { type: ["system-requirement"], subtypes: false } } }),
+      JSON.stringify({
+        selection: { where: { type: ["system-requirement"], subtypes: false } },
+        sort: DEFAULT_SORT,
+      }),
     ]);
     expect(listed.total).toBe(requirements?.count);
     expect(await window.locator(".row .title").allTextContents()).toEqual(
@@ -164,7 +167,12 @@ test.describe("the overview of a fixture workspace", () => {
     await expect(window.getByLabel("Sheet")).not.toContainText("Survive icing");
     await runCommand(window, "list all");
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "All elements");
-    const listed = await cliJson<Listed>(running, ["element", "list"]);
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ sort: DEFAULT_SORT }),
+    ]);
     expect(await window.locator(".row .title").allTextContents()).toEqual(
       listed.elements.map((element) => element.title),
     );

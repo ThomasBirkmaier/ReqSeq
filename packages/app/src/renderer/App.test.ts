@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
 import { App } from "./App.js";
+import { DEFAULT_SORT } from "./buffers.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -229,7 +230,7 @@ describe("App", () => {
   it("shows the list of all elements, its count in the modeline, and gives the list the focus", async () => {
     const { bridge, invoke } = fakeBridge(workspace());
     await renderList(bridge);
-    expect(calls(invoke, "element.list")).toEqual([{ limit: 200, offset: 0 }]);
+    expect(calls(invoke, "element.list")).toEqual([{ sort: DEFAULT_SORT, limit: 200, offset: 0 }]);
     expect([...container.querySelectorAll(".row .title")].map((title) => title.textContent)).toEqual([
       "Title 1",
       "Title 2",
@@ -369,6 +370,7 @@ describe("App", () => {
     await keyDown(query("input"), "Enter");
     expect(calls(invoke, "element.list").at(-1)).toEqual({
       selection: { where: { type: ["need"] } },
+      sort: DEFAULT_SORT,
       limit: 200,
       offset: 0,
     });
@@ -728,7 +730,12 @@ describe("App, the overview (SR-118)", () => {
     await keyDown(query('[role="listbox"]'), "Enter");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("type: system-requirement");
     expect(calls(invoke, "element.list")).toEqual([
-      { selection: { where: { type: ["system-requirement"], subtypes: false } }, limit: 200, offset: 0 },
+      {
+        selection: { where: { type: ["system-requirement"], subtypes: false } },
+        sort: DEFAULT_SORT,
+        limit: 200,
+        offset: 0,
+      },
     ]);
   });
 
@@ -776,7 +783,7 @@ describe("App, the overview (SR-118)", () => {
     const { bridge, invoke } = fakeBridge(twoTypes());
     await render(bridge);
     await listAll();
-    expect(calls(invoke, "element.list")).toEqual([{ limit: 200, offset: 0 }]);
+    expect(calls(invoke, "element.list")).toEqual([{ sort: DEFAULT_SORT, limit: 200, offset: 0 }]);
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("All elements");
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2", "Title 3"]);
   });
@@ -1265,7 +1272,7 @@ describe("App, the package page (SR-112)", () => {
     const { invoke } = await openPackage();
     expect(query("article h1").textContent).toBe("Stufe-3");
     expect(memberCalls(invoke)).toEqual([
-      { selection: { where: { package: "uuid-p" } }, limit: 200, offset: 0 },
+      { selection: { where: { package: "uuid-p" } }, sort: DEFAULT_SORT, limit: 200, offset: 0 },
     ]);
     const parts = [
       ...container.querySelectorAll(

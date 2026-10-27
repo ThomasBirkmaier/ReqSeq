@@ -1,6 +1,7 @@
 // The buffers of the main view (D-062): the window shows one buffer at a time, the most recent one.
 // A buffer is a list, a search result or an element. This module is the model and the reducer, no React.
 import type { DataExportRelation, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
+import { hasSavedFilter } from "./list-filters.js";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */
 export interface FilterStep {
@@ -18,6 +19,10 @@ export interface ListBuffer {
   readonly steps: readonly FilterStep[];
   /** What the steps select together, the input of `element.list` (`selectionOf`). */
   readonly selection?: ElementSelection;
+  /**
+   * How the list is sorted. Not set: nothing chosen yet, `listSort` tells what is asked for. `[]`: the
+   * workspace order (the order of the store). Else the keys as `element.list` takes them.
+   */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
   /** Index of the selected row. */
   readonly cursor: number;
@@ -39,7 +44,7 @@ export interface ElementBuffer {
   readonly repository: string;
   /** "<identifier or short ID> <title>". */
   readonly name: string;
-  /** A package page (SR-112): how its elements are sorted, kept while the buffer is open. */
+  /** A package page (SR-112): how its elements are sorted, kept while the buffer is open (as `ListBuffer.sort`). */
   readonly memberSort?: readonly FilterSortKeyWithDefaults[] | undefined;
   /** A package page: the selected row of its elements; set once the reader has used them. */
   readonly memberCursor?: number;
@@ -181,18 +186,49 @@ export const relationBuffer = (
         `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim(),
       );
 
+/**
+ * The order the lists of the app start with (#418): by type in the order of the metamodel, then by the
+ * identifier, digit runs as numbers (SR-9 before SR-10). The app chooses this input; `element.list`
+ * without `sort` keeps the workspace order for every other access (ADR-0002, D-029). A frozen constant,
+ * so the list does not ask again for another object with the same keys.
+ */
+export const DEFAULT_SORT: readonly FilterSortKeyWithDefaults[] = Object.freeze([
+  Object.freeze({ by: "type", order: "asc" }),
+  Object.freeze({ by: "identifier", order: "asc" }),
+] as const);
+
+/**
+ * The `sort` a list asks `element.list` for: the one chosen; else, with a saved filter among the
+ * steps, none, so the sort of the filter holds (SR-070 AK3); else `DEFAULT_SORT`.
+ */
+export const listSort = (buffer: ListBuffer): readonly FilterSortKeyWithDefaults[] | undefined =>
+  buffer.sort ?? (hasSavedFilter(buffer.steps) ? undefined : DEFAULT_SORT);
+
+const sameSort = (
+  a: readonly FilterSortKeyWithDefaults[],
+  b: readonly FilterSortKeyWithDefaults[],
+): boolean =>
+  a.length === b.length && a.every((key, index) => key.by === b[index]?.by && key.order === b[index].order);
+
 const SORT_WORDS: Readonly<Record<string, string>> = {
   id: "ID",
   title: "title",
+  identifier: "ID",
   type: "type",
   status: "status",
 };
 
-/** " · tree", " · sorted by title" (descending: "... descending"), or nothing without a sort. */
+/**
+ * " · tree", " · sorted by title" (descending: "... descending"), " · workspace order" for `[]`, and
+ * nothing for the default (not chosen, or chosen as "Type and ID"): the default says nothing (D-062).
+ */
 export const sortLabel = (sort: readonly FilterSortKeyWithDefaults[] | undefined): string => {
-  const first = sort?.[0];
-  if (first === undefined) {
+  if (sort === undefined || sameSort(sort, DEFAULT_SORT)) {
     return "";
+  }
+  const first = sort[0];
+  if (first === undefined) {
+    return " · workspace order";
   }
   if (first.by === "hierarchy") {
     return " · tree";

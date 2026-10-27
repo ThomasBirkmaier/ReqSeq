@@ -154,3 +154,12 @@ export const listAll = async (window: Page): Promise<void> => {
   await window.keyboard.press("Enter");
   await window.locator(".row").first().waitFor();
 };
+
+/**
+ * The sort the lists of the app start with (#418), as the CLI takes it: a test that compares a list with
+ * `element list` gives the CLI this input. A unit test pins the real `DEFAULT_SORT` of the renderer.
+ */
+export const DEFAULT_SORT = [
+  { by: "type", order: "asc" },
+  { by: "identifier", order: "asc" },
+] as const;

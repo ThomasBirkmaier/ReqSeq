@@ -9,6 +9,7 @@
 import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
 import type { BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
+  DEFAULT_SORT,
   bufferName,
   filteredList,
   listBuffer,
@@ -143,10 +144,13 @@ const onList =
 
 const choice = (name: string, run: () => void): Choice => ({ id: name, name, run });
 
-const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[] | undefined])[] = [
-  ["Workspace order", undefined],
-  ["ID ascending", [{ by: "id", order: "asc" }]],
-  ["ID descending", [{ by: "id", order: "desc" }]],
+// "Type and ID" is the explicit default and "Workspace order" is `[]`, so a choice holds on a list with a
+// saved filter too (it does not fall back to the sort of the filter). "ID" is what the rows show.
+const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[]])[] = [
+  ["Type and ID", DEFAULT_SORT],
+  ["Workspace order", []],
+  ["ID ascending", [{ by: "identifier", order: "asc" }]],
+  ["ID descending", [{ by: "identifier", order: "desc" }]],
   ["Title ascending", [{ by: "title", order: "asc" }]],
   ["Title descending", [{ by: "title", order: "desc" }]],
   ["Type ascending", [{ by: "type", order: "asc" }]],
@@ -157,7 +161,7 @@ const SORTS: readonly (readonly [string, readonly FilterSortKeyWithDefaults[] | 
 ];
 
 /** The choices of the prompt "Sort by"; `apply` gets the sort of the one that is taken. */
-const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[] | undefined) => void): Choice[] =>
+const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[]) => void): Choice[] =>
   SORTS.map(([name, sort]) =>
     choice(name, () => {
       apply(sort);
@@ -470,7 +474,7 @@ export const ACTIONS: readonly Action[] = [
     run: (context: ActionContext): void => {
       const list = currentList(context);
       const page = packagePage(context);
-      let apply: ((sort: readonly FilterSortKeyWithDefaults[] | undefined) => void) | undefined;
+      let apply: ((sort: readonly FilterSortKeyWithDefaults[]) => void) | undefined;
       if (list !== undefined) {
         apply = (sort) => {
           context.dispatch({ type: "open", buffer: filteredList(list.steps, sort) });

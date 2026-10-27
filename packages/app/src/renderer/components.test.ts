@@ -8,14 +8,17 @@ import type { Choice, Prompt } from "./actions.js";
 import type { Buffer, BufferAction, ElementBuffer, ListBuffer, SearchBuffer } from "./buffers.js";
 import { nth } from "./lists.js";
 import {
+  DEFAULT_SORT,
   bufferName,
   elementBuffer,
+  filteredList,
   listBuffer,
   overviewBuffer,
   reduceBuffers,
   searchBuffer,
 } from "./buffers.js";
 import type { Call } from "./call.js";
+import { savedStep } from "./list-filters.js";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
@@ -547,7 +550,7 @@ describe("ListView, a list", () => {
       }),
     });
     const { data } = await listHarness(asCall(call), listBuffer("All elements"));
-    expect(call).toHaveBeenCalledWith("element.list", { limit: 200, offset: 0 });
+    expect(call).toHaveBeenCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 0 });
     expect(texts(".row .id")).toEqual(["SR-036", "SR-000002"]);
     expect(texts(".row .title")).toEqual(["Title 1", "Title 2"]);
     expect(texts(".row .status")).toEqual(["draft", ""]);
@@ -566,6 +569,25 @@ describe("ListView, a list", () => {
     const sort = [{ by: "title", order: "asc" as const }];
     await listHarness(asCall(call), listBuffer("type: need", selection, sort));
     expect(call).toHaveBeenCalledWith("element.list", { selection, sort, limit: 200, offset: 0 });
+  });
+
+  it("asks with the default sort, none for a saved filter that holds its own, and `[]` for the workspace order (#418)", async () => {
+    const call = fakeCall({ "element.list": () => ({ elements: [], total: 0 }) });
+    await listHarness(asCall(call), filteredList([savedStep("open")]));
+    expect(call).toHaveBeenLastCalledWith("element.list", {
+      selection: { filter: "open" },
+      limit: 200,
+      offset: 0,
+    });
+    await listHarness(asCall(call), listBuffer("All elements", undefined, []));
+    expect(call).toHaveBeenLastCalledWith("element.list", { sort: [], limit: 200, offset: 0 });
+    await listHarness(asCall(call), filteredList([savedStep("open")], DEFAULT_SORT));
+    expect(call).toHaveBeenLastCalledWith("element.list", {
+      selection: { filter: "open" },
+      sort: DEFAULT_SORT,
+      limit: 200,
+      offset: 0,
+    });
   });
 
   it("indents the rows of a tree by their depth", async () => {
@@ -673,10 +695,10 @@ describe("ListView, a list", () => {
     expect(container.querySelectorAll(".row")).toHaveLength(200);
     const list = query('[role="listbox"]');
     await press(list, "End");
-    expect(call).toHaveBeenLastCalledWith("element.list", { limit: 200, offset: 200 });
+    expect(call).toHaveBeenLastCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 200 });
     expect(container.querySelectorAll(".row")).toHaveLength(400);
     await press(list, "End");
-    expect(call).toHaveBeenLastCalledWith("element.list", { limit: 200, offset: 400 });
+    expect(call).toHaveBeenLastCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 400 });
     expect(container.querySelectorAll(".row")).toHaveLength(450);
     const calls = call.mock.calls.length;
     await press(list, "End");
@@ -753,7 +775,7 @@ describe("ListView, a list", () => {
       await Promise.resolve();
     });
     await flush();
-    expect(call).toHaveBeenLastCalledWith("element.list", { limit: 200, offset: 200 });
+    expect(call).toHaveBeenLastCalledWith("element.list", { sort: DEFAULT_SORT, limit: 200, offset: 200 });
     expect(container.querySelectorAll(".row")).toHaveLength(400);
   });
 
@@ -803,7 +825,7 @@ describe("ListView, a list", () => {
   it("asks for enough rows for the selected row when it is shown again", async () => {
     const call = fakeCall({ "element.list": () => ({ elements: rowsOf(0, 5), total: 5 }) });
     await listHarness(asCall(call), { ...listBuffer("All elements"), cursor: 250 });
-    expect(call).toHaveBeenCalledWith("element.list", { limit: 400, offset: 0 });
+    expect(call).toHaveBeenCalledWith("element.list", { sort: DEFAULT_SORT, limit: 400, offset: 0 });
     expect(query('[aria-selected="true"]').id).toBe("row-4");
   });
 
@@ -1134,6 +1156,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     await partHarness(asCall(call), packageMembers());
     expect(call).toHaveBeenCalledWith("element.list", {
       selection: { where: { package: "uuid-p" } },
+      sort: DEFAULT_SORT,
       limit: 200,
       offset: 0,
     });
@@ -1187,6 +1210,7 @@ describe("ListView, a part of a buffer (SR-112)", () => {
     await scrollTo(6800);
     expect(call).toHaveBeenLastCalledWith("element.list", {
       selection: { where: { package: "uuid-p" } },
+      sort: DEFAULT_SORT,
       limit: 200,
       offset: 200,
     });
@@ -2146,6 +2170,7 @@ describe("ElementView", () => {
       await mount(asCall(call), 0, undefined, { packages: model });
       expect(call).toHaveBeenCalledWith("element.list", {
         selection: { where: { package: "uuid-1" } },
+        sort: DEFAULT_SORT,
         limit: 200,
         offset: 0,
       });

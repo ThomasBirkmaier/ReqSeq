@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 
 /** 14 elements with a derivation tree, types, statuses and an obsolete requirement (fixtures/README.md). */
 const FIXTURE = { fixture: "SR-069/filter" };
@@ -94,11 +94,42 @@ test.describe("the main view on a fixture workspace", () => {
     await permanent(1);
   });
 
-  test("the list shows what `element list` gives: titles in order and the total in the modeline", async () => {
-    const listed = await cliJson<Listed>(running, ["element", "list"]);
+  test("the list shows what `element list` gives for the default sort (type, then ID): titles in order and the total in the modeline", async () => {
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ sort: DEFAULT_SORT }),
+    ]);
     expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
     await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);
     await expect(running.window.getByLabel("Modeline")).toContainText("All elements");
+    // The default says nothing in the modeline, and it is not the order of the store.
+    await expect(running.window.getByLabel("Modeline")).not.toContainText("sorted");
+    const stored = await cliJson<Listed>(running, ["element", "list"]);
+    expect(stored.total).toBe(listed.total);
+    expect(stored.elements.map((e) => e.title)).not.toEqual(listed.elements.map((e) => e.title));
+  });
+
+  test('"Workspace order" shows the order of the store that `element list` gives without a sort, and says so', async () => {
+    await runCommand(running.window, "sort list");
+    await running.window.keyboard.type("workspace order");
+    await running.window.keyboard.press("Enter");
+    await expect(running.window.getByLabel("Modeline")).toContainText("All elements · workspace order");
+    const stored = await cliJson<Listed>(running, ["element", "list"]);
+    expect(await rowTitles(running.window)).toEqual(stored.elements.map((e) => e.title));
+    // And back: "Type and ID" is the default again, which says nothing.
+    await runCommand(running.window, "sort list");
+    await running.window.keyboard.type("type and id");
+    await running.window.keyboard.press("Enter");
+    const listed = await cliJson<Listed>(running, [
+      "element",
+      "list",
+      "--input",
+      JSON.stringify({ sort: DEFAULT_SORT }),
+    ]);
+    await expect(running.window.getByLabel("Modeline")).not.toContainText("workspace order");
+    expect(await rowTitles(running.window)).toEqual(listed.elements.map((e) => e.title));
   });
 
   test("sorted by hierarchy it shows the derivation tree with the depths that `tree` gives", async () => {
@@ -130,7 +161,7 @@ test.describe("the main view on a fixture workspace", () => {
       "element",
       "list",
       "--input",
-      JSON.stringify({ selection: { where: { type: ["need"] } } }),
+      JSON.stringify({ selection: { where: { type: ["need"] } }, sort: DEFAULT_SORT }),
     ]);
     await expect(running.window.getByLabel("Modeline")).toContainText("type: need");
     await expect(running.window.getByLabel("Modeline")).toContainText(`${String(listed.total)} elements`);

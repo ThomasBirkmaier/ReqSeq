@@ -206,9 +206,9 @@
       "required": ["by"],
       "properties": {
         "by": {
-          "description": "`id`: short ID. `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders.",
+          "description": "`id`: short ID. `identifier`: the identifier property (meaning `identifier`, e.g. SR-36), digit runs by number (SR-9 before SR-10; ascending: elements without one follow by short ID; `desc` reverses; shadows a property named `identifier`). `type`, `status`: metamodel order. `title`: the title property. `hierarchy`: the derivation tree, ascending only. Else a property key (not one that holds relations), by its first value: choices in metamodel order, then numbers, texts (ignoring case), booleans; no value last in both orders.",
           "anyOf": [
-            { "enum": ["id", "hierarchy", "type", "status", "title"] },
+            { "enum": ["id", "identifier", "hierarchy", "type", "status", "title"] },
             { "$ref": "common.schema.json#/$defs/key" }
           ]
         },

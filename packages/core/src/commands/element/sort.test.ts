@@ -244,6 +244,142 @@ describe("element.list sorted by a property (SR-075 AK1)", () => {
   });
 });
 
+/**
+ * fixtures/enabler-418/natural (#418): `spec-id` has the meaning `identifier`. Types: need, system
+ * requirement, decision (metamodel order). UUID tails 01 to 11 give the store order:
+ * 01 SR-100, 02 SR-9, 03 SR-10, 04 sr-2, 05 SR-2, 06 SR-010, 07 no identifier, 08 identifier a list
+ * (both fall back to the short ID), 09 D-1, 10 N-10, 11 N-9 (store: decisions, needs, requirements).
+ */
+const NATURAL: FixtureOptions = { fixture: "enabler-418/natural" };
+const Q = "41800000-0000-4000-8000-0000000000";
+const q = (tail: string): string => `${Q}${tail}`;
+const NATURAL_STORE = ["09", "10", "11", "01", "02", "03", "04", "05", "06", "07", "08"].map(q);
+
+describe("element.list sorted by identifier (#418)", () => {
+  it("[SR-075/AK1] sorts by identifier with digit runs as numbers, ascending and descending", async () => {
+    const { workspace } = await open(NATURAL);
+    expect(await sorted(workspace, [])).toEqual(NATURAL_STORE);
+    // Ascending: D-1, N-9, N-10, SR-2 (before sr-2: equal folded, then the text as written), SR-9,
+    // SR-010 (before SR-10: equal as numbers, then the folded text), SR-100; the two elements
+    // without a usable identifier follow by short ID.
+    const ascending = ["09", "11", "10", "05", "04", "02", "06", "03", "01", "07", "08"].map(q);
+    expect(await sorted(workspace, [{ by: "identifier" }])).toEqual(ascending);
+    expect(await sorted(workspace, [{ by: "identifier", order: "asc" }])).toEqual(ascending);
+    // Descending reverses everything, the short-ID fallbacks first.
+    expect(await sorted(workspace, [{ by: "identifier", order: "desc" }])).toEqual(ascending.toReversed());
+  });
+
+  it("[SR-075/AK1] sorts by type and then identifier", async () => {
+    const { workspace } = await open(NATURAL);
+    expect(await sorted(workspace, [{ by: "type" }, { by: "identifier" }])).toEqual(
+      ["11", "10", "05", "04", "02", "06", "03", "01", "07", "08", "09"].map(q),
+    );
+    expect(
+      await sorted(workspace, [
+        { by: "type", order: "desc" },
+        { by: "identifier", order: "desc" },
+      ]),
+    ).toEqual(["09", "08", "07", "01", "03", "06", "02", "04", "05", "10", "11"].map(q));
+  });
+
+  it("orders by short ID when the metamodel has no property with the meaning identifier, without an error", async () => {
+    const { workspace } = await open({
+      ...NATURAL,
+      files: {
+        "metamodel/model.yaml": [
+          "logreq-metamodel: 1",
+          "types:",
+          "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id], required: [title] }",
+          "  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id], required: [title] }",
+          "  - { key: decision, name: Decision, prefix: D, properties: [title, spec-id], required: [title] }",
+          "properties:",
+          "  - { key: title, name: Title, kind: text, meaning: title }",
+          "  - { key: spec-id, name: Spec ID, kind: text }",
+          "relations:",
+          "  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }",
+          "  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: replacement }",
+          "statuses:",
+          "  - { key: draft, name: Draft, initial: true }",
+          "  - { key: obsolete, name: Obsolete, invalid: true }",
+          "",
+        ].join("\n"),
+      },
+    });
+    // The short IDs (D-000009, N-000010, N-000011, SR-000001, ...) by code units.
+    expect(await sorted(workspace, [{ by: "identifier" }])).toEqual(
+      ["09", "10", "11", "01", "02", "03", "04", "05", "06", "07", "08"].map(q),
+    );
+  });
+
+  it("sorts by the property with the meaning identifier, not by a property with the key identifier", async () => {
+    const { workspace } = await open({
+      ...NATURAL,
+      files: {
+        "metamodel/model.yaml": [
+          "logreq-metamodel: 1",
+          "types:",
+          "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id, identifier], required: [title] }",
+          "  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id, identifier], required: [title] }",
+          "  - { key: decision, name: Decision, prefix: D, properties: [title, spec-id, identifier], required: [title] }",
+          "properties:",
+          "  - { key: title, name: Title, kind: text, meaning: title }",
+          "  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }",
+          "  - { key: identifier, name: Identifier, kind: text }",
+          "relations:",
+          "  - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }",
+          "  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: replacement }",
+          "statuses:",
+          "  - { key: draft, name: Draft, initial: true }",
+          "  - { key: obsolete, name: Obsolete, invalid: true }",
+          "",
+        ].join("\n"),
+        // SR-100 would come first by this property; the reserved name sorts by the meaning.
+        "requirements/SR-000000000001.md": [
+          "---",
+          `id: ${q("01")}`,
+          "type: system-requirement",
+          "status: draft",
+          "title: Hundred",
+          "spec-id: SR-100",
+          "identifier: AAA",
+          "---",
+          "",
+          "Text of Hundred.",
+          "",
+        ].join("\n"),
+      },
+    });
+    expect(await sorted(workspace, [{ by: "identifier" }])).toEqual(
+      ["09", "11", "10", "05", "04", "02", "06", "03", "01", "07", "08"].map(q),
+    );
+  });
+
+  it("[SR-075/AK1] applies the identifier sort of a saved filter (SR-070 AK3)", async () => {
+    const { workspace } = await open({
+      ...NATURAL,
+      files: {
+        "filters/requirements.yaml": [
+          "logreq-filter: 1",
+          "name: Requirements",
+          "where: { type: [system-requirement] }",
+          "sort: [{ by: identifier, order: desc }]",
+          "",
+        ].join("\n"),
+      },
+    });
+    const output = await list(workspace, { selection: { filter: "Requirements" }, limit: 100 });
+    expect(ids(output)).toEqual(["08", "07", "01", "03", "06", "02", "04", "05"].map(q));
+  });
+
+  it("keeps workspace order for elements equal under identifier", async () => {
+    const { workspace } = await open(NATURAL);
+    expect(await sorted(workspace, [{ by: "identifier" }], { ids: [q("08"), q("07")] })).toEqual([
+      q("07"),
+      q("08"),
+    ]);
+  });
+});
+
 describe("element.list as a derivation tree (SR-075 AK2)", () => {
   it("[SR-075/AK2] shows the elements as a tree of their derivations, depth first with depth and parent", async () => {
     const { workspace } = await open();

@@ -10,8 +10,16 @@ import {
 } from "./actions.js";
 import type { ActionContext, Prompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, filteredList, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { typeStep } from "./list-filters.js";
+import {
+  DEFAULT_SORT,
+  elementBuffer,
+  filteredList,
+  listBuffer,
+  listSort,
+  overviewBuffer,
+  searchBuffer,
+} from "./buffers.js";
+import { savedStep, typeStep } from "./list-filters.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
 import type { Theme } from "./theme.js";
@@ -459,11 +467,12 @@ describe("list actions", () => {
     ]);
   });
 
-  it("sorts by ID, title, type, status or hierarchy, or back to the workspace order, and keeps the filter", () => {
+  it("sorts by type and ID, ID, title, type, status or hierarchy, or the workspace order, and keeps the filter", () => {
     const { context, asked, dispatched } = setup([filtered]);
     action("sort").run(context);
     const names = asked[0]?.items.map((item) => item.name);
     expect(names).toEqual([
+      "Type and ID",
       "Workspace order",
       "ID ascending",
       "ID descending",
@@ -476,14 +485,33 @@ describe("list actions", () => {
       "Hierarchy (tree)",
     ]);
     asked[0]?.items[0]?.run();
-    asked[0]?.items[9]?.run();
+    asked[0]?.items[1]?.run();
+    asked[0]?.items[2]?.run();
+    asked[0]?.items[3]?.run();
+    asked[0]?.items[10]?.run();
+    const selection = { where: { type: ["need"] } };
+    // "Type and ID" is the default sent explicitly, "Workspace order" is `[]`, "ID" sorts by `identifier`
+    // (what the rows show), so each holds on a list with a saved filter too.
     expect(dispatched).toEqual([
-      { type: "open", buffer: listBuffer("type: need", { where: { type: ["need"] } }, undefined) },
-      {
-        type: "open",
-        buffer: listBuffer("type: need", { where: { type: ["need"] } }, [{ by: "hierarchy", order: "asc" }]),
-      },
+      { type: "open", buffer: listBuffer("type: need", selection, DEFAULT_SORT) },
+      { type: "open", buffer: listBuffer("type: need", selection, []) },
+      { type: "open", buffer: listBuffer("type: need", selection, [{ by: "identifier", order: "asc" }]) },
+      { type: "open", buffer: listBuffer("type: need", selection, [{ by: "identifier", order: "desc" }]) },
+      { type: "open", buffer: listBuffer("type: need", selection, [{ by: "hierarchy", order: "asc" }]) },
     ]);
+  });
+
+  it("sorting a list with a saved filter by type and ID asks for the default, by workspace order for none", () => {
+    const saved = filteredList([savedStep("open")]);
+    const { context, asked, dispatched } = setup([saved]);
+    action("sort").run(context);
+    asked[0]?.items[0]?.run();
+    asked[0]?.items[1]?.run();
+    const [first, second] = dispatched.map((d) =>
+      d.type === "open" && d.buffer.kind === "list" ? listSort(d.buffer) : "?",
+    );
+    expect(first).toBe(DEFAULT_SORT);
+    expect(second).toEqual([]);
   });
 
   describe("on a package page (SR-112)", () => {
@@ -510,13 +538,16 @@ describe("list actions", () => {
       const { context, asked, dispatched } = setup([element], {}, true, { element: page });
       action("sort").run(context);
       expect(asked[0]?.label).toBe("Sort by");
-      asked[0]?.items[9]?.run();
+      asked[0]?.items[10]?.run();
+      asked[0]?.items[1]?.run();
       asked[0]?.items[0]?.run();
       expect(dispatched).toEqual([
         { type: "open", buffer: { ...element, memberSort: tree, memberCursor: 0 } },
-        { type: "open", buffer: { ...element, memberSort: undefined, memberCursor: 0 } },
+        { type: "open", buffer: { ...element, memberSort: [], memberCursor: 0 } },
+        { type: "open", buffer: { ...element, memberSort: DEFAULT_SORT, memberCursor: 0 } },
       ]);
       expect(dispatched.map((d) => (d.type === "open" ? d.buffer.key : ""))).toEqual([
+        element.key,
         element.key,
         element.key,
       ]);

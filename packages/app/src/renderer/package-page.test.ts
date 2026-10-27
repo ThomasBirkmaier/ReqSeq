@@ -1,6 +1,6 @@
 import type { MetamodelGetOutput } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer } from "./buffers.js";
+import { DEFAULT_SORT, elementBuffer } from "./buffers.js";
 import type { BufferData } from "./modeline.js";
 import {
   memberCount,
@@ -42,6 +42,14 @@ describe("package page", () => {
     const list = memberList(buffer, packageSelection(buffer.id));
     expect(list.sort).toEqual([{ by: "hierarchy", order: "asc" }]);
     expect(list.cursor).toBe(4);
+  });
+
+  it("[SR-112/AK2] the workspace order is kept as `[]` and named in the heading; the default says nothing (#418)", () => {
+    const buffer = { ...elementBuffer("uuid-p", "spec", "Stufe-3"), memberSort: [] };
+    expect(memberList(buffer, packageSelection(buffer.id)).sort).toEqual([]);
+    expect(memberSummary({ total: 2, incomplete: false }, [])).toBe("2 · workspace order");
+    expect(memberSummary({ total: 2, incomplete: false }, DEFAULT_SORT)).toBe("2");
+    expect(memberSummary({ total: 2, incomplete: false }, undefined)).toBe("2");
   });
 
   it("finds the types with the meaning package, also inherited ones, and the property that names them", () => {

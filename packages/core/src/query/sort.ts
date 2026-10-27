@@ -4,6 +4,14 @@
 //
 // - Keys (`filter.schema.json#/$defs/sortKey`) apply in order; elements equal under every key keep
 //   the workspace order (the order of the store, as without `sort`).
+// - `identifier` (#418): the identifier of the element (`ShortIds.identifierOf`, the property with
+//   the meaning `identifier`) in natural order (`compareNatural`: digit runs by number, SR-9 before
+//   SR-10; equal ones by the folded text, then the text as written). Elements without an identifier
+//   (or a metamodel without the meaning) follow, ascending, by their short ID as `id` orders it;
+//   `desc` reverses both groups. No error without the meaning, so a default sort works on every
+//   workspace. Only `fold` (NFC, lower case) depends on the Unicode data of the runtime, as the
+//   text sorts do; non-ASCII digits count as text. The name shadows a property with the key
+//   `identifier`, as `type`, `status` and `title` do.
 // - `id`: the short ID (SR-084). `type`: the order of the types in the metamodel, a type it does not
 //   know after them by its key. `status`: the order of the statuses in the metamodel. `title`: the
 //   property with the meaning `title` (`metamodel.meaning-unassigned` without one, SR-013 AK3).
@@ -70,18 +78,19 @@ export interface SortedElements {
 /** The kinds of a sort value, in ascending order; `NONE` comes last in both orders. */
 const RANKED = 0;
 const NUMBER = 1;
-const TEXT = 2;
-const BOOLEAN = 3;
-const NONE = 4;
+const NATURAL = 2;
+const TEXT = 3;
+const BOOLEAN = 4;
+const NONE = 5;
 
 /** The value of one element under one key, linked to its value under the next key. */
 interface Cell {
   readonly kind: number;
   /** The rank (RANKED), the number (NUMBER) or 0 and 1 (BOOLEAN). */
   readonly number: number;
-  /** The folded text (TEXT). */
+  /** The folded text (TEXT, NATURAL). */
   readonly text: string;
-  /** The text as written (TEXT), for texts equal when folded. */
+  /** The text as written (TEXT, NATURAL), for texts equal when folded. */
   readonly raw: string;
   /** 1 for `asc`, -1 for `desc`. */
   readonly sign: number;
@@ -120,6 +129,16 @@ const cellOf = (
   return { kind: NONE, number: 0, text: "", raw: "", sign, next };
 };
 
+/** The cell of an identifier, compared naturally (`compareNatural`). */
+const naturalCell = (value: string, sign: number, next: Cell | undefined): Cell => ({
+  kind: NATURAL,
+  number: 0,
+  text: fold(value),
+  raw: value,
+  sign,
+  next,
+});
+
 const NO_RANKS: ReadonlyMap<string, number> = new Map();
 
 const ranksOf = (keys: readonly { readonly key: string }[]): ReadonlyMap<string, number> =>
@@ -131,6 +150,13 @@ const columnOf = (context: SortContext, by: string, at: string): Column => {
   switch (by) {
     case "id":
       return (element, sign, next) => cellOf(shortIds.of(element), NO_RANKS, sign, next);
+    case "identifier":
+      return (element, sign, next) => {
+        const identifier = shortIds.identifierOf(element);
+        return identifier === undefined
+          ? cellOf(shortIds.of(element), NO_RANKS, sign, next)
+          : naturalCell(identifier, sign, next);
+      };
     case "type": {
       const ranks = ranksOf(metamodel.effectiveTypes);
       return (element, sign, next) => cellOf(element.type, ranks, sign, next);
@@ -165,6 +191,73 @@ const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 
 
 const compareNumber = (a: number, b: number): number => (a < b ? -1 : a > b ? 1 : 0);
 
+const isDigit = (code: number): boolean => code >= 48 && code <= 57;
+
+/** The end of the run of ASCII digits that starts at `from`. */
+const runEnd = (text: string, from: number): number => {
+  let end = from;
+  while (end < text.length && isDigit(text.charCodeAt(end))) {
+    end += 1;
+  }
+  return end;
+};
+
+/** The start of the significant digits of the run `from` to `end`: leading zeros skipped. */
+const significant = (text: string, from: number, end: number): number => {
+  let start = from;
+  while (start < end && text.charCodeAt(start) === 48) {
+    start += 1;
+  }
+  return start;
+};
+
+/**
+ * Natural order of two (folded) texts: a run of ASCII digits counts by its number (SR-9 before
+ * SR-10 before SR-100; SR-069 and SR-69 are equal here), everything else by code units, a text that
+ * is a prefix of the other first. The number of a run is compared without parsing it: the length
+ * of its digits after the leading zeros, then the digits by code unit, so a run of any length is
+ * exact. A digit against a non-digit compares by code units, which keeps the order transitive (the
+ * digits are one block of code units). No `Intl.Collator`: its result depends on the ICU data of
+ * Node and of Electron and on the locale of the system (D-029). No allocation.
+ */
+export const compareNatural = (a: string, b: string): number => {
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    const x = a.charCodeAt(i);
+    const y = b.charCodeAt(j);
+    if (isDigit(x) && isDigit(y)) {
+      const endA = runEnd(a, i);
+      const endB = runEnd(b, j);
+      const startA = significant(a, i, endA);
+      const startB = significant(b, j, endB);
+      const lengthA = endA - startA;
+      const lengthB = endB - startB;
+      if (lengthA !== lengthB) {
+        return lengthA < lengthB ? -1 : 1;
+      }
+      for (let k = 0; k < lengthA; k += 1) {
+        const order = compareNumber(a.charCodeAt(startA + k), b.charCodeAt(startB + k));
+        if (order !== 0) {
+          return order;
+        }
+      }
+      i = endA;
+      j = endB;
+    } else {
+      if (x !== y) {
+        return x < y ? -1 : 1;
+      }
+      i += 1;
+      j += 1;
+    }
+  }
+  if (i < a.length) {
+    return 1;
+  }
+  return j < b.length ? -1 : 0;
+};
+
 /** How two values of one key compare (see the file comment). */
 const compareCells = (x: Cell, y: Cell): number => {
   if (x.kind !== y.kind) {
@@ -177,9 +270,11 @@ const compareCells = (x: Cell, y: Cell): number => {
     return (x.kind - y.kind) * x.sign;
   }
   const order =
-    x.kind === TEXT
-      ? compareText(x.text, y.text) || compareText(x.raw, y.raw)
-      : compareNumber(x.number, y.number);
+    x.kind === NATURAL
+      ? compareNatural(x.text, y.text) || compareText(x.text, y.text) || compareText(x.raw, y.raw)
+      : x.kind === TEXT
+        ? compareText(x.text, y.text) || compareText(x.raw, y.raw)
+        : compareNumber(x.number, y.number);
   return order * x.sign;
 };
 

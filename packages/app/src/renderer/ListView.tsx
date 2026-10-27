@@ -3,7 +3,7 @@
 // workspace of 50,000 elements is never loaded at once (N-036).
 import { useEffect, useRef, useState } from "react";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
-import { bufferName } from "./buffers.js";
+import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
 import { highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
@@ -62,9 +62,10 @@ const fetchPage = async (
   limit: number,
 ): Promise<Page> => {
   if (buffer.kind === "list") {
+    const sort = listSort(buffer);
     const answer = await call("element.list", {
       ...(buffer.selection === undefined ? {} : { selection: buffer.selection }),
-      ...(buffer.sort === undefined ? {} : { sort: buffer.sort }),
+      ...(sort === undefined ? {} : { sort }),
       limit,
       offset,
     });
@@ -134,7 +135,7 @@ export const ListView = ({
   const kind = buffer.kind;
   const page = kind === "list" ? LIST_PAGE : SEARCH_PAGE;
   const selection = buffer.kind === "list" ? buffer.selection : buffer.query;
-  const sort = buffer.kind === "list" ? buffer.sort : undefined;
+  const sort = buffer.kind === "list" ? listSort(buffer) : undefined;
 
   useEffect(() => {
     generation.current += 1;

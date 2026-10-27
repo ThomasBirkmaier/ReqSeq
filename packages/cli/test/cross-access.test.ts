@@ -65,6 +65,8 @@ const SAVED: FixtureOptions = {
 };
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** Identifiers in natural order, a lower-case one and elements without one (#418). */
+const NATURAL: FixtureOptions = { fixture: "enabler-418/natural", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
 const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 /** Open hints of every kind of stage 2, among them outdated relations (SR-026). */
@@ -362,6 +364,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "sorted by a choice and then by a number descending, one page (SR-075 AK1)",
       fixture: SORT,
       input: { sort: [{ by: "requirement-type" }, { by: "priority", order: "desc" }], offset: 1, limit: 5 },
+      expect: "output",
+    },
+    {
+      name: "sorted by type and then by identifier, digit runs as numbers (SR-075 AK1)",
+      fixture: NATURAL,
+      input: { sort: [{ by: "type" }, { by: "identifier" }], limit: 100 },
       expect: "output",
     },
     {
