@@ -5,6 +5,7 @@ import { Workspace } from "../runtime/workspace.js";
 import type { Metamodel } from "./load.js";
 import type { Meaning } from "./meanings.js";
 import { MEANINGS } from "./meanings.js";
+import { markdownKeysOf } from "./lookup.js";
 import { STANDARD_MODEL_FILE, STANDARD_MODEL_TEXT } from "./standard-model.js";
 import { metamodelState } from "./state.js";
 
@@ -157,6 +158,15 @@ describe("standard model", () => {
     expect(new Set(metamodel.effectiveTypes.map((t) => t.statuses.join(",")))).toEqual(
       new Set(["draft,approved,obsolete"]),
     );
+  });
+
+  it("[SR-127/AK5] marks the acceptance criteria and the rationale as Markdown, and no other property", async () => {
+    const metamodel = await standardModel();
+    expect(metamodel.properties.filter((p) => p.markdown === true).map((p) => p.key)).toEqual([
+      "rationale",
+      "acceptance-criteria",
+    ]);
+    expect(markdownKeysOf(metamodel)).toEqual(new Set(["rationale", "acceptance-criteria"]));
   });
 
   it("[SR-014/AK3] assigns every meaning of D-012 to a key: each type and property meaning to exactly one", async () => {

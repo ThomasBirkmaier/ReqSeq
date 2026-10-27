@@ -20,6 +20,23 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
       { kind: "reference", ...AT, target: T, repository: "a b&c=d/é", version: VERSION, occurrence: 12 },
       { kind: "reference", ...AT, target: T, repository: "", version: VERSION, occurrence: 2 },
       {
+        kind: "reference",
+        ...AT,
+        target: T,
+        version: VERSION,
+        occurrence: 3,
+        property: "acceptance-criteria",
+      },
+      {
+        kind: "reference",
+        ...AT,
+        target: T,
+        repository: "sensor",
+        version: VERSION,
+        occurrence: 1,
+        property: "text",
+      },
+      {
         kind: "relation",
         ...AT,
         sourceRepository: "a b/c",
@@ -36,6 +53,24 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
       `relation.outdated/${PLACE}/@text/${T}?version=${VERSION}&n=1`,
     ]);
     expect(ids.map(parseHintId)).toEqual(targets);
+  });
+
+  it("[SR-127/AK3] names the property of a reference in a Markdown property behind @text:, apart from the text", () => {
+    const id = (place: string, query = ""): string =>
+      `relation.outdated/${PLACE}/${place}/${T}?version=${VERSION}${query}`;
+    expect(
+      hintIdOf({ kind: "reference", ...AT, target: T, version: VERSION, occurrence: 3, property: "text" }),
+    ).toBe(id("@text:text", "&n=3"));
+    expect(parseHintId(id("@text:acceptance-criteria", "&n=2"))).toEqual({
+      kind: "reference",
+      ...AT,
+      target: T,
+      version: VERSION,
+      occurrence: 2,
+      property: "acceptance-criteria",
+    });
+    // The text keeps its own ID, and a property of the same key is another place.
+    expect(parseHintId(id("@text", "&n=2"))).not.toHaveProperty("property");
   });
 
   it.each([
@@ -68,6 +103,15 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
     ["a key that is no key", `relation.outdated/${PLACE}/Derives/${T}?version=${VERSION}`],
     ["a relation with a place", `relation.outdated/${PLACE}/derives-from/${T}?version=${VERSION}&n=1`],
     ["a reference without its place", `relation.outdated/${PLACE}/@text/${T}?version=${VERSION}`],
+    ["a property reference without its key", `relation.outdated/${PLACE}/@text:/${T}?version=${VERSION}&n=1`],
+    [
+      "a property reference with a key that is no key",
+      `relation.outdated/${PLACE}/@text:Notes/${T}?version=${VERSION}&n=1`,
+    ],
+    [
+      "a property reference without its place",
+      `relation.outdated/${PLACE}/@text:notes/${T}?version=${VERSION}`,
+    ],
     ["a reference with place 0", `relation.outdated/${PLACE}/@text/${T}?version=${VERSION}&n=0`],
   ])("rejects an ID with %s", (_case, id) => {
     expect(parseHintId(id)).toBeUndefined();

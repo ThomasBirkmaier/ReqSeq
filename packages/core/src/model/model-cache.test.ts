@@ -613,6 +613,18 @@ describe("parseModelCache", () => {
       "a reference with a repository that is no text",
       withRecord({ references: [{ id: ID_A, line: 3, repository: null }] }),
     ],
+    ["references of the text with a key", withRecord({ references: [{ id: ID_A, line: 3, key: "notes" }] })],
+    ["property references that are no list", withRecord({ propertyReferences: {} })],
+    ["an empty list of property references", withRecord({ propertyReferences: [] })],
+    ["a property reference without a key", withRecord({ propertyReferences: [{ id: ID_A, line: 3 }] })],
+    [
+      "a property reference with an item that is no whole number",
+      withRecord({ propertyReferences: [{ id: ID_A, line: 3, key: "notes", item: "1" }] }),
+    ],
+    [
+      "a property reference with an item below 0",
+      withRecord({ propertyReferences: [{ id: ID_A, line: 3, key: "notes", item: -1 }] }),
+    ],
     ["a file that is no element, of another file", withContribution({ kind: "not-element", file: "b.md" })],
     ["a problem that is none", withContribution({ kind: "problem", problem: { message: "m" } })],
   ])("discards a cache with %s", (_case, value) => {
@@ -632,6 +644,26 @@ describe("parseModelCache", () => {
           references: [
             { id: ID_A, line: 4 },
             { id: ID_A, version: "n1:0000000000000000", repository: "sensor", line: 5 },
+          ],
+        },
+      },
+    ],
+    [
+      "an element with references in Markdown properties (SR-127)",
+      {
+        ...elementEntry,
+        element: {
+          ...record,
+          propertyReferences: [
+            { id: ID_A, line: 4, key: "rationale" },
+            {
+              id: ID_A,
+              version: "n1:0000000000000000",
+              repository: "sensor",
+              line: 6,
+              key: "acceptance-criteria",
+              item: 1,
+            },
           ],
         },
       },
@@ -669,6 +701,11 @@ describe("parseModelCache", () => {
     expect(parse(withEntry(["a.md", elementEntry, "0", "0"]))?.repositories.get("system")?.files.size).toBe(
       1,
     );
+  });
+
+  it("[SR-127/AK3] discards a cache of format 4, whose records know no references in properties", () => {
+    expect(MODEL_CACHE_FORMAT).toBe(5);
+    expect(parse({ ...valid, format: 4 })).toBeUndefined();
   });
 
   it("discards a cache of format 2, with inodes and change times as numbers", () => {

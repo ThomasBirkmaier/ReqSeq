@@ -7,6 +7,13 @@
 // other repository counts as found there (`resolveReference`). The element store keeps the
 // references of each element (`ElementRecord.references`), so the missing-target check (SR-089)
 // needs no text; the writer (`targets.ts`) sets their versions.
+//
+// Properties marked `markdown` in the metamodel (SR-127, `markdownKeysOf`) hold such links too, in
+// each of their values, with the same rules: the store keeps them as `propertyReferences`, and
+// `referencesOf` gives the ones that count for a metamodel (text and marked properties), so every
+// check reads one list. Images in such a value are no embedded images (ADR-0005).
+import type { Metamodel } from "../metamodel/index.js";
+import { markdownKeysOf } from "../metamodel/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { ElementMatch, ElementRecord } from "./elements.js";
 import { markdownLinks } from "./markdown-links.js";
@@ -41,6 +48,23 @@ export interface TextReference {
   readonly repository?: string;
   readonly line: number;
 }
+
+/**
+ * An inline reference in a value of a property of the frontmatter (SR-127): the reference of the
+ * text, plus the property `key` and, for a list, the position `item` of the value (from 0) that
+ * holds the link. `line` is the line of the value in the file (for a block scalar, of the link in it).
+ */
+export interface PropertyReference extends TextReference {
+  readonly key: string;
+  /** The position in the list under `key`; undefined for a single value. */
+  readonly item?: number;
+}
+
+/** A reference of the text (`key` undefined) or of a property marked `markdown`. */
+export type LinkedReference = TextReference & {
+  readonly key?: string;
+  readonly item?: number;
+};
 
 export const SCHEME = "logreq:";
 
@@ -120,6 +144,81 @@ export const textReferences = (frontmatter: string, body: string): TextReference
     ...(repository === undefined ? {} : { repository }),
     line: before + line,
   }));
+};
+
+/** Where a scalar of the frontmatter is: the line of its value and whether it is a block scalar (`|`, `>`). */
+export type ValuePlace = (
+  key: string,
+  item: number | undefined,
+) => { line: number; block: boolean } | undefined;
+
+/**
+ * The inline references in the string values of the frontmatter `data` (a value, or the strings of
+ * a list), whatever the key: the metamodel is not known when a file is read, `referencesOf` takes
+ * the marked properties (SR-127). `place` gives the line of a value. A file whose frontmatter has
+ * no `logreq:` has none, which is nearly every file, so it is not scanned (N-036).
+ */
+export const propertyReferences = (
+  frontmatter: string,
+  data: Readonly<Record<string, unknown>>,
+  place: ValuePlace,
+): PropertyReference[] => {
+  if (!frontmatter.includes(SCHEME)) {
+    return [];
+  }
+  const out: PropertyReference[] = [];
+  const scan = (key: string, item: number | undefined, value: unknown): void => {
+    if (typeof value !== "string" || !value.includes(SCHEME)) {
+      return;
+    }
+    const where = place(key, item);
+    for (const { id, version, repository, line } of inlineReferences(value)) {
+      out.push({
+        id,
+        ...(version === undefined ? {} : { version }),
+        ...(repository === undefined ? {} : { repository }),
+        // A link in a block scalar lies below the line with its `|` or `>`.
+        line: (where?.line ?? 1) + (where?.block === true ? line : 0),
+        key,
+        ...(item === undefined ? {} : { item }),
+      });
+    }
+  };
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value)) {
+      value.forEach((v: unknown, i) => {
+        scan(key, i, v);
+      });
+    } else {
+      scan(key, undefined, value);
+    }
+  }
+  return out;
+};
+
+/**
+ * Where a message puts a reference (SR-127): "the text", or the property key, with the position of
+ * the value (from 1) for a list, e.g. "acceptance-criteria (item 2)".
+ */
+export const placeOfReference = ({ key, item }: Pick<LinkedReference, "key" | "item">): string =>
+  key === undefined ? "the text" : item === undefined ? key : `${key} (item ${String(item + 1)})`;
+
+const NONE: readonly never[] = Object.freeze([]);
+
+/**
+ * The inline references of `element` that count under `metamodel` (SR-127): those of the properties
+ * marked `markdown` in file order, then those of the text. A link in a title, an identifier or an
+ * unmarked property is none. Most elements have no link outside the text, so the list is the
+ * element's own then, not a copy.
+ */
+export const referencesOf = (element: ElementRecord, metamodel: Metamodel): readonly LinkedReference[] => {
+  const { references = NONE, propertyReferences: found } = element;
+  if (found === undefined) {
+    return references;
+  }
+  const keys = markdownKeysOf(metamodel);
+  const own = found.filter((r) => keys.has(r.key));
+  return own.length === 0 ? references : [...own, ...references];
 };
 
 /**

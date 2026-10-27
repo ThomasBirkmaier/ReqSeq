@@ -116,8 +116,8 @@ interface Opened {
   readonly record: (id: string, repository?: string) => ElementRecord;
 }
 
-const open = async (): Promise<Opened> => {
-  const fixture = await createFixtureWorkspace({ files: FILES });
+const open = async (more: Record<string, string> = {}): Promise<Opened> => {
+  const fixture = await createFixtureWorkspace({ files: { ...FILES, ...more } });
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.path("system"));
   onTestFinished(() => workspace.close());
@@ -196,6 +196,29 @@ describe("neighbourhood (SR-107)", () => {
       ["S1", "N1", "derives-from", false],
       ["S1", "P1", "derives-from", false],
     ]);
+  });
+
+  it("[SR-127/AK3] follows the references in the acceptance criteria and in the rationale like those in the text, up and down", async () => {
+    const opened = await open({
+      "system/requirements/SR-000000000004.md": element(S2, "system-requirement", [
+        `acceptance-criteria:\n  - Plain.\n  - "Then [the need](logreq:${N1}?version=${V})."`,
+        `rationale: "Because [P](logreq:${P1}?version=${V}&repository=platform)"`,
+        'topic: "Not [followed](logreq:' + N2 + ')"',
+      ]),
+    });
+    const up = await walkOf(opened, S2, {}, { direction: "up" });
+    expect(stepsOf(up, "up")).toEqual([
+      ["S2", "N1", "reference", false],
+      ["S2", "P1", "reference", false],
+    ]);
+    const down = await walkOf(opened, N1, {}, { direction: "down", maxDepth: 1 });
+    expect(stepsOf(down, "down")).toContainEqual(["S2", "N1", "reference", false]);
+    // Only the properties the metamodel marks hold references: topic is plain text.
+    expect(
+      stepsOf(await walkOf(opened, N2, {}, { direction: "down", maxDepth: 1 }), "down").filter(
+        (s) => (s as unknown[])[0] === "S2",
+      ),
+    ).toEqual([]);
   });
 
   it("follows what points at an element, relations first and then references, across repositories", async () => {

@@ -46,9 +46,11 @@
 //   A selected ID that a given ID names in another spelling is listed once, as given.
 // - Only element files are written: never Git (D-036), never a status (SR-087 AK2), nothing is
 //   deleted (D-045). The command is refused while the workspace is read-only (ADR-0002 rule 5).
+import { isDeepStrictEqual } from "node:util";
+import { Scalar, isScalar } from "yaml";
 import type { CommandName, Problem } from "../catalog.js";
 import { CommandError, commandErrorOrThrow } from "../catalog.js";
-import type { FrontmatterEdit } from "../files/index.js";
+import type { FrontmatterEdit, ParsedFile } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -166,46 +168,157 @@ const withVersion = (destination: string, version: string): string => {
 };
 
 /**
- * `body` with the version of every inline reference of `found` replaced: the `n`-th link of the text
- * with the target, repository and stored version the ID names (counted as `outdated.ts` counts).
- * Undefined when `found` names no reference.
+ * The version each reference of `found` in the text (`property` undefined) or in the property
+ * `property` (SR-127) is to get, by its place: target, repository, stored version and `n`.
  */
-const confirmedText = (body: string, found: readonly Found[], versions: NewVersions): string | undefined => {
+const versionsToWrite = (
+  found: readonly Found[],
+  versions: NewVersions,
+  property: string | undefined,
+): Map<string, string> => {
   const current = new Map<string, string>();
   for (const { target, first } of found) {
-    if (target.kind === "reference") {
+    if (target.kind === "reference" && target.property === property) {
       const place = JSON.stringify([target.target, target.repository ?? null, target.version]);
       current.set(`${place}#${String(target.occurrence)}`, versionFor(first, versions));
     }
   }
-  if (current.size === 0) {
-    return undefined;
-  }
-  const seen = new Map<string, number>();
+  return current;
+};
+
+/**
+ * `text` with the version of the references named in `current` replaced: the `n`-th link with the
+ * target, repository and stored version the ID names, counted as `outdated.ts` counts. `seen` holds
+ * the counts so far, so the values of one property are counted as one text.
+ */
+const confirmedReferences = (
+  text: string,
+  current: ReadonlyMap<string, string>,
+  seen: Map<string, number>,
+): string => {
   const parts: string[] = [];
   let last = 0;
-  for (const reference of inlineReferences(body)) {
+  for (const reference of inlineReferences(text)) {
     const place = JSON.stringify([reference.id, reference.repository ?? null, reference.version ?? null]);
     const occurrence = (seen.get(place) ?? 0) + 1;
     seen.set(place, occurrence);
     const version = current.get(`${place}#${String(occurrence)}`);
     if (version !== undefined) {
-      parts.push(body.slice(last, reference.start), withVersion(reference.destination, version));
+      parts.push(text.slice(last, reference.start), withVersion(reference.destination, version));
       last = reference.end;
     }
   }
-  parts.push(body.slice(last));
+  parts.push(text.slice(last));
   return parts.join("");
+};
+
+/**
+ * The body with the versions of the inline references of `found` replaced; undefined when `found`
+ * names no reference of the text.
+ */
+const confirmedText = (body: string, found: readonly Found[], versions: NewVersions): string | undefined => {
+  const current = versionsToWrite(found, versions, undefined);
+  return current.size === 0 ? undefined : confirmedReferences(body, current, new Map());
+};
+
+/** The text of the scalar at `path` of the frontmatter as written in the file, with its quotes. */
+const sourceOf = (file: ParsedFile, path: readonly (string | number)[]): string | undefined => {
+  const node: unknown = file.document.getIn(path, true);
+  if (!isScalar(node)) {
+    return undefined;
+  }
+  // A scalar of a parsed document has its range.
+  const [start, end] = node.range as [number, number, number];
+  return file.frontmatter.slice(start, end);
+};
+
+/** Whether `a` and `b` hold the same inline references (what they link to, and how). */
+const sameLinks = (a: string, b: string): boolean => {
+  const destinations = (text: string): string[] => inlineReferences(text).map((r) => r.destination);
+  return isDeepStrictEqual(destinations(a), destinations(b));
+};
+
+/** Whether the value at `path` of the frontmatter is a block scalar (`|`, `>`), which `set-scalar` does not edit. */
+const isBlockScalar = (file: ParsedFile, path: readonly (string | number)[]): boolean => {
+  const node: unknown = file.document.getIn(path, true);
+  return isScalar(node) && (node.type === Scalar.BLOCK_LITERAL || node.type === Scalar.BLOCK_FOLDED);
+};
+
+/** The edits for the references in properties marked `markdown` (SR-127): most as `set-scalar`, the rest as `fallback`. */
+interface PropertyEdits {
+  readonly scalar: FrontmatterEdit[];
+  readonly fallback: FrontmatterEdit[];
+}
+
+/**
+ * The edits for the references of `found` in properties marked `markdown` (SR-127): per value that
+ * holds one, the value with the new versions. A value is written by `set-scalar`, which rewrites
+ * only that scalar in its own quoting (SR-027 AK1). A block scalar (`|`, `>`) cannot be, so its
+ * value is a `fallback` edit: the item replaced (a list) or the key set (one value), as one line.
+ * The two kinds are applied one after the other, as `set-scalar` allows no other edit of its key.
+ */
+const propertyEdits = (file: ParsedFile, found: readonly Found[], versions: NewVersions): PropertyEdits => {
+  const keys = new Set(
+    found.flatMap(({ target }) =>
+      target.kind === "reference" && target.property !== undefined ? [target.property] : [],
+    ),
+  );
+  const data = file.data as Readonly<Record<string, unknown>>;
+  const scalar: FrontmatterEdit[] = [];
+  const fallback: FrontmatterEdit[] = [];
+  for (const key of keys) {
+    const current = versionsToWrite(found, versions, key);
+    const value = data[key];
+    const list = Array.isArray(value);
+    const seen = new Map<string, number>();
+    ((list ? value : [value]) as unknown[]).forEach((item, index) => {
+      const counted = new Map(seen);
+      const text = typeof item === "string" ? confirmedReferences(item, current, seen) : item;
+      if (text === item) {
+        return;
+      }
+      const path = list ? [key, index] : [key];
+      const place = list ? [index] : [];
+      if (isBlockScalar(file, path)) {
+        fallback.push(
+          list
+            ? { kind: "replace-item", key, index, value: text as string }
+            : { kind: "set", key, value: text as string },
+        );
+        return;
+      }
+      // The scalar as written, with the versions replaced in it: its quoting stays, whatever it is.
+      const written = sourceOf(file, path);
+      const source = written === undefined ? undefined : confirmedReferences(written, current, counted);
+      const same = source !== undefined && sameLinks(source, text as string);
+      scalar.push({
+        kind: "set-scalar",
+        key,
+        path: place,
+        value: text as string,
+        ...(same ? { source } : {}),
+      });
+    });
+  }
+  return { scalar, fallback };
 };
 
 /** The new bytes of `source` with `versions`. */
 const planned = (source: Source, versions: NewVersions): Uint8Array => {
-  const { file } = source.unchanged.current;
-  const body = confirmedText(file.body, source.found, versions);
-  return editElementFile(file, {
-    edits: itemEdits(source.found, versions),
+  const { unchanged, found } = source;
+  const { file } = unchanged.current;
+  const body = confirmedText(file.body, found, versions);
+  const { scalar, fallback } = propertyEdits(file, found, versions);
+  const { bytes } = editElementFile(file, {
+    edits: [...itemEdits(found, versions), ...scalar],
     ...(body === undefined ? {} : { body }),
-  }).bytes;
+  });
+  if (fallback.length === 0) {
+    return bytes;
+  }
+  // The block scalars, now that the other scalars of their keys are written.
+  const { file: written } = writtenElement(unchanged.repository.name, bytes, file.snapshot);
+  return editElementFile(written, { edits: fallback }).bytes;
 };
 
 /** The version of the element `bytes` of `source` hold (ADR-0005), with the images its text embeds. */

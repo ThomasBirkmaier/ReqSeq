@@ -40,6 +40,7 @@ import {
   findType,
   keyDefinition,
   listNamed,
+  markdownKeysOf,
   metamodelState,
   requireMeaning,
   typeForNewElement,
@@ -63,7 +64,7 @@ import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import { elementStoreState, ignoredBy, recordWrites } from "./store.js";
 import type { TargetContext } from "./targets.js";
-import { setInlineReferences, setRelationTargets } from "./targets.js";
+import { setInlineReferences, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { successionsFor } from "./successors.js";
 import type { TitleContext } from "./relation-titles.js";
 import { withCurrentTitles } from "./relation-titles.js";
@@ -344,7 +345,8 @@ const isRelationProperty = (metamodel: Metamodel, key: string): boolean =>
   metamodel.properties.some((p) => p.key === key && p.kind === "relation");
 
 /**
- * The given property values with their relation targets as stored (SR-021 AK1, `setRelationTargets`),
+ * The given property values with their relation targets (SR-021 AK1, `setRelationTargets`) and the
+ * inline references in properties marked `markdown` (SR-127, `setMarkdownReferences`) as stored,
  * compared with the values `stored` in the source file now.
  */
 const withTargets = async (
@@ -358,8 +360,11 @@ const withTargets = async (
       key,
       isRelationProperty(context.metamodel, key)
         ? await setRelationTargets(context, sourceRepository, value, stored[key])
-        : // Only relation-valued properties hold targets; any other value is stored as given.
-          (value as ElementValue),
+        : markdownKeysOf(context.metamodel).has(key)
+          ? // Only the properties the input sets are handled, so a save never changes the links of others (SR-127).
+            await setMarkdownReferences(context, key, sourceRepository, value, stored[key])
+          : // Any other value is stored as given.
+            (value as ElementValue),
     ]),
   );
 

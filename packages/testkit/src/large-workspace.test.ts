@@ -164,10 +164,43 @@ describe("generateLargeWorkspace", () => {
         }
       }
     }
-    expect(count).toBe(generated.references);
+    // The references in acceptance criteria (SR-127) are counted apart.
+    expect(count).toBe(generated.references + generated.criterionReferences);
     expect(count).toBeGreaterThan(generated.elements.length * 1.5);
     expect(count).toBeLessThan(generated.elements.length * 2.5);
     expect(across).toBeGreaterThan(100);
+  });
+
+  it("writes one inline reference into an acceptance criterion of every tenth system requirement, to an earlier element, and the same for the same seed (SR-127)", () => {
+    const generated = small();
+    const byId = new Map(generated.elements.map((e, i) => [e.id, { ...e, order: i }]));
+    let found = 0;
+    let requirements = 0;
+    let changed = 0;
+    for (const source of generated.elements) {
+      const content = generated.files.get(`${source.repository}/${source.file}`) ?? "";
+      const frontmatter = content.split("\n---\n")[0] ?? "";
+      const links = [...frontmatter.matchAll(/\(logreq:([0-9a-f-]{36})\?version=([^&)]+)/g)];
+      if (source.type === "system-requirement") {
+        requirements++;
+      }
+      // Relation items are flow mappings, so a `(logreq:` in the frontmatter is in a criterion.
+      expect(links.length).toBeLessThanOrEqual(1);
+      for (const [, id, version] of links) {
+        found++;
+        const target = byId.get(id ?? "");
+        expect(target?.order).toBeLessThan(byId.get(source.id)?.order ?? 0);
+        expect(version).toBe(target?.version);
+        changed += (target?.order ?? 1) % 100 === 0 ? 1 : 0;
+        expect(frontmatter).toMatch(/\n {2}- Given the station runs, [^\n]*, see \[[^\]]+\]\(logreq:/u);
+      }
+    }
+    expect(found).toBe(generated.criterionReferences);
+    expect(found).toBeGreaterThan(requirements / 10 - 3);
+    expect(found).toBeLessThanOrEqual(Math.ceil(requirements / 10));
+    // Every third points at an element the outdated-relations suite changes (every 100th).
+    expect(changed).toBeGreaterThan(found / 6);
+    expect(small().criterionReferences).toBe(found);
   });
 
   it("follows the source and target types of the standard model, without derivation cycles or duplicate targets", () => {

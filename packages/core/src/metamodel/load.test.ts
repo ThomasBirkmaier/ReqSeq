@@ -5,7 +5,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Metamodel } from "./index.js";
-import { MEANINGS, UNKNOWN_TYPE_PREFIX, loadMetamodel, metamodelState } from "./index.js";
+import { MEANINGS, UNKNOWN_TYPE_PREFIX, loadMetamodel, markdownKeysOf, metamodelState } from "./index.js";
 
 const fixture = async (options: FixtureOptions = {}): Promise<FixtureWorkspace> => {
   const created = await createFixtureWorkspace({ fixture: "SR-011/split-folder", ...options });
@@ -225,6 +225,30 @@ describe("loadMetamodel", () => {
       },
     ]);
     expect(keys(metamodel).types).toEqual(["need", "system-requirement"]);
+  });
+
+  it("[SR-127/AK5] a property marked markdown on another kind than text or with the meaning title is metamodel.invalid, on the line of markdown", async () => {
+    const ws = await fixture({
+      files: {
+        "model/markdown.yaml":
+          "logreq-metamodel: 1\nproperties:\n  - key: notes\n    name: Notes\n    kind: text\n    markdown: true\n  - key: level\n    name: Level\n    kind: number\n    markdown: true\n",
+      },
+    });
+    const metamodel = await load(ws.root);
+    expect(metamodel.valid).toBe(false);
+    expect(metamodel.problems.filter((p) => p.file === "model/markdown.yaml")).toEqual([
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        repository: "system",
+        file: "model/markdown.yaml",
+        line: 10,
+        message:
+          "Property level is marked markdown, which needs kind text and neither the meaning title nor identifier (titles and identifiers are plain text), not kind number",
+      },
+    ]);
+    // A metamodel that is not valid marks nothing: whatever it says is not trusted.
+    expect(markdownKeysOf(metamodel)).toEqual(new Set());
   });
 
   it("reports an unknown list on the line of its key and a missing format version on the first line", async () => {

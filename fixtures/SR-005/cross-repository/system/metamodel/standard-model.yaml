@@ -65,6 +65,7 @@ properties:
   - key: rationale
     name: Rationale
     kind: text
+    markdown: true
   - key: requirement-type
     name: Requirement Type
     kind: choice
@@ -80,6 +81,7 @@ properties:
     kind: text
     many: true
     content: true
+    markdown: true
   - key: validity
     name: Validity
     kind: relation

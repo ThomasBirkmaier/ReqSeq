@@ -704,6 +704,8 @@ export interface MetamodelProperty {
   readonly "target-types"?: readonly MetamodelKey[];
   /** Part of the content and therefore of the version (D-013). Title and status are never content. */
   readonly content?: boolean;
+  /** Values are Markdown like the text: emphasis, code and inline references `[label](logreq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images. */
+  readonly markdown?: boolean;
   readonly meaning?: MetamodelPropertyMeaning;
 }
 
@@ -1523,7 +1525,7 @@ export interface TraceAffectedInput {
  * Schema: `schemas/commands/catalog.json trace.affected output`.
  */
 export interface TraceAffectedOutput {
-  /** The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element. */
+  /** The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference (in the text or in a property marked `markdown`, SR-127) to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element. */
   readonly affected: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -1541,7 +1543,7 @@ export interface TraceAffectedOutput {
       readonly id: Uuid;
       readonly repository: string;
     }[];
-    /** How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text. */
+    /** How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`. */
     readonly via: {
       readonly kind: "relation" | "reference";
       readonly key?: Key;
@@ -1615,7 +1617,7 @@ export interface TraceNeighbourhoodOutput {
     readonly target: Uuid;
     /** Workspace name of the repository of `target`. */
     readonly targetRepository: string;
-    /** A relation in the frontmatter or an inline reference in the text. */
+    /** A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`. */
     readonly link: "relation" | "reference";
     /** The frontmatter key, only for `link: relation`. */
     readonly kind?: Key;
@@ -1664,13 +1666,13 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
   readonly hintIds?: readonly string[];
-  /** Confirm the open confirmable hints about this element: the outdated relations and inline references its file stores. */
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores. */
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
@@ -1679,7 +1681,7 @@ export interface HintConfirmInput {
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {

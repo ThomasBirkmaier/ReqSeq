@@ -215,6 +215,11 @@
           "default": false,
           "description": "Part of the content and therefore of the version (D-013). Title and status are never content."
         },
+        "markdown": {
+          "type": "boolean",
+          "default": false,
+          "description": "Values are Markdown like the text: emphasis, code and inline references `[label](logreq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images."
+        },
         "meaning": {
           "$ref": "#/$defs/propertyMeaning"
         }

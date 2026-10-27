@@ -1512,7 +1512,7 @@
         "properties": {
           "affected": {
             "type": "array",
-            "description": "The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element.",
+            "description": "The page of `limit` affected elements from `offset` (`total` counts all). The affected elements: every element that has a relation or an inline reference (in the text or in a property marked `markdown`, SR-127) to the element, directly or through the chain (SR-024 AK1), each once at its shortest distance, breadth first, the element itself never. Distance 1: every element whose file holds a relation (any relation kind or relation-valued property) or an inline reference to it. From there onward along the derivation chain (meaning `derivation`, SR-013) and inline references that point at an affected element.",
             "items": {
               "type": "object",
               "properties": {
@@ -1564,7 +1564,7 @@
                 },
                 "via": {
                   "type": "object",
-                  "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text.",
+                  "description": "How this element points at the one before it on the path: a relation stored under `key` (a relation kind or a relation-valued property), or an inline reference in its text or in a property marked `markdown`.",
                   "properties": {
                     "kind": {
                       "enum": ["relation", "reference"]
@@ -1725,7 +1725,7 @@
                 },
                 "link": {
                   "enum": ["relation", "reference"],
-                  "description": "A relation in the frontmatter or an inline reference in the text."
+                  "description": "A relation in the frontmatter or an inline reference in the text or in a property marked `markdown`."
                 },
                 "kind": {
                   "$ref": "../common.schema.json#/$defs/key",
@@ -1829,7 +1829,7 @@
     },
     {
       "name": "hint.confirm",
-      "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation, and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
+      "summary": "Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.",
       "effect": "write-files",
       "stage": 2,
       "implements": ["SR-027", "SR-087", "SR-102"],
@@ -1846,7 +1846,7 @@
           },
           "ref": {
             "$ref": "../common.schema.json#/$defs/elementRef",
-            "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references its file stores."
+            "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores."
           },
           "target": {
             "$ref": "../common.schema.json#/$defs/elementRef",

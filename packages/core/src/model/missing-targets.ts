@@ -18,7 +18,8 @@
 // or wrong `version` or other keys do not matter here (ADR-0004 keeps such entries). Values of
 // another shape (no mapping, no UUID, one mapping where a list belongs or the reverse) are left to
 // the value-kind check (SR-085).
-// Inline references come from the element store (`ElementRecord.references`), so no text is read.
+// Inline references come from the element store (`ElementRecord.references`, and for properties marked
+// `markdown` `propertyReferences`, SR-127; `referencesOf`), so no text is read.
 // Their state comes from `referenceTargetState`: one with `repository` like a relation target, one
 // without in the source's own repository (D-058), which is always here, so its target is missing
 // when no repository here has the UUID, whichever repository is not on this machine. A target
@@ -38,8 +39,13 @@ import { isUuid } from "./elements.js";
 import { FILE_NAME_DIGITS } from "./file-name.js";
 import type { LocatableFinding } from "./locate.js";
 import { findingLocator } from "./locate.js";
-import type { TextReference } from "./references.js";
-import { referenceTargetState, unavailableRepositoryHint } from "./references.js";
+import type { LinkedReference } from "./references.js";
+import {
+  placeOfReference,
+  referenceTargetState,
+  referencesOf,
+  unavailableRepositoryHint,
+} from "./references.js";
 import { hasId, relationItems, relationKey } from "./relation-keys.js";
 import { targetState } from "./relations.js";
 import type { ShortIds } from "./short-id.js";
@@ -77,7 +83,7 @@ export type MissingTargetFinding = LocatableFinding & {
  */
 export interface MissingReferenceFinding {
   readonly element: ElementRecord;
-  readonly reference: TextReference;
+  readonly reference: LinkedReference;
   readonly problem: Problem;
 }
 
@@ -165,9 +171,9 @@ const collectReferences = (
   context: MissingTargetContext,
   out: MissingReferenceFinding[],
 ): void => {
-  const { layout, store } = context;
+  const { layout, store, metamodel } = context;
   let source: string | undefined;
-  for (const reference of element.references ?? []) {
+  for (const reference of referencesOf(element, metamodel)) {
     const state = referenceTargetState(layout, store, element.repository, reference);
     // The UUID check only for the few missing targets; the store and its cache give UUIDs anyway.
     if (state.kind !== "missing" || !isUuid(reference.id)) {
@@ -183,7 +189,7 @@ const collectReferences = (
       problem: {
         code: "relation.missing-target",
         severity: "error",
-        message: `Reference in the text of ${source} points to ${reference.id}, which is not in repository ${state.repository}${note}`,
+        message: `Reference in ${placeOfReference(reference)} of ${source} points to ${reference.id}, which is not in repository ${state.repository}${note}`,
         repository: element.repository,
         file: element.file,
         line: reference.line,

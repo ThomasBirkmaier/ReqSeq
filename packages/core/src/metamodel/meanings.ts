@@ -179,6 +179,37 @@ export const meaningKindProblems = (properties: readonly Located<MetamodelProper
   });
 
 /**
+ * `metamodel.invalid` errors for a property marked `markdown` that cannot hold Markdown (SR-127
+ * AK5): only a property of kind `text` can, and the title and an identifier stay plain text (they
+ * are names, shown and searched as written). Each with the file and the line of its `markdown`.
+ */
+export const markdownProblems = (properties: readonly Located<MetamodelProperty>[]): Problem[] =>
+  properties.flatMap(({ definition, file, lineOf }): Problem[] => {
+    const { key, kind, meaning, markdown } = definition;
+    const reason =
+      markdown !== true
+        ? undefined
+        : kind !== "text"
+          ? `kind ${kind}`
+          : meaning === "title" || meaning === "identifier"
+            ? `the meaning ${meaning}`
+            : undefined;
+    if (reason === undefined) {
+      return [];
+    }
+    const line = lineOf(["markdown"]);
+    return [
+      {
+        code: "metamodel.invalid",
+        severity: "error",
+        message: `Property ${key} is marked markdown, which needs kind text and neither the meaning title nor identifier (titles and identifiers are plain text), not ${reason}`,
+        file,
+        ...(line === undefined ? {} : { line }),
+      },
+    ];
+  });
+
+/**
  * The effective types with this meaning, own or inherited (SR-012), in metamodel order: e.g. all
  * requirement types that evidence may point at (D-007).
  */

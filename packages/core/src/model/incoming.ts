@@ -11,7 +11,8 @@
 //   text `id` (`hasId`), as the element view and the missing-target check read it; its version and
 //   other keys are not checked (their shape is SR-085's). A value of the wrong shape (one target
 //   where a list belongs, or the reverse) has no items, as in `relationItems`;
-// - the inline references of the text (`ElementRecord.references`, #240).
+// - the inline references of the text (`ElementRecord.references`, #240) and of the properties marked
+//   `markdown` (`ElementRecord.propertyReferences`, SR-127; `referencesOf`).
 // A target is named by repository and UUID (D-058). A relation item without `repository` points into
 // the source's own repository; one whose `repository` is not text names none and is left out (no
 // record can lie there; `targetState` calls it `unknown-repository`). An inline reference names the
@@ -39,8 +40,8 @@ import type { Metamodel } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { ElementRecord } from "./elements.js";
-import type { TextReference } from "./references.js";
-import { resolveReference } from "./references.js";
+import type { LinkedReference, TextReference } from "./references.js";
+import { referencesOf, resolveReference } from "./references.js";
 import type { RelationKey, TargetItem } from "./relation-keys.js";
 import { hasId, relationKey } from "./relation-keys.js";
 import type { ElementStore, StoreUpdate } from "./store.js";
@@ -79,7 +80,7 @@ export interface IncomingReference {
    * points (see the file comment) is decided when it is asked for (`incomingTo`): most references
    * name no repository, and resolving them all would cost a lookup each when the index is built.
    */
-  readonly reference: TextReference;
+  readonly reference: LinkedReference;
 }
 
 /** A relation or an inline reference that points at a target. */
@@ -155,7 +156,12 @@ interface LinkSink {
 }
 
 /** Gives every relation and inline reference of `source` that the index holds (see the file comment) to `sink`. */
-const linksOf = (source: ElementRecord, keys: ReadonlyMap<string, RelationKey>, sink: LinkSink): void => {
+const linksOf = (
+  source: ElementRecord,
+  keys: ReadonlyMap<string, RelationKey>,
+  metamodel: Metamodel,
+  sink: LinkSink,
+): void => {
   const addItem = (key: string, index: number | undefined, item: unknown): void => {
     if (!hasId(item)) {
       return;
@@ -184,7 +190,7 @@ const linksOf = (source: ElementRecord, keys: ReadonlyMap<string, RelationKey>, 
       }
     }
   }
-  for (const reference of source.references ?? []) {
+  for (const reference of referencesOf(source, metamodel)) {
     sink.reference(reference.id, { kind: "reference", source, reference });
   }
 };
@@ -222,7 +228,7 @@ export const buildIncomingIndex = (store: ElementStore, metamodel: Metamodel): I
   const referencesById = new Map<string, IncomingReference[]>();
   const sink = collector(relationsById, referencesById);
   for (const source of store.elements) {
-    linksOf(source, keys, sink);
+    linksOf(source, keys, metamodel, sink);
   }
   return { store, metamodel, relationsById, referencesById };
 };
@@ -236,7 +242,7 @@ export const outgoingLinks = (source: ElementRecord, metamodel: Metamodel): Inco
   const push = (_id: string, link: IncomingLink): void => {
     links.push(link);
   };
-  linksOf(source, relationKeysOf(metamodel), { relation: push, reference: push });
+  linksOf(source, relationKeysOf(metamodel), metamodel, { relation: push, reference: push });
   return links;
 };
 
@@ -334,13 +340,13 @@ export const carryIncomingIndex = (index: IncomingIndex, update: StoreUpdate): I
     },
   };
   for (const source of replaced) {
-    linksOf(source, keys, note);
+    linksOf(source, keys, index.metamodel, note);
   }
   const relations = new Map<string, IncomingRelation[]>();
   const references = new Map<string, IncomingReference[]>();
   const sink = collector(relations, references);
   for (const source of recordsIn(update.to).sort((a, b) => Number(before(b, a)) - Number(before(a, b)))) {
-    linksOf(source, keys, sink);
+    linksOf(source, keys, index.metamodel, sink);
   }
   for (const id of [...relations.keys(), ...references.keys()]) {
     affected.add(id);

@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { parseFileBytes } from "../files/index.js";
 import type { ElementRecord } from "./elements.js";
 import { classifyFile } from "./elements.js";
-import { inlineReferences, referenceTargetState, resolveReference, textReferences } from "./references.js";
+import type { Metamodel } from "../metamodel/index.js";
+import {
+  inlineReferences,
+  placeOfReference,
+  referenceTargetState,
+  referencesOf,
+  resolveReference,
+  textReferences,
+} from "./references.js";
 import type { ElementStore } from "./store.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 
@@ -148,5 +156,89 @@ describe("inline references with repository (D-058, decision on #177 (c))", () =
       kind: "found",
       element: record(B, "sensor"),
     });
+  });
+});
+
+describe("references in the properties of the frontmatter (SR-127)", () => {
+  const element = (frontmatter: string, body = ""): ElementRecord => {
+    const parsed = parseFileBytes(
+      "n.md",
+      new TextEncoder().encode(`---\nid: ${A}\ntype: need\n${frontmatter}---\n${body}`),
+    );
+    if (parsed.kind !== "parsed") {
+      throw new Error("not parsed");
+    }
+    const classified = classifyFile("system", {
+      ...parsed.content,
+      path: "n.md",
+      snapshot: { path: "n.md", size: 0, mtimeMs: 0, sha256: "" },
+    });
+    if (classified.kind !== "element") {
+      throw new Error("no element");
+    }
+    return classified.element;
+  };
+  const link = `[b](logreq:${B}?version=${V})`;
+  const marked = (...keys: string[]): Metamodel =>
+    ({
+      valid: true,
+      properties: keys.map((key) => ({ key, name: key, kind: "text", markdown: true })),
+    }) as unknown as Metamodel;
+
+  it("records a link in any string value of the frontmatter, in a list or alone, with its line, and none for a file without logreq: in it", () => {
+    const record = element(
+      [
+        `title: See ${link}`,
+        "items:",
+        "  - Plain.",
+        `  - "Then ${link}."`,
+        "  - 5",
+        "single: |",
+        `  one ${link}`,
+        `  two [c](logreq:${A})`,
+        `folded: Alone ${link}`,
+        "number: 1",
+        "",
+      ].join("\n"),
+      `Text with [c](logreq:${A}).\n`,
+    );
+    expect(record.propertyReferences).toEqual([
+      { id: B, version: V, line: 4, key: "title" },
+      { id: B, version: V, line: 7, key: "items", item: 1 },
+      { id: B, version: V, line: 10, key: "single" },
+      { id: A, line: 11, key: "single" },
+      { id: B, version: V, line: 12, key: "folded" },
+    ]);
+    expect(record.references).toEqual([{ id: A, line: 15 }]);
+    expect(
+      Object.hasOwn(element('a: "[x](https://example.com)"\n', `[c](logreq:${A})`), "propertyReferences"),
+    ).toBe(false);
+    expect(Object.hasOwn(element("a: 'logreq: no link'\n"), "propertyReferences")).toBe(false);
+  });
+
+  it("puts a link in a value whose key is written as an alias on line 1, as the line cannot be found", () => {
+    expect(element(`kk: &k other\n*k : "Then ${link}"\n`).propertyReferences).toEqual([
+      { id: B, version: V, line: 1, key: "other" },
+    ]);
+  });
+
+  it("gives the references of the properties marked markdown, then those of the text, and the record's own list when no marked property holds a link", () => {
+    const record = element(`title: "${link}"\nnotes: "${link}"\nmore:\n  - "${link}"\n`, `[c](logreq:${A})`);
+    expect(referencesOf(record, marked("notes", "more")).map((r) => [r.key, r.item, r.id])).toEqual([
+      ["notes", undefined, B],
+      ["more", 0, B],
+      [undefined, undefined, A],
+    ]);
+    expect(referencesOf(record, marked("other"))).toBe(record.references);
+    expect(referencesOf(element("a: 1\n"), marked("notes"))).toEqual([]);
+    const none = element(`title: "${link}"\n`);
+    expect(referencesOf(none, marked("title"))).toHaveLength(1);
+    expect(referencesOf(none, marked())).toEqual([]);
+  });
+
+  it("names the place of a reference for messages", () => {
+    expect(placeOfReference({})).toBe("the text");
+    expect(placeOfReference({ key: "rationale" })).toBe("rationale");
+    expect(placeOfReference({ key: "acceptance-criteria", item: 1 })).toBe("acceptance-criteria (item 2)");
   });
 });

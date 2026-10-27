@@ -5,8 +5,9 @@
 //
 // - What is checked: every item of a relation kind and of a relation-valued property
 //   (`relationItems`; ADR-0004: validity and packages carry a version like any relation and become
-//   outdated too), and every inline reference of the text (`ElementRecord.references`, SR-066 AK3),
-//   of every element, whatever its type.
+//   outdated too), and every inline reference of the text (`ElementRecord.references`, SR-066 AK3)
+//   and of the properties marked `markdown` (`referencesOf`, SR-127 AK3), of every element, whatever
+//   its type.
 // - Only a stored version of normal form 1 is compared (the only one there is, ADR-0005), and only
 //   with a target that is `available` (`targetState`, `referenceTargetState`). A target that is
 //   missing (SR-089), ambiguous (SR-088), in a repository that is not on this machine (SR-006) or in
@@ -61,7 +62,9 @@ import {
   incomingState,
   isN1Version,
   isOutdatedVersion,
+  placeOfReference,
   referenceTargetState,
+  referencesOf,
   relationItems,
   relationKey,
   shortIdState,
@@ -164,8 +167,44 @@ type StoredLink = { readonly stored: string; readonly target: ElementRecord } & 
       /** The place of the link among the links of the text with the same target, repository and version (the `n` of the hint ID). */
       readonly occurrence: number;
       readonly line: number;
+      /** The property (`markdown`, SR-127) and the position of the value in its list; none for the text. */
+      readonly key?: string;
+      readonly item?: number;
     }
 );
+
+/** Each inline reference of `element` (text order; the properties marked `markdown` first) that `eachStoredLink` gives. */
+const eachStoredReference = (
+  element: ElementRecord,
+  { layout, metamodel, store }: LinkContext,
+  visit: (link: StoredLink) => void,
+): void => {
+  /** How often each target, repository and version occurred in the text, or in all values of one property, so far. */
+  const seen = new Map<string, number>();
+  for (const reference of referencesOf(element, metamodel)) {
+    const { id, repository, version: stored, key, item } = reference;
+    const place = JSON.stringify([key ?? null, id, repository ?? null, stored ?? null]);
+    const occurrence = (seen.get(place) ?? 0) + 1;
+    seen.set(place, occurrence);
+    if (!isN1Version(stored)) {
+      continue;
+    }
+    const state = referenceTargetState(layout, store, element.repository, reference);
+    if (state.kind === "available") {
+      const { line } = reference;
+      visit({
+        kind: "reference",
+        repository,
+        occurrence,
+        line,
+        stored,
+        target: state.element,
+        ...(key === undefined ? {} : { key }),
+        ...(item === undefined ? {} : { item }),
+      });
+    }
+  }
+};
 
 /**
  * Each relation item of `element` (keys in file order, then items), then each inline reference (in
@@ -206,22 +245,7 @@ const eachStoredLink = (
       }
     }
   }
-  /** How often each target, repository and version occurred in the text so far. */
-  const seen = new Map<string, number>();
-  for (const reference of element.references ?? []) {
-    const { id, repository, version: stored } = reference;
-    const place = JSON.stringify([id, repository ?? null, stored ?? null]);
-    const occurrence = (seen.get(place) ?? 0) + 1;
-    seen.set(place, occurrence);
-    if (!isN1Version(stored)) {
-      continue;
-    }
-    const state = referenceTargetState(layout, store, element.repository, reference);
-    if (state.kind === "available") {
-      const { line } = reference;
-      visit({ kind: "reference", repository, occurrence, line, stored, target: state.element });
-    }
-  }
+  eachStoredReference(element, context, visit);
 };
 
 /** The finding of `link` of `element`, whose target's current version is `current`. */
@@ -248,7 +272,7 @@ const candidateOf = (
     const problem = problemOf(element, target, message, versions, hintId);
     return { path: link.path, finding: { element, target, stored, current, hintId, problem } };
   }
-  const { repository, occurrence } = link;
+  const { repository, occurrence, key } = link;
   const hintId = hintIdOf({
     kind: "reference",
     ...place,
@@ -256,8 +280,9 @@ const candidateOf = (
     ...(repository === undefined ? {} : { repository }),
     version: stored,
     occurrence,
+    ...(key === undefined ? {} : { property: key }),
   });
-  const message = `Reference in the text of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
+  const message = `Reference in ${placeOfReference(link)} of ${elementLabel(context, element)} points to an older version of ${elementLabel(context, target)}`;
   const problem = { ...problemOf(element, target, message, versions, hintId), line: link.line };
   return { finding: { element, target, stored, current, hintId, problem } };
 };

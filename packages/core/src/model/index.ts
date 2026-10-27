@@ -86,16 +86,25 @@ export {
 export type { CurrentVersion, CurrentVersions } from "./current-versions.js";
 export { markdownImages, markdownLinks } from "./markdown-links.js";
 export type { MarkdownLink } from "./markdown-links.js";
-export { currentTarget, setInlineReferences, setRelationTargets } from "./targets.js";
+export { currentTarget, setInlineReferences, setMarkdownReferences, setRelationTargets } from "./targets.js";
 export type { TargetContext } from "./targets.js";
 export {
   inlineReferences,
+  placeOfReference,
+  propertyReferences,
   referenceTargetState,
+  referencesOf,
   resolveReference,
   textReferences,
   unavailableRepositoryHint,
 } from "./references.js";
-export type { InlineReference, ReferenceTargetState, TextReference } from "./references.js";
+export type {
+  InlineReference,
+  LinkedReference,
+  PropertyReference,
+  ReferenceTargetState,
+  TextReference,
+} from "./references.js";
 export {
   SHORT_ID_MIN_LENGTH,
   UNKNOWN_TYPE_PREFIX,

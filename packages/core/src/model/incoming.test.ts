@@ -378,6 +378,31 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     await expectCarried(fixture, workspace);
   });
 
+  it("[SR-127/AK3] equals a fresh build after a save and after a change from outside that add and drop a reference in an acceptance criterion (SR-082 AK4)", async () => {
+    const { fixture, workspace } = await openFixture();
+    await indexNow(workspace);
+    await updateElement(workspace, {
+      ref: S2,
+      set: { "acceptance-criteria": [`Then [the need](logreq:${N1}?version=${V}).`] },
+    });
+    const saved = await expectCarried(fixture, workspace);
+    const criterion = (l: IncomingLink): unknown =>
+      l.kind === "reference" ? [l.source.id, l.reference.key, l.reference.item] : undefined;
+    expect(
+      incomingTo(saved, "system", N1)
+        .filter((l) => l.source.id === S2)
+        .map(criterion),
+    ).toContainEqual([S2, "acceptance-criteria", 0]);
+    await external(fixture, workspace, {
+      "system/requirements/SR-000000000003.md": element(S2, "system-requirement", [
+        `acceptance-criteria:\n  - Plain.\n  - "Also [P](logreq:${P1}?version=${V}&repository=platform)"`,
+      ]),
+    });
+    const changed = await expectCarried(fixture, workspace);
+    expect(incomingTo(changed, "platform", P1).map(criterion)).toContainEqual([S2, "acceptance-criteria", 1]);
+    expect(incomingTo(changed, "system", N1).filter((l) => l.source.id === S2)).toEqual([]);
+  });
+
   it("equals a fresh build after watcher batches in several repositories", async () => {
     const { fixture, workspace } = await openFixture();
     await indexNow(workspace);

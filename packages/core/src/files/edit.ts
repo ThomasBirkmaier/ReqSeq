@@ -41,7 +41,11 @@ export type FrontmatterEdit =
    * kind of edit in the same request. With `ifPlain`, a value at `path` that is not a string scalar
    * on one line without an anchor (an alias, a block scalar, an anchored scalar that an alias may
    * repeat, a missing path) is left as it is instead of refusing the request, so many such edits
-   * (the stored titles of relation targets, decision on #307) go in one pass.
+   * (the stored titles of relation targets, decision on #307) go in one pass. With `source`, the
+   * scalar's new text is written as given (with its quotes) instead of being quoted from `value`,
+   * which the file must then read as: for a caller that changes only some characters of the
+   * scalar's source (the version in a link, SR-127) and so keeps plain text plain; the check of the
+   * whole frontmatter refuses a `source` that does not read as `value`.
    */
   | {
       readonly kind: "set-scalar";
@@ -49,6 +53,7 @@ export type FrontmatterEdit =
       readonly path: readonly (string | number)[];
       readonly value: string;
       readonly ifPlain?: boolean;
+      readonly source?: string;
     };
 
 /** The edits that work on the state of a whole key. */
@@ -484,7 +489,7 @@ const scalarSplice = (originals: ReadonlyMap<string, Original>, edit: ScalarEdit
     return undefined;
   }
   const [start, end] = rangeOf(node);
-  return { start, end, text: requoted(node, edit.value) };
+  return { start, end, text: edit.source ?? requoted(node, edit.value) };
 };
 
 // --- the writer --------------------------------------------------------------------------------

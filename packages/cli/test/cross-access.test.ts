@@ -5,6 +5,7 @@
 // renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
 // commands join automatically with a default scenario (input `{}`); add explicit scenarios below when a
 // command is implemented.
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -73,6 +74,33 @@ const RELATED: FixtureOptions = { fixture: "SR-023/related", git: true };
 const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
 /** Where SR-0000b1 of HINTS stores its outdated relation and reference, as hint IDs name it (SR-025). */
 const HINT_AT_B1 = `relation.outdated/system/${encodeURIComponent("requirements/SR-0000000000b1.md")}/26a0b000-0000-4000-8000-0000000000b1`;
+
+/**
+ * HINTS with the standard model as shipped, which marks the acceptance criteria and the rationale as
+ * Markdown, and links in acceptance criteria (SR-127, #444): SR-0000b1 holds one to a changed need
+ * next to its relations, SR-0000b8 is only a criterion that references a need.
+ */
+const IN_CRITERIA: FixtureOptions = {
+  ...HINTS,
+  files: {
+    "metamodel/standard-model.yaml": readFileSync(
+      new URL("../../../schemas/examples/metamodel/standard-model.yaml", import.meta.url),
+      "utf8",
+    ),
+    "requirements/SR-0000000000b1.md": readFileSync(
+      new URL("../../../fixtures/SR-026/hints/requirements/SR-0000000000b1.md", import.meta.url),
+      "utf8",
+    ).replace(
+      "then the station shows it.",
+      "then [the need](logreq:26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000) shows it.",
+    ),
+    "requirements/SR-0000000000b8.md":
+      "---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\n" +
+      "acceptance-criteria:\n  - Given a gust, then [the other need](logreq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n",
+  },
+};
+/** Where SR-0000b1 stores the link in its first acceptance criterion, as hint IDs name it (SR-127). */
+const CRITERION_HINT = `${HINT_AT_B1}/@text:acceptance-criteria/26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000&n=1`;
 
 /** One finding of each kind (SR-019), then a second commit that changes one requirement (SR-092). */
 const SECOND_COMMIT: FixtureOptions = { fixture: "SR-019/findings", git: true };
@@ -230,6 +258,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.get": [
+    {
+      name: "an element with a reference in an acceptance criterion: its outdated hint (SR-127 AK3)",
+      fixture: IN_CRITERIA,
+      input: { ref: "SR-0000b1" },
+      expect: "output",
+    },
     { name: "one element by short ID", input: { ref: "SR-e88fb3" }, expect: "output" },
     { name: "one element by a short ID in lower case (#309)", input: { ref: "sr-E88FB3" }, expect: "output" },
     {
@@ -671,6 +705,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "hint.list": [
     {
+      name: "the outdated reference in an acceptance criterion, with its hint ID and line (SR-127 AK3)",
+      fixture: IN_CRITERIA,
+      input: { kind: ["relation.outdated"] },
+      expect: "output",
+    },
+    {
       name: "every open hint with kind, element, target and reason, dates from Git (SR-026 AK1)",
       fixture: HINTS,
       input: {},
@@ -696,6 +736,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
   ],
   "hint.confirm": [
+    {
+      name: "an inline reference in an acceptance criterion, and the same ID spelled again (SR-127 AK3)",
+      fixture: IN_CRITERIA,
+      input: { hintIds: [CRITERION_HINT, CRITERION_HINT] },
+      expect: "output",
+    },
     {
       name: "a relation and an inline reference at once, and IDs that confirm nothing (SR-027 AK1, AK2)",
       fixture: HINTS,
@@ -735,6 +781,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "kind without ref or target (#310)", fixture: HINTS, input: { kind: ["x"] }, expect: "error" },
   ],
   "trace.affected": [
+    {
+      name: "an element that an acceptance criterion references, with the criterion as the link (SR-127 AK3)",
+      fixture: IN_CRITERIA,
+      input: { ref: "N-0000a2" },
+      expect: "output",
+    },
     {
       name: "affected elements of a need, directly and through the chain (SR-024 AK1)",
       fixture: AFFECTED,
@@ -1113,6 +1165,14 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "unknown input field", input: { extra: 1 }, expect: "error" },
+  ],
+  "metamodel.get": [
+    {
+      name: "the metamodel with the properties marked as Markdown (SR-127 AK5)",
+      fixture: IN_CRITERIA,
+      input: {},
+      expect: "output",
+    },
   ],
 };
 

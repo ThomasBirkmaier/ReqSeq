@@ -15,7 +15,7 @@ import type {
   RelationMeaning,
   TypeMeaning,
 } from "./index.js";
-import { assignMeanings, meaningKindProblems } from "./meanings.js";
+import { assignMeanings, markdownProblems, meaningKindProblems } from "./meanings.js";
 import {
   MEANINGS,
   metamodelState,
@@ -384,6 +384,35 @@ describe("built-in meanings", () => {
           "Property c has the meaning identifier, which needs kind text without many (one text per element), not kind date",
         file: "model/properties.yaml",
       },
+    ]);
+  });
+
+  it("[SR-127/AK5] reports markdown on another kind than text and with the meaning title or identifier, with the line of markdown when it is known", () => {
+    const at = (definition: MetamodelProperty, line?: number): Located<MetamodelProperty> => ({
+      definition,
+      file: "model/properties.yaml",
+      lineOf: (path) => (path[0] === "markdown" ? line : undefined),
+    });
+    const problem = (key: string, reason: string, line?: number): Record<string, unknown> => ({
+      code: "metamodel.invalid",
+      severity: "error",
+      message: `Property ${key} is marked markdown, which needs kind text and neither the meaning title nor identifier (titles and identifiers are plain text), not ${reason}`,
+      file: "model/properties.yaml",
+      ...(line === undefined ? {} : { line }),
+    });
+    expect(
+      markdownProblems([
+        at({ key: "a", name: "A", kind: "text", markdown: true }),
+        at({ key: "b", name: "B", kind: "text", many: true, markdown: false }),
+        at({ key: "c", name: "C", kind: "choice", markdown: true }, 7),
+        at({ key: "d", name: "D", kind: "text", meaning: "title", markdown: true }, 9),
+        at({ key: "e", name: "E", kind: "text", meaning: "identifier", markdown: true }),
+        at({ key: "f", name: "F", kind: "text", meaning: "emergent" }),
+      ]),
+    ).toEqual([
+      problem("c", "kind choice", 7),
+      problem("d", "the meaning title", 9),
+      problem("e", "the meaning identifier"),
     ]);
   });
 

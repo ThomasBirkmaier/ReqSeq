@@ -31,7 +31,7 @@ import type {
 import type { EffectiveType, Located } from "./inheritance.js";
 import { resolveTypes } from "./inheritance.js";
 import type { MeaningAssignment } from "./meanings.js";
-import { assignMeanings, meaningKindProblems } from "./meanings.js";
+import { assignMeanings, markdownProblems, meaningKindProblems } from "./meanings.js";
 
 /** Metamodel files end in `.yaml` (metamodel.schema.json). */
 export const METAMODEL_FILE_EXTENSION = ".yaml";
@@ -480,6 +480,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
     ...resolved.problems,
     ...assigned.problems,
     ...meaningKindProblems(properties),
+    ...markdownProblems(properties),
     // A type or the initial status that seems missing may be in a faulty file, which is reported
     // already; so these (like an unknown parent or property in `resolveTypes`) are checked only when
     // every file was read.

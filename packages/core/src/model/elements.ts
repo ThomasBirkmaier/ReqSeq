@@ -1,11 +1,11 @@
 // Which parsed Markdown files are elements (ADR-0004, SR-003 AK2, spec question #145 option 1):
 // those whose frontmatter is a mapping with `id` and `type`. Every other file is not an element; it
 // is never written. A type the metamodel does not know still makes an element (SR-016 AK3).
-import { isMap, isNode, isScalar } from "yaml";
+import { Scalar, isMap, isNode, isScalar } from "yaml";
 import type { Problem } from "../catalog.js";
 import type { FileSnapshot, LineEnding, ParsedFile } from "../files/index.js";
-import type { TextReference } from "./references.js";
-import { textReferences } from "./references.js";
+import type { PropertyReference, TextReference } from "./references.js";
+import { propertyReferences, textReferences } from "./references.js";
 import { isUuid } from "./uuid.js";
 
 /**
@@ -29,6 +29,12 @@ export interface ElementRecord {
    * file; left out when the text has none. The text itself is not kept.
    */
   readonly references?: readonly TextReference[];
+  /**
+   * The inline references in the string values of the frontmatter (SR-127), whatever the key, in
+   * file order; left out when it has none. Whether one counts is up to the metamodel
+   * (`referencesOf`): only properties marked `markdown` hold references.
+   */
+  readonly propertyReferences?: readonly PropertyReference[];
   /** Line endings and byte order mark of the file (ADR-0007). */
   readonly eol: LineEnding;
   readonly closingEol: LineEnding | "";
@@ -91,6 +97,24 @@ export const keyLineOf = (file: ParsedFile, key: string): number | undefined => 
   return file.frontmatter.slice(0, range[0]).split("\n").length + 1;
 };
 
+/** The line of the value at `key` (and list position `item`) and whether it is a block scalar. */
+const placeOf = (
+  file: ParsedFile,
+  key: string,
+  item: number | undefined,
+): { line: number; block: boolean } | undefined => {
+  const path = item === undefined ? [key] : [key, item];
+  const line = lineOf(file, path);
+  if (line === undefined) {
+    return undefined;
+  }
+  const node: unknown = file.document.getIn(path, true);
+  return {
+    line,
+    block: isScalar(node) && (node.type === Scalar.BLOCK_LITERAL || node.type === Scalar.BLOCK_FOLDED),
+  };
+};
+
 const invalid = (repository: string, file: ParsedFile, key: string, message: string): Classified => {
   const line = lineOf(file, [key]);
   return {
@@ -121,6 +145,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
   }
   const { eol, closingEol, bom, snapshot } = file;
   const references = textReferences(file.frontmatter, file.body);
+  const inProperties = propertyReferences(file.frontmatter, data, (key, item) => placeOf(file, key, item));
   return {
     kind: "element",
     element: {
@@ -130,6 +155,7 @@ export const classifyFile = (repository: string, file: ParsedFile): Classified =
       file: file.path,
       data,
       ...(references.length === 0 ? {} : { references }),
+      ...(inProperties.length === 0 ? {} : { propertyReferences: inProperties }),
       eol,
       closingEol,
       bom,

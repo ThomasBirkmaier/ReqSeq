@@ -46,6 +46,7 @@ import {
   incomingTo,
   isOutdatedVersion,
   referenceTargetState,
+  referencesOf,
   relationKeysOf,
   targetState,
 } from "../model/index.js";
@@ -156,7 +157,7 @@ const outgoingOf = (context: NeighbourhoodContext, element: ElementRecord): Expa
     }
   }
   if (context.references) {
-    for (const reference of element.references ?? NONE) {
+    for (const reference of referencesOf(element, context.metamodel)) {
       follow(referenceTargetState(layout, store, element.repository, reference), {
         kind: "reference",
         source: element,

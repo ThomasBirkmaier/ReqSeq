@@ -42,9 +42,10 @@ export const MODEL_CACHE_FILE = "model.json";
 
 /**
  * The format of `model.json`; a cache of another format is discarded. 4: element records carry the
- * inline references of their text (`ElementRecord.references`, #240).
+ * inline references of their text (`ElementRecord.references`, #240). 5: and those in the string
+ * values of their frontmatter (`ElementRecord.propertyReferences`, SR-127).
  */
-export const MODEL_CACHE_FORMAT = 4;
+export const MODEL_CACHE_FORMAT = 5;
 
 /**
  * An entry whose modification time lies less than this before the start of the load that wrote it
@@ -198,8 +199,12 @@ const isSnapshotOf = (value: unknown, file: string): value is Record<string, unk
 
 const isOptionalText = (value: unknown): boolean => value === undefined || typeof value === "string";
 
-/** Whether `value` is a list of inline references as `textReferences` makes it (one or more). */
-const isReferences = (value: unknown): boolean =>
+/**
+ * Whether `value` is a list of inline references as `textReferences` makes it (one or more), or,
+ * with `inProperty`, as `propertyReferences` makes it: each also with the key of its property and,
+ * for a list, its position.
+ */
+const isReferences = (value: unknown, inProperty: boolean): boolean =>
   Array.isArray(value) &&
   value.length > 0 &&
   value.every(
@@ -210,7 +215,12 @@ const isReferences = (value: unknown): boolean =>
       Number.isInteger(r["line"]) &&
       r["line"] >= 1 &&
       isOptionalText(r["version"]) &&
-      isOptionalText(r["repository"]),
+      isOptionalText(r["repository"]) &&
+      (inProperty
+        ? typeof r["key"] === "string" &&
+          (r["item"] === undefined ||
+            (typeof r["item"] === "number" && Number.isInteger(r["item"]) && r["item"] >= 0))
+        : r["key"] === undefined && r["item"] === undefined),
   );
 
 /** Whether `value` is the record of an element in `file` of repository `name`, as `classifyFile` makes it. */
@@ -221,7 +231,8 @@ const isElementOf = (value: unknown, file: string, name: string): value is Recor
   typeof value["id"] === "string" &&
   typeof value["type"] === "string" &&
   isRecord(value["data"]) &&
-  (value["references"] === undefined || isReferences(value["references"])) &&
+  (value["references"] === undefined || isReferences(value["references"], false)) &&
+  (value["propertyReferences"] === undefined || isReferences(value["propertyReferences"], true)) &&
   LINE_ENDINGS.includes(value["eol"]) &&
   (value["closingEol"] === "" || LINE_ENDINGS.includes(value["closingEol"])) &&
   typeof value["bom"] === "boolean";

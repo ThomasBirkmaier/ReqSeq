@@ -36,7 +36,7 @@ import type {
   RelationTarget,
 } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { findType, keyDefinition } from "../metamodel/index.js";
+import { findType, keyDefinition, markdownKeysOf } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
@@ -48,7 +48,7 @@ import { hasId } from "./relation-keys.js";
 import type { ShortIds } from "./short-id.js";
 import type { ElementStore } from "./store.js";
 import type { TargetContext } from "./targets.js";
-import { currentTarget, setRelationTargets } from "./targets.js";
+import { currentTarget, setMarkdownReferences, setRelationTargets } from "./targets.js";
 import { valueFindings } from "./values.js";
 import { titleKeyOf } from "./view.js";
 import type { ElementFileWrite, ReadElement } from "./write.js";
@@ -263,7 +263,15 @@ const addEdits = async (
       ? await Promise.all(
           fresh.map((item) => (hasId(item) ? newTarget(plan, record.repository, item) : item)),
         )
-      : fresh;
+      : markdownKeysOf(plan.context.metamodel).has(key)
+        ? ((await setMarkdownReferences(
+            plan.context,
+            key,
+            record.repository,
+            fresh as ElementInputValue,
+            stored,
+          )) as unknown[])
+        : fresh;
   if (held.length > 0 && !Array.isArray(stored)) {
     // One value where a list belongs: the key becomes the list of it and the new items.
     return [{ kind: "set", key, value: [stored, ...added] as PropertyValue }];
@@ -287,7 +295,9 @@ const editsFor = async (plan: Plan, record: ElementRecord): Promise<FrontmatterE
       const set =
         property.kind === "relation"
           ? await setRelationTargets(plan.context, record.repository, value, stored)
-          : value;
+          : markdownKeysOf(plan.context.metamodel).has(key)
+            ? await setMarkdownReferences(plan.context, key, record.repository, value, stored)
+            : value;
       // Relation targets are plain string records (`toPropertyValue` in write.ts).
       return [{ kind: "set", key, value: set as PropertyValue }];
     }

@@ -102,6 +102,11 @@ export interface GeneratedWorkspace {
   readonly relations: number;
   /** Number of inline references written in the texts (about 2 per element, ADR-0004). */
   readonly references: number;
+  /**
+   * Number of inline references written in acceptance criteria (SR-127, `withCriterionReference`):
+   * one in every tenth system requirement, in addition to `references`.
+   */
+  readonly criterionReferences: number;
   /** Every file: path relative to the root of the tree (`/` as separator) to content, in path order. */
   readonly files: ReadonlyMap<string, string>;
   /** SHA-256 over all paths and contents; equal digests mean equal trees. */
@@ -474,6 +479,38 @@ const withReferences = (draft: Draft, drafts: readonly Draft[], index: number, r
   return count;
 };
 
+/** `items[index]`, which the caller knows exists. */
+const itemAt = <T>(items: readonly T[], index: number): T => items[index] as T;
+
+/** Every this many system requirements, one acceptance criterion holds a reference (SR-127). */
+const CRITERION_EVERY = 10;
+/** The element after which the performance suites change a text: every this many (`outdated-relations`). */
+const CHANGED_EVERY = 100;
+
+/**
+ * Adds one inline reference to the first acceptance criterion of every tenth system requirement
+ * (SR-127), so that the cold load, the cache and the checks measure references in a property that
+ * the metamodel marks `markdown`. The target is an earlier element, chosen without a random draw
+ * (so every other file of a seed stays as it was): by a hash of the position, and for every third
+ * criterion an element the outdated-relations suite changes (every 100th). Returns 1 when added.
+ */
+const withCriterionReference = (draft: Draft, drafts: readonly Draft[], index: number): number => {
+  const criteria = draft.properties["acceptance-criteria"];
+  if (index === 0 || !Array.isArray(criteria) || draft.position % CRITERION_EVERY !== 0) {
+    return 0;
+  }
+  const hashed = Math.floor((((index * 2_654_435_761) % 4_294_967_296) / 4_294_967_296) * index);
+  const at = draft.position % (3 * CRITERION_EVERY) === 0 ? hashed - (hashed % CHANGED_EVERY) : hashed;
+  const target = itemAt(drafts, at);
+  const destination = `logreq:${target.id}?version=${target.version}`;
+  const link =
+    target.repository === draft.repository
+      ? `[${target.title}](${destination})`
+      : `[${target.spec.prefix}-${target.id.slice(-6)}](${destination}&repository=${target.repository})`;
+  criteria[0] = `${String(criteria[0])}, see ${link}`;
+  return 1;
+};
+
 /** Relation keys in file order: relation-valued properties first, then relation kinds. */
 const RELATION_KEYS = ["validity", "packages", "derives-from", "refines", "based-on", "excludes"];
 /** Relation-valued properties count to the version with their target IDs; relation kinds never do (ADR-0005). */
@@ -572,8 +609,10 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
   // that has them, so their versions are set before an element needs them.
   // The inline references of an element point at earlier ones, whose versions are set by then.
   let references = 0;
+  let criterionReferences = 0;
   drafts.forEach((draft, index) => {
     references += withReferences(draft, drafts, index, random);
+    criterionReferences += withCriterionReference(draft, drafts, index);
     draft.version = options.version({
       type: draft.spec.key,
       text: draft.text,
@@ -609,6 +648,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
       0,
     ),
     references,
+    criterionReferences,
     files: sorted,
     digest: hash.digest("hex"),
   };

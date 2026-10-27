@@ -14,6 +14,7 @@ export {
   findType,
   hasWorkingStatus,
   keyDefinition,
+  markdownKeysOf,
   typeForNewElement,
   typeStatuses,
 } from "./lookup.js";

@@ -97,6 +97,26 @@ export const keyDefinition = (metamodel: Metamodel, key: string): KeyDefinition 
   return index.get(key);
 };
 
+const markdownSets = new WeakMap<Metamodel, ReadonlySet<string>>();
+
+/**
+ * The keys of the properties marked `markdown` (SR-127): kind `text`, never the title or an
+ * identifier (a metamodel that marks those is not valid). A key counts in every element that holds
+ * it, as relation keys do. Built once per metamodel object, so the store passes read it without a
+ * lookup per element (N-036). Empty for a metamodel that is not valid: whatever it marks is not
+ * trusted.
+ */
+export const markdownKeysOf = (metamodel: Metamodel): ReadonlySet<string> => {
+  let keys = markdownSets.get(metamodel);
+  if (keys === undefined) {
+    keys = new Set(
+      metamodel.valid ? metamodel.properties.flatMap((p) => (p.markdown === true ? [p.key] : [])) : [],
+    );
+    markdownSets.set(metamodel, keys);
+  }
+  return keys;
+};
+
 /**
  * Whether a list of type keys (`source-types`, `target-types`) allows the type `typeKey`: an
  * absent list allows every type, an empty one none, and a type in the list also allows every type

@@ -31,6 +31,8 @@ file <path>\n<sha256 hex | missing>\n         (paths sorted by code point)
 - Canonical JSON: no whitespace; object keys sorted by code point; strings escaped as `JSON.stringify` does (only `"`, `\`, and control characters, the latter as `\b \f \n \r \t` or lower-case `\u00xx`; every other character as UTF-8, also U+2028); numbers as ECMAScript `Number::toString` (`JSON.stringify`, RFC 8785), e.g. `1`, `0.1`, `1e+21`, and `-0` as `0`. Non-finite numbers (`.inf`, `.nan`) are invalid: computing the version throws.
 - Sorting by code point equals the byte order of UTF-8.
 
+**Markdown properties (SR-127):** the metamodel flag `markdown` does not enter normal form 1: the version reads the values and the `content` flag only, so the same file has the same version with and without the flag. Images in a Markdown property are no embedded images and do not count; only the text embeds images.
+
 **Files (n1):** which images count, and how, is part of normal form 1. The result must be the same on every operating system and file system, so these rules are normative; another tool that reimplements n1 must follow them, also where they differ from CommonMark.
 
 *Markdown subset.* The text is read line by line; a line ends at LF, CRLF or CR. Each line is classified on its own, with only the state below carried over from the lines before it. Where these rules differ from CommonMark, they win.

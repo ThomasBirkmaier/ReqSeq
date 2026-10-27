@@ -682,6 +682,33 @@ describe("set-scalar: one scalar replaced in place (SR-027 AK1, SR-102 AK1)", ()
     );
   });
 
+  it("writes the source text it is given, so that plain text stays plain, and refuses one that does not read as the value (SR-127)", () => {
+    const text = `---\na:\n  - Given x, when [y](logreq:u?version=${OLD}), then z.\n  - 'q ${OLD}'\n---\n`;
+    const source = (path: number, value: string, text: string): FrontmatterEdit => ({
+      kind: "set-scalar",
+      key: "a",
+      path: [path],
+      value,
+      source: text,
+    });
+    // `requoted` would quote the first: a plain scalar in a flow collection may hold no comma.
+    expect(
+      edit(text, {
+        edits: [
+          source(
+            0,
+            `Given x, when [y](logreq:u?version=${NEW}), then z.`,
+            `Given x, when [y](logreq:u?version=${NEW}), then z.`,
+          ),
+          source(1, `q ${NEW}`, `'q ${NEW}'`),
+        ],
+      }),
+    ).toBe(text.replaceAll(OLD, NEW));
+    expect(errorOf(() => edit(text, { edits: [source(1, "other", `'q ${NEW}'`)] }))).toMatchObject({
+      code: "internal",
+    });
+  });
+
   it("changes nothing when the scalar holds the value already", () => {
     const text = `---\na: { v: ${OLD} }\n---\n`;
     const result = editElementFile(fileOf(text), { edits: [scalar("a", ["v"], OLD)] });

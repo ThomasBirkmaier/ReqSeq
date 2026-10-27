@@ -6,7 +6,7 @@
 // relation target and an inline reference also name the target's repository (D-058). Used by
 // `element.create` and `element.update`; `relation.add`, `element.supersede` and cross-repository
 // relations (SR-005) build on `currentTarget`.
-import { CommandError } from "../catalog.js";
+import { CommandError, commandErrorOrThrow } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
 import type { ElementInputValue, ElementValue, RelationTarget } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -328,4 +328,41 @@ export const setInlineReferences = async (
   }
   parts.push(text.slice(last));
   return parts.join("");
+};
+
+/** The values of a property as text: a string, or the strings of a list, joined by line breaks. */
+const textOf = (value: unknown): string =>
+  (Array.isArray(value) ? (value as unknown[]) : [value]).filter((v) => typeof v === "string").join("\n");
+
+/**
+ * The value of a property marked `markdown` as it is stored (SR-127): every string of it, or of its
+ * list, as `setInlineReferences` stores the text, compared with all the strings the property holds
+ * now in `stored`, so a reference kept as written stays and a new one gets the version of its
+ * target. Other items are kept as given. A target that cannot be stored (`ref.unknown`,
+ * `ref.ambiguous`) refuses the write, with the `key` of the property in the message and in the
+ * details of the error.
+ */
+export const setMarkdownReferences = async (
+  context: TargetContext,
+  key: string,
+  sourceRepository: string,
+  given: ElementInputValue,
+  stored: unknown,
+): Promise<ElementValue> => {
+  const storedText = textOf(stored);
+  const set = async (item: unknown): Promise<unknown> =>
+    typeof item === "string" && item.includes(SCHEME)
+      ? await setInlineReferences(context, item, storedText, sourceRepository)
+      : item;
+  try {
+    return (
+      Array.isArray(given) ? await Promise.all((given as unknown[]).map(set)) : await set(given)
+    ) as ElementValue;
+  } catch (error) {
+    const failed = commandErrorOrThrow(error);
+    throw new CommandError(failed.code, `${failed.message} (in the property ${key})`, {
+      ...failed.details,
+      key,
+    });
+  }
 };

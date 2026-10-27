@@ -9,7 +9,11 @@
 // - an inline reference in the text (SR-066):
 //   `relation.outdated/<repository>/<file>/<source>/@text/<target>?version=<stored>`, `&repository=<name>`
 //   when the link names one, and `&n=<k>`: the link is the k-th (from 1) in the text with the same
-//   target, repository and stored version. `@text` is no metamodel key (keys start with a letter).
+//   target, repository and stored version. `@text` is no metamodel key (keys start with a letter);
+// - an inline reference in a value of a property marked `markdown` (SR-127):
+//   `relation.outdated/<repository>/<file>/<source>/@text:<key>/<target>?version=<stored>`, with the
+//   same parameters; `n` counts over all values of that property (a list is one text). The key is
+//   behind a colon, as a key can be `text`, so `@<key>` would clash with `@text`.
 //
 // `<repository>` and `<file>` are the workspace name of the source's repository and the source
 // file relative to it, so that two files that share a UUID (SR-088) have different IDs. They and a
@@ -29,6 +33,9 @@ export const OUTDATED_CODE = "relation.outdated";
 
 /** The segment that names the text of the source instead of a key. */
 export const TEXT_SEGMENT = "@text";
+
+/** The start of the segment that names a Markdown property: `@text:<key>`. */
+export const PROPERTY_SEGMENT = "@text:";
 
 /** Where the relation is stored: the source element and its file. */
 interface SourcePlace {
@@ -59,6 +66,8 @@ export type HintTarget =
       readonly repository?: string;
       /** The place of the link among the links of the text with the same target, repository and version, from 1. */
       readonly occurrence: number;
+      /** The key of the property marked `markdown` that holds the link; undefined for the text. */
+      readonly property?: string;
     });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -68,7 +77,12 @@ const PARAMETERS = new Set(["version", "repository", "n"]);
 
 /** The hint ID of `target` (format above). */
 export const hintIdOf = (target: HintTarget): string => {
-  const place = target.kind === "relation" ? target.key : TEXT_SEGMENT;
+  const place =
+    target.kind === "relation"
+      ? target.key
+      : target.property === undefined
+        ? TEXT_SEGMENT
+        : `${PROPERTY_SEGMENT}${target.property}`;
   const repository =
     target.repository === undefined ? "" : `&repository=${encodeURIComponent(target.repository)}`;
   const occurrence = target.kind === "reference" ? `&n=${String(target.occurrence)}` : "";
@@ -129,6 +143,15 @@ const placeOf = (
     : undefined;
 };
 
+/** The property a place names (`@text:<key>`, none for `@text`), or undefined when `place` is no place of a reference. */
+const referencePlace = (place: string): { readonly property?: string } | undefined => {
+  if (place === TEXT_SEGMENT) {
+    return {};
+  }
+  const property = place.startsWith(PROPERTY_SEGMENT) ? place.slice(PROPERTY_SEGMENT.length) : "";
+  return KEY.test(property) ? { property } : undefined;
+};
+
 /**
  * What the hint ID `id` names, or undefined when `id` is not a hint ID of this format. Only the
  * form is checked: whether the source still has that relation with that stored version, and
@@ -148,9 +171,10 @@ export const parseHintId = (id: string): HintTarget | undefined => {
     return undefined;
   }
   const target = repository === undefined ? {} : { repository };
-  if (place === TEXT_SEGMENT) {
+  const reference = referencePlace(place);
+  if (reference !== undefined) {
     return typeof occurrence === "string" && OCCURRENCE.test(occurrence)
-      ? { kind: "reference", ...where, ...target, version, occurrence: Number(occurrence) }
+      ? { kind: "reference", ...where, ...target, version, occurrence: Number(occurrence), ...reference }
       : undefined;
   }
   return KEY.test(place) && occurrence === undefined

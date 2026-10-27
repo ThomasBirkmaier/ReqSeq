@@ -10,6 +10,7 @@ import {
   allowsType,
   findType,
   keyDefinition,
+  markdownKeysOf,
   metamodelState,
   typeForNewElement,
   workspaceAccess,
@@ -161,5 +162,22 @@ describe("keyDefinition", () => {
     expect(keyDefinition(metamodel, "customer-id")).toBeUndefined();
     const both: Metamodel = { ...metamodel, properties: [...base.properties, property] };
     expect(keyDefinition(both, "derives-from")).toEqual({ kind: "property", definition: property });
+  });
+});
+
+describe("markdownKeysOf", () => {
+  it("[SR-127/AK5] gives the keys of the properties marked markdown once per metamodel, and none for a metamodel that is not valid", async () => {
+    const base = await open((await fixture()).root).get(metamodelState);
+    const marked: Metamodel = {
+      ...base,
+      properties: [
+        ...base.properties,
+        { key: "notes", name: "Notes", kind: "text", markdown: true },
+        { key: "plain", name: "Plain", kind: "text", markdown: false },
+      ],
+    };
+    expect(markdownKeysOf(marked)).toEqual(new Set(["notes"]));
+    expect(markdownKeysOf(marked)).toBe(markdownKeysOf(marked));
+    expect(markdownKeysOf({ ...marked, valid: false })).toEqual(new Set());
   });
 });
