@@ -120,13 +120,25 @@ const neighbourhood = (input: Record<string, unknown>) => {
   };
 };
 
-const bridge = (): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } => {
+/** `trace.graph` in the catalog as the bridge lists it: the part the relation kind prompts read. */
+const GRAPH_LISTING = {
+  name: "trace.graph",
+  input: {
+    type: "object",
+    properties: { meanings: { type: "array", items: { enum: ["derivation", "reference"] } } },
+  },
+};
+
+const bridge = (
+  commands: readonly unknown[] = [],
+): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } => {
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     "workspace.status": () => ({ name: "Weather station", readOnly: false }),
     "metamodel.get": () => ({
+      relations: [{ key: "based-on", name: "Based on" }],
       types: [{ key: "need", name: "Need", properties: [] }],
       statuses: [],
-      properties: [],
+      properties: [{ key: "packages", name: "Package", kind: "relation" }],
       meanings: {},
     }),
     "element.facets": () => ({ total: 3, types: [], statuses: [], properties: [], incomplete: false }),
@@ -165,7 +177,7 @@ const bridge = (): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } =>
     invoke,
     bridge: {
       invoke,
-      commands: () => Promise.resolve([]),
+      commands: () => Promise.resolve(commands as never),
       copyText: () => Promise.resolve(true),
       recentWorkspaces: () => Promise.resolve([]),
       openWorkspace: () => Promise.resolve({ ok: true }),
@@ -174,8 +186,8 @@ const bridge = (): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } =>
   };
 };
 
-const open = async (): Promise<ReturnType<typeof bridge>> => {
-  const fake = bridge();
+const open = async (commands: readonly unknown[] = []): Promise<ReturnType<typeof bridge>> => {
+  const fake = bridge(commands);
   await act(async () => {
     root.render(createElement(App, { bridge: fake.bridge }));
     await Promise.resolve();
@@ -255,5 +267,53 @@ describe("the graph in the app", () => {
     expect(query('[aria-label="Modeline"]').textContent).toContain("3 nodes");
     await keyDown(window, "G", true, true);
     expect(query("article h1").textContent).toBe("See the wind");
+  });
+
+  it("[SR-111/AK3] shows only a relation kind, and also another one, by their names from the catalog and the metamodel", async () => {
+    const fake = await open([GRAPH_LISTING]);
+    await keyDown(window, "p", true);
+    await type("N-001");
+    await keyDown(query("input"), "Enter");
+    await keyDown(window, "G", true, true);
+    const command = async (title: string, entry: string): Promise<string[]> => {
+      await keyDown(window, "P", true, true);
+      await type(title);
+      await keyDown(query("input"), "Enter");
+      const entries = [...container.querySelectorAll('.candidates [role="option"]')].map(
+        (option) => option.textContent,
+      );
+      await type(entry);
+      await keyDown(query("input"), "Enter");
+      return entries;
+    };
+    expect(await command("show only relation kind", "derivations")).toEqual([
+      "Everything",
+      "Derivations",
+      "Inline references",
+      "Based onbased-on",
+      "Packagepackages",
+    ]);
+    expect(fake.invoke).toHaveBeenLastCalledWith("trace.graph", {
+      ref: "uuid-1",
+      repository: "spec",
+      maxDepth: 1,
+      meanings: ["derivation"],
+      limit: 500,
+    });
+    expect(query('[aria-label="Modeline"]').textContent).toContain("only Derivations");
+    expect(await command("also show relation kind", "based on")).toEqual([
+      "Inline references",
+      "Based onbased-on",
+      "Packagepackages",
+    ]);
+    expect(fake.invoke).toHaveBeenLastCalledWith("trace.graph", {
+      ref: "uuid-1",
+      repository: "spec",
+      maxDepth: 1,
+      kinds: ["based-on"],
+      meanings: ["derivation"],
+      limit: 500,
+    });
+    expect(query('[aria-label="Modeline"]').textContent).toContain("only Derivations, Based on");
   });
 });

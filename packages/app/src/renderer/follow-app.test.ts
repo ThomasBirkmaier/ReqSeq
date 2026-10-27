@@ -54,6 +54,7 @@ const workspace = (): Record<string, Handler> => ({
   "metamodel.get": () => ({
     types: [{ key: "need", name: "Need", properties: [] }],
     properties: [],
+    relations: [],
     statuses: [{ key: "draft" }],
     meanings: {},
   }),

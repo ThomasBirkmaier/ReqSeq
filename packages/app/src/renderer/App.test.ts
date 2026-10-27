@@ -107,6 +107,7 @@ const workspace = (): Record<string, Handler> => ({
     incomplete: false,
   }),
   "metamodel.get": () => ({
+    relations: [],
     types: [{ key: "need", name: "Need", properties: [] }],
     properties: [],
     statuses: [{ key: "draft" }],
@@ -1385,6 +1386,7 @@ describe("App, the text editor", () => {
   it("[SR-104/AK2] [SR-104/AK3] Ctrl+Alt+A adds a property by the minibuffer, the choice prompt has only the choices, and Ctrl+S saves it", async () => {
     const handlers = withText();
     handlers["metamodel.get"] = () => ({
+      relations: [],
       types: [{ key: "need", name: "Need", properties: ["title", "method", "topic"] }],
       properties: [
         { key: "title", name: "Title", kind: "text", meaning: "title" },
@@ -1437,6 +1439,7 @@ describe("App, the text editor", () => {
   it("[SR-104/AK4] Clear property is in the command prompt for an element and empties the box the cursor was in", async () => {
     const handlers = withText();
     handlers["metamodel.get"] = () => ({
+      relations: [],
       types: [{ key: "need", name: "Need", properties: ["method"] }],
       properties: [
         { key: "method", name: "Method", kind: "choice", choices: [{ key: "test", name: "Test" }] },
@@ -1676,6 +1679,7 @@ describe("App, the package page (SR-112)", () => {
     const handlers = workspace();
     const members = [row(2), row(3), row(4)];
     handlers["metamodel.get"] = () => ({
+      relations: [],
       types: [
         { key: "need", name: "Need", properties: [] },
         { key: "package", name: "Package", meaning: "package", properties: [] },

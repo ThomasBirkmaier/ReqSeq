@@ -3,6 +3,7 @@
 // only adds the size limit and the words for the marks. No React here.
 import type { TraceGraphInput, TraceGraphOutput } from "@logreq/core";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
+import type { GraphFilterChoice } from "./graph-choices.js";
 
 /** The most nodes a graph asks for: the size SR-111 AK6 lays out within a second. */
 export const GRAPH_LIMIT = 500;
@@ -43,12 +44,27 @@ export const shallower = (depth: GraphDepth): GraphDepth =>
 export const depthLabel = (depth: GraphDepth): string =>
   depth === "all" ? "whole chain" : `${String(depth)} level${depth === 1 ? "" : "s"}`;
 
-/** "only derivation, based-on" when the buffer follows some kinds only; nothing for every kind (D-062). */
-export const filterLabel = (buffer: GraphBuffer): string | undefined => {
+/**
+ * "only Derivations, Based on" when the buffer follows some kinds only, each by the name of its entry in
+ * the relation kind prompts (`graph-choices.ts`; the meanings first, then the kinds), a key that no entry
+ * names as it is; nothing for every kind (D-062).
+ */
+export const filterLabel = (
+  buffer: GraphBuffer,
+  choices: readonly GraphFilterChoice[] = [],
+): string | undefined => {
   if (buffer.kinds === undefined && buffer.meanings === undefined) {
     return undefined;
   }
-  const followed = [...(buffer.meanings ?? []), ...(buffer.kinds ?? [])];
+  const named = (field: "kinds" | "meanings", key: string): string =>
+    choices.find((choice) => {
+      const keys: readonly string[] | undefined = choice.filter[field];
+      return keys?.length === 1 && keys[0] === key;
+    })?.name ?? key;
+  const followed = [
+    ...(buffer.meanings ?? []).map((meaning) => named("meanings", meaning)),
+    ...(buffer.kinds ?? []).map((kind) => named("kinds", kind)),
+  ];
   return followed.length === 0 ? "nothing followed" : `only ${followed.join(", ")}`;
 };
 

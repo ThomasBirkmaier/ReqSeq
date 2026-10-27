@@ -47,6 +47,7 @@ const HANDLERS: Record<string, Handler> = {
     incomplete: false,
   }),
   "metamodel.get": () => ({
+    relations: [],
     types: [{ key: "need", name: "Need", properties: [] }],
     properties: [],
     statuses: [{ key: "draft" }],

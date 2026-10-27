@@ -3,6 +3,7 @@
 // element. Nothing else is permanently visible (SR-100). Every datum comes from a catalog command through
 // the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import type { MetamodelGetOutput } from "@logreq/core";
 import type { CommandListing, WorkspaceChangeReason } from "../shared/protocol.js";
 import type { LogReqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
@@ -24,6 +25,8 @@ import { callOn } from "./call.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
+import type { GraphFilterChoice } from "./graph-choices.js";
+import { graphFilterChoices, graphMeanings } from "./graph-choices.js";
 import { GraphView } from "./GraphView.js";
 import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
@@ -54,6 +57,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
   stopped: STOPPED,
 };
 
+/** No relation kinds or properties: the metamodel is not read (yet). */
+const NO_RELATIONS: Pick<MetamodelGetOutput, "relations" | "properties"> = { relations: [], properties: [] };
+
 /** The app's local storage, where the recent elements are kept (SR-118 AK5); read when needed, it may throw. */
 const appStorage = (): RecentStorage => window.localStorage;
 
@@ -80,6 +86,7 @@ const modelineParts = (
   loaded: { readonly key: string; readonly data: BufferData | undefined } | undefined,
   drafts: ReadonlyMap<string, Draft>,
   typeNames: ReadonlyMap<string, string>,
+  graphChoices: readonly GraphFilterChoice[],
 ): string[] => {
   if (current === undefined) {
     return [];
@@ -89,6 +96,7 @@ const modelineParts = (
     current,
     data?.kind === "element" && drafts.has(current.key) ? { ...data, modified: true } : data,
     typeNames,
+    graphChoices,
   );
 };
 
@@ -159,6 +167,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const [packages, setPackages] = useState<PackageModel | undefined>(undefined);
   // The properties of each type: which boxes are edited in place (SR-104) and which show Markdown (SR-127).
   const [properties, setProperties] = useState<PropertyModel>(new Map());
+  // The relation kinds and properties of the metamodel, and the meanings `trace.graph` takes (from the
+  // catalog): the entries of a graph's relation kind prompts and the names of its modeline (SR-111 AK3).
+  const [relationModel, setRelationModel] = useState(NO_RELATIONS);
+  const [meanings, setMeanings] = useState<readonly string[]>([]);
+  const graphChoices = useMemo(() => graphFilterChoices(meanings, relationModel), [meanings, relationModel]);
   const [elementControls, setElementControls] = useState<ElementControls | undefined>(undefined);
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
@@ -185,6 +198,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         );
         setPackages(metamodel.ok ? packageModel(metamodel.output) : undefined);
         setProperties(metamodel.ok ? propertyModel(metamodel.output) : new Map());
+        setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
       }
     };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
@@ -218,6 +232,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         setTypeNames(new Map());
         setPackages(undefined);
         setProperties(new Map());
+        setRelationModel(NO_RELATIONS);
       }
     };
     void refresh(undefined);
@@ -311,6 +326,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       onDraft(key, undefined);
     },
     drafted: (key) => drafts.current.has(key),
+    graphChoices,
     follow: follow.controls,
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
     workspaces: {
@@ -334,6 +350,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       bridge.commands().then(
         (commands) => {
           catalog.current = commands;
+          setMeanings(graphMeanings(commands));
         },
         (error: unknown) => {
           // Without the catalog the command prompt has the app's actions only; say why.
@@ -441,7 +458,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     dispatch({ type: "open", buffer });
   };
 
-  const parts = modelineParts(current, loaded, drafts.current, typeNames);
+  const parts = modelineParts(current, loaded, drafts.current, typeNames, graphChoices);
   return (
     <div className="shell">
       <TitleBar shown={context.mac} title={windowTitle(view)} />

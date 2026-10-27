@@ -11,6 +11,8 @@ import {
   overviewBuffer,
   reduceBuffers,
 } from "./buffers.js";
+import { EVERYTHING } from "./graph-choices.js";
+import type { GraphFilterChoice } from "./graph-choices.js";
 import { matches } from "./keys.js";
 import { INCOMPLETE, bufferView } from "./modeline.js";
 
@@ -111,7 +113,123 @@ describe("Show graph and Show element", () => {
   });
 });
 
+/** The entries of the relation kind prompts as the app builds them from the catalog and the metamodel. */
+const CHOICES: readonly GraphFilterChoice[] = [
+  EVERYTHING,
+  { name: "Derivations", filter: { meanings: ["derivation"] } },
+  { name: "Inline references", filter: { meanings: ["reference"] } },
+  { name: "Based on", hint: "based-on", filter: { kinds: ["based-on"] } },
+];
+
+/** Runs the action on the shown buffers; gives what it asked, said and opened. */
+const ran = (id: string, buffers: Buffers, choices?: readonly GraphFilterChoice[]) => {
+  const { full, dispatched } = context(buffers);
+  const shown = { ...full, ...(choices === undefined ? {} : { graphChoices: choices }) };
+  runAction(action(id), shown);
+  const asked = vi.mocked(shown.ask).mock.calls.map(([prompt]) => prompt);
+  return { asked, echoed: vi.mocked(shown.echo).mock.calls.map(([message]) => message), dispatched };
+};
+
+describe("the depth and relation kind prompts of a graph", () => {
+  it("offers Graph depth and the relation kind prompts on a graph only", () => {
+    const titles = ["Graph depth", "Show only relation kind", "Also show relation kind"];
+    // Also show only while the graph follows some kinds only.
+    expect(names([graph]).filter((name) => titles.includes(name))).toEqual(titles.slice(0, 2));
+    expect(names([{ ...graph, kinds: ["based-on"] }]).filter((name) => titles.includes(name))).toEqual(
+      titles,
+    );
+    expect(names([{ ...graph, meanings: [] }]).filter((name) => titles.includes(name))).toEqual(titles);
+    for (const buffers of [
+      [element],
+      [neighbourhood],
+      [listBuffer("All elements")],
+      [overviewBuffer()],
+      [],
+    ] as Buffers[]) {
+      expect(names(buffers).filter((name) => titles.includes(name))).toEqual([]);
+    }
+    // No shortcut of their own: Graph depth names `+` and `-`, which do the same on the graph.
+    const hints = commandPrompt(context([graph]).full).items.filter((item) => titles.includes(item.name));
+    expect(hints.map((item) => item.hint)).toEqual(["+ / -", undefined]);
+    expect(ACTIONS.filter((candidate) => titles.includes(candidate.title)).map((a) => a.shortcut)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+
+    // Graph depth: the depths, the current one with the keys; taking one opens the graph at that depth.
+    const depth = ran("graph-depth", [{ ...graph, depth: 2 }]);
+    expect(depth.asked.map((prompt) => prompt.label)).toEqual(["Graph depth"]);
+    const depths = depth.asked[0]?.items ?? [];
+    expect(depths.map((item) => [item.name, item.hint])).toEqual([
+      ["Direct neighbours", undefined],
+      ["2 levels", "+ / -"],
+      ...[3, 4, 5, 6, 7, 8, 9].map((n) => [`${String(n)} levels`, undefined]),
+      ["Whole chain", undefined],
+    ]);
+    depths.at(-1)?.run();
+    expect(depth.dispatched).toEqual([{ type: "open", buffer: { ...graph, depth: "all" } }]);
+
+    // Show only: the entries by name, the key as hint; taking one replaces the filter.
+    const only = ran("graph-only", [{ ...graph, kinds: ["based-on"] }], CHOICES);
+    expect(only.asked.map((prompt) => prompt.label)).toEqual(["Show only"]);
+    const kinds = only.asked[0]?.items ?? [];
+    expect(kinds.map((item) => [item.name, item.hint])).toEqual([
+      ["Everything", undefined],
+      ["Derivations", undefined],
+      ["Inline references", undefined],
+      ["Based on", "based-on"],
+    ]);
+    kinds[1]?.run();
+    expect(only.dispatched).toEqual([{ type: "open", buffer: { ...graph, meanings: ["derivation"] } }]);
+    // Without the entries of the catalog and the metamodel, only "Everything".
+    const plain = ran("graph-only", [graph]);
+    expect(plain.asked[0]?.items.map((item) => item.name)).toEqual(["Everything"]);
+
+    // Also show: the entries the filter lacks; taking one adds it.
+    const also = ran("graph-also", [{ ...graph, meanings: ["derivation"] }], CHOICES);
+    expect(also.asked.map((prompt) => prompt.label)).toEqual(["Also show"]);
+    const more = also.asked[0]?.items ?? [];
+    expect(more.map((item) => item.name)).toEqual(["Inline references", "Based on"]);
+    more[1]?.run();
+    expect(also.dispatched).toEqual([
+      { type: "open", buffer: { ...graph, meanings: ["derivation"], kinds: ["based-on"] } },
+    ]);
+    // Everything added already: it says so and asks nothing.
+    const full = ran(
+      "graph-also",
+      [{ ...graph, meanings: ["derivation", "reference"], kinds: ["based-on"] }],
+      CHOICES,
+    );
+    expect(full.asked).toEqual([]);
+    expect(full.echoed).toEqual(["Every relation kind is shown already."]);
+
+    // On another buffer they do nothing.
+    for (const id of ["graph-depth", "graph-only", "graph-also"]) {
+      const other = ran(id, [element], CHOICES);
+      expect([other.asked, other.echoed, other.dispatched]).toEqual([[], [], []]);
+    }
+  });
+});
+
 describe("the modeline of a graph", () => {
+  it("names the filter in the modeline by the names of the prompt, and nothing without a filter", () => {
+    const data = { kind: "graph", nodes: 4, truncated: false, incomplete: false } as const;
+    expect(bufferView(graph, data, new Map(), CHOICES)).toEqual([
+      "Graph: SR-001 Show wind speed",
+      "1 level",
+      "4 nodes",
+    ]);
+    expect(
+      bufferView({ ...graph, meanings: ["derivation"], kinds: ["based-on"] }, data, new Map(), CHOICES),
+    ).toEqual(["Graph: SR-001 Show wind speed", "1 level", "only Derivations, Based on", "4 nodes"]);
+    // A key no entry names is shown as it is; an empty filter follows nothing.
+    expect(bufferView({ ...graph, kinds: ["packages"] }, data, new Map(), CHOICES)).toContain(
+      "only packages",
+    );
+    expect(bufferView({ ...graph, kinds: [] }, data, new Map(), CHOICES)).toContain("nothing followed");
+  });
+
   it("shows its name, depth, the kinds followed when chosen, the nodes, and when more exist or a repository is missing", () => {
     expect(bufferView(graph, undefined)).toEqual(["Graph: SR-001 Show wind speed"]);
     expect(bufferView(graph, { kind: "graph", nodes: 1, truncated: false, incomplete: false })).toEqual([

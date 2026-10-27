@@ -80,6 +80,7 @@ const fake = () => {
   const handlers: Record<string, Handler> = {
     "workspace.status": () => ({ name: "Weather station", readOnly: false }),
     "metamodel.get": () => ({
+      relations: [],
       types: [
         { key: "need", name: "Need", properties: ["title", "topic", "rationale"] },
         { key: "requirement", name: "Requirement", properties: [] },

@@ -5,6 +5,7 @@ import type { InvokeResult } from "../shared/protocol.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
 import { depthLabel, filterLabel } from "./graph.js";
+import type { GraphFilterChoice } from "./graph-choices.js";
 
 /** The part of the `workspace.status` output the modeline shows. */
 interface StatusOutput {
@@ -115,11 +116,16 @@ const elementParts = (
 };
 
 /**
- * The parts for a graph (SR-111): its name, the depth, the kinds followed (only when some are chosen),
- * the number of nodes, "more not shown" when `trace.graph` left some out, and "incomplete".
+ * The parts for a graph (SR-111): its name, the depth, the kinds followed (only when some are chosen, by
+ * the names of the relation kind prompts), the number of nodes, "more not shown" when `trace.graph` left
+ * some out, and "incomplete".
  */
-const graphParts = (buffer: GraphBuffer, data: Extract<BufferData, { readonly kind: "graph" }>): string[] => {
-  const filter = filterLabel(buffer);
+const graphParts = (
+  buffer: GraphBuffer,
+  data: Extract<BufferData, { readonly kind: "graph" }>,
+  choices: readonly GraphFilterChoice[],
+): string[] => {
+  const filter = filterLabel(buffer, choices);
   return [
     bufferName(buffer),
     depthLabel(buffer.depth),
@@ -134,12 +140,13 @@ const graphParts = (buffer: GraphBuffer, data: Extract<BufferData, { readonly ki
  * The parts of the modeline for the shown buffer, left of the workspace; each only when it says
  * something. Values are the output's as they are: nothing is computed about a status. An element is
  * named by its ID, its type by its name in the metamodel (else by its key) and its status, in one part
- * (SR-114 AK1).
+ * (SR-114 AK1). A graph names the kinds it follows as the entries of its relation kind prompts do.
  */
 export const bufferView = (
   buffer: Buffer,
   data: BufferData | undefined,
   typeNames: ReadonlyMap<string, string> = new Map(),
+  graphChoices: readonly GraphFilterChoice[] = [],
 ): string[] => {
   if (data === undefined) {
     return [bufferName(buffer)];
@@ -155,7 +162,7 @@ export const bufferView = (
   }
   if (data.kind === "graph") {
     // Data of a graph belongs to a graph buffer; anything else is named only.
-    return buffer.kind === "graph" ? graphParts(buffer, data) : [bufferName(buffer)];
+    return buffer.kind === "graph" ? graphParts(buffer, data, graphChoices) : [bufferName(buffer)];
   }
   return [
     bufferName(buffer),

@@ -4,7 +4,8 @@
 // the view opened on it (AK1); the title, type and marks of every node, never cut, also on the long IDs
 // and types of `spec/` (AK4), the keys and Enter (AK5), and `+` and `-` (AK2). What the window shows is
 // compared with `logreq trace graph` for the same input (SR-080). Keys use ControlOrMeta, so the same
-// tests run on Linux and macOS.
+// tests run on Linux and macOS. The depth and the relation kinds are chosen in the command prompt
+// ("Graph depth", "Show only relation kind", "Also show relation kind"), by keys only (AK2, AK3).
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
@@ -37,6 +38,9 @@ interface GraphOutput {
     readonly sourceRepository: string;
     readonly target: string;
     readonly targetRepository: string;
+    readonly link: string;
+    readonly kind?: string;
+    readonly meaning?: string;
   }[];
 }
 
@@ -508,6 +512,106 @@ test.describe("the graph on the specification workspace", () => {
       expect(await window.locator(".graph-id", { hasText: "SR-111 · System Requirement" }).count()).toBe(1);
     } finally {
       await running.close();
+    }
+  });
+});
+
+test.describe("the depth and relation kinds of a graph on a fixture workspace", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp({ fixture: "SR-111/graph" });
+    // Until the workspace is loaded, within the test's own bound: on a loaded runner the start can take
+    // longer than expect's 5 s (#555 review N2); it is not part of a timed span.
+    await expect(running.window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  /** The boxes and the drawn pairs (`<source> > <target>`, by node key), sorted, as the window shows them. */
+  const drawn = (window: Page): Promise<{ nodes: string[]; pairs: string[] }> =>
+    window.evaluate(() => ({
+      nodes: [...document.querySelectorAll<HTMLElement>(".graph-node")]
+        .map((node) => node.dataset["node"] ?? "")
+        .sort(),
+      pairs: [...document.querySelectorAll<SVGPathElement>("path.graph-edge")]
+        .map((path) => `${path.dataset["source"] ?? ""} > ${path.dataset["target"] ?? ""}`)
+        .sort(),
+    }));
+
+  /** The same of the CLI's output: one drawn pair per ordered pair of nodes that a link joins. */
+  const expected = (output: GraphOutput): { nodes: string[]; pairs: string[] } => ({
+    nodes: output.nodes.map((node) => key(node.repository, node.id)).sort(),
+    pairs: [
+      ...new Set(
+        output.edges.map(
+          (edge) => `${key(edge.sourceRepository, edge.source)} > ${key(edge.targetRepository, edge.target)}`,
+        ),
+      ),
+    ].sort(),
+  });
+
+  /** Runs `title` from the command prompt and takes `entry` in the prompt it opens, by keys only (SR-073). */
+  const choose = async (window: Page, title: string, entry: string): Promise<void> => {
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type(title);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
+    await window.keyboard.press("Enter");
+    await window.keyboard.type(entry);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(entry);
+    await window.keyboard.press("Enter");
+  };
+
+  /** The window shows the graph the CLI gives for `input` on S1, and the modeline says `says`. */
+  const shows = async (input: Record<string, unknown>, says: string): Promise<GraphOutput> => {
+    const output = await traced(running, { ref: ID.S1, ...input });
+    await expect.poll(() => drawn(running.window)).toEqual(expected(output));
+    await expect(running.window.getByLabel("Modeline")).toContainText(says);
+    await expect(running.window.locator(".graph")).toBeFocused();
+    return output;
+  };
+
+  test("[SR-111/AK2] Graph depth shows the direct neighbours, a chosen number of levels or the whole chain, as the CLI gives them", async () => {
+    const { window } = running;
+    await openElement(window, "SR-b0000000001", "Show wind speed");
+    const one = await traced(running, { ref: ID.S1, maxDepth: 1 });
+    await showGraph(window, one.nodes.length);
+    await choose(window, "Graph depth", "2 levels");
+    const two = await shows({ maxDepth: 2 }, "2 levels");
+    await choose(window, "Graph depth", "Whole chain");
+    const all = await shows({ allLevels: true }, "whole chain");
+    await choose(window, "Graph depth", "Direct neighbours");
+    await shows({ maxDepth: 1 }, "1 level");
+    // The fixture tells the three apart: each depth reaches more nodes.
+    expect(one.nodes.length).toBeLessThan(two.nodes.length);
+    expect(two.nodes.length).toBeLessThan(all.nodes.length);
+  });
+
+  test("[SR-111/AK3] Show only and Also show relation kind draw only those links, as the CLI gives them", async () => {
+    const { window } = running;
+    await openElement(window, "SR-b0000000001", "Show wind speed");
+    const everything = await traced(running, { ref: ID.S1, maxDepth: 1 });
+    await showGraph(window, everything.nodes.length);
+    await choose(window, "Show only relation kind", "Derivations");
+    const derivations = await shows({ meanings: ["derivation"] }, "only Derivations");
+    expect(derivations.edges.every((edge) => edge.meaning === "derivation")).toBe(true);
+    await choose(window, "Also show relation kind", "Based on");
+    const based = await shows(
+      { meanings: ["derivation"], kinds: ["based-on"] },
+      "only Derivations, Based on",
+    );
+    expect(based.edges.some((edge) => edge.kind === "based-on")).toBe(true);
+    expect(based.edges.every((edge) => edge.meaning === "derivation" || edge.kind === "based-on")).toBe(true);
+    await choose(window, "Show only relation kind", "Inline references");
+    const references = await shows({ meanings: ["reference"] }, "only Inline references");
+    expect(references.edges.length).toBeGreaterThan(0);
+    expect(references.edges.every((edge) => edge.link === "reference")).toBe(true);
+    await choose(window, "Show only relation kind", "Everything");
+    await shows({ maxDepth: 1 }, "1 level");
+    await expect(window.getByLabel("Modeline")).not.toContainText("only");
+    // Each filter left out some of the links of the whole graph.
+    for (const output of [derivations, based, references]) {
+      expect(output.edges.length).toBeLessThan(everything.edges.length);
     }
   });
 });

@@ -128,6 +128,7 @@ const bridge = () => {
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     "workspace.status": () => ({ name: "Weather station", readOnly: false }),
     "metamodel.get": () => ({
+      relations: [],
       types: [
         { key: "need", name: "Need", properties: [] },
         { key: "package", name: "Package", meaning: "package", properties: [] },

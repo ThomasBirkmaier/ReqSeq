@@ -7,7 +7,15 @@
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, #85); an
 // action that does what a command does covers it, so the prompt lists it once.
 import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
-import type { Buffer, BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
+import type {
+  Buffer,
+  BufferAction,
+  Buffers,
+  ElementBuffer,
+  FilterStep,
+  GraphBuffer,
+  ListBuffer,
+} from "./buffers.js";
 import {
   DEFAULT_SORT,
   bufferName,
@@ -25,6 +33,15 @@ import type { Answer, Call } from "./call.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
+import type { GraphChoice, GraphFilterChoice } from "./graph-choices.js";
+import {
+  DEPTH_KEYS,
+  EVERYTHING,
+  alsoChoices,
+  depthChoices,
+  hasFilter,
+  onlyChoices,
+} from "./graph-choices.js";
 import { cycleKey } from "./opening-order.js";
 import {
   hasSavedFilter,
@@ -140,6 +157,11 @@ export interface ActionContext {
   readonly discard: (key: string) => void;
   /** The buffer with this key has unsaved changes. */
   readonly drafted: (key: string) => boolean;
+  /**
+   * The entries of the relation kind prompts of a graph (`graph-choices.ts`), from the catalog and the
+   * metamodel; without them only "Everything" is offered.
+   */
+  readonly graphChoices?: readonly GraphFilterChoice[];
   /** The mode „Agent folgen“ (SR-117); absent where the window offers no such mode. */
   readonly follow?: FollowControls;
   /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
@@ -247,6 +269,41 @@ const showBuffer = (context: ActionContext, buffer: Buffer): void => {
 };
 
 const choice = (name: string, run: () => void): Choice => ({ id: name, name, run });
+
+/**
+ * An action on the shown graph that asks with `label` for one of the entries `choices` gives: taking one
+ * shows its graph buffer, the same buffer with another depth or filter, so the graph asks `trace.graph`
+ * again and keeps the selected node while it is still there. `nothing` is said when there is no entry (only
+ * "Also show" can have none: the depths are always there, and "Show only" always has "Everything").
+ */
+const graphPrompt =
+  (
+    label: string,
+    choices: (graph: GraphBuffer, filters: readonly GraphFilterChoice[]) => readonly GraphChoice[],
+    nothing?: string,
+  ) =>
+  (context: ActionContext): void => {
+    const graph = context.buffers[0];
+    if (graph?.kind !== "graph") {
+      return;
+    }
+    const items = choices(graph, context.graphChoices ?? [EVERYTHING]);
+    if (items.length === 0 && nothing !== undefined) {
+      context.echo(nothing);
+      return;
+    }
+    context.ask({
+      label,
+      items: items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        ...(item.hint === undefined ? {} : { hint: item.hint }),
+        run: () => {
+          context.dispatch({ type: "open", buffer: item.buffer });
+        },
+      })),
+    });
+  };
 
 // "Type and ID" is the explicit default and "Workspace order" is `[]`, so a choice holds on a list with a
 // saved filter too (it does not fall back to the sort of the filter). "ID" is what the rows show.
@@ -828,6 +885,31 @@ export const ACTIONS: readonly Action[] = [
         showBuffer(context, elementBuffer(current.id, current.repository, current.name));
       }
     },
+  },
+  {
+    // SR-111 AK2: the same as `+` and `-` on the graph, which the hint names.
+    id: "graph-depth",
+    title: "Graph depth",
+    hint: DEPTH_KEYS,
+    available: isGraph,
+    run: graphPrompt("Graph depth", (graph) => depthChoices(graph)),
+  },
+  {
+    // SR-111 AK3: one kind, a meaning or everything in place of the filter.
+    id: "graph-only",
+    title: "Show only relation kind",
+    available: isGraph,
+    run: graphPrompt("Show only", onlyChoices),
+  },
+  {
+    // SR-111 AK3: one more kind or meaning; only while the graph follows some kinds only.
+    id: "graph-also",
+    title: "Also show relation kind",
+    available: (context: ActionContext): boolean => {
+      const shown = context.buffers[0];
+      return shown?.kind === "graph" && hasFilter(shown);
+    },
+    run: graphPrompt("Also show", alsoChoices, "Every relation kind is shown already."),
   },
   {
     id: "toggle-dark-mode",
