@@ -39,8 +39,22 @@ const OUTDATED = `derives-from:\n  - { id: ${WIND}, version: n1:0000000000000000
 const hintId = (file: string, source: string, target: string): string =>
   `relation.outdated/system/${encodeURIComponent(file)}/${source}/derives-from/${target}?version=n1:0000000000000000`;
 
-/** Elements added to SR-001/two-elements: approved, obsolete, and `retired`, which the metamodel does not know. */
+/** A file of fixtures/enabler-535/evidence: an evidence location with a Markdown record and an enriched JUnit file. */
+const evidenceFixture = (file: string): string =>
+  fs.readFileSync(new URL(`../../../../fixtures/enabler-535/evidence/${file}`, import.meta.url), "utf8");
+
+/** The evidence files every scenario has (#535); read once the readers are in (SR-028, SR-093). */
+const EVIDENCE_RECORD = "evidence/2026-10-20-SR-e88fb3-inspection.md";
+const EVIDENCE_JUNIT = "evidence/ci/results.xml";
+
+/**
+ * Added to SR-001/two-elements: elements approved, obsolete, and `retired`, which the metamodel
+ * does not know; an evidence location with a Markdown record and an enriched JUnit file of WIND.
+ */
 const FILES: Readonly<Record<string, string>> = {
+  "logreq-workspace.yaml": evidenceFixture("logreq-workspace.yaml"),
+  [EVIDENCE_RECORD]: evidenceFixture(EVIDENCE_RECORD),
+  [EVIDENCE_JUNIT]: evidenceFixture(EVIDENCE_JUNIT),
   "requirements/SR-444455556666.md": `---\nid: ${OBSOLETE}\ntype: system-requirement\nstatus: obsolete\ntitle: Old\n${OUTDATED}---\n`,
   "needs/N-aaaaaaaaaaaa.md": `---\nid: ${APPROVED}\ntype: need\nstatus: approved\ntitle: Need\n${OUTDATED}---\n`,
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
@@ -48,8 +62,9 @@ const FILES: Readonly<Record<string, string>> = {
   "new/layout.png": "an image",
 };
 
-/** The `status` line of every element file, by file (relative, `/`), as written on disk. */
-const STATUS_LINES: Readonly<Record<string, string>> = {
+/** The `status` line of every element file, and null for the evidence record, by file (relative, `/`), as written on disk. */
+const STATUS_LINES: Readonly<Record<string, string | null>> = {
+  [EVIDENCE_RECORD]: null,
   "needs/N-aaaaaaaaaaaa.md": "status: approved",
   "needs/N-bbbbbbbbbbbb.md": "status:   retired   # unknown to the metamodel",
   "requirements/SR-1d2e3f4a5b6c.md": "status: draft",

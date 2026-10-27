@@ -253,7 +253,36 @@
           "type": "string",
           "description": "Where the Beleg is: relative path, file URL or any URI."
         },
-        "testCase": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." }
+        "testCase": {
+          "type": "string",
+          "description": "Optional test case name or ID (D-026, SR-033): the `test-case` of a Markdown record, the `name` of a JUnit test case."
+        },
+        "source": {
+          "enum": ["markdown", "junit"],
+          "description": "The format of the record file: a Markdown record (`evidence-record.schema.json`) or a test case of a JUnit XML file (ADR-0012)."
+        },
+        "repository": {
+          "type": "string",
+          "description": "Workspace name of the repository of the record file (an evidence location of the workspace file)."
+        },
+        "file": {
+          "type": "string",
+          "description": "The record file, relative to its repository, `/` as separator."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The line of the `<testcase>` in a JUnit file; 1 for a Markdown record."
+        },
+        "className": {
+          "type": "string",
+          "description": "The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record."
+        },
+        "baselines": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of the baseline files that contain the version of the record (SR-032 AK2). Only `evidence.list` fills it."
+        }
       },
       "allOf": [
         {
@@ -261,6 +290,44 @@
           "then": { "required": ["method", "item"] }
         }
       ],
+      "additionalProperties": false
+    },
+    "testCase": {
+      "type": "object",
+      "description": "A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every JUnit file and every Markdown record is one execution (Durchführung). A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).",
+      "required": ["name", "elements", "executed", "executions"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The JUnit `name`, or the `test-case` of the Markdown records."
+        },
+        "className": {
+          "type": "string",
+          "description": "The JUnit `classname`; left out for a test case of Markdown records."
+        },
+        "elements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.schema.json#/$defs/uuid" },
+          "description": "Every element the test case names, in any of its executions and skipped appearances, each once (SR-033 AK2)."
+        },
+        "executed": {
+          "type": "boolean",
+          "description": "The test case has at least one record of this element (SR-033 AK3)."
+        },
+        "executions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidenceRecord" },
+          "description": "The records of this element from this test case, newest first (by `date`, then repository and file); empty when `executed` is false."
+        },
+        "last": {
+          "$ref": "#/$defs/evidenceRecord",
+          "description": "The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false."
+        }
+      },
+      "if": { "properties": { "executed": { "const": false } } },
+      "then": { "properties": { "executions": { "maxItems": 0 } }, "not": { "required": ["last"] } },
+      "else": { "properties": { "executions": { "minItems": 1 } }, "required": ["last"] },
       "additionalProperties": false
     }
   }

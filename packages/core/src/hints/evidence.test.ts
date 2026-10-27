@@ -7,8 +7,9 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import type { EvidenceVersion } from "./evidence.js";
-import { evidenceRecordsState, outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
+import type { EvidenceRecord } from "../evidence/index.js";
+import { evidenceRecordsState } from "../evidence/index.js";
+import { outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
 
 type Output = CommandOutput<"workspace.check">;
 
@@ -22,7 +23,7 @@ const OLD = "n1:0000000000000000";
 
 /** A workspace on fixtures/SR-025/outdated whose evidence records are `records`. */
 const withRecords = async (
-  records: readonly EvidenceVersion[],
+  records: readonly EvidenceRecord[],
   files: Readonly<Record<string, string>> = {},
 ): Promise<Workspace> => {
   const fixture = await createFixtureWorkspace({ fixture: "SR-025/outdated", files });
@@ -42,8 +43,8 @@ const record = (
   element: string,
   version: string,
   date: string,
-  more: Partial<EvidenceVersion> = {},
-): EvidenceVersion => ({ kind: "verification", element, version, date, ...more });
+  more: Partial<EvidenceRecord> = {},
+): EvidenceRecord => ({ kind: "verification", element, version, date, result: "passed", ...more });
 
 describe("outdated evidence (SR-025 AK4)", () => {
   it("[SR-025/AK4] reports the evidence of a requirement whose newest record is for an older version", async () => {

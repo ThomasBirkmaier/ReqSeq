@@ -3,7 +3,7 @@
 // which `hint.confirm` (SR-027) resolves, and outdated evidence (SR-025 AK4), whose records stage 4
 // reads; the list of all open hints (`hint.list`, SR-026) and the hints at one element in its view.
 export type { EvidenceVersion } from "./evidence.js";
-export { evidenceRecordsState, outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
+export { outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
 export type { HintTarget } from "./hint-id.js";
 export { OUTDATED_CODE, TEXT_SEGMENT, hintIdOf, parseHintId } from "./hint-id.js";
 export type {

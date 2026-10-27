@@ -15,8 +15,9 @@ import { elementStoreState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { derivationCycleProblemsState } from "../trace/index.js";
-import type { EvidenceVersion } from "./evidence.js";
-import { evidenceRecordsState, outdatedEvidenceProblemsState } from "./evidence.js";
+import type { EvidenceRecord } from "../evidence/index.js";
+import { evidenceRecordsState } from "../evidence/index.js";
+import { outdatedEvidenceProblemsState } from "./evidence.js";
 import { isHint } from "./list.js";
 
 type Shown = CommandOutput<"element.get">;
@@ -150,12 +151,13 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
 
   it("[SR-026/AK3] [SR-025/AK4] shows outdated evidence at its element, alone and from the kept state", async () => {
     const A = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
-    const records: EvidenceVersion[] = [
+    const records: EvidenceRecord[] = [
       {
         kind: "verification",
         element: A,
         version: "n1:0000000000000000",
         date: "2026-01-02T10:00:00Z",
+        result: "passed",
         repository: "system",
         file: "evidence/results.xml",
         line: 7,

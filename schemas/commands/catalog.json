@@ -2790,14 +2790,16 @@
         "properties": {
           "records": {
             "type": "array",
+            "description": "The evidence records of the element (SR-028, SR-093), newest first; each with the baselines that contain its version (`baselines`, SR-032 AK2).",
             "items": {
-              "type": "object"
+              "$ref": "../data-export.schema.json#/$defs/evidenceRecord"
             }
           },
           "testCases": {
             "type": "array",
+            "description": "The test cases that name the element, each with the element's own records only (SR-033).",
             "items": {
-              "type": "object"
+              "$ref": "../data-export.schema.json#/$defs/testCase"
             }
           },
           "problems": {

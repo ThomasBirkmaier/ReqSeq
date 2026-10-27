@@ -1,0 +1,24 @@
+# What data.export gives for one requirement of a weather station (SR-061): the core view, with its
+# verification status per view (SR-031, SR-047 AK3). Records and test cases are checked by
+# packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
+logreq-data: 1
+workspace: Weather station
+generated: 2026-10-27T08:00:00Z
+selection: { ids: [SR-e88fb3] }
+repositories:
+  - { name: system, available: true, commit: 0123456789abcdef0123456789abcdef01234567, dirty: false }
+elements:
+  - id: e8df96ea-a168-4d90-8d65-6328cee88fb3
+    shortId: SR-e88fb3
+    type: system-requirement
+    status: draft
+    title: Show wind speed
+    version: n1:2eb0feee31fc1d89
+    versionDate: 2026-10-20T12:00:00Z
+    repository: system
+    file: requirements/SR-6328cee88fb3.md
+    properties: {}
+    relations: []
+    verification:
+      - { view: core, status: verified }
+      - { view: VAR-0000c2, status: open }

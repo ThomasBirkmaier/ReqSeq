@@ -1,8 +1,8 @@
 // Outdated evidence (SR-025 AK4, D-013): an element whose newest evidence record (Datensatz) belongs
-// to an older version than its current one. Evidence records are read in stage 4 (SR-028 #40,
-// ADR-0012); until then `evidenceRecordsState` is empty, and the check of AK4 is tested at core
-// level with records given through it (decision on #127, option 1). Stage 4 replaces its builder
-// with the reader of the evidence folders and adds the CLI test.
+// to an older version than its current one. The records come from `evidenceRecordsState` of the
+// evidence block (ADR-0012); until its readers are in (SR-028 #40, SR-093 #105) it is empty, and the
+// check of AK4 is tested at core level with records given through it (decision on #127, option 1).
+// SR-028 adds the CLI test.
 //
 // - Per element, kind (verification, validation) and variant (none: the core, SR-047) the newest
 //   record by `date` decides (SR-025 AK4: "dessen neuester Datensatz zu einer älteren Fassung
@@ -18,7 +18,8 @@
 //   out (an unknown element is SR-029's `evidence.unknown-element`, stage 4).
 // - Order: by element in store order, then kind, then variant as the records give them.
 import type { Problem } from "../catalog.js";
-import type { EvidenceRecordFile } from "../generated/types.js";
+import type { EvidenceRecord } from "../evidence/index.js";
+import { evidenceRecordsState } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
@@ -34,27 +35,11 @@ import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 
-/** One evidence record as far as the check needs it (`evidence-record.schema.json`, ADR-0012), and where it lies. */
+/** One evidence record as far as the check needs it (ADR-0012), and where it lies when it says so. */
 export type EvidenceVersion = Pick<
-  EvidenceRecordFile,
-  "kind" | "element" | "version" | "date" | "variant"
-> & {
-  /** Workspace name of the repository of the record file, when it lies in one. */
-  readonly repository?: string;
-  /** The record file (Markdown or JUnit XML), relative to its repository. */
-  readonly file?: string;
-  /** The line of the record in a JUnit file. */
-  readonly line?: number;
-};
-
-/**
- * The evidence records of the workspace (SR-028). Empty until stage 4 reads the evidence folders of
- * the workspace file (#40); the seam through which the check of SR-025 AK4 gets its records.
- */
-export const evidenceRecordsState = defineWorkspaceState(
-  "evidence-records",
-  (): Promise<readonly EvidenceVersion[]> => Promise.resolve([]),
-);
+  EvidenceRecord,
+  "kind" | "element" | "version" | "date" | "variant" | "repository" | "file" | "line"
+>;
 
 /** `date` as an instant; a date that cannot be read counts as the oldest (NaN would compare false either way). */
 const instantOf = (date: string): number => {

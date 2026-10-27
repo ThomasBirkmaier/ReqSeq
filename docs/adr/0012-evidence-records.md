@@ -19,3 +19,18 @@ After a run, `logreq evidence enrich-junit --item <build> results.xml` (SR-029) 
 ## Consequences
 
 - Any test tool that writes JUnit works without code (SR-063 AK1); pytest and Vitest examples come in `toolchain/` (D-054).
+
+## Block and state
+
+The records live in the core block `evidence` (`packages/core/src/evidence/`, block doc `packages/core/docs/evidence-records.md`), built in stage 4 enabler #535:
+
+- **Folders**: every `*.md` and `*.xml` file below each `evidence` location of the workspace file, walked by the rules of the element store (no `.git` or `node_modules`, no nested repository, the `ignore` globs, links never followed). A location in a repository that is not on this machine makes every result built on the records `incomplete`; a missing folder in an available repository is `evidence.folder-missing` (info).
+- **Readers**: one per extension (`md`, `xml`), each given one file and its bytes; it reads nothing else. A Markdown file without `logreq-record` and XML without a JUnit root give nothing.
+- **State**: `evidenceReadState` holds what the readers found (`records`, `skipped`, `problems`, `incomplete`); `evidenceRecordsState` is its records as an array. Commands and tests get records through that array, so a consumer is built and tested with records it injects, without files.
+- **Record**: `data-export.schema.json#/$defs/evidenceRecord`, from a Markdown record or from one element of a JUnit test case alike, with its location (`source`, `repository`, `file`, `line`) and the JUnit `className`.
+- **Test case**: identified by JUnit `classname` + `name`, or by the `test-case` of a Markdown record alone; records with the same identity are one test case across files, and each file is one execution. A `<skipped>` test case gives no record but is kept as a test case without execution. A test case is always shown from one element (`$defs/testCase`): its executions are that element's records, since version and outdatedness belong to the element; `elements` lists every element it names.
+- **Index**: records by element, newest first (date as an instant, then repository, file, line), and the test cases. "Has evidence" is one function for filter, chain and coverage: a verification record in the view (core: no variant; a variant: for that variant). Validation records never count as Nachweis (D-007).
+
+## Status rules
+
+Nachweisstatus and Validierungsstatus are derived views; they never change the element's `status` (D-030).

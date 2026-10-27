@@ -247,6 +247,9 @@ export type ProblemCode =
   | "evidence.unknown-element"
   | "evidence.invalid-record"
   | "evidence.outdated"
+  | "evidence.not-enriched"
+  | "evidence.folder-missing"
+  | "evidence.ambiguous-element"
   | "filter.invalid"
   | "filter.duplicate-name"
   | "metamodel.invalid"
@@ -436,8 +439,39 @@ export interface DataExportEvidenceRecord {
   readonly date: IsoDateTime;
   /** Where the Beleg is: relative path, file URL or any URI. */
   readonly evidence?: string;
-  /** Optional test case name or ID (D-026, SR-033). */
+  /** Optional test case name or ID (D-026, SR-033): the `test-case` of a Markdown record, the `name` of a JUnit test case. */
   readonly testCase?: string;
+  /** The format of the record file: a Markdown record (`evidence-record.schema.json`) or a test case of a JUnit XML file (ADR-0012). */
+  readonly source?: "markdown" | "junit";
+  /** Workspace name of the repository of the record file (an evidence location of the workspace file). */
+  readonly repository?: string;
+  /** The record file, relative to its repository, `/` as separator. */
+  readonly file?: string;
+  /** The line of the `<testcase>` in a JUnit file; 1 for a Markdown record. */
+  readonly line?: number;
+  /** The `classname` of a JUnit test case; with `testCase` it names the test case (ADR-0012). Left out for a Markdown record. */
+  readonly className?: string;
+  /** Names of the baseline files that contain the version of the record (SR-032 AK2). Only `evidence.list` fills it. */
+  readonly baselines?: readonly string[];
+}
+
+/**
+ * A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every JUnit file and every Markdown record is one execution (Durchführung). A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).
+ * Schema: `schemas/data-export.schema.json#/$defs/testCase`.
+ */
+export interface DataExportTestCase {
+  /** The JUnit `name`, or the `test-case` of the Markdown records. */
+  readonly name: string;
+  /** The JUnit `classname`; left out for a test case of Markdown records. */
+  readonly className?: string;
+  /** Every element the test case names, in any of its executions and skipped appearances, each once (SR-033 AK2). */
+  readonly elements: readonly Uuid[];
+  /** The test case has at least one record of this element (SR-033 AK3). */
+  readonly executed: boolean;
+  /** The records of this element from this test case, newest first (by `date`, then repository and file); empty when `executed` is false. */
+  readonly executions: readonly DataExportEvidenceRecord[];
+  /** The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false. */
+  readonly last?: DataExportEvidenceRecord;
 }
 
 /**
@@ -2033,8 +2067,10 @@ export interface EvidenceListInput {
  * Schema: `schemas/commands/catalog.json evidence.list output`.
  */
 export interface EvidenceListOutput {
-  readonly records: readonly Readonly<Record<string, unknown>>[];
-  readonly testCases?: readonly Readonly<Record<string, unknown>>[];
+  /** The evidence records of the element (SR-028, SR-093), newest first; each with the baselines that contain its version (`baselines`, SR-032 AK2). */
+  readonly records: readonly DataExportEvidenceRecord[];
+  /** The test cases that name the element, each with the element's own records only (SR-033). */
+  readonly testCases?: readonly DataExportTestCase[];
   readonly problems?: readonly Problem[];
 }
 

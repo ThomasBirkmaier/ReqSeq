@@ -14,11 +14,11 @@ const SKIPPED_NAMES = new Set([".git", "node_modules"]);
 export const ELEMENT_FILE_EXTENSION = ".md";
 
 export interface DiscoveredFiles {
-  /** Markdown files relative to the repository, `/` as separator, sorted by code units. */
+  /** The files listed, relative to the repository, `/` as separator, sorted by code units. */
   readonly files: readonly string[];
   /**
-   * Folders that could not be listed (error) and Markdown files that are not read (warning:
-   * links, an extension such as `.MD`), sorted by path; `file` is relative to the repository
+   * Folders that could not be listed (error) and files of the kind listed that are not read
+   * (warning: links, an extension such as `.MD`), sorted by path; `file` is relative to the repository
    * (`.` for its root).
    */
   readonly problems: readonly Problem[];
@@ -40,17 +40,32 @@ const skipped = (repository: string, file: string, reason: string): Problem => (
   message: `Not read: ${reason}`,
 });
 
-/** Why a folder entry (not a folder) that looks like an element file is not read, or undefined to read it. */
-const skipReason = (entry: Dirent): string | undefined => {
+/** What a walk lists: files ending in one of `extensions` (lower case), named `what` in messages. */
+export interface ListedKind {
+  /** Extensions with the dot, in lower case (`.md`). */
+  readonly extensions: readonly string[];
+  /** How a `file.skipped` message names the files (`element files`). */
+  readonly what: string;
+}
+
+/** The files the element store reads (ADR-0004). */
+const ELEMENT_FILES: ListedKind = { extensions: [ELEMENT_FILE_EXTENSION], what: "element files" };
+
+/** The extension of `name` in `kind` when it ends in one in any case, else undefined. */
+const extensionIn = (name: string, kind: ListedKind): string | undefined =>
+  kind.extensions.find((extension) => name.toLowerCase().endsWith(extension));
+
+/** Why a folder entry (not a folder) that looks like a file of `kind` is not read, or undefined to read it. */
+const skipReason = (entry: Dirent, kind: ListedKind): string | undefined => {
   if (entry.isSymbolicLink()) {
     return "it is a symbolic link; LogReq does not follow links";
   }
   if (!entry.isFile()) {
     return "it is not a regular file";
   }
-  return entry.name.endsWith(ELEMENT_FILE_EXTENSION)
+  return kind.extensions.some((extension) => entry.name.endsWith(extension))
     ? undefined
-    : `element files end in ${ELEMENT_FILE_EXTENSION} in lower case`;
+    : `${kind.what} end in ${kind.extensions.join(" or ")} in lower case`;
 };
 
 /**
@@ -64,15 +79,29 @@ const skipReason = (entry: Dirent): string | undefined => {
  * extension such as `.MD` are reported as `file.skipped` warnings. A folder that cannot be listed
  * becomes a problem; the walk goes on.
  */
-export const listMarkdownFiles = async (
+export const listMarkdownFiles = (
   repository: RepositoryLocation,
   ignored: (relativePath: string) => boolean,
+): Promise<DiscoveredFiles> => listFiles(repository, ignored, "", ELEMENT_FILES);
+
+/**
+ * `listMarkdownFiles` for any `kind` of file and from the folder `start` (relative to the
+ * repository, `/` as separator, `""` for its root) down: the same rules, and the files and problems
+ * relative to the repository. The evidence block lists the `*.md` and `*.xml` files of an evidence
+ * folder with it (ADR-0012). `start` must be a folder the caller has checked (no link, it exists);
+ * when it cannot be listed, that is the one problem.
+ */
+export const listFiles = async (
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
+  start: string,
+  kind: ListedKind,
 ): Promise<DiscoveredFiles> => {
   const excludes = new Set(repository.excludes);
   const files: string[] = [];
   const problems = new Map<string, Problem>();
   // Relative folders still to list; "" is the repository root.
-  const pending = [""];
+  const pending = [start];
   for (let folder = pending.pop(); folder !== undefined; folder = pending.pop()) {
     let entries: Dirent[];
     try {
@@ -98,10 +127,10 @@ export const listMarkdownFiles = async (
         }
         continue;
       }
-      if (!entry.name.toLowerCase().endsWith(ELEMENT_FILE_EXTENSION)) {
+      if (extensionIn(entry.name, kind) === undefined) {
         continue;
       }
-      const reason = skipReason(entry);
+      const reason = skipReason(entry, kind);
       if (reason === undefined) {
         files.push(relative);
       } else {

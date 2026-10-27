@@ -1,7 +1,7 @@
 // The `model` block (ADR-0008, SR-003): the element store of a workspace. Core blocks and commands
 // import it relatively; it is not part of the package's public API.
-export { ELEMENT_FILE_EXTENSION, listMarkdownFiles, listsFile } from "./discover.js";
-export type { DiscoveredFiles } from "./discover.js";
+export type { DiscoveredFiles, ListedKind } from "./discover.js";
+export { ELEMENT_FILE_EXTENSION, listFiles, listMarkdownFiles, listsFile } from "./discover.js";
 export { classifyFile, isUuid } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
 export type { FileNameParts } from "./file-name.js";

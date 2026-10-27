@@ -153,6 +153,13 @@ const WITH_VAULT =
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
 
+/**
+ * The requirement of SR-004/one-repository with an evidence location: one Markdown record and one
+ * enriched JUnit file of SR-e88fb3 (#535). The stage 4 commands use it for their scenarios; the
+ * records are read once SR-028 and SR-093 add their readers.
+ */
+const EVIDENCE: FixtureOptions = { fixture: "enabler-535/evidence", git: true };
+
 /** SR-004/one-repository with an image to attach, whose name LogReq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
   fixture: "SR-004/one-repository",
@@ -1210,6 +1217,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     { name: "existing workspace", input: { path: ".", name: "Again" }, expect: "error" },
   ],
   "workspace.check": [
+    {
+      name: "a workspace with an evidence location (#535)",
+      fixture: EVIDENCE,
+      input: {},
+      expect: "output",
+    },
     {
       name: "duplicate identifiers within a type, with the identifier of each element (#305)",
       fixture: {
