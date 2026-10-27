@@ -8,6 +8,7 @@
 # - property issue on system requirements: the GitHub issue that implements the SR (D-049), so the
 #   spec itself traces requirement -> issue (dogfooding, product owner decision, 2026-10-26). Not content, so
 #   setting it changes no version; filled by scripts/sr-issues.
+# rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444).
 # LogReq has no command that changes a metamodel: this file is changed by hand in a pull request.
 logreq-metamodel: 1
 
@@ -89,6 +90,7 @@ properties:
   - key: rationale
     name: Rationale
     kind: text
+    markdown: true
   - key: requirement-type
     name: Requirement Type
     kind: choice
@@ -104,6 +106,7 @@ properties:
     kind: text
     many: true
     content: true
+    markdown: true
   - key: validity
     name: Validity
     kind: relation
