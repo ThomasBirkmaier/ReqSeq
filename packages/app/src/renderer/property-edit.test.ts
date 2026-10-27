@@ -6,7 +6,6 @@ import {
   allBoxes,
   boxValue,
   changedBoxes,
-  changedUnderEdit,
   choiceItems,
   chooseKey,
   chooseTarget,
@@ -579,29 +578,5 @@ describe("editsOf", () => {
       { key: "topic", info: text, base: "Wind", doc: "Gust" },
       { key: "criteria", info: list, base: "a", doc: "a" },
     ]);
-  });
-});
-
-describe("changedUnderEdit", () => {
-  const docs = (entries: [string, string][]) => new Map(entries);
-
-  it("is true when the file changed a box the user has typed in", () => {
-    expect(changedUnderEdit(docs([["topic", "a"]]), docs([["topic", "b"]]), docs([["topic", "mine"]]))).toBe(
-      true,
-    );
-  });
-
-  it("is false for a box without input and an unchanged box", () => {
-    expect(changedUnderEdit(docs([["topic", "a"]]), docs([["topic", "b"]]), docs([["topic", "a"]]))).toBe(
-      false,
-    );
-    expect(changedUnderEdit(docs([["topic", "a"]]), docs([["topic", "a"]]), docs([["topic", "mine"]]))).toBe(
-      false,
-    );
-  });
-
-  it("is true for a box with input whose property left the file, false for one without input", () => {
-    expect(changedUnderEdit(docs([["topic", "a"]]), docs([]), docs([["topic", "mine"]]))).toBe(true);
-    expect(changedUnderEdit(docs([["topic", "a"]]), docs([]), docs([["topic", "a"]]))).toBe(false);
   });
 });

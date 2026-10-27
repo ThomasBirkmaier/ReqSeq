@@ -3,6 +3,7 @@
 // buffer gets its first unsaved change or loses its last one.
 import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { DataExportElement } from "@logreq/core";
 
 /** The unsaved document of a property box, and the stored document it was typed on. */
 export interface BoxDraft {
@@ -11,27 +12,58 @@ export interface BoxDraft {
   readonly base: string;
 }
 
-/** The unsaved text and boxes of a buffer, and the file text it was typed on. */
+/** The unsaved text and boxes of a buffer, and the file they were typed on. */
 export interface Draft {
   /** The text; the file text when only boxes have unsaved changes. */
   readonly text: string;
-  /** The text of the file when the draft was last compared with it: a different file text later means the file changed. */
+  /** The text of the file when the draft was last compared with it: the text was typed in when it differs. */
   readonly base: string;
   /** The boxes with unsaved changes (SR-104), by property key. */
   readonly boxes?: ReadonlyMap<string, BoxDraft>;
+  /**
+   * The bytes of the file the input was typed on (`fileSha256` of `element.get`): a buffer shown again on
+   * other bytes follows the rule for a file changed outside (SR-106, `outside-change.ts`).
+   */
+  readonly sha?: string;
+  /**
+   * The element as the buffer showed it, with the bytes of its file: a buffer shown again after its file
+   * was deleted shows it with the input, read-only (SR-106 AK3), instead of an error.
+   */
+  readonly shown?: ShownFile;
+}
+
+/** An answer of `element.get` that a buffer showed: the element and the bytes of its file. */
+export interface ShownFile {
+  readonly element: DataExportElement;
+  readonly sha: string;
 }
 
 /** The draft of a buffer: its text and the boxes that differ from what is stored; none when nothing does. */
 export const makeDraft = (
   text: { readonly doc: string; readonly base: string },
   boxes: readonly (readonly [string, BoxDraft])[],
+  sha?: string,
 ): Draft | undefined => {
   const changed = boxes.filter(([, box]) => box.doc !== box.base);
   if (text.doc === text.base && changed.length === 0) {
     return undefined;
   }
-  return { text: text.doc, base: text.base, ...(changed.length === 0 ? {} : { boxes: new Map(changed) }) };
+  return {
+    text: text.doc,
+    base: text.base,
+    ...(changed.length === 0 ? {} : { boxes: new Map(changed) }),
+    ...(sha === undefined ? {} : { sha }),
+  };
 };
+
+/** The draft with the element the buffer shows, so it can be shown again without its file. */
+export const withShown = (draft: Draft | undefined, shown: ShownFile | undefined): Draft | undefined =>
+  draft === undefined || shown === undefined ? draft : { ...draft, shown };
+
+/** Whether two drafts hold the same input on the same file. */
+export const sameDraft = (a: Draft | undefined, b: Draft | undefined): boolean =>
+  JSON.stringify(a === undefined ? null : [a.text, a.base, a.sha, [...(a.boxes ?? [])]]) ===
+  JSON.stringify(b === undefined ? null : [b.text, b.base, b.sha, [...(b.boxes ?? [])]]);
 
 /** The text of a draft that was typed on; none for a draft of boxes alone (its text is the file text). */
 export const typedText = (draft: Draft | undefined): string | undefined =>
@@ -46,43 +78,6 @@ export const boxDrafts = (
     const base = stored.get(key);
     return base === undefined ? [] : [[key, { doc, base }]];
   });
-
-/**
- * A draft kept for a buffer that is shown again, compared with the file as it is now: what the file now
- * holds is no longer unsaved, and a draft typed on other stored values is rebased on the new ones with
- * `changed` set (the interim "changed on disk" echo, until #401 and #402 decide). `draft` is `kept`
- * itself when nothing differs.
- */
-export const reconcile = (
-  kept: Draft,
-  text: string,
-  stored: ReadonlyMap<string, string>,
-): { readonly draft: Draft | undefined; readonly changed: boolean } => {
-  // Only text that was typed on can have been changed under the user's hands.
-  const typed = kept.text !== kept.base;
-  let changed = typed && kept.text !== text && kept.base !== text;
-  const boxes = [...(kept.boxes ?? [])].flatMap(([key, box]): [string, BoxDraft][] => {
-    const now = stored.get(key);
-    if (now === undefined && box.base === "") {
-      // A box that was added (SR-104 AK2): the property is not in the file, and no stored value was typed on.
-      return [[key, box]];
-    }
-    if (now === undefined || now === box.doc) {
-      // The property is gone, or the file now holds the draft.
-      changed ||= now === undefined;
-      return [];
-    }
-    changed ||= now !== box.base;
-    return [[key, { doc: box.doc, base: now }]];
-  });
-  const draft = makeDraft({ doc: typed ? kept.text : text, base: text }, boxes);
-  const same =
-    draft?.text === kept.text &&
-    draft.base === kept.base &&
-    boxes.length === (kept.boxes?.size ?? 0) &&
-    boxes.every(([key, box]) => kept.boxes?.get(key)?.base === box.base);
-  return { draft: same ? kept : draft, changed };
-};
 
 export interface Drafts {
   /** The unsaved text by buffer key. */

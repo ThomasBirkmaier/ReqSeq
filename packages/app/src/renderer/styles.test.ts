@@ -276,3 +276,14 @@ describe("the highlight of a change from outside (SR-116)", () => {
     );
   });
 });
+
+describe("the block of a field whose file changed under the input (SR-106)", () => {
+  it("[SR-106/AK2] is quiet and in greys: the muted text, the rule as its edge, and what differs in heavier weight", () => {
+    const rule = ruleOf(".element .on-disk");
+    expect(rule).toContain("color: var(--muted);");
+    expect(rule).toContain("border-left: 2px solid var(--rule);");
+    expect(rule).not.toMatch(/var\(--accent\)/);
+    expect(ruleOf("mark")).toMatch(/font-weight:\s*700;/);
+    expect(ruleOf("mark")).toMatch(/background:\s*none;/);
+  });
+});

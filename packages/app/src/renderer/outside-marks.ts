@@ -34,12 +34,23 @@ export interface OutsideChanges {
    * `WorkspaceChange`), so the buffer keeps what it shows until its element is there again.
    */
   readonly named: ReadonlyMap<string, number>;
+  /**
+   * For each UUID, the `seq` of the last of them that removed it. An element buffer does not act on it
+   * alone (the file may be written just then); it asks for its element once, and only `ref.unknown` says
+   * the file is gone (SR-106 AK3).
+   */
+  readonly removed: ReadonlyMap<string, number>;
   /** Whether the element `id` was changed or added outside within `FRESH_MS`: a view that shows it now highlights it. */
   readonly fresh: (id: string) => boolean;
 }
 
 /** Before any change from outside. */
-export const NO_CHANGES: OutsideChanges = { seq: 0, named: new Map(), fresh: () => false };
+export const NO_CHANGES: OutsideChanges = {
+  seq: 0,
+  named: new Map(),
+  removed: new Map(),
+  fresh: () => false,
+};
 
 /** When each element changed outside last, kept for `FRESH_MS` only: what is not shown now is not shown later. */
 export interface Arrivals {
@@ -80,12 +91,20 @@ export const nextChanges = (
   for (const id of [...elements.added, ...elements.changed]) {
     named.set(id, seq);
   }
-  return { seq, named, fresh };
+  const removed = new Map(before.removed);
+  for (const id of elements.removed) {
+    removed.set(id, seq);
+  }
+  return { seq, named, removed, fresh };
 };
 
 /** Whether a change from outside after the change `seen` added or changed the element `id`. */
 export const namedSince = (changes: OutsideChanges, id: string, seen: number): boolean =>
   (changes.named.get(id) ?? 0) > seen;
+
+/** Whether a change from outside after the change `seen` removed the element `id`. */
+export const removedSince = (changes: OutsideChanges, id: string, seen: number): boolean =>
+  (changes.removed.get(id) ?? 0) > seen;
 
 /**
  * What each field of the element buffer shows, by its label (`FieldBox`): the title, the text, each

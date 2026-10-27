@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { DataExportElement } from "@logreq/core";
 import type { Draft } from "./drafts.js";
-import { boxDrafts, makeDraft, reconcile, typedText } from "./drafts.js";
+import { boxDrafts, makeDraft, sameDraft, typedText, withShown } from "./drafts.js";
 
 const draft = (text: string, base: string, boxes?: [string, string, string][]): Draft => ({
   text,
@@ -25,61 +26,35 @@ describe("makeDraft", () => {
       ]),
     ).toEqual(draft("a", "a", [["topic", "y", "x"]]));
   });
+
+  it("names the bytes of the file the input was typed on", () => {
+    expect(makeDraft({ doc: "b", base: "a" }, [], "sha-1")).toEqual({ ...draft("b", "a"), sha: "sha-1" });
+  });
 });
 
-describe("reconcile", () => {
-  const stored = (entries: [string, string][]): Map<string, string> => new Map(entries);
-
-  it("keeps a draft that was typed on what the file holds", () => {
-    const kept = draft("mine", "a", [["topic", "y", "x"]]);
-    const compared = reconcile(kept, "a", stored([["topic", "x"]]));
-    expect(compared).toEqual({ draft: kept, changed: false });
-    expect(compared.draft).toBe(kept);
+describe("sameDraft", () => {
+  it("compares the input, the file text and the bytes it was typed on", () => {
+    expect(sameDraft(undefined, undefined)).toBe(true);
+    expect(sameDraft(draft("b", "a"), undefined)).toBe(false);
+    expect(sameDraft(undefined, draft("b", "a"))).toBe(false);
+    expect(sameDraft(draft("b", "a", [["topic", "y", "x"]]), draft("b", "a", [["topic", "y", "x"]]))).toBe(
+      true,
+    );
+    expect(sameDraft(draft("b", "a", [["topic", "y", "x"]]), draft("b", "a", [["topic", "y", "z"]]))).toBe(
+      false,
+    );
+    expect(sameDraft({ ...draft("b", "a"), sha: "one" }, { ...draft("b", "a"), sha: "two" })).toBe(false);
   });
+});
 
-  it("drops the text that the file now holds, and the boxes", () => {
-    expect(reconcile(draft("mine", "a"), "mine", stored([]))).toEqual({ draft: undefined, changed: false });
-    expect(reconcile(draft("a", "a", [["topic", "y", "x"]]), "a", stored([["topic", "y"]]))).toEqual({
-      draft: undefined,
-      changed: false,
-    });
-  });
-
-  it("rebases a draft typed on other text or values, and says the file changed", () => {
-    expect(reconcile(draft("mine", "a"), "b", stored([]))).toEqual({
-      draft: draft("mine", "b"),
-      changed: true,
-    });
-    expect(reconcile(draft("a", "a", [["topic", "y", "x"]]), "a", stored([["topic", "z"]]))).toEqual({
-      draft: draft("a", "a", [["topic", "y", "z"]]),
-      changed: true,
-    });
-  });
-
-  it("drops a box whose property is gone from the file, and says the file changed", () => {
-    expect(reconcile(draft("a", "a", [["topic", "y", "x"]]), "a", stored([]))).toEqual({
-      draft: undefined,
-      changed: true,
-    });
-  });
-
-  it("[SR-104/AK2] keeps the input of a box that was added, which the file does not hold, without saying the file changed", () => {
-    const kept = draft("a", "a", [["verification-method", "test", ""]]);
-    const compared = reconcile(kept, "a", stored([]));
-    expect(compared).toEqual({ draft: kept, changed: false });
-    expect(compared.draft).toBe(kept);
-  });
-
-  it("rebases the input of an added box on the value the file holds for the property now", () => {
-    expect(reconcile(draft("a", "a", [["topic", "mine", ""]]), "a", stored([["topic", "theirs"]]))).toEqual({
-      draft: draft("a", "a", [["topic", "mine", "theirs"]]),
-      changed: true,
-    });
-  });
-
-  it("follows the file with text that was not typed in, without saying it changed", () => {
-    const compared = reconcile(draft("a", "a", [["topic", "y", "x"]]), "b", stored([["topic", "x"]]));
-    expect(compared).toEqual({ draft: draft("b", "b", [["topic", "y", "x"]]), changed: false });
+describe("withShown", () => {
+  it("[SR-106/AK3] keeps the element the buffer shows with its draft, and nothing without a draft", () => {
+    const shown = { element: { id: "uuid-1" } as DataExportElement, sha: "sha-1" };
+    expect(withShown(draft("b", "a"), shown)).toEqual({ ...draft("b", "a"), shown });
+    expect(withShown(draft("b", "a"), undefined)).toEqual(draft("b", "a"));
+    expect(withShown(undefined, shown)).toBeUndefined();
+    // The element is no input: two drafts that differ only in it are the same draft.
+    expect(sameDraft(withShown(draft("b", "a"), shown), draft("b", "a"))).toBe(true);
   });
 });
 

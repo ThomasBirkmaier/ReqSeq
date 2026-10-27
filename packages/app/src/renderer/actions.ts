@@ -123,6 +123,12 @@ export interface ElementControls {
   readonly clearProperty: () => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
+  /**
+   * Asks which version holds, the input or the file's (the action "Resolve change on disk"). Only while the
+   * file changed outside and the buffer has input that it no longer agrees with (SR-106 AK2): nothing is
+   * saved until the user chose.
+   */
+  readonly resolve?: () => void;
 }
 
 /** The mode „Agent folgen“ (SR-117, `use-follow.ts`): display state of the app, switched only by its two actions (AK4). */
@@ -809,6 +815,15 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.addProperty();
+    },
+  },
+  {
+    // SR-106 AK2: no shortcut (Enter on a block "On disk" asks too).
+    id: "resolve-change",
+    title: "Resolve change on disk",
+    available: (context: ActionContext): boolean => context.element?.resolve !== undefined,
+    run: (context: ActionContext): void => {
+      context.element?.resolve?.();
     },
   },
   {

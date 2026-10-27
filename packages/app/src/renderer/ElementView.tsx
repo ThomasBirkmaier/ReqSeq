@@ -12,9 +12,12 @@
 // (`property-edit.ts`). The unsaved text and boxes are a draft that the app keeps while another buffer is shown.
 // A change of the file from outside the app (SR-106, SR-116) is read again when core's watcher names this
 // element: the editors without input take the new text with the cursor kept at its place in the text, and
-// the fields that changed are highlighted briefly when the file's bytes (`fileSha256`) differ.
+// the fields that changed are highlighted briefly when the file's bytes (`fileSha256`) differ. When the
+// bytes are no longer those the input was typed on, nothing is saved until "Resolve change on disk" chose
+// the version that holds, and a block "On disk" under each field with input shows the file's value; a file
+// that is gone leaves the content read-only in the editors (`outside-change.ts`).
 import { Prec } from "@codemirror/state";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
@@ -22,7 +25,7 @@ import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { NOTHING, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
-import type { PropertyModel, RelationRow } from "./element-view.js";
+import type { PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
 import { isPropertyTarget, outdatedReferences, relationGroups, rowOfRelation } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
@@ -33,11 +36,26 @@ import { boxNavigation } from "./editor/box-navigation.js";
 import { afterSave, dirty } from "./editor/save.js";
 import { slashMenu } from "./editor/slash-menu.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
-import type { BoxDraft, Draft } from "./drafts.js";
-import { boxDrafts, makeDraft, reconcile, typedText } from "./drafts.js";
+import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
+import { boxDrafts, makeDraft, sameDraft, withShown } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
+import type { ConflictField, OutsideChange } from "./outside-change.js";
+import {
+  RESOLVE_FIRST,
+  TEXT_FIELD,
+  changedOnDisk,
+  deletedOnDisk,
+  diskMark,
+  draftInput,
+  goneWait,
+  isGone,
+  keptBoxes as keptBoxesOf,
+  onDisk,
+  outsideChange,
+  resolvePrompt,
+} from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { NO_CHANGES, changedFields, fieldTexts, namedSince } from "./outside-marks.js";
+import { NO_CHANGES, changedFields, fieldTexts, namedSince, removedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep } from "./keys.js";
 import { ListView } from "./ListView.js";
@@ -50,7 +68,6 @@ import {
   addableProperties,
   allBoxes,
   changedBoxes,
-  changedUnderEdit,
   choiceKeys,
   editableBoxes,
   editsOf,
@@ -105,10 +122,6 @@ export interface ElementViewProps {
   /** For the list of the elements of a package page: its selected row, and opening one of them. */
   readonly dispatch: (action: BufferAction) => void;
 }
-
-/** What the minibuffer says when the file differs from the file text that unsaved changes were typed on. */
-const changedOnDisk = (name: string): string =>
-  `${name} changed on disk; your unsaved changes are kept. Saving overwrites the file.`;
 
 type View =
   | { readonly status: "loading" }
@@ -208,6 +221,62 @@ const lockNote = (key: string, box: EditableBox): string =>
 const shownElement = (view: View, parentsAnswered: boolean): DataExportElement | undefined =>
   view.status === "ok" && parentsAnswered ? view.element : undefined;
 
+/**
+ * The block "On disk" under a field in conflict (SR-106 AK2): the file's value as it is, quiet and read-only,
+ * with the lines the input lacks in heavier weight (meaning, no colour: D-062). It is no control: Enter on it
+ * asks which version holds, as "Resolve change on disk" does; Escape goes back to the buffer.
+ */
+const OnDisk = ({
+  field,
+  info,
+  onResolve,
+  onLeave,
+}: {
+  readonly field: ConflictField;
+  /** The property of the box; none for the text. */
+  readonly info: PropertyInfo | undefined;
+  readonly onResolve: () => void;
+  readonly onLeave: () => void;
+}): React.JSX.Element => {
+  const lines = onDisk(field, info);
+  return (
+    <div
+      className="on-disk"
+      role="group"
+      aria-label={`On disk: ${field.label}`}
+      data-on-disk={field.label}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+        if (plain && (event.key === "Enter" || event.key === "Escape")) {
+          event.preventDefault();
+          if (event.key === "Enter") {
+            onResolve();
+          } else {
+            onLeave();
+          }
+        }
+      }}
+    >
+      <span className="key">On disk</span>
+      <span className="value">
+        {lines.length === 0 ? (
+          <span className="line">(empty)</span>
+        ) : (
+          lines.map((line, at) => (
+            <span className="line" key={at}>
+              {line.differs ? <mark>{line.text}</mark> : line.text}
+            </span>
+          ))
+        )}
+      </span>
+    </div>
+  );
+};
+
+/** The loaded element is read-only. */
+const isReadOnly = (view: View): boolean => view.status === "ok" && view.element.readOnly === true;
+
 /** Keys that only modify another key: pressed on their own they are no key of the buffer. */
 const MODIFIER_KEYS: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"]);
 
@@ -244,12 +313,15 @@ export const ElementView = ({
   const editAsked = useRef(false);
   const baseline = useRef("");
   const loadedOnce = useRef(false);
-  // The changes from outside that named this element since it was shown: each asks for it again.
+  // The changes from outside that named this element since it was shown: each asks for it again. A removal
+  // asks too, and only the answer says whether the file is gone (SR-106 AK3).
   const [touched, setTouched] = useState(0);
   const seenChange = useRef(outside.seq);
   useEffect(() => {
     if (outside.seq !== seenChange.current) {
-      const named = namedSince(outside, buffer.id, seenChange.current);
+      const named =
+        namedSince(outside, buffer.id, seenChange.current) ||
+        removedSince(outside, buffer.id, seenChange.current);
       seenChange.current = outside.seq;
       if (named) {
         setTouched((count) => count + 1);
@@ -262,6 +334,29 @@ export const ElementView = ({
     undefined,
   );
   const { marked, mark } = useOutsideMarks();
+  // The bytes of the file the input was typed on (SR-106): the file's bytes while there is no conflict.
+  const basis = useRef<string | undefined>(undefined);
+  // The fields with input that the file no longer agrees with (SR-106 AK2): nothing is saved meanwhile. The
+  // ref is what the callbacks read, the state shows the blocks "On disk".
+  const [conflict, setConflict] = useState<readonly ConflictField[] | undefined>(undefined);
+  const conflictRef = useRef<readonly ConflictField[] | undefined>(undefined);
+  // The file is gone (SR-106 AK3): the content stays, read-only, until the file is there again.
+  const [deleted, setDeleted] = useState(false);
+  const deletedRef = useRef(false);
+  // The first read that found the file gone, and the read asked for after it (SR-106 AK3): core's store
+  // does not know an element whose file is being written either, so only a read after the next batch of
+  // the watcher says that the file is deleted. Meanwhile the buffer stays editable.
+  const goneSince = useRef<number | undefined>(undefined);
+  const askAgain = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(
+    () => () => {
+      clearTimeout(askAgain.current);
+    },
+    [],
+  );
+  // The element the buffer shows, with the bytes of its file: the app keeps it with the draft, so a buffer
+  // shown again after its file was deleted shows its input (`Draft.shown`).
+  const shownFile = useRef<ShownFile | undefined>(undefined);
   // The draft this buffer was shown with (the app keys this component by buffer).
   const initialDraft = useRef(draft);
   const saving = useRef(false);
@@ -273,7 +368,7 @@ export const ElementView = ({
   const selection = useMemo(() => packageSelection(buffer.id), [buffer.id]);
   const returning = useRef(buffer.memberCursor !== undefined);
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
-  const readOnly = view.status === "ok" && view.element.readOnly === true;
+  const readOnly = isReadOnly(view);
   // The boxes that are edited (SR-104), and the editors of those with text by key. `stored` is the document
   // of each as last loaded or saved, what an editor is compared with (like `baseline` for the text). The
   // boxes that were added (AK2) have no stored value: their base is the empty document.
@@ -378,7 +473,7 @@ export const ElementView = ({
   const setValue = (key: string, doc: string): void => {
     values.current = new Map(values.current).set(key, doc);
     setValues(values.current);
-    now.current.onDraft(now.current.buffer.key, currentDraft());
+    changed();
   };
   // The unsaved input of the buffer as the app keeps it: the text and every box whose editor differs from
   // what is stored. `textDoc` is the document of the text editor when its change is the reason to ask.
@@ -390,15 +485,62 @@ export const ElementView = ({
     makeDraft(
       { doc: textDoc ?? now.current.handle?.doc() ?? base, base },
       boxDrafts(stored.current, boxDocs),
+      basis.current,
     );
+  // The app keeps the draft of the buffer, with the element it shows.
+  const keepDraft = (kept: Draft | undefined): void => {
+    now.current.onDraft(now.current.buffer.key, withShown(kept, shownFile.current));
+  };
   // The boxes whose document differs from the stored one: what "Save element" sends besides the text.
   const boxEdits = (): BoxEdit[] => changedBoxes(editsOf(now.current.boxes, editorDocs()));
-  // The fields with input: the text when it was typed in, and every box whose document is not the stored one.
-  const inputFields = (): ReadonlySet<string> =>
-    new Set([
-      ...(dirty(now.current.handle?.doc() ?? baseline.current, baseline.current) ? ["Text"] : []),
-      ...[...editorDocs()].filter(([key, doc]) => doc !== stored.current.get(key)).map(([key]) => key),
+  // The fields with input and what they hold: the text when it was typed in (a text editor that is not
+  // there yet holds none), and every box whose document is not the stored one.
+  const inputDocs = (): Map<string, string> => {
+    const doc = now.current.handle?.doc() ?? baseline.current;
+    return new Map([
+      ...(dirty(doc, baseline.current) ? [[TEXT_FIELD, doc] as const] : []),
+      ...[...editorDocs()].filter(([key, box]) => box !== stored.current.get(key)),
     ]);
+  };
+  // What the file holds for each field, as last loaded or saved.
+  const fileDocs = (): Map<string, string> => new Map([[TEXT_FIELD, baseline.current], ...stored.current]);
+  // What the outside change means for the buffer now (SR-106): a conflict stops saving, and says so once;
+  // without one, the input is on the file as it is.
+  const decide = (change: OutsideChange): void => {
+    if (change.kind === "conflict") {
+      const was = conflictRef.current;
+      conflictRef.current = change.fields;
+      setConflict(change.fields);
+      if (was === undefined) {
+        now.current.onEcho(changedOnDisk(now.current.buffer.name));
+      }
+      return;
+    }
+    endConflict(held.current?.sha);
+  };
+  // The input is on the file with the bytes `sha`: nothing to resolve.
+  const endConflict = (sha: string | undefined): void => {
+    basis.current = sha;
+    if (conflictRef.current !== undefined) {
+      conflictRef.current = undefined;
+      setConflict(undefined);
+    }
+  };
+  // Why the element cannot be changed now: it is read-only, or its file is gone (SR-106 AK3).
+  const lockedNote = (): string | undefined => {
+    const { readOnly: locked, buffer: shownBuffer } = now.current;
+    if (locked) {
+      return `${shownBuffer.name} is read-only`;
+    }
+    return deletedRef.current ? deletedOnDisk(shownBuffer.name) : undefined;
+  };
+  // The input changed: during a conflict the blocks follow it, and input that is what the file holds ends it.
+  const changed = (textDoc?: string): void => {
+    if (conflictRef.current !== undefined) {
+      decide(outsideChange(inputDocs(), basis.current, { sha: held.current?.sha, docs: fileDocs() }));
+    }
+    keepDraft(currentDraft(textDoc));
+  };
 
   // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
   // editor is configured again only when the hints about the text change.
@@ -462,22 +604,27 @@ export const ElementView = ({
     setText(next);
   };
 
-  // The file changed while the buffer is shown: a box or the text with unsaved input keeps it, the others
-  // follow the file.
-  const reload = (loaded: string, docs: Map<string, string>): void => {
-    const typed = dirty(now.current.handle?.doc() ?? "", baseline.current);
-    // A box that was added stays while the file has no value for the property.
-    const open = addedRef.current.filter((key) => !docs.has(key));
+  // The file was read again while the buffer is shown (SR-106): a field without input follows the file, a
+  // field whose input the file now holds has none any more, and input on other bytes than it was typed on
+  // is a conflict. A box with input whose property is no longer in the file stays as an added box, so no
+  // input is lost.
+  const reload = (loaded: string, docs: Map<string, string>, sha: string): void => {
+    const input = inputDocs();
+    // A box that was added stays while the file has no value for the property, and so does a box with input.
+    const open = [
+      ...addedRef.current,
+      ...[...input.keys()].filter((key) => key !== TEXT_FIELD && !addedRef.current.includes(key)),
+    ].filter((key) => !docs.has(key));
     const next = new Map([...docs, ...open.map((key): [string, string] => [key, ""])]);
-    const held = editorDocs();
-    const unsaved = (loaded !== baseline.current && typed) || changedUnderEdit(stored.current, next, held);
+    const boxDocs = editorDocs();
     // A box without input follows the file once this render is done, so the draft already has it so.
     const followed = new Map(
-      [...held].map(([key, doc]) => [key, doc === stored.current.get(key) ? (next.get(key) ?? doc) : doc]),
+      [...boxDocs].map(([key, doc]) => [key, doc === stored.current.get(key) ? (next.get(key) ?? doc) : doc]),
     );
-    // A choice or relation box with input keeps it; one without follows the file at once.
+    // A choice or relation box with input keeps it; one without, or with what the file now holds, follows
+    // the file at once.
     values.current = new Map(
-      [...values.current].filter(([key, doc]) => doc !== stored.current.get(key) && next.has(key)),
+      [...values.current].filter(([key, doc]) => doc !== stored.current.get(key) && doc !== next.get(key)),
     );
     setValues(values.current);
     if (open.length !== addedRef.current.length) {
@@ -486,18 +633,120 @@ export const ElementView = ({
     }
     setBaseline(loaded);
     stored.current = next;
-    if (unsaved) {
-      // Interim until the conflict rule of the external-change issues (#401, #402).
-      now.current.onEcho(changedOnDisk(now.current.buffer.name));
-    }
+    decide(outsideChange(input, basis.current, { sha, docs: fileDocs() }));
     // The draft is on the new file text: a text that was not typed on is the new one (the editor
     // follows it after this render), so boxes alone never keep the old text.
-    now.current.onDraft(now.current.buffer.key, currentDraft(typed ? undefined : loaded, loaded, followed));
+    keepDraft(currentDraft(input.has(TEXT_FIELD) ? undefined : loaded, loaded, followed));
+  };
+  // The first answer for a buffer that comes back with a draft: the draft is compared with the file as it
+  // is now, as a reload compares the input (SR-106).
+  const restore = (kept: Draft, element: DataExportElement, docs: Map<string, string>, sha: string): void => {
+    const loaded = element.text ?? "";
+    const change = outsideChange(draftInput(kept), kept.sha, {
+      sha,
+      docs: new Map([[TEXT_FIELD, loaded], ...docs]),
+    });
+    const typed = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
+    keptBoxes.current = new Map(keptBoxesOf(kept, change.dropped, docs));
+    keptText.current = typed;
+    basis.current = change.kind === "conflict" ? kept.sha : sha;
+    if (change.kind === "conflict") {
+      decide(change);
+    }
+    const restored = makeDraft({ doc: typed ?? loaded, base: loaded }, [...keptBoxes.current], basis.current);
+    if (!sameDraft(restored, kept)) {
+      keepDraft(restored);
+    }
+    // The boxes of the draft that were added come back (their base is the empty document), and the
+    // documents of the choices and relations set in the minibuffer with them.
+    const known = [...keptBoxes.current].flatMap(([key, box]) => {
+      const info = now.current.properties.get(element.type)?.get(key);
+      return info === undefined ? [] : [{ key, box, info }];
+    });
+    addedRef.current = known
+      .filter(({ key, box }) => box.base === "" && !docs.has(key))
+      .map(({ key }) => key);
+    setAdded(addedRef.current);
+    values.current = new Map(
+      known.flatMap(({ key, box, info }): [string, string][] =>
+        isValueKind(info.kind) ? [[key, box.doc]] : [],
+      ),
+    );
+    setValues(values.current);
+  };
+  // An answer of `element.get` for the shown element.
+  const apply = (element: DataExportElement, sha: string, changedJustNow: boolean): void => {
+    const loaded = element.text ?? "";
+    const docs = storedDocs(editableBoxes(element, now.current.properties));
+    // A save that runs sets the baseline itself with its answer.
+    if (!saving.current) {
+      const fields = fieldTexts(element);
+      if (changedJustNow && held.current?.sha !== sha) {
+        mark(changedFields(held.current?.fields, fields, new Set(inputDocs().keys())));
+      }
+      held.current = { sha, fields };
+      shownFile.current = { element, sha };
+      // The file is there (again): the buffer is editable as before.
+      goneSince.current = undefined;
+      if (deletedRef.current) {
+        deletedRef.current = false;
+        setDeleted(false);
+      }
+      if (!loadedOnce.current) {
+        setBaseline(loaded);
+        basis.current = sha;
+        const kept = initialDraft.current;
+        if (kept !== undefined) {
+          restore(kept, element, docs, sha);
+        }
+        stored.current = new Map([...docs, ...addedRef.current.map((key): [string, string] => [key, ""])]);
+      } else {
+        reload(loaded, docs, sha);
+      }
+      loadedOnce.current = true;
+    }
+    setView({ status: "ok", element });
+  };
+  // A read of the shown element failed. Before anything was shown the buffer says why; after, it keeps
+  // what it shows with its editors: a file that is gone leaves the content read-only with a hint (SR-106
+  // AK3), any other failure is only echoed. A buffer shown again with a draft after its file was deleted
+  // shows the element the draft was typed on, with the input, as the shown buffer does.
+  const failed = (answer: { readonly code: string; readonly message: string }): void => {
+    const kept = initialDraft.current?.shown;
+    if (!loadedOnce.current && isGone(answer.code) && kept !== undefined) {
+      apply(kept.element, kept.sha, false);
+    }
+    if (!loadedOnce.current) {
+      setView({ status: "error", message: answer.message });
+      now.current.onEcho(answer.message);
+    } else if (!isGone(answer.code)) {
+      now.current.onEcho(answer.message);
+    } else if (!deletedRef.current) {
+      gone();
+    }
+  };
+  // A read found the file gone: the first time the element is asked for again after a batch of the
+  // watcher, and only a file still gone then is deleted (a change that names the element asks at once).
+  const gone = (): void => {
+    const at = Date.now();
+    const wait = goneWait(goneSince.current, at);
+    goneSince.current ??= at;
+    if (wait > 0) {
+      clearTimeout(askAgain.current);
+      askAgain.current = setTimeout(() => {
+        setTouched((count) => count + 1);
+      }, wait);
+      return;
+    }
+    deletedRef.current = true;
+    setDeleted(true);
+    now.current.onEcho(deletedOnDisk(now.current.buffer.name));
   };
   // The shown buffer is a new one (the app keys this component by buffer), so "loading" shows once; a
   // reload after a change of the workspace keeps the editors (focus, cursor and undo history).
   useEffect(() => {
     let current = true;
+    clearTimeout(askAgain.current);
     if (!loadedOnce.current) {
       onData(buffer.key, undefined);
     }
@@ -507,62 +756,13 @@ export const ElementView = ({
       if (!current) {
         return;
       }
-      if (!answer.ok) {
+      if (answer.ok) {
+        apply(answer.output.element, answer.output.fileSha256, changedJustNow);
+      } else {
         // An "Edit text" that waited for this element is void: it must not act when a later load succeeds.
         editAsked.current = false;
-        setView({ status: "error", message: answer.message });
-        onEcho(answer.message);
-        return;
+        failed(answer);
       }
-      const { element, fileSha256 } = answer.output;
-      const loaded = element.text ?? "";
-      const docs = storedDocs(editableBoxes(element, now.current.properties));
-      // A save that runs sets the baseline itself with its answer.
-      if (!saving.current) {
-        const fields = fieldTexts(element);
-        if (changedJustNow && held.current?.sha !== fileSha256) {
-          mark(changedFields(held.current?.fields, fields, inputFields()));
-        }
-        held.current = { sha: fileSha256, fields };
-        if (!loadedOnce.current) {
-          setBaseline(loaded);
-          const kept = initialDraft.current;
-          if (kept !== undefined) {
-            // Interim until the conflict rule of the external-change issues (#401, #402).
-            const compared = reconcile(kept, loaded, docs);
-            if (compared.changed) {
-              onEcho(changedOnDisk(buffer.name));
-            }
-            keptBoxes.current = new Map(compared.draft?.boxes);
-            keptText.current = typedText(compared.draft);
-            if (compared.draft !== kept) {
-              onDraft(buffer.key, compared.draft);
-            }
-            // The boxes of the draft that were added come back (their base is the empty document), and
-            // the documents of the choices and relations set in the minibuffer with them.
-            const type = now.current.properties.get(element.type);
-            const known = [...keptBoxes.current].flatMap(([key, box]) => {
-              const info = type?.get(key);
-              return info === undefined ? [] : [{ key, box, info }];
-            });
-            addedRef.current = known
-              .filter(({ key, box }) => box.base === "" && !docs.has(key))
-              .map(({ key }) => key);
-            setAdded(addedRef.current);
-            values.current = new Map(
-              known.flatMap(({ key, box, info }): [string, string][] =>
-                isValueKind(info.kind) ? [[key, box.doc]] : [],
-              ),
-            );
-            setValues(values.current);
-          }
-          stored.current = new Map([...docs, ...addedRef.current.map((key): [string, string] => [key, ""])]);
-        } else {
-          reload(loaded, docs);
-        }
-        loadedOnce.current = true;
-      }
-      setView({ status: "ok", element });
     });
     return () => {
       current = false;
@@ -582,11 +782,17 @@ export const ElementView = ({
   });
   // The modeline shows the element when the buffer does: once its parents line has answered too.
   const loadedElement = shownElement(view, parents.answered);
+  // The file changed outside under the input, or is gone (SR-106): the modeline says so.
+  const disk = diskMark(deleted, conflict);
   useEffect(() => {
     if (loadedElement !== undefined) {
-      onData(buffer.key, { kind: "element", element: loadedElement });
+      onData(buffer.key, {
+        kind: "element",
+        element: loadedElement,
+        ...(disk === undefined ? {} : { disk }),
+      });
     }
-  }, [loadedElement]);
+  }, [loadedElement, disk]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft.
@@ -599,10 +805,13 @@ export const ElementView = ({
     sent: { readonly doc: string; readonly edits: readonly BoxEdit[] },
     editor: EditorHandle,
   ): void => {
-    const { buffer: shown, onDraft: draftOf, onEcho: echo } = now.current;
+    const { buffer: shown, onEcho: echo } = now.current;
     const { element } = output;
-    // The file as this save wrote it: the reload its `written` brings finds the same bytes.
+    // The file as this save wrote it: the reload its `written` brings finds the same bytes, and what was
+    // typed while the save ran is on it.
     held.current = { sha: output.fileSha256, fields: fieldTexts(element) };
+    shownFile.current = { element, sha: output.fileSha256 };
+    endConflict(output.fileSha256);
     const after = afterSave(sent.doc, element.text ?? "", editor.doc());
     const docs = storedDocs(editableBoxes(element, now.current.properties));
     // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
@@ -633,7 +842,7 @@ export const ElementView = ({
       ),
     );
     setValues(values.current);
-    draftOf(shown.key, currentDraft());
+    keepDraft(currentDraft());
     setView({ status: "ok", element });
     const hint = savedHint(
       output.problems,
@@ -642,29 +851,101 @@ export const ElementView = ({
     echo(hint === undefined ? `Saved ${shown.name}` : `Saved ${shown.name}. ${hint}`);
   };
 
-  const save = async (): Promise<void> => {
-    const { buffer: shown, call: run, onEcho: echo, handle: editor } = now.current;
+  // "Save element": nothing is saved while the file changed under the input (SR-106 AK2) or is gone (AK3).
+  const save = (): void => {
+    const { handle: editor, onEcho: echo } = now.current;
     if (saving.current || editor === undefined) {
       return;
     }
+    const note = lockedNote() ?? (conflictRef.current === undefined ? undefined : RESOLVE_FIRST);
+    if (note === undefined) {
+      void write(editor);
+    } else {
+      echo(note);
+    }
+  };
+  // Writes the text and the boxes with input, on the bytes of the file the buffer shows (`expectedFileSha256`):
+  // core refuses the write when the file changed since (SR-106).
+  const write = async (editor: EditorHandle, retried = false): Promise<void> => {
+    const { buffer: shown, call: run, onEcho: echo } = now.current;
     const doc = editor.doc();
     const edits = boxEdits();
     const textDirty = dirty(doc, baseline.current);
-    if (now.current.readOnly) {
-      echo(`${shown.name} is read-only`);
-    } else if (!textDirty && edits.length === 0) {
+    if (!textDirty && edits.length === 0) {
       echo("No changes to save");
+      return;
+    }
+    const expected = held.current?.sha;
+    saving.current = true;
+    const answer = await run("element.update", {
+      ...updateInput(shown.id, textDirty ? doc : undefined, edits),
+      ...(expected === undefined ? {} : { expectedFileSha256: expected }),
+    });
+    saving.current = false;
+    if (answer.ok) {
+      settle(answer.output, { doc, edits }, editor);
+    } else if (answer.code === "file.changed-on-disk" || isGone(answer.code)) {
+      await check(editor, expected, retried ? answer.message : undefined);
     } else {
-      saving.current = true;
-      const answer = await run("element.update", updateInput(shown.id, textDirty ? doc : undefined, edits));
-      saving.current = false;
-      if (answer.ok) {
-        settle(answer.output, { doc, edits }, editor);
+      // Nothing was written: the text and the boxes stay as typed.
+      echo(answer.message);
+    }
+  };
+  // A write was refused because the file is not the one the buffer shows: one read says what holds now.
+  // When only core's store lagged behind the file (it has the bytes that were sent), the write goes again
+  // once, silently; a second refusal is echoed (`refused`). Other bytes follow the rule for a change from
+  // outside, and a file that is gone the rule for a deletion.
+  const check = async (
+    editor: EditorHandle,
+    expected: string | undefined,
+    refused?: string,
+  ): Promise<void> => {
+    const { buffer: shown, call: run, onEcho: echo } = now.current;
+    const answer = await run("element.get", { ref: shown.id, repository: shown.repository });
+    if (!answer.ok) {
+      failed(answer);
+    } else if (answer.output.fileSha256 !== expected) {
+      apply(answer.output.element, answer.output.fileSha256, false);
+    } else if (refused === undefined) {
+      await write(editor, true);
+    } else {
+      echo(refused);
+    }
+  };
+  // "Resolve change on disk" (SR-106 AK2): which version holds. "Keep my input" writes the fields with input
+  // on the file as it is now, so the outside change of every other field stays; "Take the file" puts the
+  // file's values into the editors as an edit, which Ctrl/Cmd+Z takes back, so no input is lost.
+  const resolve = (): void => {
+    onAsk(resolvePrompt(keepInput, takeFile));
+  };
+  const keepInput = (): void => {
+    const { handle: editor, onEcho: echo } = now.current;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
+    } else if (editor !== undefined && !saving.current && conflictRef.current !== undefined) {
+      void write(editor);
+    }
+  };
+  const takeFile = (): void => {
+    const note = lockedNote();
+    if (note !== undefined) {
+      now.current.onEcho(note);
+      return;
+    }
+    for (const field of conflictRef.current ?? []) {
+      const editor = field.label === TEXT_FIELD ? now.current.handle : boxEditors.current.get(field.label);
+      if (editor === undefined) {
+        // A choice or relation box: it shows the file's value again (no value history before #401).
+        const rest = new Map(values.current);
+        rest.delete(field.label);
+        values.current = rest;
+        setValues(rest);
       } else {
-        // Nothing was written: the text and the boxes stay as typed.
-        echo(answer.message);
+        editor.set(field.disk);
       }
     }
+    changed();
   };
 
   // The prompt that sets the value of a choice or relation box (SR-104 AK3): only the choices of the metamodel,
@@ -672,9 +953,10 @@ export const ElementView = ({
   // taken or escaped, the focus goes back to the box, not to the element.
   const openValue = (box: EditableBox): void => {
     const { key } = box;
-    const { readOnly: locked, buffer: shownBuffer, call: run, onEcho: echo } = now.current;
-    if (locked) {
-      echo(`${shownBuffer.name} is read-only`);
+    const { call: run, onEcho: echo } = now.current;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
       return;
     }
     const doc = values.current.get(key) ?? box.doc;
@@ -719,9 +1001,10 @@ export const ElementView = ({
   };
   // "Add property" (SR-104 AK2): asks which of the properties the element lacks; the box comes empty.
   const addProperty = (): void => {
-    const { addable, readOnly: locked, buffer: shownBuffer, onEcho: echo } = now.current;
-    if (locked) {
-      echo(`${shownBuffer.name} is read-only`);
+    const { addable, onEcho: echo } = now.current;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
     } else if (addable.length === 0) {
       echo("No property to add");
     } else {
@@ -738,13 +1021,14 @@ export const ElementView = ({
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
-    const { boxes: all, readOnly: locked, buffer: shownBuffer, onEcho: echo } = now.current;
+    const { boxes: all, onEcho: echo } = now.current;
     const label = cursorField(document.activeElement, lastField.current);
     const box = label === undefined ? undefined : all.get(label);
+    const note = lockedNote();
     if (label === undefined || !now.current.boxKeys.includes(label)) {
       echo("Put the cursor in a property box to clear it");
-    } else if (locked) {
-      echo(`${shownBuffer.name} is read-only`);
+    } else if (note !== undefined) {
+      echo(note);
     } else if (box === undefined) {
       echo(`${label} is not a property of this type: edit it in the file`);
     } else if (isLocked(box)) {
@@ -854,8 +1138,8 @@ export const ElementView = ({
     now.current.boxes.get(label)?.info.kind === "relation" ||
     now.current.shown.some((box) => box.key === label && box.relations !== undefined);
   // The latest functions of this render, for the controls the app holds on to.
-  const api = useRef({ addProperty, clearProperty, relationFollowed, isRelationBox });
-  api.current = { addProperty, clearProperty, relationFollowed, isRelationBox };
+  const api = useRef({ addProperty, clearProperty, relationFollowed, isRelationBox, resolve });
+  api.current = { addProperty, clearProperty, relationFollowed, isRelationBox, resolve };
 
   // A layout effect, like the editor's: the app has the controls in the same task as the editor (the window's
   // shortcuts of the element, such as "Copy field", read them), before any key can come.
@@ -864,13 +1148,19 @@ export const ElementView = ({
       return undefined;
     }
     register({
-      save: () => {
-        void save();
-      },
+      save,
       edit: () => {
         handle.focus("end");
       },
       members: packageModel !== undefined,
+      // Only while the file changed under the input (SR-106 AK2).
+      ...(conflict === undefined
+        ? {}
+        : {
+            resolve: () => {
+              api.current.resolve();
+            },
+          }),
       copy: () => {
         copy(cursorField(document.activeElement, lastField.current));
       },
@@ -921,7 +1211,24 @@ export const ElementView = ({
     return () => {
       register(undefined);
     };
-  }, [handle, register, packageModel !== undefined]);
+  }, [handle, register, packageModel !== undefined, conflict === undefined]);
+
+  // The editors take no input in a read-only element, and none while its file is gone (SR-106 AK3).
+  const locked = readOnly || deleted;
+  // The block "On disk" under a field in conflict (SR-106 AK2).
+  const diskBlock = (label: string): React.JSX.Element | null => {
+    const field = conflict?.find((candidate) => candidate.label === label);
+    return field === undefined ? null : (
+      <OnDisk
+        field={field}
+        info={boxes.get(label)?.info}
+        onResolve={resolve}
+        onLeave={() => {
+          article?.focus();
+        }}
+      />
+    );
+  };
 
   return (
     <article
@@ -951,11 +1258,11 @@ export const ElementView = ({
             <FieldBox label="Text" onCopy={copy} marked={marked}>
               <Editor
                 text={text}
-                readOnly={readOnly}
+                readOnly={locked}
                 plugins={plugins}
                 {...(keptText.current === undefined ? {} : { initial: keptText.current })}
                 onChange={(doc) => {
-                  onDraft(buffer.key, currentDraft(doc));
+                  changed(doc);
                 }}
                 onEscape={() => {
                   article?.focus();
@@ -975,12 +1282,13 @@ export const ElementView = ({
                 }}
               />
             </FieldBox>
+            {diskBlock(TEXT_FIELD)}
             {shown.map((box) => {
               const editable = boxes.get(box.key);
               const kept = keptBoxes.current.get(box.key)?.doc;
               const value = values.current.get(box.key);
-              return (
-                <FieldBox key={box.key} label={box.key} focusable onCopy={copy} marked={marked}>
+              const field = (
+                <FieldBox label={box.key} focusable onCopy={copy} marked={marked}>
                   <div className="box">
                     <span className="key">{box.key}</span>
                     <span className="value">
@@ -989,13 +1297,13 @@ export const ElementView = ({
                           label={box.key}
                           text={editable.doc}
                           {...(kept === undefined ? {} : { initial: kept })}
-                          readOnly={readOnly || editable.lineBreak}
+                          readOnly={locked || editable.lineBreak}
                           many={editable.info.many}
                           markdown={editable.info.markdown}
                           outdated={outdatedReferences(view.element, box.key)}
                           follow={follow}
                           onChange={() => {
-                            onDraft(buffer.key, currentDraft());
+                            changed();
                           }}
                           onLeave={() => {
                             fieldOf(box.key)?.focus();
@@ -1042,6 +1350,12 @@ export const ElementView = ({
                     </span>
                   </div>
                 </FieldBox>
+              );
+              return (
+                <Fragment key={box.key}>
+                  {field}
+                  {diskBlock(box.key)}
+                </Fragment>
               );
             })}
             {relationGroups(view.element.relations).map((group) => (

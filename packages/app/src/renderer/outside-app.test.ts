@@ -13,6 +13,7 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { GONE_CONFIRM_MS } from "./outside-change.js";
 import { FRESH_MS } from "./outside-marks.js";
 import { OUTSIDE_CHANGE } from "./use-outside-marks.js";
 
@@ -153,8 +154,21 @@ const fake = () => {
     },
   };
   const listeners = new Set<(change: WorkspaceChange) => void>();
+  // The elements core's store does not know: as core, from the batch that removed them until one adds
+  // them again, also while their file is only being written (a pull).
+  const deleted = new Set<string>();
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
-    Promise.resolve({ ok: true, output: handlers[name]?.(input) }),
+    Promise.resolve(
+      name.startsWith("element.") && deleted.has(String(input["ref"]))
+        ? {
+            ok: false,
+            error: {
+              code: "ref.unknown",
+              message: `${String(input["ref"])} is not an element of the workspace`,
+            },
+          }
+        : { ok: true, output: handlers[name]?.(input) },
+    ),
   );
   const bridge: LogReqBridge = {
     invoke,
@@ -176,6 +190,13 @@ const fake = () => {
   const send = async (...changes: WorkspaceChange[]): Promise<void> => {
     await act(async () => {
       for (const change of changes) {
+        // Core's watcher calls the listeners after the change is in its store.
+        for (const id of change.elements?.removed ?? []) {
+          deleted.add(id);
+        }
+        for (const id of change.elements?.added ?? []) {
+          deleted.delete(id);
+        }
         for (const listener of listeners) {
           listener(change);
         }
@@ -194,9 +215,17 @@ const fake = () => {
       elements: { added: [], changed: [id], removed: [] },
     });
   };
+  /** Deletes the file of an element outside the app, and reports it. */
+  const remove = async (id: string): Promise<void> => {
+    await send({
+      reason: "external",
+      scope: "elements",
+      elements: { added: [], changed: [], removed: [id] },
+    });
+  };
   const calls = (name: string): unknown[] =>
     invoke.mock.calls.filter(([called]) => called === name).map(([, input]) => input);
-  return { bridge, invoke, send, outside, calls, disk };
+  return { bridge, invoke, send, outside, remove, calls, disk, deleted };
 };
 
 let container: HTMLElement;
@@ -210,6 +239,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   act(() => {
     root.unmount();
@@ -298,6 +328,14 @@ const marked = (): string[] =>
     (found) => (found as HTMLElement).dataset["field"] ?? found.querySelector(".id")?.textContent ?? "",
   );
 
+/** A read that found the file gone asks again after a batch of the watcher; still gone, it is deleted. */
+const confirmGone = async (): Promise<void> => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(GONE_CONFIRM_MS);
+  });
+  await flush();
+};
+
 const editorView = (): EditorView => {
   const found = EditorView.findFromDOM(query(".cm-editor"));
   if (found === null) {
@@ -365,7 +403,8 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(marked()).toEqual(["Text"]);
   });
 
-  it("keeps the element and its editor through a write in progress: removed in one batch, added in the next", async () => {
+  it("[SR-106/AK3] a file being written is no deletion: removed in one batch, added in the next, the element and its editor stay editable", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { send, calls, disk } = await start();
     await listAll();
     await openRow(0);
@@ -376,18 +415,28 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
       scope: "elements",
       elements: { added: [], changed: [], removed: ["uuid-1"] },
     });
-    expect(calls("element.get")).toHaveLength(reads);
+    // The read after the removal finds no element, as core's store during a pull: no deletion yet, and
+    // keys typed now are taken.
+    expect(calls("element.get")).toHaveLength(reads + 1);
     expect(editorView().state.doc.toString()).toBe("The wind blows.");
+    expect(editorView().state.readOnly).toBe(false);
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe("");
+    expect(query('[aria-label="Modeline"]').textContent).not.toContain("on disk");
     Object.assign(disk.get("uuid-1") ?? {}, { text: "The wind turned.", sha: "sha-turned" });
     await send({
       reason: "external",
       scope: "elements",
       elements: { added: ["uuid-1"], changed: [], removed: [] },
     });
-    expect(calls("element.get")).toHaveLength(reads + 1);
+    expect(calls("element.get")).toHaveLength(reads + 2);
     expect(query(".cm-editor")).toBe(editor);
     expect(editorView().state.doc.toString()).toBe("The wind turned.");
     expect(marked()).toEqual(["Text"]);
+    // The added element answered: it is not asked for again, and nothing says it was deleted.
+    await confirmGone();
+    expect(calls("element.get")).toHaveLength(reads + 2);
+    expect(editorView().state.readOnly).toBe(false);
+    expect(query('[aria-label="Modeline"]').textContent).not.toContain("on disk");
   });
 
   it("highlights the title when the bytes changed but no field shows it, and nothing when the bytes are the same", async () => {
@@ -582,5 +631,89 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     });
     expect(calls("metamodel.get")).toHaveLength(metamodel + 1);
     expect(marked()).toEqual(["Text"]);
+  });
+
+  it("[SR-106/AK3] keeps the content of an element whose file was deleted, read-only, and names the deletion", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { remove, deleted, send } = await start();
+    await listAll();
+    await openRow(0);
+    act(() => {
+      editorView().dispatch({ changes: { from: 0, insert: "Typed. " } });
+    });
+    await remove("uuid-1");
+    await confirmGone();
+    expect(editorView().state.doc.toString()).toBe("Typed. The wind blows.");
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+    expect(query('[aria-label="Modeline"]').textContent).toContain("deleted on disk");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe(
+      "N-001 See the wind was deleted on disk; its content stays here until you close the buffer",
+    );
+    // The file is there again: the buffer is editable, and its input on other bytes asks which holds.
+    deleted.delete("uuid-1");
+    await send({
+      reason: "external",
+      scope: "elements",
+      elements: { added: ["uuid-1"], changed: [], removed: [] },
+    });
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("true");
+    expect(editorView().state.doc.toString()).toBe("Typed. The wind blows.");
+    expect(query('[aria-label="Modeline"]').textContent).not.toContain("deleted on disk");
+  });
+
+  it("[SR-106/AK3] a buffer not shown when its file is deleted shows its input again, read-only, and names the deletion", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { remove, calls } = await start();
+    await listAll();
+    await openRow(0);
+    act(() => {
+      editorView().dispatch({ changes: { from: 0, insert: "Typed. " } });
+    });
+    await listAll();
+    await openRow(1);
+    expect(query("article h1").textContent).toBe("Show wind speed");
+    await remove("uuid-1");
+    await listAll();
+    await openRow(0);
+    // Shown again: the element the input was typed on, with the input, and not an error.
+    expect(query("article h1").textContent).toBe("See the wind");
+    expect(editorView().state.doc.toString()).toBe("Typed. The wind blows.");
+    await confirmGone();
+    expect(editorView().state.doc.toString()).toBe("Typed. The wind blows.");
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+    expect(query('[aria-label="Modeline"]').textContent).toContain("deleted on disk");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe(
+      "N-001 See the wind was deleted on disk; its content stays here until you close the buffer",
+    );
+    await keyDown(query(".cm-content"), "s", { ctrlKey: true });
+    expect(calls("element.update")).toEqual([]);
+  });
+
+  it("[SR-116/AK3] with unsaved input a change from outside follows the conflict rule: no input is lost, nothing is saved over the file", async () => {
+    const { outside, calls, disk } = await start();
+    await listAll();
+    await openRow(0);
+    act(() => {
+      editorView().dispatch({ changes: { from: 0, insert: "Typed. " } });
+    });
+    await outside("uuid-1", { text: "The wind blows hard." });
+    expect(editorView().state.doc.toString()).toBe("Typed. The wind blows.");
+    expect(query('[data-on-disk="Text"]').textContent).toBe("On diskThe wind blows hard.");
+    expect(query('[aria-label="Modeline"]').textContent).toContain("changed on disk");
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe(
+      'N-001 See the wind changed on disk. Resolve with "Resolve change on disk"',
+    );
+    await keyDown(query(".cm-content"), "s", { ctrlKey: true });
+    expect(query('[aria-label="Minibuffer"]').textContent).toBe("Resolve the change on disk first");
+    expect(calls("element.update")).toEqual([]);
+    expect(disk.get("uuid-1")?.text).toBe("The wind blows hard.");
+    // "Resolve change on disk" in the command prompt: keeping the input writes it on the new file.
+    await runCommand("Resolve change on disk");
+    await type("Keep");
+    await keyDown(query("input"), "Enter");
+    expect(calls("element.update")).toEqual([
+      { ref: "uuid-1", text: "Typed. The wind blows.", expectedFileSha256: "sha-1-0+outside" },
+    ]);
+    expect(query('[aria-label="Modeline"]').textContent).not.toContain("on disk");
   });
 });

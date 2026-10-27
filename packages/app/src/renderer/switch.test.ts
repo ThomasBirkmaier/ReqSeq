@@ -23,6 +23,8 @@ interface File {
   text: string;
   properties: Record<string, unknown>;
   type?: string;
+  /** The hash of its bytes, as core gives it (`fileSha256`). */
+  sha?: string;
 }
 
 /** The files of the workspace, by element id. */
@@ -55,7 +57,11 @@ const fakeCall = (files: Files, failing: ReadonlyMap<string, string> = new Map()
       );
       files.set(id, { text: typeof input["text"] === "string" ? input["text"] : file.text, properties });
     }
-    return Promise.resolve({ ok: true, output: { element: elementOf(id, files.get(id) ?? file) } });
+    const now = files.get(id) ?? file;
+    return Promise.resolve({
+      ok: true,
+      output: { element: elementOf(id, now), ...(now.sha === undefined ? {} : { fileSha256: now.sha }) },
+    });
   });
 
 const buffer = (id: string): ElementBuffer => elementBuffer(id, "system", `SR-${id} Title ${id}`);
@@ -82,7 +88,7 @@ const setup = (
 describe("saving before a switch", () => {
   it("[SR-131/AK3] the drafts of every element buffer are saved before main is asked to open", async () => {
     const files: Files = new Map([
-      ["1", { text: "Old one", properties: { topic: "wind" } }],
+      ["1", { text: "Old one", properties: { topic: "wind" }, sha: "one" }],
       ["2", { text: "Old two", properties: { topic: "rain", criteria: ["a", "b"] } }],
       ["3", { text: "Untouched", properties: {} }],
       ["4", { text: "", properties: {} }],
@@ -90,7 +96,15 @@ describe("saving before a switch", () => {
     const [one, two, three, four] = [buffer("1"), buffer("2"), buffer("3"), buffer("4")];
     const drafts = new Map<string, Draft>([
       // The text typed, and an emptied box.
-      [one.key, { text: "New one", base: "Old one", boxes: new Map([["topic", { doc: "", base: "wind" }]]) }],
+      [
+        one.key,
+        {
+          text: "New one",
+          base: "Old one",
+          boxes: new Map([["topic", { doc: "", base: "wind" }]]),
+          sha: "one",
+        },
+      ],
       // Boxes only: a changed list, and a box that was added.
       [
         two.key,
@@ -125,7 +139,13 @@ describe("saving before a switch", () => {
       "element.update 1",
     ]);
     expect(call.mock.calls[1]?.[1]).toEqual({ ref: "2", set: { criteria: ["a", "c"], topic: "hail" } });
-    expect(call.mock.calls[6]?.[1]).toEqual({ ref: "1", text: "New one", unset: ["topic"] });
+    // The write carries the bytes it was made on (SR-106).
+    expect(call.mock.calls[6]?.[1]).toEqual({
+      ref: "1",
+      text: "New one",
+      unset: ["topic"],
+      expectedFileSha256: "one",
+    });
     expect(call.mock.calls[0]?.[1]).toEqual({ ref: "2", repository: "system" });
     expect(dropped).toEqual([two.key, three.key, four.key, one.key]);
   });
@@ -181,9 +201,11 @@ describe("saving before a switch", () => {
   });
 
   it("a draft whose file changed outside since it was typed on is not saved over that change", async () => {
-    const files: Files = new Map([["1", { text: "Changed by Git", properties: { topic: "storm" } }]]);
+    const files: Files = new Map([
+      ["1", { text: "Changed by Git", properties: { topic: "storm" }, sha: "new" }],
+    ]);
     const one = buffer("1");
-    const text = setup([one], new Map([[one.key, { text: "Mine", base: "Old" }]]), files);
+    const text = setup([one], new Map([[one.key, { text: "Mine", base: "Old", sha: "old" }]]), files);
     expect(await text.run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_ON_DISK });
     const box = setup(
       [one],
@@ -194,6 +216,7 @@ describe("saving before a switch", () => {
             text: "Changed by Git",
             base: "Changed by Git",
             boxes: new Map([["topic", { doc: "calm", base: "wind" }]]),
+            sha: "old",
           },
         ],
       ]),
@@ -201,7 +224,7 @@ describe("saving before a switch", () => {
     );
     expect(await box.run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_ON_DISK });
     expect(text.call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
-    expect(files.get("1")).toEqual({ text: "Changed by Git", properties: { topic: "storm" } });
+    expect(files.get("1")).toEqual({ text: "Changed by Git", properties: { topic: "storm" }, sha: "new" });
   });
 
   it("[SR-131/AK3] input typed while its draft was saved is kept, and stops the switch", async () => {

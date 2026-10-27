@@ -5,14 +5,15 @@
 // boxes whose document differs from what the file stores. One after the other; the first that cannot be
 // saved stops the switch (spec question #523): its draft stays, the minibuffer names the element, and
 // the open workspace stays. A draft whose file changed outside since it was typed on is not saved over
-// that change (SR-106); it stops the switch as well.
+// that change: the rule of SR-106 (`outside-change.ts`) finds a conflict, and it stops the switch as well.
+// Every write carries the bytes it was made on (`expectedFileSha256`).
 import type { BoxEdit } from "./property-edit.js";
 import { editableBoxes, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
-import { reconcile, typedText } from "./drafts.js";
 import type { PropertyModel } from "./element-view.js";
+import { TEXT_FIELD, draftInput, keptBoxes, outsideChange } from "./outside-change.js";
 
 export interface SaveContext {
   readonly call: Call;
@@ -56,24 +57,32 @@ const saveOne = async (context: SaveContext, buffer: ElementBuffer, kept: Draft)
   if (!read.ok) {
     return failed(buffer, read.message);
   }
-  const { element } = read.output;
+  const { element, fileSha256 } = read.output;
   const boxes = editableBoxes(element, context.properties);
-  const { draft, changed } = reconcile(kept, element.text ?? "", storedDocs(boxes));
-  if (changed) {
+  const docs = storedDocs(boxes);
+  const change = outsideChange(draftInput(kept), kept.sha, {
+    sha: fileSha256,
+    docs: new Map([[TEXT_FIELD, element.text ?? ""], ...docs]),
+  });
+  if (change.kind === "conflict") {
     return failed(buffer, CHANGED_ON_DISK);
   }
   const type = context.properties.get(element.type);
   const edits: BoxEdit[] = [];
-  for (const [key, box] of draft?.boxes ?? []) {
+  for (const [key, box] of keptBoxes(kept, change.dropped, docs)) {
     const info = boxes.get(key)?.info ?? type?.get(key);
     if (info === undefined) {
       return failed(buffer, `its type has no property ${key}`);
     }
     edits.push({ key, info, base: box.base, doc: box.doc });
   }
-  const text = typedText(draft);
+  // The text when it was typed in and the file does not hold it yet.
+  const text = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
   if (text !== undefined || edits.length > 0) {
-    const written = await context.call("element.update", updateInput(buffer.id, text, edits));
+    const written = await context.call("element.update", {
+      ...updateInput(buffer.id, text, edits),
+      expectedFileSha256: fileSha256,
+    });
     if (!written.ok) {
       return failed(buffer, written.message);
     }

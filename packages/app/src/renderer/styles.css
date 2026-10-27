@@ -406,6 +406,34 @@ mark {
   min-height: 1.6em;
 }
 
+/* The file's version of a field whose input it no longer agrees with (SR-106 AK2): quiet, read-only, in
+   greys; the lines the input lacks in heavier weight (`mark`), meaning and no colour (D-062). It lies below
+   the field, laid out like a box, and is gone with the conflict. */
+.element .on-disk {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.35rem 0.75rem;
+  border-left: 2px solid var(--rule);
+  color: var(--muted);
+  outline: none;
+}
+
+.element .on-disk:focus {
+  border-left-color: var(--muted);
+}
+
+.element .on-disk .key {
+  font-size: 12px;
+}
+
+.element .on-disk .line {
+  display: block;
+  min-height: 1.6em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* The editor of a Markdown value (SR-127) is part of the box: no margin of its own. */
 .element .box .editor {
   margin: 0;

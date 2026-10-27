@@ -1639,21 +1639,23 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
   });
 
-  it("keeps the unsaved text and says the file changed on disk when it changed while another buffer was shown", async () => {
+  it("[SR-106/AK2] keeps the unsaved text and opens the conflict when the file changed while another buffer was shown", async () => {
     const { handlers } = await openElement();
     await typeText("!");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
     handlers["element.get"] = (input) => ({
       element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: "Changed", relations: [] }),
+      fileSha256: "sha-changed",
     });
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
     expect(text("Minibuffer")).toBe(
-      "SR-000001 Title 1 changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+      'SR-000001 Title 1 changed on disk. Resolve with "Resolve change on disk"',
     );
     expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
+    expect(query('[data-on-disk="Text"]').textContent).toBe("On diskChanged");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedchanged on diskWeather stationread-only");
   });
 
   it("asks before closing a buffer with unsaved text, and discards it when closing is repeated", async () => {

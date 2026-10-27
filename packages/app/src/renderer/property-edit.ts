@@ -263,17 +263,6 @@ export const editsOf = (
     return doc === undefined ? [] : [{ key, info: box.info, base: box.doc, doc }];
   });
 
-/**
- * Whether the file changed a box that has unsaved input: the stored document of a box differs from the one
- * its input was typed on (`before`; none when the property is gone), and its editor holds something else
- * than that (`docs`).
- */
-export const changedUnderEdit = (
-  before: ReadonlyMap<string, string>,
-  now: ReadonlyMap<string, string>,
-  docs: ReadonlyMap<string, string>,
-): boolean => [...docs].some(([key, doc]) => now.get(key) !== before.get(key) && doc !== before.get(key));
-
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 
 /** One line of a box as a value: a decimal literal of a number property is a number, anything else stays text. */

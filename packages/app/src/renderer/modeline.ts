@@ -66,7 +66,16 @@ export type BufferData =
       readonly truncated: boolean;
       readonly incomplete: boolean;
     }
-  | { readonly kind: "element"; readonly element: DataExportElement; readonly modified?: boolean };
+  | {
+      readonly kind: "element";
+      readonly element: DataExportElement;
+      readonly modified?: boolean;
+      /**
+       * The file changed outside while the buffer has input that it no longer agrees with, or it is gone
+       * (SR-106 AK2, AK3): something to notice (D-062), after the counts.
+       */
+      readonly disk?: "changed" | "deleted";
+    };
 
 /**
  * The element of the selected row of the shown list or search; undefined for any other buffer, while it
@@ -112,6 +121,7 @@ const elementParts = (
     ...(element.readOnly === true ? ["read-only"] : []),
     ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
     ...(hints > 0 ? [plural(hints, "hint")] : []),
+    ...(data.disk === undefined ? [] : [`${data.disk} on disk`]),
   ];
 };
 

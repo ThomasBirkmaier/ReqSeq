@@ -146,6 +146,18 @@ describe("bufferView", () => {
     ]);
   });
 
+  it("[SR-106/AK2] [SR-106/AK3] says that the file changed or is gone on disk, after the counts", () => {
+    const buffer = elementBuffer("u", "spec", "SR-036 T");
+    const hinted = element({ problems: [{ code: "x" }] });
+    expect(bufferView(buffer, { kind: "element", element: hinted, modified: true, disk: "changed" })).toEqual(
+      ["SR-000001 · system-requirement", "modified", "1 hint", "changed on disk"],
+    );
+    expect(bufferView(buffer, { kind: "element", element: element(), disk: "deleted" })).toEqual([
+      "SR-000001 · system-requirement",
+      "deleted on disk",
+    ]);
+  });
+
   it("names the buffer before it has loaded", () => {
     expect(bufferView(elementBuffer("u", "spec", "SR-036 T"), undefined)).toEqual(["SR-036 T"]);
     expect(bufferView(listBuffer("All elements"), undefined)).toEqual(["All elements"]);

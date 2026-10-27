@@ -35,7 +35,8 @@ import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import type { PackageModel } from "./package-page.js";
 import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
-import type { Draft } from "./drafts.js";
+import type { Draft, ShownFile } from "./drafts.js";
+import { GONE_CONFIRM_MS } from "./outside-change.js";
 import type { BufferData } from "./modeline.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -88,7 +89,7 @@ const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => u
     const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : undefined))?.(input);
     return Promise.resolve(
       output instanceof Error
-        ? { ok: false, code: "x.failed", message: output.message }
+        ? { ok: false, code: "code" in output ? String(output.code) : "x.failed", message: output.message }
         : { ok: true, output },
     );
   });
@@ -2107,6 +2108,7 @@ describe("ElementView", () => {
     const targets: string[] = [];
     const opened: [string, string | undefined][] = [];
     const drafts: [string, Draft | undefined][] = [];
+    const shownFiles: (ShownFile | undefined)[] = [];
     const registered: (ElementControls | undefined)[] = [];
     const picks: ReferenceRequest[] = [];
     const asked: Prompt[] = [];
@@ -2125,7 +2127,16 @@ describe("ElementView", () => {
         onPickElement: (request) => picks.push(request),
         onAsk: (prompt) => asked.push(prompt),
         draft,
-        onDraft: (key, kept) => drafts.push([key, kept]),
+        // The drafts as the input they hold; the element each keeps (`Draft.shown`) is in `shownFiles`.
+        onDraft: (key, kept) => {
+          if (kept === undefined) {
+            drafts.push([key, undefined]);
+          } else {
+            const { shown, ...input } = kept;
+            drafts.push([key, input]);
+            shownFiles.push(shown);
+          }
+        },
         register: (controls) => registered.push(controls),
         packages: extra.packages,
         properties: extra.properties ?? new Map(),
@@ -2140,6 +2151,7 @@ describe("ElementView", () => {
       targets,
       opened,
       drafts,
+      shownFiles,
       registered,
       picks,
       asked,
@@ -2788,32 +2800,56 @@ describe("ElementView", () => {
     expect(echoed).toEqual([]);
   });
 
-  it("keeps unsaved input on a reload with a changed text, and says so", async () => {
+  it("[SR-106/AK2] keeps unsaved input on a reload with a changed file, shows the file's version below it and says so once", async () => {
     let text = "first";
-    const call = fakeCall({ "element.get": () => ({ element: read({ text }) }) });
-    const { again, echoed, drafts } = await mount(asCall(call));
+    let sha = "sha-1";
+    const call = fakeCall({ "element.get": () => ({ element: read({ text }), fileSha256: sha }) });
+    const { again, echoed, drafts, data } = await mount(asCall(call));
     await typeInto("!");
     text = "changed";
+    sha = "sha-2";
     await again(1);
     expect(editorView().state.doc.toString()).toBe("first!");
-    expect(echoed).toEqual([
-      "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
-    ]);
-    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "first!", base: "changed" }]);
-    // The same text again says nothing more.
+    expect(query('[data-on-disk="Text"]').textContent).toBe("On diskchanged");
+    expect(query('[data-on-disk="Text"] mark').textContent).toBe("changed");
+    expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+    // The draft keeps the bytes it was typed on, so the conflict comes back with the buffer.
+    expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", { text: "first!", base: "changed", sha: "sha-1" }]);
+    expect(data.at(-1)?.[1]).toMatchObject({ kind: "element", disk: "changed" });
+    // The same file again says nothing more.
     await again(2);
     expect(echoed).toHaveLength(1);
   });
 
-  it("says that the file changed on disk when a draft comes back on another file text, and keeps the draft", async () => {
-    const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello" }) }) });
-    const { echoed, drafts } = await mount(asCall(call), 0, { text: "Hello!", base: "Old" });
+  it("[SR-106/AK2] opens the conflict when a draft comes back on another file, and keeps the draft", async () => {
+    const call = fakeCall({ "element.get": () => ({ element: read({ text: "Hello" }), fileSha256: "new" }) });
+    const { echoed, drafts, controls } = await mount(asCall(call), 0, {
+      text: "Hello!",
+      base: "Old",
+      sha: "old",
+    });
     expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(echoed).toEqual([
-      "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
-    ]);
-    // The draft is compared with the new file text from now on: the message is not repeated.
-    expect(drafts).toEqual([["element:spec:uuid-1", { text: "Hello!", base: "Hello" }]]);
+    expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+    expect(query('[data-on-disk="Text"]').textContent).toBe("On diskHello");
+    expect(controls().resolve).toBeDefined();
+    // The draft is on the new file text, typed on the old bytes.
+    expect(drafts).toEqual([["element:spec:uuid-1", { text: "Hello!", base: "Hello", sha: "old" }]]);
+  });
+
+  it("follows the file with a draft that comes back on the bytes it was typed on", async () => {
+    const call = fakeCall({
+      "element.get": () => ({ element: read({ text: "Hello" }), fileSha256: "same" }),
+    });
+    const { echoed, drafts, controls } = await mount(asCall(call), 0, {
+      text: "Hello!",
+      base: "Hello",
+      sha: "same",
+    });
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    expect(echoed).toEqual([]);
+    expect(drafts).toEqual([]);
+    expect(container.querySelector("[data-on-disk]")).toBeNull();
+    expect(controls().resolve).toBeUndefined();
   });
 
   it("drops a draft that the file now holds", async () => {
@@ -2831,15 +2867,390 @@ describe("ElementView", () => {
     expect(editorView().state.doc.toString()).toBe("Hello!");
   });
 
-  it("drops the draft on a reload when the changed file now holds the typed text", async () => {
+  it("drops the draft on a reload when the changed file now holds the typed text, and says nothing", async () => {
     let text = "first";
-    const call = fakeCall({ "element.get": () => ({ element: read({ text }) }) });
+    let sha = "sha-1";
+    const call = fakeCall({ "element.get": () => ({ element: read({ text }), fileSha256: sha }) });
     const { again, echoed, drafts } = await mount(asCall(call));
     await typeInto("!");
     text = "first!";
+    sha = "sha-2";
     await again(1);
-    expect(echoed).toHaveLength(1);
+    expect(echoed).toEqual([]);
     expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+    expect(container.querySelector("[data-on-disk]")).toBeNull();
+  });
+
+  describe("a file changed outside under the input (SR-106)", () => {
+    const CHANGED = 'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"';
+    const DELETED =
+      "SR-036 Measure wind was deleted on disk; its content stays here until you close the buffer";
+    /** An error of a command with its code. */
+    const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
+    /**
+     * The file on disk, read by `element.get` and written by `element.update` with core's precondition: an
+     * `expectedFileSha256` that is not the file's refuses the write. `lag` refuses the next write as a store
+     * of core that has not read the file yet does.
+     */
+    const mountDisk = async (properties: Record<string, PropertyInfo> = {}) => {
+      const disk = {
+        text: "first",
+        properties: { topic: "Wind" } as Record<string, unknown>,
+        sha: "sha-1",
+        gone: false,
+        lag: false,
+        writes: 0,
+      };
+      const call = fakeCall({
+        "element.get": () =>
+          disk.gone
+            ? failure("ref.unknown", "uuid-1 is no longer in a.md: the file changed on disk")
+            : {
+                element: read({ text: disk.text, properties: disk.properties, relations: [] }),
+                fileSha256: disk.sha,
+              },
+        "element.update": (input) => {
+          if (disk.gone) {
+            return failure("ref.unknown", "uuid-1 is not an element of the workspace");
+          }
+          if (
+            disk.lag ||
+            (input["expectedFileSha256"] !== undefined && input["expectedFileSha256"] !== disk.sha)
+          ) {
+            disk.lag = false;
+            return failure(
+              "file.changed-on-disk",
+              "Not written: a.md changed on disk since it was read. Read it again first.",
+            );
+          }
+          disk.writes += 1;
+          disk.text = typeof input["text"] === "string" ? input["text"] : disk.text;
+          disk.properties = { ...disk.properties, ...(input["set"] as Record<string, unknown> | undefined) };
+          disk.sha = `sha-saved-${String(disk.writes)}`;
+          return {
+            element: read({ text: disk.text, properties: disk.properties, relations: [] }),
+            fileSha256: disk.sha,
+            files: ["a.md"],
+            affected: 0,
+          };
+        },
+      });
+      const mounted = await mount(asCall(call), 0, undefined, {
+        properties: modelOf({ topic: { kind: "text", many: false, markdown: false }, ...properties }),
+      });
+      /** Changes the file outside the app, and the buffer reads it again. */
+      let revision = 0;
+      const outside = async (change: {
+        text?: string;
+        properties?: Record<string, unknown>;
+        gone?: boolean;
+      }) => {
+        Object.assign(disk, change);
+        disk.sha = `sha-outside-${String(revision)}`;
+        revision += 1;
+        await mounted.again(revision);
+      };
+      const updates = () =>
+        call.mock.calls.filter(([name]) => name === "element.update").map(([, input]) => input);
+      const choose = async (name: string): Promise<void> => {
+        act(() => {
+          mounted.controls().resolve?.();
+        });
+        await act(async () => {
+          mounted.asked
+            .at(-1)
+            ?.items.find((item) => item.name === name)
+            ?.run();
+          await Promise.resolve();
+        });
+        await flush();
+      };
+      const topicView = (): EditorView => {
+        const found = EditorView.findFromDOM(query('[data-field="topic"] .cm-editor'));
+        if (found === null) {
+          throw new Error("no editor");
+        }
+        return found;
+      };
+      return { ...mounted, disk, call, outside, updates, choose, topicView };
+    };
+    const blocks = (): string[] =>
+      [...container.querySelectorAll<HTMLElement>("[data-on-disk]")].map((block) => block.textContent);
+    /** A read that found the file gone asks again after a batch of the watcher; still gone, it is deleted. */
+    const confirmGone = async (): Promise<void> => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(GONE_CONFIRM_MS);
+      });
+      await flush();
+    };
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('[SR-106/AK2] with input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the fields with input on the new file', async () => {
+      const { disk, outside, echoed, controls, choose, updates, data, drafts } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "theirs", properties: { topic: "Gusts" } });
+      // Not saved: the input stays in the editor, the file's version is below it, and the box without
+      // input follows the file.
+      expect(editorView().state.doc.toString()).toBe("first!");
+      expect(blocks()).toEqual(["On disktheirs"]);
+      expect(query('[data-field="topic"]').textContent).toContain("Gusts");
+      expect(echoed).toEqual([CHANGED]);
+      expect(data.at(-1)?.[1]).toMatchObject({ disk: "changed" });
+      // "Save element" says what to do first, and writes nothing.
+      act(() => {
+        controls().save();
+      });
+      expect(echoed.at(-1)).toBe("Resolve the change on disk first");
+      expect(updates()).toEqual([]);
+      await choose("Keep my input");
+      expect(updates()).toEqual([{ ref: "uuid-1", text: "first!", expectedFileSha256: "sha-outside-0" }]);
+      expect(disk).toMatchObject({ text: "first!", properties: { topic: "Gusts" } });
+      expect(echoed.at(-1)).toBe("Saved SR-036 Measure wind");
+      expect(blocks()).toEqual([]);
+      expect(controls().resolve).toBeUndefined();
+      expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      expect(data.at(-1)?.[1]).not.toHaveProperty("disk");
+    });
+
+    it('[SR-106/AK2] "Take the file" puts the file\'s version into the editor and writes nothing; Ctrl+Z brings the input back', async () => {
+      const { disk, outside, controls, choose, updates, drafts } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "theirs" });
+      await choose("Take the file");
+      expect(editorView().state.doc.toString()).toBe("theirs");
+      expect(updates()).toEqual([]);
+      expect(disk.text).toBe("theirs");
+      expect(blocks()).toEqual([]);
+      expect(controls().resolve).toBeUndefined();
+      expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      // The input is not lost: one undo brings it back, as input on the new file.
+      act(() => {
+        undo(editorView());
+      });
+      expect(editorView().state.doc.toString()).toBe("first!");
+      expect(drafts.at(-1)).toEqual([
+        "element:spec:uuid-1",
+        { text: "first!", base: "theirs", sha: "sha-outside-0" },
+      ]);
+      expect(blocks()).toEqual([]);
+    });
+
+    it('[SR-106/AK2] "Take the file" takes the file\'s value of a box with input too, and of a choice', async () => {
+      const area: PropertyInfo = {
+        name: "Area",
+        kind: "choice",
+        many: false,
+        markdown: false,
+        choices: [
+          { key: "quality", name: "Quality" },
+          { key: "interface", name: "Interface" },
+        ],
+      };
+      const { disk, outside, choose, topicView, asked, controls } = await mountDisk({ area });
+      disk.properties = { topic: "Wind", area: "quality" };
+      await outside({});
+      act(() => {
+        topicView().dispatch({ changes: { from: 4, insert: "y" } });
+      });
+      await act(async () => {
+        query('[data-field="area"]').focus();
+        await Promise.resolve();
+      });
+      await press(query('[data-field="area"]'), "Enter");
+      await act(async () => {
+        asked
+          .at(-1)
+          ?.items.find((item) => item.name === "Interface")
+          ?.run();
+        await Promise.resolve();
+      });
+      await outside({ properties: { topic: "Calm", area: "quality" } });
+      expect(blocks()).toEqual(["On diskCalm", "On diskQuality"]);
+      await choose("Take the file");
+      expect(topicView().state.doc.toString()).toBe("Calm");
+      expect(query('[data-field="area"]').textContent).toContain("quality");
+      expect(blocks()).toEqual([]);
+      expect(controls().resolve).toBeUndefined();
+    });
+
+    it('Enter on a block "On disk" asks which version holds, Escape goes back to the buffer', async () => {
+      const { outside, asked } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "theirs" });
+      const block = query('[data-on-disk="Text"]');
+      await act(async () => {
+        block.focus();
+        await Promise.resolve();
+      });
+      await press(block, "Enter", { shiftKey: true });
+      expect(asked).toEqual([]);
+      await press(block, "Enter");
+      expect(asked.at(-1)?.label).toBe("Resolve change on disk");
+      expect(asked.at(-1)?.items.map((item) => item.name)).toEqual(["Keep my input", "Take the file"]);
+      await press(block, "Escape");
+      expect(document.activeElement).toBe(query("article"));
+    });
+
+    it("updates the blocks on another change, and ends the conflict without asking when the file holds the input or the bytes it was typed on again", async () => {
+      const { disk, outside, echoed, controls } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "theirs" });
+      await outside({ text: "theirs again" });
+      expect(blocks()).toEqual(["On disktheirs again"]);
+      expect(echoed).toEqual([CHANGED]);
+      // The file holds the input: nothing is unsaved, nothing to resolve.
+      await outside({ text: "first!" });
+      expect(blocks()).toEqual([]);
+      expect(controls().resolve).toBeUndefined();
+      // Typed on the file as it is now, then the file goes away from it and back to it.
+      await typeInto("?");
+      await outside({ text: "other" });
+      expect(blocks()).toEqual(["On diskother"]);
+      Object.assign(disk, { text: "first!" });
+      const back = disk.sha;
+      await outside({});
+      disk.sha = back;
+      await outside({ text: "first!" });
+      expect(echoed).toHaveLength(2);
+    });
+
+    it("ends the conflict when the input is typed to what the file holds", async () => {
+      const { outside, controls } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "first!?" });
+      expect(blocks()).toEqual(["On diskfirst!?"]);
+      await typeInto("?");
+      expect(blocks()).toEqual([]);
+      expect(controls().resolve).toBeUndefined();
+    });
+
+    it("saves again once, silently, when core's store had not read the file the buffer shows (#493 F2)", async () => {
+      const { disk, echoed, controls, updates } = await mountDisk();
+      await typeInto("!");
+      disk.lag = true;
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await flush();
+      expect(updates()).toHaveLength(2);
+      expect(disk.text).toBe("first!");
+      expect(echoed).toEqual(["Saved SR-036 Measure wind"]);
+    });
+
+    it("says why when the second write is refused too, and keeps the input", async () => {
+      const { disk, echoed, controls, call } = await mountDisk();
+      await typeInto("!");
+      call.mockImplementation((name: string) =>
+        Promise.resolve(
+          name === "element.update"
+            ? { ok: false, code: "file.changed-on-disk", message: "Not written: a.md changed on disk" }
+            : { ok: true, output: { element: read({ text: "first", relations: [] }), fileSha256: disk.sha } },
+        ),
+      );
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await flush();
+      expect(echoed).toEqual(["Not written: a.md changed on disk"]);
+      expect(editorView().state.doc.toString()).toBe("first!");
+    });
+
+    it("[SR-106/AK2] follows the rule for a change from outside when a save finds the file changed before the watcher said so", async () => {
+      const { disk, echoed, controls, updates } = await mountDisk();
+      await typeInto("!");
+      Object.assign(disk, { text: "theirs", sha: "sha-unseen" });
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await flush();
+      expect(updates()).toHaveLength(1);
+      expect(disk.text).toBe("theirs");
+      expect(blocks()).toEqual(["On disktheirs"]);
+      expect(echoed).toEqual([CHANGED]);
+    });
+
+    it("[SR-106/AK3] keeps the content in the read-only editor when the file is deleted, names the deletion, and writes nothing", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { outside, echoed, controls, copies, updates, data, disk } = await mountDisk();
+      await typeInto("!");
+      await outside({ gone: true });
+      // The first read that finds the file gone is no deletion yet: a file being written is not known either.
+      expect(echoed).toEqual([]);
+      expect(editorView().state.readOnly).toBe(false);
+      await confirmGone();
+      expect(editorView().state.doc.toString()).toBe("first!");
+      expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+      expect(query('[data-field="topic"] .cm-content').getAttribute("contenteditable")).toBe("false");
+      expect(echoed).toEqual([DELETED]);
+      expect(data.at(-1)?.[1]).toMatchObject({ disk: "deleted" });
+      // Nothing is saved or changed; the content can still be copied.
+      for (const run of [
+        () => {
+          controls().save();
+        },
+        () => {
+          controls().addProperty();
+        },
+        () => {
+          query('[data-field="topic"]').focus();
+          controls().clearProperty();
+        },
+      ]) {
+        act(run);
+      }
+      expect(updates()).toEqual([]);
+      expect(echoed.slice(1)).toEqual([DELETED, DELETED, DELETED]);
+      act(() => {
+        controls().copy();
+      });
+      expect(copies).toEqual([["topic", "Wind"]]);
+      // Asked again while gone, it says nothing more.
+      await outside({ gone: true });
+      expect(echoed).toHaveLength(4);
+      // The file comes back: the buffer is editable again, and its input on other bytes is a conflict.
+      disk.gone = false;
+      await outside({ gone: false });
+      expect(query(".cm-content").getAttribute("contenteditable")).toBe("true");
+      expect(data.at(-1)?.[1]).toMatchObject({ disk: "changed" });
+      expect(editorView().state.doc.toString()).toBe("first!");
+    });
+
+    it("[SR-106/AK3] a save on a file that is gone finds the deletion, and the choices then say so", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { disk, outside, echoed, controls, choose } = await mountDisk();
+      await typeInto("!");
+      await outside({ text: "theirs" });
+      Object.assign(disk, { gone: true });
+      await choose("Keep my input");
+      expect(echoed).toEqual([CHANGED]);
+      await confirmGone();
+      expect(echoed).toEqual([CHANGED, DELETED]);
+      await choose("Keep my input");
+      await choose("Take the file");
+      expect(echoed).toEqual([CHANGED, DELETED, DELETED, DELETED]);
+      expect(editorView().state.doc.toString()).toBe("first!");
+      expect(controls().resolve).toBeDefined();
+    });
+
+    it("keeps the element and echoes a failed read that is no deletion", async () => {
+      const { echoed, call, again } = await mountDisk();
+      await typeInto("!");
+      const plain = call.getMockImplementation();
+      call.mockImplementation((name: string, input: Record<string, unknown>) =>
+        name === "element.get"
+          ? Promise.resolve({ ok: false, code: "file.faulty", message: "a.md is faulty now" })
+          : (plain?.(name, input) ?? Promise.resolve({ ok: true, output: undefined })),
+      );
+      await again(5);
+      expect(echoed).toEqual(["a.md is faulty now"]);
+      expect(editorView().state.doc.toString()).toBe("first!");
+      expect(query(".cm-content").getAttribute("contenteditable")).toBe("true");
+    });
   });
 
   describe("the slash menu (SR-129)", () => {
@@ -3253,9 +3664,17 @@ describe("ElementView", () => {
       draft?: Draft,
       update?: (input: Record<string, unknown>) => unknown,
     ) => {
-      let current = { properties, more };
+      // The bytes of the file: none until the file changes, then one name per change.
+      let current: { properties: Record<string, unknown>; more: Partial<DataExportElement>; sha?: string } = {
+        properties,
+        more,
+      };
+      let changes = 0;
       const call = fakeCall({
-        "element.get": () => ({ element: withProperties(current.properties, current.more) }),
+        "element.get": () => ({
+          element: withProperties(current.properties, current.more),
+          ...(current.sha === undefined ? {} : { fileSha256: current.sha }),
+        }),
         "element.update": update ?? (() => new Error("no update expected")),
       });
       await fresh();
@@ -3264,7 +3683,8 @@ describe("ElementView", () => {
         ...mounted,
         call,
         change: (next: Record<string, unknown>, nextMore: Partial<DataExportElement> = {}) => {
-          current = { properties: next, more: nextMore };
+          changes += 1;
+          current = { properties: next, more: nextMore, sha: `sha-${String(changes)}` };
         },
       };
     };
@@ -3522,12 +3942,13 @@ describe("ElementView", () => {
       expect(viewOf(KEY).state.doc.toString()).toBe("a");
       expect(drafts).toEqual([]);
       expect(echoed).toEqual([]);
-      // The file changed meanwhile: the draft is kept on the new value, with the interim echo.
-      const other = await mountBoxes({ topic: "Gust" }, {}, draft);
+      // The file changed meanwhile: the draft is kept on the new value, and the conflict shows the file's.
+      const other = await mountBoxes({ topic: "Gust" }, {}, { ...draft, sha: "sha-0" });
       expect(viewOf("topic").state.doc.toString()).toBe("Mine");
       expect(other.echoed.at(-1)).toBe(
-        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
+      expect(query('[data-on-disk="topic"]').textContent).toBe("On diskGust");
       expect(other.drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Mine", base: "Gust" });
       // The file holds the draft now: nothing is unsaved.
       const same = await mountBoxes({ topic: "Mine" }, {}, draft);
@@ -3543,10 +3964,16 @@ describe("ElementView", () => {
       expect(viewOf(KEY).state.doc.toString()).toBe("b");
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
       expect(echoed.at(-1)).toBe(
-        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
       expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "Gust" });
-      // A property that appears or disappears in the file appears or disappears as a box.
+      // Only the field with input has a block; the one that followed the file has none.
+      expect(
+        [...container.querySelectorAll<HTMLElement>("[data-on-disk]")].map(
+          (block) => block.dataset["onDisk"],
+        ),
+      ).toEqual(["topic"]);
+      // A property without input that appears or disappears in the file appears or disappears as a box.
       change({ topic: "Gust", synonyms: ["x"] });
       await again(2);
       expect(container.querySelector(`[data-field="${KEY}"]`)).toBeNull();
@@ -3587,23 +4014,26 @@ describe("ElementView", () => {
     });
 
     it("keeps the typed text of a draft, on the new file text", async () => {
-      const draft: Draft = { text: "Mine", base: "Text" };
+      const draft: Draft = { text: "Mine", base: "Text", sha: "sha-0" };
       const { drafts, echoed } = await mountBoxes({ topic: "Wind" }, { text: "Changed on disk" }, draft);
       expect(editorView().state.doc.toString()).toBe("Mine");
-      expect(drafts.at(-1)?.[1]).toEqual({ text: "Mine", base: "Changed on disk" });
+      expect(drafts.at(-1)?.[1]).toEqual({ text: "Mine", base: "Changed on disk", sha: "sha-0" });
       expect(echoed.at(-1)).toBe(
-        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
     });
 
-    it("follows a text that changed on disk while only a box has input, and keeps the draft on the new text", async () => {
+    it("[SR-106/AK2] follows a text that changed on disk while only a box has input, keeps the draft on the new text, and stops saving", async () => {
       const { again, change, drafts, echoed } = await mountBoxes({ topic: "Wind" });
       await typeIn("topic", "!");
       change({ topic: "Wind" }, { text: "Changed on disk" });
       await again(1);
       expect(editorView().state.doc.toString()).toBe("Changed on disk");
       expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
-      expect(echoed).toEqual([]);
+      // Spec question #488 (1): any change of the file while there is input asks; the block shows the
+      // file's value of the box with input, which the change did not touch.
+      expect(echoed).toEqual(['SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"']);
+      expect(query('[data-on-disk="topic"]').textContent).toBe("On diskWind");
       expect(drafts.at(-1)?.[1]).toEqual({
         text: "Changed on disk",
         base: "Changed on disk",
@@ -3611,15 +4041,17 @@ describe("ElementView", () => {
       });
     });
 
-    it("says so when the file lost a property whose box has input", async () => {
-      const { again, change, echoed } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
+    it("[SR-106/AK2] keeps the box and its input when the file lost its property, and shows that the file has none", async () => {
+      const { again, change, echoed, drafts } = await mountBoxes({ topic: "Wind", [KEY]: ["a"] });
       await typeIn("topic", "!");
       change({ [KEY]: ["a"] });
       await again(1);
-      expect(container.querySelector('[data-field="topic"]')).toBeNull();
+      expect(viewOf("topic").state.doc.toString()).toBe("Wind!");
+      expect(query('[data-on-disk="topic"]').textContent).toBe("On disk(empty)");
       expect(echoed.at(-1)).toBe(
-        "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+        'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
       );
+      expect(drafts.at(-1)?.[1]?.boxes?.get("topic")).toEqual({ doc: "Wind!", base: "" });
     });
 
     it("shows a box that appears again as it is stored, not as the draft it was first shown with", async () => {
@@ -3628,11 +4060,20 @@ describe("ElementView", () => {
         base: "Text",
         boxes: new Map([["topic", { doc: "Mine", base: "Wind" }]]),
       };
-      const { again, change } = await mountBoxes({ topic: "Wind" }, {}, draft);
+      const { again, change, controls, asked } = await mountBoxes({ topic: "Wind" }, {}, draft);
       expect(viewOf("topic").state.doc.toString()).toBe("Mine");
       change({});
       await again(1);
-      expect(container.querySelector('[data-field="topic"]')).toBeNull();
+      // The input stays while the file has no value; taking the file's version empties the box.
+      expect(viewOf("topic").state.doc.toString()).toBe("Mine");
+      act(() => {
+        controls().resolve?.();
+      });
+      await act(async () => {
+        asked.at(-1)?.items[1]?.run();
+        await Promise.resolve();
+      });
+      expect(viewOf("topic").state.doc.toString()).toBe("");
       change({ topic: "Wind" });
       await again(2);
       expect(viewOf("topic").state.doc.toString()).toBe("Wind");
@@ -4361,12 +4802,15 @@ describe("ElementView", () => {
         expect(lines("area")).toEqual(["quality"]);
         expect(lines("tags")).toEqual(["b"]);
         expect(echoed.at(-1)).toBe(
-          "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+          'SR-036 Measure wind changed on disk. Resolve with "Resolve change on disk"',
         );
-        // A property that left the file takes its box with it.
+        // The block shows the name of the file's choice, in heavier weight: the input lacks it.
+        expect(query('[data-on-disk="area"] mark').textContent).toBe("Interface");
+        // A property that left the file keeps its box while it has input.
         change({ tags: ["b"] });
         await again(2);
-        expect(container.querySelector('[data-field="area"]')).toBeNull();
+        expect(lines("area")).toEqual(["quality"]);
+        expect(query('[data-on-disk="area"]').textContent).toBe("On disk(empty)");
       });
 
       it("keeps an added box through a reload while the file has no value for it, and shows the stored value once it has", async () => {
@@ -4442,14 +4886,19 @@ describe("ElementView", () => {
     const call = fakeCall({
       "element.get": () => (fail ? new Error("busy") : { element: read({ text }) }),
     });
-    const { again } = await mount(asCall(call));
+    const { again, echoed } = await mount(asCall(call));
     expect(container.querySelector(".cm-editor")).toBeNull();
     fail = false;
     await again(1);
     expect(editorView().state.doc.toString()).toBe("first");
+    // A failed read after the element was shown keeps it with its editor, and says why.
     fail = true;
+    const editor = query(".cm-editor");
     await again(2);
-    expect(query(".quiet").textContent).toBe("busy");
+    expect(container.querySelector(".quiet")).toBeNull();
+    expect(query(".cm-editor")).toBe(editor);
+    expect(editorView().state.doc.toString()).toBe("first");
+    expect(echoed.at(-1)).toBe("busy");
     fail = false;
     text = "other";
     await again(3);

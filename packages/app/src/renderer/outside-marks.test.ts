@@ -14,6 +14,7 @@ import {
   fieldTexts,
   nextChanges,
   namedSince,
+  removedSince,
 } from "./outside-marks.js";
 import type { OutsideMarks } from "./use-outside-marks.js";
 import { OUTSIDE_CHANGE, rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -88,6 +89,21 @@ describe("nextChanges", () => {
     expect(namedSince(second, "a", 1)).toBe(false);
     expect(namedSince(second, "b", 1)).toBe(true);
     expect(namedSince(second, "c", 0)).toBe(false);
+  });
+
+  it("[SR-106/AK3] notes the change that removed each UUID last, apart from the ones it added or changed", () => {
+    const fresh = (): boolean => true;
+    const first = nextChanges(NO_CHANGES, lists([], [], ["a"]), fresh);
+    const second = nextChanges(first, lists(["b"], [], ["c"]), fresh);
+    expect([...second.removed]).toEqual([
+      ["a", 1],
+      ["c", 2],
+    ]);
+    expect(namedSince(second, "a", 0)).toBe(false);
+    // A view that saw neither batch asks again for "a"; one that saw the first does not.
+    expect(removedSince(second, "a", 0)).toBe(true);
+    expect(removedSince(second, "a", 1)).toBe(false);
+    expect(removedSince(second, "b", 0)).toBe(false);
   });
 });
 
