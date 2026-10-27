@@ -7,8 +7,9 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
-import type { EvidenceRecord } from "../evidence/index.js";
-import { evidenceRecordsState } from "../evidence/index.js";
+import type { EvidenceReader, EvidenceRecord } from "../evidence/index.js";
+import { evidenceReadState, evidenceRecordsState, readEvidence } from "../evidence/index.js";
+import { loadWorkspaceLayout } from "../workspace/index.js";
 import { outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
 
 type Output = CommandOutput<"workspace.check">;
@@ -147,5 +148,41 @@ describe("outdated evidence (SR-025 AK4)", () => {
       "metamodel/broken.yaml": "properties: [\n",
     });
     expect(await workspace.get(outdatedEvidenceProblemsState)).toEqual([]);
+  });
+
+  it("outdatedEvidenceFindings still reads the records through the moved state", async () => {
+    // The whole path the readers of SR-028 and SR-093 take: an evidence file, a reader,
+    // `evidenceReadState`, `evidenceRecordsState`, the check (#535).
+    const fixture = await createFixtureWorkspace({
+      fixture: "SR-025/outdated",
+      files: {
+        "logreq-workspace.yaml":
+          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
+        "evidence/results.xml": "<testsuite/>\n",
+      },
+    });
+    onTestFinished(() => fixture.cleanup());
+    const workspace = new Workspace(fixture.root);
+    onTestFinished(() => workspace.close());
+    const reader: EvidenceReader = {
+      extension: "xml",
+      read: (file) => ({
+        records: [
+          record(A, OLD, "2026-01-01T00:00:00Z", { repository: file.repository, file: file.file, line: 1 }),
+        ],
+      }),
+    };
+    const read = workspace.get(evidenceReadState);
+    expect((await read).records).toEqual([]);
+    await workspace.replace(
+      evidenceReadState,
+      read,
+      readEvidence(await loadWorkspaceLayout(fixture.root), [reader]),
+    );
+    expect((await check(workspace)).problems.map((p) => [p.code, p.elementId, p.file, p.line])).toEqual([
+      ["evidence.outdated", A, "evidence/results.xml", 1],
+    ]);
   });
 });

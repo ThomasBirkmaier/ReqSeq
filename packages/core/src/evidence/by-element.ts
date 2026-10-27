@@ -18,6 +18,8 @@ export interface TestCaseEntry {
   readonly elements: readonly string[];
   /** Its records of every element, newest first (`newestFirst`). */
   readonly records: readonly EvidenceRecord[];
+  /** Its records of each element (by UUID), newest first: the `executions` of `testCasesOf`. */
+  readonly recordsOf: ReadonlyMap<string, readonly EvidenceRecord[]>;
 }
 
 /** The records of a workspace by element and test case. */
@@ -29,7 +31,8 @@ export interface EvidenceIndex {
   /**
    * The test cases that name the element `id`, each seen from it (`$defs/testCase`): `executions`
    * holds its records only, `last` the newest of them, `executed` is false when it has none (only
-   * skipped appearances, SR-033 AK3). Ordered by class name, then name (code units).
+   * skipped appearances, SR-033 AK3). Ordered by class name, then name (code units). Built once
+   * per element and kept: a second call gives the same array.
    */
   readonly testCasesOf: (id: string) => readonly TestCase[];
 }
@@ -43,15 +46,25 @@ const instantOf = (date: string): number => {
 /** Code unit order, the same on every OS. */
 const byCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
 
-/**
- * The order of records everywhere in the block: newest `date` first (compared as instants), then by
- * repository, file and line, so records of one date keep one order on every machine.
- */
-export const newestFirst = (a: EvidenceRecord, b: EvidenceRecord): number =>
-  instantOf(b.date) - instantOf(a.date) ||
+/** Compares two records of one date and keeps one order on every machine: repository, file, line. */
+const byLocation = (a: EvidenceRecord, b: EvidenceRecord): number =>
   byCodeUnits(a.repository ?? "", b.repository ?? "") ||
   byCodeUnits(a.file ?? "", b.file ?? "") ||
   (a.line ?? 0) - (b.line ?? 0);
+
+/**
+ * The order of records everywhere in the block: newest `date` first (compared as instants), then by
+ * repository, file and line. For one comparison; `sortNewestFirst` sorts a list.
+ */
+export const newestFirst = (a: EvidenceRecord, b: EvidenceRecord): number =>
+  instantOf(b.date) - instantOf(a.date) || byLocation(a, b);
+
+/** `records` sorted by `newestFirst`, each date parsed once. */
+export const sortNewestFirst = (records: readonly EvidenceRecord[]): EvidenceRecord[] =>
+  records
+    .map((record) => ({ record, time: instantOf(record.date) }))
+    .sort((a, b) => b.time - a.time || byLocation(a.record, b.record))
+    .map(({ record }) => record);
 
 /** Each value once, in first-seen order. */
 const unique = (values: Iterable<string>): string[] => [...new Set(values)];
@@ -61,18 +74,19 @@ export const evidenceIndex = (
   records: readonly EvidenceRecord[],
   skipped: readonly SkippedTestCase[] = [],
 ): EvidenceIndex => {
-  const sorted = [...records].sort(newestFirst);
+  const sorted = sortNewestFirst(records);
   const byElement = new Map<string, EvidenceRecord[]>();
   interface Group {
     readonly name: string;
     readonly className: string | undefined;
     readonly records: EvidenceRecord[];
+    readonly recordsOf: Map<string, EvidenceRecord[]>;
     readonly named: string[];
   }
   const grouped = new Map<string, Group>();
   const group = (name: string, className: string | undefined): Group => {
     const key = testCaseKey(name, className);
-    const entry = grouped.get(key) ?? { name, className, records: [], named: [] };
+    const entry = grouped.get(key) ?? { name, className, records: [], recordsOf: new Map(), named: [] };
     grouped.set(key, entry);
     return entry;
   };
@@ -83,6 +97,9 @@ export const evidenceIndex = (
     if (record.testCase !== undefined) {
       const entry = group(record.testCase, record.className);
       entry.records.push(record);
+      const ofElement = entry.recordsOf.get(record.element) ?? [];
+      ofElement.push(record);
+      entry.recordsOf.set(record.element, ofElement);
       entry.named.push(record.element);
     }
   }
@@ -95,6 +112,7 @@ export const evidenceIndex = (
     ...(entry.className === undefined ? {} : { className: entry.className }),
     elements: unique(entry.named),
     records: entry.records,
+    recordsOf: entry.recordsOf,
   }));
   entries.sort((a, b) => byCodeUnits(a.className ?? "", b.className ?? "") || byCodeUnits(a.name, b.name));
   const testCases = new Map(entries.map((e) => [e.key, e]));
@@ -106,9 +124,14 @@ export const evidenceIndex = (
       ofElement.set(id, of);
     }
   }
-  const testCasesOf = (id: string): readonly TestCase[] =>
-    (ofElement.get(id) ?? []).map((entry) => {
-      const executions = entry.records.filter((r) => r.element === id);
+  const shown = new Map<string, readonly TestCase[]>();
+  const testCasesOf = (id: string): readonly TestCase[] => {
+    const kept = shown.get(id);
+    if (kept !== undefined) {
+      return kept;
+    }
+    const cases = (ofElement.get(id) ?? []).map((entry): TestCase => {
+      const executions = entry.recordsOf.get(id) ?? [];
       const [last] = executions;
       return {
         name: entry.name,
@@ -119,6 +142,9 @@ export const evidenceIndex = (
         ...(last === undefined ? {} : { last }),
       };
     });
+    shown.set(id, cases);
+    return cases;
+  };
   return { byElement, testCases, testCasesOf };
 };
 

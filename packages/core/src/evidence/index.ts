@@ -1,7 +1,13 @@
 // The `evidence` block (ADR-0012, architecture README §5): evidence records, the evidence folders and
 // the index by element and test case. Core blocks and commands import it relatively; it never
 // imports `commands`. Block doc: docs/evidence-records.md.
-export { evidenceIndex, evidenceIndexState, hasVerificationRecord, newestFirst } from "./by-element.js";
+export {
+  evidenceIndex,
+  evidenceIndexState,
+  hasVerificationRecord,
+  newestFirst,
+  sortNewestFirst,
+} from "./by-element.js";
 export type { EvidenceIndex, TestCaseEntry } from "./by-element.js";
 export { EVIDENCE_FILES, evidenceFiles } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";

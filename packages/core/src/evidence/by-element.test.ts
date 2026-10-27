@@ -1,9 +1,10 @@
 // The evidence index (ADR-0012 "Block and state"): records by element, test cases seen from one element
-// (plan review B2), and the one rule of "has a verification record" that the filter, the chain and the
-// coverage share (plan review S4). Enabler tests of the evidence block (#535).
+// (`$defs/testCase`), and the one rule of "has a verification record" that the filter, the chain and
+// the coverage share. Enabler tests of the evidence block (#535).
 import { describe, expect, it } from "vitest";
-import { evidenceIndex, hasVerificationRecord, newestFirst } from "./by-element.js";
+import { evidenceIndex, hasVerificationRecord, newestFirst, sortNewestFirst } from "./by-element.js";
 import type { EvidenceRecord, SkippedTestCase } from "./record.js";
+import { testCaseKey } from "./record.js";
 
 const P = "5e535a7d-2b4f-4c61-9d08-0";
 const A = `${P}a0000000001`;
@@ -55,6 +56,39 @@ describe("evidenceIndex", () => {
     expect(index.testCases.size).toBe(0);
     expect(index.testCasesOf(A)).toEqual([]);
     expect(newestFirst(record(A, "2026-01-01T00:00:00Z"), record(A, "2026-01-01T00:00:00Z"))).toBe(0);
+    const all = [old, sameB, unreadable, other, otherRepo, newest, lowerLine, sameA];
+    expect(sortNewestFirst(all)).toEqual([...all].sort(newestFirst));
+  });
+
+  it("evidenceIndex shows a test case that names many elements to each with its own records only, built once", () => {
+    // One integration test naming 200 requirements, run in 50 files: 10,000 records.
+    const elements = Array.from({ length: 200 }, (_, i) => `${P}b${String(i).padStart(10, "0")}`);
+    const runs = Array.from({ length: 50 }, (_, run) =>
+      elements.map((id) =>
+        junit(id, `2026-01-01T10:${String(run).padStart(2, "0")}:00Z`, `runs/${String(run)}.xml`),
+      ),
+    ).flat();
+    const index = evidenceIndex(runs);
+    const entry = index.testCases.get(testCaseKey("test_wind", "tests.Wind"));
+    expect(entry?.records).toHaveLength(10_000);
+    expect(entry?.elements).toEqual(elements);
+    for (const id of [elements[0] ?? "", elements[199] ?? ""]) {
+      const [only] = index.testCasesOf(id);
+      expect(only?.executions).toHaveLength(50);
+      expect(only?.executions.every((r) => r.element === id)).toBe(true);
+      expect(only?.executions).toBe(entry?.recordsOf.get(id));
+      expect(only?.last?.file).toBe("runs/49.xml");
+      // A second call gives the same test cases without building them again.
+      expect(index.testCasesOf(id)).toBe(index.testCasesOf(id));
+    }
+  });
+
+  it("evidenceIndex counts each test case element of a JUnit file as one execution, also twice in one file", () => {
+    // A rerun (pytest-rerunfailures) writes the test case twice into one file: two executions (ADR-0012).
+    const first = junit(A, "2026-01-01T10:00:00Z", "runs/1.xml", "test_wind", 3);
+    const rerun = junit(A, "2026-01-01T10:00:00Z", "runs/1.xml", "test_wind", 9);
+    const [both] = evidenceIndex([rerun, first]).testCasesOf(A);
+    expect(both?.executions).toEqual([first, rerun]);
   });
 
   it("evidenceIndex forms one test case per class name and name across files, executions newest first", () => {
@@ -66,13 +100,22 @@ describe("evidenceIndex", () => {
     // A Markdown record names its test case by `test-case` alone.
     const manual = record(B, "2026-01-03T10:00:00Z", { testCase: "TC-17", source: "markdown" });
     const index = evidenceIndex([run1a, manual, run1b, otherClass, run2a]);
-    expect([...index.testCases.keys()]).toEqual(["TC-17", "tests.Gusts\ntest_wind", "tests.Wind\ntest_wind"]);
-    expect(index.testCases.get("tests.Wind\ntest_wind")).toEqual({
-      key: "tests.Wind\ntest_wind",
+    const wind = testCaseKey("test_wind", "tests.Wind");
+    expect([...index.testCases.keys()]).toEqual([
+      testCaseKey("TC-17", undefined),
+      testCaseKey("test_wind", "tests.Gusts"),
+      wind,
+    ]);
+    expect(index.testCases.get(wind)).toEqual({
+      key: wind,
       name: "test_wind",
       className: "tests.Wind",
       elements: [A, B],
       records: [run2a, run1a, run1b],
+      recordsOf: new Map([
+        [A, [run2a, run1a]],
+        [B, [run1b]],
+      ]),
     });
     // Seen from A: A's records only; the test case still names both elements (SR-033 AK2).
     expect(index.testCasesOf(A)).toEqual([

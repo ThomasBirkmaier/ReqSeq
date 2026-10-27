@@ -10576,7 +10576,7 @@
           },
           "testCase": {
             "type": "object",
-            "description": "A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every JUnit file and every Markdown record is one execution (Durchführung). A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).",
+            "description": "A test case (SR-033) seen from one element: the test case named by JUnit `classname` and `name`, or by the `test-case` of Markdown records (ADR-0012), with the records of that one element. Every `<testcase>` of a JUnit file and every Markdown record is one execution (Durchführung): a file that holds the test case twice (a rerun) gives two. A test case that names several elements (SR-033 AK2) is listed at each of them, each time with that element's records only, since the version and so whether a record is outdated belong to the element. A test case whose only appearances are skipped JUnit test cases (`<skipped>` gives no record) has `executed: false` and no executions (SR-033 AK3).",
             "required": [
               "name",
               "elements",
@@ -10609,7 +10609,7 @@
                 "items": {
                   "$ref": "#/components/schemas/data-export/$defs/evidenceRecord"
                 },
-                "description": "The records of this element from this test case, newest first (by `date`, then repository and file); empty when `executed` is false."
+                "description": "The records of this element from this test case, newest first (by `date`, then repository, file and line); empty when `executed` is false."
               },
               "last": {
                 "$ref": "#/components/schemas/data-export/$defs/evidenceRecord",

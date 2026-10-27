@@ -46,7 +46,8 @@ export interface TestCaseName {
  * test case, whatever file they come from.
  */
 export const testCaseKey = (name: string, className: string | undefined): string =>
-  className === undefined ? name : `${className}\n${name}`;
+  // JSON keeps the two parts apart whatever characters they hold (a line break in a name included).
+  JSON.stringify([className ?? null, name]);
 
 /** `testCaseKey` of a record; undefined for a record of no test case. */
 export const testCaseKeyOf = (named: TestCaseName): string | undefined =>

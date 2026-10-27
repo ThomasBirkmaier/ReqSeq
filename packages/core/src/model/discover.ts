@@ -8,7 +8,7 @@ import type { Problem } from "../catalog.js";
 import type { RepositoryLocation } from "../workspace/index.js";
 
 /** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
-const SKIPPED_NAMES = new Set([".git", "node_modules"]);
+export const SKIPPED_NAMES: ReadonlySet<string> = new Set([".git", "node_modules"]);
 
 /** Element files end in `.md` (ADR-0004). LogReq's temporary files end in `.logreq-tmp`, so they never match. */
 export const ELEMENT_FILE_EXTENSION = ".md";

@@ -3,7 +3,8 @@
 import fs from "node:fs/promises";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import type { Problem } from "../catalog.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { loadWorkspaceLayout } from "../workspace/index.js";
 import { evidenceFiles } from "./folders.js";
@@ -160,5 +161,84 @@ describe("evidenceFiles", () => {
           "Not read: the evidence folder is or lies below a symbolic link; LogReq does not follow links",
       },
     ]);
+  });
+
+  it("evidenceFiles applies the walk rules to the evidence folder itself", async () => {
+    const ws = await fixture({
+      "system/logreq-workspace.yaml":
+        "logreq-workspace: 1\nname: Station\nrepositories:\n" +
+        "  - { name: system, url: u, main: true }\n  - { name: ci, url: u, path: inner }\n" +
+        "metamodel: { repository: system, path: metamodel }\nevidence:\n" +
+        "  - { repository: system, path: node_modules/results }\n" +
+        "  - { repository: system, path: website/evidence }\n" +
+        "  - { repository: system, path: inner/results }\n" +
+        "  - { repository: ci, path: results }\n" +
+        "  - { repository: system, path: foreign/results }\n" +
+        "  - { repository: system, path: plain.md/results }\n" +
+        "ignore: ['website/**']\n",
+      "system/node_modules/results/a.md": "",
+      "system/website/evidence/b.md": "",
+      "system/inner/results/c.xml": "",
+      "system/foreign/.git": "gitdir: elsewhere\n",
+      "system/foreign/results/d.md": "",
+      "system/plain.md": "",
+    });
+    const out = await evidenceFiles(await layoutOf(ws));
+    // The nested repository is read once, under its own name.
+    expect(out.files.map((f) => `${f.repository}:${f.file}`)).toEqual(["ci:results/c.xml"]);
+    const skipped = (file: string, reason: string): Problem => ({
+      code: "file.skipped",
+      severity: "warning",
+      repository: "system",
+      file,
+      message: `Not read: the evidence folder ${reason}`,
+    });
+    expect(out.problems).toEqual([
+      skipped("node_modules/results", "lies in node_modules, which LogReq never reads"),
+      skipped("website/evidence", "matches an ignore glob of the workspace file"),
+      skipped(
+        "inner/results",
+        "lies in another repository of the workspace; name that repository in the location",
+      ),
+      skipped("foreign/results", "lies in a nested Git repository that is not part of the workspace"),
+      {
+        code: "evidence.folder-missing",
+        severity: "info",
+        repository: "system",
+        file: "plain.md/results",
+        message: "The evidence folder plain.md/results does not exist",
+      },
+    ]);
+  });
+
+  it("evidenceFiles reports an evidence folder it cannot look at as unreadable, not as missing", async () => {
+    const ws = await fixture({
+      "system/logreq-workspace.yaml": WORKSPACE("  - { repository: system, path: locked/results }\n"),
+      "system/locked/results/a.md": "",
+    });
+    const layout = await layoutOf(ws);
+    const lstat = fs.lstat.bind(fs);
+    const spy = vi
+      .spyOn(fs, "lstat")
+      .mockImplementation(((file: string) =>
+        file.endsWith("locked")
+          ? Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }))
+          : lstat(file)) as typeof fs.lstat);
+    onTestFinished(() => {
+      spy.mockRestore();
+    });
+    expect(await evidenceFiles(layout)).toEqual({
+      files: [],
+      incomplete: false,
+      problems: [
+        {
+          code: "file.unreadable",
+          severity: "error",
+          repository: "system",
+          file: "locked/results",
+          message: "Cannot read evidence folder: EACCES",
+        },
+      ],
+    });
   });
 });

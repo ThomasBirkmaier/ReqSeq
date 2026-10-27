@@ -1,6 +1,6 @@
-// The record and test case shapes of the evidence block against `data-export.schema.json` (plan
-// review S5: a data-export file has no place for records or test cases, so the defs are checked here
-// with the contracts' Ajv), and the identity of a test case (ADR-0012).
+// The record and test case shapes of the evidence block against `data-export.schema.json` (a
+// data-export file has no place for records or test cases, so the schema examples cannot check the
+// defs; they are checked here with the contracts' Ajv), and the identity of a test case (ADR-0012).
 import { describe, expect, it } from "vitest";
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { EvidenceRecord, TestCase } from "./record.js";
@@ -72,10 +72,13 @@ describe("evidence record model", () => {
   });
 
   it("testCaseKey names a test case by class name and name, or by the test case of a Markdown record", () => {
-    expect(testCaseKey("test_a", "tests.test_wind")).toBe("tests.test_wind\ntest_a");
-    expect(testCaseKey("TC-17", undefined)).toBe("TC-17");
-    expect(testCaseKeyOf(junit)).toBe("tests.test_wind\ntest_shows_wind_speed[SR-e88fb3]");
-    expect(testCaseKeyOf({ testCase: "TC-17" })).toBe("TC-17");
+    expect(testCaseKey("test_a", "tests.test_wind")).toBe('["tests.test_wind","test_a"]');
+    expect(testCaseKey("TC-17", undefined)).toBe('[null,"TC-17"]');
+    expect(testCaseKeyOf(junit)).toBe(testCaseKey("test_shows_wind_speed[SR-e88fb3]", "tests.test_wind"));
+    expect(testCaseKeyOf({ testCase: "TC-17" })).toBe(testCaseKey("TC-17", undefined));
+    // A name with a line break never passes for a class name and a name.
+    expect(testCaseKey("a\nb", undefined)).not.toBe(testCaseKey("b", "a"));
+    expect(testCaseKey("", "a")).not.toBe(testCaseKey("a", undefined));
     expect(testCaseKeyOf(markdown)).toBeUndefined();
   });
 });

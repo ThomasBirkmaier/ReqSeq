@@ -3,12 +3,13 @@
 // walk rules of the element store (`listFiles` of the model block): no `.git` or `node_modules`, no
 // nested repository, the `ignore` globs, links never followed. Which of the files are records is up to
 // the readers (`state.ts`).
+import type { Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
 import type { ListedKind } from "../model/index.js";
-import { ignoredBy, listFiles } from "../model/index.js";
-import type { WorkspaceLayout } from "../workspace/index.js";
+import { SKIPPED_NAMES, ignoredBy, listFiles } from "../model/index.js";
+import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate } from "../workspace/index.js";
 
 /** The extensions of evidence files without the dot: Markdown records and JUnit XML files. */
@@ -37,8 +38,9 @@ export interface EvidenceFiles {
   readonly incomplete: boolean;
   /**
    * `evidence.folder-missing` (info) for a location that does not exist in an available repository,
-   * `file.skipped` (warning) for a location that is or lies below a link, and the problems of the
-   * walk (`file.unreadable`, `file.skipped`).
+   * `file.skipped` (warning) for a location the walk rules leave out (a link, `.git`,
+   * `node_modules`, an `ignore` glob, another or a nested repository), `file.unreadable` (error) for
+   * one that cannot be looked at, and the problems of the walk (`file.unreadable`, `file.skipped`).
    */
   readonly problems: readonly Problem[];
 }
@@ -49,35 +51,88 @@ const startOf = (relativePath: string): string => {
   return normal === "." ? "" : normal;
 };
 
-/** Why the folder `start` of a repository cannot be walked, as a problem, or undefined when it can. */
+/** A `file.skipped` warning about the evidence folder `file`. */
+const skippedFolder = (repository: string, file: string, reason: string): Problem => ({
+  code: "file.skipped",
+  severity: "warning",
+  repository,
+  file,
+  message: `Not read: the evidence folder ${reason}`,
+});
+
+/** `lstat` of `folder`, undefined when it is not there, or the error code when it cannot be looked at. */
+const lstatOf = async (folder: string): Promise<Stats | undefined | string> => {
+  try {
+    return await fs.lstat(folder);
+  } catch (error) {
+    const code = String((error as NodeJS.ErrnoException).code);
+    return code === "ENOENT" || code === "ENOTDIR" ? undefined : code;
+  }
+};
+
+/**
+ * Why the folder `start` of a repository cannot be walked, as a problem, or undefined when it can.
+ * The rules of the walk (`listFiles`) for every folder on the way, name rules first: a name it never
+ * reads (`.git`, `node_modules`), an `ignore` glob, the folder of another repository of the workspace
+ * (`excludes`); then on disk: a link, a folder that is not there or is a file
+ * (`evidence.folder-missing`), one that cannot be looked at (`file.unreadable`), a folder with a
+ * `.git` entry (a nested repository that is not part of this one).
+ */
 const startProblem = async (
-  repository: string,
-  root: string,
+  repository: RepositoryLocation,
+  ignored: (relativePath: string) => boolean,
   start: string,
 ): Promise<Problem | undefined> => {
   const file = start === "" ? "." : start;
-  let folder = root;
+  let relative = "";
   for (const name of start === "" ? [] : start.split("/")) {
-    folder = path.join(folder, name);
-    const stat = await fs.lstat(folder).catch(() => undefined);
-    if (stat?.isSymbolicLink() === true) {
-      return {
-        code: "file.skipped",
-        severity: "warning",
-        repository,
+    relative = relative === "" ? name : `${relative}/${name}`;
+    const folder = path.join(repository.folder, relative);
+    if (SKIPPED_NAMES.has(name)) {
+      return skippedFolder(repository.name, file, `lies in ${name}, which LogReq never reads`);
+    }
+    if (ignored(relative)) {
+      return skippedFolder(repository.name, file, "matches an ignore glob of the workspace file");
+    }
+    if (repository.excludes.includes(folder)) {
+      return skippedFolder(
+        repository.name,
         file,
-        message:
-          "Not read: the evidence folder is or lies below a symbolic link; LogReq does not follow links",
+        "lies in another repository of the workspace; name that repository in the location",
+      );
+    }
+    const stat = await lstatOf(folder);
+    if (typeof stat === "string") {
+      return {
+        code: "file.unreadable",
+        severity: "error",
+        repository: repository.name,
+        file,
+        message: `Cannot read evidence folder: ${stat}`,
       };
+    }
+    if (stat?.isSymbolicLink() === true) {
+      return skippedFolder(
+        repository.name,
+        file,
+        "is or lies below a symbolic link; LogReq does not follow links",
+      );
     }
     if (stat?.isDirectory() !== true) {
       return {
         code: "evidence.folder-missing",
         severity: "info",
-        repository,
+        repository: repository.name,
         file,
         message: `The evidence folder ${file} does not exist`,
       };
+    }
+    if ((await lstatOf(path.join(folder, ".git"))) !== undefined) {
+      return skippedFolder(
+        repository.name,
+        file,
+        "lies in a nested Git repository that is not part of the workspace",
+      );
     }
   }
   return undefined;
@@ -106,7 +161,7 @@ export const evidenceFiles = async (layout: WorkspaceLayout): Promise<EvidenceFi
       continue;
     }
     const start = startOf(location.path);
-    const problem = await startProblem(repository.name, repository.folder, start);
+    const problem = await startProblem(repository, ignored, start);
     if (problem !== undefined) {
       problems.push(problem);
       continue;

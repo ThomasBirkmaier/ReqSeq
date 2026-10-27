@@ -8,8 +8,8 @@ The evidence records (Datensätze) of a workspace as an in-memory list, indexed 
 
 - `EvidenceRecord` (`record.ts`) is `data-export.schema.json#/$defs/evidenceRecord`: the fields of a record (`evidence-record.schema.json`), plus where it lies (`source`: `markdown` | `junit`, `repository`, `file`, `line`: of the `<testcase>`, 1 for a Markdown record), the JUnit `className`, and `baselines` (only `evidence.list` fills it, SR-032 AK2). The readers always set the location fields; records injected through `evidenceRecordsState` may leave them out.
 - `SkippedTestCase`: a JUnit test case marked `<skipped>` that names elements. It gives no record (ADR-0012) and is kept so the test case is listed without execution (SR-033 AK3).
-- `testCaseKey(name, className)`, `testCaseKeyOf(record)`: the identity of a test case, JUnit `classname` + `name`, or the `test-case` of a Markdown record alone. Records with the same key are one test case across files; each file is one execution.
-- `TestCase` is `$defs/testCase`: a test case seen from one element (plan review B2). `executions` holds that element's records only, newest first, `last` is `executions[0]`, `elements` lists every element the test case names; a test case with only skipped appearances has `executed: false` and `executions: []`.
+- `testCaseKey(name, className)`, `testCaseKeyOf(record)`: the identity of a test case, JUnit `classname` + `name`, or the `test-case` of a Markdown record alone, as `JSON.stringify([className ?? null, name])` so no name can pass for another class and name. Records with the same key are one test case across files; each `<testcase>` and each Markdown record is one execution (a JUnit file that holds a test case twice gives two).
+- `TestCase` is `$defs/testCase`: a test case seen from one element (#535). `executions` holds that element's records only, newest first, `last` is `executions[0]`, `elements` lists every element the test case names; a test case with only skipped appearances has `executed: false` and `executions: []`.
 
 ## Folders
 
@@ -17,10 +17,10 @@ The evidence records (Datensätze) of a workspace as an in-memory list, indexed 
 
 - a location in a repository that is not on this machine sets `incomplete` (SR-006 AK2, SR-036 AK3);
 - a location whose repository the workspace file does not list is left out (the layout reports it);
-- a location that does not exist (or is a file) in an available repository is `evidence.folder-missing` (info); one that is or lies below a link is `file.skipped` (warning);
+- the location folder itself follows the walk rules: one that is or lies below a link, in `.git` or `node_modules`, matched by an `ignore` glob, in another repository of the workspace (name that repository in the location) or in a nested Git repository is `file.skipped` (warning); one that does not exist (or is a file) is `evidence.folder-missing` (info); one that cannot be looked at (`EACCES`) is `file.unreadable` (error). An `ignore` glob that keeps the store out of an evidence folder hides its records too;
 - a file or walk problem two locations both reach is listed once.
 
-Nobody shows the problems in E1; SR-028 shows them through its `evidenceProblemsState` (`workspace.check`).
+Nobody shows the problems yet; SR-028 shows them through its `evidenceProblemsState` (`workspace.check`).
 
 ## State
 
@@ -32,10 +32,10 @@ Nobody shows the problems in E1; SR-028 shows them through its `evidenceProblems
 
 `evidenceIndex(records, skipped)` (`by-element.ts`), and `evidenceIndexState` (from `evidenceRecordsState` and the `skipped` of `evidenceReadState`). Pure: matching against the store (unknown elements, current versions) belongs to the consumers.
 
-- `byElement`: the records of each element, newest first (`newestFirst`: `date` as an instant, an unreadable date the oldest, then repository, file, line).
+- `byElement`: the records of each element, newest first (`newestFirst`: `date` as an instant, an unreadable date the oldest, then repository, file, line; `sortNewestFirst` parses each date once).
 - `testCases`: every test case by key (`TestCaseEntry`: name, class name, the elements it names, all its records newest first), ordered by class name, then name.
-- `testCasesOf(id)`: the test cases that name the element, each seen from it (`TestCase`).
-- `hasVerificationRecord(index, id, view)`: at least one verification record in the view (core: a record without variant; a variant: a record for it, SR-047). The one definition of "has evidence" ("ohne Nachweis", SR-069 AK3; the `no-evidence` gap, SR-022 AK3; coverage, SR-036) for the filter, the chain and the coverage (plan review S4). Version and result do not count (spec question #527).
+- `testCasesOf(id)`: the test cases that name the element, each seen from it (`TestCase`), from the records per element each entry keeps (`recordsOf`), so a call costs the test cases of the element and their executions, never the records of other elements; built once per element and kept.
+- `hasVerificationRecord(index, id, view)`: at least one verification record in the view (core: a record without variant; a variant: a record for it, SR-047). The one definition of "has evidence" ("ohne Nachweis", SR-069 AK3; the `no-evidence` gap, SR-022 AK3; coverage, SR-036) for the filter, the chain and the coverage (#535). Version and result do not count (spec question #527).
 
 ## Markdown reader
 
