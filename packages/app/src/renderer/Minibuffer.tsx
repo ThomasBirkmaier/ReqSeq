@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Choice, Prompt } from "./actions.js";
 import { highlightRanges, highlightTerms } from "./highlight.js";
 import type { Part } from "./highlight.js";
-import { rank } from "./fuzzy.js";
 import type { Ranked } from "./fuzzy.js";
 import { listStep } from "./keys.js";
+import { rankByUse } from "./usage.js";
 
 export interface MinibufferProps {
   /** The message shown while idle. */
@@ -47,7 +47,7 @@ const PromptLine = ({
     [],
   );
 
-  const ranked = rank(prompt.items, (choice) => choice.name, query);
+  const ranked = rankByUse(prompt.items, (choice) => choice.name, query, prompt.use);
   const known = new Set(ranked.map(({ item }) => item.id));
   const rows: Ranked<Choice>[] = [
     ...ranked,
@@ -55,7 +55,9 @@ const PromptLine = ({
   ];
   const current = rows[selected];
 
-  const choose = (choice: Choice): void => {
+  // `typed` is the text the choice was made for; a choice of the command prompt is remembered (SR-121 AK2).
+  const choose = (choice: Choice, typed: string): void => {
+    prompt.use?.record(typed, choice.id);
     onClose();
     choice.run();
   };
@@ -80,11 +82,11 @@ const PromptLine = ({
           // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
           waiting.current = 0;
           const [first] = [
-            ...rank(prompt.items, (item) => item.name, value).map(({ item }) => item),
+            ...rankByUse(prompt.items, (item) => item.name, value, prompt.use).map(({ item }) => item),
             ...choices,
           ];
           if (first !== undefined) {
-            choose(first);
+            choose(first, value);
           }
         }
       });
@@ -108,7 +110,7 @@ const PromptLine = ({
           // The hits shown belong to an older text: wait for the answer to this one.
           waiting.current = latest.current;
         } else if (current !== undefined) {
-          choose(current.item);
+          choose(current.item, query);
         } else if (prompt.text !== undefined) {
           onClose();
           prompt.text(query);
@@ -159,7 +161,7 @@ const PromptLine = ({
               }}
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(row.item);
+                choose(row.item, query);
               }}
             >
               <span className="name">

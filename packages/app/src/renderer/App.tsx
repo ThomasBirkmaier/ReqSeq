@@ -30,6 +30,7 @@ import { bufferView, shownElement, workspaceView } from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
+import { promptUse } from "./usage.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 
@@ -232,7 +233,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       }
       if (matches(event, COMMAND_SHORTCUT)) {
         event.preventDefault();
-        ask(commandPrompt(now));
+        ask(commandPrompt(now, promptUse(appStorage)));
         return;
       }
       const action = actionFor(now, (shortcut) => matches(event, shortcut));
@@ -357,7 +358,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         prompt={prompt}
         onCommand={() => {
           if (latest.current.workspace) {
-            ask(commandPrompt(latest.current));
+            ask(commandPrompt(latest.current, promptUse(appStorage)));
           }
         }}
         onClose={() => {

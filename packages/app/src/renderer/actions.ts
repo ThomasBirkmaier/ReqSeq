@@ -36,6 +36,7 @@ import { packageSelection } from "./package-page.js";
 import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
+import type { PromptUse } from "./usage.js";
 
 /** One entry of a prompt: what is listed, and what Enter does. */
 export interface Choice {
@@ -58,6 +59,8 @@ export interface Prompt {
   readonly text?: (text: string) => void;
   /** Escape ends the prompt without an answer (not called when a choice is run, nor when text is entered). */
   readonly cancel?: () => void;
+  /** What was chosen before, to order equal matches and to put the command chosen for this text first (the command prompt). */
+  readonly use?: PromptUse;
 }
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
@@ -676,9 +679,10 @@ const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
   return hint === undefined ? {} : { hint };
 };
 
-/** The command prompt: the actions that apply now, with their shortcuts. */
-export const commandPrompt = (context: ActionContext): Prompt => ({
+/** The command prompt: the actions that apply now, with their shortcuts, ordered by `use` (SR-108 AK3, SR-121 AK2). */
+export const commandPrompt = (context: ActionContext, use?: PromptUse): Prompt => ({
   label: "Command",
+  ...(use === undefined ? {} : { use }),
   items: ACTIONS.filter((action) => action.available(context)).map((action) => ({
     id: action.id,
     name: action.title,

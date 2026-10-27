@@ -184,7 +184,7 @@ describe("Minibuffer", () => {
     expect(document.activeElement).toBe(input());
   });
 
-  it("ranks the candidates by what is typed and marks the characters that matched", async () => {
+  it("[SR-108/AK2] ranks the candidates by what is typed and marks the characters that matched", async () => {
     await mount({ label: "Command", items: [choice("a", "Sort list"), choice("b", "Search elements")] });
     await type(input(), "srch elem");
     expect(texts('[role="option"]')).toEqual(["Search elements"]);
@@ -193,6 +193,90 @@ describe("Minibuffer", () => {
     expect(container.querySelector("ul")).toBeNull();
     expect(input().getAttribute("aria-expanded")).toBe("false");
     expect(input().getAttribute("aria-activedescendant")).toBeNull();
+  });
+
+  it("[SR-108/AK2] marks the matched letters of a name found by its initials or with a typo", async () => {
+    await mount({
+      label: "Command",
+      items: [choice("a", "Create relation"), choice("b", "List all elements"), choice("c", "Sort list")],
+    });
+    await type(input(), "crel");
+    expect(texts('[role="option"]')).toEqual(["Create relation"]);
+    expect(texts("mark")).toEqual(["C", "rel"]);
+    await type(input(), "lae");
+    expect(texts("mark")).toEqual(["L", "a", "e"]);
+    await type(input(), "sotr");
+    expect(texts('[role="option"]')).toEqual(["Sort list"]);
+    expect(texts("mark").join("")).not.toBe("");
+    // Nothing typed, nothing marked.
+    await type(input(), "");
+    expect(texts("mark")).toEqual([]);
+  });
+
+  describe("what was chosen before", () => {
+    const use = (remembered: Record<string, string> = {}, scores: Record<string, number> = {}) => ({
+      score: (id: string): number => scores[id] ?? 0,
+      remembered: (typed: string): string | undefined => remembered[typed],
+      record: vi.fn<(typed: string, id: string) => void>(),
+    });
+    const filters = (extra: Partial<Prompt>): Prompt => ({
+      label: "Command",
+      items: [choice("type", "Filter list by type"), choice("status", "Filter list by status")],
+      ...extra,
+    });
+
+    it("[SR-121/AK2] puts the command remembered for the typed text first, and Enter runs it", async () => {
+      const prompt = filters({ use: use({ fl: "status" }) });
+      const { closed } = await mount(prompt);
+      expect(texts('[role="option"]')).toEqual(["Filter list by type", "Filter list by status"]);
+      await type(input(), "fl");
+      expect(texts('[role="option"]')).toEqual(["Filter list by status", "Filter list by type"]);
+      expect(input().getAttribute("aria-activedescendant")).toBe("candidate-0");
+      await press(input(), "Enter");
+      expect(closed).toHaveBeenCalledTimes(1);
+      expect(prompt.items[1]?.run).toHaveBeenCalledTimes(1);
+      expect(prompt.items[0]?.run).not.toHaveBeenCalled();
+    });
+
+    it("[SR-108/AK3] orders equally good hits by use, and an empty text too", async () => {
+      await mount(filters({ use: use({}, { status: 3 }) }));
+      expect(texts('[role="option"]')).toEqual(["Filter list by status", "Filter list by type"]);
+      await type(input(), "fil");
+      expect(texts('[role="option"]')).toEqual(["Filter list by status", "Filter list by type"]);
+    });
+
+    it("[SR-121/AK2] records the typed text and the command on Enter and on a click", async () => {
+      const recorded = use();
+      await mount(filters({ use: recorded }));
+      await type(input(), "fl");
+      await press(input(), "ArrowDown");
+      await press(input(), "Enter");
+      expect(recorded.record).toHaveBeenLastCalledWith("fl", "status");
+      await mount(filters({ use: recorded }));
+      await type(input(), "flt");
+      await act(async () => {
+        query('[role="option"]').dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+      });
+      expect(recorded.record).toHaveBeenLastCalledWith("flt", "type");
+      expect(recorded.record).toHaveBeenCalledTimes(2);
+    });
+
+    it("records nothing for an Escape or for typed text", async () => {
+      const recorded = use();
+      await mount(filters({ use: recorded }));
+      await type(input(), "fl");
+      await press(input(), "Escape");
+      expect(recorded.record).not.toHaveBeenCalled();
+      const text = vi.fn();
+      await mount({ label: "Search", items: [], text, use: recorded });
+      await type(input(), "wind");
+      await press(input(), "Enter");
+      expect(text).toHaveBeenCalledWith("wind");
+      expect(recorded.record).not.toHaveBeenCalled();
+    });
   });
 
   it("[SR-122/AK3] moves the selection with Down, Up and Tab, and stays inside the list", async () => {
@@ -344,7 +428,7 @@ describe("Minibuffer", () => {
     expect(texts('[role="option"]')).toEqual(["SR-036 Wind", "All elements"]);
   });
 
-  it("marks the matched words of an element hit, not the whole name", async () => {
+  it("[SR-108/AK2] marks the matched words of an element hit, not the whole name", async () => {
     await mount({
       label: "Go to",
       items: [],

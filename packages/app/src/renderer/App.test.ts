@@ -282,6 +282,67 @@ describe("App", () => {
     expect(query("label").textContent).toBe("Command");
   });
 
+  it("[SR-121/AK2] puts the command chosen for a text first the next time, and keeps that after a restart", async () => {
+    const options = (): string[] => texts('[role="option"] .name');
+    const { bridge } = fakeBridge(workspace());
+    await renderList(bridge);
+    await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+    await type("fl");
+    // By match "Filter list by type" is first.
+    expect(options().slice(0, 2)).toEqual(["Filter list by type", "Filter list by status"]);
+    await keyDown(query("input"), "ArrowDown");
+    await keyDown(query("input"), "Enter");
+    expect(query("label").textContent).toBe("Status");
+    await keyDown(query("input"), "Escape");
+    // The usage is in the storage of the app, never in a workspace file, and holds no title or text.
+    const stored = JSON.parse(window.localStorage.getItem("logreq.usage.v1") ?? "null") as {
+      commands: unknown[][];
+      queries: unknown[][];
+    };
+    expect(stored.queries).toEqual([
+      ["fl", "filter-status"],
+      ["list all elements", "list-all"],
+    ]);
+    expect(stored.commands.map(([id]) => id)).toEqual(["filter-status", "list-all"]);
+    for (const restart of [0, 1]) {
+      act(() => {
+        root.unmount();
+      });
+      root = createRoot(container);
+      await render(fakeBridge(workspace()).bridge);
+      await listAll();
+      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      await type(restart === 0 ? "fl" : " FL ");
+      expect(options().slice(0, 2)).toEqual(["Filter list by status", "Filter list by type"]);
+    }
+    await type("flt");
+    expect(options()[0]).toBe("Filter list by type");
+  });
+
+  it("[SR-108/AK3] shows the commands in use first when nothing is typed, and records a click as a choice", async () => {
+    // Every reading of the clock is a minute later, so that the later choice is the more recent one.
+    let clock = Date.UTC(2026, 9, 27);
+    vi.spyOn(Date, "now").mockImplementation(() => (clock += 60_000));
+    const { bridge } = fakeBridge(workspace());
+    await renderList(bridge);
+    await click(query(".echo"));
+    const status = [...container.querySelectorAll('[role="option"]')].find(
+      (option) => option.textContent === "Filter list by status",
+    );
+    await act(async () => {
+      status?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(query("label").textContent).toBe("Status");
+    await keyDown(query("input"), "Escape");
+    await click(query(".echo"));
+    // "List all elements" was chosen before by typing, "Filter list by status" later by a click: both are in use.
+    expect(texts('[role="option"] .name').slice(0, 2)).toEqual([
+      "Filter list by status",
+      "List all elements",
+    ]);
+  });
+
   it("opens the command prompt with a click on the idle minibuffer", async () => {
     const { bridge } = fakeBridge(workspace());
     await render(bridge);

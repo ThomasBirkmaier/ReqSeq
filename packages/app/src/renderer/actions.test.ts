@@ -211,6 +211,44 @@ describe("the command prompt", () => {
     expect(COMMAND_SHORTCUT).toEqual({ mod: true, shift: true, key: "p" });
   });
 
+  it("[SR-108/AK1] finds each action among the first three by its initials and by a typo, on the real names", () => {
+    // Every action that applies somewhere: a list, a chained filter, an element with unsaved text on a package page, the overview.
+    const contexts = [
+      setup([list]).context,
+      setup([filteredList([typeStep("need"), savedStep("open")])]).context,
+      setup([element], {}, true, {
+        element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn(), members: true },
+        modified: true,
+      }).context,
+      setup([overviewBuffer()]).context,
+    ];
+    const offered = new Set(contexts.flatMap((context) => titles(context)));
+    expect(offered.size).toBeGreaterThan(15);
+    const first = (context: ActionContext, query: string): string[] =>
+      rank(commandPrompt(context).items, (item) => item.name, query)
+        .slice(0, 3)
+        .map(({ item }) => item.name);
+    for (const context of contexts) {
+      for (const name of titles(context)) {
+        const words = name.split(" ");
+        if (words.length > 1) {
+          expect(first(context, words.map((word) => word.slice(0, 1)).join("")), name).toContain(name);
+        }
+        // Two neighbouring letters of the longest word swapped: one slip.
+        const longest = words.reduce((a, b) => (b.length > a.length ? b : a));
+        const slip = `${longest.slice(0, 1)}${longest.slice(2, 3)}${longest.slice(1, 2)}${longest.slice(3)}`;
+        expect(first(context, name.replace(longest, slip)), name).toContain(name);
+      }
+    }
+  });
+
+  it("[SR-121/AK2] carries what was used to the prompt, and has none without", () => {
+    const use = { score: () => 0, remembered: () => undefined, record: vi.fn() };
+    expect(commandPrompt(setup([list]).context, use).use).toBe(use);
+    expect(commandPrompt(setup([list]).context)).not.toHaveProperty("use");
+    expect(jumpPrompt(setup([list]).context)).not.toHaveProperty("use");
+  });
+
   it("runs the chosen action", () => {
     const { context, dispatched } = setup([list]);
     commandPrompt(context)

@@ -68,6 +68,26 @@ describe("rank", () => {
     ]);
   });
 
+  it("[SR-108/AK1] finds the command among the first three for its initials or with a typo", () => {
+    // The names are the ones of the command prompt, with "Create relation" of the catalog commands.
+    const first = (query: string): string[] => names(query).slice(0, 3);
+    expect(first("crel")).toContain("Create relation");
+    expect(names("crel")[0]).toBe("Create relation");
+    expect(first("lae")).toContain("List all elements");
+    for (const [typed, meant] of [
+      ["craete relation", "Create relation"],
+      ["create relaton", "Create relation"],
+      ["craete relaton", "Create relation"],
+      ["lsit all elements", "List all elements"],
+      ["sotr", "Sort list"],
+      ["clse buffer", "Close buffer"],
+      ["serach elements", "Search elements"],
+      ["shwo element id and version", "Show element ID and version"],
+    ] as const) {
+      expect(first(typed)).toContain(meant);
+    }
+  });
+
   it("matches the beginnings of words from the first word on, in order, and not for a single letter", () => {
     expect(names("ael")).toEqual([]);
     expect(names("lp")).toEqual([]);
