@@ -69,7 +69,11 @@ const boxLabels = (window: Page): Promise<string[]> =>
 interface Got {
   readonly element: {
     readonly properties: Record<string, unknown>;
-    readonly relations: readonly { readonly kind: string; readonly property?: boolean }[];
+    readonly relations: readonly {
+      readonly kind: string;
+      readonly direction: string;
+      readonly property?: boolean;
+    }[];
   };
 }
 
@@ -116,12 +120,20 @@ test.describe("property boxes of an element", () => {
   test("[SR-104/AK1] shows every filled property as a box below the text and none for an empty one, as the CLI gives them", async () => {
     const { window } = running;
     const got = await cliGet(running);
-    const asRelation = new Set(got.element.relations.filter((r) => r.property === true).map((r) => r.kind));
     const filled = Object.entries(got.element.properties)
-      .filter(([key, value]) => !isEmpty(value) && !asRelation.has(key))
+      .filter(([, value]) => !isEmpty(value))
       .map(([key]) => key);
-    // The file has empty properties and a property the type does not know: both sides see the same.
+    // The file has empty properties, a property the type does not know and a relation property: both
+    // sides see the same, and the targets of the relation property are a box with links, not a group.
     expect(filled).toContain("legacy");
+    expect(filled).toContain("packages");
+    await expect(field(window, "packages").locator('[role="link"]')).toHaveCount(
+      got.element.relations.filter((r) => r.property === true && r.kind === "packages").length,
+    );
+    await expect(window.locator("article h2")).toHaveCount(
+      new Set(got.element.relations.filter((r) => r.property !== true).map((r) => `${r.direction}${r.kind}`))
+        .size,
+    );
     expect(await boxLabels(window)).toEqual(filled);
     for (const empty of ["rationale", "source", "statement"]) {
       await expect(field(window, empty)).toHaveCount(0);
@@ -207,6 +219,234 @@ test.describe("property boxes of an element", () => {
     await expect(field(window, "topic")).toHaveCount(0);
     expect(await readFile(running)).not.toContain("topic:");
     expect(Object.keys((await cliGet(running)).element.properties)).not.toContain("topic");
+  });
+
+  /** The names of the candidates of the open prompt, in order (the hint is not part of the name). */
+  const candidates = (window: Page): Promise<string[]> =>
+    window.locator('.candidates [role="option"] .name').allInnerTexts();
+  const promptLabel = (window: Page): Locator => window.getByLabel("Minibuffer").locator("label");
+
+  test("[SR-104/AK2] Ctrl/Cmd+Alt+A adds a text property: an empty box with the caret in it at the place of the type, the file unchanged until it is saved", async () => {
+    const { window } = running;
+    const before = await readFile(running);
+    await window.keyboard.press("ControlOrMeta+Alt+A");
+    await expect(promptLabel(window)).toHaveText("Add property");
+    // The properties of the type that no box shows, by name, with the stored empty ones.
+    const offered = await candidates(window);
+    expect(offered).toContain("Delivery");
+    expect(offered).toContain("Rationale");
+    expect(offered).not.toContain("Title");
+    expect(offered).not.toContain("Topic");
+    expect(offered).not.toContain("Acceptance Criteria");
+    await window.keyboard.type("delivery");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Delivery");
+    await window.keyboard.press("Enter");
+    // An empty box, in the order of the type (before topic), with the caret in it.
+    await expect(field(window, "delivery")).toHaveCount(1);
+    await expect(field(window, "delivery").locator(".cm-content")).toBeFocused();
+    await expect(field(window, "delivery").locator(".cm-content")).toHaveText("");
+    expect(await boxLabels(window)).toEqual([
+      "requirement-type",
+      "acceptance-criteria",
+      "delivery",
+      "topic",
+      "legacy",
+      "packages",
+    ]);
+    // Nothing is a draft or in the file before there is a value and a save.
+    await expect(modeline(window)).not.toContainText("modified");
+    expect(await readFile(running)).toBe(before);
+    await window.keyboard.type("Lieferung");
+    await expect(modeline(window)).toContainText("modified");
+    expect(await readFile(running)).toBe(before);
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    expect((await cliGet(running)).element.properties["delivery"]).toBe("Lieferung");
+    expect(await readFile(running)).toContain("delivery: Lieferung");
+    await expect(field(window, "delivery").locator(".cm-content")).toHaveText("Lieferung");
+  });
+
+  test("[SR-104/AK2] adding a choice puts the empty box in the page and opens the prompt with the choices at once; Escape leaves the focus on the box", async () => {
+    const { window } = running;
+    const before = await readFile(running);
+    await window.keyboard.press("ControlOrMeta+Alt+A");
+    await window.keyboard.type("verification");
+    await window.keyboard.press("Enter");
+    await expect(field(window, "verification-method")).toHaveCount(1);
+    await expect(promptLabel(window)).toHaveText("Verification Method");
+    await expect(field(window, "verification-method").locator(".line")).toHaveCount(0);
+    // Exactly the values of the metamodel.
+    expect(await candidates(window)).toEqual(["Test", "Analysis", "Inspection", "Demonstration"]);
+    await window.keyboard.press("Escape");
+    await expect(window.locator('[role="combobox"]')).toHaveCount(0);
+    // The focus is on the new box, not on the element, and the box is empty.
+    await expect(field(window, "verification-method")).toBeFocused();
+    await expect(field(window, "verification-method").locator(".line")).toHaveCount(0);
+    await expect(modeline(window)).not.toContainText("modified");
+    expect(await readFile(running)).toBe(before);
+    // The box takes the choice with Enter, again with the prompt.
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Verification Method");
+    await window.keyboard.type("insp");
+    await window.keyboard.press("Enter");
+    await expect(field(window, "verification-method")).toBeFocused();
+    await expect(field(window, "verification-method")).toContainText("inspection");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    expect((await cliGet(running)).element.properties["verification-method"]).toBe("inspection");
+    expect(await readFile(running)).toContain("verification-method: inspection");
+  });
+
+  test("[SR-104/AK2] Add property is also in the command prompt, by its name", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("add prop");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Add property");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(/Ctrl\+Alt\+A|⌥⌘A/);
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Add property");
+  });
+
+  test("[SR-104/AK3] the prompt of a choice offers only the values of the metamodel, with the one that is set first, and takes no free text", async () => {
+    const { window } = running;
+    await field(window, "requirement-type").focus();
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    expect(await candidates(window)).toEqual([
+      "Performance",
+      "Functional",
+      "Quality",
+      "Interface",
+      "Constraint",
+    ]);
+    // Typed text only narrows the values; what is no value gives nothing, and Enter takes nothing.
+    await window.keyboard.type("zzz");
+    await expect(window.locator('.candidates [role="option"]')).toHaveCount(0);
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    await window.keyboard.press("Control+A");
+    await window.keyboard.type("qual");
+    await window.keyboard.press("Enter");
+    await expect(field(window, "requirement-type")).toBeFocused();
+    await expect(field(window, "requirement-type")).toContainText("quality");
+    await expect(modeline(window)).toContainText("modified");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    expect((await cliGet(running)).element.properties["requirement-type"]).toBe("quality");
+    expect(await readFile(running)).toContain("requirement-type: quality");
+    // The other properties keep their bytes.
+    expect(await readFile(running)).toContain("legacy: Altlast");
+  });
+
+  test("a relation box shows its targets as links; its prompt finds only elements of the allowed types, and a target is added, then taken out", async () => {
+    const { window } = running;
+    const box = field(window, "packages");
+    await expect(box.locator("li")).toHaveCount(1);
+    await expect(box.locator("li")).toContainText("Sensors");
+    await box.focus();
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Package");
+    expect(await candidates(window)).toEqual([expect.stringContaining("Sensors")]);
+    // The search is limited to the types of the property: the system requirement is not found.
+    await window.keyboard.type(SR_TITLE);
+    await window.waitForTimeout(400);
+    await expect(window.locator('.candidates [role="option"]')).toHaveCount(0);
+    await window.keyboard.press("Control+A");
+    await window.keyboard.type("Display");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Display");
+    await window.keyboard.press("Enter");
+    await expect(box).toBeFocused();
+    await expect(box.locator("li")).toHaveCount(2);
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    const got = await cliGet(running);
+    const packages = got.element.relations.filter((r) => r.kind === "packages" && r.property === true);
+    expect(packages).toHaveLength(2);
+    expect(await readFile(running)).toContain("69069069-0000-4000-8000-0000000000d2");
+    // Taking a target that is set removes it.
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("Sensors");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("set");
+    await window.keyboard.press("Enter");
+    await expect(box.locator("li")).toHaveCount(1);
+    await expect(box.locator("li")).toContainText("Display");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    const text = await readFile(running);
+    expect(text).not.toContain("69069069-0000-4000-8000-0000000000d1");
+    expect(text).toContain("69069069-0000-4000-8000-0000000000d2");
+  });
+
+  test("[SR-104/AK4] Clear property empties a choice and a relation box, Ctrl/Cmd+S removes both from the file, and the boxes are gone", async () => {
+    const { window } = running;
+    await field(window, "requirement-type").focus();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("clear prop");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Clear property");
+    await window.keyboard.press("Enter");
+    // The box stays, empty, until it is saved.
+    await expect(field(window, "requirement-type")).toHaveCount(1);
+    await expect(field(window, "requirement-type").locator(".line")).toHaveCount(0);
+    expect(await readFile(running)).toContain("requirement-type: performance");
+    await field(window, "packages").focus();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("clear prop");
+    await window.keyboard.press("Enter");
+    await expect(field(window, "packages").locator("li")).toHaveCount(0);
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(modeline(window)).not.toContainText("modified");
+    await expect(field(window, "requirement-type")).toHaveCount(0);
+    await expect(field(window, "packages")).toHaveCount(0);
+    const file = await readFile(running);
+    expect(file).not.toContain("requirement-type");
+    expect(file).not.toContain("packages");
+    const got = await cliGet(running);
+    expect(Object.keys(got.element.properties)).not.toContain("requirement-type");
+    expect(Object.keys(got.element.properties)).not.toContain("packages");
+    expect(got.element.relations.filter((r) => r.property === true)).toEqual([]);
+    expect(await boxLabels(window)).not.toContain("requirement-type");
+  });
+
+  test("Backspace on a box that has the focus clears nothing: the action does", async () => {
+    const { window } = running;
+    await field(window, "requirement-type").focus();
+    await window.keyboard.press("Backspace");
+    await window.keyboard.press("Delete");
+    await expect(field(window, "requirement-type")).toContainText("performance");
+    await expect(modeline(window)).not.toContainText("modified");
+  });
+
+  test("a property the type does not know is a read-only box: Enter on it and Clear property say so or edit the text", async () => {
+    const { window } = running;
+    // Enter on the box opens no editor in it: the caret goes into the text, as on a box that is not edited.
+    await field(window, "legacy").focus();
+    await window.keyboard.press("Enter");
+    await expect.poll(() => focusedField(window)).toBe("Text");
+    expect(await field(window, "legacy").locator(".cm-editor").count()).toBe(0);
+    await window.keyboard.press("Escape");
+    await field(window, "legacy").focus();
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("clear prop");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Minibuffer")).toContainText(
+      "legacy is not a property of this type: edit it in the file",
+    );
+    await expect(field(window, "legacy")).toContainText("Altlast");
+  });
+
+  test("[SR-104/AK3] the prompt of a choice over the page, next to a relation box (screenshot, light)", async () => {
+    const { window } = running;
+    await fs.mkdir(OUT, { recursive: true });
+    await running.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
+    });
+    await field(window, "requirement-type").focus();
+    await window.keyboard.press("Enter");
+    await expect(promptLabel(window)).toHaveText("Requirement Type");
+    await expect(window.locator('.candidates [role="option"]')).toHaveCount(5);
+    await expect(field(window, "packages").locator("li")).toHaveCount(1);
+    await window.mouse.move(0, 0);
+    await window.screenshot({ path: path.join(OUT, "boxes-choice-relation.png") });
   });
 
   test("gives each box one Tab stop: the box itself, then the next box", async () => {

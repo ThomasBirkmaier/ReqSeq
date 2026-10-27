@@ -1,12 +1,14 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import {
+  isPropertyTarget,
   outdatedReferences,
   propertyBoxes,
   propertyLines,
   propertyModel,
   relationGroups,
   relationLabel,
+  rowOfRelation,
 } from "./element-view.js";
 
 const relation = (extra: Partial<DataExportRelation>): DataExportRelation => ({
@@ -36,15 +38,36 @@ describe("propertyLines", () => {
 });
 
 describe("propertyBoxes", () => {
-  it("leaves out empty properties and those that appear as relations", () => {
+  it("[SR-104/AK1] leaves out empty properties and has a box with its targets for a relation property", () => {
+    const stage = relation({ kind: "packages", property: true, id: "p", shortId: "PKG-1", title: "Stufe 3" });
     const element = {
-      properties: { topic: "Wind", empty: "", list: [], packages: [{ id: "p", title: "Stufe 3" }], n: 2 },
-      relations: [relation({ kind: "packages", property: true }), relation({ kind: "topic" })],
+      properties: {
+        topic: "Wind",
+        empty: "",
+        list: [],
+        packages: [{ id: "p", title: "Stufe 3" }],
+        validity: [],
+        n: 2,
+      },
+      relations: [stage, relation({ kind: "topic" })],
     } as unknown as DataExportElement;
     expect(propertyBoxes(element)).toEqual([
       { key: "topic", lines: ["Wind"] },
+      { key: "packages", lines: ["PKG-1 Stufe 3"], relations: [stage] },
       { key: "n", lines: ["2"] },
     ]);
+  });
+
+  it("takes only outgoing property targets as the targets of a box", () => {
+    const incoming = relation({ kind: "packages", property: true, direction: "in", id: "m" });
+    const element = {
+      properties: { packages: [] },
+      relations: [incoming],
+    } as unknown as DataExportElement;
+    expect(propertyBoxes(element)).toEqual([]);
+    expect(isPropertyTarget(incoming)).toBe(false);
+    expect(isPropertyTarget(relation({ property: true }))).toBe(true);
+    expect(isPropertyTarget(relation({}))).toBe(false);
   });
 });
 
@@ -62,6 +85,18 @@ describe("relationGroups", () => {
       ["references", ["4"]],
     ]);
     expect(relationGroups([])).toEqual([]);
+  });
+
+  it("[SR-104/AK1] leaves out the targets of a relation property, which are boxes, and keeps the incoming ones", () => {
+    const groups = relationGroups([
+      relation({ id: "1", kind: "packages", property: true }),
+      relation({ id: "2", kind: "packages", property: true, direction: "in" }),
+      relation({ id: "3" }),
+    ]);
+    expect(groups.map((group) => [group.heading, group.relations.map((r) => r.id)])).toEqual([
+      ["← packages", ["2"]],
+      ["derives-from", ["3"]],
+    ]);
   });
 });
 
@@ -133,6 +168,23 @@ describe("relationLabel", () => {
   });
 });
 
+describe("rowOfRelation", () => {
+  it("is the label, the target and the state of a relation as the buffer shows it", () => {
+    expect(
+      rowOfRelation(
+        relation({ id: "n1", repository: "spec", shortId: "N-1", title: "Need", outdated: true }),
+      ),
+    ).toEqual({ id: "n1", repository: "spec", label: "N-1 Need", state: "available", outdated: true });
+    expect(rowOfRelation(relation({ id: "n2", targetState: "missing" }))).toEqual({
+      id: "n2",
+      repository: "",
+      label: "n2",
+      state: "missing",
+      outdated: false,
+    });
+  });
+});
+
 describe("propertyModel", () => {
   const property = (key: string, extra: object = {}) => ({ key, name: key, kind: "text", ...extra });
 
@@ -157,22 +209,71 @@ describe("propertyModel", () => {
         [
           "requirement",
           new Map([
-            ["title", { kind: "text", many: false, markdown: false }],
-            ["acceptance-criteria", { kind: "text", many: true, markdown: true }],
-            ["topic", { kind: "text", many: false, markdown: false }],
-            ["effort", { kind: "number", many: false, markdown: false }],
+            ["title", { name: "title", kind: "text", many: false, markdown: false, meaning: "title" }],
+            [
+              "acceptance-criteria",
+              { name: "acceptance-criteria", kind: "text", many: true, markdown: true },
+            ],
+            ["topic", { name: "topic", kind: "text", many: false, markdown: false }],
+            ["effort", { name: "effort", kind: "number", many: false, markdown: false }],
           ]),
         ],
         [
           "system-requirement",
           new Map([
-            ["title", { kind: "text", many: false, markdown: false }],
-            ["acceptance-criteria", { kind: "text", many: true, markdown: true }],
-            ["rationale", { kind: "text", many: false, markdown: true }],
-            ["note", { kind: "text", many: false, markdown: false }],
+            ["title", { name: "title", kind: "text", many: false, markdown: false, meaning: "title" }],
+            [
+              "acceptance-criteria",
+              { name: "acceptance-criteria", kind: "text", many: true, markdown: true },
+            ],
+            ["rationale", { name: "rationale", kind: "text", many: false, markdown: true }],
+            ["note", { name: "note", kind: "text", many: false, markdown: false }],
           ]),
         ],
         ["glossary-term", new Map()],
+      ]),
+    );
+  });
+});
+
+describe("propertyModel for choices and relations (SR-104)", () => {
+  it("[SR-104/AK3] gives the choices in the order of the metamodel, the target types and the display name", () => {
+    const model = propertyModel({
+      properties: [
+        {
+          key: "verification-method",
+          name: "Verification Method",
+          kind: "choice",
+          choices: [
+            { key: "test", name: "Test", description: "x" },
+            { key: "analysis", name: "Analysis" },
+          ],
+          meaning: "verification-method",
+        },
+        { key: "packages", name: "Package", kind: "relation", many: true, "target-types": ["package"] },
+      ],
+      types: [{ key: "sr", properties: ["verification-method", "packages"] }],
+    } as unknown as Parameters<typeof propertyModel>[0]);
+    expect(model.get("sr")).toEqual(
+      new Map([
+        [
+          "verification-method",
+          {
+            name: "Verification Method",
+            kind: "choice",
+            many: false,
+            markdown: false,
+            choices: [
+              { key: "test", name: "Test" },
+              { key: "analysis", name: "Analysis" },
+            ],
+            meaning: "verification-method",
+          },
+        ],
+        [
+          "packages",
+          { name: "Package", kind: "relation", many: true, markdown: false, targetTypes: ["package"] },
+        ],
       ]),
     );
   });

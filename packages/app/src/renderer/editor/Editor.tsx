@@ -22,6 +22,8 @@ export interface EditorHandle {
   readonly state: () => EditorState;
   /** Replaces the document without an undo step (the text of the file after a save). */
   readonly replace: (text: string) => void;
+  /** Replaces the document as an edit of the user, which Ctrl/Cmd+Z undoes ("Clear property"). */
+  readonly set: (text: string) => void;
 }
 
 export interface EditorProps {
@@ -202,6 +204,9 @@ export const Editor = ({
       state: () => editor.state,
       replace: (next) => {
         replaceDocument(editor, next);
+      },
+      set: (next) => {
+        editor.dispatch({ changes: minimalChange(editor.state.doc.toString(), next), userEvent: "input" });
       },
     });
     return () => {

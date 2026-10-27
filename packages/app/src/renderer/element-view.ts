@@ -26,30 +26,56 @@ export const propertyLines = (value: unknown): string[] => {
   return typeof title === "string" && title !== "" ? [title] : [JSON.stringify(value)];
 };
 
+/** The label of a relation as the buffer shows it: the identifier or short ID, then the title. */
+export const relationLabel = (relation: DataExportRelation): string =>
+  `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim();
+
+/** A relation that is the value of a property of kind `relation` (ADR-0004), not a relation kind. */
+export const isPropertyTarget = (relation: DataExportRelation): boolean =>
+  relation.property === true && relation.direction === "out";
+
 export interface PropertyBox {
   readonly key: string;
   readonly lines: readonly string[];
+  /** The targets of a property of kind `relation` (SR-104): its lines are their labels. */
+  readonly relations?: readonly DataExportRelation[];
 }
 
 /**
- * The properties with something to show. A property of kind `relation` (`property: true` in the
- * relations) appears as a relation, so it is left out here.
+ * The properties with something to show, in the order of the file. A property of kind `relation` (the
+ * outgoing relations with `property: true`) is a box like the others, with its targets as rows; the
+ * incoming relations and the relations of relation kinds stay relation groups.
  */
 export const propertyBoxes = (element: DataExportElement): PropertyBox[] => {
-  const asRelation = new Set(element.relations.filter((r) => r.property === true).map((r) => r.kind));
-  return Object.entries(element.properties)
-    .filter(([key]) => !asRelation.has(key))
-    .map(([key, value]) => ({ key, lines: propertyLines(value) }))
-    .filter((box) => box.lines.length > 0);
+  const targets = new Map<string, DataExportRelation[]>();
+  for (const relation of element.relations.filter(isPropertyTarget)) {
+    targets.set(relation.kind, [...(targets.get(relation.kind) ?? []), relation]);
+  }
+  return Object.entries(element.properties).flatMap(([key, value]): PropertyBox[] => {
+    const relations = targets.get(key);
+    if (relations !== undefined) {
+      return [{ key, lines: relations.map(relationLabel), relations }];
+    }
+    const lines = propertyLines(value);
+    return lines.length === 0 ? [] : [{ key, lines }];
+  });
 };
 
 /** What the app needs to know of a property to edit its box (D-012, SR-104): from `metamodel.get`. */
 export interface PropertyInfo {
+  /** The display name (the label of the prompt that edits the box); the key when the model gives none. */
+  readonly name?: string;
   readonly kind: MetamodelProperty["kind"];
   /** The value is a list: one value per line in its box. */
   readonly many: boolean;
   /** The values are Markdown like the text and show formatted (SR-127). */
   readonly markdown: boolean;
+  /** The allowed values of a choice property, in the order of the metamodel (SR-104 AK3). */
+  readonly choices?: readonly { readonly key: string; readonly name: string }[];
+  /** The types a relation property may point at, subtypes included; none given: every type. */
+  readonly targetTypes?: readonly string[];
+  /** The built-in meaning of the property (`title` is the heading of the element, not a box). */
+  readonly meaning?: string;
 }
 
 /** The properties of each type, by the key of the type and then of the property, with the inherited ones. */
@@ -73,7 +99,21 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
             : [
                 [
                   key,
-                  { kind: property.kind, many: property.many === true, markdown: property.markdown === true },
+                  {
+                    name: property.name,
+                    kind: property.kind,
+                    many: property.many === true,
+                    markdown: property.markdown === true,
+                    ...(property.choices === undefined
+                      ? {}
+                      : {
+                          choices: property.choices.map(({ key: choice, name }) => ({ key: choice, name })),
+                        }),
+                    ...(property["target-types"] === undefined
+                      ? {}
+                      : { targetTypes: property["target-types"] }),
+                    ...(property.meaning === undefined ? {} : { meaning: property.meaning }),
+                  },
                 ],
               ];
         }),
@@ -82,16 +122,38 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
   );
 };
 
+/** A relation target as a row of the buffer: a group of relations and a relation box show the same rows. */
+export interface RelationRow {
+  readonly id: string;
+  /** The workspace name of the repository of the target; empty when the output names none. */
+  readonly repository: string;
+  readonly label: string;
+  readonly state: DataExportRelation["targetState"];
+  readonly outdated: boolean;
+}
+
+/** The row of a relation of the element. */
+export const rowOfRelation = (relation: DataExportRelation): RelationRow => ({
+  id: relation.id,
+  repository: relation.repository ?? "",
+  label: relationLabel(relation),
+  state: relation.targetState,
+  outdated: relation.outdated === true,
+});
+
 export interface RelationGroup {
   /** The relation kind; incoming relations have an arrow before it ("← derives-from"). */
   readonly heading: string;
   readonly relations: readonly DataExportRelation[];
 }
 
-/** The relations grouped by kind and direction, in the order of their first appearance. */
+/**
+ * The relations grouped by kind and direction, in the order of their first appearance. The targets of a
+ * property of kind `relation` are boxes (SR-104) and not in a group.
+ */
 export const relationGroups = (relations: readonly DataExportRelation[]): RelationGroup[] => {
   const groups = new Map<string, DataExportRelation[]>();
-  for (const relation of relations) {
+  for (const relation of relations.filter((candidate) => !isPropertyTarget(candidate))) {
     const heading = relation.direction === "in" ? `← ${relation.kind}` : relation.kind;
     groups.set(heading, [...(groups.get(heading) ?? []), relation]);
   }
@@ -136,7 +198,3 @@ export const outdatedReferences = (
   }
   return found;
 };
-
-/** The label of a relation as the buffer shows it: the identifier or short ID, then the title. */
-export const relationLabel = (relation: DataExportRelation): string =>
-  `${relation.identifier ?? relation.shortId ?? relation.id} ${relation.title ?? ""}`.trim();

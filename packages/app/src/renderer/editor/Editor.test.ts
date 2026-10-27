@@ -194,6 +194,22 @@ describe("Editor", () => {
     root = createRoot(container);
   });
 
+  it("sets the document as an edit that can be undone", async () => {
+    const handle = vi.fn<(handle: EditorHandle | undefined) => void>();
+    const onChange = vi.fn();
+    await render({ handle, onChange });
+    const given = handleOf(handle);
+    act(() => {
+      given.set("");
+    });
+    expect(given.doc()).toBe("");
+    expect(onChange).toHaveBeenLastCalledWith("");
+    act(() => {
+      expect(undo(view())).toBe(true);
+    });
+    expect(given.doc()).toBe("# Title\n\nbody");
+  });
+
   it("sets everything while it has no focus", async () => {
     await render();
     expect(container.querySelector(".cm-content")?.textContent).toBe("Titlebody");

@@ -133,7 +133,14 @@ describe("the command prompt", () => {
 
   it("offers saving and editing the text on an element that has loaded", () => {
     const element$ = setup([element], {}, true, {
-      element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() },
+      element: {
+        save: vi.fn(),
+        edit: vi.fn(),
+        follow: vi.fn(),
+        copy: vi.fn(),
+        addProperty: vi.fn(),
+        clearProperty: vi.fn(),
+      },
     });
     const items = commandPrompt(element$.context).items;
     expect(items.map((item) => item.name)).toEqual([
@@ -147,6 +154,8 @@ describe("the command prompt", () => {
       "Edit text",
       "Follow reference",
       "Copy field",
+      "Add property",
+      "Clear property",
       "Show element ID and version",
       "Show neighbourhood",
       "Toggle dark mode",
@@ -162,6 +171,8 @@ describe("the command prompt", () => {
       "Enter",
       "Ctrl+Enter",
       "Ctrl+Shift+C",
+      "Ctrl+Alt+A",
+      undefined,
       undefined,
       "Ctrl+J",
       undefined,
@@ -171,8 +182,16 @@ describe("the command prompt", () => {
     expect(titles(setup([element]).context)).not.toContain("Save element");
     expect(
       titles(
-        setup([list], {}, true, { element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() } })
-          .context,
+        setup([list], {}, true, {
+          element: {
+            save: vi.fn(),
+            edit: vi.fn(),
+            follow: vi.fn(),
+            copy: vi.fn(),
+            addProperty: vi.fn(),
+            clearProperty: vi.fn(),
+          },
+        }).context,
       ),
     ).not.toContain("Edit text");
   });
@@ -217,7 +236,15 @@ describe("the command prompt", () => {
       setup([list]).context,
       setup([filteredList([typeStep("need"), savedStep("open")])]).context,
       setup([element], {}, true, {
-        element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn(), members: true },
+        element: {
+          save: vi.fn(),
+          edit: vi.fn(),
+          follow: vi.fn(),
+          copy: vi.fn(),
+          addProperty: vi.fn(),
+          clearProperty: vi.fn(),
+          members: true,
+        },
         modified: true,
       }).context,
       setup([overviewBuffer()]).context,
@@ -564,7 +591,15 @@ describe("list actions", () => {
   });
 
   describe("on a package page (SR-112)", () => {
-    const page = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn(), members: true };
+    const page = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+      members: true,
+    };
     const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
 
     it('[SR-112/AK2] "Sort list" is offered on a package page and not on another element; no filter is', () => {
@@ -742,7 +777,14 @@ describe("close all buffers", () => {
   });
 
   it('[SR-123/AK3] "cab" ranks Close all buffers first in the command prompt', () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
     const { context } = setup([element, other, filtered], {}, true, { element: controls });
     const items = commandPrompt(context).items;
     expect(rank(items, (item) => item.name, "cab")[0]?.item.name).toBe("Close all buffers");
@@ -781,7 +823,14 @@ describe("close all buffers", () => {
 
 describe("save element and edit text", () => {
   it("save runs the controls with Ctrl/Cmd+S, edit has no shortcut", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "s" && shortcut.mod)?.id).toBe("save");
     action("save").run(context);
@@ -792,7 +841,14 @@ describe("save element and edit text", () => {
   });
 
   it("follow reference runs the controls with Ctrl/Cmd+Enter, on an element with a loaded text only", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "enter" && shortcut.mod)?.id).toBe(
       "follow-reference",
@@ -808,7 +864,14 @@ describe("save element and edit text", () => {
   });
 
   it("[SR-128/AK3] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
     const { context } = setup([element], {}, true, { element: controls });
     expect(action("copy-field").title).toBe("Copy field");
     expect(action("copy-field").shortcut).toEqual({ mod: true, shift: true, key: "c" });
@@ -825,8 +888,69 @@ describe("save element and edit text", () => {
     expect(controls.copy).toHaveBeenCalledTimes(1);
   });
 
+  it("[SR-104/AK2] Add property runs the controls with Ctrl/Cmd+Alt+A, on an element with a loaded text only", () => {
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(action("add-property").title).toBe("Add property");
+    expect(action("add-property").shortcut).toEqual({ mod: true, shift: false, alt: true, key: "a" });
+    expect(
+      actionFor(context, (shortcut) => shortcut.key === "a" && shortcut.alt === true && shortcut.mod)?.id,
+    ).toBe("add-property");
+    action("add-property").run(context);
+    expect(controls.addProperty).toHaveBeenCalledTimes(1);
+    expect(action("add-property").available(setup([element]).context)).toBe(false);
+    expect(action("add-property").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("add-property").run(setup([element]).context);
+    expect(controls.addProperty).toHaveBeenCalledTimes(1);
+    // The command prompt lists it with its shortcut.
+    const item = commandPrompt(context).items.find((candidate) => candidate.name === "Add property");
+    expect(item?.hint).toBe("Ctrl+Alt+A");
+    expect(
+      commandPrompt({ ...context, mac: true }).items.find((candidate) => candidate.name === "Add property")
+        ?.hint,
+    ).toBe("⌥⌘A");
+  });
+
+  it("[SR-104/AK4] Clear property runs the controls, has no shortcut, and applies to an element with a loaded text only", () => {
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(action("clear-property").title).toBe("Clear property");
+    expect(action("clear-property").shortcut).toBeUndefined();
+    action("clear-property").run(context);
+    expect(controls.clearProperty).toHaveBeenCalledTimes(1);
+    expect(action("clear-property").available(setup([element]).context)).toBe(false);
+    expect(action("clear-property").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("clear-property").run(setup([element]).context);
+    expect(controls.clearProperty).toHaveBeenCalledTimes(1);
+  });
+
   it("[SR-128/AK3] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {
-    const controls = { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn() };
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+    };
     const page = { ...controls, members: true };
     const contexts = [
       setup([element], {}, true, { element: controls }).context,

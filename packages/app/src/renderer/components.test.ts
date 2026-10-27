@@ -19,6 +19,7 @@ import {
 } from "./buffers.js";
 import type { Call } from "./call.js";
 import { savedStep } from "./list-filters.js";
+import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
 import { focusEffect } from "./editor/preview.js";
@@ -1677,6 +1678,7 @@ describe("ElementView", () => {
     const drafts: [string, Draft | undefined][] = [];
     const registered: (ElementControls | undefined)[] = [];
     const picks: ReferenceRequest[] = [];
+    const asked: Prompt[] = [];
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
@@ -1690,6 +1692,7 @@ describe("ElementView", () => {
           opened.push([id, repository]);
         },
         onPickElement: (request) => picks.push(request),
+        onAsk: (prompt) => asked.push(prompt),
         draft,
         onDraft: (key, kept) => drafts.push([key, kept]),
         register: (controls) => registered.push(controls),
@@ -1708,6 +1711,7 @@ describe("ElementView", () => {
       drafts,
       registered,
       picks,
+      asked,
       controls: (): ElementControls => {
         const found = registered.findLast((c) => c !== undefined);
         if (found === undefined) {
@@ -1748,9 +1752,11 @@ describe("ElementView", () => {
       ["element:spec:uuid-1", undefined],
       ["element:spec:uuid-1", { kind: "element", element: read() }],
     ]);
-    expect(texts(".box .key")).toEqual(["topic", "criteria"]);
+    expect(texts(".box .key")).toEqual(["topic", "criteria", "packages"]);
     expect(texts(".box .line")).toEqual(["Wind", "first", "second"]);
-    expect(texts("h2")).toEqual(["derives-from", "← derives-from", "packages"]);
+    // The targets of a relation property are a box (SR-104); the relation groups keep the relation kinds.
+    expect(texts('[data-field="packages"] .relation')).toEqual(["p Stage 3"]);
+    expect(texts("h2")).toEqual(["derives-from", "← derives-from"]);
   });
 
   describe("copy fields (SR-128)", () => {
@@ -1767,9 +1773,9 @@ describe("ElementView", () => {
         "Text",
         "topic",
         "criteria",
+        "packages",
         "derives-from",
         "← derives-from",
-        "packages",
       ]);
       for (const label of fieldNames()) {
         const symbol = copySymbol(label ?? "");
@@ -1786,7 +1792,7 @@ describe("ElementView", () => {
       const focusable = [...container.querySelectorAll<HTMLElement>("[data-field]")]
         .filter((field) => field.getAttribute("tabindex") === "0")
         .map((field) => field.dataset["field"]);
-      expect(focusable).toEqual(["Title", "topic", "criteria"]);
+      expect(focusable).toEqual(["Title", "topic", "criteria", "packages"]);
     });
 
     it("[SR-128/AK2] copies the values of a box one per line, and says which field", async () => {
@@ -2637,7 +2643,29 @@ describe("ElementView", () => {
       [KEY]: { kind: "text", many: true, markdown: false },
       effort: { kind: "number", many: false, markdown: false },
       synonyms: { kind: "text", many: true, markdown: false },
-      area: { kind: "choice", many: false, markdown: false },
+      area: {
+        name: "Area",
+        kind: "choice",
+        many: false,
+        markdown: false,
+        choices: [
+          { key: "quality", name: "Quality" },
+          { key: "performance", name: "Performance" },
+          { key: "interface", name: "Interface" },
+        ],
+      },
+      tags: {
+        name: "Tags",
+        kind: "choice",
+        many: true,
+        markdown: false,
+        choices: [
+          { key: "a", name: "Alpha" },
+          { key: "b", name: "Beta" },
+        ],
+      },
+      packages: { name: "Package", kind: "relation", many: true, markdown: false, targetTypes: ["package"] },
+      parent: { name: "Parent", kind: "relation", many: false, markdown: false },
     });
     const withProperties = (properties: Record<string, unknown>, more: Partial<DataExportElement> = {}) =>
       read({ text: "Text", relations: [], properties, ...more });
@@ -3081,12 +3109,12 @@ describe("ElementView", () => {
       expect(viewOf("topic").state.selection.main.head).toBe(4);
     });
 
-    it("Enter on the title or on a box that is not edited in place edits the text, as before", async () => {
-      await mountBoxes({ area: "performance" });
+    it("Enter on the title or on a box that is not edited at all edits the text, as before", async () => {
+      await mountBoxes({ unknown: "x" });
       act(() => {
-        field("area").focus();
+        field("unknown").focus();
       });
-      await press(field("area"), "Enter");
+      await press(field("unknown"), "Enter");
       expect(editorView().hasFocus).toBe(true);
       act(() => {
         field("Title").focus();
@@ -3188,6 +3216,646 @@ describe("ElementView", () => {
         ["area", "performance"],
       ]);
     });
+
+    describe("choices, relations, adding and clearing", () => {
+      const stage = (id: string, title: string, extra: Record<string, unknown> = {}) => ({
+        kind: "packages",
+        property: true,
+        direction: "out",
+        id,
+        repository: "spec",
+        shortId: `PKG-${id}`,
+        title,
+        accessible: true,
+        targetState: "available",
+        ...extra,
+      });
+      const withStages = (...stages: ReturnType<typeof stage>[]) => ({
+        properties: { packages: stages.map(({ id }) => ({ id })), topic: "Wind" },
+        more: { relations: stages as unknown as DataExportElement["relations"] },
+      });
+      const lines = (key: string): string[] => texts(`[data-field="${key}"] .line`);
+      const rows = (key: string): string[] => texts(`[data-field="${key}"] .relation`);
+      // (happy-dom answers a selection set on a focused editor with an event inside the update: let go first.)
+      const blur = (): void => {
+        act(() => {
+          (document.activeElement as HTMLElement | null)?.blur();
+        });
+      };
+      const focusField = (key: string): void => {
+        act(() => {
+          field(key).focus();
+        });
+      };
+      /** Takes the entry of the prompt with this name, as Enter in the minibuffer does. */
+      const take = async (prompt: Prompt | undefined, name: string): Promise<void> => {
+        const item = prompt?.items.find((candidate) => candidate.name === name);
+        expect(item, name).toBeDefined();
+        await act(async () => {
+          item?.run();
+          await Promise.resolve();
+        });
+        await flush();
+      };
+      const names = (prompt: Prompt | undefined): string[] => prompt?.items.map((item) => item.name) ?? [];
+      /** `mountBoxes` with an answer of `element.update` that the test checks and a search for elements. */
+      const mountValues = async (
+        properties: Record<string, unknown>,
+        more: Partial<DataExportElement> = {},
+        draft?: Draft,
+        update?: (input: Record<string, unknown>) => unknown,
+      ) => {
+        const mounted = await mountBoxes(properties, more, draft, update);
+        return mounted;
+      };
+
+      it("[SR-104/AK1] shows a relation property as a box with its targets as links, and no empty one", async () => {
+        const first = withStages(stage("p1", "Stufe 3"), stage("p2", "Stufe 4", { targetState: "missing" }));
+        const { targets } = await mountValues(first.properties, first.more);
+        expect(rows("packages")).toEqual(["PKG-p1 Stufe 3", "PKG-p2 Stufe 4 missing"]);
+        expect(texts("h2")).toEqual([]);
+        await click(query('[data-field="packages"] [role="link"]'));
+        expect(targets).toEqual(["element:spec:p1"]);
+        await mountValues({ topic: "Wind", packages: [] });
+        expect(container.querySelector('[data-field="packages"]')).toBeNull();
+      });
+
+      it("[SR-104/AK2] Add property lists the properties the element lacks, by name; a text property gets an empty box with the caret in it, and no draft", async () => {
+        const { controls, asked, drafts } = await mountValues({ topic: "Wind" });
+        act(() => {
+          controls().addProperty();
+        });
+        expect(asked.at(-1)?.label).toBe("Add property");
+        expect(names(asked.at(-1))).toEqual([KEY, "effort", "synonyms", "Area", "Tags", "Package", "Parent"]);
+        await take(asked.at(-1), KEY);
+        // At its place in the order of the type, after topic.
+        expect(
+          [...container.querySelectorAll<HTMLElement>("[data-field]")].map((f) => f.dataset["field"]),
+        ).toEqual(["Title", "Text", "topic", KEY]);
+        expect(viewOf(KEY).state.doc.toString()).toBe("");
+        expect(viewOf(KEY).hasFocus).toBe(true);
+        expect(container.contains(document.activeElement)).toBe(true);
+        expect(field(KEY).contains(document.activeElement)).toBe(true);
+        // An empty box is no draft.
+        expect(drafts.filter(([, kept]) => kept !== undefined)).toEqual([]);
+      });
+
+      it("[SR-104/AK2] saves what is typed into an added box with set, and the box is then the stored one", async () => {
+        const { controls, asked, call, drafts } = await mountValues({ topic: "Wind" }, {}, undefined, () =>
+          savedWith({ topic: "Wind", [KEY]: ["first"] }),
+        );
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), KEY);
+        blur();
+        await typeIn(KEY, "first");
+        expect(drafts.at(-1)?.[1]?.boxes?.get(KEY)).toEqual({ doc: "first", base: "" });
+        await save(controls);
+        expect(updates(call)).toEqual([{ ref: "uuid-1", set: { [KEY]: ["first"] } }]);
+        expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+        expect(viewOf(KEY).state.doc.toString()).toBe("first");
+      });
+
+      it("[SR-104/AK2] Add property for a choice puts the empty box in the page with the focus on it, and opens the prompt with the choices at once", async () => {
+        const { controls, asked, drafts } = await mountValues({ topic: "Wind" });
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), "Area");
+        expect(field("area")).not.toBeNull();
+        expect(lines("area")).toEqual([]);
+        expect(document.activeElement).toBe(field("area"));
+        expect(asked.at(-1)?.label).toBe("Area");
+        expect(names(asked.at(-1))).toEqual(["Quality", "Performance", "Interface"]);
+        // Escape on the prompt: the focus is on the new box, not on the element, and the box is empty.
+        act(() => {
+          asked.at(-1)?.cancel?.();
+        });
+        expect(document.activeElement).toBe(field("area"));
+        expect(lines("area")).toEqual([]);
+        expect(drafts.filter(([, kept]) => kept !== undefined)).toEqual([]);
+      });
+
+      it("[SR-104/AK2] Add property for a relation opens the prompt with the search of the allowed types at once", async () => {
+        const { controls, asked } = await mountValues({ topic: "Wind" });
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), "Package");
+        expect(asked.at(-1)?.label).toBe("Package");
+        expect(asked.at(-1)?.items).toEqual([]);
+        expect(asked.at(-1)?.find).toBeDefined();
+        expect(document.activeElement).toBe(field("packages"));
+      });
+
+      it("[SR-104/AK2] drops an added box that was left empty when the element is saved", async () => {
+        const { controls, asked } = await mountValues({ topic: "Wind" }, {}, undefined, () =>
+          savedWith({ topic: "Wind!" }),
+        );
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), "Area");
+        await typeIn("topic", "!");
+        await save(controls);
+        expect(container.querySelector('[data-field="area"]')).toBeNull();
+      });
+
+      it("[SR-104/AK2] keeps an added box that was typed in while the save ran, as an added box with its input", async () => {
+        let answer: (value: unknown) => void = () => undefined;
+        const call = vi.fn((name: string, input: Record<string, unknown>) =>
+          name === "element.update"
+            ? new Promise((resolve) => {
+                answer = resolve;
+              })
+            : Promise.resolve({
+                ok: true,
+                output:
+                  name === "trace.neighbourhood"
+                    ? alone(input)
+                    : { element: withProperties({ topic: "Wind" }) },
+              }),
+        );
+        await fresh();
+        const { controls, asked, drafts } = await mount(asCall(call as never), 0, undefined, {
+          properties: model,
+        });
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), KEY);
+        blur();
+        await typeIn("topic", "!");
+        await act(async () => {
+          controls().save();
+          await Promise.resolve();
+        });
+        await typeIn(KEY, "late");
+        await act(async () => {
+          answer({ ok: true, output: savedWith({ topic: "Wind!" }) });
+          await Promise.resolve();
+        });
+        await flush();
+        expect(viewOf(KEY).state.doc.toString()).toBe("late");
+        expect(drafts.at(-1)?.[1]?.boxes?.get(KEY)).toEqual({ doc: "late", base: "" });
+      });
+
+      it("[SR-104/AK2] says that a read-only element has no property to add, and when there is none to add", async () => {
+        const read = await mountValues({ topic: "Wind" }, { readOnly: true });
+        act(() => {
+          read.controls().addProperty();
+        });
+        expect(read.echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+        expect(read.asked).toEqual([]);
+        const none = await mountValues({ topic: "Wind" }, { type: "other" });
+        act(() => {
+          none.controls().addProperty();
+        });
+        expect(none.echoed.at(-1)).toBe("No property to add");
+        expect(none.asked).toEqual([]);
+        // A key stored empty is offered, because no box shows it.
+        const empty = await mountValues({ topic: "", [KEY]: [] });
+        act(() => {
+          empty.controls().addProperty();
+        });
+        expect(names(empty.asked.at(-1)).slice(0, 2)).toEqual(["topic", KEY]);
+      });
+
+      it("[SR-104/AK3] Enter on a choice box asks with only the choices, and the one taken is the value of the box; the focus comes back to the box", async () => {
+        const { asked, drafts, controls, call } = await mountValues(
+          { area: "performance", topic: "t" },
+          {},
+          undefined,
+          () => savedWith({ area: "quality", topic: "t" }),
+        );
+        focusField("area");
+        await press(field("area"), "Enter");
+        expect(asked.at(-1)?.label).toBe("Area");
+        expect(asked.at(-1)?.text).toBeUndefined();
+        // The one that is set first with its hint, then the others.
+        expect(names(asked.at(-1))).toEqual(["Performance", "Quality", "Interface"]);
+        expect(asked.at(-1)?.items.map((item) => item.hint)).toEqual(["set", "quality", "interface"]);
+        focusField("topic");
+        await take(asked.at(-1), "Quality");
+        expect(lines("area")).toEqual(["quality"]);
+        expect(document.activeElement).toBe(field("area"));
+        expect(drafts.at(-1)?.[1]?.boxes?.get("area")).toEqual({ doc: "quality", base: "performance" });
+        await save(controls);
+        expect(updates(call)).toEqual([{ ref: "uuid-1", set: { area: "quality" } }]);
+        expect(lines("area")).toEqual(["quality"]);
+        expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      });
+
+      it("[SR-104/AK3] shows exactly the choices of the metamodel and sets a value of a list one at a time, a set one is taken out", async () => {
+        const { asked } = await mountValues({ tags: ["a"], topic: "t" });
+        focusField("tags");
+        await press(field("tags"), "Enter");
+        expect(names(asked.at(-1))).toEqual(["Alpha", "Beta"]);
+        await take(asked.at(-1), "Beta");
+        expect(lines("tags")).toEqual(["a", "b"]);
+        await press(field("tags"), "Enter");
+        expect(asked.at(-1)?.items.map((item) => item.hint)).toEqual(["set", "set"]);
+        await take(asked.at(-1), "Alpha");
+        expect(lines("tags")).toEqual(["b"]);
+      });
+
+      it("Enter on a choice or relation box of a read-only element says so and asks nothing", async () => {
+        const { asked, echoed } = await mountValues({ area: "performance" }, { readOnly: true });
+        focusField("area");
+        await press(field("area"), "Enter");
+        expect(asked).toEqual([]);
+        expect(echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+      });
+
+      it("Enter on a relation box asks with the targets that are set and the elements of the allowed types", async () => {
+        const first = withStages(stage("p1", "Stufe 3"));
+        const { asked, call } = await mountValues(first.properties, first.more);
+        call.mockImplementation((name: string, input: Record<string, unknown>) =>
+          Promise.resolve({
+            ok: true,
+            output:
+              name === "element.search"
+                ? {
+                    hits: [
+                      {
+                        id: "p2",
+                        repository: "spec",
+                        shortId: "PKG-p2",
+                        type: "package",
+                        title: "Stufe 4",
+                        score: 1,
+                        fields: ["title"],
+                        terms: ["stufe"],
+                      },
+                    ],
+                    total: 1,
+                  }
+                : name === "trace.neighbourhood"
+                  ? alone(input)
+                  : { element: withProperties(first.properties, first.more) },
+          }),
+        );
+        focusField("packages");
+        await press(field("packages"), "Enter");
+        const prompt = asked.at(-1);
+        expect(prompt?.label).toBe("Package");
+        expect(names(prompt)).toEqual(["PKG-p1 Stufe 3"]);
+        expect(prompt?.items[0]?.hint).toBe("set");
+        const found = await prompt?.find?.("stufe");
+        expect(call).toHaveBeenCalledWith("element.search", {
+          query: "stufe",
+          selection: { where: { type: ["package"] } },
+          fields: ["id", "title"],
+          limit: 20,
+        });
+        expect(found?.map((choice) => choice.name)).toEqual(["PKG-p2 Stufe 4"]);
+        await take({ label: "x", items: found ?? [] }, "PKG-p2 Stufe 4");
+        expect(rows("packages")).toEqual(["PKG-p1 Stufe 3", "PKG-p2 Stufe 4"]);
+        expect(document.activeElement).toBe(field("packages"));
+      });
+
+      it("keeps a relation box read-only and says so when the file stores an item the output gives no target for", async () => {
+        const first = withStages(stage("p1", "Stufe 3"));
+        const { asked, controls, call, echoed } = await mountValues(
+          { ...first.properties, packages: [{ id: "p1" }, "not a reference"] },
+          first.more,
+        );
+        const prompts = asked.length;
+        focusField("packages");
+        expect(echoed.at(-1)).toBe("packages has a target that cannot be read: edit it in the file");
+        echoed.length = 0;
+        await press(field("packages"), "Enter");
+        expect(asked.length).toBe(prompts);
+        expect(echoed.at(-1)).toBe("packages has a target that cannot be read: edit it in the file");
+        echoed.length = 0;
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(echoed.at(-1)).toBe("packages has a target that cannot be read: edit it in the file");
+        expect(rows("packages")).toEqual(["PKG-p1 Stufe 3"]);
+        await save(controls);
+        expect(updates(call)).toEqual([]);
+      });
+
+      it("saves the targets of a relation as id and repository, the stored ones too, and takes one out with the prompt", async () => {
+        const first = withStages(stage("p1", "Stufe 3"), stage("p2", "Stufe 4"));
+        const { asked, controls, call } = await mountValues(first.properties, first.more, undefined, () =>
+          savedWith({ topic: "Wind" }),
+        );
+        focusField("packages");
+        await press(field("packages"), "Enter");
+        await take(asked.at(-1), "PKG-p1 Stufe 3");
+        expect(rows("packages")).toEqual(["PKG-p2 Stufe 4"]);
+        await save(controls);
+        expect(updates(call)).toEqual([
+          { ref: "uuid-1", set: { packages: [{ id: "p2", repository: "spec" }] } },
+        ]);
+      });
+
+      it("a single relation is replaced by the element taken", async () => {
+        const single = {
+          properties: { parent: [{ id: "n1" }], topic: "t" },
+          more: {
+            relations: [stage("n1", "Need", { kind: "parent" })] as unknown as DataExportElement["relations"],
+          },
+        };
+        const { asked, controls, call } = await mountValues(single.properties, single.more, undefined, () =>
+          savedWith({ topic: "t" }),
+        );
+        call.mockImplementation((name: string, input: Record<string, unknown>) =>
+          Promise.resolve({
+            ok: true,
+            output:
+              name === "element.search"
+                ? {
+                    hits: [
+                      {
+                        id: "n2",
+                        repository: "vault",
+                        shortId: "N-2",
+                        type: "need",
+                        title: "Other",
+                        score: 1,
+                        fields: ["title"],
+                        terms: [],
+                      },
+                    ],
+                    total: 1,
+                  }
+                : name === "trace.neighbourhood"
+                  ? alone(input)
+                  : name === "element.update"
+                    ? savedWith({ topic: "t" })
+                    : { element: withProperties(single.properties, single.more) },
+          }),
+        );
+        focusField("parent");
+        await press(field("parent"), "Enter");
+        // No target type: the search is not limited.
+        const found = await asked.at(-1)?.find?.("other");
+        expect(call).toHaveBeenCalledWith("element.search", {
+          query: "other",
+          fields: ["id", "title"],
+          limit: 20,
+        });
+        await take({ label: "x", items: found ?? [] }, "N-2 Other");
+        expect(rows("parent")).toEqual(["N-2 Other"]);
+        await save(controls);
+        expect(updates(call)).toEqual([
+          { ref: "uuid-1", set: { parent: { id: "n2", repository: "vault" } } },
+        ]);
+      });
+
+      it("has no search when the property may point at no type", async () => {
+        const none = new Map(model);
+        none.set(
+          "system-requirement",
+          new Map([
+            ["packages", { kind: "relation" as const, many: true, markdown: false, targetTypes: [] }],
+            ["topic", { kind: "text" as const, many: false, markdown: false }],
+          ]),
+        );
+        const first = withStages(stage("p1", "Stufe 3"));
+        const call = fakeCall({
+          "element.get": () => ({ element: withProperties(first.properties, first.more) }),
+        });
+        await fresh();
+        const { asked } = await mount(asCall(call), 0, undefined, { properties: none });
+        focusField("packages");
+        await press(field("packages"), "Enter");
+        expect(asked.at(-1)?.find).toBeUndefined();
+        expect(names(asked.at(-1))).toEqual(["PKG-p1 Stufe 3"]);
+      });
+
+      it("[SR-104/AK4] Clear property empties the box with the cursor, for a choice, a relation and a text, and the properties are removed when it is saved", async () => {
+        const first = withStages(stage("p1", "Stufe 3"));
+        const { controls, call, drafts } = await mountValues(
+          { ...first.properties, area: "performance", [KEY]: ["a", "b"] },
+          first.more,
+          undefined,
+          (input) => {
+            expect(input).toEqual({ ref: "uuid-1", unset: ["packages", "area", KEY] });
+            return savedWith({ topic: "Wind" });
+          },
+        );
+        focusField("area");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(lines("area")).toEqual([]);
+        focusField("packages");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(rows("packages")).toEqual([]);
+        act(() => {
+          field(KEY).focus();
+        });
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(viewOf(KEY).state.doc.toString()).toBe("");
+        // The boxes stay, empty, until the save.
+        expect(container.querySelector('[data-field="area"]')).not.toBeNull();
+        expect(drafts.at(-1)?.[1]?.boxes?.get("area")).toEqual({ doc: "", base: "performance" });
+        await save(controls);
+        expect(updates(call)).toHaveLength(1);
+        for (const key of ["area", "packages", KEY]) {
+          expect(container.querySelector(`[data-field="${key}"]`), key).toBeNull();
+        }
+        expect(drafts.at(-1)).toEqual(["element:spec:uuid-1", undefined]);
+      });
+
+      it("[SR-104/AK4] Clear property from the command prompt empties the box the cursor was in", async () => {
+        const { controls } = await mountValues({ area: "performance" });
+        focusField("area");
+        // The command prompt has the focus now.
+        const input = document.createElement("input");
+        input.id = "prompt-input";
+        document.body.append(input);
+        act(() => {
+          input.focus();
+        });
+        act(() => {
+          controls().clearProperty();
+        });
+        input.remove();
+        expect(lines("area")).toEqual([]);
+        expect(document.activeElement).toBe(field("area"));
+      });
+
+      it("empties a text box so that Ctrl/Cmd+Z brings the value back", async () => {
+        const { controls } = await mountValues({ topic: "Wind" });
+        focusField("topic");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(viewOf("topic").state.doc.toString()).toBe("");
+        await act(async () => {
+          undo(viewOf("topic"));
+          await Promise.resolve();
+        });
+        expect(viewOf("topic").state.doc.toString()).toBe("Wind");
+      });
+
+      it("Clear property says why it cannot clear: no box, a read-only element, a property the type does not know, a value with a line break", async () => {
+        const { controls, echoed } = await mountValues({ topic: "Wind", unknown: "x", [KEY]: ["one\ntwo"] });
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(echoed.at(-1)).toBe("Put the cursor in a property box to clear it");
+        focusField("Title");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(echoed.at(-1)).toBe("Put the cursor in a property box to clear it");
+        focusField("unknown");
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(echoed.at(-1)).toBe("unknown is not a property of this type: edit it in the file");
+        focusField(KEY);
+        act(() => {
+          controls().clearProperty();
+        });
+        expect(echoed.at(-1)).toBe(`${KEY} has a value with a line break: edit it in the file`);
+        expect(viewOf(KEY).state.doc.toString()).toBe("one\ntwo");
+        const locked = await mountValues({ topic: "Wind" }, { readOnly: true });
+        focusField("topic");
+        act(() => {
+          locked.controls().clearProperty();
+        });
+        expect(locked.echoed.at(-1)).toBe("SR-036 Measure wind is read-only");
+      });
+
+      it("does not clear a box with Backspace or Delete on the box itself: only the action does (no undo for it)", async () => {
+        await mountValues({ area: "performance" });
+        focusField("area");
+        await press(field("area"), "Backspace");
+        await press(field("area"), "Delete");
+        expect(lines("area")).toEqual(["performance"]);
+      });
+
+      it("keeps the choices and the added boxes of a draft, shows them, and compares them with the file", async () => {
+        const draft: Draft = {
+          text: "Text",
+          base: "Text",
+          boxes: new Map([
+            ["area", { doc: "quality", base: "performance" }],
+            ["effort", { doc: "3", base: "" }],
+            ["tags", { doc: "a\nb", base: "" }],
+            // A property the type does not have (the metamodel changed meanwhile) has no box to come back to.
+            ["nothing", { doc: "x", base: "" }],
+          ]),
+        };
+        const { echoed, drafts } = await mountValues({ area: "performance", topic: "t" }, {}, draft);
+        expect(lines("area")).toEqual(["quality"]);
+        expect(lines("tags")).toEqual(["a", "b"]);
+        expect(viewOf("effort").state.doc.toString()).toBe("3");
+        expect(echoed).toEqual([]);
+        expect(drafts).toEqual([]);
+        // The added boxes are where the type puts them.
+        expect(
+          [...container.querySelectorAll<HTMLElement>("[data-field]")].map((f) => f.dataset["field"]),
+        ).toEqual(["Title", "Text", "effort", "area", "topic", "tags"]);
+      });
+
+      it("lets a choice box without input follow the file on a reload, and keeps one with input and says so", async () => {
+        const { again, change, echoed } = await mountValues({ area: "performance", tags: ["a"] });
+        focusField("area");
+        await press(field("area"), "Enter");
+        change({ area: "interface", tags: ["b"] });
+        await again(1);
+        // The box without input follows the file at once.
+        expect(lines("tags")).toEqual(["b"]);
+        expect(lines("area")).toEqual(["interface"]);
+        expect(echoed).toEqual([]);
+      });
+
+      it("keeps the choice that was set in the minibuffer when the file changed, and says so", async () => {
+        const { again, change, echoed, asked } = await mountValues({ area: "performance", tags: ["a"] });
+        focusField("area");
+        await press(field("area"), "Enter");
+        await take(asked.at(-1), "Quality");
+        change({ area: "interface", tags: ["b"] });
+        await again(1);
+        expect(lines("area")).toEqual(["quality"]);
+        expect(lines("tags")).toEqual(["b"]);
+        expect(echoed.at(-1)).toBe(
+          "SR-036 Measure wind changed on disk; your unsaved changes are kept. Saving overwrites the file.",
+        );
+        // A property that left the file takes its box with it.
+        change({ tags: ["b"] });
+        await again(2);
+        expect(container.querySelector('[data-field="area"]')).toBeNull();
+      });
+
+      it("keeps an added box through a reload while the file has no value for it, and shows the stored value once it has", async () => {
+        const { again, change, controls, asked } = await mountValues({ topic: "Wind" });
+        act(() => {
+          controls().addProperty();
+        });
+        await take(asked.at(-1), "Tags");
+        await again(1);
+        expect(container.querySelector('[data-field="tags"]')).not.toBeNull();
+        change({ topic: "Wind", tags: ["a"] });
+        await again(2);
+        expect(lines("tags")).toEqual(["a"]);
+      });
+
+      it("Follow reference in a relation box opens the focused target, else the first one; a box with none to open says so", async () => {
+        const first = withStages(stage("p1", "Stufe 3"), stage("p2", "Stufe 4"));
+        const { controls, targets } = await mountValues(first.properties, first.more);
+        focusField("packages");
+        act(() => {
+          controls().follow();
+        });
+        const links = [...container.querySelectorAll<HTMLElement>('[data-field="packages"] [role="link"]')];
+        act(() => {
+          links[1]?.focus();
+        });
+        act(() => {
+          controls().follow();
+        });
+        expect(targets).toEqual(["element:spec:p1", "element:spec:p2"]);
+        const gone = withStages(stage("p1", "Stufe 3", { targetState: "missing" }));
+        const other = await mountValues(gone.properties, gone.more);
+        focusField("packages");
+        act(() => {
+          other.controls().follow();
+        });
+        expect(other.targets).toEqual([]);
+        expect(other.echoed.at(-1)).toBe("No element reference in packages");
+        // A relation property the type does not know is a read-only box with links, and Follow reference opens its target.
+        const unknown = withStages(stage("x1", "Fremd", { kind: "stray" }));
+        const stray = await mountValues({ stray: [{ id: "x1" }] }, unknown.more);
+        expect(stray.asked).toEqual([]);
+        focusField("stray");
+        act(() => {
+          stray.controls().follow();
+        });
+        expect(stray.targets).toEqual(["element:spec:x1"]);
+      });
+
+      it("copies the targets of a relation box and the keys of a choice, the unsaved input included", async () => {
+        const first = withStages(stage("p1", "Stufe 3"), stage("p2", "Stufe 4"));
+        const { copies, asked } = await mountValues({ ...first.properties, tags: ["a"] }, first.more);
+        focusField("tags");
+        await press(field("tags"), "Enter");
+        await take(asked.at(-1), "Beta");
+        focusField("packages");
+        await press(field("packages"), "Enter");
+        await take(asked.at(-1), "PKG-p1 Stufe 3");
+        await click(query('[data-field="tags"] > .copy'));
+        await click(query('[data-field="packages"] > .copy'));
+        await press(field("packages"), "Enter");
+        expect(copies).toEqual([
+          ["tags", "a\nb"],
+          ["packages", "PKG-p2 Stufe 4"],
+        ]);
+      });
+    });
   });
 
   it("reads again after an error, with no editor to ask", async () => {
@@ -3213,11 +3881,12 @@ describe("ElementView", () => {
   it("opens a relation target that is available, on a click and on Enter", async () => {
     const { targets } = await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
     const links = [...container.querySelectorAll<HTMLElement>('[role="link"]')];
-    expect(links.map((link) => link.textContent)).toEqual(["N-1 Need", "SR-000009 Child", "p Stage 3"]);
+    expect(links.map((link) => link.textContent)).toEqual(["p Stage 3", "N-1 Need", "SR-000009 Child"]);
+    await click(nth(links, 1));
+    await press(nth(links, 2), "Enter");
+    await press(nth(links, 2), "x");
     await click(nth(links, 0));
-    await press(nth(links, 1), "Enter");
-    await press(nth(links, 1), "x");
-    expect(targets).toEqual(["element:spec:n1", "element:platform:r1"]);
+    expect(targets).toEqual(["element:spec:n1", "element:platform:r1", "element:spec:p"]);
   });
 
   it("shows a target that is not available muted with its state, and no link", async () => {

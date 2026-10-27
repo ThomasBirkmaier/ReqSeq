@@ -90,6 +90,36 @@ describe("copy", () => {
     expect(from.fields.find((field) => field.label === "criteria")?.text()).toBe("");
   });
 
+  it("[SR-128/AK1] has a field for a relation property, and for a box that was added, in the order of the boxes", () => {
+    const stage = {
+      kind: "packages",
+      property: true,
+      direction: "out",
+      id: "p1",
+      shortId: "PKG-1",
+      title: "Stufe 3",
+    };
+    const withPackage = element({
+      properties: { topic: "Wind", packages: [{ id: "p1" }] },
+      relations: [stage, { kind: "derives-from", direction: "out", id: "n1", shortId: "N-000001" }],
+    });
+    const from = copyable(withPackage, () => "doc");
+    expect(labels(from)).toEqual(["Title", "Text", "topic", "packages", "derives-from"]);
+    expect(from.fields.map((field) => field.text()).slice(3)).toEqual(["PKG-1 Stufe 3", "N-000001"]);
+    // The boxes as the buffer shows them: a box that was added has a field, empty.
+    const shown = copyable(
+      withPackage,
+      () => "doc",
+      (key) => (key === "packages" ? "PKG-1 Stufe 3\nPKG-2 Zwei" : undefined),
+      [
+        { key: "area", lines: [] },
+        { key: "packages", lines: ["PKG-1 Stufe 3"] },
+      ],
+    );
+    expect(labels(shown).slice(0, 4)).toEqual(["Title", "Text", "area", "packages"]);
+    expect(shown.fields.map((field) => field.text()).slice(2, 4)).toEqual(["", "PKG-1 Stufe 3\nPKG-2 Zwei"]);
+  });
+
   it("[SR-128/AK2] copies the text as the editor holds it, and the heading as the buffer shows it", () => {
     let doc = "saved";
     const from = copyable(element({ title: "" }), () => doc);

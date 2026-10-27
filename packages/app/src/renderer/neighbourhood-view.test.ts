@@ -546,6 +546,7 @@ describe("the parents line on the element page", () => {
         onData: () => undefined,
         onEcho: (message) => echoed.push(message),
         onOpenRelation: () => undefined,
+        onAsk: () => undefined,
         onOpenTarget: () => undefined,
         onPickElement: () => undefined,
         onCopy: () => undefined,

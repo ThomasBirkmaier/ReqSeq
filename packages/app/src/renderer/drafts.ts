@@ -63,6 +63,10 @@ export const reconcile = (
   let changed = typed && kept.text !== text && kept.base !== text;
   const boxes = [...(kept.boxes ?? [])].flatMap(([key, box]): [string, BoxDraft][] => {
     const now = stored.get(key);
+    if (now === undefined && box.base === "") {
+      // A box that was added (SR-104 AK2): the property is not in the file, and no stored value was typed on.
+      return [[key, box]];
+    }
     if (now === undefined || now === box.doc) {
       // The property is gone, or the file now holds the draft.
       changed ||= now === undefined;

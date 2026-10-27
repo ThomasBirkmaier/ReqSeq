@@ -6,7 +6,7 @@
 //
 // The prompt finds the app's actions. Catalog commands come with #85: they need arguments, so they wait
 // for argument entry.
-import type { DataExportElement, FilterSortKeyWithDefaults } from "@logreq/core";
+import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
 import type { Buffer, BufferAction, Buffers, ElementBuffer, FilterStep, ListBuffer } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -73,6 +73,10 @@ export interface ElementControls {
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
+  /** Asks which property to add and shows its empty box with the cursor in it (the action "Add property", SR-104 AK2). */
+  readonly addProperty: () => void;
+  /** Empties the box with the cursor, or the one the cursor was in last (the action "Clear property", SR-104 AK4). */
+  readonly clearProperty: () => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
 }
@@ -115,6 +119,12 @@ export interface Action {
 
 /** Ctrl/Cmd+S saves the text of the shown element. */
 const SAVE_SHORTCUT: Shortcut = { mod: true, shift: false, key: "s" };
+
+/**
+ * Ctrl/Cmd+Alt+A (macOS ⌥⌘A) adds a property to the shown element (SR-104 AK2). Not Cmd+Shift+A: with
+ * text selected, macOS gives that to the service "Search man Page Index in Terminal".
+ */
+const ADD_PROPERTY_SHORTCUT: Shortcut = { mod: true, shift: false, alt: true, key: "a" };
 
 /** Ctrl/Cmd+J shows the neighbourhood of the shown element (SR-107), and on the neighbourhood the element again. */
 const NEIGHBOURHOOD_SHORTCUT: Shortcut = { mod: true, shift: false, key: "j" };
@@ -196,12 +206,18 @@ const sortChoices = (apply: (sort: readonly FilterSortKeyWithDefaults[]) => void
 
 /**
  * The elements `element.search` finds for the typed text, as the choices of a prompt; `run` is what
- * choosing one does. The prompts "Go to" and "Insert reference" (SR-129) find them the same way.
+ * choosing one does. The prompts "Go to", "Insert reference" (SR-129) and the one of a relation property
+ * (SR-104; `selection` limits it to the target types) find them the same way.
  */
 export const findElements =
-  (context: ActionContext, run: (row: Row) => void) =>
+  (context: Pick<ActionContext, "call" | "echo">, run: (row: Row) => void, selection?: ElementSelection) =>
   async (query: string): Promise<readonly Choice[]> => {
-    const answer = await context.call("element.search", { query, fields: ["id", "title"], limit: 20 });
+    const answer = await context.call("element.search", {
+      query,
+      ...(selection === undefined ? {} : { selection }),
+      fields: ["id", "title"],
+      limit: 20,
+    });
     if (!answer.ok) {
       context.echo(answer.message);
       return [];
@@ -604,6 +620,23 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.copy();
+    },
+  },
+  {
+    id: "add-property",
+    title: "Add property",
+    shortcut: ADD_PROPERTY_SHORTCUT,
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.addProperty();
+    },
+  },
+  {
+    id: "clear-property",
+    title: "Clear property",
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.clearProperty();
     },
   },
   {

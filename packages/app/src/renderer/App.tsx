@@ -309,6 +309,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onPickElement={(request) => {
               ask(referencePrompt(context, request));
             }}
+            onAsk={ask}
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
             register={setElementControls}

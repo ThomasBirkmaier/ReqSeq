@@ -291,6 +291,12 @@ mark {
   display: block;
 }
 
+/* An empty box (SR-104 AK2, AK4), added or emptied and not saved yet, keeps the height of one line, so the
+   page does not jump when the first value comes in; the key stays quiet as in every box. */
+.element .box .value {
+  min-height: 1.6em;
+}
+
 /* The editor of a Markdown value (SR-127) is part of the box: no margin of its own. */
 .element .box .editor {
   margin: 0;

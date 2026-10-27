@@ -63,6 +63,20 @@ describe("reconcile", () => {
     });
   });
 
+  it("[SR-104/AK2] keeps the input of a box that was added, which the file does not hold, without saying the file changed", () => {
+    const kept = draft("a", "a", [["verification-method", "test", ""]]);
+    const compared = reconcile(kept, "a", stored([]));
+    expect(compared).toEqual({ draft: kept, changed: false });
+    expect(compared.draft).toBe(kept);
+  });
+
+  it("rebases the input of an added box on the value the file holds for the property now", () => {
+    expect(reconcile(draft("a", "a", [["topic", "mine", ""]]), "a", stored([["topic", "theirs"]]))).toEqual({
+      draft: draft("a", "a", [["topic", "mine", "theirs"]]),
+      changed: true,
+    });
+  });
+
   it("follows the file with text that was not typed in, without saying it changed", () => {
     const compared = reconcile(draft("a", "a", [["topic", "y", "x"]]), "b", stored([["topic", "x"]]));
     expect(compared).toEqual({ draft: draft("b", "b", [["topic", "y", "x"]]), changed: false });

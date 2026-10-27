@@ -2,6 +2,7 @@
 // The value is the one the file stores (the Markdown source of the text, the lines of a box as shown),
 // one value per line (#457). Pure: the window puts it on the clipboard.
 import type { DataExportElement } from "@logreq/core";
+import type { PropertyBox } from "./element-view.js";
 import { propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
 
 /** One field of the element buffer: the name the status line gives, and its value as text. */
@@ -42,16 +43,19 @@ export const docOf = (editor: { readonly doc: () => string } | undefined): strin
  * Feldes"); and the ID that the status line names the element by: the identifier when it has one, else
  * the short ID (#457 Q1a). A box with an editor (SR-104) copies what the editor holds, one value per line,
  * the unsaved input included like the text; `boxDoc` gives it by key, or none for a box without editor.
+ * `boxes` are the property boxes as shown (the added empty ones included); a relation box copies the labels
+ * of its targets, as the relation group did.
  */
 export const copyable = (
   element: DataExportElement,
   doc: () => string,
   boxDoc: (key: string) => string | undefined = () => undefined,
+  boxes: readonly PropertyBox[] = propertyBoxes(element),
 ): Copyable => ({
   fields: [
     { label: "Title", text: () => heading(element) },
     { label: "Text", text: doc },
-    ...propertyBoxes(element).map((box) => ({
+    ...boxes.map((box) => ({
       label: box.key,
       text: () => boxDoc(box.key) ?? fieldText(box.lines),
     })),

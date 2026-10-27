@@ -53,7 +53,17 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
     discard: () => undefined,
     drafted: () => false,
     ...(members
-      ? { element: { save: vi.fn(), edit: vi.fn(), follow: vi.fn(), copy: vi.fn(), members } }
+      ? {
+          element: {
+            save: vi.fn(),
+            edit: vi.fn(),
+            follow: vi.fn(),
+            copy: vi.fn(),
+            addProperty: vi.fn(),
+            clearProperty: vi.fn(),
+            members,
+          },
+        }
       : {}),
   };
   const shown = (): ListBuffer => {

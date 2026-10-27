@@ -160,7 +160,7 @@ const query = (selector: string): HTMLElement => {
 const keyDown = async (
   target: EventTarget,
   key: string,
-  modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {},
+  modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {},
 ): Promise<void> => {
   await act(async () => {
     target.dispatchEvent(
@@ -1055,6 +1055,81 @@ describe("App, the text editor", () => {
     await keyDown(query("input"), "Escape");
     await runCommand("edit text");
     expect(editorView().hasFocus).toBe(true);
+  });
+
+  it("[SR-104/AK2] [SR-104/AK3] Ctrl+Alt+A adds a property by the minibuffer, the choice prompt has only the choices, and Ctrl+S saves it", async () => {
+    const handlers = withText();
+    handlers["metamodel.get"] = () => ({
+      types: [{ key: "need", name: "Need", properties: ["title", "method", "topic"] }],
+      properties: [
+        { key: "title", name: "Title", kind: "text", meaning: "title" },
+        {
+          key: "method",
+          name: "Verification Method",
+          kind: "choice",
+          choices: [
+            { key: "test", name: "Test" },
+            { key: "analysis", name: "Analysis" },
+          ],
+        },
+        { key: "topic", name: "Topic", kind: "text" },
+      ],
+      statuses: [{ key: "draft" }],
+      meanings: {},
+    });
+    handlers["element.update"] = (input) => ({
+      element: row(1, { text: "Hello", properties: input["set"], relations: [] }),
+      files: ["f1.md"],
+      affected: 0,
+    });
+    const { invoke } = await openElement(handlers);
+    await keyDown(window, "a", { ctrlKey: true, altKey: true });
+    expect(text("Minibuffer")).toContain("Add property");
+    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+      "Verification Methodmethod",
+      "Topictopic",
+    ]);
+    await type("method");
+    await keyDown(query("input"), "Enter");
+    // The box is there, the focus on it, and the choice prompt asks at once with the choices of the metamodel.
+    expect(query('[data-field="method"]')).not.toBeNull();
+    expect(text("Minibuffer")).toContain("Verification Method");
+    expect([...container.querySelectorAll('[role="option"]')].map((option) => option.textContent)).toEqual([
+      "Testtest",
+      "Analysisanalysis",
+    ]);
+    await type("anal");
+    await keyDown(query("input"), "Enter");
+    expect(container.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(query('[data-field="method"]'));
+    expect(texts('[data-field="method"] .line')).toEqual(["analysis"]);
+    expect(text("Modeline")).toContain("modified");
+    await keyDown(window, "s", { ctrlKey: true });
+    expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", set: { method: "analysis" } }]);
+    expect(text("Modeline")).not.toContain("modified");
+  });
+
+  it("[SR-104/AK4] Clear property is in the command prompt for an element and empties the box the cursor was in", async () => {
+    const handlers = withText();
+    handlers["metamodel.get"] = () => ({
+      types: [{ key: "need", name: "Need", properties: ["method"] }],
+      properties: [
+        { key: "method", name: "Method", kind: "choice", choices: [{ key: "test", name: "Test" }] },
+      ],
+      statuses: [{ key: "draft" }],
+      meanings: {},
+    });
+    const element = handlers["element.get"];
+    handlers["element.get"] = (input) => {
+      const loaded = element?.(input) as { element: object };
+      return { element: { ...loaded.element, properties: { method: "test" } } };
+    };
+    const { invoke } = await openElement(handlers);
+    query('[data-field="method"]').focus();
+    await runCommand("clear property");
+    expect(texts('[data-field="method"] .line')).toEqual([]);
+    await keyDown(window, "s", { ctrlKey: true });
+    expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", unset: ["method"] }]);
   });
 
   it("does not save on a list", async () => {

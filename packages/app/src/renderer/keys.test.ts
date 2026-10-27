@@ -3,7 +3,9 @@ import { isMac, listStep, matches, shortcutLabel } from "./keys.js";
 
 const press = (
   key: string,
-  extra: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> = {},
+  extra: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> & {
+    readonly code?: string;
+  } = {},
 ) => ({
   key,
   ctrlKey: false,
@@ -26,6 +28,24 @@ describe("keys", () => {
     expect(matches(press("p", { ctrlKey: true }), { mod: true, shift: false, key: "p" })).toBe(true);
   });
 
+  it("matches Alt (Option) only when the shortcut has it; Cmd+Option counts the physical key, Ctrl+Alt (AltGr) does not", () => {
+    const add = { mod: true, shift: false, alt: true, key: "a" };
+    expect(matches(press("a", { ctrlKey: true, altKey: true }), add)).toBe(true);
+    expect(matches(press("a", { metaKey: true, altKey: true }), add)).toBe(true);
+    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyA" }), add)).toBe(true);
+    expect(matches(press("ą", { ctrlKey: true, altKey: true, code: "KeyA" }), add)).toBe(false);
+    expect(matches(press("å", { metaKey: true, altKey: true, code: "KeyB" }), add)).toBe(false);
+    expect(matches(press("a", { ctrlKey: true }), add)).toBe(false);
+    expect(matches(press("a", { ctrlKey: true, altKey: true, shiftKey: true }), add)).toBe(false);
+    expect(
+      matches(press("å", { metaKey: true, altKey: true, code: "KeyA" }), {
+        mod: true,
+        shift: false,
+        key: "a",
+      }),
+    ).toBe(false);
+  });
+
   it("knows macOS by the platform", () => {
     expect(isMac("MacIntel")).toBe(true);
     expect(isMac("Linux x86_64")).toBe(false);
@@ -39,6 +59,9 @@ describe("keys", () => {
     expect(shortcutLabel({ mod: true, shift: false, key: "p" }, true)).toBe("⌘P");
     expect(shortcutLabel({ mod: false, shift: false, key: "x" }, false)).toBe("X");
     expect(shortcutLabel({ mod: false, shift: false, key: "x" }, true)).toBe("X");
+    expect(shortcutLabel({ mod: true, shift: false, alt: true, key: "a" }, false)).toBe("Ctrl+Alt+A");
+    expect(shortcutLabel({ mod: true, shift: false, alt: true, key: "a" }, true)).toBe("⌥⌘A");
+    expect(shortcutLabel({ mod: true, shift: true, alt: true, key: "a" }, false)).toBe("Ctrl+Alt+Shift+A");
   });
 
   it("writes the Enter key by its name", () => {

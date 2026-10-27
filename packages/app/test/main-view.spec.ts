@@ -310,8 +310,9 @@ test.describe("the main view on a fixture workspace", () => {
     await window.keyboard.type("Survive icing");
     await expect(window.locator('.candidates [role="option"]').first()).toContainText("Survive icing");
     await window.keyboard.press("Enter");
-    // The first link of the relations (the parents line above the title has links too).
-    const link = window.locator('article section li [role="link"]').first();
+    // The first link of the relations (the parents line above the title has links too). The targets of a
+    // property of kind relation are a box, the other relations a group below it.
+    const link = window.locator('article [data-field] li [role="link"]').first();
     const target = (await link.textContent()) ?? "";
     await link.click();
     await expect(window.locator("article h1")).toBeVisible();

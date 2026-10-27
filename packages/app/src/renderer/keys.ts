@@ -1,10 +1,12 @@
 // Keyboard shortcuts of the main view: how a key press is matched and how a shortcut is written. The
 // modifier is Ctrl, or Cmd on macOS; a press with either counts, so the same keys work everywhere.
 
-/** A shortcut: the modifier key (Ctrl or Cmd), optionally Shift, and a letter. */
+/** A shortcut: the modifier key (Ctrl or Cmd), optionally Shift or Alt (Option on macOS), and a letter. */
 export interface Shortcut {
   readonly mod: boolean;
   readonly shift: boolean;
+  /** Alt, or Option on macOS; absent is false. */
+  readonly alt?: boolean;
   /** Lower case. */
   readonly key: string;
 }
@@ -16,13 +18,25 @@ export interface KeyPress {
   readonly shiftKey: boolean;
   readonly altKey: boolean;
   readonly key: string;
+  /** The physical key (`KeyA`); a test may leave it out. */
+  readonly code?: string;
 }
+
+/**
+ * Whether the key of `event` is the letter of `shortcut`. With Cmd and Option held, macOS reports the
+ * character Option makes (Cmd+Option+A is "å"), so then the physical key counts. Not with Ctrl+Alt:
+ * on Windows that is AltGr, which types a letter of its own on many layouts (AltGr+A is "ą" in Polish)
+ * and must stay that letter.
+ */
+const sameKey = (event: KeyPress, shortcut: Shortcut): boolean =>
+  event.key.toLowerCase() === shortcut.key ||
+  (shortcut.alt === true && event.metaKey && event.code === `Key${shortcut.key.toUpperCase()}`);
 
 export const matches = (event: KeyPress, shortcut: Shortcut): boolean =>
   (event.ctrlKey || event.metaKey) === shortcut.mod &&
   event.shiftKey === shortcut.shift &&
-  !event.altKey &&
-  event.key.toLowerCase() === shortcut.key;
+  event.altKey === (shortcut.alt ?? false) &&
+  sameKey(event, shortcut);
 
 /** Whether `platform` (`navigator.platform`) is macOS. */
 export const isMac = (platform: string): boolean => platform.startsWith("Mac");
@@ -55,12 +69,18 @@ const KEY_NAMES: Readonly<Record<string, { readonly plain: string; readonly mac:
   enter: { plain: "Enter", mac: "↩" },
 };
 
-/** "Ctrl+Shift+P", or "⌘⇧P" on macOS. */
+/** "Ctrl+Shift+P", or "⌘⇧P" on macOS; "Ctrl+Alt+A", or "⌥⌘A". */
 export const shortcutLabel = (shortcut: Shortcut, mac: boolean): string => {
   const named = KEY_NAMES[shortcut.key];
   const key = named === undefined ? shortcut.key.toUpperCase() : mac ? named.mac : named.plain;
+  const alt = shortcut.alt === true;
   if (mac) {
-    return `${shortcut.mod ? "⌘" : ""}${shortcut.shift ? "⇧" : ""}${key}`;
+    return `${alt ? "⌥" : ""}${shortcut.mod ? "⌘" : ""}${shortcut.shift ? "⇧" : ""}${key}`;
   }
-  return [...(shortcut.mod ? ["Ctrl"] : []), ...(shortcut.shift ? ["Shift"] : []), key].join("+");
+  return [
+    ...(shortcut.mod ? ["Ctrl"] : []),
+    ...(alt ? ["Alt"] : []),
+    ...(shortcut.shift ? ["Shift"] : []),
+    key,
+  ].join("+");
 };
