@@ -26,6 +26,10 @@ These rules apply to every session, cloud or local. They follow from decisions D
 
 GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh pr ...` subcommands use GraphQL and fail with HTTP 403. Use the GitHub MCP tools (`mcp__github__*`) or the REST API via `gh api repos/ThomasBirkmaier/logreq/...` instead. Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`. The `gh ...` lines in the skills describe the intent; translate them.
 
+## Repository content
+
+- Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository: not into `spec/`, issues, pull requests, commit messages, ADRs or docs (Thomas, 2026-10-28). A wish that has a product function behind it is entered as that function only, worded for the user of the tool, without the business context and without quoting the statement it came from.
+
 ## Language
 
 - Code, identifiers, comments, commit messages, PR titles, ADRs, UI texts: English (D-019).
