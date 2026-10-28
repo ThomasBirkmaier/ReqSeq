@@ -32,6 +32,21 @@ const files = async (folder: string): Promise<string[]> => {
   return entries.filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name));
 };
 
+/**
+ * Hits that were reviewed and are harmless, removed before the scan. Each names where it comes from and
+ * why it cannot run code from a string.
+ *
+ * - `Function("return this")()`: lodash-es (bundled with Mermaid, SR-096) finds the global object this way
+ *   only when neither `global` nor `self` exists; in the renderer `self` does, so it never runs, and the
+ *   CSP (`script-src 'self'`, no `'unsafe-eval'`) would refuse it. The string is a constant.
+ * - `* var source = new EventSource('/stream');`: a line of the example in lodash's documentation comment of
+ *   `debounce`, which cytoscape (bundled with Mermaid, SR-096) carries; a comment, no code.
+ */
+const REVIEWED: readonly RegExp[] = [
+  /(?<![\w$.])Function\("return this"\)\(\)/g,
+  /\* var source = new EventSource\('\/stream'\);/g,
+];
+
 test.describe("the renderer bundle", () => {
   test("has only files the app serves: no woff or ttf font of KaTeX (SR-096)", async () => {
     const all = await files(RENDERER);
@@ -50,7 +65,10 @@ test.describe("the renderer bundle", () => {
 
   test("has no network, worker or eval in its scripts (SR-078)", async () => {
     for (const file of (await files(RENDERER)).filter((name) => name.endsWith(".js"))) {
-      const script = await fs.readFile(file, "utf8");
+      const script = REVIEWED.reduce(
+        (text, pattern) => text.replace(pattern, "/* reviewed */"),
+        await fs.readFile(file, "utf8"),
+      );
       const hits = FORBIDDEN.flatMap((pattern) => {
         const found = pattern.exec(script);
         return found === null

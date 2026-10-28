@@ -171,8 +171,19 @@ const theme = EditorView.theme({
     padding: "0.25rem 0.5rem",
     backgroundColor: "var(--sheet)",
   },
+  // Diagrams (SR-096, `diagram.ts`): an image of the drawing, at most as wide as the text, centred.
+  ".cm-lr-diagram-block": { padding: "0.5rem 0", lineHeight: "0" },
+  ".cm-lr-diagram": { display: "block", maxWidth: "100%", height: "auto", margin: "0 auto" },
+  ".cm-line .cm-lr-diagram-block": {
+    margin: "0 -0.5rem",
+    padding: "0.5rem",
+    backgroundColor: "var(--sheet)",
+  },
   ".cm-lr-render-error": { color: "var(--muted)", fontSize: "0.85em", whiteSpace: "pre-wrap" },
   "span.cm-lr-render-error": { marginLeft: "0.5em" },
+  // A block error below a source ends its last line, which may be a thin hidden fence line (0.4em): its size
+  // comes from the root, so it stays readable (issue 747).
+  "div.cm-lr-render-error": { fontSize: "0.85rem", lineHeight: "1.5" },
   ".cm-lr-render-error-label": { fontWeight: "700" },
   ".cm-tooltip.cm-lr-formula-tooltip": {
     backgroundColor: "var(--sheet)",
