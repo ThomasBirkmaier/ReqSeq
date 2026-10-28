@@ -128,14 +128,32 @@ describe("the title of a target in another repository (D-058)", () => {
     expect(labels()).toEqual(["Measure gusts", "Within", "Measure gusts", "Other"]);
   });
 
-  it("keeps the short ID when the target is not here", async () => {
-    await show(TEXT, () => Promise.resolve(undefined));
+  it("keeps the short ID when the target is not here, and asks for it no more while typing goes on", async () => {
+    const title = vi.fn<Title>(() => Promise.resolve(undefined));
+    const view = await show(TEXT, title);
     expect(labels()).toEqual(["N-0e9d7c"]);
+    for (const char of "abc") {
+      act(() => {
+        view.dispatch({ changes: { from: view.state.doc.length, insert: char }, userEvent: "input.type" });
+      });
+      await settle();
+    }
+    expect(title).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks once while an answer is on its way, also when typing goes on", async () => {
+    const title = vi.fn<Title>(() => new Promise<string>(() => undefined));
+    const view = await show(TEXT, title);
+    act(() => {
+      view.dispatch({ changes: { from: 0, insert: "x" }, userEvent: "input.type" });
+    });
+    await settle();
+    expect(title).toHaveBeenCalledTimes(1);
   });
 
   it("takes no title once the editor is gone", async () => {
     let answer: (title: string) => void = () => undefined;
-    await show(
+    const view = await show(
       TEXT,
       () =>
         new Promise<string>((resolve) => {
@@ -145,8 +163,10 @@ describe("the title of a target in another repository (D-058)", () => {
     act(() => {
       root.unmount();
     });
+    const dispatch = vi.spyOn(view, "dispatch");
     answer("Measure gusts");
     await settle();
+    expect(dispatch).not.toHaveBeenCalled();
     expect(container.querySelector(".cm-lr-ref")).toBeNull();
     root = createRoot(container);
   });

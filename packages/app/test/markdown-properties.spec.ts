@@ -148,6 +148,43 @@ test.describe("Markdown properties in the element buffer", () => {
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
   });
 
+  test("[SR-127/AK2] [[ in an acceptance criterion inserts a reference: saved with ID and version in that criterion, shown with the title of the target, and a click opens it", async () => {
+    const { window, workspace } = running;
+    const criteria = field(window, "acceptance-criteria");
+    const lines = criteria.locator(".cm-line");
+    // The end of the last value (a long value wraps, so End would stop at the end of its first row).
+    await lines.nth(2).click();
+    await window.keyboard.press("ControlOrMeta+End");
+    await window.keyboard.type(" Siehe [[");
+    await expect(window.getByLabel("Insert reference")).toBeVisible();
+    await window.keyboard.type(REFERENCE_TARGET_TITLE);
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText(REFERENCE_TARGET_TITLE);
+    await window.keyboard.press("Enter");
+    await expect(criteria.locator(".cm-content")).toBeFocused();
+    await window.keyboard.press("ControlOrMeta+s");
+    await expect(window.getByLabel("Minibuffer")).toContainText("Saved");
+    const file = await fs.readFile(
+      path.join(workspace?.root ?? "", "requirements", "SR-0000000000b9.md"),
+      "utf8",
+    );
+    // The last criterion holds the reference with ID and version, as one YAML value; the rest stays.
+    expect(file).toMatch(
+      new RegExp(
+        `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(logreq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)["']?\\ntopic:`,
+        "u",
+      ),
+    );
+    expect(file).not.toContain("[[");
+    expect(file).toContain("Das Tool zeigt veraltete Messwerte an.");
+    // Off the caret line the value shows the title of the target, and a click opens it.
+    await window.keyboard.press("Escape");
+    await expect(lines.nth(2)).toContainText(`nicht als Bild. Siehe ${REFERENCE_TARGET_TITLE}`);
+    await expect(lines.nth(2)).not.toContainText("logreq:");
+    await expect(lines.nth(1)).toHaveText("Die Anzeige bleibt lesbar, und n/a erscheint ohne Messung.");
+    await lines.nth(2).locator(".cm-lr-ref").click();
+    await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);
+  });
+
   test("[SR-127/AK3] Ctrl/Cmd+Enter with the focus in the box of the criteria opens the first reference", async () => {
     const { window } = running;
     await field(window, "acceptance-criteria").focus();

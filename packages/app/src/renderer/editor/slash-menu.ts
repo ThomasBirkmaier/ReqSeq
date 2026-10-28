@@ -8,6 +8,7 @@ import {
   autocompletion,
   closeCompletion,
   completionStatus,
+  currentCompletions,
   moveCompletionSelection,
 } from "@codemirror/autocomplete";
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
@@ -75,6 +76,16 @@ const armedField = StateField.define<Armed | null>({
     return typed === undefined ? next : { pos: typed, dismissed: false };
   },
 });
+
+/**
+ * Whether the caret at `head` is in the query of the slash menu while the menu is open: a `[[` typed there
+ * belongs to the query and asks for no element (`reference-search.ts`). False for a state without the menu,
+ * and when the query matches no entry, so no menu shows.
+ */
+export const inSlashQuery = (state: EditorState, head: number): boolean =>
+  state.field(armedField, false) !== undefined &&
+  currentCompletions(state).length > 0 &&
+  rangeOf(state, head) !== undefined;
 
 /** The range of the menu in `state` with the caret at `head`: there is one `/` that was typed and is not dismissed. */
 const rangeOf = (state: EditorState, head: number): SlashRange | undefined => {

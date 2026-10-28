@@ -20,6 +20,7 @@ import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
+import { referenceTitles } from "./reference-titles.js";
 import type { BufferData } from "./modeline.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 
@@ -175,9 +176,11 @@ const mountView = async (
   const registered: (ElementControls | undefined)[] = [];
   const asked: Prompt[] = [];
   let revision = 0;
+  const titles = referenceTitles(fake.call as unknown as Call);
   const node = () =>
     createElement(ElementView, {
       call: fake.call as unknown as Call,
+      titles,
       buffer: elementBuffer("uuid-1", "spec", NAME),
       revision,
       onData: (_key, loaded) => data.push(loaded),

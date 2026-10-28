@@ -4,8 +4,10 @@
 // `markdown` shows its values formatted like the text, and the source on the line with the caret only
 // (SR-127 AK1); the others show their text as it is. Only the inline syntax is Markdown in a value, and every
 // line is a paragraph of its own (`editor/value-lines.ts`), so a mark never pairs across two values. No
-// image preview (an image in a property is no embedded image, ADR-0004, D-057), no slash menu, no `[[`
-// search yet (#444: SR-127 AK2 brings `reference-search.ts` through the same plugins).
+// image preview (an image in a property is no embedded image, ADR-0004, D-057) and no slash menu. `[[`
+// asks for an element as in the text (SR-127 AK2, `editor/reference-search.ts`) in an editable Markdown
+// box only: a title or an identifier stays plain text (SR-127 AK5). A reference to another repository shows
+// the title of its target when it is here (D-058).
 //
 // Keys: Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
 // box itself, where Enter enters again); Escape leaves the box; Up and Down at the first and last line move
@@ -21,7 +23,9 @@ import type { BoxNavigation } from "./editor/box-navigation.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { inline } from "./editor/preview.js";
 import { references } from "./editor/references.js";
-import type { Reference } from "./editor/references.js";
+import type { Reference, ReferenceOptions } from "./editor/references.js";
+import type { ReferenceRequest } from "./editor/reference-pick.js";
+import { referenceSearch } from "./editor/reference-search.js";
 import { valueLines } from "./editor/value-lines.js";
 
 // Only the inline rules of the preview: no headings, lists, quotes, rules or tables in a value. A property
@@ -44,6 +48,12 @@ export interface TextBoxProps {
   /** The outdated references in the values: `outdatedKey` to the message of the hint. */
   readonly outdated: ReadonlyMap<string, string>;
   readonly follow: (reference: Reference) => void;
+  /** The title of a target in another repository (D-058). */
+  readonly title: NonNullable<ReferenceOptions["title"]>;
+  /** `[[` asks the app for an element (SR-127 AK2): the app opens the prompt "Insert reference". */
+  readonly pickElement: (request: ReferenceRequest) => void;
+  /** The repository of the element (D-058: the label of a reference to another one is its short ID). */
+  readonly repository: () => string;
   /** The document changed; `typed` when it is input, not the file's value put in (`Editor`). */
   readonly onChange: (doc: string, typed: boolean) => void;
   /** Any update of the editor: a hold of autosave may have ended (`Editor`). */
@@ -68,6 +78,9 @@ export const TextBox = ({
   markdown,
   outdated,
   follow,
+  title,
+  pickElement,
+  repository,
   onChange,
   onUpdate,
   onClose,
@@ -78,9 +91,20 @@ export const TextBox = ({
 }: TextBoxProps): React.JSX.Element => {
   // The callbacks of the latest render: the plugins below are made again only when the hints about the box
   // change (the editor is configured again for a new object, so a new one per render would do it on every render).
-  const latest = useRef({ onLeave, navigation });
-  latest.current = { onLeave, navigation };
+  const latest = useRef({ onLeave, navigation, pickElement, repository });
+  latest.current = { onLeave, navigation, pickElement, repository };
   const signature = JSON.stringify([...outdated]);
+  // Made once per box: it holds the `[[` that waits, which a reconfiguration keeps only for the same extensions.
+  const brackets = useMemo(
+    () =>
+      referenceSearch({
+        pickElement: (request) => {
+          latest.current.pickElement(request);
+        },
+        repository: () => latest.current.repository(),
+      }),
+    [],
+  );
   const plugins = useMemo(() => {
     const enter = (view: EditorView): boolean => {
       if (many) {
@@ -89,21 +113,25 @@ export const TextBox = ({
       latest.current.onLeave();
       return true;
     };
-    return mergePlugins(markdown ? references({ outdated, follow }) : {}, {
-      markdown: [valueLines],
-      extensions: [
-        // Before the Markdown keymap, which would continue a list or remove markup. Shift-Enter is Enter:
-        // no key puts a line break inside a value.
-        Prec.highest(keymap.of([{ key: "Enter", run: enter, shift: enter }])),
-        boxNavigation({
-          down: () => latest.current.navigation.down(),
-          up: () => latest.current.navigation.up(),
-        }),
-        // One Tab stop per box: the field. The text is entered with Enter or a click.
-        EditorView.contentAttributes.of({ tabindex: "-1" }),
-      ],
-    });
-  }, [signature, follow, many, markdown]);
+    return mergePlugins(
+      markdown ? references({ outdated, follow, title }) : {},
+      markdown && !readOnly ? brackets : {},
+      {
+        markdown: [valueLines],
+        extensions: [
+          // Before the Markdown keymap, which would continue a list or remove markup. Shift-Enter is Enter:
+          // no key puts a line break inside a value.
+          Prec.highest(keymap.of([{ key: "Enter", run: enter, shift: enter }])),
+          boxNavigation({
+            down: () => latest.current.navigation.down(),
+            up: () => latest.current.navigation.up(),
+          }),
+          // One Tab stop per box: the field. The text is entered with Enter or a click.
+          EditorView.contentAttributes.of({ tabindex: "-1" }),
+        ],
+      },
+    );
+  }, [signature, follow, title, many, markdown, readOnly, brackets]);
   return (
     <Editor
       text={text}

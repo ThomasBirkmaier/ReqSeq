@@ -4,7 +4,8 @@
 // (`reference-pick.ts`); Escape leaves the `[[` as typed. `[[` is only the typing trigger: the file holds
 // the Markdown link (ADR-0004 rejects wiki links in files). Only typed brackets ask: not pasted, not brought
 // back by undo, not composed by an input method, not escaped (`\[[`), not after `!` (an image), not a third
-// one (`[[[`), and not in code, a link, an address or HTML (`inMarkup`, the rule of the slash menu).
+// one (`[[[`), not in the query of an open slash menu, and not in code, a link, an address or HTML
+// (`inMarkup`, the rule of the slash menu).
 import { EditorState } from "@codemirror/state";
 import type { Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -12,6 +13,7 @@ import type { EditorPlugins } from "./plugins.js";
 import { askReference, pendingField, setPending } from "./reference-pick.js";
 import type { PickOptions } from "./reference-pick.js";
 import { inMarkup } from "./slash-entries.js";
+import { inSlashQuery } from "./slash-menu.js";
 
 /** The start of a `[[` that `transaction` typed, if it did: it typed the second `[`, and only that. */
 export const typedBrackets = (transaction: Transaction): number | undefined => {
@@ -32,8 +34,14 @@ export const typedBrackets = (transaction: Transaction): number | undefined => {
     return undefined;
   }
   const before = start === 0 ? "" : doc.sliceString(start - 1, start);
-  // The first `[` stands where it stood before the transaction: the markup around it is read there.
-  return ["[", "\\", "!"].includes(before) || inMarkup(transaction.startState, start) ? undefined : start;
+  // The first `[` stands where it stood before the transaction: the markup around it, and a `/` query it
+  // belongs to, are read there.
+  const { startState } = transaction;
+  return ["[", "\\", "!"].includes(before) ||
+    inMarkup(startState, start) ||
+    inSlashQuery(startState, start + 1)
+    ? undefined
+    : start;
 };
 
 /** The `[[` search as an editor plugin. */
@@ -48,7 +56,8 @@ export const referenceSearch = (options: PickOptions): EditorPlugins => ({
         : { effects: setPending.of({ from: start, to: start + 2, held: "brackets" }) };
     }),
     // The app is asked for an update that typed `[[`, never for an editor that is made or configured again
-    // with a `[[` waiting (S4 of the review), and after the update, never from inside it.
+    // with a `[[` waiting (it keeps the waiting `[[` and must not ask again), and after the update, never from
+    // inside it.
     EditorView.updateListener.of((update) => {
       const typed = update.transactions.some((transaction) =>
         transaction.effects.some((effect) => effect.is(setPending) && effect.value?.held === "brackets"),

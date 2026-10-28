@@ -50,6 +50,7 @@ import type { Reference } from "./editor/references.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { afterSave, dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
+import type { ReferenceTitles } from "./reference-titles.js";
 import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { DiskState } from "./disk-state.js";
@@ -143,6 +144,8 @@ export interface ElementViewProps {
   readonly onOpenTarget: (id: string, repository?: string) => void;
   /** The slash menu's "Reference to element" (SR-129) or `[[` (SR-066) asks for an element: the app opens a prompt. */
   readonly onPickElement: (request: ReferenceRequest) => void;
+  /** The titles of reference targets in other repositories (D-058), kept by the app for the workspace. */
+  readonly titles: ReferenceTitles;
   /** The minibuffer asks for the property to add or the value of a choice or relation (SR-104): the app opens the prompt. */
   readonly onAsk: (prompt: Prompt) => void;
   /** The unsaved text this buffer had when it was shown last, if any, with the file text it was typed on. */
@@ -372,6 +375,7 @@ export const ElementView = ({
   onOpenTarget,
   onOpenRelation,
   onPickElement,
+  titles,
   onAsk,
   draft,
   onDraft,
@@ -705,12 +709,9 @@ export const ElementView = ({
   );
   const slash = useMemo(() => slashMenu(pick), [pick]);
   const brackets = useMemo(() => referenceSearch(pick), [pick]);
-  // The title of the target of a reference to another repository, when it is here (D-058): the preview
-  // shows it in place of the short ID.
-  const title = useCallback(async (id: string, repository: string): Promise<string | undefined> => {
-    const answer = await now.current.call("element.get", { ref: id, repository });
-    return answer.ok && answer.output.element.title !== "" ? answer.output.element.title : undefined;
-  }, []);
+  // The title of the target of a reference to another repository, when it is here (D-058): the preview of
+  // the text and of the Markdown boxes shows it in place of the short ID.
+  const title = titles.title;
   // Following a reference, in the text and in the boxes. One function, so a box keeps its plugins.
   const follow = useCallback((reference: Reference): void => {
     now.current.onOpenTarget(reference.id, reference.repository);
@@ -792,7 +793,7 @@ export const ElementView = ({
           ),
         ],
       }),
-    [signature, slash, brackets],
+    [signature, slash, brackets, title],
   );
 
   const setBaseline = (next: string): void => {
@@ -1494,10 +1495,11 @@ export const ElementView = ({
     now.current.boxes.get(label)?.info.kind === "relation" ||
     now.current.shown.some((box) => box.key === label && box.relations !== undefined);
   // Input is still going on in an editor (SR-105): an input method composes, the slash menu is open, or
-  // "Reference to element" or `[[` (SR-066) waits for its element. Autosave waits for it.
+  // "Reference to element" or `[[` (SR-066, also in a box, SR-127 AK2) waits for its element. Autosave waits for it.
   const inputGoing = (): boolean =>
-    [now.current.handle, ...boxEditors.current.values()].some((editor) => editor?.busy() === true) ||
-    (now.current.handle !== undefined && awaitingReference(now.current.handle.state()));
+    [now.current.handle, ...boxEditors.current.values()].some(
+      (editor) => editor !== undefined && (editor.busy() || awaitingReference(editor.state())),
+    );
   // Saves the input now, quietly (a prompt opens, the buffer is closed, another workspace opens). True
   // when no input is left unsaved.
   const flush = (): Promise<boolean> =>
@@ -1830,6 +1832,9 @@ export const ElementView = ({
                           markdown={editable.info.markdown}
                           outdated={outdatedReferences(view.element, box.key)}
                           follow={follow}
+                          title={title}
+                          pickElement={pick.pickElement}
+                          repository={pick.repository}
                           restore={memory.editors.get(box.key)}
                           onClose={(state) => {
                             memory.editors.set(box.key, state);

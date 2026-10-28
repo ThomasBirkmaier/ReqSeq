@@ -28,6 +28,7 @@ import type { ElementControls } from "./actions.js";
 import { focusEffect } from "./editor/preview.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
+import { referenceTitles } from "./reference-titles.js";
 import { LoadingView } from "./App.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
@@ -2160,9 +2161,11 @@ describe("ElementView", () => {
     const registered: (ElementControls | undefined)[] = [];
     const picks: ReferenceRequest[] = [];
     const asked: Prompt[] = [];
+    const titles = referenceTitles(call);
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
+        titles,
         buffer: extra.buffer ?? elementBuffer("uuid-1", "spec", "SR-036 Measure wind"),
         revision: rev,
         onData: (key, loaded) => data.push([key, loaded]),
@@ -3644,8 +3647,112 @@ describe("ElementView", () => {
       expect(box().querySelector(".cm-editor")).toBeNull();
     });
 
-    it("[SR-127/AK1] shows no image, no slash menu and no reference search in a value", async () => {
-      await mountCriteria(["![x](a.png) and /heading and [[wind"]).mounted;
+    /** A buffer whose criteria are saved as they are sent, with the call to look at. */
+    const mountSaving = async (shown: PropertyModel = markdown, extra: Record<string, unknown> = {}) => {
+      let criteria = [FIRST, SECOND];
+      const call = fakeCall({
+        "element.get": () => ({ element: element(criteria, [], extra) }),
+        "element.update": (input) => {
+          const set = input["set"] as Record<string, string[]> | undefined;
+          criteria = set?.[KEY] ?? criteria;
+          return { element: element(criteria, [], extra), files: ["a.md"], affected: 0 };
+        },
+      });
+      const mounted = await fresh().then(() => mount(asCall(call), 0, undefined, { properties: shown }));
+      return { ...mounted, call };
+    };
+    /** Types `text` at the end of the first value of the box, as the keyboard does. */
+    const typeInFirst = async (text: string): Promise<EditorView> => {
+      const [first] = boxViews();
+      if (first === undefined) {
+        throw new Error("no box editor");
+      }
+      act(() => {
+        first.focus();
+        first.dispatch({ selection: { anchor: first.state.doc.line(1).to } });
+      });
+      for (const char of text) {
+        await act(async () => {
+          const head = first.state.selection.main.head;
+          first.dispatch({
+            changes: { from: head, insert: char },
+            selection: { anchor: head + 1 },
+            userEvent: "input.type",
+          });
+          await Promise.resolve();
+        });
+      }
+      return first;
+    };
+    const wind = { id: TARGET, title: "Wind sehen", label: "N-1", shortId: "N-1", repository: "spec" };
+
+    it("[SR-127/AK2] [[ in an acceptance criterion asks for an element and writes the reference into that value only", async () => {
+      const { picks, controls, call } = await mountSaving();
+      const first = await typeInFirst("[[");
+      expect(picks).toHaveLength(1);
+      expect(first.state.doc.toString()).toBe(`${FIRST}[[\n${SECOND}`);
+      // A prompt opens while the [[ waits: nothing is saved with it.
+      act(() => {
+        controls().prompting();
+      });
+      await flush();
+      expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([]);
+      act(() => {
+        picks[0]?.insert(wind);
+      });
+      expect(first.state.doc.toString()).toBe(`${FIRST}[Wind sehen](logreq:${TARGET})\n${SECOND}`);
+      await act(async () => {
+        controls().save();
+        await Promise.resolve();
+      });
+      await flush();
+      expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([
+        [
+          "element.update",
+          { ref: "uuid-1", set: { [KEY]: [`${FIRST}[Wind sehen](logreq:${TARGET})`, SECOND] } },
+        ],
+      ]);
+      // Off the line with the caret the value shows the title of the target, which opens on a click.
+      act(() => {
+        first.contentDOM.blur();
+        first.dispatch({ effects: focusEffect.of(false) });
+      });
+      expect(lines()[0]).toBe("Gegeben ein Satz, wenn er gilt.Wind sehen");
+    });
+
+    it("[SR-127/AK2] no [[ search in a property that is not marked markdown, nor in a read-only box", async () => {
+      const plain: PropertyModel = modelOf({ [KEY]: { kind: "text", many: true, markdown: false } });
+      const { picks } = await mountSaving(plain);
+      await typeInFirst("[[");
+      expect(picks).toEqual([]);
+      expect(boxViews()[0]?.state.doc.line(1).text).toBe(`${FIRST}[[`);
+      const locked = await mountSaving(markdown, { readOnly: true });
+      expect(boxViews()[0]?.state.readOnly).toBe(true);
+      await typeInFirst("[[");
+      expect(locked.picks).toEqual([]);
+      // The same box marked markdown and editable asks.
+      const open = await mountSaving();
+      await typeInFirst("[[");
+      expect(open.picks).toHaveLength(1);
+    });
+
+    it("[SR-127/AK2] a reference to another repository in a value shows the title of its target when it is here (D-058)", async () => {
+      const across = `Siehe [N-0e9d7c](logreq:${TARGET}?version=${VERSION}&repository=sensor).`;
+      const call = fakeCall({
+        "element.get": (input) =>
+          input["ref"] === TARGET
+            ? { element: read({ id: TARGET, title: "Böen messen" }) }
+            : { element: element([across]) },
+      });
+      await fresh().then(() => mount(asCall(call), 0, undefined, { properties: markdown }));
+      await flush();
+      expect(call).toHaveBeenCalledWith("element.get", { ref: TARGET, repository: "sensor" });
+      expect(lines()).toEqual(["Siehe Böen messen."]);
+    });
+
+    it("[SR-127/AK1] shows no image and no slash menu in a value, and [[ that is not typed asks nothing", async () => {
+      const { picks } = await mountCriteria(["![x](a.png) and /heading and [[wind"]).mounted;
+      expect(picks).toEqual([]);
       expect(box().querySelector("img:not(.cm-widgetBuffer)")).toBeNull();
       expect(box().querySelector(".cm-content")?.textContent).toBe("![x](a.png) and /heading and [[wind");
       expect(container.querySelector(".cm-tooltip-autocomplete")).toBeNull();

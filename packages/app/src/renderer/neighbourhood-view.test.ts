@@ -8,6 +8,7 @@ import type { Buffer, BufferAction, NeighbourhoodBuffer } from "./buffers.js";
 import { elementBuffer, neighbourhoodBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { ElementView } from "./ElementView.js";
+import { referenceTitles } from "./reference-titles.js";
 import type { BufferData } from "./modeline.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
 
@@ -601,9 +602,11 @@ describe("the parents line on the element page", () => {
   const page = async (call: Call, revision = 0) => {
     const dispatched: BufferAction[] = [];
     const echoed: string[] = [];
+    const titles = referenceTitles(call);
     const node = (rev: number) =>
       createElement(ElementView, {
         call,
+        titles,
         buffer: elementBuffer("uuid-C1", "spec", "C1 Title C1"),
         revision: rev,
         onData: () => undefined,

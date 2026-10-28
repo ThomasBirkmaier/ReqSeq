@@ -22,6 +22,7 @@ import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import { ElementView } from "./ElementView.js";
 import type { BufferData } from "./modeline.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
+import { referenceTitles } from "./reference-titles.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -155,6 +156,7 @@ const mountView = async (
   const copies: [string, string][] = [];
   const registered: (ElementControls | undefined)[] = [];
   const asked: Prompt[] = [];
+  const picks: unknown[] = [];
   let revision = 0;
   const node = () =>
     createElement(ElementView, {
@@ -166,7 +168,8 @@ const mountView = async (
       onCopy: (label, value) => copies.push([label, value]),
       onOpenRelation: () => undefined,
       onOpenTarget: () => undefined,
-      onPickElement: () => undefined,
+      onPickElement: (request) => picks.push(request),
+      titles: referenceTitles(fake.call as unknown as Call),
       onAsk: (prompt) => asked.push(prompt),
       draft: options.draft,
       onDraft: (_key, kept) => drafts.push(kept),
@@ -195,6 +198,7 @@ const mountView = async (
     drafts,
     copies,
     asked,
+    picks,
     controls,
     /** The file was read again (a change from outside that names the element). */
     reload: async (): Promise<void> => {
@@ -364,6 +368,17 @@ describe("the title in its heading (#621)", () => {
     expect(file.title).toBe("Measure wind speed");
     expect(echoed).toEqual([]);
     expect(heading().textContent).toBe("Measure wind speed");
+  });
+
+  it("[SR-127/AK5] [[ typed in the title asks for no element: the title stays plain text and is saved as typed", async () => {
+    const { updates, picks } = await mountView();
+    await enterTitle();
+    await typeAt(titleView(), " [");
+    await typeAt(titleView(), "[");
+    expect(picks).toEqual([]);
+    await settle(AUTOSAVE_MS);
+    expect(updates()).toEqual([{ ref: "uuid-1", title: "Measure wind [[", expectedFileSha256: "sha-0" }]);
+    expect(heading().textContent).toBe("Measure wind [[");
   });
 
   it("[SR-105/AK1] the title, the text and a box changed together go in one element.update", async () => {

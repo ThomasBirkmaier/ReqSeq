@@ -4,6 +4,7 @@
 // happy-dom fires `selectionchange` inside a CodeMirror update; the root vitest config loads this setup, a
 // run in packages/app needs it too (#460, #573).
 import "../../../../../scripts/test-support/dom-selection.mjs";
+import { completionStatus } from "@codemirror/autocomplete";
 import { undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import type { Transaction } from "@codemirror/state";
@@ -85,6 +86,13 @@ const input = async (view: EditorView, text: string, userEvent: string): Promise
       userEvent,
     });
     await Promise.resolve();
+  });
+};
+
+/** Lets the slash menu answer the query typed so far. */
+const settle = async (): Promise<void> => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
 };
 
@@ -201,7 +209,8 @@ describe("[[ asks for an element", () => {
     await type(view, "[");
     expect(doc(view)).toBe("[[ \\[[ ![[ `[[` [[](https://x.org)");
     act(() => {
-      view.dispatch({ changes: { from: 0, to: 2 }, userEvent: "delete" });
+      // Only the second [: the undo brings back one [ after a [, as a second typed one would.
+      view.dispatch({ changes: { from: 1, to: 2 }, userEvent: "delete" });
     });
     act(() => {
       undo(view);
@@ -248,7 +257,7 @@ describe("[[ asks for an element", () => {
     expect(pickElement).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-066/AK1] asks once when the editor is configured again while the question is open (S4)", async () => {
+  it("[SR-066/AK1] asks once when the editor is configured again while the question is open: the waiting [[ is kept and asks nothing again", async () => {
     const view = await show("");
     await type(view, "[[");
     await render("", mergePlugins(search, { extensions: [EditorView.lineWrapping] }));
@@ -354,9 +363,35 @@ describe("the pick", () => {
     expect(doc(view)).toBe("see [[");
     expect(focus).toHaveBeenCalled();
     expect(awaitingReference(view.state)).toBe(false);
-    // A third [ after the cancel asks nothing (exactly two, N1 of the review).
+    // A third [ after the cancel asks nothing: only exactly two brackets ask.
     await type(view, "[");
     expect(pickElement).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-066/AK1] a [[ in the query of an open slash menu belongs to the query and asks nothing", async () => {
+    const view = await show("", mergePlugins(slashMenu(options), search));
+    await type(view, "/ref");
+    await settle();
+    await type(view, "[[");
+    expect(completionStatus(view.state)).not.toBeNull();
+    expect(pickElement).not.toHaveBeenCalled();
+    // Once Escape closed the menu, a [[ asks.
+    act(() => {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    await type(view, " [[");
+    expect(pickElement).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-066/AK1] a [[ after a / whose query matches no entry asks: no menu shows", async () => {
+    const view = await show("", mergePlugins(slashMenu(options), search));
+    await type(view, "/zzzq");
+    await settle();
+    expect(completionStatus(view.state)).toBeNull();
+    await type(view, "[[");
+    expect(pickElement).toHaveBeenCalledOnce();
   });
 
   it("works beside the slash menu: both share what waits, and each writes its reference", async () => {

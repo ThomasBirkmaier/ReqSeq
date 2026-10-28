@@ -36,7 +36,7 @@ interface Pending {
 export const setPending = StateEffect.define<Pending | null>();
 
 /**
- * What was typed while the app asks for an element (R1 of SR-129): mapped through changes. Text typed right
+ * What was typed while the app asks for an element: mapped through changes. Text typed right
  * after it stays outside (`to` keeps to the left), so a fast `[[ab` keeps the `ab` after the reference.
  * Module level, so an editor configured again keeps it.
  */

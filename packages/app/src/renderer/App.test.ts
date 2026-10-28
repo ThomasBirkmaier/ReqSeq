@@ -22,6 +22,7 @@ import { App } from "./App.js";
 import { AUTOSAVE_MS } from "./autosave.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import { NOTICE_MS } from "./copy.js";
+import { focusEffect } from "./editor/preview.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -1557,6 +1558,68 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.get")).toContainEqual({ ref: GONE, repository: "sensor" });
     expect(texts(".cm-lr-ref")).toEqual(["Measure gusts", "N-555555"]);
     expect(editorView().state.doc.toString()).toContain("[N-0e9d7c](logreq:");
+  });
+
+  it.each(["opened", "restarted"] as const)(
+    "asks the titles of other repositories again once a workspace is %s",
+    async (reason) => {
+      const GUSTS = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
+      const handlers = withText();
+      handlers["element.get"] = (input) =>
+        input["ref"] === GUSTS
+          ? { element: row(9, { id: GUSTS, title: "Measure gusts", repository: "sensor", relations: [] }) }
+          : {
+              element: row(1, {
+                text: `See [N-0e9d7c](logreq:${GUSTS}?version=n1:aa&repository=sensor).`,
+                relations: [],
+              }),
+            };
+      const { invoke, change } = await openElement(handlers);
+      await flush();
+      const gusts = (): unknown[] =>
+        calls(invoke, "element.get").filter((input) => (input as { ref: string }).ref === GUSTS);
+      expect(gusts()).toHaveLength(1);
+      // Shown again in the same workspace, the buffer asks nothing.
+      await listAll();
+      await keyDown(query('[role="listbox"]'), "Enter");
+      await flush();
+      expect(gusts()).toHaveLength(1);
+      await change(reason);
+      await listAll();
+      await keyDown(query('[role="listbox"]'), "Enter");
+      await flush();
+      expect(gusts()).toHaveLength(2);
+      expect(texts(".cm-lr-ref")).toEqual(["Measure gusts"]);
+    },
+  );
+
+  it("a pick of a target in another repository brings its title along: core is not asked for it", async () => {
+    const GUSTS = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
+    const gusts = row(9, { id: GUSTS, shortId: "N-0e9d7c", title: "Measure gusts", repository: "sensor" });
+    const handlers = withText();
+    handlers["element.search"] = () => ({
+      hits: [{ ...gusts, score: 1, fields: ["title"], terms: ["gusts"] }],
+      total: 1,
+      incomplete: false,
+    });
+    const { invoke } = await openElement(handlers);
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" [[");
+    await type("gusts");
+    await keyDown(query("input"), "Enter");
+    expect(editorView().state.doc.toString()).toBe(
+      `Hello [N-0e9d7c](logreq:${GUSTS}?version=&repository=sensor)`,
+    );
+    // Off the line with the caret the title shows, from the pick.
+    await act(async () => {
+      editorView().contentDOM.blur();
+      editorView().dispatch({ effects: focusEffect.of(false) });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(texts(".cm-lr-ref")).toEqual(["Measure gusts"]);
+    expect(calls(invoke, "element.get")).not.toContainEqual({ ref: GUSTS, repository: "sensor" });
   });
 
   it("shows modified in the modeline while the text has unsaved changes", async () => {

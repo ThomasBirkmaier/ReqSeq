@@ -59,6 +59,7 @@ import {
 } from "./switch.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
+import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
@@ -222,6 +223,10 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         ? Promise.resolve({ ok: false, code: "workspace.not-found", message: STOPPED })
         : run(name, input);
   }, [bridge]);
+  // The titles of reference targets in other repositories (D-058), for the workspace that is open.
+  const titles = useMemo(() => referenceTitles(call), [call]);
+  const titlesRef = useRef(titles);
+  titlesRef.current = titles;
 
   useEffect(() => {
     let mounted = true;
@@ -315,6 +320,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       } else {
         stoppedRef.current = false;
         setStopped(false);
+        // The titles of reference targets are kept for one workspace and one core process: another
+        // workspace asks them again, and so does a core that restarted (it may have failed to answer).
+        if (change.reason === "opened" || change.reason === "restarted") {
+          titlesRef.current.clear();
+        }
         // Another workspace is open (SR-131 AK3): the buffers and drafts of the old one go at once, before
         // the new one has loaded, so nothing typed then is dropped or saved into the other workspace, and
         // the switch ends at once: a load that hangs never keeps the window locked. The overview of the
@@ -737,8 +747,9 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onOpenTarget={openTarget}
             onOpenRelation={openRelation}
             onPickElement={(request) => {
-              ask(referencePrompt(context, request));
+              ask(referencePrompt(context, titles.picking(request)));
             }}
+            titles={titles}
             onAsk={ask}
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
