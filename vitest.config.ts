@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
-// ADR-0016: 100 % coverage of product code (except React components) is a required gate.
+// ADR-0016: coverage thresholds (100 % per file in core, 80 % per adapter package) are a required gate.
 export default defineConfig({
   // Tests use the testkit sources directly, so they need no build of @logreq/testkit first.
   resolve: {
@@ -47,17 +47,33 @@ export default defineConfig({
       // `text` with skipFull lists only the files below 100 %, so a CI log names what is uncovered (#511).
       reporter: ["text-summary", ["text", { skipFull: true }], "json-summary", "lcov"],
       reportsDirectory: "coverage",
-      // 100 % for every `.ts` file of product code. React components (`.tsx`) are reported, but have no
-      // threshold: Playwright and the [SR-xxx/AKn] tests are their evidence (product owner decision, 2026-10-27, #537).
+      // ADR-0016: every package except the adapters (core with logic and risk, ADR-0002; testkit; any new
+      // package) keeps 100 % for every `.ts` file; perFile, so the error names the file. The adapters (cli, api,
+      // mcp) and the `.ts` modules of the app need 80 %, aggregated per package: there 100 % mostly produced tests
+      // for the number (product owner decision, 2026-10-28, #752). React components (`.tsx`) are reported, but
+      // have no threshold: Playwright and the [SR-xxx/AKn] tests are their evidence (product owner decision,
+      // 2026-10-27, #537). Vitest checks each glob on its own files and skips a file that no glob matches, so the
+      // globs together match every `.ts` file of `include` once. picomatch reads `!(cli|api|mcp|app)` as "does not
+      // start with", so the second 100 % glob takes the names that only start with an adapter name (`apps`).
       thresholds: {
-        // perFile: the error names the `.ts` file, which the `text` report lists among the components.
-        "packages/*/src/**/*.ts": {
+        "packages/!(cli|api|mcp|app)/src/**/*.ts": {
           lines: 100,
           branches: 100,
           functions: 100,
           statements: 100,
           perFile: true,
         },
+        "packages/{cli,api,mcp,app}?*/src/**/*.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+          perFile: true,
+        },
+        "packages/cli/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
+        "packages/api/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
+        "packages/mcp/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
+        "packages/app/src/**/*.ts": { lines: 80, branches: 80, functions: 80, statements: 80 },
       },
     },
   },

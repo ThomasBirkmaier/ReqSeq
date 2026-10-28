@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 // D-055), `pnpm test:perf`. It runs nightly and on pull requests labelled `perf`
 // (.github/workflows/perf.yml), never in the required test run. Each measurement is appended to
 // LOGREQ_PERF_RESULTS; `scripts/perf/report.mjs` writes verification/performance.md from it.
-// No coverage: the unit tests carry the 100 % (ADR-0016).
+// No coverage: the unit tests carry the coverage thresholds (ADR-0016).
 export default defineConfig({
   resolve: {
     alias: { "@logreq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },

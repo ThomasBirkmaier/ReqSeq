@@ -33,7 +33,7 @@ LogReq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Quality gates (ADR-0016)
 
-Strict typecheck, lint with zero warnings, format, and 100 % unit test coverage of product code except React `.tsx`. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. The commands are in the `verify` skill.
+Strict typecheck, lint with zero warnings, format, and unit test coverage of 100 % per file in every package except the adapters (`core`, `testkit`, new ones) and 80 % per adapter package (`cli`, `api`, `mcp`, app `.ts`), React `.tsx` without threshold. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. The commands are in the `verify` skill.
 
 ## Traps
 
@@ -49,7 +49,7 @@ Strict typecheck, lint with zero warnings, format, and 100 % unit test coverage 
 - Skills, in `.claude/skills/<name>/SKILL.md` (a session that does not start in this checkout does not list them, so read the file): `verify` (check commands, Electron in the container), `spec-change` (spec, status, SR issues), `lead-run` (a stage over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 - For an SR issue, the SR in `spec/` wins over the issue text, and the PR says where they differ. Issues labelled `blocked`, `spec-frage` or `needs-human` wait. While an agent works on an issue, it carries `agent:working`, which the board reads.
 - Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building. Other issues need no plan.
-- About one focused test per acceptance criterion, plus what 100 % coverage needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
+- About one focused test per acceptance criterion, plus what the coverage threshold needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
 - Opus at effort medium by default. Effort high only for risky plans and changes and for the periodic check against the spec.
 - Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If LogReq behaves badly while you use it, open a `dogfooding` issue.
 - Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` only for trivial fixes. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.

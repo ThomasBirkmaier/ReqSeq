@@ -21,4 +21,4 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0013](0013-reqif.md) | ReqIF import and export | D-022, D-032, SR-052..SR-059 |
 | [0014](0014-packaging.md) | Packaging and delivery | D-003, SR-076, SR-078 |
 | [0015](0015-dependencies-and-licenses.md) | Dependency policy | N-047, D-051 |
-| [0016](0016-strict-quality-gates.md) | Strictest compiler settings, strict lint and 100 % coverage | D-050, D-051 |
+| [0016](0016-strict-quality-gates.md) | Strictest compiler settings, strict lint and coverage thresholds | D-050, D-051 |

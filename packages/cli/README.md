@@ -61,6 +61,6 @@ logreq element update SR-46fb54 --input @change.json   # objects only via --inpu
 
 ## Tests
 
-- Unit tests next to the code (`src/*.test.ts`, 100 % coverage) use a test-only catalog with `createCommandRuntime`.
+- Unit tests next to the code (`src/*.test.ts`, 80 % coverage for the package, ADR-0016) use a test-only catalog with `createCommandRuntime`.
 - `test/cross-access.test.ts` runs every catalog command through core, the CLI, the API and MCP and compares the results (SR-080 AK2); add scenarios there when you implement a command.
 - End-to-end tests in `test/e2e/` spawn the built binary: `pnpm build && pnpm test:e2e`. `test/e2e/support/test-bin.mjs` runs the same `runCli` from `dist/` with test implementations of real catalog commands where the product command does not exist yet. On Linux CI the suite runs inside `unshare -rn` with only loopback up.

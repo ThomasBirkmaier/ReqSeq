@@ -21,6 +21,8 @@ pnpm vitest related --run --passWithNoTests $F
 pnpm trace-check
 ```
 
+For a risky change to core, take a local mutation sample of the changed files, never in CI. The repository has no mutation tool yet (#753), so ask of each changed branch: would a wrong result fail a test?
+
 Also run `pnpm schemas:check && pnpm contracts:check` when schemas or the catalog changed, `pnpm spec:check` when `spec/` changed, and the Electron specs a change in `packages/app` touches or could break. If a check is red for a reason outside your change, say so in the PR. Merging still needs green CI.
 
 ## Heavy runs in a cloud session
