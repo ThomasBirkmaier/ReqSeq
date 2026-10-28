@@ -7,7 +7,7 @@ This repository is built almost entirely by Claude agents. The rules they follow
 | Folder | Content |
 |---|---|
 | `spec/` | The specification, a LogReq workspace (D-064). Changed only with LogReq, see [spec/README.md](spec/README.md). |
-| `docs/architecture/`, `docs/adr/` | arc42 (short), architecture decision records |
+| `docs/architecture/`, `docs/adr/`, `docs/delivery/` | arc42 (short), architecture decision records, getting and installing the delivery |
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
 | `packages/` | `core`, `cli`, `api`, `mcp`, `app` |
 | `verification/` | Records for analysis, inspection and demonstration |

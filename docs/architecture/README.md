@@ -219,7 +219,7 @@ sequenceDiagram
 
 ## 7. Deployment
 
-One installer per platform with app, CLI and MCP server, all offline (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`logreq serve api` or app setting) and binds to loopback.
+One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`logreq serve api` or app setting) and binds to loopback.
 
 ## 8. Cross-cutting concepts
 

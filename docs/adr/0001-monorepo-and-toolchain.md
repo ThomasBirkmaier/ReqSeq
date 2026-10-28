@@ -17,7 +17,7 @@ D-004 fixes TypeScript and Electron. D-046 asks for one repository with separate
 - **TypeScript 6.0**, `strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`; ESM only (`"type": "module"`, `NodeNext`). Project references; `pnpm typecheck` runs `tsc -b`. TypeScript 7 (native compiler) is not used yet because `typescript-eslint` supports only `<6.1`; revisit when it does.
 - **Node 22 LTS** (`.nvmrc`). Electron's bundled Node must be the same major or newer.
 - Lint **ESLint** (flat config, `typescript-eslint` strictTypeChecked, see ADR-0016), format **Prettier**, `--max-warnings 0`.
-- Exact versions in `package.json` (no ranges) and a committed `pnpm-lock.yaml`; CI installs with `--frozen-lockfile`.
+- Exact versions in `package.json` (no ranges) and a committed `pnpm-lock.yaml`; CI installs with `--frozen-lockfile`. Exception: `toolchain/packaging/` (electron-builder) has its own lockfile outside the workspace, installed only by the release workflow, so that pull requests never install it (ADR-0014).
 
 ## Consequences
 
