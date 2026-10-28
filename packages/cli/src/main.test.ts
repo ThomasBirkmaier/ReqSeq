@@ -4,6 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import type { CommandRuntime } from "@logreq/core";
 import {
+  PRODUCT_VERSION,
   CommandError,
   createCommandRuntime,
   defineTestCommand,
@@ -179,9 +180,9 @@ const run = async (
 const ref = "SR-46fb54";
 
 describe("logreq help and version", () => {
-  it("prints the version", async () => {
+  it("prints the product version", async () => {
     const result = await run(["--version"]);
-    expect(result).toEqual({ code: EXIT.ok, stdout: "0.0.0\n", stderr: "" });
+    expect(result).toEqual({ code: EXIT.ok, stdout: `${PRODUCT_VERSION}\n`, stderr: "" });
   });
 
   it("lists the groups of the catalog", async () => {
