@@ -1,6 +1,6 @@
 // The evidence columns of the traceability matrix (SR-126): the mark of a test case (`testCaseMark`),
 // the test case cell (`matrixTestCases`), when the columns show (`showsEvidence`) and the fields of a
-// row (`matrixEvidence`). The command on fixtures/SR-126/matrix: commands/trace/matrix.test.ts.
+// row (`matrixEvidence`). The command on fixtures/SR-126/matrix: commands/trace/matrix-evidence.test.ts.
 import { describe, expect, it } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";

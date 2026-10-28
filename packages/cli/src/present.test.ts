@@ -400,6 +400,87 @@ describe("renderHuman: indirect verification (SR-034)", () => {
   });
 });
 
+describe("renderHuman: elements named by UUID only (#588)", () => {
+  const C1 = "58858858-0000-4000-8000-0000000000b1";
+  const C2 = "58858858-0000-4000-8000-0000000000b2";
+  const V1 = "58858858-0000-4000-8000-0000000000c1";
+  const UNNAMED = "58858858-0000-4000-8000-0000000000ff";
+  const names = [
+    { id: C1, repository: "system", shortId: "SR-0000b1", identifier: "SR-001", title: "Measure wind" },
+    { id: C2, repository: "system", shortId: "SR-0000b2", title: "Measure rain" },
+    { id: V1, repository: "system", shortId: "VAR-0000c1", title: "Pro" },
+  ];
+
+  it("[SR-036/AK2] prints the elements behind the coverage numbers by short ID, identifier and title, not names itself", () => {
+    const levels = [
+      {
+        type: "system-requirement",
+        total: 3,
+        withChildren: 1,
+        elements: { withChildren: [C1], withoutChildren: [C2, UNNAMED] },
+      },
+    ];
+    expect(renderHuman({ levels, incomplete: false, names })).toBe(
+      lines(
+        "levels:",
+        "  - type: system-requirement",
+        "    total: 3",
+        "    withChildren: 1",
+        "    elements:",
+        "      withChildren:",
+        "        - SR-0000b1 (SR-001)  Measure wind",
+        "      withoutChildren:",
+        "        - SR-0000b2  Measure rain",
+        `        - ${UNNAMED}`,
+      ),
+    );
+  });
+
+  it("[SR-034/AK2] names missing children and variants in the verification status by short ID and identifier", () => {
+    const elements = [
+      {
+        id: "p",
+        shortId: "SR-P",
+        status: "approved",
+        title: "Parent",
+        verification: [
+          { view: "core", status: "open", missingChildren: [C1, C2, UNNAMED] },
+          { view: V1, status: "indirect" },
+        ],
+      },
+    ];
+    expect(renderHuman({ elements, total: 1, names })).toBe(
+      lines(
+        "elements:",
+        `  SR-P  approved  Parent  [verification: core open (missing SR-0000b1 (SR-001), SR-0000b2, ${UNNAMED}), VAR-0000c1 indirect]`,
+        "total: 1",
+      ),
+    );
+    // One element, and a page that is not all of the selection: `names` is never the page.
+    const element = elements[0];
+    expect(renderHuman({ element, names }).split("\n")[0]).toContain(
+      "(missing SR-0000b1 (SR-001), SR-0000b2",
+    );
+    expect(renderHuman({ elements, total: 2, names })).toContain("Showing 1 of 2;");
+  });
+
+  it("names the variant of a view printed as YAML (SR-037, SR-126)", () => {
+    const counts = { open: 1, verified: 0, indirect: 0, failed: 0, outdated: 0 };
+    expect(renderHuman({ degree: { share: 0, total: 1, counts }, view: V1, names })).toContain(
+      "view: VAR-0000c1  Pro\n",
+    );
+    expect(renderHuman({ evidence: { view: V1, degree: { total: 0, counts } }, rows: [], names })).toContain(
+      "evidence:\n  view: VAR-0000c1  Pro\n",
+    );
+    // A page past the last row (a matrix in a variant view): `names` is never the page.
+    expect(renderHuman({ rows: [], total: 6, names })).not.toContain("Showing");
+  });
+
+  it("prints a names value that is not a list of names as it is", () => {
+    expect(renderHuman({ view: V1, names: ["x"] })).toBe(lines(`view: ${V1}`, "names:", "  x"));
+  });
+});
+
 describe("renderHuman: validation status (SR-038)", () => {
   it("[SR-038/AK1] shows the validation status in its own bracket after the verification status", () => {
     const elements = [

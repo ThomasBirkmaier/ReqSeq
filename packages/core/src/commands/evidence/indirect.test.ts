@@ -119,8 +119,14 @@ describe("indirect verification in evidence.status, element.get and the filter (
   });
 
   it("[SR-034/AK2] evidence.status names the missing children of a parent", async () => {
-    const out = byId(await status(await open(), { selection: { ids: [P2] } }));
-    expect(out).toEqual({ [P2]: core("open", [C21, C22, C23]) });
+    const output = await status(await open(), { selection: { ids: [P2] } });
+    expect(byId(output)).toEqual({ [P2]: core("open", [C21, C22, C23]) });
+    // Named for readers by short ID and title, though not on the page (#588).
+    expect(output.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
+      [C21, "SR-00b121", "Warn of gusts"],
+      [C22, "SR-00b122", "Warn of hail"],
+      [C23, "SR-00b123", "Warn of lightning"],
+    ]);
   });
 
   it("[SR-034/AK2] a child valid only for a variant is missing in that variant and does not count in the core", async () => {
@@ -143,7 +149,14 @@ describe("indirect verification in evidence.status, element.get and the filter (
       ...INDIRECT,
       files: { "variants/VAR-00000000c001.md": variant, "requirements/SR-00000000b112.md": c12 },
     });
-    const out = byId(await status(ws, { selection: { ids: [P1, C11] } }));
+    const output = await status(ws, { selection: { ids: [P1, C11] } });
+    // The variant of a view and the missing children, each once, in the order first named (#588).
+    expect(output.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
+      [V1, "VAR-00c001", "Pro"],
+      [C11, "SR-00b111", "Show wind speed"],
+      [C12, "SR-00b112", "Show wind direction"],
+    ]);
+    const out = byId(output);
     expect(out).toEqual({
       [P1]: [
         { view: "core", status: "indirect" },

@@ -376,6 +376,7 @@ export const matrixRows = async (
       title: text(record.data[titleKey]),
       file: record.file,
       ...(depth === undefined ? {} : { depth }),
+      ...rowFields?.(record, versionOf(record)),
       cells: cells.map((cell) =>
         cell.map(({ link, other }): DataExportRelation => {
           const current = other === undefined ? undefined : versionOf(other);
@@ -386,7 +387,6 @@ export const matrixRows = async (
           };
         }),
       ),
-      ...rowFields?.(record, versionOf(record)),
     };
   });
 };

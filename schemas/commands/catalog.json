@@ -2312,6 +2312,13 @@
             },
             "additionalProperties": false,
             "required": ["view", "degree"]
+          },
+          "names": {
+            "type": "array",
+            "description": "The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when they name none.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementName"
+            }
           }
         },
         "additionalProperties": false,
@@ -3218,6 +3225,13 @@
           "incomplete": {
             "$ref": "../common.schema.json#/$defs/incomplete",
             "description": "A repository of the workspace is not available here (SR-006 AK2): its elements, and the records of its evidence locations, are missing."
+          },
+          "names": {
+            "type": "array",
+            "description": "The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementName"
+            }
           }
         },
         "additionalProperties": false,
@@ -3300,6 +3314,13 @@
           },
           "incomplete": {
             "$ref": "../common.schema.json#/$defs/incomplete"
+          },
+          "names": {
+            "type": "array",
+            "description": "Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (#588). Left out when no level lists an element.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementName"
+            }
           }
         },
         "additionalProperties": false,
@@ -3336,6 +3357,13 @@
           },
           "incomplete": {
             "$ref": "../common.schema.json#/$defs/incomplete"
+          },
+          "names": {
+            "type": "array",
+            "description": "The variant of `view` (#588), so a reader names it by short ID and title. Left out in the core.",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementName"
+            }
           }
         },
         "additionalProperties": false,

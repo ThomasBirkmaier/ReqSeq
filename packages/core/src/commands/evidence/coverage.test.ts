@@ -212,6 +212,24 @@ describe("evidence.coverage (SR-036)", () => {
     });
   });
 
+  it("[SR-036/AK2] names every element behind the numbers once, by short ID and title, for readers (#588)", async () => {
+    const workspace = await open(await fixture());
+    const out = await coverage(workspace);
+    expect(out.names?.map((n) => [NAME.get(n.id), n.repository, n.shortId, n.title])).toEqual([
+      ["N1", "system", "N-0000a1", "See the wind"],
+      ["N2", "system", "N-0000a2", "Warn of storms"],
+      ["S1", "system", "SR-0000b1", "Measure wind speed"],
+      ["S2", "system", "SR-0000b2", "Measure every second"],
+      ["S4", "system", "SR-0000b4", "Survive snow"],
+      ["F1", "system", "SWR-0000f1", "Filter the sensor signal"],
+      ["F2", "system", "SWR-0000f2", "Log the raw values"],
+      ["F3", "sensor", "SWR-0000f3", "Heat the sensor"],
+    ]);
+    // Each counted element once, in selection order; those not counted (N3, S3 obsolete) are not named.
+    const listed = out.levels.flatMap((l) => [...l.elements.withChildren, ...l.elements.withoutChildren]);
+    expect(new Set(out.names?.map((n) => n.id))).toEqual(new Set(listed));
+  });
+
   it("[SR-036/AK2] the UUIDs of a number select exactly its requirements in element.list", async () => {
     const workspace = await open(await fixture());
     const [, requirements] = (await coverage(workspace)).levels;
@@ -374,6 +392,9 @@ describe("evidence.coverage (SR-036)", () => {
     expect(
       (await coverage(workspace, { selection: { ids: ["D-0000e1", "PKG-0000d1", "VAR-0000c1"] } })).levels,
     ).toEqual([]);
+    expect(
+      (await coverage(workspace, { selection: { ids: ["D-0000e1", "PKG-0000d1", "VAR-0000c1"] } })).names,
+    ).toBeUndefined();
     expect((await coverage(workspace, { selection: { ids: ["SR-0000b1"] } })).levels[0]?.withEvidence).toBe(
       0,
     );

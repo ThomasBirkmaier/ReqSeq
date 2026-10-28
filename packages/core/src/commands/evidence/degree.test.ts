@@ -175,11 +175,14 @@ describe("evidence.degree (SR-037)", () => {
       },
     });
     await addRecords(workspace, [passed(RV, await versionOf(workspace, RV), { variant: V })]);
-    // In Pro: RV verified by its record for Pro; R01's record holds only in the core.
+    // In Pro: RV verified by its record for Pro; R01's record holds only in the core. `names` names
+    // the variant of the view for readers (#588).
+    const pro = { id: V, repository: "system", shortId: "VAR-00c001", title: "Pro" };
     expect(await degree(workspace, { selection: { ids: [R01, RV], view: "VAR-00c001" } })).toEqual({
       degree: { share: 0.5, total: 2, counts: counts(1, 1, 0, 0, 0) },
       view: V,
       incomplete: false,
+      names: [pro],
     });
     // Without a view: the core, where RV has no status.
     expect(await degree(workspace, { selection: { ids: [R01, RV] } })).toEqual({
@@ -189,7 +192,7 @@ describe("evidence.degree (SR-037)", () => {
     });
     // The saved filter's view: every requirement that applies in Pro, only RV verified there.
     const filtered = await degree(workspace, { selection: { filter: "Pro" } });
-    expect(filtered.view).toBe(V);
+    expect([filtered.view, filtered.names]).toEqual([V, [pro]]);
     expect(filtered.degree).toEqual({ share: 1 / 15, total: 15, counts: counts(14, 1, 0, 0, 0) });
   });
 

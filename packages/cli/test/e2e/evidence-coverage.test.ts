@@ -18,6 +18,7 @@ interface Output {
     readonly elements: Readonly<Record<string, readonly string[]>>;
   }[];
   readonly incomplete: boolean;
+  readonly names?: readonly { readonly id: string; readonly shortId: string; readonly title: string }[];
 }
 
 const P = "36036036-0000-4000-8000-0000000000";
@@ -51,8 +52,24 @@ describe("logreq evidence coverage (SR-036)", () => {
   it("[SR-036/AK2] logreq evidence coverage lists the requirements behind each number, as readable output too", async () => {
     const result = await coverage({ selection: { where: { type: ["need"] } } }, []);
     expect([result.code, result.stderr]).toEqual([0, ""]);
+    // By short ID and title, as other listings (#588); `--json` keeps the UUIDs.
     expect(result.stdout).toContain(
-      `withChildren:\n        - ${P}a1\n      withoutChildren:\n        - ${P}a2\n`,
+      "withChildren:\n        - N-0000a1  See the wind\n      withoutChildren:\n        - N-0000a2  Warn of storms\n",
     );
+    expect(result.stdout).not.toContain(P);
+    expect(result.stdout).not.toContain("names:");
+  });
+
+  it("[SR-036/AK2] logreq evidence coverage --json keeps the UUIDs and names them in names (#588)", async () => {
+    const result = await coverage({ selection: { where: { type: ["need"] } } });
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    const out = JSON.parse(result.stdout) as Output;
+    expect(out.levels.map((l) => l.elements)).toEqual([
+      { withChildren: [`${P}a1`], withoutChildren: [`${P}a2`] },
+    ]);
+    expect(out.names?.map((n) => [n.id, n.shortId, n.title])).toEqual([
+      [`${P}a1`, "N-0000a1", "See the wind"],
+      [`${P}a2`, "N-0000a2", "Warn of storms"],
+    ]);
   });
 });

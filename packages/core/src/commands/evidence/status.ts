@@ -7,11 +7,12 @@
 // repository of the workspace that is not on this machine may hold elements of the selection and
 // records in its evidence locations. Only the page is built, so the files of the page and those of
 // the requirements a status condition asks about are read (N-036). Nothing is written: the statuses
-// are derived views and never the element's `status` (D-030).
+// are derived views and never the element's `status` (D-030). `names` names the variants and missing
+// children the page's `verification` gives by UUID only (#588), from the store (nothing more is read).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
-import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
-import { listElements } from "../../model/index.js";
+import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import { listElements, namesField, namesOf } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 
 export default defineCommand({
@@ -27,6 +28,7 @@ export default defineCommand({
       elements,
       total: selected.elements.length,
       incomplete: selected.incomplete,
+      ...namesField(namesOf(selected, verificationNameIds(elements.flatMap((e) => e.verification ?? [])))),
     };
   },
 });

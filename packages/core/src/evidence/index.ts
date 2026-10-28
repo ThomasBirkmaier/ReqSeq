@@ -46,6 +46,7 @@ export {
   workspaceStatusOf,
 } from "./verification.js";
 export type { VersionReader, WorkspaceStatus } from "./verification.js";
+export { variantIdsOf, verificationNameIds } from "./names.js";
 export { matrixEvidence, matrixTestCases, showsEvidence, testCaseMark } from "./matrix.js";
 export type { MatrixRowEvidence, MatrixTestCase, MatrixTestCaseMark } from "./matrix.js";
 export {

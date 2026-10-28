@@ -21,6 +21,10 @@
 // - A verification degree (`share` next to `counts`, SR-037), at any depth of a value printed as YAML,
 //   shows its share as a percentage rounded down to one decimal (`degreePercent` of core, the rule of
 //   every access, spec question #592 Q3): `share: 60 %`.
+// - `names` (the elements an output gives elsewhere by UUID only, `common.schema.json#/$defs/elementName`,
+//   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
+//   value printed as YAML (the lists of evidence.coverage, a variant `view`), `SHORT-ID (IDENTIFIER)` in
+//   the verification status of an element line. A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
 import { degreePercent, degreeShareOf } from "@logreq/core";
@@ -86,6 +90,43 @@ const withIdentifier = (shortId: string, identifier: unknown): string =>
 /** Names an element by repository and UUID: its short ID when the list has it, else its UUID. */
 type Namer = (repository: string, id: string) => string;
 
+/** An element as `names` gives it (`common.schema.json#/$defs/elementName`, #588). */
+const isElementName = (value: unknown): value is Rec & { readonly shortId: string; readonly title: string } =>
+  isElement(value) && typeof value["id"] === "string" && typeof value["repository"] === "string";
+
+/** The elements of `names` by UUID (the first of a UUID), when the output has them (#588). */
+type Names = ReadonlyMap<string, Rec & { readonly shortId: string; readonly title: string }>;
+
+/** `names` of an output by UUID (core gives each UUID once); empty when it has none or it is not a list of names. */
+const namesIn = (output: Rec): Names => {
+  const names = output["names"];
+  if (!Array.isArray(names) || !names.every(isElementName)) {
+    return new Map();
+  }
+  return new Map(names.map((name) => [text(name["id"]), name] as const));
+};
+
+/** A named element in a line: `SHORT-ID (IDENTIFIER)  title`. */
+const nameText = (name: Rec & { readonly shortId: string; readonly title: string }): string =>
+  join(withIdentifier(name.shortId, name["identifier"]), name.title);
+
+/** `value` with every string that is a UUID of `names` as the element it names (`nameText`), in objects and lists. */
+const withNames = (value: unknown, names: Names): unknown => {
+  if (names.size === 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const name = names.get(value);
+    return name === undefined ? value : nameText(name);
+  }
+  if (Array.isArray(value)) {
+    return (value as unknown[]).map((item) => withNames(item, names));
+  }
+  return isRecord(value)
+    ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withNames(item, names)]))
+    : value;
+};
+
 /** A namer from the elements of a list. */
 const namerOf =
   (elements: readonly Rec[]): Namer =>
@@ -112,11 +153,18 @@ const viaText = (element: Rec, name: Namer): string => {
 /** Names a view of `verification` (`core` or a variant's UUID): the variant's short ID when the list has it. */
 type ViewNamer = (view: string) => string;
 
-/** A view namer from the elements of a list. */
+/**
+ * A view namer from the elements of a list; the elements of `names` first, with their identifier
+ * (`SR-3c90b0 (SR-036)`, #588).
+ */
 const viewNamerOf =
-  (elements: readonly Rec[]): ViewNamer =>
-  (view) =>
-    text(elements.find((e) => e["id"] === view)?.["shortId"]) || view;
+  (elements: readonly Rec[], names: Names = new Map()): ViewNamer =>
+  (view) => {
+    const name = names.get(view);
+    return name === undefined
+      ? text(elements.find((e) => e["id"] === view)?.["shortId"]) || view
+      : withIdentifier(name.shortId, name["identifier"]);
+  };
 
 /**
  * The verification status of an element per view (SR-031), apart from its own status:
@@ -124,7 +172,8 @@ const viewNamerOf =
  * element without one. The children that are missing for an indirect verification (SR-034 AK2) follow
  * their view. A variant or child is named by its short ID from the list, else from the element's own
  * relations (its validity, its incoming relations), else by its UUID: the output gives UUIDs only
- * (`missingChildren`, the open export format), so a child that neither lists is shown as its UUID.
+ * (`missingChildren`, the open export format), so a child that neither lists is shown as its UUID. An
+ * output that names them in `names` (#588) gives them all (`view` takes those first).
  */
 const verificationText = (element: Rec, view: ViewNamer): string => {
   const entries = listOf(element["verification"]).filter(isRecord);
@@ -230,14 +279,26 @@ const findingLine = (finding: Rec): string => {
   );
 };
 
-/** One output value, by its shape; the problems of an element it shows go to `lifted`. */
-const valueLines = (key: string, value: unknown, details: boolean, lifted: unknown[]): string[] => {
+/**
+ * One output value, by its shape; the problems of an element it shows go to `lifted`. The UUIDs of
+ * `names` print as the elements they name.
+ */
+const valueLines = (
+  key: string,
+  value: unknown,
+  details: boolean,
+  lifted: unknown[],
+  names: Names = new Map(),
+): string[] => {
   if (key === "incomplete" && typeof value === "boolean") {
     return value ? ["incomplete: true (a repository of the workspace is not on this machine)"] : [];
   }
   if (isElement(value)) {
     lifted.push(...listOf(value["problems"]));
-    return [elementLine(value), ...(details ? elementDetails(value) : [])];
+    return [
+      elementLine(value, namerOf([]), viewNamerOf([], names)),
+      ...(details ? elementDetails(value) : []),
+    ];
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
@@ -245,7 +306,7 @@ const valueLines = (key: string, value: unknown, details: boolean, lifted: unkno
     }
     if (value.every(isElement)) {
       const name = namerOf(value);
-      const view = viewNamerOf(value);
+      const view = viewNamerOf(value, names);
       return [`${key}:`, ...indent(value.map((element) => elementLine(element, name, view)))];
     }
     if (value.every(isProblem)) {
@@ -255,7 +316,7 @@ const valueLines = (key: string, value: unknown, details: boolean, lifted: unkno
       return [`${key}:`, ...indent(value)];
     }
   }
-  return yamlLines({ [key]: withPercent(value) });
+  return yamlLines({ [key]: withNames(withPercent(value), names) });
 };
 
 /** A node of a chain (trace.chain `nodes`), as far as the tree reads it. */
@@ -573,6 +634,21 @@ const chainLines = (chain: Chain): string[] => {
 };
 
 /**
+ * The note on a page shorter than `total`. The page is the list of elements: the nodes of a chain, the
+ * elements of a list (never `names`).
+ */
+const pageNote = (output: Rec): string[] => {
+  const total = output["total"];
+  const page = Object.entries(output).find(
+    (entry): entry is [string, unknown[]] =>
+      entry[0] !== "names" && Array.isArray(entry[1]) && entry[1].length > 0 && entry[1].every(isElement),
+  )?.[1];
+  return typeof total === "number" && page !== undefined && page.length < total
+    ? [`Showing ${String(page.length)} of ${String(total)}; ask for more with --offset and --limit.`]
+    : [];
+};
+
+/**
  * The output for people (see the file comment). `details`: show an element's details below its line
  * (commands that read).
  */
@@ -601,19 +677,17 @@ export function renderHuman(output: unknown, details = true): string {
   if (hiddenOf(rest) !== undefined) {
     shown.add("hidden");
   }
+  // The elements named by UUID elsewhere name those UUIDs instead of being printed (#588).
+  const names = namesIn(rest);
+  if (names.size > 0) {
+    shown.add("names");
+  }
   for (const [key, value] of Object.entries(rest)) {
     if (!shown.has(key)) {
-      lines.push(...valueLines(key, value, details, lifted));
+      lines.push(...valueLines(key, value, details, lifted, names));
     }
   }
-  const total = rest["total"];
-  // The page is the list of elements: the nodes of a chain, the elements of a list.
-  const page = Object.values(rest).find(
-    (value): value is unknown[] => Array.isArray(value) && value.length > 0 && value.every(isElement),
-  );
-  if (typeof total === "number" && page !== undefined && page.length < total) {
-    lines.push(`Showing ${String(page.length)} of ${String(total)}; ask for more with --offset and --limit.`);
-  }
+  lines.push(...pageNote(rest));
   const seen = new Set<string>();
   const all = [...listOf(problems), ...lifted].filter((problem) => {
     const key = JSON.stringify(problem);

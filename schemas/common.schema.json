@@ -36,6 +36,30 @@
         }
       ]
     },
+    "elementName": {
+      "description": "How an output names an element it gives elsewhere by UUID only (#588), for people: its short ID, its identifier when it has one (#305) and its title, as element.list gives them.",
+      "type": "object",
+      "required": ["id", "repository", "shortId", "title"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "repository": {
+          "type": "string",
+          "description": "Workspace name of the repository of its file."
+        },
+        "shortId": {
+          "$ref": "#/$defs/shortId"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "version": {
       "description": "Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.",
       "type": "string",

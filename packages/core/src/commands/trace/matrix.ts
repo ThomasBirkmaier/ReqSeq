@@ -7,6 +7,8 @@
 // heads them with the view and the verification degree of the whole selection (evidence/matrix.ts,
 // evidence/degree.ts). All of it is computed here, so every access shows the same (SR-125 AK6,
 // D-029). `incomplete` follows SR-006 AK2 over the whole selection and the evidence locations.
+// `evidence` comes right after `columns`, as the degree stands above the status column (SR-126 AK4);
+// `names` names the variant of its view and the missing children of the rows (#588).
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import {
@@ -16,8 +18,11 @@ import {
   matrixEvidence,
   showsEvidence,
   verificationState,
+  variantIdsOf,
+  verificationNameIds,
   viewIdOf,
 } from "../../evidence/index.js";
+import { namesField, namesOf } from "../../model/index.js";
 import type { Selected } from "../../query/index.js";
 import { orderedSelection, resolveSelection } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
@@ -103,12 +108,17 @@ export default defineCommand({
       currentVersionLookup(ctx.workspace),
       evidence?.rowFields,
     );
+    const named = [
+      ...(evidence === undefined ? [] : variantIdsOf(evidence.header.view)),
+      ...verificationNameIds(rows.flatMap((row) => row.verification ?? [])),
+    ];
     return {
       columns: columns.map((column) => columnOutput(column, total)),
+      ...(evidence === undefined ? {} : { evidence: evidence.header }),
       rows,
       total,
       incomplete: selected.incomplete || evidence?.incomplete === true,
-      ...(evidence === undefined ? {} : { evidence: evidence.header }),
+      ...namesField(namesOf(selected, named)),
     };
   },
 });

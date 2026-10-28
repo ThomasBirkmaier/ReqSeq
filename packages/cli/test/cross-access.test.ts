@@ -184,6 +184,8 @@ const RAW_JUNIT: FixtureOptions = {
 
 /** Parents verified indirectly through Markdown records of their children, missing children (SR-034). */
 const INDIRECT: FixtureOptions = { fixture: "SR-034/indirect", git: true };
+/** Requirements valid for the variants Pro and Basic, with records of the core and of Pro (SR-031, SR-047). */
+const STATUS: FixtureOptions = { fixture: "SR-031/status", git: true };
 
 /** Needs, requirements and a use case with validation and verification records (SR-038). */
 const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
@@ -822,6 +824,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "evidence.degree": [
     {
+      name: "a variant view names its variant (SR-037, #588)",
+      fixture: STATUS,
+      input: { selection: { view: "5e031a7d-2b4f-4c61-9d08-0c0000000001" } },
+      expect: "output",
+    },
+    {
       name: "the whole workspace (SR-037)",
       fixture: DEGREE,
       input: {},
@@ -1335,6 +1343,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "one page of the matrix of a selection with evidence (SR-126)",
       fixture: MATRIX_EVIDENCE,
       input: { selection: { where: { type: ["system-requirement"] } }, limit: 3, offset: 2 },
+      expect: "output",
+    },
+    {
+      name: "the matrix in a variant view names its variant (SR-126, #588)",
+      fixture: STATUS,
+      input: { selection: { view: "5e031a7d-2b4f-4c61-9d08-0c0000000001" } },
       expect: "output",
     },
     {

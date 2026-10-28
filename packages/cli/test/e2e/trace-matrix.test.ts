@@ -142,7 +142,9 @@ describe("logreq trace matrix with evidence (SR-126)", () => {
   it("[SR-126/AK4] logreq trace matrix prints the degree above the status column as 55.5 % with the count per status", async () => {
     const result = await matrix({ ...SR, limit: 2 });
     expect([result.code, result.stderr]).toEqual([0, ""]);
-    // The degree is of the whole selection, not of the page of two rows.
-    expect(result.stdout).toContain(`total: 10\n${EVIDENCE}`);
+    // The degree is of the whole selection, not of the page of two rows, and comes before the rows
+    // that hold the status (AK4 „über der Spalte des Nachweisstatus“).
+    expect(result.stdout).toContain(`${EVIDENCE}rows:\n`);
+    expect(result.stdout).toContain("total: 10\n");
   });
 });

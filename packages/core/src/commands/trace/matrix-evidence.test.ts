@@ -266,6 +266,22 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
         counts: { open: 2, verified: 1, indirect: 0, failed: 0, outdated: 0 },
       },
     });
+    // The variant of the view, named for readers (#588); the core names none. A page without a
+    // requirement row still names the variant of `evidence.view`.
+    const named = [{ id: ID.COAST, repository: "system", shortId: "VAR-126c01", title: "Coast edition" }];
+    const past = await matrix(workspace, {
+      selection: { ids: [ID.B01, ID.B04, ID.B06], view: "VAR-126c01" },
+      offset: 3,
+    });
+    expect([core.names, coast.names, past.rows, past.evidence?.view, past.names]).toEqual([
+      undefined,
+      named,
+      [],
+      ID.COAST,
+      named,
+    ]);
+    // The row fields in schema order: the evidence fields before the relation cells (review of #607, N3).
+    expect(Object.keys(rowOf(coast, "B06")).slice(-3)).toEqual(["testCases", "verification", "cells"]);
   });
 
   it("gives a requirement valid only in a variant neither field when the matrix has no view", async () => {
@@ -385,6 +401,8 @@ describe("trace.matrix verification degree (SR-126 AK4)", () => {
     for (const page of [{}, { limit: 2 }, { offset: 8 }]) {
       const output = await matrix(workspace, { selection: SR, ...page });
       expect(output.evidence).toEqual({ view: "core", degree: ALL_SR_DEGREE });
+      // Above the rows, as the readable output prints the keys in order.
+      expect(Object.keys(output).slice(0, 3)).toEqual(["columns", "evidence", "rows"]);
     }
   });
 

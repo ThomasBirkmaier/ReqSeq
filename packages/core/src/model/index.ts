@@ -136,6 +136,8 @@ export {
 } from "./view.js";
 export type { ElementViewInput, LinkInput, ListedElementInput } from "./view.js";
 export { listElements } from "./list.js";
+export { namesField, namesOf, namesOfRecords } from "./names.js";
+export type { NameContext } from "./names.js";
 export { setElementStatus, statusValues } from "./status.js";
 export type { SetStatusInput, SetStatusResult } from "./status.js";
 export { supersedeElement } from "./supersede.js";

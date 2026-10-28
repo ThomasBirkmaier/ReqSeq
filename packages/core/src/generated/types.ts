@@ -103,6 +103,19 @@ export type UuidRef = string;
 export type ElementId = string;
 
 /**
+ * How an output names an element it gives elsewhere by UUID only (#588), for people: its short ID, its identifier when it has one (#305) and its title, as element.list gives them.
+ * Schema: `schemas/common.schema.json#/$defs/elementName`.
+ */
+export interface ElementName {
+  readonly id: Uuid;
+  /** Workspace name of the repository of its file. */
+  readonly repository: string;
+  readonly shortId: ShortId;
+  readonly identifier?: string;
+  readonly title: string;
+}
+
+/**
  * Fassung: normal-form version, colon, first 16 hex characters of the SHA-256 over the canonical content (D-013, D-027, ADR-0005). Example: n1:9f86d081884c7d65.
  * Schema: `schemas/common.schema.json#/$defs/version`.
  */
@@ -1958,6 +1971,8 @@ export interface TraceMatrixOutput {
     /** SR-126 AK4: the verification degree of the whole selection in `view`, with the count per status, not of the page only; the same as `evidence.degree` gives for the same selection (SR-037). */
     readonly degree: DataExportVerificationDegree;
   };
+  /** The elements that `evidence` and the rows' `verification` name by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when they name none. */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -2297,6 +2312,8 @@ export interface EvidenceStatusOutput {
   readonly total: number;
   /** A repository of the workspace is not available here (SR-006 AK2): its elements, and the records of its evidence locations, are missing. */
   readonly incomplete?: Incomplete;
+  /** The elements that `verification` names by UUID only, each once in the order first named: the variants of its views and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -2331,6 +2348,8 @@ export interface EvidenceCoverageOutput {
     };
   }[];
   readonly incomplete?: Incomplete;
+  /** Every element of `levels[].elements`, each once in selection order, so a reader names them by short ID, identifier and title (#588). Left out when no level lists an element. */
+  readonly names?: readonly ElementName[];
 }
 
 /**
@@ -2351,6 +2370,8 @@ export interface EvidenceDegreeOutput {
   /** core, or the variant of the selection's view (else of its saved filter's). */
   readonly view: ViewId;
   readonly incomplete?: Incomplete;
+  /** The variant of `view` (#588), so a reader names it by short ID and title. Left out in the core. */
+  readonly names?: readonly ElementName[];
 }
 
 /**

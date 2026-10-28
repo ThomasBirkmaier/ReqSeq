@@ -56,6 +56,24 @@ describe("logreq evidence status and element get with indirect verification (SR-
     );
   });
 
+  it("[SR-034/AK2] logreq evidence status names the missing children by short ID though they are not on the page (#588)", async () => {
+    const result = await logreq([
+      "evidence",
+      "status",
+      "--input",
+      JSON.stringify({ selection: { ids: ["SR-00b120"] } }),
+    ]);
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    expect(result.stdout).toBe(
+      [
+        "elements:",
+        "  SR-00b120  approved  Warn of storms  [verification: core open (missing SR-00b121, SR-00b122, SR-00b123)]",
+        "total: 1",
+        "",
+      ].join("\n"),
+    );
+  });
+
   it("[SR-034/AK2] logreq evidence status --json names the children that are missing", async () => {
     const input = JSON.stringify({ selection: { ids: [U("b120"), U("b150"), U("b160")] } });
     const result = await logreq(["evidence", "status", "--input", input, "--json"]);
