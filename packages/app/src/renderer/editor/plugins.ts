@@ -5,8 +5,9 @@
 // - `rules`: preview rules after the built-in ones. Formulas and diagrams (#108) and images (#109) draw
 //   their nodes as widgets; a rule only ever returns decorations, the document is never rewritten.
 // - `extensions`: further CodeMirror extensions. The slash menu (SR-129, `slash-menu.ts`) is one; the `[[`
-//   link search (#78) is an input handler that asks `element.search` and inserts an inline reference
-//   (ADR-0004).
+//   search (SR-066, `reference-search.ts`) is another: a typed `[[` asks the app for an element in the
+//   prompt "Insert reference" and the pick is written as an inline reference (ADR-0004,
+//   `reference-pick.ts`, shared with the slash menu).
 //
 // Autosave (#401) plugs in through `onChange` and `onSave` of the editor component and the pure functions
 // of `save.ts`; the property boxes (#400) stay below the editor in the element buffer.
@@ -33,13 +34,13 @@ export interface EditorPlugins {
   readonly markdown?: readonly MarkdownConfig[];
   /** Live-preview rules after the built-in ones (formulas, diagrams #108, images #109). */
   readonly rules?: readonly PreviewRule[];
-  /** Further CodeMirror extensions (`[[` link search #78). */
+  /** Further CodeMirror extensions (the slash menu SR-129, the `[[` search SR-066). */
   readonly extensions?: readonly Extension[];
 }
 
 /**
  * The plugins of the editor together: the lists of each, in the given order. The element buffer combines
- * the reference marks (#424) and the slash menu (SR-129) this way.
+ * the reference marks (#424), the slash menu (SR-129) and the `[[` search (SR-066) this way.
  */
 export const mergePlugins = (...plugins: readonly EditorPlugins[]): EditorPlugins => ({
   markdown: plugins.flatMap((plugin) => plugin.markdown ?? []),

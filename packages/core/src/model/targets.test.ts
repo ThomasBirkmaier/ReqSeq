@@ -529,6 +529,30 @@ describe("relation targets with ID and version (SR-021)", () => {
   });
 });
 
+describe("a reference written by the [[ search (SR-066)", () => {
+  it("[SR-066/AK2] (save part) element.update saves [Title](logreq:<uuid>) with the current version of its target, the label as written", async () => {
+    const opened = await open();
+    const out = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `Shown with [${NEED.title}](logreq:${NEED.id}) here.\n`,
+    });
+    const saved = `Shown with [${NEED.title}](logreq:${NEED.id}?version=${versionOf(NEED)}) here.\n`;
+    expect(out.element.text).toBe(saved);
+    expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${saved}`)).toBe(true);
+  });
+
+  it("[SR-066/AK2] (save part) element.update fills the empty version= of a reference to another repository in its place, before the repository", async () => {
+    const opened = await open();
+    const out = await run(opened, "element.update", {
+      ref: SOURCE.id,
+      text: `Across [N-0e9d7c](logreq:${SENSOR_NEED.id}?version=&repository=sensor).\n`,
+    });
+    expect(out.element.text).toBe(
+      `Across [N-0e9d7c](logreq:${SENSOR_NEED.id}?version=${versionOf(SENSOR_NEED)}&repository=sensor).\n`,
+    );
+  });
+});
+
 /** An inline reference that names the repository of its target (D-058, #240). */
 const across = (id: string, repository: string, version?: string): string =>
   `logreq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;

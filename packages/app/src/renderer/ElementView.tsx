@@ -41,6 +41,7 @@ import { referenceAt, references, referencesIn } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { afterSave, dirty } from "./editor/save.js";
+import { referenceSearch } from "./editor/reference-search.js";
 import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
@@ -116,7 +117,7 @@ export interface ElementViewProps {
    * the link names (a relation has none: the output has no repository).
    */
   readonly onOpenTarget: (id: string, repository?: string) => void;
-  /** The slash menu's "Reference to element" asks for an element (SR-129): the app opens a prompt. */
+  /** The slash menu's "Reference to element" (SR-129) or `[[` (SR-066) asks for an element: the app opens a prompt. */
   readonly onPickElement: (request: ReferenceRequest) => void;
   /** The minibuffer asks for the property to add or the value of a choice or relation (SR-104): the app opens the prompt. */
   readonly onAsk: (prompt: Prompt) => void;
@@ -667,18 +668,25 @@ export const ElementView = ({
   // editor is configured again only when the hints about the text change.
   const outdated = view.status === "ok" ? outdatedReferences(view.element) : undefined;
   const signature = JSON.stringify([...(outdated ?? [])]);
-  // The slash menu is created once: it holds state (the `/` typed), which a reconfiguration would keep
-  // only for the same extensions.
-  const slash = useMemo(
-    () =>
-      slashMenu({
-        pickElement: (request) => {
-          now.current.onPickElement(request);
-        },
-        repository: () => now.current.buffer.repository,
-      }),
+  // The slash menu and the `[[` search (SR-066) are created once: they hold state (the `/` typed), which a
+  // reconfiguration would keep only for the same extensions.
+  const pick = useMemo(
+    () => ({
+      pickElement: (request: ReferenceRequest) => {
+        now.current.onPickElement(request);
+      },
+      repository: () => now.current.buffer.repository,
+    }),
     [],
   );
+  const slash = useMemo(() => slashMenu(pick), [pick]);
+  const brackets = useMemo(() => referenceSearch(pick), [pick]);
+  // The title of the target of a reference to another repository, when it is here (D-058): the preview
+  // shows it in place of the short ID.
+  const title = useCallback(async (id: string, repository: string): Promise<string | undefined> => {
+    const answer = await now.current.call("element.get", { ref: id, repository });
+    return answer.ok && answer.output.element.title !== "" ? answer.output.element.title : undefined;
+  }, []);
   // Following a reference, in the text and in the boxes. One function, so a box keeps its plugins.
   const follow = useCallback((reference: Reference): void => {
     now.current.onOpenTarget(reference.id, reference.repository);
@@ -713,11 +721,11 @@ export const ElementView = ({
   stepRef.current = step;
   const plugins = useMemo(
     () =>
-      mergePlugins(references({ outdated: outdated ?? new Map(), follow }), slash, {
+      mergePlugins(references({ outdated: outdated ?? new Map(), follow, title }), slash, brackets, {
         // After the slash menu, which takes Down while it is open.
         extensions: [boxNavigation({ down: () => stepRef.current("Text", 1) }, Prec.high)],
       }),
-    [signature, slash],
+    [signature, slash, brackets],
   );
 
   const setBaseline = (next: string): void => {
@@ -1415,7 +1423,7 @@ export const ElementView = ({
     now.current.boxes.get(label)?.info.kind === "relation" ||
     now.current.shown.some((box) => box.key === label && box.relations !== undefined);
   // Input is still going on in an editor (SR-105): an input method composes, the slash menu is open, or
-  // "Reference to element" waits for its element. Autosave waits for it.
+  // "Reference to element" or `[[` (SR-066) waits for its element. Autosave waits for it.
   const inputGoing = (): boolean =>
     [now.current.handle, ...boxEditors.current.values()].some((editor) => editor?.busy() === true) ||
     (now.current.handle !== undefined && awaitingReference(now.current.handle.state()));

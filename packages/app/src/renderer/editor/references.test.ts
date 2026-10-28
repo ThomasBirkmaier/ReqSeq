@@ -4,17 +4,29 @@ import type { DecorationSet } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
 import { BUILT_IN_RULES, focusState, previewDecorations } from "./preview.js";
-import { outdatedKey, parseReference, referenceAt, references, referencesIn } from "./references.js";
-import type { GlyphWidget } from "./widgets.js";
+import {
+  outdatedKey,
+  parseReference,
+  referenceAt,
+  references,
+  referencesIn,
+  titleKey,
+  titlesField,
+} from "./references.js";
+import type { GlyphWidget, LabelWidget } from "./widgets.js";
 
 const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
 const THOMAS = `[D-017](logreq:${ID}?version=n1:1aac78aad3b5e6a8)`;
 
-const stateOf = (doc: string, cursor?: number): EditorState => {
+const stateOf = (doc: string, cursor?: number, titles?: ReadonlyMap<string, string>): EditorState => {
   const state = EditorState.create({
     doc,
     ...(cursor === undefined ? {} : { selection: { anchor: cursor } }),
-    extensions: [markdownSupport({}), focusState],
+    extensions: [
+      markdownSupport({}),
+      focusState,
+      ...(titles === undefined ? [] : [titlesField.init(() => titles)]),
+    ],
   });
   // `ensureSyntaxTree` parses to the end; the empty update hands that tree to the state, which kept the one of
   // its first parse (cut short after 20 ms on a busy machine, #542).
@@ -89,23 +101,41 @@ describe("referenceAt", () => {
 
 describe("the preview of references", () => {
   const KEY = outdatedKey(ID, "n1:1aac78aad3b5e6a8");
-  const decorate = (doc: string, outdated: ReadonlyMap<string, string>, cursor?: number) => {
-    const state = stateOf(doc, cursor);
+  const decorate = (
+    doc: string,
+    outdated: ReadonlyMap<string, string>,
+    cursor?: number,
+    titles?: ReadonlyMap<string, string>,
+  ) => {
+    const state = stateOf(doc, cursor, titles);
     const rules = [...BUILT_IN_RULES, ...(references({ outdated, follow: () => undefined }).rules ?? [])];
     const set: DecorationSet = previewDecorations(state, rules, cursor !== undefined);
-    const found: { from: number; to: number; class?: string; title?: string; widget?: string }[] = [];
+    const found: {
+      from: number;
+      to: number;
+      class?: string;
+      title?: string;
+      widget?: string;
+      text?: string;
+      hint?: string;
+    }[] = [];
     set.between(0, doc.length, (start, end, value) => {
       const spec = value.spec as {
         class?: string;
         attributes?: { title?: string };
-        widget?: GlyphWidget;
+        widget?: GlyphWidget | LabelWidget;
       };
+      const widget = spec.widget;
       found.push({
         from: start,
         to: end,
         ...(spec.class === undefined ? {} : { class: spec.class }),
         ...(spec.attributes?.title === undefined ? {} : { title: spec.attributes.title }),
-        ...(spec.widget === undefined ? {} : { widget: spec.widget.className }),
+        ...(widget === undefined ? {} : { widget: widget.className }),
+        ...(widget !== undefined && "text" in widget ? { text: widget.text } : {}),
+        ...(widget !== undefined && "hint" in widget && widget.hint !== undefined
+          ? { hint: widget.hint }
+          : {}),
       });
     });
     return found;
@@ -154,6 +184,52 @@ describe("the preview of references", () => {
         (entry) => entry.title === "old",
       ),
     ).toBe(false);
+  });
+
+  describe("a reference to another repository whose target is here (D-058)", () => {
+    const ACROSS = `[N-0e9d](logreq:${ID}?version=n1:aa&repository=sensor)`;
+    const TITLES = new Map([[titleKey(ID, "sensor"), "Measure gusts"]]);
+    const across = { from: 1, to: 7 };
+
+    it("[SR-066/AK2] shows the title of the target in place of the short ID, with the look of the label", () => {
+      expect(
+        decorate(ACROSS, new Map(), undefined, TITLES).filter((entry) => entry.text !== undefined),
+      ).toEqual([{ ...across, widget: "cm-lr-link cm-lr-ref cm-lr-title", text: "Measure gusts" }]);
+    });
+
+    it("[SR-066/AK2] shows the short ID on the line that shows its source, and for a target without a title", () => {
+      expect(decorate(ACROSS, new Map(), 3, TITLES).some((entry) => entry.text !== undefined)).toBe(false);
+      // The same reference off the source line shows the title.
+      expect(
+        decorate(`${ACROSS}\n\nnext`, new Map(), ACROSS.length + 3, TITLES).some(
+          (entry) => entry.text !== undefined,
+        ),
+      ).toBe(true);
+      expect(decorate(ACROSS, new Map()).some((entry) => entry.text !== undefined)).toBe(false);
+      expect(
+        decorate(
+          `[N-0e9d](logreq:${ID}?version=n1:aa)`,
+          new Map(),
+          undefined,
+          new Map([[titleKey(ID, ""), "x"]]),
+        ).some((entry) => entry.text !== undefined),
+      ).toBe(false);
+    });
+
+    it("keeps the accent, the hint and the word of an outdated reference on the title", () => {
+      const outdated = new Map([[outdatedKey(ID, "n1:aa", "sensor"), "old"]]);
+      expect(
+        decorate(ACROSS, outdated, undefined, TITLES).filter((entry) => entry.widget !== undefined),
+      ).toEqual([
+        {
+          ...across,
+          widget: "cm-lr-link cm-lr-ref cm-lr-outdated cm-lr-title",
+          text: "Measure gusts",
+          hint: "old",
+        },
+        { from: ACROSS.length, to: ACROSS.length, widget: "cm-lr-outdated-word" },
+      ]);
+    });
   });
 
   it("marks nothing for a link that is no reference or has no label", () => {

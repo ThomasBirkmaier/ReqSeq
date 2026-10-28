@@ -125,6 +125,43 @@ const NEW_VERSION: unknown = expect.stringMatching(/^n1:[0-9a-f]{16}$/);
 
 const outdated = (out: Output): Problem[] => out.problems.filter((p) => p.code === "relation.outdated");
 
+describe("a reference written by the [[ search (SR-066)", () => {
+  it("[SR-066/AK3] a reference in the text whose target changed is outdated like the relation to that target: same code, severity and versions", async () => {
+    const ws = await fixture();
+    await changeTargets(ws);
+    const problems = outdated(await check(open(ws.root)));
+    const relation = problems.find(
+      (p) => p.hintId === `relation.outdated/${AT_A}/derives-from/${N}?version=${N_VERSION}`,
+    );
+    const reference = problems.find(
+      (p) => p.hintId === `relation.outdated/${AT_A}/@text/${N}?version=${N_VERSION}&n=1`,
+    );
+    expect(relation).toBeDefined();
+    expect(reference).toMatchObject({
+      code: relation?.code,
+      severity: relation?.severity,
+      elementId: A,
+      targetId: N,
+      storedVersion: relation?.storedVersion,
+      currentVersion: relation?.currentVersion,
+    });
+  });
+
+  it("[SR-066/AK3] trace.affected of a target lists an element that references it only in its text", async () => {
+    const ws = await fixture();
+    // A without its relation to N: the reference in the text is all that ties A to N.
+    await ws.write(A_FILE, requirementA({ link: N_VERSION }).replace(/derives-from:\n.*\n/u, ""));
+    const workspace = open(ws.root);
+    expect((await readFile(path.join(ws.root, A_FILE), "utf8")).includes("derives-from")).toBe(false);
+    const affected = (await invoke(
+      "trace.affected",
+      { ref: N },
+      { workspace },
+    )) as CommandOutput<"trace.affected">;
+    expect(affected.affected.find((a) => a.id === A)?.via).toEqual({ kind: "reference" });
+  });
+});
+
 describe("outdated relations and references (SR-025)", () => {
   it("[SR-025/AK1] reports nothing and is ok when every relation and reference is current", async () => {
     const ws = await fixture({ git: true });

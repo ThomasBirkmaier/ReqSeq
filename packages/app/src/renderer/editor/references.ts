@@ -1,15 +1,19 @@
 // Inline references in the text (ADR-0004, #424): `[label](logreq:<uuid>?version=<v>&repository=<name>)`.
 // The preview shows the label (`markup.ts` hides the rest); this file makes a reference something to
-// follow: a click opens its element, and an outdated reference is marked. This is UI only: what is under
-// the pointer or the cursor. Whether a target exists and whether a reference is outdated come from core
+// follow: a click opens its element, and an outdated reference is marked. A reference to another repository
+// has the short ID as its label (ADR-0004); off the lines that show their source the preview shows the title
+// of its target instead when the target is here (D-058). This is UI only: what is under the pointer or the
+// cursor. Whether a target exists, its title and whether a reference is outdated come from core
 // (`element.get`: the target by its UUID, the hints `relation.outdated`); the app never compares versions.
-import type { EditorState } from "@codemirror/state";
-import { Decoration, EditorView } from "@codemirror/view";
-import type { SyntaxNode } from "@lezer/common";
+import { syntaxTree } from "@codemirror/language";
+import { StateEffect, StateField } from "@codemirror/state";
+import type { EditorState, Extension } from "@codemirror/state";
+import { Decoration, EditorView, ViewPlugin } from "@codemirror/view";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { parsedTree } from "./parsed.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
-import { focusState, sourceLines } from "./preview.js";
-import { GlyphWidget } from "./widgets.js";
+import { focusState, refreshPreview, sourceLines } from "./preview.js";
+import { GlyphWidget, LabelWidget } from "./widgets.js";
 
 /** An inline reference in the text. */
 export interface Reference {
@@ -79,10 +83,10 @@ export const referenceAt = (state: EditorState, pos: number): Reference | undefi
   return link === undefined ? undefined : referenceOf(state, link);
 };
 
-/** The inline references of the document, in the order they are written. */
-export const referencesIn = (state: EditorState): Reference[] => {
+/** The inline references of the document, in the order they are written (in `tree`: by default all of them). */
+export const referencesIn = (state: EditorState, tree: Tree = parsedTree(state)): Reference[] => {
   const found: Reference[] = [];
-  parsedTree(state).iterate({
+  tree.iterate({
     enter: (node) => {
       const reference = node.name === "Link" ? referenceOf(state, node.node) : undefined;
       if (reference !== undefined) {
@@ -100,16 +104,45 @@ export const referencesIn = (state: EditorState): Reference[] => {
 export const outdatedKey = (id: string, version: string, encodedRepository = ""): string =>
   `${id} ${version} ${encodedRepository}`;
 
+/** The key of the title of a target in another repository: its UUID and the repository as written. */
+export const titleKey = (id: string, repository: string): string => `${id} ${repository}`;
+
+const addTitles = StateEffect.define<ReadonlyMap<string, string>>();
+
+/** The titles of the targets in other repositories that are here (D-058): `titleKey` to the title. */
+export const titlesField = StateField.define<ReadonlyMap<string, string>>({
+  create: () => new Map(),
+  update: (value, transaction) =>
+    transaction.effects.reduce<ReadonlyMap<string, string>>(
+      (titles, effect) => (effect.is(addTitles) ? new Map([...titles, ...effect.value]) : titles),
+      value,
+    ),
+});
+
 export interface ReferenceOptions {
   /** The outdated references of the element: `outdatedKey` to the message of the hint. */
   readonly outdated: ReadonlyMap<string, string>;
   /** A reference is followed. */
   readonly follow: (reference: Reference) => void;
+  /**
+   * The title of a target in another repository, asked of core (`element.get`); undefined when the target is
+   * not here. Without it the label is shown as written.
+   */
+  readonly title?: (id: string, repository: string) => Promise<string | undefined>;
 }
 
 const MARK = Decoration.mark({ class: "cm-lr-ref" });
 
-/** The preview rule: the label of a reference is marked; an outdated one has the accent and the word. */
+/** The title shown in place of the label of `reference`: a target in another repository that is here (D-058). */
+const titleOf = (state: EditorState, reference: Reference): string | undefined =>
+  reference.repository === undefined
+    ? undefined
+    : state.field(titlesField, false)?.get(titleKey(reference.id, reference.repository));
+
+/**
+ * The preview rule: the label of a reference is marked, and off the source lines the title of a target in
+ * another repository takes its place; an outdated one has the accent and the word.
+ */
 const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
   nodes: ["Link"],
   decorate: (node, { state, sourceLine }) => {
@@ -130,14 +163,22 @@ const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
               reference.repository === undefined ? "" : encodeURIComponent(reference.repository),
             ),
           );
+    const classes = message === undefined ? "cm-lr-ref" : "cm-lr-ref cm-lr-outdated";
+    const title = sourceLine(open.to) ? undefined : titleOf(state, reference);
+    // The title takes the place of the label with the label's look, so a press on it follows the reference.
+    const label =
+      title === undefined
+        ? message === undefined
+          ? MARK
+          : Decoration.mark({ class: classes, attributes: { title: message } })
+        : Decoration.replace({
+            widget: new LabelWidget(title, `cm-lr-link ${classes} cm-lr-title`, message),
+          });
     if (message === undefined) {
-      return [MARK.range(open.to, close.from)];
+      return [label.range(open.to, close.from)];
     }
     return [
-      Decoration.mark({ class: "cm-lr-ref cm-lr-outdated", attributes: { title: message } }).range(
-        open.to,
-        close.from,
-      ),
+      label.range(open.to, close.from),
       // The word shows off the source lines only; there the markup is shown anyway.
       ...(sourceLine(node.to)
         ? []
@@ -178,8 +219,44 @@ export const followOnMouseDown =
     return true;
   };
 
+/**
+ * Asks once for the title of each target in another repository that the text references, when the parsed
+ * text changes; a title that comes is shown at once (D-058). An editor that is gone takes none.
+ */
+const askTitles = (title: NonNullable<ReferenceOptions["title"]>): Extension =>
+  ViewPlugin.define((view) => {
+    const asked = new Set<string>();
+    const ask = (state: EditorState): void => {
+      const across = referencesIn(state, syntaxTree(state)).flatMap(({ id, repository }) =>
+        repository === undefined ? [] : [{ id, repository, key: titleKey(id, repository) }],
+      );
+      for (const { id, repository, key } of across) {
+        if (!asked.has(key) && !state.field(titlesField).has(key)) {
+          asked.add(key);
+          void title(id, repository).then((found) => {
+            if (found !== undefined && view.dom.isConnected) {
+              view.dispatch({ effects: [addTitles.of(new Map([[key, found]])), refreshPreview.of(null)] });
+            }
+          });
+        }
+      }
+    };
+    ask(view.state);
+    return {
+      update: (update) => {
+        if (syntaxTree(update.startState) !== syntaxTree(update.state)) {
+          ask(update.state);
+        }
+      },
+    };
+  });
+
 /** The plugin of the element buffer: marks references (outdated ones with the accent) and follows them. */
 export const references = (options: ReferenceOptions): EditorPlugins => ({
   rules: [rule(options.outdated)],
-  extensions: [EditorView.domEventHandlers({ mousedown: followOnMouseDown(options.follow) })],
+  extensions: [
+    titlesField,
+    EditorView.domEventHandlers({ mousedown: followOnMouseDown(options.follow) }),
+    ...(options.title === undefined ? [] : [askTitles(options.title)]),
+  ],
 });

@@ -26,6 +26,41 @@ export class GlyphWidget extends WidgetType {
   }
 }
 
+/**
+ * A text in place of the label of a link: the title of the target of a reference (D-058). It has the classes
+ * and the hint of the label, and the editor takes the presses on it (a press follows the reference).
+ */
+export class LabelWidget extends WidgetType {
+  readonly text: string;
+  readonly className: string;
+  readonly hint: string | undefined;
+
+  constructor(text: string, className: string, hint?: string) {
+    super();
+    this.text = text;
+    this.className = className;
+    this.hint = hint;
+  }
+
+  override eq(other: LabelWidget): boolean {
+    return other.text === this.text && other.className === this.className && other.hint === this.hint;
+  }
+
+  override toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = this.className;
+    span.textContent = this.text;
+    if (this.hint !== undefined) {
+      span.title = this.hint;
+    }
+    return span;
+  }
+
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 export type Align = "left" | "center" | "right" | undefined;
 
 export interface TableData {

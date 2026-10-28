@@ -124,7 +124,8 @@ export const entriesFor = (inTable: boolean): readonly SlashEntry[] =>
     ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || entry.kind === "reference")
     : SLASH_ENTRIES;
 
-// Where a `/` does not open the menu: code, links, addresses, HTML.
+// Where a `/` does not open the menu and `[[` no search: code, links, addresses, HTML. Formulas (`$…$`) have
+// no node yet; their nodes go here when #108 adds them.
 const NOT_IN = new Set([
   "FencedCode",
   "CodeBlock",
@@ -152,6 +153,10 @@ const ancestors = (state: EditorState, pos: number): string[] => {
   return names;
 };
 
+/** Whether the character at `pos` stands in code, a link, an address or HTML (the `/` menu and `[[`, SR-066). */
+export const inMarkup = (state: EditorState, pos: number): boolean =>
+  ancestors(state, pos + 1).some((name) => NOT_IN.has(name));
+
 /**
  * Whether a `/` at `pos` (already in the document) may open the menu (assumption A1): at the start of a
  * line or after whitespace, and not in code, a link, an address or HTML. So `a/b`, `and/or`, `https://`
@@ -159,7 +164,7 @@ const ancestors = (state: EditorState, pos: number): string[] => {
  */
 export const opensMenu = (state: EditorState, pos: number): boolean => {
   const before = pos === 0 ? "\n" : state.sliceDoc(pos - 1, pos);
-  return /\s/.test(before) && !ancestors(state, pos + 1).some((name) => NOT_IN.has(name));
+  return /\s/.test(before) && !inMarkup(state, pos);
 };
 
 /** The `/` and its query: from the `/` to the caret, and whether it stands in a table row. */

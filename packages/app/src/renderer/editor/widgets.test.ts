@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { GlyphWidget, TableWidget } from "./widgets.js";
+import { GlyphWidget, LabelWidget, TableWidget } from "./widgets.js";
 
 describe("GlyphWidget", () => {
   it("draws the glyph as text with its class", () => {
@@ -15,6 +15,26 @@ describe("GlyphWidget", () => {
     expect(widget.eq(new GlyphWidget("☐", "cm-lr-task"))).toBe(true);
     expect(widget.eq(new GlyphWidget("☑", "cm-lr-task"))).toBe(false);
     expect(widget.eq(new GlyphWidget("☐", "other"))).toBe(false);
+  });
+});
+
+describe("LabelWidget", () => {
+  it("draws the text with its class and the hint as its title, never as HTML", () => {
+    const dom = new LabelWidget("<b>Gusts</b>", "cm-lr-ref", "old").toDOM();
+    expect(dom.tagName).toBe("SPAN");
+    expect(dom.className).toBe("cm-lr-ref");
+    expect(dom.textContent).toBe("<b>Gusts</b>");
+    expect(dom.title).toBe("old");
+    expect(new LabelWidget("Gusts", "cm-lr-ref").toDOM().hasAttribute("title")).toBe(false);
+  });
+
+  it("is equal to a widget with the same text, class and hint, and lets the editor take presses on it", () => {
+    const widget = new LabelWidget("Gusts", "cm-lr-ref", "old");
+    expect(widget.eq(new LabelWidget("Gusts", "cm-lr-ref", "old"))).toBe(true);
+    expect(widget.eq(new LabelWidget("Wind", "cm-lr-ref", "old"))).toBe(false);
+    expect(widget.eq(new LabelWidget("Gusts", "other", "old"))).toBe(false);
+    expect(widget.eq(new LabelWidget("Gusts", "cm-lr-ref"))).toBe(false);
+    expect(widget.ignoreEvent()).toBe(false);
   });
 });
 

@@ -16,6 +16,9 @@ import { GlyphWidget, TableWidget } from "./widgets.js";
 
 export const focusEffect = StateEffect.define<boolean>();
 
+/** Builds the preview again for something a rule reads besides the document (the titles of references, D-058). */
+export const refreshPreview = StateEffect.define();
+
 /** Whether the editor has the focus. Without the focus there is no cursor line: everything is set. */
 export const focusState = StateField.define<boolean>({
   create: () => false,
@@ -313,7 +316,8 @@ export const livePreview = (rules: readonly PreviewRule[]): Extension => [
       transaction.docChanged ||
       transaction.selection !== undefined ||
       transaction.startState.field(focusState) !== transaction.state.field(focusState) ||
-      syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+      syntaxTree(transaction.startState) !== syntaxTree(transaction.state) ||
+      transaction.effects.some((effect) => effect.is(refreshPreview))
         ? previewDecorations(transaction.state, rules, transaction.state.field(focusState))
         : value,
     provide: (field) => EditorView.decorations.from(field),

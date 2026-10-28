@@ -5,7 +5,7 @@
 // (SR-127 AK1); the others show their text as it is. Only the inline syntax is Markdown in a value, and every
 // line is a paragraph of its own (`editor/value-lines.ts`), so a mark never pairs across two values. No
 // image preview (an image in a property is no embedded image, ADR-0004, D-057), no slash menu, no `[[`
-// search yet (#78 comes through the same plugins).
+// search yet (#444: SR-127 AK2 brings `reference-search.ts` through the same plugins).
 //
 // Keys: Enter in a list starts a new value at the caret; in a single value it leaves the box (back to the
 // box itself, where Enter enters again); Escape leaves the box; Up and Down at the first and last line move

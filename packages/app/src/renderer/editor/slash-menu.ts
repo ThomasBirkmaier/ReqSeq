@@ -19,25 +19,18 @@ import type { EditorView } from "@codemirror/view";
 import { rank } from "../fuzzy.js";
 import { nth } from "../lists.js";
 import type { EditorPlugins } from "./plugins.js";
-import { applyEntry, entriesFor, opensMenu, referenceMarkdown, slashRange } from "./slash-entries.js";
-import type { ReferenceTarget, SlashEntry, SlashRange } from "./slash-entries.js";
+import { askReference, pendingField, setPending } from "./reference-pick.js";
+import type { PickOptions } from "./reference-pick.js";
+import { applyEntry, entriesFor, opensMenu, slashRange } from "./slash-entries.js";
+import type { SlashEntry, SlashRange } from "./slash-entries.js";
 
 export type { ReferenceTarget } from "./slash-entries.js";
 
-/** What the editor hands to the app when "Reference to element" is taken. */
-export interface ReferenceRequest {
-  /** An element was picked: its reference replaces the `/` and its query, and the editor gets the focus. */
-  readonly insert: (target: ReferenceTarget) => void;
-  /** The question was cancelled: the editor gets the focus, the `/` and its query stay as typed. */
-  readonly cancel: () => void;
-}
+export type { ReferenceRequest } from "./reference-pick.js";
+export { awaitingReference } from "./reference-pick.js";
 
-export interface SlashMenuOptions {
-  /** Asks the app for an element ("Insert reference" prompt). */
-  readonly pickElement: (request: ReferenceRequest) => void;
-  /** The repository of the element being edited (D-058: the label of a reference to another one is its short ID). */
-  readonly repository: () => string;
-}
+/** "Reference to element" asks the app for an element (`reference-pick.ts`). */
+export type SlashMenuOptions = PickOptions;
 
 /** The `/` that was typed (R3): where it stands, and whether Escape closed its menu. */
 interface Armed {
@@ -83,38 +76,6 @@ const armedField = StateField.define<Armed | null>({
   },
 });
 
-interface Pending {
-  readonly from: number;
-  readonly to: number;
-}
-
-const setPending = StateEffect.define<Pending | null>();
-
-/** The `/` and its query while the app asks for an element (R1): mapped through changes. */
-const pendingField = StateField.define<Pending | null>({
-  create: () => null,
-  update: (value, transaction) => {
-    let next = value;
-    if (next !== null && transaction.docChanged) {
-      const from = transaction.changes.mapPos(next.from, 1);
-      next = { from, to: Math.max(from, transaction.changes.mapPos(next.to, -1)) };
-    }
-    for (const effect of transaction.effects) {
-      if (effect.is(setPending)) {
-        next = effect.value;
-      }
-    }
-    return next;
-  },
-});
-
-/**
- * Whether "Reference to element" waits for the element the app asks for: the `/` and its query are still
- * in the text, so autosave waits (SR-105, `autosave.ts`). False for a state without the slash menu.
- */
-export const awaitingReference = (state: EditorState): boolean =>
-  (state.field(pendingField, false) ?? null) !== null;
-
 /** The range of the menu in `state` with the caret at `head`: there is one `/` that was typed and is not dismissed. */
 const rangeOf = (state: EditorState, head: number): SlashRange | undefined => {
   const armed = state.field(armedField);
@@ -139,27 +100,6 @@ const take = (
   });
 };
 
-/** Writes the reference in place of the `/` and its query, or at the caret when they are gone. */
-const insertReference = (view: EditorView, target: ReferenceTarget, repository: string): void => {
-  // The buffer may have been left while the question was open: the editor is gone then.
-  if (!view.dom.isConnected) {
-    return;
-  }
-  const range = view.state.field(pendingField);
-  const held = range !== null && slashRange(view.state, range.from, range.to) !== undefined;
-  const { from, to } = held ? range : view.state.selection.main;
-  const insert = referenceMarkdown(target, repository);
-  view.dispatch({
-    changes: { from, to, insert },
-    selection: { anchor: from + insert.length },
-    effects: setPending.of(null),
-    userEvent: "input.complete",
-    annotations: isolateHistory.of("full"),
-    scrollIntoView: true,
-  });
-  view.focus();
-};
-
 const flat = (ranges: readonly (readonly [number, number])[]): number[] =>
   ranges.flatMap(([from, to]) => [from, to]);
 
@@ -177,17 +117,9 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
   const takeEntry = (view: EditorView, item: SlashEntry, from: number, to: number): void => {
     if (item.kind === "reference") {
       // The text stays as typed until an element is picked.
-      view.dispatch({ effects: [setPending.of({ from, to }), dismissEffect.of(null)] });
+      view.dispatch({ effects: [setPending.of({ from, to, held: "slash" }), dismissEffect.of(null)] });
       closeCompletion(view);
-      options.pickElement({
-        insert: (target) => {
-          insertReference(view, target, options.repository());
-        },
-        cancel: () => {
-          view.dispatch({ effects: setPending.of(null) });
-          view.focus();
-        },
-      });
+      askReference(view, options);
     } else {
       take(view, item, from, to);
     }

@@ -1493,6 +1493,72 @@ describe("App, the text editor", () => {
     vi.useRealTimers();
   });
 
+  it("[SR-066/AK1] [[ in the text opens Insert reference, which searches title and IDs of all elements", async () => {
+    const { invoke } = await openElement();
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" [[");
+    expect(query("label").textContent).toBe("Insert reference");
+    expect(document.activeElement).toBe(query("input"));
+    expect(editorView().state.doc.toString()).toBe("Hello [[");
+    await type("title");
+    // Title and IDs, and no selection: all elements.
+    expect(calls(invoke, "element.search")).toEqual([{ query: "title", fields: ["id", "title"], limit: 20 }]);
+  });
+
+  it("[SR-066/AK2] a pick writes the reference in place of the [[; autosave waits while Insert reference is open", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" [[");
+    expect(query("label").textContent).toBe("Insert reference");
+    vi.useFakeTimers();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_MS * 2);
+    });
+    vi.useRealTimers();
+    // Neither the prompt opening nor the second after it saved the [[.
+    expect(calls(invoke, "element.update")).toEqual([]);
+    await type("title");
+    // The pick is input: it is saved a second later.
+    vi.useFakeTimers();
+    await act(async () => {
+      query("input").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+    });
+    vi.useRealTimers();
+    expect(document.activeElement).toBe(query(".cm-content"));
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello [Title 2](logreq:uuid-2)", expectedFileSha256: "uuid-1@0" },
+    ]);
+  });
+
+  it("[SR-066/AK2] a reference to a local target in another repository shows its title; one that is not here its short ID", async () => {
+    const GUSTS = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
+    const GONE = "11111111-2222-4333-8444-555555555555";
+    const handlers = withText();
+    handlers["element.get"] = (input) =>
+      input["ref"] === GUSTS
+        ? { element: row(9, { id: GUSTS, title: "Measure gusts", repository: "sensor", relations: [] }) }
+        : input["ref"] === GONE
+          ? Object.assign(new Error("No element"), { code: "ref.unknown" })
+          : {
+              element: row(1, {
+                text: `See [N-0e9d7c](logreq:${GUSTS}?version=n1:aa&repository=sensor) and [N-555555](logreq:${GONE}?version=n1:bb&repository=sensor).`,
+                relations: [],
+              }),
+            };
+    const { invoke } = await openElement(handlers);
+    await flush();
+    expect(calls(invoke, "element.get")).toContainEqual({ ref: GUSTS, repository: "sensor" });
+    expect(calls(invoke, "element.get")).toContainEqual({ ref: GONE, repository: "sensor" });
+    expect(texts(".cm-lr-ref")).toEqual(["Measure gusts", "N-555555"]);
+    expect(editorView().state.doc.toString()).toContain("[N-0e9d7c](logreq:");
+  });
+
   it("shows modified in the modeline while the text has unsaved changes", async () => {
     await openElement();
     await typeText("!");
@@ -2215,7 +2281,11 @@ describe("App, the text editor", () => {
     it("opens a reference that names a repository in that repository", async () => {
       const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?repository=r2)`));
       await runCommand("follow reference");
-      expect(asked(invoke, TARGET)).toEqual([{ ref: TARGET, repository: "r2" }]);
+      // The editor asked for the title of the target in r2 (D-058, SR-066 AK2), then the command opened it there.
+      expect(asked(invoke, TARGET)).toEqual([
+        { ref: TARGET, repository: "r2" },
+        { ref: TARGET, repository: "r2" },
+      ]);
     });
 
     it("says when there is no reference at the cursor", async () => {
