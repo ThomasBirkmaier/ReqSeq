@@ -105,6 +105,11 @@ export interface ResultBuffer {
   readonly error?: string;
   readonly revision: number;
   readonly cursor: number;
+  /**
+   * The output of a write command (#85): shown as it came and never asked again when the workspace
+   * changes, since asking again would write again.
+   */
+  readonly written?: true;
 }
 
 /** How far a graph goes from its element: a number of levels, or the whole chain (SR-111 AK2). */
@@ -310,6 +315,7 @@ export const resultBuffer = (
   name: string,
   output: unknown,
   revision: number,
+  written = false,
 ): ResultBuffer => ({
   kind: "result",
   key: `result:${command}:${JSON.stringify(input)}`,
@@ -319,6 +325,7 @@ export const resultBuffer = (
   output,
   revision,
   cursor: NO_ROW,
+  ...(written ? { written: true } : {}),
 });
 
 /** The graph of an element, the direct neighbours over every kind (SR-111 AK2: the depth starts at 1). */

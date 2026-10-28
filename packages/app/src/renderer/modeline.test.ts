@@ -1,12 +1,13 @@
 import type { DataExportElement } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import { elementBuffer, graphBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { INCOMPLETE, bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
+import { INCOMPLETE, bufferView, readOnlyNow, selectedRow, shownElement, workspaceView } from "./modeline.js";
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
     expect(workspaceView({ ok: true, output: { name: "Weather station", readOnly: false } })).toEqual({
       name: "Weather station",
+      readOnly: false,
       marks: [],
       message: "",
     });
@@ -24,7 +25,12 @@ describe("workspaceView", () => {
           ],
         },
       }),
-    ).toEqual({ name: "Weather station", marks: ["read-only", "1 error", "2 warnings"], message: "" });
+    ).toEqual({
+      name: "Weather station",
+      readOnly: true,
+      marks: ["read-only", "1 error", "2 warnings"],
+      message: "",
+    });
     expect(
       workspaceView({
         ok: true,
@@ -33,13 +39,19 @@ describe("workspaceView", () => {
     ).toEqual(["2 errors"]);
   });
 
+  it("tells whether the open workspace is read-only, and no workspace is not", () => {
+    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: true } }))).toBe(true);
+    expect(readOnlyNow(workspaceView({ ok: true, output: { name: "W", readOnly: false } }))).toBe(false);
+    expect(readOnlyNow(undefined)).toBe(false);
+  });
+
   it("shows no workspace, and the error message in the minibuffer", () => {
     expect(
       workspaceView({
         ok: false,
         error: { code: "workspace.not-found", message: "No workspace file in /x" },
       }),
-    ).toEqual({ name: undefined, marks: [], message: "No workspace file in /x" });
+    ).toEqual({ name: undefined, readOnly: false, marks: [], message: "No workspace file in /x" });
   });
 });
 

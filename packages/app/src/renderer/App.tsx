@@ -43,7 +43,14 @@ import { openingOrder, seedOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
-import { bufferView, selectedRow, shownElement, windowTitle, workspaceView } from "./modeline.js";
+import {
+  bufferView,
+  readOnlyNow,
+  selectedRow,
+  shownElement,
+  windowTitle,
+  workspaceView,
+} from "./modeline.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
@@ -507,6 +514,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const row = selectedRow(current, loaded);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
+    readOnly: readOnlyNow(view),
     buffers,
     opened: openOrder.current,
     leaveEditor: () => {

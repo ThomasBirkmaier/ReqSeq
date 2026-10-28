@@ -1,6 +1,6 @@
 // The command prompt on the built app (SR-108, SR-121, SR-133, #85): what was chosen for a typed text comes
 // first the next time, also after the app restarts; the commands that fit the shown view come first; a catalog
-// command asks its arguments with the values core gives.
+// command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS. With LOGREQ_SCREENSHOTS set, the argument
 // entry is also saved as a screenshot there.
 import path from "node:path";
@@ -113,5 +113,44 @@ test.describe("the command prompt", () => {
     // missing name fails the check too.
     expect(shown).toEqual(wanted);
     await window.keyboard.press("Escape");
+  });
+
+  test("Confirm hints: Enter, Enter, Enter on an element with one outdated relation confirms it", async () => {
+    // The text of D1 changed, so that S1's `based-on` D1 is outdated (SR-025), as in neighbourhood.spec.ts.
+    const d1 = "5e107a7d-2b4f-4c61-9d08-0d0000000001";
+    running = await launchApp({
+      fixture: "SR-107/neighbourhood",
+      files: {
+        "decisions/D-0d0000000001.md": `---\nid: ${d1}\ntype: decision\nstatus: approved\ntitle: Use a cup anemometer\n---\n\nA cup anemometer with three cups measures the wind speed.\n`,
+      },
+    });
+    const { window } = running;
+    const label = window.locator("label.prompt-label");
+    const hints = async (): Promise<string[]> => {
+      const listed = await running.cli(["hint", "list"]);
+      expect(listed.code).toBe(0);
+      return (JSON.parse(listed.stdout) as { hints: { code: string; elementShortId: string }[] }).hints.map(
+        (hint) => `${hint.code} ${hint.elementShortId}`,
+      );
+    };
+    expect(await hints()).toEqual(["relation.outdated SR-b0000000001"]);
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("SR-b0000000001");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Show wind speed");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toContainText("Show wind speed");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Confirm hints");
+    await expect(names(window).first()).toHaveText("Confirm hints");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Confirm hints · ref:");
+    await expect(names(window).first()).toHaveText("SR-b0000000001 Show wind speed");
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText("Confirm hints SR-b0000000001 · hintIds:");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".modeline")).toContainText("Confirm hints SR-b0000000001");
+    await expect(window.locator(".result")).toContainText("confirmed");
+    expect(await hints()).toEqual([]);
   });
 });

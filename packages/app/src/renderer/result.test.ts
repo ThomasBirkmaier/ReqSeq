@@ -271,6 +271,18 @@ describe("result view", () => {
     });
   });
 
+  it("never asks a write command again when the workspace changed: that would write again", async () => {
+    const call = vi.fn() as unknown as Call;
+    const { rerender } = await mount(
+      call,
+      resultBuffer("hint.confirm", { ref: "uuid-1" }, "Confirm hints SR-1", { confirmed: ["h1"] }, 0, true),
+      1,
+    );
+    await rerender(2);
+    expect(call).not.toHaveBeenCalled();
+    expect(texts()).toEqual(["confirmed1", "h1"]);
+  });
+
   it("asks the command again with the same input when the workspace changed, and says why it failed", async () => {
     const answers = [
       { ok: true as const, output: { total: 1, elements: [element(3)], problems: [hint] } },

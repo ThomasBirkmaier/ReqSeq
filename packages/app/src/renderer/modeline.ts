@@ -17,6 +17,8 @@ interface StatusOutput {
 export interface WorkspaceView {
   /** The workspace's name; undefined while none is open. */
   readonly name: string | undefined;
+  /** The workspace is read-only: the command prompt offers no write command that it refuses (#85). */
+  readonly readOnly: boolean;
   /** Further parts of the modeline, each only when it means something. */
   readonly marks: readonly string[];
   /** The line for the minibuffer: why no workspace is open. */
@@ -29,9 +31,12 @@ const plural = (count: number, word: string): string => `${String(count)} ${word
 export const windowTitle = (view: WorkspaceView | undefined): string =>
   view?.name === undefined ? "LogReq" : `${view.name} - LogReq`;
 
+/** Whether the open workspace is read-only; no workspace is not. */
+export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.readOnly === true;
+
 export const workspaceView = (result: InvokeResult): WorkspaceView => {
   if (!result.ok) {
-    return { name: undefined, marks: [], message: result.error.message };
+    return { name: undefined, readOnly: false, marks: [], message: result.error.message };
   }
   const status = result.output as StatusOutput;
   const problems = status.problems ?? [];
@@ -39,6 +44,7 @@ export const workspaceView = (result: InvokeResult): WorkspaceView => {
   const warnings = problems.filter((p) => p.severity === "warning").length;
   return {
     name: status.name,
+    readOnly: status.readOnly,
     marks: [
       ...(status.readOnly ? ["read-only"] : []),
       ...(errors > 0 ? [plural(errors, "error")] : []),

@@ -7,7 +7,7 @@ import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
-import { catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
+import { WRITES, catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
@@ -148,9 +148,9 @@ describe("catalog commands in the command prompt", () => {
     const reads = CATALOG.filter((entry) => entry.implemented && entry.effect === "read");
     expect(reads.length).toBeGreaterThan(10);
     expect(reads.filter((entry) => !reachable(entry)).map((entry) => entry.name)).toEqual([]);
-    // Covered commands are not listed twice, write commands and the unimplemented ones not yet.
+    // Covered commands are not listed twice, the unimplemented ones not yet.
     expect(offered.has("Get element")).toBe(false);
-    expect(offered.has("Create relation")).toBe(false);
+    expect(offered.has("Update element")).toBe(false);
     expect(offered.has("Show baseline")).toBe(false);
     expect(offered.has("Show relation options")).toBe(true);
   });
@@ -448,7 +448,7 @@ describe("catalog commands in the command prompt", () => {
 
   it("asks the argument a schema violation names again, not the one given last, and keeps the others", async () => {
     let refuse = true;
-    const { context, asked, call } = setup([shown], {
+    const { context, asked, call, dispatched } = setup([shown], {
       "trace.chain": () =>
         refuse
           ? refusedWith("ref: is not a reference", { errors: [{ field: "ref", message: "ref: wrong" }] })
@@ -463,17 +463,21 @@ describe("catalog commands in the command prompt", () => {
     expect(again.label).toBe("ref: is not a reference · Show trace chain 2 · ref:");
     refuse = false;
     again.items[0]?.run();
-    item((await last(asked)).items, "Run").run();
+    // The new answer takes the place of the refused one, in the line and in the name of the result.
+    const more = await last(asked);
+    expect(more.label).toBe("Show trace chain SR-1 2 · more arguments:");
+    item(more.items, "Run").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith(
       "trace.chain",
       expect.objectContaining({ ref: "uuid-1", maxDepth: 2 }),
     );
+    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { name: "Show trace chain SR-1 2" } });
   });
 
   it("asks the refused value of a list argument again by its place, and the list takes more values", async () => {
     const { context, asked, call } = setup([shown], {
-      "element.search": () => ({ hits: [hit(2)], total: 1 }),
+      "element.search": (input) => ({ hits: [hit(input["query"] === "third" ? 3 : 2)], total: 1 }),
       "trace.related": (input) =>
         Array.isArray(input["refs"]) && input["refs"][0] === "uuid-1"
           ? refusedWith("refs[0]: is not a reference", {
@@ -490,9 +494,17 @@ describe("catalog commands in the command prompt", () => {
     // SR-1 (refs[0]) is asked again, SR-000002 and the direction stay.
     expect(again.label).toBe("refs[0]: is not a reference · Show related elements SR-000002 parents · refs:");
     expect(again.empty).toBeDefined();
-    again.empty?.(false);
+    // The new value takes the place of refs[0]; a value after it goes after the others.
+    (await again.find?.("third"))?.[0]?.run();
+    (await (await last(asked)).find?.("t"))?.[0]?.run();
+    const more = await last(asked);
+    expect(more.label).toBe("Show related elements SR-000003 SR-000002 SR-000002 parents · refs:");
+    more.empty?.(false);
     await flush();
-    expect(call).toHaveBeenLastCalledWith("trace.related", { refs: ["uuid-2"], direction: "parents" });
+    expect(call).toHaveBeenLastCalledWith("trace.related", {
+      refs: ["uuid-3", "uuid-2", "uuid-2"],
+      direction: "parents",
+    });
   });
 
   it("asks the argument given last again when core's details name nothing the prompt asked", async () => {
@@ -506,6 +518,31 @@ describe("catalog commands in the command prompt", () => {
     (await last(asked)).text?.("2");
     item((await last(asked)).items, "Run").run();
     expect((await last(asked)).label).toBe("selection: wrong · Show trace chain SR-1 · maxDepth:");
+  });
+
+  it("drops with a refused value the values whose offer was read from it, and asks them again", async () => {
+    let refuse = true;
+    const { context, asked, call } = setup([shown], {
+      "relation.options": (input) =>
+        refuse && input["kind"] !== undefined
+          ? refusedWith("ref: wrong", { errors: [{ field: "ref", message: "ref: wrong" }] })
+          : OPTIONS,
+    });
+    start(context, "relation.options", true);
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "kind").run();
+    item((await last(asked)).items, "refines").run();
+    item((await last(asked)).items, "Run").run();
+    const again = await last(asked);
+    // `kind` was offered for the refused `ref`: it goes with it.
+    expect(again.label).toBe("ref: wrong · Show relation options · ref:");
+    refuse = false;
+    again.items[0]?.run();
+    const more = await last(asked);
+    expect(more.items.map((i) => i.name)).toEqual(["Run", "kind"]);
+    item(more.items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
   });
 
   it("says why a command failed in the minibuffer, and why a source failed in the prompt's label", async () => {
@@ -770,7 +807,7 @@ describe('"Create element": the required properties asked in the command line (S
       (i) => i.name,
     );
     expect(names.filter((name) => name === "Create element")).toHaveLength(1);
-    // The other write commands are not offered yet (#85 PR 5b).
+    // The element buffer updates an element ("Save element" covers it).
     expect(names).not.toContain("Update element");
     start(context, "element.create");
     const type = await last(asked);
@@ -1062,7 +1099,10 @@ describe('"Create element": the required properties asked in the command line (S
     );
     refuse = false;
     item(again.items, "Sensor").run();
-    (await last(asked)).empty?.(false);
+    const more = await last(asked);
+    // The new value stands where the refused one stood, before the target of `packages`.
+    expect(more.label).toBe("Create element Report Wind gusts Sensor SR-000004 · component:");
+    more.empty?.(false);
     await flush();
     const input = call.mock.lastCall?.[1];
     expect(call.mock.lastCall?.[0]).toBe("element.create");
@@ -1099,5 +1139,175 @@ describe('"Create element": the required properties asked in the command line (S
       type: "decision",
       title: "Wind gusts",
     });
+  });
+});
+
+describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  const titles = (context: CatalogContext): string[] =>
+    catalogItems(context, CATALOG, ACTIONS).map((choice) => choice.name);
+
+  it("offers every implemented write command but element.update, filter.save and workspace.init", () => {
+    const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
+    expect(
+      writes
+        .filter((entry) => !WRITES.has(entry.name))
+        .map((entry) => entry.name)
+        .sort(),
+    ).toEqual(["element.update", "filter.save", "workspace.init"]);
+    // element.update is the element buffer's: "Save element" covers it.
+    expect(ACTIONS.find((action) => action.title === "Save element")?.covers).toEqual(["element.update"]);
+    const { context } = setup([list]);
+    const offered = titles(context);
+    for (const name of WRITES) {
+      expect(offered).toContain(command(name).title);
+    }
+    expect(offered).not.toContain(command("element.update").title);
+    expect(offered).not.toContain(command("filter.save").title);
+    expect(offered).not.toContain(command("workspace.init").title);
+  });
+
+  it("asks every listed write command but hint.confirm for a required argument", () => {
+    expect(
+      [...WRITES].filter((name) => (command(name).input as { required?: unknown }).required === undefined),
+    ).toEqual(["hint.confirm"]);
+  });
+
+  it("offers no write command that a read-only workspace refuses, and still the read commands", () => {
+    const { context } = setup([list]);
+    const readOnly = titles({ ...context, readOnly: true });
+    for (const name of WRITES) {
+      expect(command(name).whileReadOnly).toBe("refuse");
+      expect(readOnly).not.toContain(command(name).title);
+    }
+    expect(readOnly).toContain("Show relation options");
+    expect(titles({ ...context, readOnly: false })).toContain("Create relation");
+  });
+
+  it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
+    const { context, asked, call, dispatched } = setup([shown], {
+      "hint.confirm": () => ({ confirmed: ["h1"], files: ["f1.md"], problems: [] }),
+    });
+    // Without a required argument it asks its first one, so it fits the shown element.
+    expect(fits(context, command("hint.confirm"))).toBe(true);
+    start(context, "hint.confirm");
+    const ref = await last(asked);
+    expect(ref.label).toBe("Confirm hints · ref:");
+    expect(ref.empty).toBeUndefined();
+    ref.items[0]?.run();
+    // `hintIds` reads `ref`: asked next; Enter on an empty input skips it.
+    const hintIds = await last(asked);
+    expect(hintIds.label).toBe("Confirm hints SR-1 · hintIds:");
+    hintIds.empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { kind: "result", name: "Confirm hints SR-1", written: true },
+    });
+  });
+
+  it("takes the values of an optional argument read from a given one, and offers a skipped one again with Ctrl/Cmd+Enter", async () => {
+    const { context, asked, call } = setup([shown], { "hint.confirm": () => ({ confirmed: [] }) });
+    start(context, "hint.confirm");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).text?.("h1");
+    const second = await last(asked);
+    expect(second.label).toBe("Confirm hints SR-1 h1 · hintIds:");
+    second.empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1", hintIds: ["h1"] });
+    // Skipped with Ctrl/Cmd+Enter: the optional arguments follow, the skipped one among them.
+    const again = setup([shown], { "hint.confirm": () => ({ confirmed: [] }) });
+    start(again.context, "hint.confirm");
+    (await last(again.asked)).items[0]?.run();
+    (await last(again.asked)).empty?.(true);
+    const more = await last(again.asked);
+    expect(more.items.map((i) => i.name)).toEqual(["Run", "target", "kind", "hintIds"]);
+    // Backspace on it asks the skipped one again.
+    more.back?.();
+    expect((await last(again.asked)).label).toBe("Confirm hints SR-1 · hintIds:");
+  });
+
+  it("asks a bulk update's property, operation and value on a list, and writes only with confirm", async () => {
+    const { context, asked, call } = setup([list], {
+      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+    });
+    start(context, "element.bulkUpdate");
+    (await last(asked)).text?.("component");
+    const operation = await last(asked);
+    expect(operation.label).toBe("Bulk update elements component · operation:");
+    item(operation.items, "set").run();
+    const value = await last(asked);
+    expect(value.label).toBe("Bulk update elements component set · value:");
+    value.text?.("display");
+    await flush();
+    // No `confirm`: core shows what it would change and writes nothing.
+    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      selection: { where: { type: ["need"] } },
+      property: "component",
+      operation: "set",
+      value: "display",
+    });
+  });
+
+  it("asks no optional argument that reads one not given: Supersede element runs without successor and relation", async () => {
+    const { context, asked, call } = setup([shown], { "element.supersede": () => ({ files: [] }) });
+    start(context, "element.supersede");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).text?.("retired");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.supersede", { ref: "uuid-1", status: "retired" });
+  });
+
+  it("saves every open buffer's input before a write command runs, and does not run it when one cannot be saved", async () => {
+    const other = elementBuffer("uuid-2", "spec", "SR-2 Title 2");
+    const saved: string[] = [];
+    const running = setup([shown, other], { "hint.confirm": () => ({ confirmed: [] }) });
+    const context = {
+      ...running.context,
+      drafted: (key: string) => key === other.key,
+      saveDraft: (key: string) => {
+        saved.push(key);
+        return Promise.resolve(true);
+      },
+    };
+    start(context, "hint.confirm");
+    (await last(running.asked)).items[0]?.run();
+    (await last(running.asked)).empty?.(false);
+    await flush();
+    expect(saved).toEqual([other.key]);
+    expect(running.call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
+    // Input that cannot be saved stops the command before it is sent.
+    const stopped = setup([shown, other], { "hint.confirm": () => ({ confirmed: [] }) });
+    const failing = {
+      ...stopped.context,
+      drafted: () => true,
+      saveDraft: (key: string) => Promise.resolve(key !== shown.key),
+    };
+    start(failing, "hint.confirm");
+    (await last(stopped.asked)).items[0]?.run();
+    (await last(stopped.asked)).empty?.(false);
+    await flush();
+    expect(stopped.call).not.toHaveBeenCalledWith("hint.confirm", expect.anything());
+    expect(stopped.echoed.at(-1)).toBe("SR-1 Title 1 could not be saved: Confirm hints did not run");
+    // Without saveDraft nothing is saved, and the command runs; a read command saves nothing.
+    const unsaving = setup([shown], {
+      "hint.confirm": () => ({ confirmed: [] }),
+      "relation.options": () => OPTIONS,
+    });
+    const plain = { ...unsaving.context, drafted: () => true };
+    start(plain, "hint.confirm");
+    (await last(unsaving.asked)).items[0]?.run();
+    (await last(unsaving.asked)).empty?.(false);
+    await flush();
+    expect(unsaving.call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
+    const saveDraft = vi.fn(() => Promise.resolve(true));
+    start({ ...unsaving.context, drafted: () => true, saveDraft }, "relation.options");
+    (await last(unsaving.asked)).items[0]?.run();
+    await flush();
+    expect(saveDraft).not.toHaveBeenCalled();
+    expect(unsaving.call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
   });
 });

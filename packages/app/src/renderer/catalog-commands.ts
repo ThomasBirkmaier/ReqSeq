@@ -1,5 +1,6 @@
 // Catalog commands in the command prompt (SR-073 AK2, SR-108, #85). The prompt lists the implemented read
-// commands by their `title`, except those an app action covers, and "Create element" (SR-064). Choosing
+// commands and the write commands of `WRITES` by their `title`, except those an app action covers; while
+// the workspace is read-only, no write command that core refuses then. Choosing
 // one asks its arguments one by one in the minibuffer, Emacs `completing-read` style, in the order of the
 // catalog's `arguments`; each
 // source is answered by one existing read command and shown as it is (ADR-0002: the app builds the input
@@ -10,9 +11,10 @@
 // arguments ("Run" first). A list field (`refs`) takes one value per Enter, and Enter on an empty input ends it.
 // A refused input (`input.invalid`) asks again, with core's message, the value core names in the details
 // of the error: the field of the first schema violation (`refs[0]`, `properties.<key>`,
-// `runtime/input-errors.ts`), else the property in `key` of a value refused while the input is written
-// (`withChoiceKeys`: unknown or ambiguous choice); the other values stay. A refusal that names nothing
-// asked in this run asks the value given last.
+// `runtime/input-errors.ts`), else the property core names in `key` (for example `withChoiceKeys`: an
+// unknown or ambiguous choice). The answer takes the refused value's place; the other values stay, except
+// those read from it (the properties of a type, an argument whose offer reads it). A refusal that names
+// nothing asked in this run asks the value given last.
 //
 // "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
 // the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
@@ -21,12 +23,19 @@
 // the other properties are added in the element buffer ("Add property", SR-104). The new element opens in
 // its element buffer, and the minibuffer says how many hints core gave.
 //
-// The other write commands follow with #85 PR 5b, and with them the sources only they use (status,
-// invalidStatus, relationTarget, relation, property, value, hint, filter); until then those are typed as text.
+// A write command is asked like a read command, with two more rules: one without required arguments asks
+// its first argument (`hint.confirm`: `ref`), and an optional argument whose explicit `of` names a field
+// given in this run is asked after the required ones (`hintIds` of `ref`, `value` of `property`); Enter on
+// an empty input skips it. Before it runs, the input of every open buffer is saved; when one cannot be
+// saved, it does not run. Its output opens a result buffer that is not asked again (that would write
+// again). `element.bulkUpdate` writes only with `confirm` yes, given with Ctrl/Cmd+Enter; without it, it
+// shows what it would change. The sources only write commands use (status, invalidStatus, relationTarget,
+// relation, property, value, hint, filter) are typed as text until #85 PR 5b's sources follow.
 import type { CommandTypes } from "@logreq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
+import type { Buffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
@@ -52,7 +61,17 @@ interface Given {
   readonly property?: string;
   /** The properties this value asks next: the required properties of the type of a new element (SR-064). */
   readonly asks?: readonly RequiredProperty[];
+  /** An optional argument a write command asked was skipped (Enter on an empty input): no value. */
+  readonly skipped?: true;
+  /**
+   * Where the value stands among the values given (`ordered`): the next number when it is given, the
+   * number of the value it replaces when it is asked again, so it keeps that value's place.
+   */
+  readonly rank: number;
 }
+
+/** A value as it is given; `appended` numbers it. */
+type Giving = Omit<Given, "rank">;
 
 /** Where the argument entry of one command stands. */
 interface Entry {
@@ -66,7 +85,30 @@ interface Entry {
   readonly more: boolean;
   /** Why core refused the input, shown with the argument asked again. */
   readonly error?: string;
+  /** The rank of the value asked again: the answer takes its place (`Given.rank`). */
+  readonly again?: number;
 }
+
+/** The values given with one more: in the place of the value asked again, else after the others. */
+const appended = (entry: Entry, value: Giving): Given[] => [
+  ...entry.given,
+  { ...value, rank: entry.again ?? Math.max(0, ...entry.given.map((given) => given.rank)) + 1 },
+];
+
+/**
+ * The values given in the order of their places, for the prompt's line and the input: each argument (each
+ * property) where its first value stands, its values in their order. `given` itself stays in the order of
+ * the answers, so Backspace takes back the answer given last.
+ */
+const ordered = (given: readonly Given[]): Given[] => {
+  const group = (value: Given): string => `${value.field}\u0000${value.property ?? ""}`;
+  const place = (value: Given): number =>
+    Math.min(...given.filter((other) => group(other) === group(value)).map((other) => other.rank));
+  return given
+    .map((value) => ({ value, place: place(value) }))
+    .sort((a, b) => a.place - b.place || a.value.rank - b.value.rank)
+    .map(({ value }) => value);
+};
 
 /** One value of a closed list; `asks` goes with it to the value given (`Given.asks`). */
 interface Value {
@@ -124,6 +166,31 @@ const schemaOf = (command: CommandListing, field: string): FieldSchema => {
 const requiredOf = (command: CommandListing): readonly string[] =>
   (command.input as { readonly required?: readonly string[] }).required ?? [];
 
+const isWrite = (command: CommandListing): boolean => command.effect !== "read";
+
+/**
+ * The arguments asked before the command runs: the required ones. A write command without any asks its
+ * first argument as if it were required (`hint.confirm`: `ref`, the shown element first), so it never runs
+ * at once on an empty input.
+ */
+const askedOf = (command: CommandListing): readonly string[] => {
+  const required = requiredOf(command);
+  const first = command.arguments.find((arg) => arg.complete !== "selection");
+  return required.length > 0 || !isWrite(command) || first === undefined ? required : [first.field];
+};
+
+/**
+ * An optional argument a write command asks right after the required ones, in catalog order: one whose
+ * explicit `of` names a field given in this run (`hint.confirm hintIds` of `ref`, `element.bulkUpdate value`
+ * of `property`). Enter on an empty input skips it, or ends its values. The nearest-field default of
+ * `contextField` pulls nothing in, and a read command asks only its required arguments.
+ */
+const follows = (entry: Entry, arg: Argument): boolean =>
+  isWrite(entry.command) &&
+  arg.of !== undefined &&
+  !askedOf(entry.command).includes(arg.field) &&
+  entry.given.some((given) => given.field === arg.of && given.skipped !== true);
+
 const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
 
@@ -138,7 +205,7 @@ const offered = (context: ActionContext, command: CommandListing): boolean =>
   command.arguments.every(
     (arg) =>
       arg.complete !== "selection" ||
-      !requiredOf(command).includes(arg.field) ||
+      !askedOf(command).includes(arg.field) ||
       context.buffers[0]?.kind === "list",
   );
 
@@ -152,7 +219,7 @@ const offered = (context: ActionContext, command: CommandListing): boolean =>
  */
 export const fits = (context: ActionContext, command: CommandListing): boolean => {
   const shown = context.buffers[0]?.kind;
-  const required = requiredOf(command);
+  const required = askedOf(command);
   return command.arguments.some((arg) =>
     arg.complete === "selection"
       ? shown === "list"
@@ -271,7 +338,12 @@ const offerFor = (
 
 /** "Show relation options SR-1" : the title and the values given so far (a skipped property shows nothing). */
 const lineOf = (entry: Entry): string =>
-  [entry.command.title, ...entry.given.map((given) => given.label).filter((label) => label !== "")].join(" ");
+  [
+    entry.command.title,
+    ...ordered(entry.given)
+      .map((given) => given.label)
+      .filter((label) => label !== ""),
+  ].join(" ");
 
 /** The properties the given values ask (SR-064): the required properties of the type of a new element. */
 const asksOf = (entry: Entry): readonly RequiredProperty[] =>
@@ -279,7 +351,7 @@ const asksOf = (entry: Entry): readonly RequiredProperty[] =>
 
 /** The values given to the properties, without the skipped ones. */
 const answersOf = (entry: Entry): { readonly key: string; readonly value: PropertyAnswer }[] =>
-  entry.given.flatMap((given) =>
+  ordered(entry.given).flatMap((given) =>
     given.property === undefined || given.value === undefined
       ? []
       : [{ key: given.property, value: given.value as PropertyAnswer }],
@@ -290,7 +362,9 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   const input: Record<string, unknown> = {};
   const selection = shownSelection(context);
   for (const arg of entry.command.arguments) {
-    const values = entry.given.filter((given) => given.field === arg.field).map((given) => given.value);
+    const values = ordered(entry.given)
+      .filter((given) => given.field === arg.field && given.skipped !== true)
+      .map((given) => given.value);
     if (arg.complete === "selection") {
       if (selection !== undefined) {
         input[arg.field] = selection;
@@ -308,12 +382,38 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
 };
 
 /**
- * Runs the command with the given values: the output opens a result buffer, a new element its element
- * buffer (SR-064); a refused input asks again.
+ * Saves the input of every open buffer before a write command runs, so the command neither loses it nor
+ * takes its own write for a change on disk; resolves the first buffer whose input could not be saved.
+ * Without `saveDraft` nothing is saved, as before autosave.
+ */
+const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefined> => {
+  const { saveDraft } = context;
+  if (saveDraft !== undefined) {
+    for (const buffer of context.buffers) {
+      if (context.drafted(buffer.key) && !(await saveDraft(buffer.key))) {
+        return buffer;
+      }
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Runs the command with the given values: the output opens a result buffer (of a write command, one that
+ * is not asked again), a new element its element buffer (SR-064); a refused input asks again. A write
+ * command first saves the input of every open buffer, and does not run when one cannot be saved.
  */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
   const input = inputOf(context, entry);
   const name = entry.command.name as keyof CommandTypes;
+  const write = isWrite(entry.command);
+  // Only when there is input to save: the command is sent at once otherwise.
+  const drafted = write && context.buffers.some((buffer) => context.drafted(buffer.key));
+  const unsaved = drafted ? await unsavedBefore(context) : undefined;
+  if (unsaved !== undefined) {
+    context.echo(`${bufferName(unsaved)} could not be saved: ${entry.command.title} did not run`);
+    return;
+  }
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
   const answer = await context.call(name, input);
@@ -324,7 +424,7 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   } else if (answer.ok) {
     context.dispatch({
       type: "open",
-      buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision),
+      buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision, write),
     });
   } else if (answer.code === "input.invalid" && entry.given.length > 0) {
     // The prompt asks the value core refused again, else the one given last, with core's message.
@@ -392,16 +492,38 @@ const refusedAt = (entry: Entry, details: Readonly<Record<string, unknown>> | un
   return named ?? places.at(-1) ?? entry.given.length - 1;
 };
 
+/** The arguments whose offer reads `field`, also through another one (`contextField`: `target` ← `kind` ← `source`). */
+const readersOf = (args: readonly Argument[], field: string): ReadonlySet<string> => {
+  const readers = new Set<string>();
+  let grown = true;
+  while (grown) {
+    grown = false;
+    args.forEach((arg, at) => {
+      const read = contextField(args, at);
+      if (!readers.has(arg.field) && read !== undefined && (read === field || readers.has(read))) {
+        readers.add(arg.field);
+        grown = true;
+      }
+    });
+  }
+  return readers;
+};
+
 /**
- * Asks the value at `at` in `given` again, without it; the other values stay, except those it asked (the
- * type of a new element asks its properties, SR-064: they go with it and are asked again after it). Before
- * the first value, the command prompt.
+ * Asks the value at `at` in `given` again, without it, in its place; the other values stay, except those
+ * read from it: the properties a type asks (SR-064) and the arguments whose offer reads it (`of`), which
+ * are asked again after it. Before the first value, the command prompt.
  */
-const askAgain = (context: CatalogContext, entry: Entry, at: number): void => {
-  const again = entry.given[at];
+const askAgain = (context: CatalogContext, answered: Entry, at: number): void => {
+  const again = answered.given[at];
+  const entry = { ...answered, ...(again === undefined ? {} : { again: again.rank }) };
   const itsProperties = new Set((again?.asks ?? []).map((asked) => asked.key));
+  const readers = again === undefined ? new Set<string>() : readersOf(entry.command.arguments, again.field);
   const given = entry.given.filter(
-    (value, place) => place !== at && (value.property === undefined || !itsProperties.has(value.property)),
+    (value, place) =>
+      place !== at &&
+      !readers.has(value.field) &&
+      (value.property === undefined || !itsProperties.has(value.property)),
   );
   const property = asksOf(entry).find((asked) => asked.key === again?.property);
   if (property !== undefined) {
@@ -441,9 +563,19 @@ const give = (
   const { collecting: _was, error: _error, ...rest } = entry;
   step(context, {
     ...rest,
-    given: [...entry.given, { field, value, label, ...(asks === undefined ? {} : { asks }) }],
+    given: appended(entry, { field, value, label, ...(asks === undefined ? {} : { asks }) }),
     more: entry.more || more,
     ...(isListField(entry.command, field) && !more ? { collecting: field } : {}),
+  });
+};
+
+/** Skips an optional argument a write command asked (`follows`); `more` offers the optional arguments next. */
+const skip = (context: CatalogContext, entry: Entry, field: string, more: boolean): void => {
+  const { error: _error, ...rest } = entry;
+  step(context, {
+    ...rest,
+    given: appended(entry, { field, value: undefined, label: "", skipped: true }),
+    more: entry.more || more,
   });
 };
 
@@ -464,15 +596,12 @@ const giveProperty = (
   const { filling: _was, error: _error, ...rest } = entry;
   step(context, {
     ...rest,
-    given: [
-      ...entry.given,
-      {
-        field: PROPERTIES,
-        property: property.key,
-        value: answer?.value,
-        label: answer?.label ?? "",
-      },
-    ],
+    given: appended(entry, {
+      field: PROPERTIES,
+      property: property.key,
+      value: answer?.value,
+      label: answer?.label ?? "",
+    }),
     more: entry.more || more,
     ...(answer !== undefined && property.info.many && !more ? { filling: property.key } : {}),
   });
@@ -583,7 +712,13 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
             step(context, { ...rest, more: entry.more || more });
           },
         }
-      : {}),
+      : follows(entry, arg)
+        ? {
+            empty: (more: boolean) => {
+              skip(context, entry, field, more);
+            },
+          }
+        : {}),
   };
   const take = (
     value: unknown,
@@ -669,7 +804,7 @@ const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
       { id: "run", name: "Run", run, more: run },
       ...entry.command.arguments.flatMap((arg, at) =>
         arg.complete === "selection" ||
-        entry.given.some((given) => given.field === arg.field) ||
+        entry.given.some((given) => given.field === arg.field && given.skipped !== true) ||
         (arg.field === PROPERTIES && entry.given.some((given) => given.asks !== undefined))
           ? []
           : [
@@ -695,20 +830,23 @@ const nextProperty = (entry: Entry): RequiredProperty | undefined =>
   );
 
 /**
- * The next step: the list field being filled, the next required argument, the required properties of a new
- * element (SR-064), the optional ones, or the run.
+ * The next step: the list field being filled, the next required argument, the optional arguments a write
+ * command asks after them (`follows`), the required properties of a new element (SR-064), the optional
+ * ones, or the run.
  */
-const step = (context: CatalogContext, entry: Entry): void => {
+const step = (context: CatalogContext, answered: Entry): void => {
+  // The value asked again has its answer: the next one goes after the others.
+  const { again: _again, ...entry } = answered;
   const { arguments: args } = entry.command;
-  const required = requiredOf(entry.command);
+  const asked = askedOf(entry.command);
+  const open = (arg: Argument): boolean =>
+    arg.complete !== "selection" && !entry.given.some((given) => given.field === arg.field);
+  const required = args.findIndex((arg) => open(arg) && asked.includes(arg.field));
   const next =
     entry.collecting === undefined
-      ? args.findIndex(
-          (arg) =>
-            arg.complete !== "selection" &&
-            required.includes(arg.field) &&
-            !entry.given.some((given) => given.field === arg.field),
-        )
+      ? required >= 0
+        ? required
+        : args.findIndex((arg) => open(arg) && follows(entry, arg))
       : args.findIndex((arg) => arg.field === entry.collecting);
   const arg = args[next];
   const property = nextProperty(entry);
@@ -728,13 +866,30 @@ export const startCommand = (context: CatalogContext, command: CommandListing, m
   step(context, { command, given: [], more });
 };
 
-/** The write commands the prompt offers already: "Create element" (SR-064); the others follow with #85 PR 5b. */
-const WRITES: ReadonlySet<string> = new Set([CREATE_COMMAND]);
+/**
+ * The write commands the prompt offers (SR-073 AK2, #85), each asked like a read command. Not offered:
+ * `element.update`, which the element buffer does ("Save element" covers it, with "Edit title", "Add
+ * property" and "Clear property"); `filter.save`, whose filter is the shown list's, not JSON typed by hand;
+ * `workspace.init`, which creates a workspace in another folder ("Open workspace" is the app's way).
+ */
+export const WRITES: ReadonlySet<string> = new Set([
+  CREATE_COMMAND,
+  "element.setStatus",
+  "element.supersede",
+  "relation.add",
+  "relation.remove",
+  "hint.confirm",
+  "element.bulkUpdate",
+  "element.addAttachment",
+  "evidence.record",
+  "evidence.enrichJunit",
+  "data.store",
+]);
 
 /**
- * The catalog commands the command prompt offers now: implemented read commands and the writes it offers
- * already, that no action covers (by title or by `covers`), each by its title and whether it fits the
- * shown view (SR-133).
+ * The catalog commands the command prompt offers now: implemented read commands and the writes it offers,
+ * that no action covers (by title or by `covers`), each by its title and whether it fits the shown view
+ * (SR-133). While the workspace is read-only, no write command that core refuses then (`whileReadOnly`).
  */
 export const catalogItems = (
   context: CatalogContext,
@@ -747,6 +902,7 @@ export const catalogItems = (
       (command) =>
         command.implemented &&
         (command.effect === "read" || WRITES.has(command.name)) &&
+        !(context.readOnly === true && command.whileReadOnly === "refuse") &&
         !covered.has(command.title) &&
         !covered.has(command.name) &&
         offered(context, command),

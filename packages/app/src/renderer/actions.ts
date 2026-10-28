@@ -160,6 +160,8 @@ export interface FollowControls {
 export interface ActionContext {
   /** A workspace is open. */
   readonly workspace: boolean;
+  /** The open workspace is read-only (`workspace.status`, as the modeline shows it); absent: it is not. */
+  readonly readOnly?: boolean;
   /** The open buffers, the most recent first; the first one is shown. */
   readonly buffers: Buffers;
   /** The keys of the open buffers in the order of opening (`opening-order.ts`): "Next buffer" walks it. */
@@ -899,6 +901,8 @@ export const ACTIONS: readonly Action[] = [
     id: "save",
     title: "Save element",
     shortcut: SAVE_SHORTCUT,
+    // With "Edit title", "Add property" and "Clear property" the element buffer does `element.update`.
+    covers: ["element.update"],
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.save();

@@ -2,7 +2,7 @@
 // other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
 // a problem. When the workspace changed, it asks the command again with the same input (ADR-0002: the
-// app runs commands and shows what they give).
+// app runs commands and shows what they give); the output of a write command stays as it came (#85).
 import { useEffect, useMemo } from "react";
 import type { BufferAction, ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -35,7 +35,8 @@ export const ResultView = ({
   }, [buffer.key, buffer.output, onData]);
 
   useEffect(() => {
-    if (buffer.revision === revision) {
+    // The output of a write command is never asked again: that would write again.
+    if (buffer.written === true || buffer.revision === revision) {
       return;
     }
     let live = true;
