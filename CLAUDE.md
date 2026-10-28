@@ -28,7 +28,8 @@ GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh
 
 ## Repository content
 
-- Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository: not into `spec/`, issues, pull requests, commit messages, ADRs or docs (Thomas, 2026-10-28). A wish that has a product function behind it is entered as that function only, worded for the user of the tool, without the business context and without quoting the statement it came from.
+- Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository: not into `spec/`, issues, pull requests, commit messages, ADRs or docs (product owner decision, 2026-10-28). A wish that has a product function behind it is entered as that function only, worded for the user of the tool, without the business context and without quoting the statement it came from.
+- No verbatim chat quotes of the product owner, no times of chat messages, no project or thread links and no names from the chat in `spec/`, issues, PR texts, commit messages or documentation (product owner decision, 2026-10-28). State the origin factually instead: „Entscheidung des Produktverantwortlichen, 2026-10-28“ (in English text: "product owner decision, 2026-10-28") plus a paraphrase that keeps the substantive information (what was decided and why). In repository text the person is called the product owner (Produktverantwortlicher). Decision cards and chat statements are named by date and paraphrase; issue comments are linked; issue and PR numbers may be given. Claude Code session links in attribution lines (PR footer, commit trailer) are not thread links. This replaces the earlier practice of quoting the wording.
 
 ## Language
 
