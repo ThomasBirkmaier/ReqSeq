@@ -1,73 +1,56 @@
-# Rules for agents working on LogReq
+# LogReq
 
-These rules apply to every session, cloud or local. They follow from decisions D-046 to D-055 and D-064 in the spec (`spec/`); D-064 supersedes D-047 (the spec is no longer exported from Logseq).
+LogReq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout.
 
 ## Sources of truth
 
-- `spec/` is the specification, a LogReq workspace (D-064; Logseq is no longer the source). Read it with LogReq after `pnpm build`: `node packages/cli/dist/bin.js element get SR-036 --workspace spec` (also `element list`, `element search`, `trace chain`); `spec/README.md` has the layout and the common commands.
-- **`spec/` is changed only with the LogReq CLI or MCP** (`node packages/cli/dist/bin.js mcp --workspace spec`), never by editing element files by hand, and only through a pull request of its own (label `enabler`, then `sr-issues`). New and changed texts are German and carry exactly the content the product owner decided (nothing added, left out or reinterpreted), written as requirement text, not as a chat quote. Status is set only by a person. An agent changes a status in `spec/` only to carry out a decision the product owner stated explicitly (decision card, issue comment or a statement in the chat, see below), names it in the PR and commit: an issue comment by its link, a decision card or a chat statement by date and paraphrase, and never sets `accepted` (or any approving status) on text it wrote on its own. Accepting on a decision card counts as the product owner's own acceptance (product owner decision on the D-064 card, 2026-10-26): when a card names the elements and the product owner picks the accepting option, the agent sets the approving status on their behalf and names the card's decision by date and paraphrase. Superseding the predecessor of such a decision is allowed in the same PR. The product owner accepts agent-written successors in person or on a decision card, prompted in the stage epic or the lead thread. LogReq has no command for the metamodel and the workspace file (`spec/metamodel/`, `spec/logreq-workspace.yaml`): they are changed by hand in such a PR. `pnpm spec:check` must pass.
-- New wishes or requirements from the product owner are entered as draft elements in `spec/` through a spec PR and linked to their issue; pure bugs stay issues only (product owner decision, 2026-10-26). An explicit statement by the product owner in the project chat or a thread counts like a decision card; the PR records it as date plus a paraphrase that keeps the substantive information (what was decided and why; for example „Entscheidung des Produktverantwortlichen, 2026-10-28: Auslieferung als portables Paket statt Installer“), never as a quote.
-- The spec is German. Quote it verbatim; do not translate or reinterpret it.
-- Product decisions are the decisions in `spec/` (type `decision`, `spec/decision/`; "what"). Technical decisions are `docs/adr/` ("how"). An ADR never contradicts a decision.
-- If a system requirement is unclear, incomplete or contradicts another one: open an issue with label `spec-frage`, state the question and your assumption, and continue with other work or with the assumption clearly written in the PR. Never resolve a spec question silently in code.
-- Component requirements are not used for now. Do not create them.
-
-## Traceability (D-049, D-050)
-
-- One issue per system requirement (`SR-xxx`). Enabler work without its own SR uses label `enabler`.
-- Branch: `sr-036-short-slug` or `enabler-<issue>-short-slug`.
-- Commit body trailer: `Implements: SR-036` (one line per SR) and `Refs #<issue>`.
-- PR title starts with the SR ID; PR body contains `Closes #<issue>` and the section "Verification".
-- Every acceptance criterion with verification method `Test` has at least one automated test whose name starts with `[SR-036/AK2]` (AK = Akzeptanzkriterium, counted from 1 in the order of the spec file).
-- Analysis, inspection and demonstration: write a record in `verification/SR-036.md` (what was checked, how, result). A human confirms it at stage acceptance. Agents never mark anything as approved.
-- `pnpm trace-check` must pass before you open a PR.
-
-## GitHub access
-
-GraphQL is not available from Claude Code cloud sessions. `gh issue ...` and `gh pr ...` subcommands use GraphQL and fail with HTTP 403. Use the GitHub MCP tools (`mcp__github__*`) or the REST API via `gh api repos/ThomasBirkmaier/logreq/...` instead. Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`. The `gh ...` lines in the skills describe the intent; translate them.
-
-## Repository content
-
-- Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository: not into `spec/`, issues, pull requests, commit messages, ADRs or docs (product owner decision, 2026-10-28). A wish that has a product function behind it is entered as that function only, worded for the user of the tool, without the business context and without quoting the statement it came from.
-- No verbatim chat quotes of the product owner, no times of chat messages, no project or thread links and no names from the chat in `spec/`, issues, PR texts, commit messages or documentation (product owner decision, 2026-10-28). State the origin factually instead: „Entscheidung des Produktverantwortlichen, 2026-10-28“ (in English text: "product owner decision, 2026-10-28") plus a paraphrase that keeps the substantive information (what was decided and why). In repository text the person is called the product owner (Produktverantwortlicher). Decision cards and chat statements are named by date and paraphrase; issue comments are linked; issue and PR numbers may be given. Claude Code session links in attribution lines (PR footer, commit trailer) are not thread links. This replaces the earlier practice of quoting the wording.
-
-## Language
-
-- Code, identifiers, comments, commit messages, PR titles, ADRs, UI texts: English (D-019).
-- Issues quote the German spec text verbatim; the rest of an issue may be English or German.
-
-## Workflow
-
-- Implement an issue with the `github-issue-workflow` skill: plan (Opus), plan review (second Opus agent), tests from acceptance criteria first, implementation (Opus), quality gates, code review (Opus), PR. Small changes (product owner decision, 2026-10-28) skip the separate plan and plan review: bug fixes, verification records, docs, and refactors that follow an approved plan get a short plan as an issue comment by the implementer and the code review at the end. New functions, architecture and performance work keep plan and plan review.
-- Effort of helper agents (product owner decision, 2026-10-24): agents for planning, plan review, architecture questions and code review run with effort `high`; routine implementation (writing tests and code from an approved plan, fixing gate failures) runs with normal effort. Exception (product owner decision, 2026-10-27): for SR-111 (graph) and SR-117 (follow an agent), planning and plan/code review run with effort `xhigh`.
-- Token budget (product owner decision, 2026-10-26, #392; models changed 2026-10-27): Opus writes tests and code and fixes findings, as it plans and reviews (Sonnet is no longer used for implementation, the usage limit is no longer a concern). Review findings go back to the implementer that wrote the code (SendMessage), not to a fresh agent, while it is reachable and the review came within about an hour (product owner decision, 2026-10-27, #514). A second or later review round reviews only the diff since the last review: the open findings are resolved, and the new code gets the full checks of round 1. Bundle small follow-ups and nitpicks into one issue per area instead of one per PR. Agent reports to the lead stay short (PR, state, findings, follow-up issues).
-- Plans and reviews (product owner decision, 2026-10-28, #722): a plan has at most about 10 KB: an AK-to-test table, files, steps, risks, assumptions, no retold code. A plan review or code review lists only findings, each with its fix, plus one line naming what was checked and found fine. Every plan and review starts with a summary of at most five lines; the lead reads only that summary.
-- Fix rounds (product owner decision, 2026-10-28, #722): only a blocking finding or red CI starts a fix round. Wrong or missing AK tags, anything `trace-check` reads, and breaches of the repository text rule ("Repository content") count as blocking. Without a blocking finding, the PR merges on green CI, and should-fix items and notes go to the collective follow-up issue of the area. When a round happens anyway, it takes the should-fix items and notes too.
-- Code review alongside CI (product owner decision, 2026-10-28, #722): the code review starts as soon as the PR is pushed and does not wait for CI. The lead waits for both and sends CI failures and review findings to the implementer in one fix round.
-- Reading: do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator or a `contracts:check` diff (hidden from search by `.ignore`; regenerate with `pnpm contracts:generate`). In `packages/core`, read the README and only the block files under `packages/core/docs/` you work on. Run single test files while you work (`pnpm vitest run <path>`); the local checks below once before the push.
-- The GitHub project "LogReq" mirrors the issues; the workflow `project-sync` derives its fields from labels. Change labels, never project fields (see `stage-run`).
-- Merge with `github-pr-review-merge`. Agents commit and merge on their own everywhere, including `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` are allowed for trivial fixes; everything else goes through a PR so CI and the SR trail run.
-- Merge only when CI is green and the code review found nothing blocking. Never merge red.
-- Merge without waiting (product owner decision, 2026-10-26): GitHub auto-merge is not available here (`allow_auto_merge` is off and `main` has no required checks, so it would not wait for CI). Instead, subscribe to the PR's activity and merge as soon as CI is green: on the head commit (`GET /repos/ThomasBirkmaier/logreq/commits/{sha}/check-runs?per_page=100`), `checks (ubuntu-24.04)` and `electron (ubuntu-24.04)` exist and concluded `success`, the newest `trace-check (PR text)` that was not skipped, if any, concluded `success`, and every other check run completed with `success` or `skipped` (exception, product owner decision 2026-10-28: on a PR that works on performance, `perf` may be red when every row over its limit was already over it on main and no measurement is worse than on main; the PR names the rows and the comparison) (one green workflow is not enough; `electron` is green with skipped steps on a docs-only PR, #520), the last review found nothing blocking, and no unreviewed push came after it. A push after the review needs a review of the new diff first (a conflict resolved by hand counts; `pnpm merge:main` resolving only generated files does not). If `checks` failed only in its Trace check step (the PR text) or in a flaky step, and the cause is fixed without a push, re-run the failed jobs of that run: `POST /repos/ThomasBirkmaier/logreq/actions/runs/{run_id}/rerun-failed-jobs` (Trace check reads the current PR text; a green `trace-check (PR text)` does not replace it). Check the text locally first with `pnpm trace-check --pr-body <file>`, and find the failed step with `GET /repos/ThomasBirkmaier/logreq/actions/runs/{run_id}/jobs` (`steps[].conclusion`); the check-run annotation only says "exit code 1" (#566).
-- Merge `main` into a branch with `pnpm merge:main`: it regenerates conflicting generated files instead of resolving them by hand.
-- Tell the product owner (in the stage epic) about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, but do not wait for an answer. Label `needs-human` means "the product owner must answer something", not a merge gate.
-- Small PRs. One SR per PR unless SRs are inseparable; then name all of them. Changes to agent rules, skills and docs that do not belong to the PR of an SR or of a code change are bundled into one PR per half day (product owner decision, 2026-10-28, #722); a pure wording fix may go directly to `main`.
-- Before starting a plan, read `docs/architecture/README.md`, the ADRs it names for your area and the schemas you touch. Plans that contradict an ADR are rejected in plan review.
-- New functions start as an entry in `schemas/commands/catalog.json` and one implementation in `packages/core/src/commands/`; never add logic to `cli`, `api`, `mcp` or `app` (ADR-0002).
-- Local checks before every push (product owner decisions, 2026-10-28: the local gate queue in a cloud session was the main wait, the Mac CI has spare capacity): `pnpm typecheck && pnpm format:check`, ESLint on the changed `.ts`, `.tsx`, `.js` and `.mjs` files only (`node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js --max-warnings 0 <files>`), the tests related to the changed files (`pnpm vitest related --run --passWithNoTests <files>`; product owner decision, 2026-10-28, #722; the changed files without deleted ones: `git diff --name-only --diff-filter=d origin/main...HEAD`), `pnpm trace-check`, `pnpm schemas:check && pnpm contracts:check` when schemas or the catalog changed, `pnpm spec:check` when `spec/` changed, and when `packages/app` changed the Electron specs the change touches or could break. CI runs the rest (coverage, build, e2e, the full Electron suite). This holds for the first push of a PR and for fix rounds. Push only when they are green, or name in the PR why a red one is not caused by the change; merging still needs green CI.
-- Local runs in a cloud session: heavy commands (coverage, build, e2e, Electron) only under `flock /home/user/wt/.gates.lock <command>`, and at most 2 agents run Electron at the same time (the container restarted three times under more, 2026-10-27/28). Electron runs as user `ubuntu` without the proxy variables: `sudo -u ubuntu env -u NODE_EXTRA_CA_CERTS -u NODE_OPTIONS xvfb-run -a ./node_modules/.bin/playwright test --config test/playwright.config.ts <specs>` from `packages/app` after `pnpm --filter @logreq/app build:electron` (`chmod 777 test-results/` first).
+- `spec/` is the specification, a LogReq workspace (D-064). It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with LogReq, in a PR of its own: see the `spec-change` skill.
+- Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision. Before architecture work, read `docs/architecture/README.md` and the ADRs of your area.
+- If a system requirement is unclear, incomplete or contradicts another one, open a `spec-frage` issue with the question and your assumption, and carry the assumption in the PR. Never resolve a spec question silently in code. Do not create component requirements.
 
 ## Product rules that are easy to break
 
-- LogReq never opens network connections (offline, closed networks). Tests run with network blocked.
-- LogReq reads Git, it never writes to Git (D-036).
-- LogReq never deletes elements; it supersedes them (D-045).
-- Status values are only ever set by humans, never computed or set by the tool on its own.
-- Every function is available via app, CLI, API and MCP, with the same result (D-029, SR-080). Add functions only through the command catalog in `packages/core`.
+- LogReq never opens network connections. Tests run with the network blocked.
+- LogReq reads Git and never writes to it (D-036).
+- LogReq never deletes elements. It supersedes them (D-045).
+- Status values are set only by people, never computed by the tool.
+- Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/catalog.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
 - Performance target: 50,000 requirements (N-036).
 
-## Quality gates (required checks)
+## Repository text
 
-Typecheck (strictest settings), lint (strictTypeChecked, zero warnings), format, unit tests with 100 % coverage of product code except React components `.tsx` (ADR-0016, #537), CLI end-to-end tests, Electron tests (Playwright, xvfb on Linux), trace-check, offline test, cross-access consistency test, dependency license and security audit. Nightly: performance with generated data.
+- Business-model topics (licensing terms, prices, revenue, customers, sponsoring, consulting, sales, marketing) never go into this repository, neither into `spec/` nor into issues, PRs, commits, ADRs or docs. A wish with a product function behind it is entered as that function only, worded for the user of the tool (product owner decision, 2026-10-28).
+- No verbatim chat quotes of the product owner, no times of chat messages, no project or thread links and no names from the chat. State the origin as "product owner decision, 2026-10-28" (in German text „Entscheidung des Produktverantwortlichen, 2026-10-28“) plus a paraphrase of what was decided and why. Decision cards and chat statements are named by date and paraphrase, and issue comments by their link. The session links in attribution lines are allowed (product owner decision, 2026-10-28).
+- Code, identifiers, comments, commits, PR titles, ADRs and UI texts are English (D-019). Issues quote the German spec verbatim.
+- Keep PR texts, issues, plans and docs short: the substance, no filler, no repeated summary.
 
-Never lower a coverage threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason; the code review rejects them otherwise (ADR-0016).
+## Traceability (D-049, D-050)
+
+- One issue per system requirement. Work without its own SR is labelled `enabler`.
+- Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The PR title starts with the SR ID, and the body has `Closes #<issue>` and a "Verification" section.
+- Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at stage acceptance.
+- `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.
+
+## Quality gates (ADR-0016)
+
+Strict typecheck, lint with zero warnings, format, and 100 % unit test coverage of product code except React `.tsx`. CLI e2e, Electron, trace-check, offline, cross-access and license and security audit run in CI, and performance at night. Never lower a threshold, switch off a lint rule or a compiler option, or add an ignore to get green. `eslint-disable`, `@ts-expect-error` and `v8 ignore` need a written reason. The commands are in the `verify` skill.
+
+## Traps
+
+- GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/logreq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
+- Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main`, which regenerates conflicting generated files.
+- In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
+- Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
+- The GitHub project "LogReq" is filled from the labels by `project-sync`. Change labels, never project fields.
+- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because PRs run on Linux only and Windows runs at night.
+
+## How we work
+
+- Skills: `verify` (check commands, Electron in the container), `spec-change` (spec, status, SR issues), `lead-run` (a stage over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
+- For an SR issue, the SR in `spec/` wins over the issue text, and the PR says where they differ. Issues labelled `blocked`, `spec-frage` or `needs-human` wait. While an agent works on an issue, it carries `agent:working`, which the board reads.
+- Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building. Other issues need no plan.
+- About one focused test per acceptance criterion, plus what 100 % coverage needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
+- Opus at effort medium by default. Effort high only for risky plans and changes and for the periodic check against the spec.
+- Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If LogReq behaves badly while you use it, open a `dogfooding` issue.
+- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` is not protected. Direct commits to `main` only for trivial fixes. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
+- Small PRs, one SR each unless SRs are inseparable. Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day; a pure wording fix may go straight to `main` (product owner decision, 2026-10-28, #722).
