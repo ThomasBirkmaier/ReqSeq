@@ -3345,7 +3345,7 @@
     {
       "name": "data.export",
       "title": "Export data",
-      "summary": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
+      "summary": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
       "effect": "read",
       "stage": 4,
       "implements": ["SR-061", "SR-101"],
@@ -3367,7 +3367,7 @@
     {
       "name": "data.store",
       "title": "Store data",
-      "summary": "Write the data of the current state to a folder, file name contains the commit.",
+      "summary": "Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Stores the data of the current state with the versions of its elements, which depend on the metamodel (which properties count).",
@@ -3381,7 +3381,8 @@
         "type": "object",
         "properties": {
           "folder": {
-            "$ref": "../common.schema.json#/$defs/localPath"
+            "$ref": "../common.schema.json#/$defs/localPath",
+            "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
           },
           "selection": {
             "$ref": "../common.schema.json#/$defs/selection"
@@ -3397,7 +3398,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Written file, relative to the workspace root."
+              "description": "Written file: relative to the workspace root when it lies in a repository of the workspace, else absolute."
             }
           },
           "problems": {

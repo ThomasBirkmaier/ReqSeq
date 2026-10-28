@@ -177,7 +177,7 @@ sequenceDiagram
   L-->>P: results.xml with UUID, version, item, date (SR-029)
   P->>P: store results.xml in the evidence location (outside LogReq)
   P->>L: logreq data store --folder out/
-  L-->>P: out/<commit>.json for Grafana (SR-062)
+  L-->>P: out/<commit>.json for Grafana (SR-062), <commit>-dirty.json with uncommitted LogReq files
 ```
 
 ## 7. Deployment

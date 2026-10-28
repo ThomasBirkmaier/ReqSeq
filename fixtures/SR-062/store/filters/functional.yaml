@@ -1,0 +1,3 @@
+logreq-filter: 1
+name: Functional
+where: { property: requirement-type, op: eq, value: functional }

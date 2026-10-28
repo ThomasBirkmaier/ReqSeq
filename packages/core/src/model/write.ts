@@ -522,14 +522,21 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
  * `details.rule` says which rule, `details.path` which part of the path, and with `rule: "spelling"`
  * `details.existing` the folder as it is spelled on disk. Returns the path to write: `file`, or
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
- * (`newFileTarget`, #194).
+ * (`newFileTarget`, #194). With `ignored: false` the `ignore` globs do not count, only the safety
+ * rules: for a file the walk never reads, such as the data file of `data.store` (SR-062), which may
+ * go into an ignored build folder.
  */
 export const refuseUnlisted = async (
   layout: WorkspaceLayout,
   repository: RepositoryLocation,
   file: string,
+  options: { readonly ignored?: false } = {},
 ): Promise<string> => {
-  const target = await newFileTarget(repository, ignoredBy(layout), file);
+  const target = await newFileTarget(
+    repository,
+    options.ignored === false ? () => false : ignoredBy(layout),
+    file,
+  );
   if (target.kind === "listed") {
     return target.file;
   }

@@ -95,6 +95,9 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: [WIND, OBSOLETE, RETIRED], view: "core" } },
     { selection: { baseline: "nope" } },
   ],
+  // Without Git (this fixture): nothing is written, the output names git.unavailable (SR-062 K3). The
+  // writes with Git are in the test of data.store below.
+  "data.store": [{ folder: "out" }, { folder: "out", selection: { ids: [RETIRED] } }, {}],
   "element.addAttachment": [
     { ref: WIND, sourcePath: "new/layout.png" },
     { ref: OBSOLETE, sourcePath: "new/layout.png" },
@@ -315,8 +318,12 @@ const expectKept = (root: string, before: Readonly<Record<string, string | null>
   }
 };
 
-const open = async (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
-  const fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements", files: FILES });
+const open = async (git = false): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> => {
+  const fixture = await createFixtureWorkspace({
+    fixture: "SR-001/two-elements",
+    files: FILES,
+    ...(git ? { git: true } : {}),
+  });
   const workspace = new Workspace(fixture.root);
   onTestFinished(async () => {
     await workspace.close();
@@ -417,6 +424,23 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     );
     expect(out).toEqual({ testCases: 4, unknown: [], files: [RAW_JUNIT], problems: [] });
     expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/logreq:version/g)).toHaveLength(4);
+    expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
+  });
+
+  it("[SR-087/AK1] data.store stores elements of every status with Git, refuses a folder, and changes no status", async () => {
+    const { fixture, workspace } = await open(true);
+    const commit = await fixture.head();
+    const out = await runtime.invoke("data.store", { folder: "out" }, { workspace });
+    expect(out).toEqual({ files: [`out/${commit}.json`], problems: [] });
+    const data = JSON.parse(fs.readFileSync(fixture.path(`out/${commit}.json`), "utf8")) as {
+      elements: { status: string }[];
+    };
+    expect(new Set(data.elements.map((e) => e.status))).toEqual(
+      new Set(["draft", "approved", "obsolete", "retired"]),
+    );
+    await expect(runtime.invoke("data.store", { folder: "out/.git" }, { workspace })).rejects.toMatchObject({
+      code: "input.invalid",
+    });
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 

@@ -11,6 +11,7 @@ import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { verificationState } from "../../evidence/index.js";
+import { elementStoreState } from "../../model/index.js";
 import { fileSchemaValidator } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -198,10 +199,33 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     const ws = await fixture();
     const out = await exportOf(open(ws));
     expect(out.repositories).toEqual([
-      { name: "system", available: true, commit: await ws.head("system") },
-      { name: "sensor", available: true, commit: await ws.head("sensor") },
+      { name: "system", available: true, commit: await ws.head("system"), dirty: false },
+      { name: "sensor", available: true, commit: await ws.head("sensor"), dirty: false },
     ]);
     expect(out.incomplete).toBe(false);
+  });
+
+  it("gives dirty: true for a repository whose element files differ from its commit, and no dirty without a commit (SR-062)", async () => {
+    const ws = await fixture();
+    await ws.write(
+      "sensor/requirements/SR-0000000000e1.md",
+      (await readFile(ws.path("sensor/requirements/SR-0000000000e1.md"), "utf8")).replace(
+        "quality",
+        "functional",
+      ),
+    );
+    const out = await exportOf(open(ws));
+    expect(out.repositories.map((r) => [r.name, r.dirty])).toEqual([
+      ["system", false],
+      ["sensor", true],
+    ]);
+    const plain = await createFixtureWorkspace({ fixture: "SR-061/export" });
+    onTestFinished(() => plain.cleanup());
+    const without = await exportOf(open(plain));
+    expect(without.repositories).toEqual([
+      { name: "system", available: true },
+      { name: "sensor", available: true },
+    ]);
   });
 
   it("[SR-006/AK2] marks the export incomplete when a repository of the workspace is not on this machine", async () => {
@@ -210,7 +234,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     const out = await exportOf(open(ws));
     expect(out.incomplete).toBe(true);
     expect(out.repositories).toEqual([
-      { name: "system", available: true, commit: await ws.head("system") },
+      { name: "system", available: true, commit: await ws.head("system"), dirty: false },
       { name: "sensor", available: false },
     ]);
     // What is on this machine is exported; SR-0000b1's child in `sensor` is not.
@@ -232,8 +256,8 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
   it("lists an element whose file no longer holds it with its problem, and the superseded one", async () => {
     const ws = await fixture();
     const workspace = open(ws);
-    // The store is read with N-0000a1 alone, then SR-0000b3's file goes: the store still has it.
-    await exportOf(workspace, { selection: { ids: ["N-0000a1"] } });
+    // The store is read, then SR-0000b3's file goes: the store still has it.
+    await workspace.get(elementStoreState);
     await rm(ws.path("system/requirements/SR-0000000000b3.md"));
     const out = await exportOf(workspace);
     const b3 = element(out, "b3");

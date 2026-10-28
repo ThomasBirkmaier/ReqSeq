@@ -29,7 +29,7 @@ import { currentVersionsOf, elementStoreState, resolveRef, shortIdState } from "
 import { fileSchemaValidator } from "../runtime/contracts.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
-import { workspaceLayoutState } from "../workspace/index.js";
+import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
 import { enrichmentOf } from "./junit.js";
 import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
@@ -696,32 +696,6 @@ const realFolder = async (file: string): Promise<string> => {
       { file: path.basename(file) },
     );
   }
-};
-
-/** Refuses a file in a `.git` folder, in any case and through links (D-036, S1). */
-const refuseGit = (real: string, file: string): void => {
-  if (real.split(path.sep).some((segment) => segment.toLowerCase() === ".git")) {
-    throw new CommandError(
-      "input.invalid",
-      `${path.basename(file)} lies in a .git folder; LogReq never writes to Git`,
-      { file: path.basename(file), reason: "git-folder" },
-    );
-  }
-};
-
-/**
- * `file` (absolute, in the real folder `real`) as `files` and problems give it (S6): relative to the
- * main repository with `/` when it lies below it or in another repository of the workspace (as
- * `workspacePath` gives element files), else absolute. `main` is the real folder of the main repository.
- */
-const shownPath = (layout: WorkspaceLayout, main: string, real: string, file: string): string => {
-  const target = path.join(real, path.basename(file));
-  const folders = [main, ...layout.repositories.filter((r) => r.available).map((r) => r.folder)];
-  const inside = folders.some((folder) => {
-    const relative = path.relative(folder, target);
-    return relative.split(path.sep)[0] !== ".." && !path.isAbsolute(relative);
-  });
-  return inside ? path.relative(main, target).split(path.sep).join("/") : file;
 };
 
 /** The input file: its bytes and snapshot, or `input.invalid` naming only its base name. */

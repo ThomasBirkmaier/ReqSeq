@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://logreq.dev/schemas/data-export.schema.json",
   "title": "Data of a state (Stand) as JSON",
-  "description": "Output of `data.export` and the file written by `data.store` (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
+  "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
   "type": "object",
   "required": ["logreq-data", "workspace", "generated", "repositories", "elements"],
   "properties": {
@@ -38,7 +38,7 @@
           },
           "dirty": {
             "type": "boolean",
-            "description": "Uncommitted changes to LogReq files."
+            "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell."
           }
         },
         "additionalProperties": false

@@ -1,0 +1,7 @@
+logreq-baseline: 1
+name: Release 1
+date: 2026-10-23T09:00:00Z
+repositories:
+  - { name: system, commit: 62aa062aa062aa062aa062aa062aa062aa062aa0 }
+elements:
+  - { id: 62062062-0000-4000-8000-0000000000a1, version: n1:1111111111111111 }

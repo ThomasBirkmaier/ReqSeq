@@ -345,7 +345,7 @@ export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
 
 /**
- * Output of `data.export` and the file written by `data.store` (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.
+ * Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
@@ -360,7 +360,7 @@ export interface DataExportFile {
     readonly available: boolean;
     /** HEAD of the repository, as `workspace.status` gives it; left out when Git cannot tell. */
     readonly commit?: Commit;
-    /** Uncommitted changes to LogReq files. */
+    /** Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell. */
     readonly dirty?: boolean;
   }[];
   /** A repository of the workspace is not on this machine (SR-006 AK2): its elements and the records of its evidence locations are missing. A baselines folder that is not on this machine holds no baseline: `selection.baseline` then gives `input.invalid`. */
@@ -2354,7 +2354,7 @@ export interface EvidenceDegreeOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export input`.
  */
 export interface DataExportInput {
@@ -2362,22 +2362,23 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
- * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state to a folder, file name contains the commit.
+ * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store input`.
  */
 export interface DataStoreInput {
+  /** Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside. */
   readonly folder: LocalPath;
   readonly selection?: ElementSelection;
 }
 
 /**
- * Output of `data.store`. Write the data of the current state to a folder, file name contains the commit.
+ * Output of `data.store`. Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store output`.
  */
 export interface DataStoreOutput {

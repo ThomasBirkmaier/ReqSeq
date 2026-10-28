@@ -17,8 +17,8 @@
 //     view of the selection, else the filter's. `sort` gives its sort for `element.list` (SR-070
 //     AK3: the same elements, in the same order, on every access). An error in a hand-written filter
 //     file names the filter and its file.
-// - `baseline`: only for a command that opts in (`SelectionOptions.baseline`); so far only
-//   data.export (SR-061 AK2; data.store joins with SR-062). The elements the baseline file lists, as
+// - `baseline`: only for a command that opts in (`SelectionOptions.baseline`); so far
+//   data.export (SR-061 AK2) and data.store (SR-062). The elements the baseline file lists, as
 //   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of #530 Q2/Q4). It is found by
 //   name, then by file name (`findBaseline`): none is `input.invalid`, a name two files share too,
 //   a text that names only a faulty file `file.faulty`. Every other command refuses it with

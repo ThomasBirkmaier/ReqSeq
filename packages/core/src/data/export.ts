@@ -1,6 +1,7 @@
 // The data of a state as JSON (SR-061, `data-export.schema.json`, D-008): what `data.export` gives
 // and, with SR-062, what `data.store` writes. Read only: nothing is written and no status is set
-// (D-030); Git is only read for the commit of each repository (`repositoryCommit`, ADR-0006).
+// (D-030); Git is only read for the commit of each repository and whether its files differ from it
+// (`repositoryState`, model/uncommitted.ts, ADR-0006).
 //
 // - Elements (AK1, assumption A3 of #590 Q1): every element of the selection in store order, the
 //   superseded ones included (D-045), each as `element.list` gives it (`listElements`: properties
@@ -22,14 +23,16 @@
 //   date (D-013 is about display; Git history per element is too slow at N-036), the records.
 // - Header (A5): `generated` = the time of the call (UTC, seconds); `selection` as given;
 //   `repositories`: each of the workspace file with `available` and, when Git tells it, `commit`
-//   (`dirty` comes with SR-062, #531 Q2); `incomplete` (SR-006 AK2): the selection is incomplete or an
-//   evidence location is in a repository that is not on this machine.
+//   and `dirty` (SR-062, #531 Q2: uncommitted changes to the files the data is made of, by content);
+//   `incomplete` (SR-006 AK2): the selection is incomplete or an evidence location is in a repository
+//   that is not on this machine.
 // - Workspace problems (A6): the schema has no place for them. Element problems stay in
 //   `elements[].problems`; a repository or evidence location that is not here sets `incomplete`. A
 //   baselines folder that is not here holds no baseline, so `selection.baseline` is `input.invalid`
 //   with the reason (query/selection.ts), never an empty export. Layout, metamodel and record
-//   problems and a refused Git (`git.unavailable`, then there is no `commit`) are left to
-//   `workspace check`. A broken workspace is exported (#590 Q3).
+//   problems are left to `workspace check`, and an unknown Git state (no `commit` or no `dirty`) to
+//   `data.store`, which reports it as `git.unavailable` (`exportDataWithProblems`). A broken
+//   workspace is exported (#590 Q3).
 // - A baseline selection exports the elements as they are now: one changed since the baseline has
 //   another `version` than the baseline lists, and nothing marks it (A1, #530 Q4).
 // Cost (N-036): the versions of the selection are read once (`listElements`), those the status needs
@@ -46,19 +49,32 @@ import type { VersionReader } from "../evidence/index.js";
 import { evidenceReadState, withEvidenceStatus, workspaceStatus } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { propertyWithMeaning } from "../metamodel/index.js";
-import type { CurrentVersion, ElementRecord, ElementStore } from "../model/index.js";
+import type { Problem } from "../catalog.js";
+import type { GitUnknownReason } from "../git/reader.js";
+import type {
+  CurrentVersion,
+  CurrentVersions,
+  ElementRecord,
+  ElementStore,
+  NoCommitReason,
+  RepositoryState,
+  StateReader,
+} from "../model/index.js";
 import {
+  currentVersions,
   currentVersionsOf,
   isOutdatedVersion,
   isUuid,
   listElements,
   relationKey,
-  repositoryCommit,
+  repositoryState,
+  stateRules,
 } from "../model/index.js";
 import type { Selected } from "../query/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { Validity } from "../variants/index.js";
 import { validityEntries, validityOf, validityTarget } from "../variants/index.js";
+import type { RepositoryLocation } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 
 /** The relation properties `exportedElement` gives as lists of UUIDs. */
@@ -173,6 +189,7 @@ export const exportHeader = (input: {
     readonly name: string;
     readonly available: boolean;
     readonly commit?: string;
+    readonly dirty?: boolean;
   }[];
   readonly incomplete: boolean;
 }): Omit<DataExportFile, "elements"> => ({
@@ -180,10 +197,11 @@ export const exportHeader = (input: {
   workspace: input.name,
   generated: input.generated,
   ...(input.selection === undefined ? {} : { selection: input.selection }),
-  repositories: input.repositories.map(({ name, available, commit }) => ({
+  repositories: input.repositories.map(({ name, available, commit, dirty }) => ({
     name,
     available,
     ...(commit === undefined ? {} : { commit }),
+    ...(dirty === undefined ? {} : { dirty }),
   })),
   incomplete: input.incomplete,
 });
@@ -194,15 +212,115 @@ export interface ExportOptions {
   readonly read?: VersionReader;
   /** The time of the export; default now. */
   readonly now?: () => Date;
+  /** Reads Git and the disk for `dirty`; default `DEFAULT_STATE_READER` (model/uncommitted.ts). */
+  readonly state?: StateReader;
 }
 
-/** The data of the elements `selected` selected in `workspace`, for the input `selection` (see the file comment). */
-export const exportData = async (
+/** Why there is no commit, in words (`NoCommitReason`). */
+export const NO_COMMIT_TEXT: Readonly<Record<NoCommitReason, string>> = {
+  "no-git": "Git is not installed or not on PATH",
+  refused: "Git refuses to read it because another user owns it, see git config safe.directory",
+  timeout: "Git did not answer in time",
+  "not-a-repository": "it is in no Git repository",
+  "no-commit": "its Git repository has no commit yet",
+  "no-tree": "its commit holds nothing at this folder",
+};
+
+/** Why Git cannot tell `dirty`, in words (`GitUnknownReason`). */
+const DIRTY_UNKNOWN_TEXT: Readonly<Record<GitUnknownReason, string>> = {
+  "no-git": NO_COMMIT_TEXT["no-git"],
+  refused: NO_COMMIT_TEXT.refused,
+  timeout: NO_COMMIT_TEXT.timeout,
+  "not-a-repository": "git failed",
+};
+
+/**
+ * The `git.unavailable` warning of an available repository whose state is not known in full: no
+ * commit, or a commit without `dirty`; undefined when both are known. `data.store` names the file
+ * `-dirty` then (SR-062 K2).
+ */
+const stateProblem = (name: string, state: RepositoryState): Problem | undefined => {
+  const why =
+    state.unknown === undefined
+      ? state.dirtyUnknown === undefined
+        ? undefined
+        : `Git cannot tell whether repository ${name} has uncommitted changes (${DIRTY_UNKNOWN_TEXT[state.dirtyUnknown]})`
+      : `The commit of repository ${name} is unknown (${NO_COMMIT_TEXT[state.unknown]})`;
+  return why === undefined
+    ? undefined
+    : {
+        code: "git.unavailable",
+        severity: "warning",
+        repository: name,
+        message: `${why}; a stored state is marked dirty`,
+      };
+};
+
+/** The files elements of `versions` embed, per repository: relative to it with `/`, in NFC. */
+const embedsOf = (versions: CurrentVersions): ReadonlyMap<string, ReadonlySet<string>> => {
+  const embeds = new Map<string, Set<string>>();
+  for (const [record, entry] of versions.byRecord) {
+    if (entry.kind === "version") {
+      for (const image of entry.images) {
+        if (image.found !== "nested") {
+          const files = embeds.get(record.repository) ?? new Set();
+          files.add(image.names.join("/").normalize("NFC"));
+          embeds.set(record.repository, files);
+        }
+      }
+    }
+  }
+  return embeds;
+};
+
+/** One repository of the header with its state (an available one) and its problem. */
+interface StatedRepository {
+  readonly repository: RepositoryLocation;
+  readonly state?: RepositoryState;
+}
+
+/** What `data.store` needs beyond the data (SR-062). */
+export interface ExportWithProblems {
+  readonly data: DataExportOutput;
+  /** `git.unavailable` warnings, and the missing repositories when the data is incomplete. */
+  readonly problems: readonly Problem[];
+  /** Every available repository has a known commit and is known clean. */
+  readonly clean: boolean;
+}
+
+/** The state of each repository of `workspace` (see `repositoryState`). */
+const repositoryStates = async (
+  workspace: Workspace,
+  selected: Selected,
+  state: StateReader | undefined,
+): Promise<StatedRepository[]> => {
+  const layout = await workspace.get(workspaceLayoutState);
+  const embeds = embedsOf(await currentVersions(workspace));
+  return Promise.all(
+    layout.repositories.map(async (repository): Promise<StatedRepository> => {
+      if (!repository.available) {
+        return { repository };
+      }
+      const rules = stateRules(layout, repository, embeds.get(repository.name) ?? new Set());
+      const elements = selected.store.elements
+        .filter((record) => record.repository === repository.name)
+        .map((record) => record.file);
+      return { repository, state: await repositoryState(rules, elements, state) };
+    }),
+  );
+};
+
+/**
+ * `exportData`, and the problems and the name rule `data.store` gives with it (SR-062 K2, K6): a
+ * `git.unavailable` warning per available repository whose commit or `dirty` is unknown, and the
+ * `workspace.repository-missing` infos of the layout when the data is incomplete.
+ */
+export const exportDataWithProblems = async (
   workspace: Workspace,
   selected: Selected,
   selection: ElementSelection | undefined,
   options: ExportOptions = {},
-): Promise<DataExportOutput> => {
+): Promise<ExportWithProblems> => {
   const generated = exportTime((options.now ?? (() => new Date()))());
   const layout = await workspace.get(workspaceLayoutState);
   const status = await workspaceStatus(workspace, selected.elements);
@@ -212,25 +330,42 @@ export const exportData = async (
       exportedElement(properties, record, withEvidenceStatus(status, record, element)),
   });
   const read = options.read ?? ((records) => currentVersionsOf(workspace, records));
-  const [elements, repositories, evidence] = await Promise.all([
+  const [elements, stated, evidence] = await Promise.all([
     withRelationVersions(selected.store, listed, read),
-    Promise.all(
-      layout.repositories.map(async (repository) =>
-        repository.available
-          ? { name: repository.name, available: true, ...(await repositoryCommit(repository)) }
-          : { name: repository.name, available: false },
-      ),
-    ),
+    repositoryStates(workspace, selected, options.state),
     workspace.get(evidenceReadState),
   ]);
-  return {
+  const incomplete = selected.incomplete || evidence.incomplete;
+  const data = {
     ...exportHeader({
       name: layout.name,
       generated,
       selection,
-      repositories,
-      incomplete: selected.incomplete || evidence.incomplete,
+      repositories: stated.map(({ repository, state }) => ({
+        name: repository.name,
+        available: repository.available,
+        ...(state?.commit === undefined ? {} : { commit: state.commit }),
+        ...(state?.dirty === undefined ? {} : { dirty: state.dirty }),
+      })),
+      incomplete,
     }),
     elements,
   };
+  const problems = [
+    ...stated.flatMap(({ repository, state }) => {
+      const problem = state === undefined ? undefined : stateProblem(repository.name, state);
+      return problem === undefined ? [] : [problem];
+    }),
+    ...(incomplete ? layout.problems.filter((p) => p.code === "workspace.repository-missing") : []),
+  ];
+  const clean = stated.every(({ state }) => state === undefined || state.dirty === false);
+  return { data, problems, clean };
 };
+
+/** The data of the elements `selected` selected in `workspace`, for the input `selection` (see the file comment). */
+export const exportData = async (
+  workspace: Workspace,
+  selected: Selected,
+  selection: ElementSelection | undefined,
+  options: ExportOptions = {},
+): Promise<DataExportOutput> => (await exportDataWithProblems(workspace, selected, selection, options)).data;

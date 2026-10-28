@@ -603,7 +603,7 @@
     },
     "data-export": {
       "title": "Data of a state (Stand) as JSON",
-      "description": "Output of `data.export` and the file written by `data.store` (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
+      "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
       "type": "object",
       "required": [
         "logreq-data",
@@ -648,7 +648,7 @@
               },
               "dirty": {
                 "type": "boolean",
-                "description": "Uncommitted changes to LogReq files."
+                "description": "Uncommitted changes, by content against `commit`, to the files the data is made of (workspace file, YAML files of the metamodel, filter and baseline folders, element files and the files they embed, also ones Git ignores; not evidence records); left out when Git cannot tell."
               }
             },
             "additionalProperties": false
@@ -6098,7 +6098,7 @@
     {
       "name": "data_export",
       "title": "Export data",
-      "description": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. The only command so far that takes `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
+      "description": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -6121,7 +6121,7 @@
     {
       "name": "data_store",
       "title": "Store data",
-      "description": "Write the data of the current state to a folder, file name contains the commit.",
+      "description": "Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -6131,7 +6131,8 @@
         "type": "object",
         "properties": {
           "folder": {
-            "$ref": "#/$defs/common/$defs/localPath"
+            "$ref": "#/$defs/common/$defs/localPath",
+            "description": "Folder for the file; created when missing inside a repository of the workspace (also an ignored one), must exist outside."
           },
           "selection": {
             "$ref": "#/$defs/common/$defs/selection"
@@ -6149,7 +6150,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "description": "Written file, relative to the workspace root."
+              "description": "Written file: relative to the workspace root when it lies in a repository of the workspace, else absolute."
             }
           },
           "problems": {

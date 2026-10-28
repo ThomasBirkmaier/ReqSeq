@@ -32,6 +32,9 @@ const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 /** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image and a JUnit file. */
 type Scenario = Readonly<Record<string, unknown>>;
 
+/** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3). */
+const GIT_COMMANDS: ReadonlySet<string> = new Set(["data.store"]);
+
 /** Every implemented write command, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
   "element.addAttachment": [
@@ -86,6 +89,8 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { ref: "SR-ffffff", kind: "validation", result: "passed" },
   ],
   // Enriching replaces the JUnit file in place or writes a new one; the input stays (SR-029).
+  // With Git (see GIT_COMMANDS): the second call replaces the data file of the same commit, which keeps it.
+  "data.store": [{ folder: "out" }, { folder: "out" }, { folder: "out/.git" }],
   "evidence.enrichJunit": [
     { file: "new/results.xml", item: "build-1", date: "2026-10-27T10:00:00Z", output: "new/enriched.xml" },
     { file: "new/results.xml", item: "build-1", date: "2026-10-27T10:00:00Z" },
@@ -161,6 +166,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
           "new/results.xml":
             '<testsuites><testsuite name="s"><testcase name="[SR-e88fb3] wind"/></testsuite></testsuites>\n',
         },
+        ...(GIT_COMMANDS.has(name) ? { git: true } : {}),
       });
       onTestFinished(() => fixture.cleanup());
       const workspace = new Workspace(fixture.root);

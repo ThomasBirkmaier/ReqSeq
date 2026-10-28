@@ -75,6 +75,7 @@ const SELECTION_TOOLS: readonly string[] = [
   "evidence_coverage",
   "evidence_degree",
   "data_export",
+  "data_store",
 ];
 /**
  * What each listed tool brings to the bound of the whole list (#496). The tools average 1.85 KB without their

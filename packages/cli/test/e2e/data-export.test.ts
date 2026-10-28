@@ -21,7 +21,11 @@ beforeAll(() => {
 const P = "61061061-0000-4000-8000-0000000000";
 
 interface Exported {
-  readonly repositories: readonly { readonly name: string; readonly commit?: string }[];
+  readonly repositories: readonly {
+    readonly name: string;
+    readonly commit?: string;
+    readonly dirty?: boolean;
+  }[];
   readonly elements: readonly {
     readonly id: string;
     readonly version?: string;
@@ -71,8 +75,8 @@ describe("logreq data export (SR-061)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as Exported;
     expect(out.repositories).toEqual([
-      { name: "system", available: true, commit: await ws.head("system") },
-      { name: "sensor", available: true, commit: await ws.head("sensor") },
+      { name: "system", available: true, commit: await ws.head("system"), dirty: false },
+      { name: "sensor", available: true, commit: await ws.head("sensor"), dirty: false },
     ]);
     expect(out.elements.map((e) => e.id.slice(-2))).toEqual([
       "a1",
