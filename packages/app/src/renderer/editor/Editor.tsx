@@ -160,6 +160,28 @@ const theme = EditorView.theme({
   ".cm-lr-table": { borderCollapse: "collapse", margin: "0.5rem 0" },
   ".cm-lr-table th, .cm-lr-table td": { border: "1px solid var(--rule)", padding: "0.2rem 0.6rem" },
   ".cm-lr-table th": { fontWeight: "700", textAlign: "left" },
+  // Formulas (SR-096, `formula-preview.ts`): KaTeX draws in the text colour; an error is grey (D-062).
+  ".cm-lr-formula-block": { padding: "0.25rem 0", overflowX: "auto", overflowY: "hidden" },
+  ".cm-lr-formula-block .katex-display": { margin: "0.25rem 0" },
+  // Below a source in its last line (a code line, maybe a thin fence line): the size and the sheet of the text.
+  ".cm-line .cm-lr-formula-block": {
+    fontSize: "1rem",
+    lineHeight: "1.6",
+    margin: "0 -0.5rem",
+    padding: "0.25rem 0.5rem",
+    backgroundColor: "var(--sheet)",
+  },
+  ".cm-lr-render-error": { color: "var(--muted)", fontSize: "0.85em", whiteSpace: "pre-wrap" },
+  "span.cm-lr-render-error": { marginLeft: "0.5em" },
+  ".cm-lr-render-error-label": { fontWeight: "700" },
+  ".cm-tooltip.cm-lr-formula-tooltip": {
+    backgroundColor: "var(--sheet)",
+    color: "var(--text)",
+    border: "1px solid var(--rule)",
+    boxShadow: "0 4px 12px var(--shadow)",
+    padding: "0.25rem 0.5rem",
+    pointerEvents: "none",
+  },
   // The slash menu (SR-129, `slash-menu.ts`): the tooltip of @codemirror/autocomplete with the look of the
   // candidates of the minibuffer. The base theme of the library has colour literals (a light grey box, a
   // blue selection) that would stay in the dark scheme, so every rule that sets one is overridden here by

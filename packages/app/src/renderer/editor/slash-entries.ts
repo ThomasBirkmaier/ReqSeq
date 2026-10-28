@@ -124,8 +124,7 @@ export const entriesFor = (inTable: boolean): readonly SlashEntry[] =>
     ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || entry.kind === "reference")
     : SLASH_ENTRIES;
 
-// Where a `/` does not open the menu and `[[` no search: code, links, addresses, HTML. Formulas (`$…$`) have
-// no node yet; their nodes go here when #108 adds them.
+// Where a `/` does not open the menu and `[[` no search: code, links, addresses, HTML and formulas (SR-096).
 const NOT_IN = new Set([
   "FencedCode",
   "CodeBlock",
@@ -138,6 +137,8 @@ const NOT_IN = new Set([
   "HTMLTag",
   "CommentBlock",
   "Comment",
+  "InlineMath",
+  "BlockMath",
 ]);
 const TABLE = new Set(["Table", "TableHeader", "TableRow"]);
 
@@ -153,7 +154,7 @@ const ancestors = (state: EditorState, pos: number): string[] => {
   return names;
 };
 
-/** Whether the character at `pos` stands in code, a link, an address or HTML (the `/` menu and `[[`, SR-066). */
+/** Whether the character at `pos` stands in code, a link, an address, HTML or a formula (the `/` menu and `[[`, SR-066). */
 export const inMarkup = (state: EditorState, pos: number): boolean =>
   ancestors(state, pos + 1).some((name) => NOT_IN.has(name));
 

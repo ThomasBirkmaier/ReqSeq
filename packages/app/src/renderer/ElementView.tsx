@@ -44,6 +44,7 @@ import {
 } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
+import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { referenceAt, references, referencesIn } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
@@ -802,15 +803,21 @@ export const ElementView = ({
   stepRef.current = step;
   const plugins = useMemo(
     () =>
-      mergePlugins(references({ outdated: outdated ?? new Map(), follow, title }), slash, brackets, {
-        // After the slash menu, which takes Down while it is open.
-        extensions: [
-          boxNavigation(
-            { down: () => stepRef.current("Text", 1), up: () => stepRef.current("Text", -1) },
-            Prec.high,
-          ),
-        ],
-      }),
+      mergePlugins(
+        references({ outdated: outdated ?? new Map(), follow, title }),
+        slash,
+        brackets,
+        formulasAndDiagrams,
+        {
+          // After the slash menu, which takes Down while it is open.
+          extensions: [
+            boxNavigation(
+              { down: () => stepRef.current("Text", 1), up: () => stepRef.current("Text", -1) },
+              Prec.high,
+            ),
+          ],
+        },
+      ),
     [signature, slash, brackets, title],
   );
 

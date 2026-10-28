@@ -299,7 +299,9 @@ export const previewDecorations = (
   const ranges: Ranges = [];
   syntaxTree(state).iterate({
     enter: (node: SyntaxNodeRef) => {
-      for (const rule of byName.get(node.name) ?? []) {
+      const all = byName.get(node.name) ?? [];
+      const owners = all.filter((rule) => rule.owns?.(node, context) === true);
+      for (const rule of owners.length > 0 ? owners : all) {
         ranges.push(...rule.decorate(node, context));
       }
     },

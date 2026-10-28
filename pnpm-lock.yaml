@@ -86,6 +86,9 @@ importers:
       '@logreq/core':
         specifier: workspace:*
         version: link:../core
+      katex:
+        specifier: 0.19.0
+        version: 0.19.0
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -998,6 +1001,10 @@ packages:
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
+    hasBin: true
+
+  katex@0.19.0:
+    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
     hasBin: true
 
   keyv@5.6.0:
@@ -2379,6 +2386,10 @@ snapshots:
   json-stable-stringify-without-jsonify@1.0.1: {}
 
   json5@2.2.3: {}
+
+  katex@0.19.0:
+    dependencies:
+      commander: 15.0.0
 
   keyv@5.6.0:
     dependencies:

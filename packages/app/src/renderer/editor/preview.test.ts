@@ -305,6 +305,18 @@ describe("plugin rules", () => {
     decorate("*a*\n*b*", 1, undefined, [...BUILT_IN_RULES, rule]);
     expect(seen).toEqual(["Emphasis:true", "Emphasis:false"]);
   });
+
+  it("lets a rule that owns a node draw it alone, only while it says so for the context", () => {
+    const rule: PreviewRule = {
+      nodes: ["Emphasis"],
+      // Owns the emphasis off the cursor line: there it replaces the built-in style.
+      owns: (node, context) => !context.sourceLine(node.from),
+      decorate: () => [],
+    };
+    const found = decorate("*a*\n*b*", 1, undefined, [...BUILT_IN_RULES, rule]);
+    expect(named(found, "cm-lr-em")).toEqual([{ from: 0, to: 3, kind: "mark", name: "cm-lr-em" }]);
+    expect(hidden(found)).toEqual([]);
+  });
 });
 
 describe("livePreview", () => {

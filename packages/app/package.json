@@ -32,6 +32,7 @@
     "@lezer/highlight": "1.2.5",
     "@lezer/markdown": "1.8.0",
     "@logreq/core": "workspace:*",
+    "katex": "0.19.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

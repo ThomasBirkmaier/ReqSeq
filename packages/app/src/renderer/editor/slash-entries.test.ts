@@ -6,6 +6,7 @@ import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import { describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
+import { mathSyntax } from "./math-syntax.js";
 import {
   SLASH_ENTRIES,
   applyEntry,
@@ -113,6 +114,17 @@ describe("where the menu opens", () => {
     expect(opens("<https://example.org/ >", 21)).toBe(false);
     expect(opens("<div>\n/\n</div>")).toBe(false);
     expect(opens("<!-- /")).toBe(false);
+  });
+
+  it("does not open in a formula (SR-096)", () => {
+    const withMath = (text: string, at = text.indexOf("/")): boolean =>
+      opensMenu(
+        EditorState.create({ doc: text, extensions: [markdownSupport({ markdown: [mathSyntax] })] }),
+        at,
+      );
+    expect(withMath("$a /b$")).toBe(false);
+    expect(withMath("$$\n/\n$$")).toBe(false);
+    expect(withMath("$a$ /")).toBe(true);
   });
 
   it("[SR-129/AK1] finds the / with its query, up to the caret", () => {
