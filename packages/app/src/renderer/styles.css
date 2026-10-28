@@ -571,6 +571,16 @@ mark {
   font-size: 12px;
 }
 
+/* The next keys after the prefix key (SR-109 AK3): the key, muted, before its command. */
+.candidates.next-keys li {
+  justify-content: flex-start;
+}
+
+.candidates.next-keys .key {
+  min-width: 1.5rem;
+  color: var(--muted);
+}
+
 /* The neighbourhood (SR-107): the parents above the title, the children as a tree, the incoming links by
    kind. The rows are those of the lists. Greys, and the accent for "outdated" only. */
 .neighbourhood {

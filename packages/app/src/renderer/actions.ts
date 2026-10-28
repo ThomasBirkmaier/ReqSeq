@@ -32,6 +32,7 @@ import {
   withMatrix,
 } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
+import { bindingLabel } from "./bindings.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { Shortcut } from "./keys.js";
 import { shortcutLabel } from "./keys.js";
@@ -281,7 +282,8 @@ export const PREVIOUS_BUFFER_SHORTCUT: Shortcut = { mod: false, shift: false, al
 
 /**
  * Ctrl/Cmd+Shift+O turns the mode „Agent folgen“ on, and off again (SR-117 AK4). Not Shift+G: that is the
- * graph (SR-111); Ctrl/Cmd+G stays free for the keyboard-quit, Ctrl/Cmd+K is the reserved prefix (#472).
+ * graph (SR-111); Ctrl/Cmd+G stays free for the keyboard-quit, Ctrl/Cmd+K is the prefix key
+ * (`bindings.ts`, #472).
  */
 export const FOLLOW_SHORTCUT: Shortcut = { mod: true, shift: true, key: "o" };
 
@@ -1121,7 +1123,7 @@ export const ACTIONS: readonly Action[] = [
   {
     // SR-130 AK1: the title of `metamodel.get` in the catalog; it covers that command, so the command
     // prompt lists it once (initials "sm") and its output opens the metamodel buffer as a graph, never a
-    // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the reserved prefix, #472). Not
+    // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the prefix key, #472). Not
     // offered on the metamodel itself (SR-133): there the toggle switches between graph and text, so on
     // the text "sm" finds "Show metamodel as graph" only with more letters (review N2). An open metamodel
     // buffer is shown as a graph and keeps its selection.
@@ -1211,9 +1213,15 @@ export const runAction = (action: Action, context: ActionContext): void => {
   action.run(context);
 };
 
-/** The hint of a prompt entry: the shortcut, or else the key that works in the buffer. */
+/**
+ * The hint of a prompt entry: the shortcut, else its letter after the prefix key ("Ctrl+K L", SR-121
+ * AK3), else the key that works in the buffer.
+ */
 const hintOf = (action: Action, mac: boolean): { readonly hint?: string } => {
-  const hint = action.shortcut === undefined ? action.hint : shortcutLabel(action.shortcut, mac);
+  const hint =
+    action.shortcut === undefined
+      ? (bindingLabel(action.id, mac) ?? action.hint)
+      : shortcutLabel(action.shortcut, mac);
   return hint === undefined ? {} : { hint };
 };
 

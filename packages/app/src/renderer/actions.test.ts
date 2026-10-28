@@ -26,7 +26,8 @@ import {
   withMatrix,
 } from "./buffers.js";
 import { savedStep, typeStep } from "./list-filters.js";
-import { matches } from "./keys.js";
+import { MOST_FREQUENT, PREFIX, PREFIX_BINDINGS, prefixLabel } from "./bindings.js";
+import { matches, shortcutLabel } from "./keys.js";
 import { openingOrder } from "./opening-order.js";
 import type { Call } from "./call.js";
 import { rank } from "./fuzzy.js";
@@ -110,6 +111,52 @@ const filtered = listBuffer("type: need", { where: { type: ["need"] } }, [{ by: 
 const element = elementBuffer("u1", "spec", "SR-036 Title");
 
 const titles = (context: ActionContext): string[] => commandPrompt(context).items.map((item) => item.name);
+
+/** A context for every kind of buffer and state in which actions apply, to check what holds for all of them. */
+const everyContext = (): ActionContext[] => {
+  const controls = {
+    save: vi.fn(),
+    edit: vi.fn(),
+    editTitle: vi.fn(),
+    follow: vi.fn(),
+    copy: vi.fn(),
+    addProperty: vi.fn(),
+    clearProperty: vi.fn(),
+    listValue: vi.fn(),
+    flush: vi.fn(() => Promise.resolve(true)),
+    prompting: vi.fn(),
+  };
+  const page = { ...controls, members: true };
+  return [
+    setup([element], {}, true, { element: controls }).context,
+    setup([element], {}, true, { element: page }).context,
+    setup([element]).context,
+    setup([list]).context,
+    setup([filtered]).context,
+    // The matrix (SR-125): the list in matrix mode (a package page above offers it too).
+    setup([withMatrix(filtered, true)]).context,
+    setup([overviewBuffer()]).context,
+    setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
+    // The graph (SR-111): Ctrl/Cmd+Shift+G back to the element.
+    setup([graphBuffer("uuid", "spec", "X")]).context,
+    // The metamodel (SR-130).
+    setup([metamodelBuffer()]).context,
+    setup([metamodelBuffer("text")]).context,
+    setup([], {}, true).context,
+    // Two buffers: Alt+N and Alt+P switch between them (SR-115 AK5).
+    setup([element, list]).context,
+    // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
+    ...[false, true].flatMap((on) =>
+      [[element], [list], [graphBuffer("uuid", "spec", "X")], [overviewBuffer()]].map(
+        (buffers) =>
+          setup(buffers, {}, true, {
+            element: controls,
+            follow: { on, start: vi.fn(), stop: vi.fn() },
+          }).context,
+      ),
+    ),
+  ];
+};
 
 describe("the command prompt", () => {
   it("offers on a list: search and filter and sort, not what needs an element or a filter", () => {
@@ -202,10 +249,10 @@ describe("the command prompt", () => {
     ]);
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
-      undefined,
+      "Ctrl+K O",
       "Ctrl+Shift+F",
-      undefined,
-      undefined,
+      "Ctrl+K L",
+      "Ctrl+K B",
       undefined,
       "Ctrl+S",
       "Enter",
@@ -258,17 +305,17 @@ describe("the command prompt", () => {
     const items = commandPrompt(setup([list]).context).items;
     expect(items.map((item) => item.hint)).toEqual([
       "Ctrl+P",
-      undefined,
+      "Ctrl+K O",
       "Ctrl+Shift+F",
+      "Ctrl+K L",
+      "Ctrl+K F",
       undefined,
       undefined,
       undefined,
       undefined,
-      undefined,
-      undefined,
-      undefined,
+      "Ctrl+K S",
       "Ctrl+T",
-      undefined,
+      "Ctrl+K B",
       undefined,
       undefined,
       undefined,
@@ -276,6 +323,61 @@ describe("the command prompt", () => {
     expect(commandPrompt({ ...setup([list]).context, mac: true }).items[0]?.hint).toBe("⌘P");
     expect(titles(setup([list]).context)).not.toContain("Command");
     expect(COMMAND_SHORTCUT).toEqual({ mod: true, shift: true, key: "p" });
+  });
+
+  it("[SR-109/AK1] shows each action that has a shortcut with its shortcut, as the platform writes it", () => {
+    const shown = new Set<string>();
+    // The keys that work only in the buffer are those commands' shortcuts there (#472 Q2), pinned literally.
+    const bufferKeys: Readonly<Record<string, string>> = {
+      edit: "Enter",
+      "edit-title": "Enter on the title",
+      "graph-depth": "+ / -",
+    };
+    const bufferKeysShown = new Set<string>();
+    for (const context of everyContext()) {
+      for (const mac of [false, true]) {
+        const now = { ...context, mac };
+        const items = commandPrompt(now).items;
+        for (const action of ACTIONS.filter((candidate) => candidate.available(now))) {
+          const hint = items.find((item) => item.id === action.id)?.hint;
+          if (action.shortcut !== undefined) {
+            expect(hint).toBe(shortcutLabel(action.shortcut, mac));
+            shown.add(action.id);
+          } else if (action.hint !== undefined) {
+            // A key that works only in the buffer ("Enter" for "Edit text") is its shortcut there (#472).
+            expect(hint).toBe(bufferKeys[action.id]);
+            bufferKeysShown.add(action.id);
+          }
+        }
+      }
+    }
+    // Every action with a shortcut was seen with it.
+    expect([...shown].sort()).toEqual(
+      ACTIONS.filter((action) => action.shortcut !== undefined)
+        .map((action) => action.id)
+        .sort(),
+    );
+    // Every buffer key was seen with its text.
+    expect([...bufferKeysShown].sort()).toEqual(Object.keys(bufferKeys).sort());
+  });
+
+  it("[SR-109/AK2] shows nothing next to an action without a shortcut", () => {
+    // A letter after the prefix key is a shortcut too ("Ctrl+K O" for "Show overview", SR-121 AK3).
+    const bound = new Set(PREFIX_BINDINGS.map((binding) => binding.id));
+    const plain = new Set<string>();
+    for (const context of everyContext()) {
+      const items = commandPrompt(context).items;
+      for (const action of ACTIONS.filter((candidate) => candidate.available(context))) {
+        if (action.shortcut === undefined && action.hint === undefined && !bound.has(action.id)) {
+          expect(items.find((item) => item.id === action.id)).not.toHaveProperty("hint");
+          plain.add(action.id);
+        }
+      }
+    }
+    expect(plain).toContain("clear-filter");
+    expect(plain).toContain("close-all");
+    expect(plain).toContain("version");
+    expect(plain).not.toContain("overview");
   });
 
   it("[SR-108/AK1] finds each action among the first three by its initials and by a typo, on the real names", () => {
@@ -1158,45 +1260,7 @@ describe("save element and edit text", () => {
   });
 
   it("[SR-128/AK3] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {
-    const controls = {
-      save: vi.fn(),
-      edit: vi.fn(),
-      follow: vi.fn(),
-      copy: vi.fn(),
-      addProperty: vi.fn(),
-      clearProperty: vi.fn(),
-      listValue: vi.fn(),
-      flush: vi.fn(() => Promise.resolve(true)),
-      prompting: vi.fn(),
-    };
-    const page = { ...controls, members: true };
-    const contexts = [
-      setup([element], {}, true, { element: controls }).context,
-      setup([element], {}, true, { element: page }).context,
-      setup([element]).context,
-      setup([list]).context,
-      setup([filtered]).context,
-      // The matrix (SR-125): the list in matrix mode (a package page above offers it too).
-      setup([withMatrix(filtered, true)]).context,
-      setup([overviewBuffer()]).context,
-      setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
-      // The graph (SR-111): Ctrl/Cmd+Shift+G back to the element.
-      setup([graphBuffer("uuid", "spec", "X")]).context,
-      // The metamodel (SR-130).
-      setup([metamodelBuffer()]).context,
-      setup([metamodelBuffer("text")]).context,
-      setup([], {}, true).context,
-      // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
-      ...[false, true].flatMap((on) =>
-        [[element], [list], [graphBuffer("uuid", "spec", "X")], [overviewBuffer()]].map(
-          (buffers) =>
-            setup(buffers, {}, true, {
-              element: controls,
-              follow: { on, start: vi.fn(), stop: vi.fn() },
-            }).context,
-        ),
-      ),
-    ];
+    const contexts = everyContext();
     // Shortcuts as written: `shift` may be left out.
     const written = (shortcut: { mod: boolean; shift?: boolean; key: string }): string =>
       JSON.stringify([shortcut.mod, shortcut.shift === true, shortcut.key]);
@@ -1206,7 +1270,47 @@ describe("save element and edit text", () => {
       );
       expect(new Set(shortcuts).size).toBe(shortcuts.length);
       expect(shortcuts).not.toContain(written(COMMAND_SHORTCUT));
+      // Ctrl/Cmd+K is the prefix key (#472): no action has it as its own shortcut.
+      expect(shortcuts).not.toContain(written(PREFIX));
     }
+    // The letters after the prefix are unique, and no action has both a shortcut and a letter.
+    const letters = PREFIX_BINDINGS.map((binding) => binding.key);
+    expect(new Set(letters).size).toBe(letters.length);
+    for (const binding of PREFIX_BINDINGS) {
+      expect(ACTIONS.find((candidate) => candidate.id === binding.id)?.shortcut).toBeUndefined();
+    }
+  });
+
+  it("[SR-121/AK3] shows the fixed shortcut next to each of the most frequent commands where it applies", () => {
+    const seen = new Set<string>();
+    for (const context of everyContext()) {
+      for (const mac of [false, true]) {
+        const now = { ...context, mac };
+        const items = commandPrompt(now).items;
+        for (const id of MOST_FREQUENT) {
+          const item = items.find((candidate) => candidate.id === id);
+          if (item === undefined) {
+            continue;
+          }
+          seen.add(id);
+          const shortcut = ACTIONS.find((candidate) => candidate.id === id)?.shortcut;
+          const letter = PREFIX_BINDINGS.find((binding) => binding.id === id)?.key;
+          expect(item.hint).toBe(
+            shortcut === undefined ? prefixLabel(letter ?? "", mac) : shortcutLabel(shortcut, mac),
+          );
+        }
+      }
+    }
+    // Each of the actions among them is shown somewhere ("Create element" is a catalog command,
+    // `catalog-commands.test.ts`).
+    expect([...seen].sort()).toEqual(MOST_FREQUENT.filter((id) => !id.startsWith("command:")).sort());
+    // Written out once: the letters of the list and the overview.
+    const onList = commandPrompt(setup([list]).context).items;
+    expect(onList.find((item) => item.id === "list-all")?.hint).toBe("Ctrl+K L");
+    expect(
+      commandPrompt({ ...setup([list]).context, mac: true }).items.find((item) => item.id === "overview")
+        ?.hint,
+    ).toBe("⌘K O");
   });
 
   it("do nothing without controls", () => {

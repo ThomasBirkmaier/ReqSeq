@@ -32,6 +32,7 @@ import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 import { graphFilterChoices, graphMeanings } from "./graph-choices.js";
+import { PREFIX } from "./bindings.js";
 import { isMac, matches } from "./keys.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
@@ -66,6 +67,7 @@ import { referenceTitles } from "./reference-titles.js";
 import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
+import { usePrefix } from "./use-prefix.js";
 import { promptUse } from "./usage.js";
 import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 
@@ -704,6 +706,18 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       : [];
     return commandPrompt(now, promptUse(appStorage), items);
   }, [ask]);
+  // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.
+  const prefix = usePrefix({
+    mac: context.mac,
+    items: () => commands().items,
+    nameOf: (id) =>
+      ACTIONS.find((action) => action.id === id)?.title ??
+      catalog.current.find((command) => `command:${command.name}` === id)?.title,
+    setEcho,
+    buffers,
+    switching,
+  });
+  const startPrefix = prefix.start;
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       // A key that a control already handled (the minibuffer, the editor, a list) is no shortcut.
@@ -725,6 +739,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       if (!now.workspace) {
         return;
       }
+      // The prefix starts in this event, so the next key finds it waiting; not while a prompt is open,
+      // whose input takes the keys (SR-109 AK3).
+      if (openPrompt.current === undefined && matches(event, PREFIX, now.mac)) {
+        event.preventDefault();
+        startPrefix();
+        return;
+      }
       const action = actionFor(now, (shortcut) => matches(event, shortcut, now.mac));
       if (action !== undefined) {
         event.preventDefault();
@@ -735,7 +756,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [ask, commands]);
+  }, [ask, commands, startPrefix]);
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
@@ -883,6 +904,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       <Minibuffer
         echo={echoLine(echo, view)}
         prompt={prompt}
+        nextKeys={prefix.rows}
         onCommand={() => {
           if (!switchingNow.current) {
             ask(commands());

@@ -7,6 +7,7 @@ import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
+import { PREFIX_BINDINGS } from "./bindings.js";
 import { WRITES, catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
@@ -168,6 +169,66 @@ describe("catalog commands in the command prompt", () => {
       (i) => i.name,
     );
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("[SR-109/AK2] shows nothing next to a catalog command without a key", () => {
+    const bound = new Set(PREFIX_BINDINGS.map((binding) => binding.id));
+    for (const buffers of [[list], [shown]]) {
+      const { context } = setup(buffers);
+      const items = catalogItems(context, CATALOG, ACTIONS).filter((i) => !bound.has(i.id));
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.filter((i) => i.hint !== undefined)).toEqual([]);
+      // Listed in the prompt after the actions, still without one.
+      const prompt = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items;
+      expect(
+        prompt.filter((i) => i.id.startsWith("command:") && !bound.has(i.id) && i.hint !== undefined),
+      ).toEqual([]);
+    }
+  });
+
+  it("[SR-121/AK3] gives Create element its fixed shortcut in the prompt, and no other catalog command one", () => {
+    for (const buffers of [[list], [shown]]) {
+      for (const mac of [false, true]) {
+        const { context } = setup(buffers);
+        const items = commandPrompt(
+          { ...context, mac },
+          undefined,
+          catalogItems({ ...context, mac }, CATALOG, ACTIONS),
+        ).items.filter((i) => i.id.startsWith("command:"));
+        expect(items.find((i) => i.name === "Create element")?.hint).toBe(mac ? "⌘K E" : "Ctrl+K E");
+        // Only the commands with a letter after the prefix have a hint, and it is that letter.
+        expect(
+          items
+            .filter((i) => i.hint !== undefined)
+            .map((i) => i.id)
+            .sort(),
+        ).toEqual(
+          PREFIX_BINDINGS.filter((binding) => binding.id.startsWith("command:"))
+            .map((binding) => binding.id)
+            .sort(),
+        );
+      }
+    }
+  });
+
+  it("[SR-121/AK3] gives Create relation, Set status and Confirm hints their fixed shortcut", () => {
+    for (const mac of [false, true]) {
+      const { context } = setup([shown]);
+      const items = catalogItems({ ...context, mac }, CATALOG, ACTIONS);
+      const hintOf = (title: string): string | undefined => items.find((i) => i.name === title)?.hint;
+      const prefix = mac ? "⌘K" : "Ctrl+K";
+      expect(hintOf("Create relation")).toBe(`${prefix} R`);
+      expect(hintOf("Set status")).toBe(`${prefix} T`);
+      expect(hintOf("Confirm hints")).toBe(`${prefix} H`);
+    }
+  });
+
+  it("[SR-121/AK3] offers no write command with a letter in a read-only workspace, so the letter is not shown", () => {
+    const { context } = setup([shown]);
+    const ids = new Set(catalogItems({ ...context, readOnly: true }, CATALOG, ACTIONS).map((i) => i.id));
+    for (const binding of PREFIX_BINDINGS.filter((row) => row.id.startsWith("command:"))) {
+      expect(ids.has(binding.id)).toBe(false);
+    }
   });
 
   it("[SR-108/AK1] finds a catalog command by its initials and with one slip among the first three", () => {

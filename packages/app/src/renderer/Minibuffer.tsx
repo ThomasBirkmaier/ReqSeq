@@ -18,6 +18,11 @@ export interface MinibufferProps {
   readonly onCommand: () => void;
   /** The prompt ends: Escape (`cancelled`, SR-117 keeps a held access for it), or an answer. */
   readonly onClose: (cancelled: boolean) => void;
+  /**
+   * The possible next keys after the prefix key, with their commands (SR-109 AK3): shown above the idle
+   * line, which says the prefix ("Ctrl+K-"); no input, the focus stays where it is.
+   */
+  readonly nextKeys?: readonly { readonly key: string; readonly name: string }[] | undefined;
 }
 
 const parts = ({ item, ranges }: Ranked<Choice>): Part[] =>
@@ -300,12 +305,38 @@ const PromptLine = ({
   );
 };
 
-export const Minibuffer = ({ echo, prompt, onCommand, onClose }: MinibufferProps): React.JSX.Element => (
+/** The rows of the next keys: the key, muted, and the command it runs, in the order of the table. */
+const NextKeys = ({
+  rows,
+}: {
+  readonly rows: readonly { readonly key: string; readonly name: string }[];
+}): React.JSX.Element | null =>
+  rows.length === 0 ? null : (
+    <ul className="candidates next-keys" role="list" aria-label="Next keys">
+      {rows.map((row) => (
+        <li key={row.key}>
+          <span className="key">{row.key}</span>
+          <span className="name">{row.name}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+export const Minibuffer = ({
+  echo,
+  prompt,
+  onCommand,
+  onClose,
+  nextKeys,
+}: MinibufferProps): React.JSX.Element => (
   <div className="minibuffer" aria-label="Minibuffer" aria-live="polite">
     {prompt === undefined ? (
-      <div className="echo" onClick={onCommand}>
-        {echo}
-      </div>
+      <>
+        {nextKeys === undefined ? null : <NextKeys rows={nextKeys} />}
+        <div className="echo" onClick={onCommand}>
+          {echo}
+        </div>
+      </>
     ) : (
       <PromptLine key={prompt.serial} prompt={prompt.prompt} onClose={onClose} />
     )}

@@ -7,7 +7,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { launchApp, listAll, modifier } from "./support/app.js";
 
 const FIXTURE = { fixture: "SR-069/filter" };
 
@@ -295,5 +295,180 @@ test.describe("the command prompt", () => {
       await window.keyboard.press("Escape");
       await expect(label(window)).toHaveCount(0);
     });
+  });
+});
+
+/** Opens the element "Measure wind speed" with "Go to". */
+const openElement = async (window: Page, mod: string): Promise<void> => {
+  await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+  await window.keyboard.press(`${mod}+P`);
+  await window.keyboard.type("Measure wind speed");
+  await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
+  await window.keyboard.press("Enter");
+  await expect(window.locator("article h1")).toContainText("Measure wind speed");
+};
+
+/** The prefix key as the renderer's platform writes it: "Ctrl+K", or "⌘K" on macOS. */
+const prefixOf = async (window: Page): Promise<string> =>
+  (await window.evaluate(() => navigator.platform.startsWith("Mac"))) ? "⌘K" : "Ctrl+K";
+
+test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () => {
+  let running: RunningApp;
+
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-109/AK3] Ctrl/Cmd+K and a pause show the next keys, and L lists all elements", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const mod = await modifier(window);
+    await openElement(window, mod);
+    await window.keyboard.press(`${mod}+K`);
+    await expect(window.locator(".minibuffer .echo")).toHaveText(`${await prefixOf(window)}-`);
+    await window.waitForTimeout(700);
+    const rows = window.getByRole("list", { name: "Next keys" });
+    await expect(rows).toBeVisible();
+    await expect(rows.locator(".name")).toContainText([
+      "Create element",
+      "List all elements",
+      "Show overview",
+    ]);
+    await expect(rows).toContainText("List all elements");
+    await expect(rows).not.toContainText("Filter list by type");
+    await expect(rows.locator("li").filter({ hasText: "List all elements" }).locator(".key")).toHaveText("L");
+    await window.keyboard.press("l");
+    await expect(window.locator(".row").first()).toBeVisible();
+    await expect(rows).toHaveCount(0);
+  });
+
+  test("[SR-109/AK3] the letter after Ctrl/Cmd+K is never typed into the text", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const mod = await modifier(window);
+    const text = window.locator('article [data-field="Text"] .cm-content');
+    const topic = window.locator('[data-field="topic"] .cm-content');
+    await openElement(window, mod);
+    await expect(text).toHaveText("b1: derives from N1, in package P1.");
+
+    // The caret in the text: Ctrl/Cmd+K, O shows the overview; the text has no "o".
+    await text.click();
+    await window.keyboard.press("End");
+    await window.keyboard.press(`${mod}+K`);
+    await window.keyboard.press("o");
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await openElement(window, mod);
+    await expect(text).toHaveText("b1: derives from N1, in package P1.");
+
+    // The caret in a property box.
+    await topic.locator(".cm-line").click();
+    await window.keyboard.press("End");
+    await window.keyboard.press(`${mod}+K`);
+    await window.keyboard.press("o");
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await openElement(window, mod);
+    await expect(topic).toHaveText("Wind");
+
+    // Fast, from the text: Ctrl/Cmd+K, L lists all elements, and no next keys are ever shown.
+    await window.evaluate(() => {
+      const seen = { rows: false };
+      (window as unknown as { seenRows: typeof seen }).seenRows = seen;
+      new MutationObserver(() => {
+        if (document.querySelector('[aria-label="Next keys"]') !== null) {
+          seen.rows = true;
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    await text.click();
+    await window.keyboard.press(`${mod}+K`);
+    await window.keyboard.press("l");
+    await expect(window.locator(".row").first()).toBeVisible();
+    await window.waitForTimeout(700);
+    expect(
+      await window.evaluate(() => (window as unknown as { seenRows: { rows: boolean } }).seenRows.rows),
+    ).toBe(false);
+    await openElement(window, mod);
+    await expect(text).toHaveText("b1: derives from N1, in package P1.");
+  });
+
+  test("Ctrl/Cmd+K, Ctrl/Cmd+O shows the overview and never opens the folder dialog of the menu's Ctrl/Cmd+O", async () => {
+    running = await launchApp(FIXTURE);
+    const { app, window } = running;
+    const mod = await modifier(window);
+    await app.evaluate(({ dialog }) => {
+      const counted = globalThis as unknown as { dialogs: number };
+      counted.dialogs = 0;
+      dialog.showOpenDialog = () => {
+        counted.dialogs += 1;
+        return Promise.resolve({ canceled: true, filePaths: [] });
+      };
+    });
+    const dialogs = (): Promise<number> =>
+      app.evaluate(() => (globalThis as unknown as { dialogs: number }).dialogs);
+    await openElement(window, mod);
+    // The keys go in as native input of the window (`sendInputEvent`), the path a menu accelerator
+    // listens on; Playwright's keys reach only the page.
+    const native = (keyCode: string): Promise<void> =>
+      app.evaluate(
+        ({ BrowserWindow }, [code, mac]) => {
+          const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+          const modifiers = [mac ? "meta" : "control"] as ("meta" | "control")[];
+          contents?.sendInputEvent({ type: "keyDown", keyCode: code, modifiers });
+          contents?.sendInputEvent({ type: "char", keyCode: code.toLowerCase(), modifiers });
+          contents?.sendInputEvent({ type: "keyUp", keyCode: code, modifiers });
+        },
+        [keyCode, mod === "Meta"] as const,
+      );
+    await native("K");
+    await native("O");
+    await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+    await expect(window.getByRole("list", { name: "Next keys" })).toHaveCount(0);
+    await window.waitForTimeout(500);
+    expect(await dialogs()).toBe(0);
+    // Without the prefix the same key is the menu's: the stub counts, so the check above can fail.
+    await native("O");
+    await expect.poll(dialogs).toBe(1);
+  });
+
+  test("[SR-121/AK3] the command prompt shows Ctrl+K L next to List all elements", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const mod = await modifier(window);
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await window.keyboard.press(`${mod}+Shift+P`);
+    await window.keyboard.type("List all elements");
+    const option = window.locator('.candidates [role="option"]').filter({ hasText: "List all elements" });
+    await expect(option.locator(".hint")).toHaveText(`${await prefixOf(window)} L`);
+    await window.keyboard.press("Escape");
+  });
+
+  test("[SR-109/AK1] the shortcut stands at the right of its hit, quieter than the name", async () => {
+    running = await launchApp(FIXTURE);
+    const { window } = running;
+    const mod = await modifier(window);
+    await window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await window.keyboard.press(`${mod}+Shift+P`);
+    await window.keyboard.type("Search elements");
+    const option = window
+      .locator('.candidates [role="option"]')
+      .filter({ hasText: "Search elements" })
+      .first();
+    const hint = option.locator(".hint");
+    await expect(hint).toBeVisible();
+    const [box, hintBox, nameBox] = await Promise.all([
+      option.boundingBox(),
+      hint.boundingBox(),
+      option.locator(".name").boundingBox(),
+    ]);
+    if (box === null || hintBox === null || nameBox === null) {
+      throw new Error("the hit is not laid out");
+    }
+    // At the right edge of the hit (its padding), and the name to its left.
+    expect(box.x + box.width - (hintBox.x + hintBox.width)).toBeLessThanOrEqual(16);
+    expect(nameBox.x + nameBox.width).toBeLessThanOrEqual(hintBox.x);
+    const colour = (selector: string) =>
+      option.locator(selector).evaluate((element) => getComputedStyle(element).color);
+    expect(await colour(".hint")).not.toBe(await colour(".name"));
+    await window.keyboard.press("Escape");
   });
 });

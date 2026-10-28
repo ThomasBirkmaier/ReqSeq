@@ -180,6 +180,42 @@ describe("Minibuffer", () => {
     expect(command).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the next keys as rows of key and command, without an input", async () => {
+    await render(
+      createElement(Minibuffer, {
+        echo: "Ctrl+K-",
+        prompt: undefined,
+        onCommand: vi.fn(),
+        onClose: vi.fn(),
+        nextKeys: [
+          { key: "L", name: "List all elements" },
+          { key: "B", name: "Close buffer" },
+        ],
+      }),
+    );
+    const rows = [...container.querySelectorAll('[aria-label="Next keys"] li')];
+    expect(
+      rows.map((row) => [row.querySelector(".key")?.textContent, row.querySelector(".name")?.textContent]),
+    ).toEqual([
+      ["L", "List all elements"],
+      ["B", "Close buffer"],
+    ]);
+    expect(query('[aria-label="Next keys"]').getAttribute("role")).toBe("list");
+    expect(query(".echo").textContent).toBe("Ctrl+K-");
+    expect(container.querySelector("input")).toBeNull();
+    // No rows: nothing above the line.
+    await render(
+      createElement(Minibuffer, {
+        echo: "Ctrl+K-",
+        prompt: undefined,
+        onCommand: vi.fn(),
+        onClose: vi.fn(),
+        nextKeys: [],
+      }),
+    );
+    expect(container.querySelector('[aria-label="Next keys"]')).toBeNull();
+  });
+
   it("asks: the label, an input, and the candidates with their shortcut, the first one selected", async () => {
     await mount({
       label: "Command",
@@ -193,6 +229,48 @@ describe("Minibuffer", () => {
     expect(input().getAttribute("aria-activedescendant")).toBe("candidate-0");
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain("Search elements");
     expect(document.activeElement).toBe(input());
+  });
+
+  // The look (muted, smaller, at the right edge of the row) is the style's: `styles.test.ts`.
+  const options = (): Element[] => [...container.querySelectorAll('[role="option"]')];
+  const classes = (option: Element | undefined): string[] =>
+    [...(option?.children ?? [])].map((part) => part.className);
+
+  it("[SR-109/AK1] shows the shortcut of a hit right after its name, as a part of its own", async () => {
+    await mount({
+      label: "Command",
+      items: [
+        choice("a", "Search elements", { hint: "⌘⇧F" }),
+        choice("b", "Save element", { hint: "Ctrl+S" }),
+      ],
+    });
+    const [search, save] = options();
+    expect(classes(search)).toEqual(["name", "hint"]);
+    expect(search?.querySelector(".name")?.textContent).toBe("Search elements");
+    expect(search?.querySelector(".hint")?.textContent).toBe("⌘⇧F");
+    expect(classes(save)).toEqual(["name", "hint"]);
+    expect(save?.querySelector(".hint")?.textContent).toBe("Ctrl+S");
+    // Typing keeps the shortcut next to the hit; only the name is marked.
+    await type(input(), "save");
+    expect(texts('[role="option"]')).toEqual(["Save elementCtrl+S"]);
+    expect(container.querySelector(".hint mark")).toBeNull();
+  });
+
+  it("[SR-109/AK2] shows nothing next to a hit without a shortcut", async () => {
+    await mount({
+      label: "Command",
+      items: [
+        choice("a", "Search elements", { hint: "Ctrl+Shift+F" }),
+        choice("b", "Clear all list filters"),
+      ],
+    });
+    const clear = options()[1];
+    expect(classes(clear)).toEqual(["name"]);
+    expect(clear?.textContent).toBe("Clear all list filters");
+    // Also when it is the only hit.
+    await type(input(), "clear");
+    expect(texts('[role="option"]')).toEqual(["Clear all list filters"]);
+    expect(container.querySelector(".hint")).toBeNull();
   });
 
   it("[SR-108/AK2] ranks the candidates by what is typed and marks the characters that matched", async () => {

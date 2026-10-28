@@ -192,6 +192,19 @@ describe("the copy symbol of a field (SR-128)", () => {
   });
 });
 
+describe("the shortcut next to a hit of the command line (SR-109)", () => {
+  it("[SR-109/AK1] writes the shortcut quietly at the right of the hit: muted, smaller than the name", () => {
+    // The name on the left, the shortcut pushed to the right edge of the row.
+    const row = ruleOf(".candidates li");
+    expect(row).toMatch(/display:\s*flex;/);
+    expect(row).toMatch(/justify-content:\s*space-between;/);
+    const hint = ruleOf(".candidates .hint");
+    expect(hint).toMatch(/color:\s*var\(--muted\);/);
+    const size = (rule: string): number => Number(/font-size:\s*(\d+)px;/.exec(rule)?.[1]);
+    expect(size(hint)).toBeLessThan(size(ruleOf(".candidates")));
+  });
+});
+
 describe("the look of the window (#490)", () => {
   it("lifts the candidates of a prompt as a card: the raised tone, a thin edge, round corners, a shadow upwards", () => {
     const card = ruleOf(".candidates");

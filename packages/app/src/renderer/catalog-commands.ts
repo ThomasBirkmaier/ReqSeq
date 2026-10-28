@@ -43,6 +43,7 @@ import type { CommandTypes } from "@logreq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
+import { bindingLabel } from "./bindings.js";
 import type { Buffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
@@ -1082,15 +1083,21 @@ export const catalogItems = (
         !covered.has(command.name) &&
         offered(context, command),
     )
-    .map((command) => ({
-      id: `command:${command.name}`,
-      name: command.title,
-      fits: fits(context, command),
-      run: () => {
-        startCommand(context, command, false);
-      },
-      more: () => {
-        startCommand(context, command, true);
-      },
-    }));
+    .map((command) => {
+      const id = `command:${command.name}`;
+      // A command with a letter after the prefix key shows it ("Ctrl+K E", SR-121 AK3).
+      const hint = bindingLabel(id, context.mac);
+      return {
+        id,
+        name: command.title,
+        ...(hint === undefined ? {} : { hint }),
+        fits: fits(context, command),
+        run: () => {
+          startCommand(context, command, false);
+        },
+        more: () => {
+          startCommand(context, command, true);
+        },
+      };
+    });
 };
