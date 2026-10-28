@@ -46,7 +46,7 @@ Strict typecheck, lint with zero warnings, format, and 100 % unit test coverage 
 
 ## How we work
 
-- Skills: `verify` (check commands, Electron in the container), `spec-change` (spec, status, SR issues), `lead-run` (a stage over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
+- Skills, in `.claude/skills/<name>/SKILL.md` (a session that does not start in this checkout does not list them, so read the file): `verify` (check commands, Electron in the container), `spec-change` (spec, status, SR issues), `lead-run` (a stage over a long run, including the merge criteria). The review is the built-in `/code-review`, plus `/security-review` for file access, the app's process bridge or dependencies.
 - For an SR issue, the SR in `spec/` wins over the issue text, and the PR says where they differ. Issues labelled `blocked`, `spec-frage` or `needs-human` wait. While an agent works on an issue, it carries `agent:working`, which the board reads.
 - Plan only risky changes: an ADR or the architecture, a schema or file format, catalog design shared by several SRs, performance, security. Post a plan of about a page on the issue and have it reviewed once at effort high before building. Other issues need no plan.
 - About one focused test per acceptance criterion, plus what 100 % coverage needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
