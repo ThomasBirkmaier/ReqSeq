@@ -1,7 +1,8 @@
 // The question for the element of an inline reference (ADR-0004), shared by the slash menu's "Reference to
 // element" (SR-129) and the `[[` search (SR-066, `reference-search.ts`): the editor keeps what was typed (the
 // `/` and its query, or the `[[`) while the app asks for an element in the prompt "Insert reference", and
-// writes `referenceMarkdown` in its place once one is picked. One place writes the reference (#576).
+// writes `referenceMarkdown` in its place once one is picked. One place writes the reference (#576). The
+// slash menu's "Image" (SR-097) holds the `/` in the same way while the app asks for the image file.
 import { isolateHistory } from "@codemirror/commands";
 import { StateEffect, StateField } from "@codemirror/state";
 import type { EditorState } from "@codemirror/state";
@@ -58,7 +59,7 @@ export const pendingField = StateField.define<Pending | null>({
 });
 
 /**
- * Whether the editor waits for the element the app asks for: what was typed is still in the text, so
+ * Whether the editor waits for the element (or the image) the app asks for: what was typed is still in the text, so
  * autosave waits (SR-105, `autosave.ts`). False for a state without the slash menu or the `[[` search.
  */
 export const awaitingReference = (state: EditorState): boolean =>
@@ -70,15 +71,17 @@ const holds = (state: EditorState, pending: Pending): boolean =>
     ? slashRange(state, pending.from, pending.to) !== undefined
     : state.sliceDoc(pending.from, pending.to) === "[[";
 
-/** Writes the reference in place of what was typed, or at the caret when it is gone. One undo step. */
-export const insertReference = (view: EditorView, target: ReferenceTarget, repository: string): void => {
+/**
+ * Writes `insert` in place of what was typed, or at the caret when it is gone or nothing waits (the action
+ * "Insert image", SR-097). One undo step; the editor gets the focus.
+ */
+export const insertHeld = (view: EditorView, insert: string): void => {
   // The buffer may have been left while the question was open: the editor is gone then.
   if (!view.dom.isConnected) {
     return;
   }
-  const pending = view.state.field(pendingField);
+  const pending = view.state.field(pendingField, false) ?? null;
   const { from, to } = pending !== null && holds(view.state, pending) ? pending : view.state.selection.main;
-  const insert = referenceMarkdown(target, repository);
   view.dispatch({
     changes: { from, to, insert },
     selection: { anchor: from + insert.length },
@@ -90,6 +93,17 @@ export const insertReference = (view: EditorView, target: ReferenceTarget, repos
   view.focus();
 };
 
+/** Writes the reference in place of what was typed, or at the caret when it is gone. One undo step. */
+export const insertReference = (view: EditorView, target: ReferenceTarget, repository: string): void => {
+  insertHeld(view, referenceMarkdown(target, repository));
+};
+
+/** The question was cancelled: what was typed stays, the editor gets the focus. */
+const release = (view: EditorView): void => {
+  view.dispatch({ effects: setPending.of(null) });
+  view.focus();
+};
+
 /** Asks the app for an element for what waits in `view` (set with `setPending` before). */
 export const askReference = (view: EditorView, options: PickOptions): void => {
   options.pickElement({
@@ -97,8 +111,27 @@ export const askReference = (view: EditorView, options: PickOptions): void => {
       insertReference(view, target, options.repository());
     },
     cancel: () => {
-      view.dispatch({ effects: setPending.of(null) });
-      view.focus();
+      release(view);
+    },
+  });
+};
+
+/** What the editor hands to the app when it asks for an image (SR-097): the Markdown that embeds it, once copied. */
+export interface ImageRequest {
+  /** The image was copied: its Markdown replaces what was typed (or goes to the caret), and the editor gets the focus. */
+  readonly insert: (markdown: string) => void;
+  /** The question was cancelled or the image refused: the editor gets the focus, what was typed stays. */
+  readonly cancel: () => void;
+}
+
+/** Asks the app for an image for what waits in `view` (set with `setPending` before; the slash menu's "Image"). */
+export const askImage = (view: EditorView, pickImage: (request: ImageRequest) => void): void => {
+  pickImage({
+    insert: (markdown) => {
+      insertHeld(view, markdown);
+    },
+    cancel: () => {
+      release(view);
     },
   });
 };

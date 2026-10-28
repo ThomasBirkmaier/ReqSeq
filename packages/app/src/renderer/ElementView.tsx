@@ -60,6 +60,8 @@ import { dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
 import type { ReferenceTitles } from "./reference-titles.js";
 import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
+import type { ImageRequest } from "./editor/slash-menu.js";
+import { imagePrompt } from "./insert-image.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import type { DiskState } from "./disk-state.js";
 import {
@@ -472,6 +474,7 @@ export const ElementView = ({
     onCopy,
     onOpenTarget,
     onPickElement,
+    onAsk,
     readOnly,
     handle,
     boxes,
@@ -492,6 +495,7 @@ export const ElementView = ({
     onCopy,
     onOpenTarget,
     onPickElement,
+    onAsk,
     readOnly,
     handle,
     boxes,
@@ -635,6 +639,11 @@ export const ElementView = ({
         now.current.onPickElement(request);
       },
       repository: () => now.current.buffer.repository,
+      // "Image" (SR-097) and the action "Insert image" ask in the same prompt.
+      pickImage: (request: ImageRequest) => {
+        const { call: run, buffer: shown, onAsk: ask, onEcho: echo } = now.current;
+        ask(imagePrompt(run, shown.id, request, echo));
+      },
     }),
     [],
   );
@@ -1232,6 +1241,24 @@ export const ElementView = ({
       );
     }
   };
+  // "Insert image" (SR-097): the Markdown of the copied image goes to the caret of the text.
+  const insertImage = (): void => {
+    const { handle: editor, onEcho: echo } = now.current;
+    const note = lockedNote();
+    if (note !== undefined) {
+      echo(note);
+    } else if (editor === undefined) {
+      echo("The text is not ready yet: insert the image again in a moment");
+    } else {
+      pick.pickImage({
+        insert: (markdown) => {
+          editor.insert(markdown);
+        },
+        // The prompt gives the focus back to the element, as after any action.
+        cancel: () => undefined,
+      });
+    }
+  };
   // "Clear property" (SR-104 AK4): the box with the cursor, or the one it was in last, is emptied; it stays,
   // empty, until it is saved, and the property is removed from the file then.
   const clearProperty = (): void => {
@@ -1442,6 +1469,7 @@ export const ElementView = ({
     editTitle,
     addProperty,
     clearProperty,
+    insertImage,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1455,6 +1483,7 @@ export const ElementView = ({
     editTitle,
     addProperty,
     clearProperty,
+    insertImage,
     relationFollowed,
     isRelationBox,
     resolve,
@@ -1513,6 +1542,9 @@ export const ElementView = ({
       },
       clearProperty: () => {
         api.current.clearProperty();
+      },
+      insertImage: () => {
+        api.current.insertImage();
       },
       follow: () => {
         // A focused target link, in a relation box or a relation group: that target (SR-132: the link

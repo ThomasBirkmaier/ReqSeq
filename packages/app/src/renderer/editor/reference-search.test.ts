@@ -369,7 +369,7 @@ describe("the pick", () => {
   });
 
   it("[SR-066/AK1] a [[ in the query of an open slash menu belongs to the query and asks nothing", async () => {
-    const view = await show("", mergePlugins(slashMenu(options), search));
+    const view = await show("", mergePlugins(slashMenu({ ...options, pickImage: vi.fn() }), search));
     await type(view, "/ref");
     await settle();
     await type(view, "[[");
@@ -386,7 +386,7 @@ describe("the pick", () => {
   });
 
   it("[SR-066/AK1] a [[ after a / whose query matches no entry asks: no menu shows", async () => {
-    const view = await show("", mergePlugins(slashMenu(options), search));
+    const view = await show("", mergePlugins(slashMenu({ ...options, pickImage: vi.fn() }), search));
     await type(view, "/zzzq");
     await settle();
     expect(completionStatus(view.state)).toBeNull();
@@ -395,7 +395,7 @@ describe("the pick", () => {
   });
 
   it("works beside the slash menu: both share what waits, and each writes its reference", async () => {
-    const view = await show("", mergePlugins(slashMenu(options), search));
+    const view = await show("", mergePlugins(slashMenu({ ...options, pickImage: vi.fn() }), search));
     await type(view, "[[");
     act(() => {
       lastRequest().insert(target);

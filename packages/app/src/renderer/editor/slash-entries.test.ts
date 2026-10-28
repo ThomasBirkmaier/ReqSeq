@@ -10,18 +10,19 @@ import { mathSyntax } from "./math-syntax.js";
 import {
   SLASH_ENTRIES,
   applyEntry,
+  asks,
   entriesFor,
   opensMenu,
   referenceMarkdown,
   slashRange,
 } from "./slash-entries.js";
-import type { ReferenceTarget } from "./slash-entries.js";
+import type { AskingEntry, ReferenceTarget } from "./slash-entries.js";
 
 const stateOf = (doc: string): EditorState => EditorState.create({ doc, extensions: [markdownSupport({})] });
 
-const entry = (id: string): Exclude<(typeof SLASH_ENTRIES)[number], { kind: "reference" }> => {
+const entry = (id: string): Exclude<(typeof SLASH_ENTRIES)[number], AskingEntry> => {
   const found = SLASH_ENTRIES.find((candidate) => candidate.id === id);
-  if (found === undefined || found.kind === "reference") {
+  if (found === undefined || asks(found)) {
     throw new Error(`no such entry: ${id}`);
   }
   return found;
@@ -73,7 +74,7 @@ describe("the entries of the slash menu", () => {
     expect(SLASH_ENTRIES.find((candidate) => candidate.id === "text")?.detail).toBe("");
   });
 
-  it("[SR-129/AK1] offers only the inline entries and the reference inside a table row", () => {
+  it("[SR-129/AK1] offers only the inline entries, the reference and the image inside a table row", () => {
     expect(entriesFor(true).map((candidate) => candidate.name)).toEqual([
       "Link",
       "Reference to element",
@@ -213,14 +214,15 @@ describe("taking an entry", () => {
 
   it("[SR-129/AK4] writes the inline entries in place of the / and its query", () => {
     expect(taken("see /lk now", "link")).toBe("see [‸]() now");
-    expect(taken("see /im", "image")).toBe("see ![‸]()");
     expect(taken("see /bo", "bold")).toBe("see **‸**");
     expect(taken("see /it", "italic")).toBe("see *‸*");
     expect(taken("| x | /bo |", "bold")).toBe("| x | **‸** |");
   });
 
   it("[SR-129/AK4] replaces the / and its query in every entry", () => {
-    for (const candidate of SLASH_ENTRIES.filter((each) => each.kind !== "reference")) {
+    for (const candidate of SLASH_ENTRIES.filter(
+      (each) => each.kind !== "reference" && each.kind !== "image",
+    )) {
       expect(taken("a\n\n/zzz\n\nb", candidate.id), candidate.id).not.toContain("/zzz");
     }
   });
@@ -240,7 +242,6 @@ describe("taking an entry", () => {
     ["code-block", "/q", /<pre><code>word\n<\/code><\/pre>/],
     ["table", "/q", /<table>[\s\S]*<th>word<\/th>[\s\S]*<th>Column 2<\/th>[\s\S]*<\/table>/],
     ["link", "see /q", /<p>see <a href="">word<\/a><\/p>/],
-    ["image", "see /q", /<p>see <img src="" alt="word" \/><\/p>/],
     ["math-block", "/q", /<p>\$\$\nword\n\$\$<\/p>/],
     ["diagram", "/q", /<pre><code class="language-mermaid">word\n<\/code><\/pre>/],
     ["bold", "see /q", /<p>see <strong>word<\/strong><\/p>/],

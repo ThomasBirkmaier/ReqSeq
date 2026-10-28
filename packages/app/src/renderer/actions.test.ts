@@ -122,6 +122,7 @@ const everyContext = (): ActionContext[] => {
     copy: vi.fn(),
     addProperty: vi.fn(),
     clearProperty: vi.fn(),
+    insertImage: vi.fn(),
     listValue: vi.fn(),
     flush: vi.fn(() => Promise.resolve(true)),
     prompting: vi.fn(),
@@ -201,6 +202,7 @@ describe("the command prompt", () => {
         copy: vi.fn(),
         addProperty: vi.fn(),
         clearProperty: vi.fn(),
+        insertImage: vi.fn(),
         listValue: vi.fn(),
         flush: vi.fn(() => Promise.resolve(true)),
         prompting: vi.fn(),
@@ -221,6 +223,7 @@ describe("the command prompt", () => {
         copy: vi.fn(),
         addProperty: vi.fn(),
         clearProperty: vi.fn(),
+        insertImage: vi.fn(),
         listValue: vi.fn(),
         flush: vi.fn(() => Promise.resolve(true)),
         prompting: vi.fn(),
@@ -241,6 +244,7 @@ describe("the command prompt", () => {
       "Copy field",
       "Add property",
       "Clear property",
+      "Insert image",
       "Show element ID and version",
       "Show neighbourhood",
       "Show graph",
@@ -262,6 +266,7 @@ describe("the command prompt", () => {
       "Ctrl+Alt+A",
       undefined,
       undefined,
+      undefined,
       "Ctrl+J",
       "Ctrl+Shift+G",
       undefined,
@@ -280,6 +285,7 @@ describe("the command prompt", () => {
             copy: vi.fn(),
             addProperty: vi.fn(),
             clearProperty: vi.fn(),
+            insertImage: vi.fn(),
             listValue: vi.fn(),
             flush: vi.fn(() => Promise.resolve(true)),
             prompting: vi.fn(),
@@ -393,6 +399,7 @@ describe("the command prompt", () => {
           copy: vi.fn(),
           addProperty: vi.fn(),
           clearProperty: vi.fn(),
+          insertImage: vi.fn(),
           listValue: vi.fn(),
           flush: vi.fn(() => Promise.resolve(true)),
           prompting: vi.fn(),
@@ -807,6 +814,7 @@ describe("list actions", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1044,6 +1052,7 @@ describe("close all buffers", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1093,6 +1102,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1114,6 +1124,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1140,6 +1151,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1179,6 +1191,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1207,6 +1220,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1242,6 +1256,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      insertImage: vi.fn(),
       listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
@@ -1257,6 +1272,32 @@ describe("save element and edit text", () => {
     );
     action("clear-property").run(setup([element]).context);
     expect(controls.clearProperty).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-097/AK1] Insert image runs the controls on an element with a loaded text only and covers Add attachment", () => {
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+      insertImage: vi.fn(),
+      listValue: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
+    };
+    const { context } = setup([element], {}, true, { element: controls });
+    expect(action("insert-image").title).toBe("Insert image");
+    expect(action("insert-image").covers).toEqual(["element.addAttachment"]);
+    action("insert-image").run(context);
+    expect(controls.insertImage).toHaveBeenCalledTimes(1);
+    expect(action("insert-image").available(setup([element]).context)).toBe(false);
+    expect(action("insert-image").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("insert-image").run(setup([element]).context);
+    expect(controls.insertImage).toHaveBeenCalledTimes(1);
   });
 
   it("[SR-128/AK3] gives no two actions that apply together the same shortcut, nor the shortcut of the command prompt", () => {

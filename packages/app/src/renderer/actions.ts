@@ -141,6 +141,11 @@ export interface ElementControls {
   readonly addProperty: () => void;
   /** Empties the box with the cursor, or the one the cursor was in last (the action "Clear property", SR-104 AK4). */
   readonly clearProperty: () => void;
+  /**
+   * Asks for an image file, copies it next to the element file and writes the Markdown that embeds it at
+   * the caret of the text (the action "Insert image", SR-097, `insert-image.ts`).
+   */
+  readonly insertImage: () => void;
   /** The shown element is a package: its page lists the elements that name it, and "Sort list" sorts them (SR-112). */
   readonly members?: boolean;
   /**
@@ -1027,6 +1032,16 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.clearProperty();
+    },
+  },
+  {
+    // SR-097: the catalog command "Add attachment" with the shown element, its Markdown put into the text.
+    id: "insert-image",
+    title: "Insert image",
+    covers: ["element.addAttachment"],
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.insertImage();
     },
   },
   {

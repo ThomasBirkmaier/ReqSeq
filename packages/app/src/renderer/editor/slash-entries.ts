@@ -30,7 +30,16 @@ export type SlashEntry =
   /** A piece of the line, at the place of the `/` and its query. */
   | (Base & { readonly kind: "inline"; readonly text: string; readonly caret: Caret })
   /** Asks for an element; the editor writes the reference when one is picked. */
-  | (Base & { readonly kind: "reference" });
+  | (Base & { readonly kind: "reference" })
+  /** Asks for an image file; the editor writes the Markdown core gives for its copy (SR-097, `element.addAttachment`). */
+  | (Base & { readonly kind: "image" });
+
+/** The entries that ask the app before they write: the `/` and its query stay until the answer. */
+export type AskingEntry = SlashEntry & { readonly kind: "reference" | "image" };
+
+/** Whether taking `entry` asks the app first (a reference or an image). */
+export const asks = (entry: SlashEntry): entry is AskingEntry =>
+  entry.kind === "reference" || entry.kind === "image";
 
 const heading = (level: number): SlashEntry => ({
   kind: "line",
@@ -90,14 +99,7 @@ export const SLASH_ENTRIES: readonly SlashEntry[] = [
     caret: { line: 0, column: 1, length: 0 },
   },
   { kind: "reference", id: "reference", name: "Reference to element", detail: "[Title](logreq:…)" },
-  {
-    kind: "inline",
-    id: "image",
-    name: "Image",
-    detail: "![](url)",
-    text: "![]()",
-    caret: { line: 0, column: 2, length: 0 },
-  },
+  { kind: "image", id: "image", name: "Image", detail: "![](file)" },
   fenced("math-block", "Math block", "$$", "$$"),
   fenced("diagram", "Diagram", "```mermaid", "```"),
   {
@@ -118,11 +120,9 @@ export const SLASH_ENTRIES: readonly SlashEntry[] = [
   },
 ];
 
-/** What a block would break: the entries a table row offers are the inline ones and the reference. */
+/** What a block would break: the entries a table row offers are the inline ones, the reference and the image. */
 export const entriesFor = (inTable: boolean): readonly SlashEntry[] =>
-  inTable
-    ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || entry.kind === "reference")
-    : SLASH_ENTRIES;
+  inTable ? SLASH_ENTRIES.filter((entry) => entry.kind === "inline" || asks(entry)) : SLASH_ENTRIES;
 
 // Where a `/` does not open the menu and `[[` no search: code, links, addresses, HTML and formulas (SR-096).
 const NOT_IN = new Set([
@@ -342,15 +342,15 @@ const inlineChange = (
 });
 
 /**
- * The change that takes `entry` for the `/` and its query in `from` to `to` (a reference is written by
- * `referenceChange` once an element is picked). One transaction, so one undo restores the text as it was
+ * The change that takes `entry` for the `/` and its query in `from` to `to` (a reference or an image is
+ * written by `insertHeld` of `reference-pick.ts` once the app answers). One transaction, so one undo restores the text as it was
  * before the entry was taken.
  */
 export const applyEntry = (
   state: EditorState,
   from: number,
   to: number,
-  entry: Exclude<SlashEntry, { readonly kind: "reference" }>,
+  entry: Exclude<SlashEntry, AskingEntry>,
 ): TransactionSpec => {
   switch (entry.kind) {
     case "line":

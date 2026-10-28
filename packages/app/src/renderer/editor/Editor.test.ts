@@ -323,6 +323,24 @@ describe("Editor", () => {
     expect(given.doc()).toBe("# Title\n\nbody");
   });
 
+  it("[SR-097/AK1] inserts text at the caret as one undo step and takes the focus", async () => {
+    const handle = vi.fn<(handle: EditorHandle | undefined) => void>();
+    await render({ handle });
+    const given = handleOf(handle);
+    act(() => {
+      view().dispatch({ selection: { anchor: 9 } });
+    });
+    act(() => {
+      given.insert("![a](N-1/a.png) ");
+    });
+    expect(given.doc()).toBe("# Title\n\n![a](N-1/a.png) body");
+    expect(view().hasFocus).toBe(true);
+    act(() => {
+      expect(undo(view())).toBe(true);
+    });
+    expect(given.doc()).toBe("# Title\n\nbody");
+  });
+
   it("sets everything while it has no focus", async () => {
     await render();
     expect(container.querySelector(".cm-content")?.textContent).toBe("Titlebody");

@@ -20,18 +20,24 @@ import type { EditorView } from "@codemirror/view";
 import { rank } from "../fuzzy.js";
 import { nth } from "../lists.js";
 import type { EditorPlugins } from "./plugins.js";
-import { askReference, pendingField, setPending } from "./reference-pick.js";
-import type { PickOptions } from "./reference-pick.js";
-import { applyEntry, entriesFor, opensMenu, slashRange } from "./slash-entries.js";
-import type { SlashEntry, SlashRange } from "./slash-entries.js";
+import { askImage, askReference, pendingField, setPending } from "./reference-pick.js";
+import type { ImageRequest, PickOptions } from "./reference-pick.js";
+import { applyEntry, asks, entriesFor, opensMenu, slashRange } from "./slash-entries.js";
+import type { AskingEntry, SlashEntry, SlashRange } from "./slash-entries.js";
 
 export type { ReferenceTarget } from "./slash-entries.js";
 
-export type { ReferenceRequest } from "./reference-pick.js";
+export type { ImageRequest, ReferenceRequest } from "./reference-pick.js";
 export { awaitingReference } from "./reference-pick.js";
 
-/** "Reference to element" asks the app for an element (`reference-pick.ts`). */
-export type SlashMenuOptions = PickOptions;
+/**
+ * "Reference to element" asks the app for an element, "Image" for an image file (SR-097), both through
+ * `reference-pick.ts`.
+ */
+export type SlashMenuOptions = PickOptions & {
+  /** Asks the app for an image file (the prompt "Insert image"). */
+  readonly pickImage: (request: ImageRequest) => void;
+};
 
 /** The `/` that was typed (R3): where it stands, and whether Escape closed its menu. */
 interface Armed {
@@ -96,12 +102,7 @@ const rangeOf = (state: EditorState, head: number): SlashRange | undefined => {
 };
 
 /** Takes the entry for the `/` and its query: one transaction and one undo step, even when typing follows at once (R5). */
-const take = (
-  view: EditorView,
-  entry: Exclude<SlashEntry, { readonly kind: "reference" }>,
-  from: number,
-  to: number,
-): void => {
+const take = (view: EditorView, entry: Exclude<SlashEntry, AskingEntry>, from: number, to: number): void => {
   view.dispatch({
     ...applyEntry(view.state, from, to, entry),
     effects: dismissEffect.of(null),
@@ -126,11 +127,15 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
 
   /** Takes an entry for the `/` and its query in `from` to `to`. */
   const takeEntry = (view: EditorView, item: SlashEntry, from: number, to: number): void => {
-    if (item.kind === "reference") {
-      // The text stays as typed until an element is picked.
+    if (asks(item)) {
+      // The text stays as typed until an element is picked or the image is copied.
       view.dispatch({ effects: [setPending.of({ from, to, held: "slash" }), dismissEffect.of(null)] });
       closeCompletion(view);
-      askReference(view, options);
+      if (item.kind === "reference") {
+        askReference(view, options);
+      } else {
+        askImage(view, options.pickImage);
+      }
     } else {
       take(view, item, from, to);
     }

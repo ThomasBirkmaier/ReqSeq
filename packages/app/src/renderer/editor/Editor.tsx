@@ -14,6 +14,7 @@ import { markdownSupport } from "./markdown.js";
 import { parseAhead } from "./parsed.js";
 import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
+import { insertHeld } from "./reference-pick.js";
 
 export interface EditorHandle {
   /**
@@ -44,6 +45,11 @@ export interface EditorHandle {
    * (SR-105 AK2).
    */
   readonly rebase: (text: string) => void;
+  /**
+   * Writes `text` at the caret (in place of a selection) as one undo step, and gives the editor the focus
+   * (the action "Insert image", SR-097).
+   */
+  readonly insert: (text: string) => void;
 }
 
 export interface EditorProps {
@@ -317,6 +323,9 @@ export const Editor = ({
       busy: () => editor.composing || completionStatus(editor.state) === "active",
       rebase: (next) => {
         lastText.current = next;
+      },
+      insert: (text) => {
+        insertHeld(editor, text);
       },
     });
     return () => {

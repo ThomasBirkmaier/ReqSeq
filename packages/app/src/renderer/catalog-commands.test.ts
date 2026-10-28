@@ -1223,16 +1223,21 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   /** The implemented write commands of the catalog. */
   const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
 
-  it("offers every implemented write command by its title, but element.update, which the element buffer does", () => {
+  it("offers every implemented write command by its title, but element.update and element.addAttachment, which the element buffer does", () => {
     expect(writes.map((entry) => entry.name)).toEqual(
       expect.arrayContaining(["filter.save", "workspace.init", "relation.add", "hint.confirm"]),
     );
     // element.update is the element buffer's: "Save element" covers it.
     expect(ACTIONS.find((action) => action.title === "Save element")?.covers).toEqual(["element.update"]);
+    // element.addAttachment too: "Insert image" puts its Markdown into the text (SR-097).
+    expect(ACTIONS.find((action) => action.title === "Insert image")?.covers).toEqual([
+      "element.addAttachment",
+    ]);
     const { context } = setup([list]);
     const offered = titles(context);
     expect(writes.filter((entry) => !offered.includes(entry.title)).map((entry) => entry.name)).toEqual([
       "element.update",
+      "element.addAttachment",
     ]);
   });
 

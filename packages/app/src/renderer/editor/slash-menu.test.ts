@@ -8,6 +8,8 @@ import { completionStatus, currentCompletions, selectedCompletion } from "@codem
 import { undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { micromark } from "micromark";
+import { gfm, gfmHtml } from "micromark-extension-gfm";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
@@ -16,7 +18,7 @@ import type { EditorProps } from "./Editor.js";
 import { Editor } from "./Editor.js";
 import { mergePlugins } from "./plugins.js";
 import { awaitingReference, slashMenu } from "./slash-menu.js";
-import type { ReferenceRequest, SlashMenuOptions } from "./slash-menu.js";
+import type { ImageRequest, ReferenceRequest, SlashMenuOptions } from "./slash-menu.js";
 import type { ReferenceTarget } from "./slash-entries.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -38,7 +40,8 @@ afterEach(() => {
 });
 
 const pickElement = vi.fn<(request: ReferenceRequest) => void>();
-const options: SlashMenuOptions = { pickElement, repository: () => "main" };
+const pickImage = vi.fn<(request: ImageRequest) => void>();
+const options: SlashMenuOptions = { pickElement, pickImage, repository: () => "main" };
 const onEscape = vi.fn();
 
 const show = async (text: string, extra: Partial<EditorProps> = {}): Promise<EditorView> => {
@@ -627,6 +630,64 @@ describe("the reference to an element", () => {
     request.insert(target);
     expect(view.state.doc.toString()).toBe(text);
     root = createRoot(container);
+  });
+});
+
+describe("the image", () => {
+  const MARKDOWN = "![wind](N-0000000000ed/wind.png)";
+
+  const ask = async (text: string): Promise<{ view: EditorView; request: ImageRequest }> => {
+    pickImage.mockClear();
+    const view = await show(text);
+    await type(view, "/image");
+    press(view, { key: "Enter" });
+    const request = pickImage.mock.calls[0]?.[0];
+    if (request === undefined) {
+      throw new Error("the app was not asked");
+    }
+    return { view, request };
+  };
+
+  it("[SR-097/AK1] asks the app for the file, keeps the / until it answers and writes the Markdown in its place", async () => {
+    const { view, request } = await ask("see ");
+    expect(doc(view)).toBe("see /image");
+    expect(completionStatus(view.state)).toBeNull();
+    // Autosave waits meanwhile (SR-105), as for a reference.
+    expect(awaitingReference(view.state)).toBe(true);
+    const focus = vi.spyOn(view, "focus");
+    act(() => {
+      request.insert(MARKDOWN);
+    });
+    expect(doc(view)).toBe(`see ${MARKDOWN}`);
+    expect(awaitingReference(view.state)).toBe(false);
+    expect(focus).toHaveBeenCalled();
+    act(() => {
+      undo(view);
+    });
+    expect(doc(view)).toBe("see /image");
+  });
+
+  it("[SR-129/AK4] writes an image as CommonMark with GitHub extensions where /im stood (micromark)", async () => {
+    pickImage.mockClear();
+    const view = await show("see ");
+    await type(view, "/im");
+    press(view, { key: "Enter" });
+    const request = pickImage.mock.calls[0]?.[0];
+    act(() => {
+      request?.insert(MARKDOWN);
+    });
+    expect(doc(view)).not.toContain("/im");
+    const html = micromark(doc(view), { extensions: [gfm()], htmlExtensions: [gfmHtml()] });
+    expect(html.trim()).toBe('<p>see <img src="N-0000000000ed/wind.png" alt="wind" /></p>');
+  });
+
+  it("[SR-129/AK3] leaves the / and the query when the question is cancelled", async () => {
+    const { view, request } = await ask("see ");
+    act(() => {
+      request.cancel();
+    });
+    expect(doc(view)).toBe("see /image");
+    expect(awaitingReference(view.state)).toBe(false);
   });
 });
 
