@@ -7,7 +7,7 @@ import type { BufferAction, Buffers } from "./buffers.js";
 import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
-import { catalogItems, contextField, fits } from "./catalog-commands.js";
+import { catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
@@ -37,7 +37,12 @@ const setup = (
     const output = answers[name]?.(input);
     return Promise.resolve(
       output instanceof Error
-        ? { ok: false, code: output.name, message: output.message }
+        ? {
+            ok: false,
+            code: output.name,
+            message: output.message,
+            ...("details" in output ? { details: output.details } : {}),
+          }
         : { ok: true, output },
     );
   });
@@ -100,6 +105,10 @@ const last = async (asked: readonly Prompt[]): Promise<Prompt> => {
   }
   return prompt.fill === undefined ? prompt : { ...prompt, ...(await prompt.fill) };
 };
+
+/** A refusal of core with `details`, as the bridge gives it (`input.invalid`). */
+const refusedWith = (message: string, details: Record<string, unknown>): Error =>
+  Object.assign(new Error(message), { name: "input.invalid", details });
 
 const start = (context: ActionContext & CatalogContext, name: string, more = false): void => {
   const choice = item(catalogItems(context, CATALOG, ACTIONS), command(name).title);
@@ -405,6 +414,98 @@ describe("catalog commands in the command prompt", () => {
       "Invalid input for trace.chain: maxDepth must be >= 0 · Show trace chain SR-1 · maxDepth:",
     );
     expect(echoed).toEqual([]);
+  });
+
+  it("reads the refused argument from core's details: a schema violation's field, else a property's key", () => {
+    const violation = (field: string) => ({ errors: [{ field, message: `${field}: wrong` }] });
+    expect(refusedOf(violation("maxDepth"))).toEqual({ field: "maxDepth" });
+    expect(refusedOf(violation("refs[1]"))).toEqual({ field: "refs", index: 1 });
+    expect(refusedOf(violation("properties.severity"))).toEqual({
+      field: "properties",
+      property: "severity",
+    });
+    expect(refusedOf(violation("properties.component[2]"))).toEqual({
+      field: "properties",
+      property: "component",
+      index: 2,
+    });
+    // A field that is not a property's key stays the field; the input as a whole names nothing.
+    expect(refusedOf(violation("selection.where"))).toEqual({ field: "selection" });
+    expect(refusedOf(violation(""))).toBeUndefined();
+    expect(refusedOf({ errors: [{ message: "no field" }] })).toBeUndefined();
+    expect(refusedOf({ errors: ["not an object"] })).toBeUndefined();
+    expect(refusedOf({ errors: [] })).toBeUndefined();
+    // A value refused while the input is written (`withChoiceKeys`): the property and the value.
+    expect(refusedOf({ key: "component", value: "dsp", reason: "unknown-choice" })).toEqual({
+      field: "properties",
+      property: "component",
+      value: "dsp",
+    });
+    expect(refusedOf({ key: "component" })).toEqual({ field: "properties", property: "component" });
+    expect(refusedOf({ repository: "spec", reason: "read-only" })).toBeUndefined();
+    expect(refusedOf(undefined)).toBeUndefined();
+  });
+
+  it("asks the argument a schema violation names again, not the one given last, and keeps the others", async () => {
+    let refuse = true;
+    const { context, asked, call } = setup([shown], {
+      "trace.chain": () =>
+        refuse
+          ? refusedWith("ref: is not a reference", { errors: [{ field: "ref", message: "ref: wrong" }] })
+          : {},
+    });
+    start(context, "trace.chain", true);
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "maxDepth").run();
+    (await last(asked)).text?.("2");
+    item((await last(asked)).items, "Run").run();
+    const again = await last(asked);
+    expect(again.label).toBe("ref: is not a reference · Show trace chain 2 · ref:");
+    refuse = false;
+    again.items[0]?.run();
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith(
+      "trace.chain",
+      expect.objectContaining({ ref: "uuid-1", maxDepth: 2 }),
+    );
+  });
+
+  it("asks the refused value of a list argument again by its place, and the list takes more values", async () => {
+    const { context, asked, call } = setup([shown], {
+      "element.search": () => ({ hits: [hit(2)], total: 1 }),
+      "trace.related": (input) =>
+        Array.isArray(input["refs"]) && input["refs"][0] === "uuid-1"
+          ? refusedWith("refs[0]: is not a reference", {
+              errors: [{ field: "refs[0]", message: "refs[0]: wrong" }],
+            })
+          : { elements: [], total: 0 },
+    });
+    start(context, "trace.related");
+    (await last(asked)).items[0]?.run();
+    (await (await last(asked)).find?.("t"))?.[0]?.run();
+    (await last(asked)).empty?.(false);
+    item((await last(asked)).items, "parents").run();
+    const again = await last(asked);
+    // SR-1 (refs[0]) is asked again, SR-000002 and the direction stay.
+    expect(again.label).toBe("refs[0]: is not a reference · Show related elements SR-000002 parents · refs:");
+    expect(again.empty).toBeDefined();
+    again.empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("trace.related", { refs: ["uuid-2"], direction: "parents" });
+  });
+
+  it("asks the argument given last again when core's details name nothing the prompt asked", async () => {
+    const { context, asked } = setup([shown], {
+      "trace.chain": () =>
+        refusedWith("selection: wrong", { errors: [{ field: "selection", message: "selection: wrong" }] }),
+    });
+    start(context, "trace.chain", true);
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "maxDepth").run();
+    (await last(asked)).text?.("2");
+    item((await last(asked)).items, "Run").run();
+    expect((await last(asked)).label).toBe("selection: wrong · Show trace chain SR-1 · maxDepth:");
   });
 
   it("says why a command failed in the minibuffer, and why a source failed in the prompt's label", async () => {
@@ -894,6 +995,24 @@ describe('"Create element": the required properties asked in the command line (S
     expect((await last(refused.asked)).label).toBe(
       "properties.severity: must be a number · Create element Report Wind gusts high · component:",
     );
+    expect(refused.call).toHaveBeenCalledTimes(2);
+    refused.call.mockClear();
+    // With the field in core's details, the property it names is asked again, not the one given last.
+    const named = creating({
+      "element.create": () =>
+        refusedWith("properties.severity: must be a number", {
+          errors: [{ field: "properties.severity", message: "properties.severity: must be a number" }],
+        }),
+    });
+    prompt = await typeAndTitle(named, "Report", "Wind gusts");
+    prompt.text?.("high");
+    for (let at = 0; at < 2; at += 1) {
+      prompt = await last(named.asked);
+      prompt.empty?.(false);
+    }
+    expect((await last(named.asked)).label).toBe(
+      "properties.severity: must be a number · Create element Report Wind gusts · severity:",
+    );
     const readOnly = Object.assign(new Error("The workspace is read-only"), { name: "workspace.read-only" });
     const locked = creating({ "element.create": () => readOnly });
     start(locked.context, "element.create");
@@ -902,5 +1021,83 @@ describe('"Create element": the required properties asked in the command line (S
     await flush();
     expect(locked.echoed.at(-1)).toBe("The workspace is read-only");
     expect(locked.dispatched).toEqual([]);
+  });
+
+  it("asks again the property whose value core refused while writing it (details key), not the one given last", async () => {
+    // Report with the choice `component` asked before the relation `packages`.
+    const metamodel = {
+      ...CREATE_METAMODEL,
+      types: CREATE_METAMODEL.types.map((type) =>
+        type.key === "report" ? { ...type, required: ["title", "component", "packages"] } : type,
+      ),
+    };
+    let refuse = true;
+    const running = creating({
+      "metamodel.get": () => metamodel,
+      "element.create": (input) =>
+        refuse
+          ? refusedWith("properties.component: Display is not a value of Component; the values are: …", {
+              key: "component",
+              value: "display",
+              reason: "unknown-choice",
+              allowed: ["sensor"],
+            })
+          : created()(input),
+    });
+    const { asked, call } = running;
+    const component = await typeAndTitle(running, "Report", "Wind gusts");
+    expect(component.label).toBe("Create element Report Wind gusts · component:");
+    item(component.items, "Display").run();
+    (await last(asked)).empty?.(false);
+    const packages = await last(asked);
+    expect(packages.label).toBe("Create element Report Wind gusts Display · packages:");
+    (await packages.find?.("pkg"))?.[0]?.run();
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", expect.objectContaining({ type: "report" }));
+    // The refused `component` is asked again with core's message; the target of `packages` stays.
+    const again = await last(asked);
+    expect(again.label).toBe(
+      "properties.component: Display is not a value of Component; the values are: … · Create element Report Wind gusts SR-000004 · component:",
+    );
+    refuse = false;
+    item(again.items, "Sensor").run();
+    (await last(asked)).empty?.(false);
+    await flush();
+    const input = call.mock.lastCall?.[1];
+    expect(call.mock.lastCall?.[0]).toBe("element.create");
+    expect(input?.["properties"]).toEqual(
+      expect.objectContaining({
+        component: ["sensor"],
+        packages: [expect.objectContaining({ id: "uuid-4" })],
+      }),
+    );
+  });
+
+  it("asks the type again with its properties when core refuses the type", async () => {
+    let refuse = true;
+    const running = creating({
+      "element.create": (input) =>
+        refuse
+          ? refusedWith("type: wrong", { errors: [{ field: "type", message: "type: wrong" }] })
+          : created()(input),
+    });
+    const { asked } = running;
+    const severity = await typeAndTitle(running, "Report", "Wind gusts");
+    severity.text?.("3");
+    for (let at = 0; at < 2; at += 1) {
+      (await last(asked)).empty?.(false);
+    }
+    await flush();
+    // The properties belong to the type: they go with it, the title stays.
+    const type = await last(asked);
+    expect(type.label).toBe("type: wrong · Create element Wind gusts · type:");
+    refuse = false;
+    item(type.items, "Decision").run();
+    await flush();
+    expect(running.call).toHaveBeenLastCalledWith("element.create", {
+      type: "decision",
+      title: "Wind gusts",
+    });
   });
 });

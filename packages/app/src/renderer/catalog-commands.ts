@@ -8,6 +8,11 @@
 // Keys: Enter takes the selected candidate or the typed text; Backspace in an empty input goes back one
 // argument; Escape ends the command; Ctrl/Cmd+Enter takes the answer and then offers the optional
 // arguments ("Run" first). A list field (`refs`) takes one value per Enter, and Enter on an empty input ends it.
+// A refused input (`input.invalid`) asks again, with core's message, the value core names in the details
+// of the error: the field of the first schema violation (`refs[0]`, `properties.<key>`,
+// `runtime/input-errors.ts`), else the property in `key` of a value refused while the input is written
+// (`withChoiceKeys`: unknown or ambiguous choice); the other values stay. A refusal that names nothing
+// asked in this run asks the value given last.
 //
 // "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
 // the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
@@ -322,36 +327,105 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
       buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision),
     });
   } else if (answer.code === "input.invalid" && entry.given.length > 0) {
-    // The prompt stays on the argument given last, with core's message.
-    back(context, { ...entry, error: answer.message });
+    // The prompt asks the value core refused again, else the one given last, with core's message.
+    askAgain(context, { ...entry, error: answer.message }, refusedAt(entry, answer.details));
   } else {
     context.echo(answer.message);
   }
 };
 
-/** One argument back: the value given last is asked again; before the first, the command prompt. */
-const back = (context: CatalogContext, entry: Entry): void => {
-  const last = entry.given.at(-1);
-  const property = asksOf(entry).find((asked) => asked.key === last?.property);
+/** What a refusal names: an argument of the command, or a property of a new element (SR-064). */
+interface Refused {
+  readonly field: string;
+  readonly property?: string;
+  /** Which value of a list: by its place (`refs[1]`), or by the value core names. */
+  readonly index?: number;
+  readonly value?: unknown;
+}
+
+/** `refs[0]`, `properties.requirement-type`, `properties.tags[1]`: the field, its place, a property's key. */
+const FIELD_PATH = /^([^.[\]]+)(?:\[(\d+)\])?(?:\.([^.[\]]+)(?:\[(\d+)\])?)?/u;
+
+/**
+ * What core refused, read from the details of an `input.invalid` (ADR-0010): a schema violation names the
+ * field in `errors[0].field` (`runtime/input-errors.ts`); a value refused while the input is written names
+ * the property in `key` (`withChoiceKeys`: `unknown-choice`, `ambiguous-choice`) and the value in `value`.
+ */
+export const refusedOf = (details: Readonly<Record<string, unknown>> | undefined): Refused | undefined => {
+  if (details === undefined) {
+    return undefined;
+  }
+  const errors = details["errors"];
+  const first: unknown = Array.isArray(errors) ? errors[0] : undefined;
+  const path =
+    typeof first === "object" && first !== null && "field" in first && typeof first.field === "string"
+      ? FIELD_PATH.exec(first.field)
+      : null;
+  if (path !== null) {
+    const [, field = "", index, key, item] = path;
+    return field === PROPERTIES && key !== undefined
+      ? { field, property: key, ...(item === undefined ? {} : { index: Number(item) }) }
+      : { field, ...(index === undefined ? {} : { index: Number(index) }) };
+  }
+  const key = details["key"];
+  return typeof key === "string"
+    ? { field: PROPERTIES, property: key, ...("value" in details ? { value: details["value"] } : {}) }
+    : undefined;
+};
+
+/**
+ * The place in `given` of the value core refused: the value of that argument or property given in this
+ * run (of a list the one at that place, or the one core names, else the last); else the value given last,
+ * as for a refusal that names nothing the prompt asked (another kind of refusal, a field it never asks).
+ */
+const refusedAt = (entry: Entry, details: Readonly<Record<string, unknown>> | undefined): number => {
+  const refused = refusedOf(details);
+  const places = entry.given.flatMap((given, at) =>
+    refused?.field === given.field && refused.property === given.property ? [at] : [],
+  );
+  const named =
+    refused?.index !== undefined
+      ? places[refused.index]
+      : refused !== undefined && "value" in refused
+        ? places.find((at) => JSON.stringify(entry.given[at]?.value) === JSON.stringify(refused.value))
+        : undefined;
+  return named ?? places.at(-1) ?? entry.given.length - 1;
+};
+
+/**
+ * Asks the value at `at` in `given` again, without it; the other values stay, except those it asked (the
+ * type of a new element asks its properties, SR-064: they go with it and are asked again after it). Before
+ * the first value, the command prompt.
+ */
+const askAgain = (context: CatalogContext, entry: Entry, at: number): void => {
+  const again = entry.given[at];
+  const itsProperties = new Set((again?.asks ?? []).map((asked) => asked.key));
+  const given = entry.given.filter(
+    (value, place) => place !== at && (value.property === undefined || !itsProperties.has(value.property)),
+  );
+  const property = asksOf(entry).find((asked) => asked.key === again?.property);
   if (property !== undefined) {
     const { collecting: _was, filling: _filling, ...rest } = entry;
-    const given = entry.given.slice(0, -1);
     // A list property that keeps values takes more again.
     const keeps = given.some((value) => value.property === property.key);
     askProperty(context, { ...rest, given, ...(keeps ? { filling: property.key } : {}) }, property);
     return;
   }
-  const at = entry.command.arguments.findIndex((arg) => arg.field === last?.field);
-  const arg = entry.command.arguments[at];
-  if (last === undefined || arg === undefined) {
+  const index = entry.command.arguments.findIndex((arg) => arg.field === again?.field);
+  const arg = entry.command.arguments[index];
+  if (again === undefined || arg === undefined) {
     context.reopen();
     return;
   }
   const { collecting: _was, ...rest } = entry;
-  const given = entry.given.slice(0, -1);
   // A list argument that keeps values takes more again (Enter on an empty input ends it).
-  const keeps = isListField(entry.command, last.field) && given.some((value) => value.field === last.field);
-  ask(context, { ...rest, given, ...(keeps ? { collecting: last.field } : {}) }, arg, at);
+  const keeps = isListField(entry.command, again.field) && given.some((value) => value.field === again.field);
+  ask(context, { ...rest, given, ...(keeps ? { collecting: again.field } : {}) }, arg, index);
+};
+
+/** One argument back: the value given last is asked again; before the first, the command prompt. */
+const back = (context: CatalogContext, entry: Entry): void => {
+  askAgain(context, entry, entry.given.length - 1);
 };
 
 /** Takes a value for `field`; `more` (Ctrl/Cmd+Enter) offers the optional arguments next. */
