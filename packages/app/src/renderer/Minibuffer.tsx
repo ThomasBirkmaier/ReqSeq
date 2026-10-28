@@ -52,6 +52,11 @@ const PromptLine = ({
   const waitingMore = useRef(false);
   // Enter or Ctrl/Cmd+Enter pressed while the parts of the prompt load: done when they are there.
   const early = useRef<"enter" | "more" | undefined>(undefined);
+  // The text typed last, and whether it is still to be searched (typed while `find` was loading). The
+  // effect that searches it once the parts are there reads these, not its render's `query`: a key that
+  // comes between that render and its effect would be taken back (#757).
+  const typed = useRef("");
+  const unsearched = useRef(false);
 
   useEffect(
     () => () => {
@@ -104,37 +109,46 @@ const PromptLine = ({
     (more ? (choice.more ?? choice.run) : choice.run)();
   };
 
+  /** Asks `find` for `value`; the answer is shown only while it is the newest question. */
+  const search = (find: (text: string) => Promise<readonly Choice[]>, value: string): void => {
+    latest.current += 1;
+    const mine = latest.current;
+    unsearched.current = false;
+    void find(value).then((choices) => {
+      if (mine !== latest.current) {
+        return;
+      }
+      answered.current = mine;
+      setFound(choices);
+      if (waiting.current === mine) {
+        // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
+        waiting.current = 0;
+        const [first] = [
+          ...literalOf(value),
+          ...rankByUse(prompt.items, (item) => item.name, value, prompt.use).map(({ item }) => item),
+          ...choices,
+        ];
+        if (first !== undefined) {
+          choose(first, value, waitingMore.current);
+        }
+      }
+    });
+  };
+
   const change = (value: string): void => {
     setQuery(value);
     setSelected(0);
-    latest.current += 1;
-    const mine = latest.current;
+    typed.current = value;
     // Typing after Enter cancels it, while the answer is awaited (SR-119) and while the parts load.
     waiting.current = 0;
     early.current = undefined;
     if (prompt.find === undefined || value.trim() === "") {
-      answered.current = mine;
+      latest.current += 1;
+      answered.current = latest.current;
+      unsearched.current = value.trim() !== "";
       setFound([]);
     } else {
-      void prompt.find(value).then((choices) => {
-        if (mine !== latest.current) {
-          return;
-        }
-        answered.current = mine;
-        setFound(choices);
-        if (waiting.current === mine) {
-          // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
-          waiting.current = 0;
-          const [first] = [
-            ...literalOf(value),
-            ...rankByUse(prompt.items, (item) => item.name, value, prompt.use).map(({ item }) => item),
-            ...choices,
-          ];
-          if (first !== undefined) {
-            choose(first, value, waitingMore.current);
-          }
-        }
-      });
+      search(prompt.find, value);
     }
   };
 
@@ -186,8 +200,8 @@ const PromptLine = ({
     // The text typed while the parts loaded is searched now, and a key pressed meanwhile acts on them.
     const key = early.current;
     early.current = undefined;
-    if (prompt.find !== undefined && query.trim() !== "") {
-      change(query);
+    if (prompt.find !== undefined && unsearched.current) {
+      search(prompt.find, typed.current);
     }
     if (key === "more") {
       more();

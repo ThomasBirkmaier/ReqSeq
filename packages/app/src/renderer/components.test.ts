@@ -521,6 +521,56 @@ describe("Minibuffer", () => {
         await arrive({ label: "No workspace · kind:" });
         expect(query("label").textContent).toBe("No workspace · kind:");
       });
+
+      it("keeps a key typed between the render that shows them and its effect, and searches the newest text (#757)", async () => {
+        let resolve: (parts: PromptFill) => void = () => undefined;
+        const fill = new Promise<PromptFill>((done) => {
+          resolve = done;
+        });
+        const hit = choice("d2", "D-2 Shield the wind vane");
+        const find = vi.fn((text: string) => Promise.resolve(text.startsWith("win") ? [hit] : []));
+        // The render with the parts asks `remembered` for the typed text; a key queued there comes after that
+        // render's commit and before its passive effect, as a key does when the window is busy. `act` would
+        // run the effect at once, so the parts arrive and the key comes outside it, with React's scheduler.
+        let parts = false;
+        let keyed = false;
+        const use = {
+          score: () => 0,
+          remembered: (text: string) => {
+            if (parts && !keyed && text === "wi") {
+              keyed = true;
+              queueMicrotask(() => {
+                const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+                const set = Reflect.get(descriptor ?? {}, "set") as (
+                  this: HTMLInputElement,
+                  value: string,
+                ) => void;
+                set.call(input(), "win");
+                input().dispatchEvent(new Event("input", { bubbles: true }));
+              });
+            }
+            return undefined;
+          },
+          record: vi.fn(),
+        };
+        await mount({ label: "target:", items: [], fill, use });
+        await type(input(), "wi");
+        const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+        environment.IS_REACT_ACT_ENVIRONMENT = false;
+        try {
+          parts = true;
+          resolve({ items: [], find });
+          await new Promise((done) => setTimeout(done, 50));
+        } finally {
+          environment.IS_REACT_ACT_ENVIRONMENT = true;
+        }
+        expect(keyed).toBe(true);
+        expect(input().value).toBe("win");
+        expect(find).toHaveBeenLastCalledWith("win");
+        await type(input(), `${input().value}d`);
+        expect(input().value).toBe("wind");
+        expect(texts('[role="option"]')).toEqual(["D-2 Shield the wind vane"]);
+      });
     });
 
     it("ends a list argument with Enter on an empty input, and takes a candidate once something is typed", async () => {
