@@ -26,13 +26,24 @@ const row = (n: number, extra: object = {}) => ({
 
 type Handler = (input: Record<string, unknown>) => unknown;
 
+/** The texts written by the app (SR-105: leaving a buffer saves it), by UUID. */
+const written = new Map<string, string>();
+
 /** A workspace with three elements that have a text. */
 const HANDLERS: Record<string, Handler> = {
   "workspace.status": () => ({ name: "Weather station", readOnly: true }),
   "element.list": () => ({ elements: [row(1), row(2), row(3)], total: 3 }),
   "element.get": (input) => ({
-    element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: "Hello" }),
+    element: row(Number(String(input["ref"]).replace("uuid-", "")), {
+      text: written.get(String(input["ref"])) ?? "Hello",
+    }),
   }),
+  "element.update": (input) => {
+    written.set(String(input["ref"]), String(input["text"]));
+    return {
+      element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: String(input["text"]) }),
+    };
+  },
   // No parents: the parents line stays away.
   "trace.neighbourhood": (input) => ({
     root: input["ref"],
@@ -77,6 +88,7 @@ let container: HTMLElement;
 let root: Root;
 
 beforeEach(() => {
+  written.clear();
   window.localStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
@@ -210,7 +222,8 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(container.querySelector(".cm-editor")).toBeNull();
     expect(document.activeElement?.closest(".cm-editor") ?? null).toBeNull();
     expect(document.activeElement).toBe(query("[data-buffer]"));
-    // Option+P is "π": back to the list, then once more to the element, its text as it was typed.
+    // Option+P is "π": back to the list, then once more to the element, its text as it was typed (and
+    // saved on leaving, SR-105).
     await press(query("[data-buffer]"), { key: "π", code: "KeyP", altKey: true });
     expect(shown()).toBe("SR-000001 Title 1");
     expect(editorView().state.doc.toString()).toBe("Hello ENDE");

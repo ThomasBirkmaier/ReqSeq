@@ -669,10 +669,13 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     act(() => {
       editorView().dispatch({ changes: { from: 0, insert: "Typed. " } });
     });
+    // The file goes while the buffer is shown, and the buffer is left before the deletion is certain:
+    // leaving writes nothing over a file that may be gone (SR-105 AK1, SR-106), so the input stays a draft.
+    await remove("uuid-1");
     await listAll();
     await openRow(1);
     expect(query("article h1").textContent).toBe("Show wind speed");
-    await remove("uuid-1");
+    expect(calls("element.update")).toEqual([]);
     await listAll();
     await openRow(0);
     // Shown again: the element the input was typed on, with the input, and not an error.

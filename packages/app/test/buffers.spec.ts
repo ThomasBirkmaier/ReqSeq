@@ -95,10 +95,11 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(shownBuffer(window)).toBeFocused();
     await window.keyboard.press("Alt+KeyP");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
-    await expect(modeline(window)).toContainText("modified");
+    // Leaving the element saved the input (SR-105 AK1); the file ends with a line break (ADR-0004).
+    await expect(modeline(window)).not.toContainText("modified");
     // The switch leaves the focus on the shown buffer; Enter finds the editor once the element is loaded.
     await expect(shownBuffer(window)).toBeFocused();
-    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE"]);
+    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
     // Again from inside the editor, the other way.
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toBeFocused();
@@ -107,9 +108,9 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await window.keyboard.press("Alt+KeyN");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", name ?? "");
     // The text is what was typed (Enter put the cursor after the last line break), without an "n", a "p"
-    // or anything else; nothing was saved.
-    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE"]);
-    expect(await savedText(running)).toBe(`${LINE}\n`);
+    // or anything else, and so is the file.
+    await expect(window.locator(".cm-line")).toHaveText([LINE, " ENDE", ""]);
+    expect((await savedText(running)).trimEnd()).toBe(`${LINE}\n ENDE`);
   });
 
   test("[SR-115/AK5] Option+N as macOS sends it (a dead key, the physical key N) is taken in the editor and leaves it", async () => {

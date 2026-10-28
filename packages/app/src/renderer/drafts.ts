@@ -65,6 +65,39 @@ export const sameDraft = (a: Draft | undefined, b: Draft | undefined): boolean =
   JSON.stringify(a === undefined ? null : [a.text, a.base, a.sha, [...(a.boxes ?? [])]]) ===
   JSON.stringify(b === undefined ? null : [b.text, b.base, b.sha, [...(b.boxes ?? [])]]);
 
+/** What a save sent: the text when it went, and the document of each box that went. */
+export interface Sent {
+  readonly text?: string;
+  readonly boxes: ReadonlyMap<string, string>;
+}
+
+/** What the file holds after a save: the element, its text, the document of each box, and its bytes. */
+export interface Saved extends ShownFile {
+  readonly text: string;
+  readonly docs: ReadonlyMap<string, string>;
+}
+
+/**
+ * The draft after a save of the buffer answered when the buffer was no longer shown (SR-105 AK1): input
+ * that is what was sent is in the file now; input typed while the save ran stays, on the bytes the save
+ * wrote, so the save after it finds no change from outside.
+ */
+export const rebased = (draft: Draft, sent: Sent, saved: Saved): Draft | undefined => {
+  const typed = typedText(draft);
+  const boxes = [...(draft.boxes ?? [])].map(([key, box]): [string, BoxDraft] => {
+    const base = saved.docs.get(key) ?? "";
+    return [key, { doc: box.doc === sent.boxes.get(key) ? base : box.doc, base }];
+  });
+  return withShown(
+    makeDraft(
+      { doc: typed === undefined || typed === sent.text ? saved.text : typed, base: saved.text },
+      boxes,
+      saved.sha,
+    ),
+    { element: saved.element, sha: saved.sha },
+  );
+};
+
 /** The text of a draft that was typed on; none for a draft of boxes alone (its text is the file text). */
 export const typedText = (draft: Draft | undefined): string | undefined =>
   draft !== undefined && draft.text !== draft.base ? draft.text : undefined;
@@ -86,6 +119,8 @@ export interface Drafts {
   readonly armed: RefObject<string | undefined>;
   /** The text of a buffer has unsaved changes (the draft), or none (undefined). */
   readonly onDraft: (key: string, draft: Draft | undefined) => void;
+  /** Changes the draft of a buffer that has one (an answer that came after the buffer was left). */
+  readonly update: (key: string, change: (draft: Draft) => Draft | undefined) => void;
   /** Drops all drafts: another workspace was opened. */
   readonly reset: () => void;
 }
@@ -111,6 +146,16 @@ export const useDrafts = (shownKey: string | undefined): Drafts => {
     }
   }, []);
 
+  const update = useCallback(
+    (key: string, change: (draft: Draft) => Draft | undefined): void => {
+      const draft = drafts.current.get(key);
+      if (draft !== undefined) {
+        onDraft(key, change(draft));
+      }
+    },
+    [onDraft],
+  );
+
   // Another workspace was opened: nothing is kept.
   const reset = useCallback((): void => {
     drafts.current.clear();
@@ -122,5 +167,5 @@ export const useDrafts = (shownKey: string | undefined): Drafts => {
     armed.current = undefined;
   }, [shownKey]);
 
-  return { drafts, armed, onDraft, reset };
+  return { drafts, armed, onDraft, update, reset };
 };

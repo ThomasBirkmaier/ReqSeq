@@ -214,11 +214,13 @@ test.describe("copying a field of an element", () => {
     await expect(modeline(window)).toContainText("Copied acceptance-criteria");
     expect(await readClipboard(running)).toBe([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`].join("\n"));
     await expect(criteria.locator(".cm-content")).toBeFocused();
-    // Nothing was saved by copying.
+    // Copying changes nothing: the input is saved like any input (SR-105), and the file then holds what
+    // was copied.
+    await expect(modeline(window)).not.toContainText("modified");
     const got = JSON.parse((await running.cli(["element", "get", SR_ID])).stdout) as {
       element: { properties: Record<string, unknown> };
     };
-    expect(got.element.properties["acceptance-criteria"]).toEqual(CRITERIA);
+    expect(got.element.properties["acceptance-criteria"]).toEqual([CRITERIA[0], `${CRITERIA[1] ?? ""} Neu`]);
   });
 
   test("[SR-128/AK4] a click on a field only sets the cursor: the clipboard is not changed", async () => {

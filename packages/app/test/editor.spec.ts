@@ -257,7 +257,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).toContain("AAA ");
   });
 
-  test("an unsaved text is kept while another buffer is shown; closing asks once", async () => {
+  test("[SR-105/AK1] a typed text is saved when another buffer is shown, and Close buffer closes without asking", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);
     await window.keyboard.press("Enter");
@@ -269,15 +269,13 @@ test.describe("the Markdown editor in the element buffer", () => {
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toContainText(" ENDE");
-    await expect(modeline(window)).toContainText("modified");
-    await runCommand(window, "close buffer");
-    await expect(minibuffer(window)).toContainText("has unsaved changes");
-    await expect(window.locator("article")).toBeVisible();
+    await expect(modeline(window)).not.toContainText("modified");
     await runCommand(window, "close buffer");
     await expect(window.getByRole("listbox")).toBeVisible();
-    // Opened again, the element shows what is saved.
+    await expect(minibuffer(window)).not.toContainText("unsaved");
+    // Opened again, the element shows what was saved.
     await opened(window, DEMO_TITLE);
-    expect(await shown(window)).not.toContain("ENDE");
+    expect(await shown(window)).toContain("ENDE");
     await expect(modeline(window)).not.toContainText("modified");
   });
 

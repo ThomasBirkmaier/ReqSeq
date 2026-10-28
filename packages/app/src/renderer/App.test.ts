@@ -10,7 +10,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandListing, InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
+import { redo, undo } from "@codemirror/commands";
 import { App } from "./App.js";
+import { AUTOSAVE_MS } from "./autosave.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import { NOTICE_MS } from "./copy.js";
 
@@ -23,9 +25,16 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const listeners = new Set<(change: WorkspaceChange) => void>();
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
     const output = handlers[name]?.(input);
+    // An error may name its code (`file.changed-on-disk`), as core's do.
     return Promise.resolve(
       output instanceof Error
-        ? { ok: false, error: { code: "x.failed", message: output.message } as never }
+        ? {
+            ok: false,
+            error: {
+              code: (output as Error & { code?: string }).code ?? "x.failed",
+              message: output.message,
+            } as never,
+          }
         : { ok: true, output },
     );
   });
@@ -1317,6 +1326,39 @@ describe("App, the text editor", () => {
     });
     await flush();
   };
+  /**
+   * A workspace that keeps what is written (SR-105): `element.get` gives the text last written and the
+   * bytes of the file; a write on other bytes is refused as core refuses it. `outside` changes a file as
+   * another process does, without telling the window.
+   */
+  const withStore = () => {
+    const handlers = withText();
+    const files = new Map<string, { text: string; sha: string }>();
+    const fileOf = (ref: unknown): { text: string; sha: string } =>
+      files.get(String(ref)) ?? { text: "Hello", sha: `${String(ref)}@0` };
+    const number = (ref: unknown): number => Number(String(ref).replace("uuid-", ""));
+    handlers["element.get"] = (input) => ({
+      element: row(number(input["ref"]), { text: fileOf(input["ref"]).text, relations: [] }),
+      fileSha256: fileOf(input["ref"]).sha,
+    });
+    handlers["element.update"] = (input) => {
+      const before = fileOf(input["ref"]);
+      const expected = input["expectedFileSha256"];
+      if (expected !== undefined && expected !== before.sha) {
+        return Object.assign(new Error("The file changed on disk"), { code: "file.changed-on-disk" });
+      }
+      const after = { text: `${String(input["text"])}\n`, sha: `${before.sha}+` };
+      files.set(String(input["ref"]), after);
+      return {
+        element: row(number(input["ref"]), { text: after.text, relations: [] }),
+        fileSha256: after.sha,
+      };
+    };
+    const outside = (ref: string, text: string): void => {
+      files.set(ref, { text, sha: `${fileOf(ref).sha}~` });
+    };
+    return { handlers, files, outside };
+  };
   const openElement = async (handlers = withText()) => {
     const fake = fakeBridge(handlers);
     await renderList(fake.bridge);
@@ -1372,6 +1414,35 @@ describe("App, the text editor", () => {
     expect(container.querySelector("input")).toBeNull();
     expect(editorView().state.doc.toString()).toBe("Hello /ref");
     expect(document.activeElement).toBe(query(".cm-content"));
+  });
+
+  it("[SR-105/AK1] Insert reference replaced by the command prompt holds autosave no longer (#604 review, S2)", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
+    editorView().focus();
+    editorView().dispatch({ selection: { anchor: editorView().state.doc.length } });
+    await typeKeys(" /ref");
+    await keyDown(query(".cm-content"), "Enter");
+    expect(query("label").textContent).toBe("Insert reference");
+    // The command prompt replaces Insert reference without Escape: the reference is cancelled, and the
+    // command prompt has the focus.
+    await keyDown(query("input"), "P", { ...mod(), shiftKey: true });
+    expect(query("label").textContent).toBe("Command");
+    expect(document.activeElement).toBe(query("input"));
+    await keyDown(query("input"), "Escape");
+    expect(container.querySelector("input")).toBeNull();
+    vi.useFakeTimers();
+    await act(async () => {
+      const end = editorView().state.doc.length;
+      editorView().dispatch({ changes: { from: end, insert: "x" }, userEvent: "input.type" });
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+    });
+    // The prompt that replaced Insert reference saved the text as it was; the key after it a second later.
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello /ref", expectedFileSha256: "uuid-1@0" },
+      { ref: "uuid-1", text: "Hello /ref\nx", expectedFileSha256: "uuid-1@0+" },
+    ]);
+    vi.useRealTimers();
   });
 
   it("shows modified in the modeline while the text has unsaved changes", async () => {
@@ -1626,28 +1697,116 @@ describe("App, the text editor", () => {
     expect(text("Minibuffer")).toBe("");
   });
 
-  it("keeps the unsaved text of a buffer while another one is shown", async () => {
-    await openElement();
+  it("[SR-105/AK1] leaving a buffer for another writes its input at once; shown again it has the file's text", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
     await typeText("!");
+    expect(calls(invoke, "element.update")).toEqual([]);
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
     expect(query('[role="listbox"]')).not.toBeNull();
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
     expect(text("Modeline")).toBe("All elements3 elementsWeather stationread-only");
+    // Leaving is silent (D-062).
+    expect(text("Minibuffer")).toBe("");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
-    expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
-  it("[SR-106/AK2] keeps the unsaved text and opens the conflict when the file changed while another buffer was shown", async () => {
-    const { handlers } = await openElement();
+  it("[SR-105/AK1] Alt+N to another buffer, without a prompt, writes the input at once (#604 review, N2)", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
+    await typeText("!");
+    await keyDown(query(".cm-content"), "n", { altKey: true });
+    expect(container.querySelector("article")).toBeNull();
+    // No prompt opened, and no second has passed: the save is the leaving's own.
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
+  });
+
+  it("[SR-105/AK2] after leaving and coming back, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z step through the text since the buffer was opened", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
     await typeText("!");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
-    handlers["element.get"] = (input) => ({
-      element: row(Number(String(input["ref"]).replace("uuid-", "")), { text: "Changed", relations: [] }),
-      fileSha256: "sha-changed",
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    await act(async () => {
+      expect(undo(editorView())).toBe(true);
+      await Promise.resolve();
     });
+    expect(editorView().state.doc.toString()).toBe("Hello\n");
+    expect(text("Modeline")).toContain("modified");
+    await act(async () => {
+      expect(redo(editorView())).toBe(true);
+      await Promise.resolve();
+    });
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    // Closing the buffer drops the history.
+    await runCommand("close buffer");
+    expect(calls(invoke, "element.update")).toHaveLength(1);
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    expect(undo(editorView())).toBe(false);
+  });
+
+  it("[SR-105/AK1] a buffer shown again while its save from leaving runs reads its element after that save: no change on disk", async () => {
+    const { handlers } = withStore();
+    const fake = await openElement(handlers);
+    await typeText("!");
+    // The save the prompt of Ctrl+P makes when it opens answers only when the test says so: it still runs
+    // when the buffer is left and shown again.
+    let answer: (() => void) | undefined;
+    const update = handlers["element.update"];
+    fake.invoke.mockImplementationOnce(
+      (_name: string, input: Record<string, unknown> = {}) =>
+        new Promise((resolve) => {
+          answer = () => {
+            resolve({ ok: true, output: update?.(input) });
+          };
+        }),
+    );
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(container.querySelector(".cm-editor")).toBeNull();
+    await act(async () => {
+      answer?.();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    await typeText("?");
+    await keyDown(query(".cm-content"), "s", { ctrlKey: true });
+    expect(text("Minibuffer")).toBe("Saved SR-000001 Title 1");
+    expect(text("Modeline")).not.toContain("on disk");
+    expect(calls(fake.invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+      { ref: "uuid-1", text: "Hello!\n?", expectedFileSha256: "uuid-1@0+" },
+    ]);
+  });
+
+  it("[SR-106/AK2] leaving writes nothing over a file that changed outside; shown again, the buffer has the input and the conflict", async () => {
+    const { handlers, outside, files } = withStore();
+    const { invoke } = await openElement(handlers);
+    await typeText("!");
+    outside("uuid-1", "Changed");
+    // The prompt that opens saves the input (binding review point 6): core refuses it on the old bytes, and
+    // the buffer is in conflict, so leaving it saves nothing either.
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
+    expect(files.get("uuid-1")?.text).toBe("Changed");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
     expect(text("Minibuffer")).toBe(
@@ -1658,24 +1817,83 @@ describe("App, the text editor", () => {
     expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedchanged on diskWeather stationread-only");
   });
 
-  it("asks before closing a buffer with unsaved text, and discards it when closing is repeated", async () => {
-    await openElement();
+  it("[SR-105/AK1] Close buffer writes the input and closes; it asks only when the input could not be written, and discards when closing is repeated", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
     await typeText("!");
     await runCommand("close buffer");
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
+    expect(query('[role="listbox"]')).not.toBeNull();
+    // Opened again: a write core refuses keeps the buffer and asks once.
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await typeText("?");
+    await runCommand("close buffer");
     expect(text("Minibuffer")).toBe(
-      "SR-000001 Title 1 has unsaved changes: Ctrl+S saves them, closing again discards them",
+      "SR-000001 Title 1 has unsaved changes that were not saved: closing again discards them",
     );
+    expect(text("Modeline")).toContain("not saved");
     expect(query("article")).not.toBeNull();
     await runCommand("close buffer");
     expect(query('[role="listbox"]')).not.toBeNull();
     // Opened again, the element shows its saved text.
     await keyDown(query('[role="listbox"]'), "Enter");
-    expect(editorView().state.doc.toString()).toBe("Hello");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
     expect(text("Modeline")).toBe("SR-000001 · Need · draftWeather stationread-only");
   });
 
+  it("[SR-105/AK1] Close buffer saves again the keys typed while its save ran, and closes only then (#604 review, S1)", async () => {
+    const { handlers, files } = withStore();
+    const fake = await openElement(handlers);
+    // Every write answers only when the test says so.
+    const waiting: (() => void)[] = [];
+    const real = fake.invoke.getMockImplementation();
+    if (real === undefined) {
+      throw new Error("the bridge has no invoke");
+    }
+    const update = handlers["element.update"];
+    fake.invoke.mockImplementation((name: string, input: Record<string, unknown> = {}) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            waiting.push(() => {
+              resolve({ ok: true, output: update?.(input) });
+            });
+          })
+        : real(name, input),
+    );
+    const answer = async (): Promise<void> => {
+      await act(async () => {
+        waiting.shift()?.();
+        await Promise.resolve();
+      });
+      await flush();
+    };
+    await typeText("!");
+    // The prompt's own save runs while "Close buffer" is chosen; its save follows that one.
+    await runCommand("close buffer");
+    await typeText("?");
+    await answer();
+    await typeText(".");
+    await answer();
+    // Input was left after the save of Close buffer: it saves once more, and the buffer stays meanwhile.
+    expect(query("article")).not.toBeNull();
+    await answer();
+    expect(query('[role="listbox"]')).not.toBeNull();
+    expect(calls(fake.invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+      { ref: "uuid-1", text: "Hello!?", expectedFileSha256: "uuid-1@0+" },
+      { ref: "uuid-1", text: "Hello!?.", expectedFileSha256: "uuid-1@0++" },
+    ]);
+    expect(files.get("uuid-1")?.text).toBe("Hello!?.\n");
+  });
+
   it("asks again when text was typed after the question, or another action ran", async () => {
-    await openElement();
+    const { handlers } = withStore();
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await openElement(handlers);
     await typeText("!");
     await runCommand("close buffer");
     await typeText("?");
@@ -1709,12 +1927,24 @@ describe("App, the text editor", () => {
     expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(0);
   });
 
-  it("[SR-123/AK2] asks in the minibuffer about unsaved text, without a dialog; Enter keeps the unsaved buffer", async () => {
-    await openElement();
+  it("[SR-123/AK2] [SR-105/AK1] Close all buffers writes the unsaved text first; only text that could not be written makes the minibuffer ask, without a dialog", async () => {
+    const { handlers } = withStore();
+    const { invoke } = await openElement(handlers);
     await typeText("!");
+    // Written: every buffer closes.
+    await runCommand("close all buffers");
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
+    expect(query("[data-buffer]").getAttribute("aria-label")).toBe("Overview");
+    expect(text("Minibuffer")).toBe("Closed 2 buffers");
+    // A write core refuses: the minibuffer asks about that buffer.
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    await typeText("?");
     await keyDown(window, "p", { ctrlKey: true });
     await keyDown(query("input"), "Enter");
-    // The element has unsaved text, the list in front of it does not.
     await runCommand("close all buffers");
     expect(query("label").textContent).toBe("1 buffer with unsaved changes (SR-000001 Title 1)");
     expect(
@@ -1734,18 +1964,17 @@ describe("App, the text editor", () => {
     await runCommand("close all buffers");
     await keyDown(query("input"), "Enter");
     expect(text("Minibuffer")).toBe("Closed 1 buffer");
-    expect(editorView().state.doc.toString()).toBe("Hello!");
-    expect(text("Modeline")).toBe("SR-000001 · Need · draftmodifiedWeather stationread-only");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n?");
+    expect(text("Modeline")).toContain("modified");
     // The second choice closes everything and drops the unsaved text.
     await runCommand("close all buffers");
     await keyDown(query("input"), "ArrowDown");
     await keyDown(query("input"), "Enter");
     expect(query("[data-buffer]").getAttribute("aria-label")).toBe("Overview");
     expect(text("Minibuffer")).toBe("Closed 1 buffer");
-    await runCommand("go to element");
-    await type("title");
-    await keyDown(query("input"), "Enter");
-    expect(editorView().state.doc.toString()).toBe("Hello");
+    await listAll();
+    await keyDown(query('[role="listbox"]'), "Enter");
+    expect(editorView().state.doc.toString()).toBe("Hello!\n");
     expect(text("Modeline")).not.toContain("modified");
   });
 

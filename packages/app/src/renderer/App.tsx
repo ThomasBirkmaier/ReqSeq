@@ -15,6 +15,8 @@ import {
   referencePrompt,
   runAction,
 } from "./actions.js";
+import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
+import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
@@ -44,7 +46,7 @@ import { OverviewView, useOverview } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import { ResultView } from "./ResultView.js";
-import { notSaved, notSavedInTime, saveDrafts } from "./switch.js";
+import { leftUnsaved, notSaved, notSavedInTime, saveDrafts, saveOne } from "./switch.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
@@ -157,10 +159,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   const { notice, copy } = useCopyNotice(bridge);
   const [buffers, dispatch] = useReducer(reduceBuffers, []);
   const current = buffers[0];
-  const { drafts, armed, onDraft, reset: resetDrafts } = useDrafts(current?.key);
+  const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
+  // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
+  const memories = useRef(new Map<string, UndoMemory>());
+  const saves = useRef(new Map<string, Promise<unknown>>());
   const [prompt, setPrompt] = useState<{ readonly serial: number; readonly prompt: Prompt } | undefined>(
     undefined,
   );
+  // The prompt that is open, so a prompt that replaces it can cancel it (#604 review, S2).
+  const openPrompt = useRef<Prompt | undefined>(undefined);
   // Counts up when the workspace changed: the shown buffer asks for its data again.
   const [revision, setRevision] = useState(0);
   // The changes from outside that named elements (SR-116, SR-106): every view but an element buffer
@@ -223,6 +230,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       document.title = windowTitle(next);
       if (reason === undefined || reason === "opened") {
         resetDrafts();
+        memories.current.clear();
+        openPrompt.current = undefined;
         setPrompt(undefined);
         // The first buffer is the calm overview, not the list of all elements (SR-118).
         dispatch({ type: "reset", ...(result.ok ? { buffer: overviewBuffer() } : {}) });
@@ -243,10 +252,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       if (reason !== undefined) {
         setRevision((count) => count + 1);
       }
-      // The type names come with the workspace; the modeline shows keys until they are there.
-      if (result.ok) {
+      // The type names come with the workspace; the modeline shows keys until they are there. A write of
+      // the app changes no metamodel (no command writes it), so autosave does not read it every second.
+      if (result.ok && reason !== "written") {
         void loadTypeNames();
-      } else {
+      } else if (!result.ok) {
         setTypeNames(new Map());
         setPackages(undefined);
         setProperties(new Map());
@@ -284,7 +294,18 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     };
   }, [bridge]);
 
+  // What the shown element buffer lets the app do, at once (a prompt that opens saves its input first).
+  const controlsNow = useRef(elementControls);
+  controlsNow.current = elementControls;
   const ask = useCallback((next: Prompt): void => {
+    // A prompt that replaces an open one (Ctrl/Cmd+Shift+P over "Insert reference") cancels it, as Escape
+    // does: an editor that waited for its element waits no longer, so autosave is not held for ever.
+    const replaced = openPrompt.current;
+    openPrompt.current = next;
+    replaced?.cancel?.();
+    // Opening a prompt ends the typing in the element: its input is saved now (SR-105, binding review
+    // point 6), so a command run from the prompt starts from the saved file.
+    controlsNow.current?.prompting();
     serial.current += 1;
     setEcho("");
     setPrompt({ serial: serial.current, prompt: next });
@@ -311,6 +332,58 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       setRevision((count) => count + 1);
     },
   });
+
+  // Saves the draft of an element buffer that is not shown (SR-105 AK1: it was left), after the saves of
+  // it that run. True when none of its input is left unsaved; else the minibuffer says why.
+  const saveKept = (buffer: ElementBuffer): Promise<boolean> =>
+    queueSave(saves.current, buffer.key, async () => {
+      const draft = drafts.current.get(buffer.key);
+      if (draft === undefined) {
+        return true;
+      }
+      const result = await saveOne(
+        {
+          call,
+          buffers: [buffer],
+          drafts: drafts.current,
+          properties: propertiesNow.current,
+          saved: (key) => {
+            onDraft(key, undefined);
+          },
+        },
+        buffer,
+        draft,
+      );
+      if (!result.ok) {
+        setEcho(leftUnsaved(result));
+      }
+      return result.ok;
+    });
+  // What the app keeps of the shown element buffer (SR-105): its undo history, its saves in order, and its
+  // draft, which the app saves once the buffer is left.
+  const keepOf = (buffer: ElementBuffer): BufferKeep => ({
+    memory: memoryOf(memories.current, buffer.key),
+    ready: async () => {
+      await savesDone(saves.current, buffer.key);
+      return drafts.current.get(buffer.key);
+    },
+    save: (job) => queueSave(saves.current, buffer.key, job),
+    update: (change) => {
+      updateDraft(buffer.key, change);
+    },
+    left: (save) => {
+      if (save) {
+        void saveKept(buffer);
+      }
+    },
+  });
+  // The undo history of a buffer goes with the buffer (closed, or pushed out by the buffers kept).
+  useEffect(() => {
+    forgetClosed(
+      memories.current,
+      buffers.map((buffer) => buffer.key),
+    );
+  }, [buffers]);
 
   // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
   const opened = useRef<readonly string[]>([]);
@@ -344,6 +417,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       onDraft(key, undefined);
     },
     drafted: (key) => drafts.current.has(key),
+    saveDraft: (key) => {
+      const buffer = buffers.find((open) => open.key === key);
+      if (buffer?.kind !== "element") {
+        return Promise.resolve(true);
+      }
+      return key === current?.key && elementControls !== undefined
+        ? elementControls.flush()
+        : saveKept(buffer);
+    },
     graphChoices,
     follow: follow.controls,
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
@@ -369,11 +451,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       const run = switchRun.current;
       switchingNow.current = true;
       setSwitching(true);
+      openPrompt.current = undefined;
       setPrompt(undefined);
       latest.current.leaveEditor();
       setEcho("Opening another workspace…");
       let saved = false;
       try {
+        // The input of the shown buffer, and the saves of buffers left just before, come first.
+        await controlsNow.current?.flush();
+        await Promise.all([...saves.current.keys()].map((key) => savesDone(saves.current, key)));
         const result = await saveDrafts({
           call,
           buffers: latest.current.buffers,
@@ -551,6 +637,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onAsk={ask}
             draft={drafts.current.get(current.key)}
             onDraft={onDraft}
+            keep={keepOf(current)}
             register={setElementControls}
             packages={packages}
             properties={properties}
@@ -607,6 +694,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         }}
         onClose={(cancelled) => {
           follow.closed(cancelled);
+          openPrompt.current = undefined;
           setPrompt(undefined);
         }}
       />

@@ -35,6 +35,10 @@ export type SaveResult =
 export const notSaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
   `${result.name} could not be saved (${result.message}); the workspace was not changed`;
 
+/** What the minibuffer says when the input of a buffer that was left could not be saved (SR-105). */
+export const leftUnsaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
+  `${result.name} could not be saved (${result.message}); its input stays in its buffer`;
+
 /** Why a draft is not saved over its file. */
 export const CHANGED_ON_DISK = "its file changed on disk since it was typed on";
 
@@ -51,8 +55,15 @@ const failed = (buffer: ElementBuffer, message: string): SaveResult => ({
   message,
 });
 
-/** Saves the draft of one element buffer. */
-const saveOne = async (context: SaveContext, buffer: ElementBuffer, kept: Draft): Promise<SaveResult> => {
+/**
+ * Saves the draft of one element buffer that is not shown: before a switch, and when the buffer was left
+ * (SR-105 AK1).
+ */
+export const saveOne = async (
+  context: SaveContext,
+  buffer: ElementBuffer,
+  kept: Draft,
+): Promise<SaveResult> => {
   const read = await context.call("element.get", { ref: buffer.id, repository: buffer.repository });
   if (!read.ok) {
     return failed(buffer, read.message);

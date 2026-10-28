@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DataExportElement } from "@logreq/core";
 import type { Draft } from "./drafts.js";
-import { boxDrafts, makeDraft, sameDraft, typedText, withShown } from "./drafts.js";
+import { boxDrafts, makeDraft, rebased, sameDraft, typedText, withShown } from "./drafts.js";
 
 const draft = (text: string, base: string, boxes?: [string, string, string][]): Draft => ({
   text,
@@ -80,5 +80,57 @@ describe("boxDrafts", () => {
         ]),
       ),
     ).toEqual([["topic", { doc: "x", base: "a" }]]);
+  });
+});
+
+describe("rebased", () => {
+  const element = { id: "uuid-1", title: "T" } as DataExportElement;
+  const saved = (text: string, docs: Record<string, string> = {}) => ({
+    element,
+    sha: "sha-1",
+    text,
+    docs: new Map(Object.entries(docs)),
+  });
+
+  it("[SR-105/AK1] drops the input a save that answered after the buffer was left has written", () => {
+    expect(
+      rebased(
+        { ...draft("a!", "a", [["topic", "Gusts", "Wind"]]), sha: "sha-0" },
+        { text: "a!", boxes: new Map([["topic", "Gusts"]]) },
+        saved("a!\n", { topic: "Gusts" }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("keeps the input typed while the save ran, on the bytes it wrote", () => {
+    expect(
+      rebased(
+        {
+          ...draft("a!?", "a", [
+            ["topic", "Gustsy", "Wind"],
+            ["area", "x", ""],
+          ]),
+          sha: "sha-0",
+        },
+        { text: "a!", boxes: new Map([["topic", "Gusts"]]) },
+        saved("a!\n", { topic: "Gusts" }),
+      ),
+    ).toEqual({
+      text: "a!?",
+      base: "a!\n",
+      boxes: new Map([
+        ["topic", { doc: "Gustsy", base: "Gusts" }],
+        ["area", { doc: "x", base: "" }],
+      ]),
+      sha: "sha-1",
+      shown: { element, sha: "sha-1" },
+    });
+    // A text that was not sent and not typed is the file's text.
+    expect(
+      rebased(draft("a", "a", [["topic", "x", "Wind"]]), { boxes: new Map() }, saved("b")),
+    ).toMatchObject({
+      text: "b",
+      base: "b",
+    });
   });
 });

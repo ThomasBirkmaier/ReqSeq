@@ -1,6 +1,8 @@
 // The main view (SR-100, #112): one buffer (list, search result or element), the modeline and the
 // minibuffer, on the built app. What the app shows is compared with what the CLI gives for the same
 // workspace (SR-080). Keys use ControlOrMeta, so the same tests run on Linux and macOS.
+import fs from "node:fs/promises";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -285,6 +287,9 @@ test.describe("the main view on a fixture workspace", () => {
 
   test("[SR-123/AK2] [SR-123/AK3] cab runs Close all buffers; it asks in the minibuffer, and Enter keeps the buffer with unsaved text", async () => {
     const { window } = running;
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Measure wind speed");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Measure wind speed");
     await window.keyboard.press("Enter");
     await expect(window.locator('[data-field="Text"] .cm-content')).toBeVisible();
     await expect(window.locator("article")).toBeFocused();
@@ -292,6 +297,12 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(window.locator('[data-field="Text"] .cm-content')).toBeFocused();
     await window.keyboard.insertText(" ENDE");
     await expect(window.getByLabel("Modeline")).toContainText("modified");
+    // Input is saved a second after the last key and when the buffer is left (SR-105), so text stays
+    // unsaved only when it cannot be saved: the file changed in another editor before the save.
+    const file = path.join(running.workspace?.root ?? "", "requirements", "SR-0000000000b1.md");
+    const before = await fs.readFile(file, "utf8");
+    await fs.writeFile(file, before.replace(/\n---\n[\s\S]*$/, "\n---\n\nChanged in another editor.\n"));
+    await expect(window.getByLabel("Modeline")).toContainText("changed on disk");
     await window.keyboard.press("Escape");
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.press("Enter");
@@ -308,6 +319,10 @@ test.describe("the main view on a fixture workspace", () => {
     await expect(window.locator("[data-buffer]")).toHaveCount(1);
     await expect(window.getByRole("listbox")).toHaveAttribute("aria-label", "Overview");
     await expect(window.getByLabel("Modeline")).not.toContainText("modified");
+    // Nothing was saved over the other editor's change.
+    const after = await fs.readFile(file, "utf8");
+    expect(after).toContain("Changed in another editor.");
+    expect(after).not.toContain("ENDE");
   });
 
   test("a relation of an element opens the element it points to", async () => {

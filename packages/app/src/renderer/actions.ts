@@ -109,8 +109,15 @@ export type PromptFill = Partial<Pick<Prompt, "label" | "items" | "find" | "text
 
 /** What the shown element buffer lets the app do with its text (SR-065). */
 export interface ElementControls {
-  /** Saves the text with `element.update` (the action "Save element"). */
+  /** Saves the input now with `element.update` and says so (the action "Save element"). */
   readonly save: () => void;
+  /**
+   * Saves the input now, quietly (SR-105 AK1: the buffer is closed, another workspace opens); resolves
+   * true when no input is left unsaved.
+   */
+  readonly flush: () => Promise<boolean>;
+  /** A prompt opens: the input typed so far is saved now (autosave does not wait for the prompt). */
+  readonly prompting: () => void;
   /** Gives the text editor the focus (the action "Edit text"). */
   readonly edit: () => void;
   /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
@@ -168,6 +175,11 @@ export interface ActionContext {
   readonly discard: (key: string) => void;
   /** The buffer with this key has unsaved changes. */
   readonly drafted: (key: string) => boolean;
+  /**
+   * Saves the unsaved changes of the buffer with this key now (SR-105 AK1); resolves true when none are
+   * left unsaved. Absent: nothing is saved, as before autosave.
+   */
+  readonly saveDraft?: (key: string) => Promise<boolean>;
   /**
    * The entries of the relation kind prompts of a graph (`graph-choices.ts`), from the catalog and the
    * metamodel; without them only "Everything" is offered.
@@ -490,17 +502,45 @@ const someNames = (buffers: Buffers): string => {
 };
 
 /**
- * "Close all buffers" (SR-123): buffers without unsaved text close at once. With unsaved text the
- * minibuffer asks, not a dialog (SR-123 AK2): the first choice, which Enter takes, keeps the buffers that
- * have unsaved text; the second discards it.
+ * "Close all buffers" (SR-123): closing leaves the elements, so their unsaved text is saved first (SR-105
+ * AK1), and the buffers close. Only text that could not be saved makes the minibuffer ask, not a dialog
+ * (SR-123 AK2): the first choice, which Enter takes, keeps the buffers that have unsaved text; the second
+ * discards it.
  */
+/**
+ * Saves the buffer with `key` before it closes; once more when input is left, which may be keys typed while
+ * the first save ran (they wait for its answer). True when no input is left unsaved.
+ */
+const saveBeforeClose = async (saveDraft: (key: string) => Promise<boolean>, key: string): Promise<boolean> =>
+  (await saveDraft(key)) || saveDraft(key);
+
 const closeAll = (context: ActionContext): void => {
   const open = context.buffers.filter((buffer) => buffer.kind !== "overview");
   const unsaved = open.filter((buffer) => context.drafted(buffer.key));
+  const { saveDraft } = context;
   if (unsaved.length === 0) {
     closeBuffers(context, open);
-    return;
+  } else if (saveDraft === undefined) {
+    askCloseAll(context, open, unsaved);
+  } else {
+    void (async () => {
+      const left: Buffer[] = [];
+      for (const buffer of unsaved) {
+        if (!(await saveBeforeClose(saveDraft, buffer.key))) {
+          left.push(buffer);
+        }
+      }
+      if (left.length === 0) {
+        closeBuffers(context, open);
+      } else {
+        askCloseAll(context, open, left);
+      }
+    })();
   }
+};
+
+/** "Close all buffers" asks about the buffers with unsaved text (`unsaved`) among the `open` ones. */
+const askCloseAll = (context: ActionContext, open: Buffers, unsaved: Buffers): void => {
   context.ask({
     label: `${plural(unsaved.length, "buffer")} with unsaved changes (${someNames(unsaved)})`,
     items: [
@@ -742,15 +782,34 @@ export const ACTIONS: readonly Action[] = [
       if (current === undefined) {
         return;
       }
-      if (context.modified && !context.closeArmed(current.key)) {
+      const close = (): void => {
+        context.discard(current.key);
+        context.dispatch({ type: "close", key: current.key });
+      };
+      if (!context.modified || context.closeArmed(current.key)) {
+        close();
+        return;
+      }
+      const { saveDraft } = context;
+      if (saveDraft === undefined) {
         context.armClose(current.key);
         context.echo(
           `${bufferName(current)} has unsaved changes: ${shortcutLabel(SAVE_SHORTCUT, context.mac)} saves them, closing again discards them`,
         );
         return;
       }
-      context.discard(current.key);
-      context.dispatch({ type: "close", key: current.key });
+      // Closing leaves the element: its input is saved first (SR-105 AK1). Only input that could not be
+      // saved (a change on disk, a deleted file, a value core refuses) asks once.
+      void saveBeforeClose(saveDraft, current.key).then((saved) => {
+        if (saved) {
+          close();
+        } else {
+          context.armClose(current.key);
+          context.echo(
+            `${bufferName(current)} has unsaved changes that were not saved: closing again discards them`,
+          );
+        }
+      });
     },
   },
   { id: "close-all", title: "Close all buffers", available: hasBuffers, run: closeAll },

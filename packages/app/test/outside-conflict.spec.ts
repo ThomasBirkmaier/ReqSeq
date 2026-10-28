@@ -48,6 +48,21 @@ const typed = async (window: Page): Promise<void> => {
   await expect(window.getByLabel("Modeline")).toContainText("modified");
 };
 
+/**
+ * Changes the file outside the app at once, as another editor does: the text, and the title when given.
+ * At once, because autosave writes the input a second after the last key (SR-105 AK1); a CLI that takes
+ * longer to start would find the input saved already. Written before that save, the file always has other
+ * bytes than the input was typed on, so core refuses the save and the conflict rule applies.
+ */
+const changeOutside = async (file: string, change: { readonly text: string; readonly title?: string }) => {
+  const now = await fs.readFile(file, "utf8");
+  const body = now.replace(/\n---\n[\s\S]*$/, `\n---\n\n${change.text}\n`);
+  await fs.writeFile(
+    file,
+    change.title === undefined ? body : body.replace(`title: ${TITLE}`, `title: ${change.title}`),
+  );
+};
+
 /** "Resolve change on disk" from the command prompt, and the choice `name`. */
 const resolve = async (window: Page, name: string): Promise<void> => {
   await window.keyboard.press("ControlOrMeta+Shift+P");
@@ -76,17 +91,8 @@ test.describe("an open element changed or deleted outside the app", () => {
   test('[SR-106/AK2] with unsaved input an outside change is not saved over: both versions are shown, and "Keep my input" writes only the input', async () => {
     const { window } = running;
     await typed(window);
-    // A person changes the title and the text through the CLI.
-    const update = await running.cli([
-      "element",
-      "update",
-      ELEMENT,
-      "--title",
-      "Measure the wind",
-      "--text",
-      `${TEXT}\n\n${THEIRS}`,
-    ]);
-    expect(update.code).toBe(0);
+    // A person changes the title and the text in another editor.
+    await changeOutside(file, { title: "Measure the wind", text: `${TEXT}\n\n${THEIRS}` });
     const block = window.locator('[data-on-disk="Text"]');
     await expect(block).toContainText(THEIRS);
     await expect(text(window)).toHaveText(`${TEXT}${MINE}`);
@@ -112,8 +118,7 @@ test.describe("an open element changed or deleted outside the app", () => {
   test('[SR-106/AK2] "Take the file" leaves the file as it is, and Ctrl+Z brings the input back', async () => {
     const { window } = running;
     await typed(window);
-    const update = await running.cli(["element", "update", ELEMENT, "--text", `${TEXT}\n\n${THEIRS}`]);
-    expect(update.code).toBe(0);
+    await changeOutside(file, { text: `${TEXT}\n\n${THEIRS}` });
     await expect(window.locator('[data-on-disk="Text"]')).toContainText(THEIRS);
     const theirs = await onDisk();
     // Enter on the block asks too.
@@ -134,8 +139,9 @@ test.describe("an open element changed or deleted outside the app", () => {
     await window.keyboard.press("Enter");
     await window.keyboard.press("ControlOrMeta+Z");
     await expect(text(window)).toHaveText(`${TEXT}${MINE}`);
-    await expect(window.getByLabel("Modeline")).toContainText("modified");
-    expect(await onDisk()).toBe(theirs);
+    // The undo is input on the file the user took, so autosave writes it a second later (SR-105 AK2).
+    await expect.poll(onDisk, { timeout: 5000 }).toContain(MINE);
+    expect(await onDisk()).not.toContain(THEIRS);
   });
 
   test("[SR-106/AK3] a deleted file leaves the content in the editor and a hint names the deletion", async () => {
@@ -159,6 +165,8 @@ test.describe("an open element changed or deleted outside the app", () => {
   test("[SR-116/AK3] with unsaved changes an outside change through MCP follows the conflict rule and no input is lost", async () => {
     const { window } = running;
     const mcp = await running.mcp();
+    // The agent has its workspace loaded, so its change comes before autosave writes the input.
+    await mcp.call("element_get", { ref: ELEMENT });
     await typed(window);
     await mcp.call("element_update", { ref: ELEMENT, text: `${TEXT}\n\nMeasured by the agent.` });
     await expect(window.locator('[data-on-disk="Text"]')).toContainText("Measured by the agent.");
@@ -185,8 +193,7 @@ for (const scheme of ["light", "dark"] as const) {
       });
       await listAll(window);
       await typed(window);
-      const update = await running.cli(["element", "update", ELEMENT, "--text", `${TEXT}\n\n${THEIRS}`]);
-      expect(update.code).toBe(0);
+      await changeOutside(path.join(running.workspace?.root ?? "", FILE), { text: `${TEXT}\n\n${THEIRS}` });
       await expect(window.locator('[data-on-disk="Text"]')).toContainText(THEIRS);
       await window.locator('[data-on-disk="Text"]').focus();
       await window.screenshot({ path: path.join(OUT, `sr-106-c-${scheme}.png`) });

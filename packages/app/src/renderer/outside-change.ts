@@ -53,12 +53,12 @@ export const isGone = (code: string): boolean => code === "ref.unknown";
 
 /**
  * How long a file that a read found gone is asked for again before the buffer says it is deleted: longer
- * than one batch of core's watcher (at most 1 s). A file that is being written (a pull) is reported as
- * removed in one batch and added in the next, and core's store does not know the element in between, so
- * the first `ref.unknown` is no deletion yet (SR-106 AK3); the buffer stays editable meanwhile, and no
- * input is lost.
+ * than one batch of core's watcher (at most 1 s) plus the time core takes to apply a large one (#586
+ * review, N8). A file that is being written (a pull) is reported as removed in one batch and added in the
+ * next, and core's store does not know the element in between, so the first `ref.unknown` is no deletion
+ * yet (SR-106 AK3); the buffer stays editable meanwhile, and no input is lost.
  */
-export const GONE_CONFIRM_MS = 1200;
+export const GONE_CONFIRM_MS = 2000;
 
 /**
  * After a read found the file gone at `now`: how long to wait before asking again, or 0 when the file has
@@ -194,6 +194,13 @@ export const changedOnDisk = (name: string): string =>
 /** What the minibuffer says once when the file is gone, and on every try to change it. */
 export const deletedOnDisk = (name: string): string =>
   `${name} was deleted on disk; its content stays here until you close the buffer`;
+
+/**
+ * What a save says while a read found the file gone and the buffer asks again (`goneWait`): nothing is
+ * written until the file is there again or its deletion is certain.
+ */
+export const unreadable = (name: string): string =>
+  `${name} cannot be read now; it may have been deleted on disk`;
 
 /** What "Save element" says while there is a conflict: nothing is saved. */
 export const RESOLVE_FIRST = "Resolve the change on disk first";

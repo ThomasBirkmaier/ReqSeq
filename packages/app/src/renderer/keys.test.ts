@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { ctrlStep, isMac, listStep, matches, rowStep, rowTarget, shortcutLabel } from "./keys.js";
+import {
+  ctrlStep,
+  historyStep,
+  isMac,
+  listStep,
+  matches,
+  rowStep,
+  rowTarget,
+  shortcutLabel,
+} from "./keys.js";
 
 const press = (
   key: string,
@@ -229,5 +238,18 @@ describe("keys", () => {
     expect(rowTarget(press("Tab"), 3, 10)).toBeUndefined();
     expect(rowTarget(press("Enter"), 3, 10)).toBeUndefined();
     expect(rowTarget(press("constructor"), 3, 10)).toBeUndefined();
+  });
+});
+
+describe("historyStep", () => {
+  it("[SR-105/AK2] takes Ctrl/Cmd+Z as undo and Ctrl/Cmd+Shift+Z as redo, Ctrl+Y as redo outside macOS", () => {
+    expect(historyStep(press("z", { ctrlKey: true }), false)).toBe("undo");
+    expect(historyStep(press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe("redo");
+    expect(historyStep(press("y", { ctrlKey: true }), false)).toBe("redo");
+    expect(historyStep(press("z", { metaKey: true }), true)).toBe("undo");
+    expect(historyStep(press("z", { metaKey: true, shiftKey: true }), true)).toBe("redo");
+    expect(historyStep(press("y", { metaKey: true }), true)).toBeUndefined();
+    expect(historyStep(press("z", { ctrlKey: true }), true)).toBeUndefined();
+    expect(historyStep(press("z"), false)).toBeUndefined();
   });
 });

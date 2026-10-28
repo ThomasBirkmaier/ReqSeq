@@ -150,6 +150,8 @@ describe("the command prompt", () => {
         copy: vi.fn(),
         addProperty: vi.fn(),
         clearProperty: vi.fn(),
+        flush: vi.fn(() => Promise.resolve(true)),
+        prompting: vi.fn(),
       },
     });
     const items = commandPrompt(element$.context).items;
@@ -202,6 +204,8 @@ describe("the command prompt", () => {
             copy: vi.fn(),
             addProperty: vi.fn(),
             clearProperty: vi.fn(),
+            flush: vi.fn(() => Promise.resolve(true)),
+            prompting: vi.fn(),
           },
         }).context,
       ),
@@ -255,6 +259,8 @@ describe("the command prompt", () => {
           copy: vi.fn(),
           addProperty: vi.fn(),
           clearProperty: vi.fn(),
+          flush: vi.fn(() => Promise.resolve(true)),
+          prompting: vi.fn(),
           members: true,
         },
         modified: true,
@@ -610,6 +616,8 @@ describe("list actions", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
       members: true,
     };
     const tree = [{ by: "hierarchy" as const, order: "asc" as const }];
@@ -710,6 +718,29 @@ describe("close buffer with unsaved changes", () => {
     expect(mac.echoed[0]).toContain("⌘S saves them");
   });
 
+  it("[SR-105/AK1] saves the input first and closes; asks once only when it could not be saved", async () => {
+    const saved = setup([element, list], {}, true, {
+      modified: true,
+      saveDraft: () => Promise.resolve(true),
+    });
+    action("close").run(saved.context);
+    expect(saved.dispatched).toEqual([]);
+    await flush();
+    expect(saved.dispatched).toEqual([{ type: "close", key: element.key }]);
+    expect(saved.echoed).toEqual([]);
+    const refused = setup([element, list], {}, true, {
+      modified: true,
+      saveDraft: () => Promise.resolve(false),
+    });
+    action("close").run(refused.context);
+    await flush();
+    expect(refused.dispatched).toEqual([]);
+    expect(refused.armed).toEqual([element.key]);
+    expect(refused.echoed).toEqual([
+      "SR-036 Title has unsaved changes that were not saved: closing again discards them",
+    ]);
+  });
+
   it("any other action ends the question", () => {
     const { context, armed } = setup([element, list]);
     runAction(action("search"), context);
@@ -778,6 +809,31 @@ describe("close all buffers", () => {
     expect(echoed.at(-1)).toBe("Closed 3 buffers");
   });
 
+  it("[SR-105/AK1] saves the unsaved text first; closes all when it is saved, and asks only about what could not be", async () => {
+    const drafted = (key: string): boolean => key !== list.key;
+    const saving: string[] = [];
+    const all = setup([element, other, list], {}, true, {
+      drafted,
+      saveDraft: (key) => {
+        saving.push(key);
+        return Promise.resolve(true);
+      },
+    });
+    action("close-all").run(all.context);
+    await flush();
+    expect(saving).toEqual([element.key, other.key]);
+    expect(closes(all.dispatched)).toHaveLength(3);
+    expect(all.asked).toEqual([]);
+    const some = setup([element, other, list], {}, true, {
+      drafted,
+      saveDraft: (key) => Promise.resolve(key === element.key),
+    });
+    action("close-all").run(some.context);
+    await flush();
+    expect(some.dispatched).toEqual([]);
+    expect(some.asked[0]?.label).toBe("1 buffer with unsaved changes (SR-037 Other)");
+  });
+
   it("names at most three of the buffers with unsaved text", () => {
     const many = [1, 2, 3, 4, 5].map((n) => elementBuffer(`u${String(n)}`, "spec", `SR-00${String(n)} T`));
     const { context, asked } = setup(many, {}, true, { drafted: () => true });
@@ -796,6 +852,8 @@ describe("close all buffers", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element, other, filtered], {}, true, { element: controls });
     const items = commandPrompt(context).items;
@@ -842,6 +900,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "s" && shortcut.mod)?.id).toBe("save");
@@ -860,6 +920,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element], {}, true, { element: controls });
     expect(actionFor(context, (shortcut) => shortcut.key === "enter" && shortcut.mod)?.id).toBe(
@@ -883,6 +945,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element], {}, true, { element: controls });
     expect(action("copy-field").title).toBe("Copy field");
@@ -908,6 +972,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element], {}, true, { element: controls });
     expect(action("add-property").title).toBe("Add property");
@@ -940,6 +1006,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const { context } = setup([element], {}, true, { element: controls });
     expect(action("clear-property").title).toBe("Clear property");
@@ -962,6 +1030,8 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
     };
     const page = { ...controls, members: true };
     const contexts = [

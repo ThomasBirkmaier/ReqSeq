@@ -44,7 +44,14 @@ export interface TextBoxProps {
   /** The outdated references in the values: `outdatedKey` to the message of the hint. */
   readonly outdated: ReadonlyMap<string, string>;
   readonly follow: (reference: Reference) => void;
-  readonly onChange: (doc: string) => void;
+  /** The document changed; `typed` when it is input, not the file's value put in (`Editor`). */
+  readonly onChange: (doc: string, typed: boolean) => void;
+  /** Any update of the editor: a hold of autosave may have ended (`Editor`). */
+  readonly onUpdate?: () => void;
+  /** The state of the editor with its undo history, as it goes (`Editor`, SR-105 AK2). */
+  readonly onClose?: (state: unknown) => void;
+  /** A state an editor of this box had: the new one starts from it (`Editor`). */
+  readonly restore?: unknown;
   /** Escape, and Enter in a single value: the focus goes to the box itself. */
   readonly onLeave: () => void;
   /** Up and Down past the first and last line: false when there is nowhere to go. */
@@ -62,6 +69,9 @@ export const TextBox = ({
   outdated,
   follow,
   onChange,
+  onUpdate,
+  onClose,
+  restore,
   onLeave,
   navigation,
   onHandle,
@@ -102,6 +112,9 @@ export const TextBox = ({
       rules={markdown ? MARKDOWN : PLAIN}
       label={label}
       {...(initial === undefined ? {} : { initial })}
+      {...(onUpdate === undefined ? {} : { onUpdate })}
+      {...(onClose === undefined ? {} : { onClose })}
+      {...(restore === undefined ? {} : { restore })}
       onChange={onChange}
       onEscape={onLeave}
       handle={onHandle}

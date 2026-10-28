@@ -108,6 +108,13 @@ const pendingField = StateField.define<Pending | null>({
   },
 });
 
+/**
+ * Whether "Reference to element" waits for the element the app asks for: the `/` and its query are still
+ * in the text, so autosave waits (SR-105, `autosave.ts`). False for a state without the slash menu.
+ */
+export const awaitingReference = (state: EditorState): boolean =>
+  (state.field(pendingField, false) ?? null) !== null;
+
 /** The range of the menu in `state` with the caret at `head`: there is one `/` that was typed and is not dismissed. */
 const rangeOf = (state: EditorState, head: number): SlashRange | undefined => {
   const armed = state.field(armedField);

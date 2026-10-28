@@ -156,3 +156,18 @@ export const shortcutLabel = (shortcut: Shortcut, mac: boolean): string => {
     key,
   ].join("+");
 };
+
+const UNDO: Shortcut = { mod: true, shift: false, key: "z" };
+const REDO: Shortcut = { mod: true, shift: true, key: "z" };
+const REDO_Y: Shortcut = { mod: true, shift: false, key: "y" };
+
+/**
+ * Undo or redo, as the text editor takes them (SR-105 AK2): Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z redoes,
+ * and so does Ctrl+Y outside macOS.
+ */
+export const historyStep = (event: KeyPress, mac: boolean): "undo" | "redo" | undefined => {
+  if (matches(event, UNDO, mac)) {
+    return "undo";
+  }
+  return matches(event, REDO, mac) || (!mac && matches(event, REDO_Y, mac)) ? "redo" : undefined;
+};

@@ -7,7 +7,7 @@
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
 // the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
 import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
+import { generateLargeWorkspace, measure, measureMedian, writeLargeWorkspace } from "@logreq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";
@@ -218,5 +218,41 @@ describe("workspace with 50,000 elements and 200,000 relations (N-036)", () => {
     for (const { repository, target } of stored.filter((_, i) => i % (RELATIONS / SAMPLE) === 0)) {
       expect(await currentTarget(context, repository, target)).toEqual(target);
     }
+  }, 600_000);
+
+  it("saves the input of the app as autosave does, on the bytes it read, and reads the element again (SR-105)", async () => {
+    const store = await workspace.get(elementStoreState);
+    const element = store.elements[1];
+    if (element === undefined) {
+      throw new Error("the generated store is empty");
+    }
+    const answer = (await invoke("element.get", { ref: element.id }, { workspace })) as {
+      fileSha256: string;
+    };
+    let sha = answer.fileSha256;
+    let count = 0;
+    // One autosave: one element.update of the text with the bytes of the last answer as precondition.
+    const { times } = await measureMedian(
+      "autosave: element.update of the text with expectedFileSha256 (median of 21)",
+      async () => {
+        count += 1;
+        const saved = (await invoke(
+          "element.update",
+          { ref: element.id, text: `Autosave ${String(count)}.`, expectedFileSha256: sha },
+          { workspace },
+        )) as { fileSha256: string };
+        sha = saved.fileSha256;
+        return saved;
+      },
+      { basis: "SR-105 AK1 (one write per pause; ADR-0008)", runs: 21 },
+    );
+    expect(times).toHaveLength(21);
+    // The `written` reload of the buffer after each autosave: one element.get.
+    const { result: read } = await measureMedian(
+      "autosave: element.get of the saved element (the reload `written` brings, median of 21)",
+      () => invoke("element.get", { ref: element.id }, { workspace }) as Promise<{ fileSha256: string }>,
+      { basis: "SR-105, ADR-0008 (open an element: 200 ms)", thresholdMs: 200, runs: 21 },
+    );
+    expect(read.fileSha256).toBe(sha);
   }, 600_000);
 });

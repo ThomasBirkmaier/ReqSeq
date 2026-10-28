@@ -75,6 +75,8 @@ export type BufferData =
        * (SR-106 AK2, AK3): something to notice (D-062), after the counts.
        */
       readonly disk?: "changed" | "deleted";
+      /** The last save of the input failed (SR-105): something to notice, after the counts. */
+      readonly notSaved?: boolean;
     };
 
 /**
@@ -122,6 +124,7 @@ const elementParts = (
     ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
     ...(hints > 0 ? [plural(hints, "hint")] : []),
     ...(data.disk === undefined ? [] : [`${data.disk} on disk`]),
+    ...(data.notSaved === true ? ["not saved"] : []),
   ];
 };
 

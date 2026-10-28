@@ -254,7 +254,7 @@ test("[SR-117/AK4] the mode switches by the command prompt and by the key, and t
   }
 });
 
-test("[SR-117/AK5] with unsaved text an MCP read of another element does not switch the view until Ctrl+S", async () => {
+test("[SR-117/AK5] with unsaved text an MCP read of another element does not switch the view until the input is saved", async () => {
   const { running, agent } = await started();
   const { window } = running;
   try {
@@ -262,14 +262,22 @@ test("[SR-117/AK5] with unsaved text an MCP read of another element does not swi
     await expect(modeline(window)).toContainText("following agent");
     await shownWithin(window, agent, "element_get", { ref: SEE.id }, SEE.title, SEE.id);
     await window.keyboard.press("Enter");
-    await window.keyboard.type(" More.");
+    await window.keyboard.type(" More");
     await agent.call("element_get", { ref: MEASURE.id });
-    await window.waitForTimeout(LIMIT_MS + 500);
-    await expect(title(window)).toHaveText(SEE.title);
+    // The user keeps typing: the input is not saved (SR-105 saves a second after the last key), so the
+    // view stays longer than the follow would take.
+    const until = Date.now() + LIMIT_MS + 500;
+    while (Date.now() < until) {
+      await window.keyboard.type(".");
+      await window.waitForTimeout(300);
+      await expect(title(window)).toHaveText(SEE.title, { timeout: 100 });
+    }
     await expect(modeline(window)).toContainText("following agent: waits for save");
-    await window.keyboard.press("ControlOrMeta+S");
-    await expect(title(window)).toHaveText(MEASURE.title);
+    // Once the typing stops, the input is saved, and then the view follows.
+    await expect(title(window)).toHaveText(MEASURE.title, { timeout: 5000 });
     await expect(modeline(window)).not.toContainText("waits for save");
+    const saved = await running.cli(["element", "get", SEE.id]);
+    expect(saved.stdout).toContain(" More.");
   } finally {
     await finish(running, agent);
   }

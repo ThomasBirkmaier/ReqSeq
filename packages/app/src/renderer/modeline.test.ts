@@ -158,6 +158,13 @@ describe("bufferView", () => {
     ]);
   });
 
+  it("says not saved when the last save of the input failed, after the counts", () => {
+    const buffer = elementBuffer("u", "spec", "SR-036 T");
+    expect(
+      bufferView(buffer, { kind: "element", element: element(), modified: true, notSaved: true }),
+    ).toEqual(["SR-000001 · system-requirement", "modified", "not saved"]);
+  });
+
   it("names the buffer before it has loaded", () => {
     expect(bufferView(elementBuffer("u", "spec", "SR-036 T"), undefined)).toEqual(["SR-036 T"]);
     expect(bufferView(listBuffer("All elements"), undefined)).toEqual(["All elements"]);

@@ -63,6 +63,8 @@ const start = (initial: Buffers, answers: Record<string, unknown> = {}, members 
             copy: vi.fn(),
             addProperty: vi.fn(),
             clearProperty: vi.fn(),
+            flush: vi.fn(() => Promise.resolve(true)),
+            prompting: vi.fn(),
             members,
           },
         }

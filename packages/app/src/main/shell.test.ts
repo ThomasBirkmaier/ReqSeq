@@ -307,6 +307,43 @@ describe("startShell", () => {
     expect(contents?.sent).toHaveLength(2);
   });
 
+  it("[SR-105/AK3] shows no save dialog and no message box: the one dialog is the folder dialog of File > Open Workspace", async () => {
+    const fake = fakeElectron(false);
+    const others = {
+      showSaveDialog: vi.fn(),
+      showSaveDialogSync: vi.fn(),
+      showMessageBox: vi.fn(),
+      showMessageBoxSync: vi.fn(),
+      showErrorBox: vi.fn(),
+      showCertificateTrustDialog: vi.fn(),
+    };
+    Object.assign(fake.electron.dialog, others);
+    await startShell(
+      fake.electron as unknown as ShellElectron,
+      options(["electron", ".", "--workspace=/ws"]),
+    );
+    const contents = fake.windows[0]?.webContents;
+    contents?.emit("did-finish-load");
+    fake.electron.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ["/chosen"] });
+    openWorkspaceItem(fake.electron)();
+    await vi.waitFor(() => {
+      expect(contents?.sent).toHaveLength(1);
+    });
+    fake.ipcListeners.get(SAVED_CHANNEL)?.(
+      { sender: contents, senderFrame: contents?.mainFrame },
+      { id: 1, saved: false },
+    );
+    fake.appHandlers.get("window-all-closed")?.();
+    fake.appHandlers.get("will-quit")?.({ preventDefault: vi.fn() });
+    await vi.waitFor(() => {
+      expect(fake.electron.app.quit).toHaveBeenCalled();
+    });
+    expect(fake.electron.dialog.showOpenDialog).toHaveBeenCalledOnce();
+    for (const shown of Object.values(others)) {
+      expect(shown).not.toHaveBeenCalled();
+    }
+  });
+
   it("closes the workspace before the app quits", async () => {
     const { electron, appHandlers, children } = await start(["electron", ".", "--workspace=/ws"]);
     const event = { preventDefault: vi.fn() };

@@ -86,11 +86,10 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
   try {
     await listAll(window);
     await opened(window, DEMO_TITLE);
-    // Unsaved text, and a marker on the page: neither survives a restart or a reload.
+    // The editor has the focus, and a marker on the page that no restart or reload keeps (with the same
+    // process id, it proves that the switch needs neither). Typed text would not: the prompt of the command
+    // saves it first (SR-105), so a reload would show it too.
     await window.locator(".cm-content").click();
-    await window.keyboard.press("ControlOrMeta+End");
-    await window.keyboard.insertText("\n\nNoch nicht gespeichert.");
-    await expect(window.getByLabel("Modeline")).toContainText("modified");
     await window.evaluate(() => {
       (window as unknown as { __noReload: number }).__noReload = 1;
     });
@@ -105,8 +104,6 @@ test("[SR-113/AK2] the command switches light and dark without a restart", async
     expect(await chosen(window)).toBe("dark");
     expect(await running.app.evaluate(() => process.pid)).toBe(pid);
     expect(await window.evaluate(() => (window as unknown as { __noReload?: number }).__noReload)).toBe(1);
-    await expect(window.locator(".cm-content")).toContainText("Noch nicht gespeichert.");
-    await expect(window.getByLabel("Modeline")).toContainText("modified");
 
     await runCommand(window, "toggle dark");
     await expect(window.getByLabel("Minibuffer")).toContainText("Light mode until the app quits");

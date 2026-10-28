@@ -141,11 +141,57 @@ describe("Editor", () => {
     act(() => {
       view().dispatch({ changes: { from: 13, insert: "!" } });
     });
-    expect(onChange).toHaveBeenCalledExactlyOnceWith("# Title\n\nbody!");
+    expect(onChange).toHaveBeenCalledExactlyOnceWith("# Title\n\nbody!", true);
     act(() => {
       view().dispatch({ selection: { anchor: 2 } });
     });
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-105/AK2] gives its state with the undo history when it goes, and a new editor started from it undoes on its document", async () => {
+    const onClose = vi.fn();
+    await render({ onClose });
+    act(() => {
+      view().dispatch({ changes: { from: 13, insert: "!" } });
+    });
+    act(() => {
+      root.render(null);
+    });
+    const state = onClose.mock.calls[0]?.[0] as unknown;
+    expect(state).toMatchObject({ doc: "# Title\n\nbody!" });
+    // The file holds the saved text with a final line break: it is put in without an undo step.
+    await render({ restore: state, text: "# Title\n\nbody!\n" });
+    expect(view().state.doc.toString()).toBe("# Title\n\nbody!\n");
+    act(() => {
+      expect(undo(view())).toBe(true);
+    });
+    expect(view().state.doc.toString()).toBe("# Title\n\nbody\n");
+    // A state that is none of an editor starts fresh.
+    act(() => {
+      root.render(null);
+    });
+    await render({ restore: { doc: 3 } });
+    expect(view().state.doc.toString()).toBe("# Title\n\nbody");
+    expect(undo(view())).toBe(false);
+  });
+
+  it("tells input from the file's text put in, reports every update, and is busy while it composes", async () => {
+    const onChange = vi.fn();
+    const onUpdate = vi.fn();
+    const handle = vi.fn();
+    await render({ onChange, onUpdate, handle });
+    const given = handleOf(handle);
+    act(() => {
+      given.replace("other");
+    });
+    expect(onChange).toHaveBeenLastCalledWith("other", false);
+    act(() => {
+      view().dispatch({ selection: { anchor: 1 } });
+    });
+    expect(onUpdate).toHaveBeenCalled();
+    expect(given.busy()).toBe(false);
+    vi.spyOn(view(), "composing", "get").mockReturnValue(true);
+    expect(given.busy()).toBe(true);
   });
 
   it("shows a draft instead of the text when created with one", async () => {
@@ -254,7 +300,7 @@ describe("Editor", () => {
       given.set("");
     });
     expect(given.doc()).toBe("");
-    expect(onChange).toHaveBeenLastCalledWith("");
+    expect(onChange).toHaveBeenLastCalledWith("", true);
     act(() => {
       expect(undo(view())).toBe(true);
     });

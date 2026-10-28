@@ -2,7 +2,8 @@
 // document is the Markdown source as it is; the preview only decorates it (`preview.ts`). The editor
 // knows nothing of commands: the element buffer reads the document through `onChange` and the handle,
 // and saves it (ADR-0002).
-import { history, historyKeymap, standardKeymap } from "@codemirror/commands";
+import { completionStatus } from "@codemirror/autocomplete";
+import { history, historyField, historyKeymap, standardKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -26,6 +27,17 @@ export interface EditorHandle {
   readonly replace: (text: string) => void;
   /** Replaces the document as an edit of the user, which Ctrl/Cmd+Z undoes ("Clear property"). */
   readonly set: (text: string) => void;
+  /**
+   * Input is still going on: an input method composes, or a completion list (the slash menu) is open,
+   * whose query is in the document. Autosave waits for it (SR-105).
+   */
+  readonly busy: () => boolean;
+  /**
+   * The file holds `text` now (a save answered): the document follows the next `text` only when it is
+   * still `text`. Input typed while the save ran, an undo back to the text before it included, stays
+   * (SR-105 AK2).
+   */
+  readonly rebase: (text: string) => void;
 }
 
 export interface EditorProps {
@@ -34,8 +46,21 @@ export interface EditorProps {
   readonly readOnly: boolean;
   /** A draft to show instead of `text` when the editor is created. */
   readonly initial?: string;
-  readonly onChange: (doc: string) => void;
+  /**
+   * The document changed; `typed` when the change is input (typing, an edit, undo or redo), not the text
+   * of the file put in without an undo step (`replace`).
+   */
+  readonly onChange: (doc: string, typed: boolean) => void;
   readonly onEscape: () => void;
+  /** Any update of the editor (a key, a selection, the end of a composition): a hold may have ended. */
+  readonly onUpdate?: () => void;
+  /**
+   * The state of the editor with its undo history, as the editor goes (`EditorState.toJSON`): an editor
+   * made again with it as `restore` keeps undo and redo (SR-105 AK2).
+   */
+  readonly onClose?: (state: unknown) => void;
+  /** A state an editor of this field had (`onClose`): the new one starts from it, on the document it shows. */
+  readonly restore?: unknown;
   readonly plugins?: EditorPlugins;
   /** The built-in preview rules; all of them by default. A Markdown property box has the inline ones only (SR-127). */
   readonly rules?: readonly PreviewRule[];
@@ -45,6 +70,31 @@ export interface EditorProps {
 }
 
 const NO_PLUGINS: EditorPlugins = {};
+
+/** What a state keeps in its JSON besides the document and the selection: the undo history. */
+const HISTORY = { history: historyField };
+
+/**
+ * The state of a new editor with `doc`: from a state an editor of the field had (`restore`), so undo and
+ * redo go on, else a fresh one. A document that differs from the restored one is put in without an undo
+ * step, as `replace` does, so the history maps over it. A state that cannot be read starts fresh.
+ */
+const startState = (doc: string, extensions: Extension, restore: unknown): EditorState => {
+  if (restore !== undefined) {
+    try {
+      const restored = EditorState.fromJSON(restore, { extensions }, HISTORY);
+      const change = minimalChange(restored.doc.toString(), doc);
+      return restored.update({ changes: change, annotations: Transaction.addToHistory.of(false) }).state;
+    } catch {
+      // Not a state of this editor: a fresh one.
+    }
+  }
+  return EditorState.create({ doc, extensions });
+};
+
+/** Whether an update holds input: a change that is not `replace` (which adds no undo step). */
+const typedIn = (transactions: readonly Transaction[]): boolean =>
+  transactions.some((tr) => tr.docChanged && tr.annotation(Transaction.addToHistory) !== false);
 
 const configuration = (
   readOnly: boolean,
@@ -145,6 +195,9 @@ export const Editor = ({
   initial,
   onChange,
   onEscape,
+  onUpdate,
+  onClose,
+  restore,
   plugins = NO_PLUGINS,
   rules = BUILT_IN_RULES,
   label = "Text",
@@ -156,8 +209,8 @@ export const Editor = ({
   const applied = useRef({ readOnly, plugins });
   const lastText = useRef(text);
   // The callbacks of the latest render, so the editor is created once.
-  const latest = useRef({ onChange, onEscape, handle });
-  latest.current = { onChange, onEscape, handle };
+  const latest = useRef({ onChange, onEscape, onUpdate, onClose, handle });
+  latest.current = { onChange, onEscape, onUpdate, onClose, handle };
 
   // A layout effect: the editor and its handle are there in the same task as the render that shows the
   // element, and so are the controls the buffer registers with them, before any key can come.
@@ -167,9 +220,9 @@ export const Editor = ({
     }
     const editor = new EditorView({
       parent: host,
-      state: EditorState.create({
-        doc: initial ?? text,
-        extensions: [
+      state: startState(
+        initial ?? text,
+        [
           history(),
           keymap.of([
             {
@@ -187,13 +240,15 @@ export const Editor = ({
           EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              latest.current.onChange(update.state.doc.toString());
+              latest.current.onChange(update.state.doc.toString(), typedIn(update.transactions));
             }
+            latest.current.onUpdate?.();
           }),
           theme,
           config.current.of(configuration(readOnly, plugins, rules)),
         ],
-      }),
+        restore,
+      ),
     });
     // An ordinary text is shown formatted from the first paint, so its height does not change later (`parsed.ts`).
     parseAhead(editor);
@@ -215,8 +270,13 @@ export const Editor = ({
       set: (next) => {
         editor.dispatch({ changes: minimalChange(editor.state.doc.toString(), next), userEvent: "input" });
       },
+      busy: () => editor.composing || completionStatus(editor.state) === "active",
+      rebase: (next) => {
+        lastText.current = next;
+      },
     });
     return () => {
+      latest.current.onClose?.(editor.state.toJSON(HISTORY));
       latest.current.handle?.(undefined);
       editor.destroy();
     };

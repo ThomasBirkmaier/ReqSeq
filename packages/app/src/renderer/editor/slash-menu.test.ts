@@ -6,6 +6,7 @@
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { completionStatus, currentCompletions, selectedCompletion } from "@codemirror/autocomplete";
 import { undo } from "@codemirror/commands";
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
@@ -14,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorProps } from "./Editor.js";
 import { Editor } from "./Editor.js";
 import { mergePlugins } from "./plugins.js";
-import { slashMenu } from "./slash-menu.js";
+import { awaitingReference, slashMenu } from "./slash-menu.js";
 import type { ReferenceRequest, SlashMenuOptions } from "./slash-menu.js";
 import type { ReferenceTarget } from "./slash-entries.js";
 
@@ -505,9 +506,16 @@ describe("the reference to an element", () => {
   };
 
   it("[SR-129/AK4] asks the app and keeps the / and the query until an element is picked", async () => {
-    const { view } = await ask("see ", "/ref");
+    const { view, request } = await ask("see ", "/ref");
     expect(doc(view)).toBe("see /ref");
     expect(completionStatus(view.state)).toBeNull();
+    // Autosave waits meanwhile (SR-105): the query is no text to write.
+    expect(awaitingReference(view.state)).toBe(true);
+    act(() => {
+      request.insert(target);
+    });
+    expect(awaitingReference(view.state)).toBe(false);
+    expect(awaitingReference(EditorState.create())).toBe(false);
   });
 
   it("[SR-129/AK4] writes the reference in place of the / and its query, and the editor takes the focus", async () => {
