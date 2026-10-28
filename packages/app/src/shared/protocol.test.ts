@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentActivity } from "./protocol.js";
 import {
   BRIDGE_EVENTS,
+  PORT_EVENTS,
   MAX_ROOT_LENGTH,
   MAX_CHANGED_IDS,
   coreMessage,
@@ -162,7 +163,7 @@ describe("portMessage: what the core process sends a window", () => {
   });
 
   it("[SR-117/AK4] the port carries only the two events, and no mode with them", () => {
-    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired"]);
+    expect(PORT_EVENTS).toEqual(["workspace-changed", "agent-activity"]);
     expect(BRIDGE_EVENTS.filter(isBridgeEvent)).toEqual(BRIDGE_EVENTS);
     for (const name of ["follow-mode", "follow", "mode", "toString", "__proto__", 1, undefined]) {
       expect(isBridgeEvent(name)).toBe(false);
@@ -360,15 +361,12 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
     expect(MAX_ROOT_LENGTH).toBe(CORE_MAX_ROOT_LENGTH);
   });
 
-  it("save-expired carries only closing, and only an object is one", () => {
-    expect(portMessage({ event: "save-expired", data: { closing: true } })).toEqual({
-      event: "save-expired",
-      data: { closing: true },
-    });
-    expect(portMessage({ event: "save-expired", data: { more: 1 } })).toEqual({
-      event: "save-expired",
-      data: {},
-    });
-    expect(portMessage({ event: "save-expired", data: "x" })).toBeUndefined();
+  it("[SR-131/AK3] save-expired is an event of the window from the main process, never one of the port", () => {
+    expect(BRIDGE_EVENTS).toEqual(["workspace-changed", "agent-activity", "save-expired"]);
+    expect(isBridgeEvent("save-expired")).toBe(true);
+    expect(PORT_EVENTS).not.toContain("save-expired");
+    for (const data of [{}, { closing: true }, { more: 1 }, "x"]) {
+      expect(portMessage({ event: "save-expired", data })).toBeUndefined();
+    }
   });
 });

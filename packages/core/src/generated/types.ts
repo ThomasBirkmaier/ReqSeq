@@ -1226,7 +1226,7 @@ export interface WorkspaceRecentOutput {
     readonly root: string;
     /** When the app opened it last. */
     readonly opened: IsoDateTime;
-    /** Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false. */
+    /** Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
     readonly exists: boolean;
   }[];
 }

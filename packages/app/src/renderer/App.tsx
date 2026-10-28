@@ -229,26 +229,38 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         setRelationModel(metamodel.ok ? metamodel.output : NO_RELATIONS);
       }
     };
+    // The buffers of a workspace that has loaded: none of the one before, no drafts, no undo histories.
+    const startBuffers = (reason: "opened" | undefined, ok: boolean): void => {
+      resetDrafts();
+      memories.current.clear();
+      // A prompt opened while another workspace loaded stays (the old buffers went at `opened`).
+      if (reason === undefined) {
+        openPrompt.current = undefined;
+        setPrompt(undefined);
+      }
+      // The first buffer is the calm overview, not the list of all elements (SR-118).
+      dispatch({ type: "reset", ...(ok ? { buffer: overviewBuffer() } : {}) });
+    };
+    // Counts the workspaces opened in this window: the status of one that was left (a load that hung,
+    // answered by the closed connection when the next one opened) never overwrites the next one's view.
+    let opened = 0;
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
+      const asked = opened;
       const result = await bridge.invoke("workspace.status", {});
-      if (!mounted) {
+      if (!mounted || asked !== opened) {
         return;
       }
       const next = workspaceView(result);
       setView(next);
       document.title = windowTitle(next);
       if (reason === undefined || reason === "opened") {
-        resetDrafts();
-        memories.current.clear();
-        openPrompt.current = undefined;
-        setPrompt(undefined);
-        // The first buffer is the calm overview, not the list of all elements (SR-118).
-        dispatch({ type: "reset", ...(result.ok ? { buffer: overviewBuffer() } : {}) });
+        startBuffers(reason, result.ok);
       }
-      // A switch ends once the buffers of the old workspace are gone (SR-131 AK3): until then the window
-      // takes no input, which would be dropped with the drafts or saved into the other workspace.
+      // The minibuffer said "Opening another workspace…" until the new one answers.
       if (reason === "opened" || reason === "restarted") {
         setEcho(MESSAGES[reason] ?? "");
+      }
+      if (reason === "restarted") {
         leaveSwitching();
       }
       const key = recentKey(result);
@@ -285,7 +297,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       }
       // A save of this window reports `written`, its message ("Saved ...") stays; a change from outside
       // is quiet (D-062). The core process stopped for good: a switch ends now, no refresh follows.
-      // Opened and restarted say so, and end a switch, after their refresh.
+      // Opened ends a switch at once; restarted ends one after its refresh.
       if (change.reason === "stopped") {
         setEcho(STOPPED);
         leaveSwitching();
@@ -294,6 +306,19 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       } else {
         stoppedRef.current = false;
         setStopped(false);
+        // Another workspace is open (SR-131 AK3): the buffers and drafts of the old one go at once, before
+        // the new one has loaded, so nothing typed then is dropped or saved into the other workspace, and
+        // the switch ends at once: a load that hangs never keeps the window locked. The overview of the
+        // new workspace comes with its status.
+        if (change.reason === "opened") {
+          opened += 1;
+          resetDrafts();
+          memories.current.clear();
+          openPrompt.current = undefined;
+          setPrompt(undefined);
+          dispatch({ type: "reset" });
+          leaveSwitching();
+        }
         void refresh(change.reason);
       }
     });
@@ -359,6 +384,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           saved: (key) => {
             onDraft(key, undefined);
           },
+          rebased: onDraft,
         },
         buffer,
         draft,
@@ -479,6 +505,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           saved: (key) => {
             onDraft(key, undefined);
           },
+          rebased: onDraft,
         });
       } catch (error) {
         result = { ok: false, name: "The input", message: String(error) };
@@ -512,6 +539,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
           saved: (key) => {
             onDraft(key, undefined);
           },
+          rebased: onDraft,
         });
         saved = result.ok;
         if (!result.ok) {

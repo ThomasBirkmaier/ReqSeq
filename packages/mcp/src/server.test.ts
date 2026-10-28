@@ -11,6 +11,7 @@ import {
   agentInstructions,
   defineTestCommand,
   loadContracts,
+  rememberWorkspace,
 } from "@logreq/core";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -392,6 +393,42 @@ const productList = async (): Promise<{
   await client.close();
   return { listed, instructions };
 };
+
+describe("serveMcp without a workspace", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("[SR-131/AK1] workspace_recent lists the recent workspaces from a folder that holds no workspace", async () => {
+    // The OS cache folder of this process (Linux, macOS, Windows) lies in the test folder.
+    for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
+      vi.stubEnv(name, path.join(dir, "home"));
+    }
+    const root = path.join(dir, "station");
+    await fs.mkdir(root);
+    await fs.writeFile(path.join(root, "logreq-workspace.yaml"), "logreq-workspace: 1\n");
+    const opened = new Date(Date.UTC(2026, 9, 27, 10, 0));
+    await rememberWorkspace(root, { now: opened });
+    // `workspace` is the empty test folder: the product runtime serves the list all the same (ADR-0002 rule 7).
+    const toServer = new PassThrough();
+    const toClient = new PassThrough();
+    const served = serveMcp({
+      workspace,
+      input: toServer,
+      output: { write: (text) => toClient.write(text) },
+    });
+    const client = new Client({ name: "test", version: "1" });
+    await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
+    const result = await client.callTool({ name: "workspace_recent", arguments: {} });
+    toServer.end();
+    await served;
+    await client.close();
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({
+      workspaces: [{ root, opened: opened.toISOString(), exists: true }],
+    });
+  });
+});
 
 describe("callTool", () => {
   it("answers internal without the error text when the runtime fails outside of a CommandError", async () => {

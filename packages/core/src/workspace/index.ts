@@ -39,6 +39,7 @@ export {
   typedWorkspaceFolder,
 } from "./recent.js";
 export type {
+  ExistenceAnswer,
   ExistenceChecker,
   ExistenceOptions,
   RecentWorkspace,

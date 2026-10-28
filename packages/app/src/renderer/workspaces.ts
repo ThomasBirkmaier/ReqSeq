@@ -6,6 +6,7 @@
 // before it switches (AK3, `switch.ts`). The renderer shows the list as it comes and asks main to open.
 import type { OpenWorkspaceOptions, OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protocol.js";
 import type { Choice, Prompt } from "./actions.js";
+import { isWindows } from "./keys.js";
 import { notSavedInTime } from "./switch.js";
 
 /** The workspaces of the window: the open one's name, the list and the switch (from the bridge). */
@@ -30,13 +31,14 @@ const notFound = (root: string, open: string | undefined): string => `${root} is
 
 /**
  * What the echo says when main did not open `path`. Nothing for `unsaved`: the window already said which
- * input could not be saved (`switch.ts`).
+ * input could not be saved (`switch.ts`). `refused` says only that it could not be opened, for a typed
+ * path too: main also refuses when it cannot load core's module of the list, so the window cannot tell
+ * a path that is not local and absolute from a failure.
  */
 const refusal = (
   path: string,
   result: Exclude<OpenWorkspaceResult, { readonly ok: true }>,
   open: string | undefined,
-  typed: boolean,
 ): string | undefined => {
   switch (result.reason) {
     case "missing":
@@ -50,7 +52,7 @@ const refusal = (
     case "busy":
       return `Another workspace is being opened; ${staying(open)}`;
     case "refused":
-      return typed ? `${path} is not an absolute path of a local folder` : `${path} could not be opened`;
+      return `${path} could not be opened`;
   }
 };
 
@@ -58,7 +60,7 @@ const refusal = (
 const openThrough = (context: WorkspacePromptContext, path: string, typed: boolean): void => {
   const { workspaces, echo } = context;
   void workspaces.open(path, ...(typed ? [{ typed }] : [])).then((result) => {
-    const message = result.ok ? undefined : refusal(path, result, workspaces.name, typed);
+    const message = result.ok ? undefined : refusal(path, result, workspaces.name);
     if (message !== undefined) {
       echo(message);
     }
@@ -91,15 +93,17 @@ const workspaceChoice = (context: WorkspacePromptContext, entry: RecentWorkspace
 });
 
 /**
- * Whether a typed text looks like a folder path, so the prompt offers to open it: it starts with `/`,
- * `~`, `\` or a drive letter with `:` and a separator. Main decides whether it is one it opens.
+ * Whether a typed text looks like a folder path, so the prompt offers to open it: it starts with `/` or
+ * `~`, and on Windows also with `\` or a drive letter with `:` and a separator. Main decides whether it
+ * is one it opens.
  */
-export const isFolderPath = (text: string): boolean => /^(?:[/~\\]|[A-Za-z]:[\\/])/.test(text);
+export const isFolderPath = (text: string, windows: boolean): boolean =>
+  (windows ? /^(?:[/~\\]|[A-Za-z]:[\\/])/ : /^[/~]/).test(text);
 
 /** The choice for a typed folder path (AK5): it opens the workspace of that folder. */
 const typedChoice = (context: WorkspacePromptContext, query: string): Choice | undefined => {
   const path = query.trim();
-  return isFolderPath(path)
+  return isFolderPath(path, isWindows(navigator.platform))
     ? {
         id: `folder:${path}`,
         name: `Open ${path}`,

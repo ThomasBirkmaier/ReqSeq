@@ -161,8 +161,9 @@ export type AgentActivity = ActivityAccess;
 
 /**
  * The events the core process and the main process send a window, by name, with what the listeners of
- * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and one
- * check in `EVENT_DATA`, and the bridge keeps its seven functions (ADR-0010).
+ * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and either
+ * one check in `EVENT_DATA` (from the port) or one name in `WINDOW_EVENTS` (from the main process only),
+ * and the bridge keeps its seven functions (ADR-0010).
  */
 export interface BridgeEvents {
   /** The workspace of the window changed (`WorkspaceChangeReason`). */
@@ -171,7 +172,7 @@ export interface BridgeEvents {
   readonly "agent-activity": AgentActivity;
   /**
    * Main gave up waiting for the window to save before a switch (SR-131 AK3, a timeout): the open
-   * workspace stays. From the main process (SAVE_CHANNEL `expired`), not the port.
+   * workspace stays. From the main process (SAVE_CHANNEL `expired`), never the port (`WINDOW_EVENTS`).
    */
   readonly "save-expired": SaveExpired;
 }
@@ -430,19 +431,33 @@ const agentActivity = (value: unknown): AgentActivity | undefined => {
     : undefined;
 };
 
-/** What each event carries, checked; a new event needs its entry here. */
-const EVENT_DATA: { readonly [E in BridgeEvent]: (value: unknown) => BridgeEvents[E] | undefined } = {
+/**
+ * The events that only the main process sends (the preload emits them itself): the port never carries
+ * them, so a core process cannot fake one.
+ */
+const WINDOW_EVENTS = ["save-expired"] as const satisfies readonly BridgeEvent[];
+
+/** An event the port carries. */
+type PortEventName = Exclude<BridgeEvent, (typeof WINDOW_EVENTS)[number]>;
+
+/** What each event of the port carries, checked; a new event of the port needs its entry here. */
+const EVENT_DATA: { readonly [E in PortEventName]: (value: unknown) => BridgeEvents[E] | undefined } = {
   "workspace-changed": workspaceChange,
   "agent-activity": agentActivity,
-  "save-expired": (value) =>
-    isRecord(value) ? (value["closing"] === true ? { closing: true } : {}) : undefined,
 };
 
-/** The names of the bridge's events, in the order of `EVENT_DATA`. */
-export const BRIDGE_EVENTS = Object.keys(EVENT_DATA) as readonly BridgeEvent[];
+/** The names of the events the port carries, in the order of `EVENT_DATA`. */
+export const PORT_EVENTS = Object.keys(EVENT_DATA) as readonly PortEventName[];
+
+/** The names of the bridge's events: those of the port, then those of the main process. */
+export const BRIDGE_EVENTS: readonly BridgeEvent[] = [...PORT_EVENTS, ...WINDOW_EVENTS];
 
 /** Whether `name` is an event of the bridge (the renderer is not trusted to keep to the types). */
 export const isBridgeEvent = (name: unknown): name is BridgeEvent =>
+  typeof name === "string" && (BRIDGE_EVENTS as readonly string[]).includes(name);
+
+/** Whether `name` is an event the port carries. */
+const isPortEvent = (name: unknown): name is PortEventName =>
   typeof name === "string" && Object.hasOwn(EVENT_DATA, name);
 
 /** `value` as a message from the core process on the port, or undefined. */
@@ -452,7 +467,7 @@ export const portMessage = (value: unknown): PortMessage | undefined => {
   }
   if (value["event"] !== undefined) {
     const event = value["event"];
-    const data = isBridgeEvent(event) ? EVENT_DATA[event](value["data"]) : undefined;
+    const data = isPortEvent(event) ? EVENT_DATA[event](value["data"]) : undefined;
     return data === undefined ? undefined : ({ event, data } as PortEvent);
   }
   if (typeof value["id"] !== "number") {

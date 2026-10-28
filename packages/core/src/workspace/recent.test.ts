@@ -268,7 +268,7 @@ describe("existence of the recent workspaces", () => {
     expect(await workspaceExists(gone, check)).toBe(true);
   });
 
-  it("a check that does not answer within 1 s counts as missing, and at most 2 checks run at once", async () => {
+  it("a check that does not answer within 1 s is a timeout, and at most 2 checks run at once", async () => {
     vi.useFakeTimers();
     type Answer = { isFile(): boolean } | Error;
     const asked: string[] = [];
@@ -301,18 +301,18 @@ describe("existence of the recent workspaces", () => {
     expect(asked).toEqual(["a", "b", "c"]);
     await answer("c", new Error("ENOENT"));
     expect(asked).toEqual(["a", "b", "c", "d"]);
-    // b and d hang: 1 s after the call the rest counts as missing, and e gets no stat.
+    // b and d hang: 1 s after the call the rest is a timeout, and e gets no stat.
     await vi.advanceTimersByTimeAsync(990);
     expect(result).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(10);
-    expect(result).toHaveBeenCalledExactlyOnceWith([true, false, false, false, false]);
+    expect(result).toHaveBeenCalledExactlyOnceWith([true, "timeout", false, "timeout", "timeout"]);
     // A later call while both slots hang: its own second counts from its call; f gets no stat.
     const later = vi.fn();
     void check([path.join(top, "f")]).then(later);
     await vi.advanceTimersByTimeAsync(999);
     expect(later).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
-    expect(later).toHaveBeenCalledExactlyOnceWith([false]);
+    expect(later).toHaveBeenCalledExactlyOnceWith(["timeout"]);
     expect(asked).toEqual(["a", "b", "c", "d"]);
     // b answers at last: its slot is free, the answer changes nothing that was given.
     await answer("b", file);
@@ -344,7 +344,7 @@ describe("the checkers of a process", () => {
     void checks.list(["nfs-a", "nfs-b", "local"].map((name) => path.join(top, name))).then(listed);
     await vi.advanceTimersByTimeAsync(1_000);
     // The two slots of the list hang for good: "local" got no stat there and counts as missing.
-    expect(listed).toHaveBeenCalledExactlyOnceWith([false, false, false]);
+    expect(listed).toHaveBeenCalledExactlyOnceWith(["timeout", "timeout", "timeout"]);
     expect(asked).toEqual(["nfs-a", "nfs-b"]);
     // The chosen root is still checked, with its own slot.
     expect(await workspaceExists(path.join(top, "local"), checks.chosen)).toBe(true);
@@ -352,8 +352,34 @@ describe("the checkers of a process", () => {
     const again = vi.fn();
     void checks.list([path.join(top, "local")]).then(again);
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(again).toHaveBeenCalledExactlyOnceWith([false]);
+    expect(again).toHaveBeenCalledExactlyOnceWith(["timeout"]);
     expect(asked).toEqual(["nfs-a", "nfs-b", "local"]);
+  });
+
+  it("[SR-131/AK5] a typed path on a hung mount blocks only further typed paths, never a root of the list", async () => {
+    vi.useFakeTimers();
+    const asked: string[] = [];
+    const stat = (file: string): Promise<{ isFile(): boolean }> => {
+      const root = path.basename(path.dirname(file));
+      asked.push(root);
+      return root === "nfs" ? new Promise(() => undefined) : Promise.resolve({ isFile: () => true });
+    };
+    const checks = createWorkspaceChecks({ stat });
+    const typed = vi.fn();
+    void findTypedWorkspace(path.join(top, "nfs"), { check: checks.typed }).then(typed);
+    await vi.advanceTimersByTimeAsync(1_000);
+    // The level that timed out ends the walk: no folder above it is asked, none is opened.
+    expect(typed).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(asked).toEqual(["nfs"]);
+    // Its stat still hangs, and a root of the list chosen later is checked all the same, at once.
+    expect(await workspaceExists(path.join(top, "local"), checks.chosen)).toBe(true);
+    expect(asked).toEqual(["nfs", "local"]);
+    // A further typed path waits for the typed slot only: it times out and opens nothing.
+    const next = vi.fn();
+    void findTypedWorkspace(path.join(top, "other"), { check: checks.typed }).then(next);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(next).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(asked).toEqual(["nfs", "local"]);
   });
 });
 
@@ -387,8 +413,14 @@ describe("a typed folder path (SR-131 AK5)", () => {
     expect(typedWorkspaceFolder("C:\\", windows)).toBe("C:\\");
     expect(typedWorkspaceFolder("~\\Spec", windows)).toBe("C:\\Users\\ada\\Spec");
     expect(typedWorkspaceFolder("~/Spec", windows)).toBe("C:\\Users\\ada\\Spec");
-    // UNC and device paths would make Windows connect to the host: refused before any file-system call.
+    // UNC, device and NT paths would make Windows connect to the host, and `\Work` is on the current
+    // drive: only a path on a drive is taken, before any file-system call.
     for (const text of [
+      "\\??\\UNC\\evil\\share\\x",
+      "/??/UNC/evil/s",
+      "\\??\\C:\\Work",
+      "\\Work",
+      "/Work",
       "\\\\host\\share\\spec",
       "//host/share/spec",
       "\\/host\\share",
@@ -424,5 +456,13 @@ describe("a typed folder path (SR-131 AK5)", () => {
     asked.length = 0;
     expect(await findTypedWorkspace("C:\\Work\\Spec", { platform: "win32", check })).toBeUndefined();
     expect(asked).toEqual(["C:\\Work\\Spec", "C:\\Work", "C:\\"]);
+    // A level that times out ends the walk, also when a folder above it holds a workspace.
+    asked.length = 0;
+    const slow: ExistenceChecker = (list) => {
+      asked.push(...list);
+      return Promise.resolve(list.map((dir) => (dir === "/home/ada/net" ? "timeout" : dir === "/home/ada")));
+    };
+    expect(await findTypedWorkspace("/home/ada/net/ws", { platform: "linux", check: slow })).toBeUndefined();
+    expect(asked).toEqual(["/home/ada/net/ws", "/home/ada/net"]);
   });
 });

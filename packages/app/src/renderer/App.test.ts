@@ -679,6 +679,39 @@ describe("App", () => {
     expect(invoke).toHaveBeenCalled();
   });
 
+  it("[SR-131/AK2] the status of a workspace left while it loaded never overwrites the next one", async () => {
+    const { bridge, invoke, change } = fakeBridge(workspace());
+    await renderList(bridge);
+    // Each status answers when the test says so: the first one opened hangs, the second answers first.
+    const answers: ((result: InvokeResult) => void)[] = [];
+    const answer = invoke.getMockImplementation();
+    invoke.mockImplementation((name, input) =>
+      name === "workspace.status"
+        ? new Promise((resolve) => {
+            answers.push(resolve);
+          })
+        : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
+    );
+    await change("opened");
+    await change("opened");
+    expect(answers).toHaveLength(2);
+    await act(async () => {
+      answers[1]?.({ ok: true, output: { name: "Other", readOnly: false } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await flush();
+    expect(document.title).toBe("Other - LogReq");
+    // The closed connection of the first answers last, with nothing: the view stays the second one's.
+    await act(async () => {
+      answers[0]?.({ ok: false, error: { code: "workspace.not-found", message: "closed" } as never });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await flush();
+    expect(document.title).toBe("Other - LogReq");
+    expect(text("Modeline")).toContain("Other");
+    expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
+  });
+
   it("shows the overview of another workspace that is opened while the list is shown", async () => {
     const { bridge, handlers, change } = fakeBridge(workspace());
     await renderList(bridge);
@@ -1661,11 +1694,16 @@ describe("App, the text editor", () => {
         : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
     );
     await change("opened");
-    expect(query(".sheet").inert).toBe(true);
+    // Opened, the other workspace still loading: the old buffers and drafts are gone at once, so nothing
+    // can be typed into them, and the window takes input again, so a load that hangs never locks it.
+    expect(query(".sheet").inert).toBe(false);
+    expect(container.querySelector(".cm-editor")).toBeNull();
+    expect(text("Modeline")).not.toContain("SR-000001");
+    expect(text("Modeline")).not.toContain("modified");
     expect(text("Minibuffer")).toBe("Opening another workspace…");
+    // The command prompt opens (it offers "Open workspace" again), and stays open when the status comes.
     await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
-    expect(container.querySelector('[role="option"]')).toBeNull();
-    expect(text("Modeline")).toContain("SR-000001");
+    expect(container.querySelector('.minibuffer [role="option"]')).not.toBeNull();
     await act(async () => {
       status();
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -1673,7 +1711,7 @@ describe("App, the text editor", () => {
     await flush();
     expect(query(".sheet").inert).toBe(false);
     expect(text("Modeline")).toContain("Overview");
-    expect(text("Minibuffer")).not.toBe("Opening another workspace…");
+    expect(container.querySelector('.minibuffer [role="option"]')).not.toBeNull();
   });
 
   it("[SR-131/AK3] says so when main gave up waiting for the save, and takes input again", async () => {

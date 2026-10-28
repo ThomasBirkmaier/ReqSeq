@@ -7,11 +7,13 @@
 // the open workspace stays. A draft whose file changed outside since it was typed on is not saved over
 // that change: the rule of SR-106 (`outside-change.ts`) finds a conflict, and it stops the switch as well.
 // Every write carries the bytes it was made on (`expectedFileSha256`).
+import type { DataExportElement } from "@logreq/core";
 import type { BoxEdit } from "./property-edit.js";
 import { editableBoxes, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
+import { makeDraft, withShown } from "./drafts.js";
 import type { PropertyModel } from "./element-view.js";
 import { TEXT_FIELD, draftInput, keptBoxes, outsideChange } from "./outside-change.js";
 
@@ -25,6 +27,11 @@ export interface SaveContext {
   readonly properties: PropertyModel;
   /** A draft is saved, or holds nothing that differs from the file: it is dropped. */
   readonly saved: (key: string) => void;
+  /**
+   * Input typed while its draft was saved, on the file as the save left it (or none when it holds what
+   * the file holds now): the app keeps it in place of the draft it has (`onDraft`).
+   */
+  readonly rebased: (key: string, draft: Draft | undefined) => void;
 }
 
 /** Everything is saved, or the element that could not be, and why. */
@@ -63,11 +70,48 @@ export const CHANGED_WHILE_SAVING = "it was changed while it was saved";
 export const notSavedInTime = (open: string | undefined): string =>
   `The unsaved input was not saved in time; ${open === undefined ? "no workspace is open" : `${open} stays open`}`;
 
+/** What the file of an element holds, as `element.get` or `element.update` gives it. */
+interface SavedFile {
+  readonly element: DataExportElement;
+  readonly fileSha256: string;
+}
+
+/**
+ * `newer` on `file`: the text that was typed in (else the file's text) and the boxes that differ from
+ * what the file stores, typed on its bytes, so that the app's own write is no change on disk for it.
+ */
+const rebase = (newer: Draft, file: SavedFile, properties: PropertyModel): Draft | undefined => {
+  const text = file.element.text ?? "";
+  const docs = storedDocs(editableBoxes(file.element, properties));
+  const draft = makeDraft(
+    { doc: newer.text === newer.base ? text : newer.text, base: text },
+    keptBoxes(newer, [], docs),
+    file.fileSha256,
+  );
+  return withShown(draft, { element: file.element, sha: file.fileSha256 });
+};
+
 const failed = (buffer: ElementBuffer, message: string): SaveResult => ({
   ok: false,
   name: buffer.name,
   message,
 });
+
+/**
+ * Ends the save of a draft. Typed meanwhile: the newer draft is kept, on the file as this save left it,
+ * and the switch stops (it would drop it).
+ */
+const settle = (context: SaveContext, buffer: ElementBuffer, kept: Draft, file: SavedFile): SaveResult => {
+  const newer = context.drafts.get(buffer.key);
+  if (newer !== kept) {
+    if (newer !== undefined) {
+      context.rebased(buffer.key, rebase(newer, file, context.properties));
+    }
+    return failed(buffer, CHANGED_WHILE_SAVING);
+  }
+  context.saved(buffer.key);
+  return { ok: true };
+};
 
 /**
  * Saves the draft of one element buffer that is not shown: before a switch, and when the buffer was left
@@ -103,6 +147,7 @@ export const saveOne = async (
   }
   // The text when it was typed in and the file does not hold it yet.
   const text = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
+  let file: SavedFile = read.output;
   if (text !== undefined || edits.length > 0) {
     const written = await context.call("element.update", {
       ...updateInput(buffer.id, text, edits),
@@ -111,13 +156,9 @@ export const saveOne = async (
     if (!written.ok) {
       return failed(buffer, written.message);
     }
+    file = written.output;
   }
-  // Typed meanwhile: the newer draft is kept, and the switch stops (it would drop it).
-  if (context.drafts.get(buffer.key) !== kept) {
-    return failed(buffer, CHANGED_WHILE_SAVING);
-  }
-  context.saved(buffer.key);
-  return { ok: true };
+  return settle(context, buffer, kept, file);
 };
 
 /**

@@ -249,10 +249,16 @@ export const slashMenu = (options: SlashMenuOptions): EditorPlugins => {
     { key: "Ctrl-p", run: moveCompletionSelection(false) },
     { key: "Enter", run: enter },
     {
-      // Closes the menu only: the `/` and the query stay, and the editor keeps the focus (AK3).
+      // Closes the menu only: the `/` and the query stay, and the editor keeps the focus (AK3). Only the
+      // menu of a typed `/`: any typing asks the source (`activateOnTyping`), so the completion is
+      // "pending" for a moment after every letter, also with no `/` in sight. An Escape then is the
+      // editor's own and leaves the text (#574: right after typing, under load, it was swallowed here).
       key: "Escape",
       run: (view) => {
-        if (completionStatus(view.state) === null) {
+        if (
+          completionStatus(view.state) === null ||
+          rangeOf(view.state, view.state.selection.main.head) === undefined
+        ) {
           return false;
         }
         view.dispatch({ effects: dismissEffect.of(null) });

@@ -81,6 +81,7 @@ const setup = (
       drafts,
       properties: MODEL,
       saved: (key) => dropped.push(key),
+      rebased: () => undefined,
     });
   return { call, dropped, run };
 };
@@ -227,18 +228,33 @@ describe("saving before a switch", () => {
     expect(files.get("1")).toEqual({ text: "Changed by Git", properties: { topic: "storm" }, sha: "new" });
   });
 
-  it("[SR-131/AK3] input typed while its draft was saved is kept, and stops the switch", async () => {
-    const files: Files = new Map([["1", { text: "Old", properties: {} }]]);
+  it("[SR-131/AK3] input typed while its draft was saved is kept, on the file as it was saved, and stops the switch", async () => {
+    const files: Files = new Map([["1", { text: "Old", properties: { topic: "wind" }, sha: "old" }]]);
     const one = buffer("1");
-    const drafts = new Map<string, Draft>([[one.key, { text: "Mine", base: "Old" }]]);
+    const drafts = new Map<string, Draft>([[one.key, { text: "Mine", base: "Old", sha: "old" }]]);
     const write = fakeCall(files);
     const dropped: string[] = [];
-    const call = (name: string, input: Record<string, unknown>) => {
+    // What the window types while the save runs: `newer` replaces the draft when the write is asked.
+    let newer: Draft | undefined;
+    const call = async (name: string, input: Record<string, unknown>) => {
       if (name === "element.update") {
-        drafts.set(one.key, { text: "Mine, and more", base: "Old" });
+        if (newer === undefined) {
+          drafts.delete(one.key);
+        } else {
+          drafts.set(one.key, newer);
+        }
       }
-      return write(name, input);
+      const answer = await write(name, input);
+      // The write gives the file new bytes.
+      const file = files.get("1");
+      if (name === "element.update" && file !== undefined) {
+        const sha = `after ${String(input["text"])}`;
+        files.set("1", { ...file, sha });
+        return { ok: true, output: { element: elementOf("1", file), fileSha256: sha } };
+      }
+      return answer;
     };
+    const rebased = new Map<string, Draft | undefined>();
     const run = () =>
       saveDrafts({
         call: call as unknown as Call,
@@ -246,12 +262,56 @@ describe("saving before a switch", () => {
         drafts,
         properties: MODEL,
         saved: (key) => dropped.push(key),
+        rebased: (key, draft) => rebased.set(key, draft),
       });
+    newer = {
+      text: "Mine, and more",
+      base: "Old",
+      sha: "old",
+      boxes: new Map([["topic", { doc: "storm", base: "wind" }]]),
+    };
     expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_WHILE_SAVING });
     expect(files.get("1")?.text).toBe("Mine");
-    // The newer input is not dropped.
+    // The newer input is not dropped: it is kept on the text and the bytes this save wrote, so the next
+    // save or view of it does not take the app's own write for a change on disk.
     expect(dropped).toEqual([]);
-    expect(drafts.get(one.key)).toEqual({ text: "Mine, and more", base: "Old" });
+    expect(rebased.get(one.key)).toEqual({
+      text: "Mine, and more",
+      base: "Mine",
+      boxes: new Map([["topic", { doc: "storm", base: "wind" }]]),
+      sha: "after Mine",
+      shown: { element: elementOf("1", { text: "Mine", properties: { topic: "wind" } }), sha: "after Mine" },
+    });
+    // Boxes alone typed meanwhile: the text is the file's text, not the one the draft was typed on.
+    drafts.set(one.key, { text: "Mine again", base: "Mine", sha: "after Mine" });
+    newer = {
+      text: "Mine",
+      base: "Mine",
+      sha: "after Mine",
+      boxes: new Map([["topic", { doc: "calm", base: "wind" }]]),
+    };
+    expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_WHILE_SAVING });
+    expect(rebased.get(one.key)).toMatchObject({
+      text: "Mine again",
+      base: "Mine again",
+      sha: "after Mine again",
+    });
+    // Input that is what the file now holds is no input; a draft dropped meanwhile is left alone.
+    rebased.clear();
+    drafts.set(one.key, { text: "Third", base: "Mine again", sha: "after Mine again" });
+    newer = { text: "Third", base: "Mine again", sha: "after Mine again" };
+    expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_WHILE_SAVING });
+    expect([...rebased]).toEqual([[one.key, undefined]]);
+    rebased.clear();
+    drafts.set(one.key, { text: "Fourth", base: "Third", sha: "after Third" });
+    newer = undefined;
+    expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_WHILE_SAVING });
+    expect([...rebased]).toEqual([]);
+    // A save that empties the text leaves an element without text: the newer input is on the empty text.
+    drafts.set(one.key, { text: "", base: "Fourth", sha: "after Fourth" });
+    newer = { text: "Fifth", base: "Fourth", sha: "after Fourth" };
+    expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: CHANGED_WHILE_SAVING });
+    expect(rebased.get(one.key)).toMatchObject({ text: "Fifth", base: "", sha: "after " });
   });
 
   it("[SR-131/AK3] says that the input was not saved in time, and what stays open", () => {

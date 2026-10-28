@@ -31,7 +31,7 @@ export const RECENT_WORKSPACES_MAX_BYTES = 64 * 1024;
 /** The longest root the list holds, in characters (as the app's main process accepts one). */
 export const MAX_ROOT_LENGTH = 4096;
 
-/** An existence check that has no answer this long after it was asked counts as missing. */
+/** An existence check that has no answer this long after it was asked counts as missing (`"timeout"`). */
 export const EXISTS_TIMEOUT_MS = 1_000;
 
 /** At most this many `stat`s of the existence check run at once (libuv has 4 threads). */
@@ -60,8 +60,14 @@ export interface RecentWorkspaceState extends RecentWorkspace {
   readonly exists: boolean;
 }
 
+/**
+ * Whether `<root>/logreq-workspace.yaml` is a file, or `"timeout"` when its check had no answer in time
+ * (a share that does not answer). A timeout counts as missing wherever only existence matters.
+ */
+export type ExistenceAnswer = boolean | "timeout";
+
 /** Answers, for each root, whether `<root>/logreq-workspace.yaml` is a file (in the order of the roots). */
-export type ExistenceChecker = (roots: readonly string[]) => Promise<readonly boolean[]>;
+export type ExistenceChecker = (roots: readonly string[]) => Promise<readonly ExistenceAnswer[]>;
 
 export interface ExistenceOptions {
   /** Default `fs.promises.stat`; tests inject one. */
@@ -237,8 +243,8 @@ const holdsWorkspace = async (
  * (a share or an automount that does not answer) cannot be cancelled and keeps its libuv thread, so:
  * - at most `slots` `stat`s run at once, across all calls of this checker; a slot is freed only when its
  *   `stat` returns, never at the timeout;
- * - `timeoutMs` counts from the call: a root without an answer by then counts as missing, and a root
- *   still waiting for a slot then gets no `stat` at all.
+ * - `timeoutMs` counts from the call: a root without an answer by then is `"timeout"`, and a root still
+ *   waiting for a slot then gets no `stat` at all.
  */
 export function createExistenceChecker(options: ExistenceOptions = {}): ExistenceChecker {
   const stat = options.stat ?? fs.stat;
@@ -261,7 +267,7 @@ export function createExistenceChecker(options: ExistenceOptions = {}): Existenc
   };
   return (roots) =>
     new Promise((resolve) => {
-      const found = roots.map(() => false);
+      const found = roots.map((): ExistenceAnswer => "timeout");
       let left = roots.length;
       let done = false;
       const jobs: (() => Promise<void>)[] = [];
@@ -299,26 +305,38 @@ export function createExistenceChecker(options: ExistenceOptions = {}): Existenc
     });
 }
 
-/** The existence checks of a process: one for the list, one for the root a person chose. */
+/**
+ * The existence checks of a process: one for the list, one for the root a person chose, one for the
+ * folders of a typed path. Each has slots of its own, so a `stat` that hangs in one never blocks another.
+ */
 export interface WorkspaceChecks {
   /** The roots of the list when it is shown: EXISTS_SLOTS `stat`s at once. */
   readonly list: ExistenceChecker;
   /**
-   * The root chosen to open (it is checked again) and the folders of a typed path: one slot of its own,
-   * so roots of the list that hang on a dead share cannot keep a local workspace from opening. A root
-   * that hangs in the list counts as missing there and is never chosen to open.
+   * The root of the list chosen to open (it is checked again): one slot of its own, so roots of the list
+   * that hang on a dead share cannot keep a local workspace from opening. A root that hangs in the list
+   * counts as missing there and is never chosen to open.
    */
   readonly chosen: ExistenceChecker;
+  /**
+   * The folders of a typed path (`findTypedWorkspace`): one slot of its own, so a typed path on a dead
+   * mount blocks only further typed paths, never the choice of a root of the list.
+   */
+  readonly typed: ExistenceChecker;
 }
 
-/** The two checkers of a process; `stat` and the timeout for tests. */
+/** The three checkers of a process; `stat` and the timeout for tests. */
 export function createWorkspaceChecks(
   options: Pick<ExistenceOptions, "stat" | "timeoutMs"> = {},
 ): WorkspaceChecks {
-  return { list: createExistenceChecker(options), chosen: createExistenceChecker({ ...options, slots: 1 }) };
+  return {
+    list: createExistenceChecker(options),
+    chosen: createExistenceChecker({ ...options, slots: 1 }),
+    typed: createExistenceChecker({ ...options, slots: 1 }),
+  };
 }
 
-/** The checkers of this process (the app's main process uses them): at most 3 `stat`s at once. */
+/** The checkers of this process (the app's main process uses them): at most 4 `stat`s at once. */
 const checks: WorkspaceChecks = createWorkspaceChecks();
 
 /**
@@ -351,10 +369,13 @@ export interface TypedPathOptions {
 
 /**
  * The folder a typed path names (SR-131 AK5), by its text alone, before any file-system call; undefined
- * when it is refused. `~` and `~/…` stand for the home folder. Refused: a relative path, NUL, more than
- * MAX_ROOT_LENGTH characters, and on Windows a path that starts with two separators (`\\host\share`,
- * `\\?\…`, `\\.\…`, `//host`), whose check would make Windows open a connection to that host (SR-078).
- * The path is normalised (`.` and `..` by their text) and has no separator at its end.
+ * when it is refused. `~` and `~/…` stand for the home folder. Refused: a relative path, NUL and more than
+ * MAX_ROOT_LENGTH characters. On Windows only a path on a drive (`C:\…`) is taken, after `~` is expanded
+ * and the path normalised: a UNC or device path (`\\host\share`, `\\?\…`, `\\.\…`, `//host`, and the NT
+ * prefix `\??\…`, also as `/??/…`), whose check would make Windows open a connection to that host
+ * (SR-078), is refused, and so is `\foo` (relative to the current drive). A mapped network drive (`Z:\…`)
+ * is a path on a drive: its check reaches the share, the user's choice, as for an automounted path
+ * (ADR-0010). The path is normalised (`.` and `..` by their text) and has no separator at its end.
  */
 export function typedWorkspaceFolder(text: string, options: TypedPathOptions): string | undefined {
   const platform = options.platform ?? process.platform;
@@ -363,35 +384,41 @@ export function typedWorkspaceFolder(text: string, options: TypedPathOptions): s
     return undefined;
   }
   const windows = platform === "win32";
-  // Two separators at the start: a UNC or device path on Windows (before and after normalising).
-  const remote = (folder: string): boolean => windows && /^[\\/]{2}/.test(folder);
   const home = windows ? /^~[\\/]/ : /^~\//;
   const expanded =
     text === "~" ? options.home : home.test(text) ? paths.join(options.home, text.slice(2)) : text;
-  if (!paths.isAbsolute(expanded) || remote(expanded)) {
+  if (!paths.isAbsolute(expanded)) {
     return undefined;
   }
   let folder = paths.normalize(expanded);
   while (folder.endsWith(paths.sep) && folder.length > paths.parse(folder).root.length) {
     folder = folder.slice(0, -1);
   }
-  return isPathText(folder) && !remote(folder) ? folder : undefined;
+  // On Windows a drive and nothing else: no UNC, device or NT path, and no path on the current drive.
+  const local = !windows || /^[A-Za-z]:\\/.test(folder);
+  return isPathText(folder) && local ? folder : undefined;
 }
 
 /**
  * The nearest folder, from `folder` (absolute, from `typedWorkspaceFolder`) upwards, whose
  * `logreq-workspace.yaml` is a file, as `--workspace` of the CLI finds it; undefined when none up to the
- * root of the file system has one. Each folder is checked with the bounded checker for chosen roots;
- * never rejects.
+ * root of the file system has one. Each folder is checked with the bounded checker for typed paths
+ * (`WorkspaceChecks.typed`). A folder whose check timed out ends the walk with undefined: a slow level
+ * never opens a workspace above the folder that was meant. Never rejects.
  */
 export async function findTypedWorkspace(
   folder: string,
   options: { readonly platform?: NodeJS.Platform; readonly check?: ExistenceChecker } = {},
 ): Promise<string | undefined> {
   const paths = pathsOf(options.platform ?? process.platform);
+  const check = options.check ?? checks.typed;
   for (let dir = folder; ;) {
-    if (await workspaceExists(dir, options.check)) {
+    const [exists] = await check([dir]);
+    if (exists === true) {
       return dir;
+    }
+    if (exists === "timeout") {
+      return undefined;
     }
     const parent = paths.dirname(dir);
     if (parent === dir) {

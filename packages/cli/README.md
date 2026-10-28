@@ -16,7 +16,7 @@ logreq element create need --title "See the wind"   # a positional field can be 
 logreq workspace check --fail-on warning  # exit code 1 on a warning too (default: error; info is the lowest)
 logreq workspace check --severity error   # show errors only and count the rest; the exit code is --fail-on's
 logreq workspace activity              # the element an agent read or changed last through the API or MCP (SR-117)
-logreq workspace recent                # the workspaces the app opened last, from any folder (SR-131)
+logreq workspace recent                # the workspaces the app opened last, from any folder (SR-131); --workspace does not change the list
 logreq element update SR-46fb54 --input @change.json   # objects only via --input (JSON, @file or - for stdin)
 ```
 

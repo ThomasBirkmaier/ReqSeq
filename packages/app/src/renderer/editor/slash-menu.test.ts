@@ -93,6 +93,18 @@ const press = (view: EditorView, init: KeyboardEventInit): { handled: boolean; e
   return { handled: event.defaultPrevented, event };
 };
 
+/** Types `text` in one transaction, as the keyboard does, without letting the menu answer. */
+const typeAtOnceHere = (view: EditorView, text: string): void => {
+  const head = view.state.selection.main.head;
+  act(() => {
+    view.dispatch({
+      changes: { from: head, insert: text },
+      selection: { anchor: head + text.length },
+      userEvent: "input.type",
+    });
+  });
+};
+
 const labels = (view: EditorView): string[] => currentCompletions(view.state).map((option) => option.label);
 const selected = (view: EditorView): string | undefined => selectedCompletion(view.state)?.label;
 const doc = (view: EditorView): string => view.state.doc.toString();
@@ -421,6 +433,26 @@ describe("Escape", () => {
     onEscape.mockClear();
     const view = await show("text");
     expect(press(view, { key: "Escape" }).handled).toBe(true);
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it("[SR-131/AK3] is the editor's own Escape right after typing that is no / query, while the source is still asked", async () => {
+    onEscape.mockClear();
+    const view = await show("text");
+    // Any typing asks the menu's source: until it answers, the completion is pending.
+    typeAtOnceHere(view, " typed");
+    expect(completionStatus(view.state)).toBe("pending");
+    expect(press(view, { key: "Escape" }).handled).toBe(true);
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(doc(view)).toBe("text typed");
+    // A `/` that was dismissed is no menu either.
+    onEscape.mockClear();
+    await type(view, " /h");
+    press(view, { key: "Escape" });
+    expect(onEscape).not.toHaveBeenCalled();
+    typeAtOnceHere(view, "x");
+    expect(completionStatus(view.state)).toBe("pending");
+    press(view, { key: "Escape" });
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 });

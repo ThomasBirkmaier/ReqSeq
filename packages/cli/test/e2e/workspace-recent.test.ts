@@ -85,6 +85,8 @@ describe("logreq workspace recent (SR-131)", () => {
     });
     expect(await fs.readFile(list, "utf8")).toBe(text);
     expect(await fs.readdir(elsewhere)).toEqual([]);
+    // No cache folder of a copy (model cache, api.json) for the folder it ran in: only the list is there.
+    expect(await fs.readdir(recentWorkspacesFolder(environment()))).toEqual([RECENT_WORKSPACES_FILE]);
   });
 
   it("prints an empty list when the app recorded none", async () => {

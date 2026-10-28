@@ -290,7 +290,9 @@ describe("startShell", () => {
   });
 
   it("[SR-131/AK3] File > Open Workspace has the loaded window save its input first, and keeps the workspace when it could not", async () => {
-    const { electron, children, windows, ipcListeners } = await start(["electron", ".", "--workspace=/ws"]);
+    const shell = options(["electron", ".", "--workspace=/ws"]);
+    const { electron, children, windows, ipcListeners } = fakeElectron(false);
+    await startShell(electron as unknown as ShellElectron, shell);
     const contents = windows[0]?.webContents;
     const answer = (id: number, saved: boolean): void => {
       ipcListeners.get(SAVED_CHANNEL)?.(
@@ -308,6 +310,14 @@ describe("startShell", () => {
     });
     // The folder stays in main, and nothing opens until the window answers.
     expect(children).toHaveLength(1);
+    // A second File > Open Workspace meanwhile opens nothing, asks for no second save, and says so in the log.
+    click();
+    await vi.waitFor(() => {
+      expect(shell.log).toHaveBeenCalledWith(
+        "File > Open Workspace opened nothing: another workspace is being opened",
+      );
+    });
+    expect(contents?.sent).toHaveLength(1);
     answer(1, false);
     click();
     await vi.waitFor(() => {

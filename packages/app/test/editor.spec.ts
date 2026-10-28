@@ -109,6 +109,20 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).not.toContain("| :--- |");
   });
 
+  test("Escape right after typing leaves the text, also before the slash menu's source has answered (#574)", async () => {
+    const { window } = running;
+    await opened(window, DEMO_TITLE);
+    // Every typed letter asks the slash menu's source; its Escape must not take an Escape that comes before
+    // the answer when no `/` was typed. Before #574 about one round in ten kept the focus in the editor.
+    for (let round = 0; round < 30; round += 1) {
+      await window.keyboard.press("Enter");
+      await expect(window.locator(".cm-content")).toBeFocused();
+      await window.keyboard.insertText(` r${String(round)}`);
+      await window.keyboard.press("Escape");
+      await expect(window.locator("article")).toBeFocused();
+    }
+  });
+
   test("Escape leaves the text: the buffer has the focus and no source line is shown; Enter edits again", async () => {
     const { window } = running;
     await opened(window, DEMO_TITLE);

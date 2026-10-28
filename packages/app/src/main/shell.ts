@@ -91,7 +91,11 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     const [folder] = chosen.filePaths;
     // The folder stays in main: the window only saves its unsaved input first (SR-131 AK3).
     if (!chosen.canceled && folder !== undefined) {
-      await workspaces.openFolder(folder);
+      const result = await workspaces.openFolder(folder);
+      // The window says why for its own refusals; during a switch it says "Opening another workspace…".
+      if (!result.ok && result.reason === "busy") {
+        options.log("File > Open Workspace opened nothing: another workspace is being opened");
+      }
     }
   };
   electron.Menu.setApplicationMenu(

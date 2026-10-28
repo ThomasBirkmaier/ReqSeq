@@ -1,5 +1,5 @@
 // The prompt "Open workspace" (SR-131): the workspaces opened last, as main lists them.
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenWorkspaceResult, RecentWorkspaceEntry } from "../shared/protocol.js";
 import type { Choice, PromptFill } from "./actions.js";
 import { rankByUse } from "./usage.js";
@@ -42,6 +42,10 @@ const choose = async (items: readonly Choice[], root: string): Promise<void> => 
   items.find((choice) => choice.name === root)?.run();
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("the prompt Open workspace", () => {
   it("[SR-131/AK1] the Open workspace prompt lists the recent workspaces, the last opened first, and narrows them like the command prompt", async () => {
@@ -128,6 +132,7 @@ describe("the prompt Open workspace", () => {
   });
 
   it("[SR-131/AK5] a typed path is the first choice and Enter opens it", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
     const { prompt, open, echoed } = setup();
     const literal = (text: string): Choice | undefined => prompt.literal?.(text);
     for (const text of ["/home/ada/req", "~", "~/req", "C:\\Work\\Spec", "c:/work", "\\\\host\\share"]) {
@@ -139,6 +144,16 @@ describe("the prompt Open workspace", () => {
     // Only path-like text: names of the list are narrowed as usual.
     for (const text of ["", "buoy", "req/buoy", "C:Work", "C:"]) {
       expect(literal(text), text).toBeUndefined();
+    }
+    // On macOS and Linux a path starts with `/` or `~` only: `\` and a drive are never offered there.
+    for (const platform of ["MacIntel", "Linux x86_64"]) {
+      vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+      for (const text of ["/home/ada/req", "~/req"]) {
+        expect(literal(text)?.name, `${platform} ${text}`).toBe(`Open ${text}`);
+      }
+      for (const text of ["\\foo", "\\\\host\\share", "C:\\Work", "c:/work"]) {
+        expect(literal(text), `${platform} ${text}`).toBeUndefined();
+      }
     }
     literal("  ~/req/kestrel ")?.run();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -160,9 +175,8 @@ describe("the prompt Open workspace", () => {
     expect(await run({ ok: false, reason: "no-workspace" }, false)).toEqual([
       "No workspace in /home/ada/notes or a folder above it; no workspace is open",
     ]);
-    expect(await run({ ok: false, reason: "refused" })).toEqual([
-      "/home/ada/notes is not an absolute path of a local folder",
-    ]);
+    // Refused by main: by its text, or because main could not load core's module of the list.
+    expect(await run({ ok: false, reason: "refused" })).toEqual(["/home/ada/notes could not be opened"]);
     expect(await run({ ok: false, reason: "unsaved" })).toEqual([]);
     expect(await run({ ok: false, reason: "missing" })).toEqual([
       "/home/ada/notes is not found; Weather station stays open",

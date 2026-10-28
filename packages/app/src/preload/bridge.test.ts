@@ -398,4 +398,21 @@ describe("createBridge", () => {
     ipc.askToSave({ id: 2, expired: true });
     expect(expired).toHaveBeenCalledTimes(2);
   });
+
+  it("[SR-131/AK3] a save-expired from the core process's port is dropped: only main sends it", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const expired = vi.fn();
+    bridge.on("save-expired", expired);
+    const heard = vi.fn();
+    bridge.on("workspace-changed", heard);
+    const { port, core } = fakeCore(() => undefined);
+    ipc.post({ open: true }, [port]);
+    core.postMessage({ event: "save-expired", data: {} });
+    core.postMessage({ event: "workspace-changed", data: { reason: "written" } });
+    await vi.waitFor(() => {
+      expect(heard).toHaveBeenCalledOnce();
+    });
+    expect(expired).not.toHaveBeenCalled();
+  });
 });

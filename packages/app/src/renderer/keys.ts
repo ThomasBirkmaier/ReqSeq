@@ -67,6 +67,9 @@ export const matches = (event: KeyPress, shortcut: Shortcut, mac: boolean): bool
 /** Whether `platform` (`navigator.platform`) is macOS. */
 export const isMac = (platform: string): boolean => platform.startsWith("Mac");
 
+/** Whether `platform` (`navigator.platform`) is Windows. */
+export const isWindows = (platform: string): boolean => platform.startsWith("Win");
+
 /**
  * The step of a key in a hit list of the minibuffer (SR-122): 1 down, -1 up, else undefined. Down and
  * Tab, Up, and the physical Ctrl key with N or P (Emacs), on every platform, also on macOS.
