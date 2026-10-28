@@ -5411,13 +5411,28 @@ describe("ElementView", () => {
       expect(asked()).toBe(1);
     });
 
-    it("keeps the count out of the modeline: the buffer still reports the element", async () => {
+    it("[SR-114/AK3] reports the element with the count of its elements for the modeline, once they are there", async () => {
       const call = fakeCall({
         "element.get": () => ({ element: page() }),
-        "element.list": () => members(),
+        "element.list": () => members(rowsOf(1, 4), 3, true),
       });
       const { data } = await mount(asCall(call), 0, undefined, { packages: model });
+      // The buffer still reports the element; the count comes with it when the list has it.
+      expect(data.map(([, loaded]) => loaded?.kind)).toEqual([undefined, "element", "element"]);
+      expect(data.map(([, loaded]) => (loaded?.kind === "element" ? loaded.members : undefined))).toEqual([
+        undefined,
+        undefined,
+        { total: 3, incomplete: true },
+      ]);
+    });
+
+    it("[SR-114/AK3] reports no count for an element that is no package", async () => {
+      const call = fakeCall({ "element.get": () => ({ element: page({ type: "need" }) }) });
+      const { data } = await mount(asCall(call), 0, undefined, { packages: model });
       expect(data.map(([, loaded]) => loaded?.kind)).toEqual([undefined, "element"]);
+      expect(data.every(([, loaded]) => loaded?.kind !== "element" || loaded.members === undefined)).toBe(
+        true,
+      );
     });
 
     it("opens an element of the package on Enter, and a row that is clicked", async () => {

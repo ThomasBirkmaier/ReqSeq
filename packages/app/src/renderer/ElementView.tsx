@@ -475,13 +475,14 @@ export const ElementView = ({
     };
   }, []);
   const [article, setArticle] = useState<HTMLElement | null>(null);
-  // The package page (SR-112): the elements that name this one, below its text. The count is local to
-  // this page; the modeline keeps the element. The selection keeps its identity, or the list would ask
+  // The package page (SR-112): the elements that name this one, below its text. The heading and the
+  // modeline (SR-114 AK3) give their count. The selection keeps its identity, or the list would ask
   // again after every render.
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
   const selection = useMemo(() => packageSelection(buffer.id), [buffer.id]);
   const returning = useRef(buffer.memberCursor !== undefined);
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
+  const isPackage = packageModel !== undefined;
   const readOnly = isReadOnly(view);
   // The boxes that are edited (SR-104), and the editors of those with text by key. `stored` is the document
   // of each as last loaded or saved, what an editor is compared with (like `baseline` for the text). The
@@ -1038,9 +1039,10 @@ export const ElementView = ({
         element: loadedElement,
         ...(disk === undefined ? {} : { disk }),
         ...(notSaved ? { notSaved } : {}),
+        ...(members === undefined || !isPackage ? {} : { members }),
       });
     }
-  }, [loadedElement, disk, notSaved]);
+  }, [loadedElement, disk, notSaved, members, isPackage]);
 
   // After a save: the answer is the new baseline, the boxes show what the file holds, and what was typed
   // while the save ran stays as a draft. A box that the save emptied (its property left the file) and that

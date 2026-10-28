@@ -2468,8 +2468,9 @@ describe("App, the package page (SR-112)", () => {
     expect(parts[1]?.className).toContain("cm-editor");
     expect(query(".members h2").textContent).toBe("← packages 3");
     expect(memberTitles()).toEqual(["Title 2", "Title 3", "Title 4"]);
-    // The page is the element: the modeline names it, and the focus is on its text, not on the elements.
-    expect(text("Modeline")).toBe("PKG-0000d1 · Package · draftWeather stationread-only");
+    // The page is the element: the modeline names it with the number of its elements (SR-114 AK3), and
+    // the focus is on its text, not on the elements.
+    expect(text("Modeline")).toBe("PKG-0000d1 · Package · draft3 elementsWeather stationread-only");
     expect(document.activeElement).toBe(query("article"));
   });
 

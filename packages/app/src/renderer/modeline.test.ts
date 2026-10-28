@@ -1,7 +1,7 @@
 import type { DataExportElement } from "@logreq/core";
 import { describe, expect, it } from "vitest";
-import { elementBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
-import { bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
+import { elementBuffer, graphBuffer, listBuffer, overviewBuffer, searchBuffer } from "./buffers.js";
+import { INCOMPLETE, bufferView, selectedRow, shownElement, workspaceView } from "./modeline.js";
 
 describe("workspaceView", () => {
   it("shows the name, and read-only, errors and warnings only when there are any", () => {
@@ -90,13 +90,88 @@ describe("bufferView", () => {
             },
             { kind: "k", direction: "out", id: "c", accessible: true, targetState: "available" },
           ],
-          problems: [{ code: "x" }, { code: "y" }],
+          problems: [{ code: "relation.outdated" }, { code: "x" }, { code: "y" }],
         }),
       }),
     ).toEqual(["SR-000001 · system-requirement · draft", "read-only", "1 outdated", "2 hints"]);
     expect(
       bufferView(buffer, { kind: "element", element: element({ problems: [{ code: "x" }] }) }).at(-1),
     ).toBe("1 hint");
+  });
+
+  it("[SR-114/AK2] names the number of outdated references and of open hints as element.get gives them, each only when there are any, an outdated one not again as a hint", () => {
+    const buffer = elementBuffer("u", "spec", "SR-036 T");
+    const parts = (problems: readonly object[], extra: object = {}): string[] =>
+      bufferView(buffer, { kind: "element", element: element({ status: "draft", problems, ...extra }) });
+    // `element.get` gives every outdated relation and inline reference as a hint `relation.outdated`.
+    const inline = {
+      code: "relation.outdated",
+      hintId: "spec/u/@text/0123456789abcdef?target=t&repository=spec",
+      targetId: "t",
+      storedVersion: "1",
+    };
+    const relation = { code: "relation.outdated", hintId: "spec/u/based-on/t?target=t", targetId: "t" };
+    const cycle = { code: "relation.cycle" };
+    const superseded = { code: "element.superseded-target" };
+    expect(parts([])).toEqual(["SR-000001 · system-requirement · draft"]);
+    expect(parts([inline])).toEqual(["SR-000001 · system-requirement · draft", "1 outdated"]);
+    expect(parts([inline, relation, cycle])).toEqual([
+      "SR-000001 · system-requirement · draft",
+      "2 outdated",
+      "1 hint",
+    ]);
+    expect(parts([cycle, superseded])).toEqual(["SR-000001 · system-requirement · draft", "2 hints"]);
+    // Nothing without hints, whatever a relation of another command's output would say.
+    expect(
+      parts([], {
+        relations: [
+          {
+            kind: "k",
+            direction: "out",
+            id: "a",
+            accessible: true,
+            targetState: "available",
+            outdated: true,
+          },
+        ],
+      }),
+    ).toEqual(["SR-000001 · system-requirement · draft"]);
+  });
+
+  it("[SR-114/AK3] names a list by its name with the number of its elements, a graph with its number of nodes, a package page with its type and the number of its elements", () => {
+    expect(
+      bufferView(listBuffer("type: need", { where: { type: ["need"] } }), {
+        kind: "list",
+        total: 14,
+        incomplete: false,
+      }),
+    ).toEqual(["type: need", "14 elements"]);
+    expect(
+      bufferView(graphBuffer("u", "spec", "SR-036 T"), {
+        kind: "graph",
+        nodes: 3,
+        truncated: false,
+        incomplete: false,
+      }),
+    ).toEqual(["Graph: SR-036 T", "1 level", "3 nodes"]);
+    const names = new Map([["package", "Package"]]);
+    const page = elementBuffer("p", "spec", "PKG-1 Stufe-3");
+    const pkg = element({ shortId: "PKG-1", type: "package", status: "draft" });
+    expect(
+      bufferView(page, { kind: "element", element: pkg, members: { total: 37, incomplete: false } }, names),
+    ).toEqual(["PKG-1 · Package · draft", "37 elements"]);
+    expect(
+      bufferView(
+        page,
+        { kind: "element", element: pkg, members: { total: 1, incomplete: true }, modified: true },
+        names,
+      ),
+    ).toEqual(["PKG-1 · Package · draft", "1 element", INCOMPLETE, "modified"]);
+    expect(
+      bufferView(page, { kind: "element", element: pkg, members: { total: 0, incomplete: false } }, names),
+    ).toEqual(["PKG-1 · Package · draft", "0 elements"]);
+    // While its elements load, and for any other element, no count.
+    expect(bufferView(page, { kind: "element", element: pkg }, names)).toEqual(["PKG-1 · Package · draft"]);
   });
 
   it("[SR-114/AK1] names the short ID or identifier, the type by its metamodel name and the status of an element", () => {

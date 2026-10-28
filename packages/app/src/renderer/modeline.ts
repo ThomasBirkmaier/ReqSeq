@@ -79,6 +79,12 @@ export type BufferData =
       readonly disk?: "changed" | "deleted";
       /** The last save of the input failed (SR-105): something to notice, after the counts. */
       readonly notSaved?: boolean;
+      /**
+       * A package page (SR-112): how many elements its list found (`element.list` with `where.package`),
+       * and whether a repository was missing for the answer; not set while they load or for any other
+       * element (SR-114 AK3).
+       */
+      readonly members?: { readonly total: number; readonly incomplete: boolean };
     };
 
 /**
@@ -107,20 +113,30 @@ export const shownElement = (
 /** What a list says when a repository is missing for its answer. */
 export const INCOMPLETE = "incomplete: a repository is missing";
 
-/** The parts for an element: ID, type and status in one, then what is worth a mark. */
+/**
+ * The parts for an element: ID, type and status in one, on a package page the number of its elements
+ * (SR-114 AK3: the type is the „Art“), then what is worth a mark. The counts of SR-114 AK2 come from the
+ * hints of `element.get` (core, SR-080): "outdated" counts those with the code `relation.outdated`, the
+ * outdated relations and inline references alike (`element.get` sets no `relations[].outdated`, and an
+ * inline reference is no relation); "hints" counts the others, so an outdated one is not counted twice.
+ */
 const elementParts = (
   data: Extract<BufferData, { readonly kind: "element" }>,
   typeNames: ReadonlyMap<string, string>,
 ): string[] => {
-  const { element } = data;
-  const outdated = element.relations.filter((relation) => relation.outdated === true).length;
-  const hints = element.problems?.length ?? 0;
+  const { element, members } = data;
+  const problems = element.problems ?? [];
+  const outdated = problems.filter((problem) => problem.code === "relation.outdated").length;
+  const hints = problems.length - outdated;
   return [
     [
       element.identifier ?? element.shortId,
       typeNames.get(element.type) ?? element.type,
       ...(element.status === undefined ? [] : [element.status]),
     ].join(" · "),
+    ...(members === undefined
+      ? []
+      : [plural(members.total, "element"), ...(members.incomplete ? [INCOMPLETE] : [])]),
     ...(data.modified === true ? ["modified"] : []),
     ...(element.readOnly === true ? ["read-only"] : []),
     ...(outdated > 0 ? [`${String(outdated)} outdated`] : []),
