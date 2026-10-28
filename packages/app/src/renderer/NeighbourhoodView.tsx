@@ -5,6 +5,7 @@
 // element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TraceNeighbourhoodOutput } from "@logreq/core";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, NeighbourhoodBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
@@ -77,6 +78,7 @@ export const NeighbourhoodView = ({
   onEcho,
   outside,
 }: NeighbourhoodViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const { marked, mark } = useOutsideMarks();
   const [fetched, setFetched] = useState<Fetched | undefined>(undefined);
   const [incomingOutput, setIncomingOutput] = useState<TraceNeighbourhoodOutput | undefined>(undefined);
@@ -268,7 +270,7 @@ export const NeighbourhoodView = ({
               {tree.rows.map((entry, at) => (
                 <div
                   key={at}
-                  id={`nrow-${String(at)}`}
+                  id={`${scope}nrow-${String(at)}`}
                   className={rowClass("row", marked, entry.row.open.id)}
                   role="treeitem"
                   aria-level={entry.level}
@@ -318,7 +320,7 @@ export const NeighbourhoodView = ({
                 {group.entries.map((entry, index) => (
                   <div
                     key={index}
-                    id={`nrow-${String(start + index)}`}
+                    id={`${scope}nrow-${String(start + index)}`}
                     className={rowClass("row", marked, entry.row.open.id)}
                     role="option"
                     aria-selected={start + index === cursor}

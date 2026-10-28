@@ -1418,3 +1418,60 @@ describe("Open workspace (SR-131)", () => {
     expect(echoed).toEqual([]);
   });
 });
+
+describe("Split window (SR-115 AK3)", () => {
+  const overview = overviewBuffer();
+  const layoutOf = (other: string | undefined) => {
+    const calls: string[] = [];
+    return {
+      calls,
+      layout: {
+        other,
+        split: () => calls.push("split"),
+        unsplit: () => calls.push("unsplit"),
+      },
+    };
+  };
+
+  it("[SR-115/AK3] Split window, Other window and Unsplit window are prompt commands, available only when they apply, without a key", () => {
+    for (const id of ["split-window", "other-window", "unsplit-window"]) {
+      expect(action(id).shortcut).toBeUndefined();
+      expect(action(id).covers).toBeUndefined();
+    }
+    // One area: Split window, with a buffer that is not the lone overview, in a workspace.
+    const one = layoutOf(undefined);
+    const unsplit = setup([element, overview], {}, true, { layout: one.layout });
+    expect(titles(unsplit.context)).toContain("Split window");
+    expect(titles(unsplit.context)).not.toContain("Other window");
+    expect(titles(unsplit.context)).not.toContain("Unsplit window");
+    runAction(action("split-window"), unsplit.context);
+    expect(one.calls).toEqual(["split"]);
+    expect(action("split-window").available(setup([element], {}, true, { layout: one.layout }).context)).toBe(
+      true,
+    );
+    expect(
+      action("split-window").available(setup([overview], {}, true, { layout: one.layout }).context),
+    ).toBe(false);
+    expect(action("split-window").available(setup([], {}, true, { layout: one.layout }).context)).toBe(false);
+    expect(
+      action("split-window").available(setup([element], {}, false, { layout: one.layout }).context),
+    ).toBe(false);
+    // Where the window offers no areas (no layout), nothing of it is offered.
+    expect(titles(setup([element, overview]).context)).not.toContain("Split window");
+    // Split: Other window switches to the inactive area's buffer, Unsplit window joins the areas.
+    const two = layoutOf(overview.key);
+    const split = setup([element, overview], {}, true, { layout: two.layout });
+    expect(titles(split.context)).not.toContain("Split window");
+    expect(titles(split.context)).toEqual(expect.arrayContaining(["Other window", "Unsplit window"]));
+    runAction(action("other-window"), split.context);
+    expect(split.dispatched).toEqual([{ type: "switch", key: overview.key }]);
+    runAction(action("unsplit-window"), split.context);
+    expect(two.calls).toEqual(["unsplit"]);
+    // Run with no split (a stale prompt), Other window does nothing.
+    const stale = setup([element, overview], {}, true, { layout: one.layout });
+    runAction(action("other-window"), stale.context);
+    expect(stale.dispatched).toEqual([]);
+    runAction(action("unsplit-window"), setup([element]).context);
+    runAction(action("split-window"), setup([element]).context);
+  });
+});

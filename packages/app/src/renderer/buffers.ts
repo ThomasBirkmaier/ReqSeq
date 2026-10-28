@@ -1,5 +1,6 @@
-// The buffers of the main view (D-062): the window shows one buffer at a time, the most recent one.
-// A buffer is a list, a search result or an element. This module is the model and the reducer, no React.
+// The buffers of the main view (D-062): the window shows the most recent one, and after "Split window" a
+// second one beside it (`window-layout.ts`, SR-115 AK3). A buffer is a list, a search result or an
+// element. This module is the model and the reducer, no React.
 import type {
   CommandTypes,
   DataExportRelation,
@@ -174,6 +175,11 @@ export type BufferAction =
   | { readonly type: "open"; readonly buffer: Buffer }
   /** Shows the open buffer with this key. */
   | { readonly type: "switch"; readonly key: string }
+  /**
+   * Replaces the open buffer with the key of `buffer` where it is, without showing it (a view that read
+   * its data again, SR-115 AK3: a buffer in the inactive area stays there); nothing when none is open.
+   */
+  | { readonly type: "update"; readonly buffer: Buffer }
   /** Closes the buffer; the next most recent one is shown, or the overview when none is left. */
   | { readonly type: "close"; readonly key: string }
   /** The workspace was opened: only `buffer` is open, or none. */
@@ -464,6 +470,19 @@ const front = (buffers: Buffers, key: string, replacement?: Buffer): Buffers => 
   return [replacement ?? found, ...buffers.filter((buffer) => buffer.key !== key)];
 };
 
+/** The open buffer with the key of `buffer` replaced by it where it is; the same buffers when none is open. */
+const replaced = (buffers: Buffers, buffer: Buffer): Buffers =>
+  buffers.some((open) => open.key === buffer.key)
+    ? buffers.map((open) => (open.key === buffer.key ? buffer : open))
+    : buffers;
+
+/** `more` behind the open buffers, without one whose key is open. */
+const restored = (buffers: Buffers, more: Buffers): Buffers => {
+  const open = new Set(buffers.map((buffer) => buffer.key));
+  const behind = more.filter((buffer) => !open.has(buffer.key));
+  return behind.length === 0 ? buffers : [...buffers, ...behind].slice(0, MAX_BUFFERS);
+};
+
 export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers => {
   switch (action.type) {
     case "open": {
@@ -472,6 +491,8 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
     }
     case "switch":
       return front(buffers, action.key);
+    case "update":
+      return replaced(buffers, action.buffer);
     case "close": {
       const rest = buffers.filter((buffer) => buffer.key !== action.key);
       if (rest.length === buffers.length) {
@@ -486,11 +507,8 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
     }
     case "reset":
       return action.buffer === undefined ? [] : [action.buffer];
-    case "restore": {
-      const open = new Set(buffers.map((buffer) => buffer.key));
-      const behind = action.buffers.filter((buffer) => !open.has(buffer.key));
-      return behind.length === 0 ? buffers : [...buffers, ...behind].slice(0, MAX_BUFFERS);
-    }
+    case "restore":
+      return restored(buffers, action.buffers);
     case "cursor":
       return buffers.map((buffer) => {
         if (buffer.key !== action.key || buffer.kind === "graph" || buffer.kind === "metamodel") {

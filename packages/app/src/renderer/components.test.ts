@@ -29,7 +29,7 @@ import { focusEffect } from "./editor/preview.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
 import { ElementView } from "./ElementView.js";
 import { referenceTitles } from "./reference-titles.js";
-import { LoadingView } from "./App.js";
+import { LoadingView } from "./BufferArea.js";
 import { ListView } from "./ListView.js";
 import { OverviewView, useOverview } from "./OverviewView.js";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";

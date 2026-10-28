@@ -6,6 +6,7 @@
 // element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useRef, useState } from "react";
 import type { DataExportRelation } from "@logreq/core";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -79,6 +80,7 @@ export const MatrixView = ({
   onEcho,
   outside,
 }: MatrixViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const [view, setView] = useState<View>({ status: "loading" });
   const { marked, mark } = useOutsideMarks();
   // Which target of the selected row the cursor is on: 0 the row element, then its relations in order.
@@ -226,7 +228,7 @@ export const MatrixView = ({
       <table
         role="grid"
         aria-label={bufferName(buffer)}
-        aria-activedescendant={activeRow("matrix-row", cursor, rows.length)}
+        aria-activedescendant={activeRow(`${scope}matrix-row`, cursor, rows.length)}
         data-buffer=""
         tabIndex={0}
         onKeyDown={keyDown}
@@ -251,7 +253,7 @@ export const MatrixView = ({
             return (
               <tr
                 key={row.element.open.key}
-                id={`matrix-row-${String(index)}`}
+                id={`${scope}matrix-row-${String(index)}`}
                 role="row"
                 aria-selected={index === cursor}
               >

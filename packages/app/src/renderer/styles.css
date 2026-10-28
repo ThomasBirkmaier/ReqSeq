@@ -1,5 +1,5 @@
-/* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer,
-   the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
+/* A white sheet, or a dark one (SR-113): only what means something is visible (D-061..D-063). One buffer
+   (or two side by side), the modeline (a display) and the minibuffer, the one control, at the bottom, as in Emacs. Greys for
    everything; one accent colour, for "outdated" and for a gap in the chain (D-062). Every colour is a
    token below with a light and a dark value; the page follows the system (`color-scheme`), and the action
    "Toggle dark mode" sets `data-theme` on the root. A rule uses a token, never a colour of its own
@@ -51,11 +51,28 @@ body,
 }
 
 /* Its own stacking context: nothing inside a buffer, such as the matrix's fixed column, can rise above
-   the minibuffer's candidates (#483). */
+   the minibuffer's candidates (#483). Its areas stand side by side, each as wide as the other (SR-115
+   AK3: one, or two after "Split window"). */
 .sheet {
   min-height: 0;
   overflow: hidden;
   isolation: isolate;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+/* An area holds one buffer. Two areas are parted by a quiet rule; nothing marks the active one, the
+   modeline names its buffer (D-062). */
+.area {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.area + .area {
+  border-left: 1px solid var(--rule);
 }
 
 .buffer {

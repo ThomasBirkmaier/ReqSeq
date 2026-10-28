@@ -205,6 +205,12 @@ export interface ElementViewProps {
    * is shown, and leaving it saves nothing.
    */
   readonly keep?: BufferKeep;
+  /**
+   * The view is in the active area of the window (SR-115 AK3); default true. Only the active view gives the
+   * app its controls and takes the focus on its own; a view that becomes inactive saves its input, as
+   * leaving the element does (SR-105 AK1).
+   */
+  readonly active?: boolean;
 }
 
 /** The focused target link of a relation box or a relation group of the element buffer, if one has the focus. */
@@ -217,6 +223,28 @@ const focusedTarget = (): HTMLElement | null =>
 const useUndoMemory = (keep: BufferKeep | undefined): UndoMemory => {
   const own = useRef<UndoMemory>({ editors: new Map(), values: new Map() });
   return keep?.memory ?? own.current;
+};
+
+/**
+ * Whether the view is in the active area (SR-115 AK3; without an area it is), and whether the elements of a
+ * package page take the focus when they load: only when the page comes back (`returning`) in the active
+ * area. When the other area becomes active the element is left, so its input is saved then (`flush`, SR-105
+ * AK1); the view stays mounted, so the save of leaving (`keep.left`) does not run.
+ */
+const useArea = (
+  inArea: boolean | undefined,
+  returning: boolean,
+  flush: () => Promise<boolean>,
+): { readonly active: boolean; readonly membersFocus: boolean } => {
+  const active = inArea !== false;
+  const wasActive = useRef(active);
+  useEffect(() => {
+    if (wasActive.current && !active) {
+      void flush();
+    }
+    wasActive.current = active;
+  }, [active]);
+  return { active, membersFocus: returning && active };
 };
 
 export const ElementView = ({
@@ -240,6 +268,7 @@ export const ElementView = ({
   properties,
   dispatch,
   keep,
+  active: inArea,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
   // The text as last loaded or saved: what the document is compared with.
@@ -345,6 +374,9 @@ export const ElementView = ({
   const [members, setMembers] = useState<MemberCount | undefined>(undefined);
   const selection = useMemo(() => packageSelection(buffer.id), [buffer.id]);
   const returning = useRef(buffer.memberCursor !== undefined);
+  // The area of the view (SR-115 AK3): only the active view takes the focus on its own, and a view that
+  // becomes inactive saves its input.
+  const { active, membersFocus } = useArea(inArea, returning.current, () => api.current.flush());
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const isPackage = packageModel !== undefined;
   const readOnly = isReadOnly(view);
@@ -1284,10 +1316,10 @@ export const ElementView = ({
 
   // The row of a relation box that "Follow reference" opens when no target link has the focus: the first
   // target; none when the box is no relation box, and the rows are not links when no target is available.
+  // In this element only: another one may stand beside it (SR-115 AK3).
   const relationFollowed = (label: string): HTMLElement | undefined =>
-    document.querySelector<HTMLElement>(
-      `[data-buffer] [data-field="${CSS.escape(label)}"] .relation [role="link"]`,
-    ) ?? undefined;
+    article?.querySelector<HTMLElement>(`[data-field="${CSS.escape(label)}"] .relation [role="link"]`) ??
+    undefined;
   // The box is a relation box: its targets are rows, not text.
   const isRelationBox = (label: string): boolean =>
     now.current.boxes.get(label)?.info.kind === "relation" ||
@@ -1391,8 +1423,10 @@ export const ElementView = ({
 
   // A layout effect, like the editor's: the app has the controls in the same task as the editor (the window's
   // shortcuts of the element, such as "Copy field", read them), before any key can come.
+  // Only the view of the active area gives them (SR-115 AK3): the cleanups of a commit run before its
+  // setups, so the view that becomes active holds them after the one that became inactive gave them back.
   useLayoutEffect(() => {
-    if (handle === undefined) {
+    if (handle === undefined || !active) {
       return undefined;
     }
     register({
@@ -1485,7 +1519,7 @@ export const ElementView = ({
     return () => {
       register(undefined);
     };
-  }, [handle, register, packageModel !== undefined, conflict === undefined]);
+  }, [handle, register, packageModel !== undefined, conflict === undefined, active]);
 
   // The editors take no input in a read-only element, and none while its file is gone (SR-106 AK3).
   const locked = readOnly || deleted;
@@ -1698,7 +1732,7 @@ export const ElementView = ({
                 onLeave={() => {
                   article?.focus({ preventScroll: true });
                 }}
-                focusOnLoad={returning.current}
+                focusOnLoad={membersFocus}
               />
             )}
           </>

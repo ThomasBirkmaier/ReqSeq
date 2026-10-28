@@ -11,7 +11,7 @@ import type { Buffer, BufferAction, ListBuffer } from "./buffers.js";
 import { DEFAULT_SORT, bufferName, filteredList, listBuffer, reduceBuffers, withMatrix } from "./buffers.js";
 import type { Call } from "./call.js";
 import { typeStep } from "./list-filters.js";
-import { LoadingView } from "./App.js";
+import { LoadingView } from "./BufferArea.js";
 import { MatrixView } from "./MatrixView.js";
 import type { BufferData } from "./modeline.js";
 

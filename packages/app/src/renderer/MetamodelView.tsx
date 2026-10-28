@@ -9,6 +9,7 @@
 // and the graph opens on it again.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@logreq/core";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, MetamodelBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { spotlit } from "./graph.js";
@@ -30,6 +31,8 @@ export interface MetamodelViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /** The window is split (SR-115 AK3). */
+  readonly split?: boolean;
 }
 
 /** The answer shown and where its boxes stand. */
@@ -187,10 +190,11 @@ const TypeBox = ({
   readonly selected: boolean;
   readonly onSelect: () => void;
 }): React.JSX.Element => {
+  const scope = useIdScope();
   const { node } = placed;
   return (
     <div
-      id={`mm-type-${String(index)}`}
+      id={`${scope}mm-type-${String(index)}`}
       className={node.any ? "mm-type any" : "mm-type"}
       role="option"
       aria-selected={selected}
@@ -228,6 +232,7 @@ const Drawing = ({
   readonly selected: string;
   readonly onSelect: (key: string) => void;
 }): React.JSX.Element => {
+  const scope = useIdScope();
   const touches = (path: Ends): boolean => path.source === selected || path.target === selected;
   const paths = [...layout.paths].sort((a, b) => Number(touches(a)) - Number(touches(b)));
   const lit = spotlit(paths, selected);
@@ -245,7 +250,7 @@ const Drawing = ({
             {ARROWS.map((variant) => (
               <marker
                 key={variant}
-                id={arrowId(variant)}
+                id={`${scope}${arrowId(variant)}`}
                 className={`mm-arrow ${variant}`}
                 viewBox="0 0 8 8"
                 refX={8}
@@ -267,7 +272,7 @@ const Drawing = ({
                 key={pairKey(path)}
                 className={variant === "" ? "mm-edge" : `mm-edge ${variant}`}
                 d={path.d}
-                markerEnd={`url(#${arrowId(variant)})`}
+                markerEnd={`url(#${scope}${arrowId(variant)})`}
                 data-source={path.source}
                 data-target={path.target}
               />
@@ -322,12 +327,17 @@ export interface SheetProps {
   readonly dispatch: (action: BufferAction) => void;
   /** The view's element, where the sheet's fonts are measured. */
   readonly root: React.RefObject<HTMLDivElement | null>;
+  /** The window is split (SR-115 AK3): the graph opens on its selected box again at the new width. */
+  readonly split: boolean;
 }
 
 /** The graph of the metamodel: boxes and curves, the arrows between the boxes. */
-const GraphSheet = ({ shown, error, buffer, dispatch, root }: SheetProps): React.JSX.Element => {
-  // Whether the view has opened on a layout: a later one keeps the reader's scroll.
+const GraphSheet = ({ shown, error, buffer, dispatch, root, split }: SheetProps): React.JSX.Element => {
+  const scope = useIdScope();
+  // Whether the view has opened on a layout, and whether the window was split then: a later layout keeps
+  // the reader's scroll, a split or unsplit opens on the selected box again (SR-115 AK3).
   const opened = useRef(false);
+  const openedSplit = useRef(split);
 
   const layout = shown?.output.types.length === 0 ? undefined : shown?.layout;
   const first = layout?.nodes[0]?.key ?? "";
@@ -343,13 +353,14 @@ const GraphSheet = ({ shown, error, buffer, dispatch, root }: SheetProps): React
     if (view === null || box === null || box === undefined || canvas === null || canvas === undefined) {
       return;
     }
-    if (opened.current) {
+    if (opened.current && openedSplit.current === split) {
       box.scrollIntoView({ block: "nearest", inline: "nearest" });
       return;
     }
     opened.current = true;
+    openedSplit.current = split;
     openOn(view, box, canvas);
-  }, [shown]);
+  }, [shown, split]);
 
   useEffect(() => {
     root.current
@@ -380,7 +391,7 @@ const GraphSheet = ({ shown, error, buffer, dispatch, root }: SheetProps): React
       className="buffer metamodel"
       role="listbox"
       aria-label="Metamodel"
-      aria-activedescendant={index === undefined ? undefined : `mm-type-${String(index)}`}
+      aria-activedescendant={index === undefined ? undefined : `${scope}mm-type-${String(index)}`}
       data-buffer=""
       data-laid-out={shown === undefined ? undefined : String(shown.layout.nodes.length)}
       tabIndex={0}
@@ -402,6 +413,7 @@ export const MetamodelView = ({
   dispatch,
   onData,
   onEcho,
+  split = false,
 }: MetamodelViewProps): React.JSX.Element => {
   const root = useRef<HTMLDivElement>(null);
   const { shown, error } = useMetamodel(call, revision, onEcho, root);
@@ -412,6 +424,6 @@ export const MetamodelView = ({
     }
   }, [shown]);
 
-  const sheet = { shown, error, buffer, dispatch, root };
+  const sheet = { shown, error, buffer, dispatch, root, split };
   return buffer.mode === "text" ? <MetamodelTextView {...sheet} /> : <GraphSheet {...sheet} />;
 };

@@ -7,6 +7,7 @@
 // Ctrl+P, Page Up and Page Down, Home and End move the selection. The selected type is the graph's
 // (Ctrl/Cmd+T, AK4): the text opens on it, and a type selected here is selected in the graph.
 import { Fragment, useEffect, useMemo, useRef } from "react";
+import { useIdScope } from "./area-scope.js";
 import { rowTarget } from "./keys.js";
 import type { RelationRow, TypeRow } from "./metamodel-text.js";
 import { metamodelText } from "./metamodel-text.js";
@@ -73,6 +74,7 @@ export const MetamodelTextView = ({
   dispatch,
   root,
 }: SheetProps): React.JSX.Element => {
+  const scope = useIdScope();
   const text = useMemo(() => (shown === undefined ? undefined : metamodelText(shown.output)), [shown]);
   const rows = text?.rows ?? [];
   const has = (key: string | undefined): key is string =>
@@ -120,7 +122,7 @@ export const MetamodelTextView = ({
       className="buffer metamodel-text"
       role="listbox"
       aria-label="Metamodel as text"
-      aria-activedescendant={cursor < 0 ? undefined : `mm-row-${String(cursor)}`}
+      aria-activedescendant={cursor < 0 ? undefined : `${scope}mm-row-${String(cursor)}`}
       data-buffer=""
       data-rows={text === undefined ? undefined : String(rows.length)}
       tabIndex={0}
@@ -134,7 +136,7 @@ export const MetamodelTextView = ({
           {at === 0 && row.kind === "type" ? <div className="mm-group">Types</div> : null}
           {at === firstRelation ? <div className="mm-group">Relation kinds</div> : null}
           <div
-            id={`mm-row-${String(at)}`}
+            id={`${scope}mm-row-${String(at)}`}
             className={`mm-row ${row.kind}`}
             role="option"
             aria-selected={at === cursor}

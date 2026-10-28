@@ -7,6 +7,7 @@
 // node as the current element (AK5), `+` and `-` show one level more or less.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { TraceGraphOutput } from "@logreq/core";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, GraphBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -37,6 +38,8 @@ export interface GraphViewProps {
   readonly onEcho: (message: string) => void;
   /** The names of the types by their key, from the metamodel. */
   readonly typeNames: ReadonlyMap<string, string>;
+  /** The window is split (SR-115 AK3): the view is half as wide, and opens on its node again. */
+  readonly split?: boolean;
 }
 
 /** The answer shown and where its nodes stand. */
@@ -66,7 +69,9 @@ export const GraphView = ({
   onData,
   onEcho,
   typeNames,
+  split = false,
 }: GraphViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const [shown, setShown] = useState<Shown | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const root = useRef<HTMLDivElement>(null);
@@ -76,6 +81,8 @@ export const GraphView = ({
   const shownOutput = useRef<string | undefined>(undefined);
   // The input the view last opened on: a new layout for the same input keeps the reader's scroll.
   const opened = useRef<string | undefined>(undefined);
+  // Whether the window was split when the view opened: a split or unsplit changes its width (SR-115 AK3).
+  const openedSplit = useRef(split);
   const input = graphInput(buffer);
   const asked = JSON.stringify(input);
 
@@ -139,7 +146,8 @@ export const GraphView = ({
   // A new layout: the view opens on the selected node (the element when the graph opens) in its middle,
   // as far as the drawing reaches (AK1, `viewStart`); a new layout of the same graph (the workspace
   // changed) keeps the reader's scroll and only brings the selected node into view. The sheet has half a
-  // view of room on every side, so every start `viewStart` gives can be scrolled to.
+  // view of room on every side, so every start `viewStart` gives can be scrolled to. A split or unsplit of
+  // the window changes the width of the view: it opens on the selected node again (SR-115 AK3).
   useLayoutEffect(() => {
     const view = root.current;
     const node = view?.querySelector('[aria-selected="true"]');
@@ -147,11 +155,12 @@ export const GraphView = ({
     if (view === null || node === null || node === undefined || canvas === null || canvas === undefined) {
       return;
     }
-    if (opened.current === asked) {
+    if (opened.current === asked && openedSplit.current === split) {
       node.scrollIntoView({ block: "nearest", inline: "nearest" });
       return;
     }
     opened.current = asked;
+    openedSplit.current = split;
     const outer = view.getBoundingClientRect();
     const box = node.getBoundingClientRect();
     const drawing = canvas.getBoundingClientRect();
@@ -171,7 +180,7 @@ export const GraphView = ({
       view.clientHeight,
       RANK_SEP,
     );
-  }, [shown]);
+  }, [shown, split]);
 
   useEffect(() => {
     root.current
@@ -227,7 +236,9 @@ export const GraphView = ({
       className="buffer graph"
       role="listbox"
       aria-label={`Graph: ${buffer.name}`}
-      aria-activedescendant={layout === undefined ? undefined : `gnode-${String(order.indexOf(selected))}`}
+      aria-activedescendant={
+        layout === undefined ? undefined : `${scope}gnode-${String(order.indexOf(selected))}`
+      }
       data-buffer=""
       data-laid-out={layout === undefined ? undefined : String(layout.nodes.length)}
       tabIndex={0}
@@ -270,7 +281,7 @@ export const GraphView = ({
               return (
                 <div
                   key={placed.key}
-                  id={`gnode-${String(index)}`}
+                  id={`${scope}gnode-${String(index)}`}
                   className={classes.join(" ")}
                   role="option"
                   aria-selected={placed.key === selected}

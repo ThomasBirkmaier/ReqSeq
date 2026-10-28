@@ -3,6 +3,7 @@
 // workspace of 50,000 elements is never loaded at once (N-036). A row whose element changed outside the
 // app is highlighted briefly (SR-116), and a change keeps the rows, the selection and the scroll.
 import { useEffect, useRef, useState } from "react";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer, SearchBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -143,6 +144,7 @@ export const ListView = ({
   onLeave,
   focusOnLoad = false,
 }: ListViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const [view, setView] = useState<View>({ status: "loading" });
   const { marked, mark } = useOutsideMarks();
   // The list the rows were asked for last: when only the workspace changed since, the rows stay until
@@ -315,7 +317,7 @@ export const ListView = ({
       className={part ? "list part" : "buffer list"}
       role="listbox"
       aria-label={bufferName(buffer)}
-      aria-activedescendant={activeRow("row", cursor, rows.length)}
+      aria-activedescendant={activeRow(`${scope}row`, cursor, rows.length)}
       {...(part ? {} : { "data-buffer": "" })}
       tabIndex={0}
       onKeyDown={keyDown}
@@ -328,7 +330,7 @@ export const ListView = ({
       {rows.map((row, at) => (
         <div
           key={row.open.key}
-          id={`row-${String(at)}`}
+          id={`${scope}row-${String(at)}`}
           className={rowClass("row", marked, row.open.id)}
           role="option"
           aria-selected={at === cursor}

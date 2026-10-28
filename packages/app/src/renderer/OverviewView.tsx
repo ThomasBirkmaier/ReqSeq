@@ -4,6 +4,7 @@
 // `element.facets`, the recent elements from `element.get`; the app only shows them (ADR-0002). A recent
 // element that changed outside the app is highlighted briefly (SR-116).
 import { Fragment, useEffect, useState } from "react";
+import { useIdScope } from "./area-scope.js";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
 import { elementBuffer, elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
@@ -148,6 +149,7 @@ export const OverviewView = ({
   dispatch,
   onData,
 }: OverviewViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const { marked, mark } = useOutsideMarks();
   useEffect(() => {
     if (outside !== undefined) {
@@ -194,7 +196,7 @@ export const OverviewView = ({
       className="buffer overview"
       role="listbox"
       aria-label="Overview"
-      aria-activedescendant={activeRow("overview", cursor, rows.length)}
+      aria-activedescendant={activeRow(`${scope}overview`, cursor, rows.length)}
       data-buffer=""
       tabIndex={0}
       onKeyDown={keyDown}
@@ -203,7 +205,7 @@ export const OverviewView = ({
         <Fragment key={row.kind === "type" ? `type:${row.key}` : row.buffer.key}>
           {at === firstRecent ? <div className="group">Recent</div> : null}
           <div
-            id={`overview-${String(at)}`}
+            id={`${scope}overview-${String(at)}`}
             className={row.kind === "type" ? "line type" : rowClass("line recent", marked, row.buffer.id)}
             role="option"
             aria-selected={at === cursor}

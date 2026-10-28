@@ -5,7 +5,7 @@
 // the commands "Next buffer" and "Previous buffer". Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
 // After the app is closed and started again, the buffers open before are back behind the overview
-// (SR-115 AK4).
+// (SR-115 AK4). "Split window" shows two buffers side by side, an element and its graph (SR-115 AK3).
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -359,5 +359,87 @@ test.describe("the open buffers after a restart", () => {
     await expect(window.locator("article h1")).toBeVisible();
     // Nothing of it went into the workspace.
     expect(await snapshot(root)).toEqual(before);
+  });
+});
+
+test.describe("Split window", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp(FIXTURE);
+    await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  /** Where `locator` is on the page; it must be visible. */
+  const box = async (locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> => {
+    const found = await locator.boundingBox();
+    if (found === null) {
+      throw new Error("not visible");
+    }
+    return found;
+  };
+
+  const command = async (window: Page, title: string): Promise<void> => {
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type(title);
+    await expect(window.locator('.candidates [role="option"] .name').first()).toHaveText(title);
+    await window.keyboard.press("Enter");
+  };
+
+  test("[SR-115/AK3] Split window shows an element and its graph side by side", async () => {
+    const { window } = running;
+    await listAll(window);
+    await goTo(window, ELEMENT);
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    await expect(window.locator(".graph")).toBeFocused();
+    await command(window, "Split window");
+    // Two areas side by side: the graph where it was, the element beside it.
+    const left = window.locator('[data-area="left"]');
+    const right = window.locator('[data-area="right"]');
+    await expect(left).toBeVisible();
+    await expect(right).toBeVisible();
+    await expect(right.locator("article h1")).toHaveText(ELEMENT);
+    await expect(left.locator(".graph-node.root")).toBeVisible();
+    const [leftBox, rightBox] = [await box(left), await box(right)];
+    expect(leftBox.y).toBe(rightBox.y);
+    expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x);
+    // The graph opens on its element again at the new width: the root stands in the middle third.
+    const root = await box(left.locator(".graph-node.root"));
+    const centre = root.x + root.width / 2;
+    expect(centre).toBeGreaterThan(leftBox.x + leftBox.width / 3);
+    expect(centre).toBeLessThan(leftBox.x + (leftBox.width * 2) / 3);
+    await expect(modeline(window)).toContainText("Graph:");
+    await expect(window.locator(".graph")).toBeFocused();
+    // No tab bar while split (AK2).
+    await expect(window.getByRole("tab")).toHaveCount(0);
+    await expect(window.getByRole("tablist")).toHaveCount(0);
+    await expect(window.getByRole("navigation")).toHaveCount(0);
+    // Other window: the element is active; what is typed into it is saved.
+    await command(window, "Other window");
+    await expect(modeline(window)).not.toContainText("Graph:");
+    await expect(modeline(window)).toContainText(ELEMENT_ID);
+    await expect(right.locator("article")).toBeFocused();
+    await window.keyboard.press("Enter");
+    await expect(right.locator(".cm-content")).toBeFocused();
+    await window.keyboard.insertText(" SPLIT");
+    await expect.poll(() => savedText(running)).toContain(" SPLIT");
+    await expect(left.locator(".graph-node").first()).toBeVisible();
+    // Back to the graph, then a click into the text of the element: it is active, the caret is where clicked.
+    await command(window, "Other window");
+    await expect(modeline(window)).toContainText("Graph:");
+    await right
+      .locator(".cm-line")
+      .first()
+      .click({ position: { x: 1, y: 5 } });
+    await expect(modeline(window)).not.toContainText("Graph:");
+    await expect(right.locator(".cm-content")).toBeFocused();
+    await window.keyboard.insertText("Z");
+    await expect.poll(() => savedText(running)).toMatch(/^ZN1: /u);
+    // Unsplit: one area again.
+    await command(window, "Unsplit window");
+    await expect(window.locator('[aria-label="Sheet"] > *')).toHaveCount(1);
   });
 });

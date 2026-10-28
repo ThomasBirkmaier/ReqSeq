@@ -157,6 +157,17 @@ export interface FollowControls {
   readonly stop: () => void;
 }
 
+/**
+ * The areas of the window (SR-115 AK3, `window-layout.ts`): display state of the app, like the mode
+ * „Agent folgen“. The first buffer is shown in the active area.
+ */
+export interface LayoutControls {
+  /** The key of the buffer in the inactive area; undefined while the window has one area. */
+  readonly other: string | undefined;
+  readonly split: () => void;
+  readonly unsplit: () => void;
+}
+
 export interface ActionContext {
   /** A workspace is open. */
   readonly workspace: boolean;
@@ -209,6 +220,8 @@ export interface ActionContext {
   readonly follow?: FollowControls;
   /** The workspaces opened last and the switch between them (SR-131), where the window offers them. */
   readonly workspaces?: WorkspaceControls;
+  /** "Split window" and its areas (SR-115 AK3), where the window offers them. */
+  readonly layout?: LayoutControls;
 }
 
 export interface Action {
@@ -895,6 +908,39 @@ export const ACTIONS: readonly Action[] = [
     available: hasOthers,
     run: (context: ActionContext): void => {
       cycleBuffer(context, -1);
+    },
+  },
+  // SR-115 AK3: two buffers side by side. Commands of the prompt only, no keys (#472).
+  {
+    id: "split-window",
+    title: "Split window",
+    available: (context: ActionContext): boolean =>
+      context.workspace &&
+      context.layout !== undefined &&
+      context.layout.other === undefined &&
+      context.buffers.length > 0 &&
+      !onlyOverview(context.buffers),
+    run: (context: ActionContext): void => {
+      context.layout?.split();
+    },
+  },
+  {
+    id: "other-window",
+    title: "Other window",
+    available: (context: ActionContext): boolean => context.layout?.other !== undefined,
+    run: (context: ActionContext): void => {
+      const other = context.layout?.other;
+      if (other !== undefined) {
+        context.dispatch({ type: "switch", key: other });
+      }
+    },
+  },
+  {
+    id: "unsplit-window",
+    title: "Unsplit window",
+    available: (context: ActionContext): boolean => context.layout?.other !== undefined,
+    run: (context: ActionContext): void => {
+      context.layout?.unsplit();
     },
   },
   {

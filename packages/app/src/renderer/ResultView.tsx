@@ -4,6 +4,7 @@
 // a problem. When the workspace changed, it asks the command again with the same input (ADR-0002: the
 // app runs commands and shows what they give); the output of a write command stays as it came (#85).
 import { useEffect, useMemo } from "react";
+import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ResultBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
@@ -27,6 +28,7 @@ export const ResultView = ({
   onData,
   onEcho,
 }: ResultViewProps): React.JSX.Element => {
+  const scope = useIdScope();
   const lines = useMemo(() => resultLines(buffer.output), [buffer.output]);
   const cursor = Math.min(buffer.cursor, Math.max(0, lines.length - 1));
 
@@ -45,8 +47,9 @@ export const ResultView = ({
         return;
       }
       const { error: _before, ...rest } = buffer;
+      // In place: a result in the inactive area that reads again stays there (SR-115 AK3).
       dispatch({
-        type: "open",
+        type: "update",
         buffer: answer.ok
           ? { ...rest, output: answer.output, revision }
           : { ...rest, output: undefined, error: answer.message, revision },
@@ -89,7 +92,9 @@ export const ResultView = ({
       className="buffer result"
       role="listbox"
       aria-label={buffer.name}
-      aria-activedescendant={lines[cursor]?.open === undefined ? undefined : `result-${String(cursor)}`}
+      aria-activedescendant={
+        lines[cursor]?.open === undefined ? undefined : `${scope}result-${String(cursor)}`
+      }
       data-buffer=""
       tabIndex={0}
       onKeyDown={keyDown}
@@ -98,7 +103,7 @@ export const ResultView = ({
       {lines.map((line, at) => (
         <div
           key={at}
-          id={`result-${String(at)}`}
+          id={`${scope}result-${String(at)}`}
           className={`line ${line.kind}`}
           // Only a line that opens an element is an option; a text line is shown, not chosen.
           {...(line.open === undefined ? {} : { role: "option", "aria-selected": at === cursor })}

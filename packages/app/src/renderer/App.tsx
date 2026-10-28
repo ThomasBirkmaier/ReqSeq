@@ -1,7 +1,8 @@
-// The window: a white sheet with one buffer (D-061..D-063), the modeline (a display) and the minibuffer,
-// the one control, below it. The sheet shows the most recent buffer: a list, a search result or an
-// element. Nothing else is permanently visible (SR-100). Every datum comes from a catalog command through
-// the bridge (ADR-0002); the app only builds inputs and shows outputs.
+// The window: a white sheet with one buffer (D-061..D-063), or two side by side after "Split window"
+// (SR-115 AK3, `window-layout.ts`), the modeline (a display) and the minibuffer, the one control, below it.
+// The sheet shows the most recent buffer: a list, a search result or an element; the modeline names the
+// buffer of the active area. Nothing else is permanently visible (SR-100). Every datum comes from a
+// catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@logreq/core";
 import type { CommandListing, WorkspaceChangeReason } from "../shared/protocol.js";
@@ -21,24 +22,19 @@ import { loadSession, restoreSession, saveSession, sessionKey, sessionText } fro
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
-import type { Buffer, ElementBuffer, GraphBuffer, MetamodelBuffer, OverviewBuffer } from "./buffers.js";
-import { elementBuffer, elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
+import type { Buffer, ElementBuffer, MetamodelBuffer } from "./buffers.js";
+import { elementBuffer, elementBufferOf, inMatrix, overviewBuffer } from "./buffers.js";
+import type { AreaViews } from "./BufferArea.js";
+import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
-import { ElementView } from "./ElementView.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 import { graphFilterChoices, graphMeanings } from "./graph-choices.js";
-import { GraphView } from "./GraphView.js";
 import { isMac, matches } from "./keys.js";
-import { ListView } from "./ListView.js";
-import { MetamodelView } from "./MetamodelView.js";
-import type { ListViewProps } from "./ListView.js";
-import { MatrixView } from "./MatrixView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
-import { NeighbourhoodView } from "./NeighbourhoodView.js";
 import { openingOrder, seedOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
@@ -51,10 +47,9 @@ import {
   windowTitle,
   workspaceView,
 } from "./modeline.js";
-import { OverviewView, useOverview } from "./OverviewView.js";
+import { useOverview } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
-import { ResultView } from "./ResultView.js";
 import {
   CLOSE_NOT_IN_TIME,
   CLOSE_WINDOW,
@@ -72,6 +67,7 @@ import { createTheme } from "./theme.js";
 import { useCopyNotice } from "./use-copy-notice.js";
 import { useFollow } from "./use-follow.js";
 import { promptUse } from "./usage.js";
+import { EMPTY_WINDOW, areas, isSplit, reduceWindow } from "./window-layout.js";
 
 const STOPPED = "The core process keeps stopping. Open the workspace again with File > Open Workspace.";
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -129,42 +125,18 @@ const modelineParts = (
 const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
   echo === "" ? (view?.message ?? "") : echo;
 
-/** The buffers whose view loads its own data from the same props: lists, search results, neighbourhoods and results. */
 /** The mode of the shown metamodel (SR-130 AK4); undefined for another buffer. */
 const metamodelMode = (buffer: Buffer | undefined): MetamodelBuffer["mode"] | undefined =>
   buffer?.kind === "metamodel" ? buffer.mode : undefined;
 
-type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer | MetamodelBuffer>;
+/** What the views of the shown buffers loaded, by buffer key. */
+type Loaded = ReadonlyMap<string, BufferData | undefined>;
 
-/**
- * The view of such a buffer: a list or a search result as rows, or (a list in matrix mode, SR-125) as the
- * traceability matrix; a neighbourhood (SR-107); the output of a catalog command (SR-073 AK2).
- */
-export const LoadingView = ({
-  buffer,
-  ...props
-}: Omit<ListViewProps, "buffer"> & { readonly buffer: LoadingBuffer }): React.JSX.Element => {
-  const shared = {
-    call: props.call,
-    revision: props.revision,
-    dispatch: props.dispatch,
-    onData: props.onData,
-    onEcho: props.onEcho,
-  };
-  // The rows that changed outside are highlighted (SR-116).
-  const marking = props.outside === undefined ? {} : { outside: props.outside };
-  if (buffer.kind === "result") {
-    return <ResultView key={buffer.key} buffer={buffer} {...shared} />;
-  }
-  if (buffer.kind === "neighbourhood") {
-    return <NeighbourhoodView key={buffer.key} buffer={buffer} {...shared} {...marking} />;
-  }
-  return inMatrix(buffer) ? (
-    <MatrixView buffer={buffer} {...shared} {...marking} />
-  ) : (
-    <ListView buffer={buffer} {...props} />
-  );
-};
+/** `loaded` without the buffers no area shows; the same map when it has none of them. */
+const shownOnly = (loaded: Loaded, keys: readonly string[]): Loaded =>
+  [...loaded.keys()].every((key) => keys.includes(key))
+    ? loaded
+    : new Map([...loaded].filter(([key]) => keys.includes(key)));
 
 export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
@@ -183,7 +155,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   }, []);
   // A field is copied: the main process writes the clipboard, the modeline says so (SR-128).
   const { notice, copy } = useCopyNotice(bridge);
-  const [buffers, dispatch] = useReducer(reduceBuffers, []);
+  // The buffers and the areas of the window (SR-115 AK3): one reducer, so they never disagree.
+  const [windowState, dispatch] = useReducer(reduceWindow, EMPTY_WINDOW);
+  const { buffers, layout } = windowState;
+  const split = isSplit(layout);
+  const shownAreas = areas(windowState);
   const current = buffers[0];
   const { drafts, armed, onDraft, update: updateDraft, reset: resetDrafts } = useDrafts(current?.key);
   // Per element buffer while it is open (SR-105): its undo history, and its saves, in order.
@@ -200,9 +176,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // reads again on each, an element buffer only on its own; what changed is highlighted where it is shown.
   const fresh = useMemo(() => arrivals(), []);
   const [outside, setOutside] = useState<OutsideChanges>(() => ({ ...NO_CHANGES, fresh: fresh.fresh }));
-  const [loaded, setLoaded] = useState<
-    { readonly key: string; readonly data: BufferData | undefined } | undefined
-  >(undefined);
+  const [loadedByKey, setLoaded] = useState<Loaded>(new Map());
+  const loaded =
+    current === undefined || !loadedByKey.has(current.key)
+      ? undefined
+      : { key: current.key, data: loadedByKey.get(current.key) };
   const serial = useRef(0);
   const sheet = useRef<HTMLElement>(null);
   const stoppedRef = useRef(false);
@@ -545,6 +523,9 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       onDraft(key, undefined);
     },
     drafted: (key) => drafts.current.has(key),
+    // The element of the inactive area (SR-115 AK3) is saved from its draft, like one that is not shown:
+    // it took no input since it became inactive, when it saved its input (`ElementView`, `active`), and
+    // both saves go through the same queue of its key, so a save still running is waited for.
     saveDraft: (key) => {
       const buffer = buffers.find((open) => open.key === key);
       if (buffer?.kind !== "element") {
@@ -556,6 +537,16 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     },
     graphChoices,
     follow: follow.controls,
+    // Split window (SR-115 AK3): display state of the window, like the mode „Agent folgen“.
+    layout: {
+      other: layout.other,
+      split: () => {
+        dispatch({ type: "split" });
+      },
+      unsplit: () => {
+        dispatch({ type: "unsplit" });
+      },
+    },
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
     workspaces: {
       name: view?.name,
@@ -750,11 +741,14 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
   // list in place (one key), and the text the graph of the metamodel (SR-130 AK4), so the mode is a reason
   // to look for the focus too (Ctrl+T has no prompt).
+  // With two areas it is the active one (SR-115 AK3): a change of the active area moves the focus there,
+  // without scrolling it; a press in the area then puts the focus where it pressed.
   useEffect(() => {
-    if (prompt === undefined && sheet.current?.contains(document.activeElement) !== true) {
-      sheet.current?.querySelector<HTMLElement>("[data-buffer]")?.focus();
+    const area = sheet.current?.querySelector<HTMLElement>(`[data-area="${layout.active}"]`);
+    if (prompt === undefined && area?.contains(document.activeElement) !== true) {
+      area?.querySelector<HTMLElement>("[data-buffer]")?.focus({ preventScroll: true });
     }
-  }, [prompt, current?.key, inMatrix(current), metamodelMode(current)]);
+  }, [prompt, current?.key, inMatrix(current), metamodelMode(current), layout.active]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.
@@ -769,8 +763,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   }, [current?.key]);
 
   const onData = useCallback((key: string, data: BufferData | undefined): void => {
-    setLoaded({ key, data });
+    setLoaded((before) => new Map(before).set(key, data));
   }, []);
+  // What a buffer that no area shows any more loaded goes: shown again, it loads again.
+  const shownKeys = shownAreas.map((area) => area.buffer.key);
+  useEffect(() => {
+    setLoaded((before) => shownOnly(before, shownKeys));
+  }, [shownKeys.join("\n")]);
 
   const openTarget = (id: string, repository?: string): void => {
     // A reference may name no repository, so the element is read once to get it (SR-088: several answers say so).
@@ -786,7 +785,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     );
   };
 
-  const overview = useOverview(call, seen, recent, current?.kind === "overview", setEcho);
+  const overview = useOverview(
+    call,
+    seen,
+    recent,
+    shownAreas.some((area) => area.buffer.kind === "overview"),
+    setEcho,
+  );
   // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {
     for (const row of overview.read.values()) {
@@ -810,77 +815,61 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     dispatch({ type: "open", buffer });
   };
 
+  // A press or a focus in the inactive area makes it active (SR-115 AK3); a prompt open for the other
+  // area is cancelled, as Escape cancels it, so its choice does not act on the area left.
+  const activate = (key: string): void => {
+    if (openPrompt.current !== undefined) {
+      openPrompt.current.cancel?.();
+      follow.closed(true);
+      openPrompt.current = undefined;
+      setPrompt(undefined);
+    }
+    dispatch({ type: "switch", key });
+  };
+  const views: AreaViews = {
+    call,
+    revision,
+    seen,
+    outside,
+    dispatch,
+    onData,
+    onEcho: setEcho,
+    typeNames,
+    overview,
+    element: (buffer) => ({
+      onGone: forgetName,
+      onCopy: copy,
+      onOpenTarget: openTarget,
+      onOpenRelation: openRelation,
+      onPickElement: (request) => {
+        ask(referencePrompt(context, titles.picking(request)));
+      },
+      titles,
+      onAsk: ask,
+      draft: drafts.current.get(buffer.key),
+      onDraft,
+      keep: keepOf(buffer),
+      register: setElementControls,
+      packages,
+      properties,
+    }),
+  };
   const parts = modelineParts(current, loaded, drafts.current, typeNames, graphChoices);
   return (
     <div className="shell">
       <TitleBar shown={context.mac} title={windowTitle(view)} />
       <main className="sheet" aria-label="Sheet" ref={sheet} inert={switching}>
-        {current === undefined ? null : current.kind === "element" ? (
-          <ElementView
-            key={current.key}
-            call={call}
-            buffer={current}
-            revision={revision}
-            outside={outside}
-            onData={onData}
-            onEcho={setEcho}
-            onGone={forgetName}
-            onCopy={copy}
-            onOpenTarget={openTarget}
-            onOpenRelation={openRelation}
-            onPickElement={(request) => {
-              ask(referencePrompt(context, titles.picking(request)));
+        {shownAreas.map((area) => (
+          <BufferArea
+            key={area.side}
+            area={area}
+            split={split}
+            views={views}
+            onActivate={() => {
+              activate(area.buffer.key);
             }}
-            titles={titles}
-            onAsk={ask}
-            draft={drafts.current.get(current.key)}
-            onDraft={onDraft}
-            keep={keepOf(current)}
-            register={setElementControls}
-            packages={packages}
-            properties={properties}
-            dispatch={dispatch}
           />
-        ) : current.kind === "overview" ? (
-          <OverviewView
-            buffer={current}
-            data={overview.data}
-            recents={overview.recents}
-            outside={outside}
-            dispatch={dispatch}
-            onData={onData}
-          />
-        ) : current.kind === "graph" ? (
-          <GraphView
-            key={current.key}
-            call={call}
-            buffer={current}
-            revision={seen}
-            dispatch={dispatch}
-            onData={onData}
-            onEcho={setEcho}
-            typeNames={typeNames}
-          />
-        ) : current.kind === "metamodel" ? (
-          <MetamodelView
-            call={call}
-            buffer={current}
-            revision={revision}
-            dispatch={dispatch}
-            onData={onData}
-            onEcho={setEcho}
-          />
-        ) : (
-          <LoadingView
-            call={call}
-            buffer={current}
-            revision={seen}
-            outside={outside}
-            dispatch={dispatch}
-            onData={onData}
-            onEcho={setEcho}
-          />
-        )}
+        ))}
       </main>
       <ModelineBar
         parts={parts}

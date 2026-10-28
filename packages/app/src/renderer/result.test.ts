@@ -10,7 +10,7 @@ import { bufferView } from "./modeline.js";
 import type { BufferData } from "./modeline.js";
 import { MAX_RESULT_LINES, resultLines, resultTotal } from "./result.js";
 import { ResultView } from "./ResultView.js";
-import { LoadingView } from "./App.js";
+import { LoadingView } from "./BufferArea.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
