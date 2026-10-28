@@ -63,6 +63,20 @@ interface Scenario {
   readonly check?: (results: Readonly<Record<string, Result>>) => void;
 }
 
+/** What element.create and element.update give, as far as the checks of their SR-064 scenarios read it. */
+interface Written {
+  readonly element: { readonly properties: Readonly<Record<string, unknown>> };
+  readonly files: readonly string[];
+  readonly problems: readonly {
+    readonly code: string;
+    readonly severity: string;
+    readonly message: string;
+  }[];
+}
+/** The key a message of element.missing-required names: "Required property Title (title) of type …". */
+const requiredKey = (message: string): string | undefined =>
+  /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
+
 const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: true };
 /** Needs, requirements, a decision and a package that point at each other (SR-024). */
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
@@ -361,6 +375,26 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       newElement: true,
     },
     { name: "unknown type", input: { type: "nope", title: "x" }, expect: "error" },
+    {
+      name: "required properties empty: saved, with the hint",
+      input: { type: "system-requirement", title: "Show gusts" },
+      tag: "[SR-064/AK2]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        expect(output.problems.map((p) => [p.code, p.severity, requiredKey(p.message)])).toEqual([
+          ["element.missing-required", "warning", "requirement-type"],
+          ["element.missing-required", "warning", "acceptance-criteria"],
+        ]);
+        // Saved: the file is on disk with only what was given, whatever the access (placeholders, newElement).
+        const file = "system-requirement/SR-<tail12>.md";
+        expect(output.files).toEqual([file]);
+        expect(results["core"]?.files[file]).toBe(
+          "---\nid: <id>\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n---\n",
+        );
+      },
+    },
     {
       name: "choice values by display name, in any case, written as keys (#309)",
       input: {
@@ -816,6 +850,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         set: { rationale: "Pilots" },
       },
       expect: "output",
+    },
+    {
+      name: "add a required and an optional property the element lacks; the hint of the filled one is gone",
+      input: { ref: "SR-e88fb3", set: { "verification-method": "test", "requirement-type": "functional" } },
+      tag: "[SR-064/AK3]",
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        expect(output.element.properties).toEqual({
+          "requirement-type": "functional",
+          "verification-method": "test",
+        });
+        expect(output.problems.map((p) => [p.code, requiredKey(p.message)])).toEqual([
+          ["element.missing-required", "acceptance-criteria"],
+        ]);
+      },
     },
     { name: "unknown reference", input: { ref: "SR-ffffff", title: "x" }, expect: "error" },
     {

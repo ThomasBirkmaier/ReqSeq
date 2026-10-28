@@ -355,6 +355,63 @@ describe("element.create", () => {
     expect(out.element.properties).toEqual({ weight: 2, "parent-item": stored });
   });
 
+  it("[SR-064/AK2] saves with every required property empty (absent, null, an empty list, an empty title) and gives one element.missing-required hint per key", async () => {
+    const opened = await standard();
+    /** The hint for the required property `key` of a system requirement, on `line` when the file has the key. */
+    const missing = (out: Output, key: string, name: string, line?: number): Record<string, unknown> => ({
+      code: "element.missing-required",
+      severity: "warning",
+      message: `Required property ${name} (${key}) of type System Requirement (system-requirement) has no value; LogReq changes no file`,
+      repository: "system",
+      file: out.element.file,
+      elementId: out.element.id,
+      elementShortId: out.element.shortId,
+      ...(line === undefined ? {} : { line }),
+    });
+    const head = (out: Output): string[] => [
+      "---",
+      `id: ${out.element.id}`,
+      "type: system-requirement",
+      "status: draft",
+    ];
+
+    // Only type and title: requirement type and acceptance criteria are absent.
+    const bare = await create(opened, { type: "system-requirement", title: "Show gusts" });
+    expect(bare.problems).toEqual([
+      missing(bare, "requirement-type", "Requirement Type"),
+      missing(bare, "acceptance-criteria", "Acceptance Criteria"),
+    ]);
+    expect(bare.element.problems).toEqual(bare.problems);
+    expect(await read(opened, bare.files[0] ?? "")).toBe(
+      [...head(bare), "title: Show gusts", "---", ""].join("\n"),
+    );
+
+    // An empty title and the required properties given as null and as an empty list: nothing but the title is written.
+    const empty = await create(opened, {
+      type: "system-requirement",
+      title: "",
+      properties: { "requirement-type": null, "acceptance-criteria": [] },
+    });
+    expect(empty.problems).toEqual([
+      missing(empty, "title", "Title", 5),
+      missing(empty, "requirement-type", "Requirement Type"),
+      missing(empty, "acceptance-criteria", "Acceptance Criteria"),
+    ]);
+    expect(await read(opened, empty.files[0] ?? "")).toBe(
+      [...head(empty), 'title: ""', "---", ""].join("\n"),
+    );
+
+    // Both files are saved: the next read of the workspace finds them with the same hints.
+    for (const out of [bare, empty]) {
+      const got = (await invoke(
+        "element.get",
+        { ref: out.element.id },
+        { workspace: opened.workspace },
+      )) as CommandOutput<"element.get">;
+      expect(got.element.problems).toEqual(out.problems);
+    }
+  });
+
   it("[SR-012/AK3] writes the key of a choice value given by its display name, in any case (#309)", async () => {
     const opened = await standard();
     const out = await create(opened, {

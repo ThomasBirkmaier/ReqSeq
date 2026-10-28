@@ -221,6 +221,96 @@ describe("element.update", () => {
     ]);
   });
 
+  it("[SR-064/AK3] an element created with only its title takes every other property of its type when opened again, required and optional, in type order; the hints of the filled required properties are gone", async () => {
+    const opened = await open();
+    const create = async (input: Record<string, unknown>): Promise<CommandOutput<"element.create">> =>
+      (await invoke("element.create", input, {
+        workspace: opened.workspace,
+      })) as CommandOutput<"element.create">;
+    const variant = await create({ type: "variant", title: "Mountain" });
+    const pkg = await create({ type: "package", title: "Sensors" });
+    const created = await create({ type: "system-requirement", title: "Show gusts" });
+    expect(created.problems).toEqual([
+      expect.objectContaining({
+        code: "element.missing-required",
+        message: expect.stringContaining("(requirement-type)") as unknown,
+      }),
+      expect.objectContaining({
+        code: "element.missing-required",
+        message: expect.stringContaining("(acceptance-criteria)") as unknown,
+      }),
+    ]);
+    await opened.workspace.close();
+
+    // Opened again: a new workspace reads the saved file.
+    const again = new Workspace(opened.fixture.root);
+    onTestFinished(() => again.close());
+    const out = (await invoke(
+      "element.update",
+      {
+        ref: created.element.id,
+        // Given in reverse type order: the file gets them in the order of the type (ADR-0004).
+        set: {
+          topic: "Wind",
+          delivery: "Stage 3",
+          "import-date": "2026-10-28",
+          "source-identifier": "REQ-7",
+          source: "Customer",
+          statement: "Gusts are shown.",
+          "verification-method": "test",
+          emergent: "no",
+          packages: [{ id: pkg.element.id }],
+          validity: [{ id: variant.element.id }],
+          "acceptance-criteria": ["Given a gust, then it is shown."],
+          "requirement-type": "functional",
+          rationale: "Pilots need it",
+        },
+      },
+      { workspace: again },
+    )) as Output;
+    expect(out.problems).toEqual([]);
+    const file = await read(opened, created.files[0] ?? "");
+    const keys = file
+      .split("\n")
+      .slice(1, file.split("\n").indexOf("---", 1))
+      .filter((line) => /^[a-z]/.test(line))
+      .map((line) => line.slice(0, line.indexOf(":")));
+    expect(keys).toEqual([
+      "id",
+      "type",
+      "status",
+      "title",
+      "rationale",
+      "requirement-type",
+      "acceptance-criteria",
+      "validity",
+      "packages",
+      "emergent",
+      "verification-method",
+      "statement",
+      "source",
+      "source-identifier",
+      "import-date",
+      "delivery",
+      "topic",
+    ]);
+    expect(out.element.properties).toMatchObject({
+      rationale: "Pilots need it",
+      "requirement-type": "functional",
+      "acceptance-criteria": ["Given a gust, then it is shown."],
+      validity: [expect.objectContaining({ id: variant.element.id, title: "Mountain" })],
+      packages: [expect.objectContaining({ id: pkg.element.id, title: "Sensors" })],
+      emergent: "no",
+      "verification-method": "test",
+      statement: "Gusts are shown.",
+      source: "Customer",
+      "source-identifier": "REQ-7",
+      "import-date": "2026-10-28",
+      delivery: "Stage 3",
+      topic: "Wind",
+    });
+  });
+
   it("writes nothing when nothing changes and keeps the element store", async () => {
     const opened = await open();
     const before = await read(opened, GUSTS.file);

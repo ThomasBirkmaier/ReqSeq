@@ -182,7 +182,7 @@ describe("logreq binary", () => {
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
-  it("creates an element with the title as argument or as --title, and prints each problem once (#310)", async () => {
+  it("[SR-064/AK2] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (#310)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(ws);
     const created = await logreq(["element", "create", "system-requirement", "--title", "Show gusts"], {
@@ -192,14 +192,35 @@ describe("logreq binary", () => {
     const lines = created.stdout.split("\n");
     expect(lines[0]).toMatch(/^SR-[0-9a-f]{6,} {2}draft {2}Show gusts$/);
     expect(lines[1]).toBe("files:");
+    const file = lines[2]?.trim() ?? "";
+    expect(file).toMatch(/^system-requirement\/SR-[0-9a-f]{12}\.md$/);
+    expect(readFileSync(ws.path(file), "utf8")).toMatch(
+      /^---\nid: [0-9a-f-]{36}\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\n---\n$/,
+    );
     // Requirement type and acceptance criteria have no value: one line each, not twice.
     const missing = lines.filter((l) => l.startsWith("warning  element.missing-required  "));
-    expect(missing).toHaveLength(2);
+    expect(missing.map((l) => /\(([a-z-]+)\) of type/.exec(l)?.[1])).toEqual([
+      "requirement-type",
+      "acceptance-criteria",
+    ]);
     expect(lines).toHaveLength(3 + missing.length + 1);
     const positional = await logreq(["element", "create", "system-requirement", "Show calm", "--json"], {
       cwd: ws.root,
     });
-    expect(JSON.parse(positional.stdout)).toMatchObject({ element: { title: "Show calm" } });
+    expect(positional.code).toBe(0);
+    const json = JSON.parse(positional.stdout) as {
+      element: { title: string };
+      files: string[];
+      problems: { code: string; severity: string; message: string }[];
+    };
+    expect(json.element.title).toBe("Show calm");
+    expect(existsSync(ws.path(json.files[0] ?? "-"))).toBe(true);
+    expect(
+      json.problems.map((p) => [p.code, p.severity, /\(([a-z-]+)\) of type/.exec(p.message)?.[1]]),
+    ).toEqual([
+      ["element.missing-required", "warning", "requirement-type"],
+      ["element.missing-required", "warning", "acceptance-criteria"],
+    ]);
     const shown = await logreq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(
       /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
