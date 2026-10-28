@@ -929,3 +929,90 @@ mark {
 .mm-property.inherited {
   color: var(--muted);
 }
+
+/* The metamodel as text (SR-130 AK5): a section per type and a line per relation kind on the white
+   sheet, no table chrome. Names in the text colour, prefixes, keys and the words for fields muted; keys
+   in a monospace face, so a key reads as a key. The properties of a type stand in columns: name, key,
+   value kind, "required"; the inherited ones muted, as in the graph. The selected row as every row. */
+.metamodel-text {
+  padding: 0.5rem 0 2rem;
+}
+
+.mm-group {
+  margin-top: 1rem;
+  padding: 0.1rem 0.75rem;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mm-row {
+  padding: 0.35rem 0.75rem;
+  cursor: default;
+}
+
+.mm-row[aria-selected="true"] {
+  background: var(--select);
+}
+
+.mm-text-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.mm-text-name {
+  font-weight: 600;
+}
+
+.mm-text-prefix,
+.mm-note,
+.mm-fact-name,
+.mm-value,
+.mm-required,
+.mm-problem {
+  color: var(--muted);
+}
+
+.mm-text-prefix {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-key {
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.mm-note,
+.mm-fact {
+  font-size: 13px;
+}
+
+.mm-fact {
+  margin-top: 0.15rem;
+}
+
+.mm-text-property {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 12rem) minmax(0, 18rem) auto;
+  justify-content: start;
+  gap: 1rem;
+  align-items: baseline;
+  padding-left: 1rem;
+  font-size: 13px;
+}
+
+.mm-text-property.inherited .mm-property-name {
+  color: var(--muted);
+}
+
+.mm-sides {
+  font-size: 13px;
+}
+
+.mm-problem {
+  padding: 0.1rem 0.75rem;
+  font-size: 12px;
+}

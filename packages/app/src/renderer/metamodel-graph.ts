@@ -110,10 +110,21 @@ interface Reading {
   readonly defined: (type: string) => boolean;
 }
 
+/**
+ * The property keys each type inherits: those among the effective `properties` of the type its `extends`
+ * names (review S2). The one reading of the output the graph and the text make (`metamodel-text.ts`).
+ */
+export const inheritedProperties = (
+  output: Pick<MetamodelGetOutput, "types">,
+): ((type: MetamodelGetOutput["types"][number]) => ReadonlySet<string>) => {
+  const effective = new Map(output.types.map((type) => [type.key, type.properties]));
+  return (type) => new Set(type.extends === undefined ? [] : effective.get(type.extends));
+};
+
 const reading = (output: MetamodelGetOutput): Reading => {
   const effective = new Map(output.types.map((type) => [type.key, type.properties]));
   return {
-    inherited: (type) => new Set(type.extends === undefined ? [] : effective.get(type.extends)),
+    inherited: inheritedProperties(output),
     ends: (keys) => (keys === undefined ? [ANY_KEY] : keys.filter((key) => effective.has(key)).map(typeKey)),
     defined: (type) => effective.has(type),
   };

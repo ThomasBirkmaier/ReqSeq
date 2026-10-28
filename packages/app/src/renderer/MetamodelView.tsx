@@ -5,6 +5,8 @@
 // greys only (D-062): no value here means "outdated" or "gap". A box shows the name, the prefix, "abstract"
 // for an abstract type and every property, the inherited ones muted (AK2).
 // The graph is one tab stop; the arrows move the selection between the boxes (`graph-nav.ts`, AK4).
+// Ctrl/Cmd+T shows the same answer as text (`MetamodelTextView.tsx`, AK4, AK5); the selected type stays,
+// and the graph opens on it again.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MetamodelGetOutput } from "@logreq/core";
 import type { BufferAction, MetamodelBuffer } from "./buffers.js";
@@ -17,6 +19,7 @@ import { linkLabel, metamodelGraph } from "./metamodel-graph.js";
 import type { Measure, MetamodelLayout, PlacedType, TextFont } from "./metamodel-layout.js";
 import { RANK_SEP, layoutMetamodel } from "./metamodel-layout.js";
 import type { BufferData } from "./modeline.js";
+import { MetamodelTextView } from "./MetamodelTextView.js";
 
 export interface MetamodelViewProps {
   readonly call: Call;
@@ -30,7 +33,7 @@ export interface MetamodelViewProps {
 }
 
 /** The answer shown and where its boxes stand. */
-interface Shown {
+export interface Shown {
   readonly output: MetamodelGetOutput;
   readonly layout: MetamodelLayout;
 }
@@ -311,24 +314,20 @@ const Drawing = ({
   );
 };
 
-export const MetamodelView = ({
-  call,
-  buffer,
-  revision,
-  dispatch,
-  onData,
-  onEcho,
-}: MetamodelViewProps): React.JSX.Element => {
-  const root = useRef<HTMLDivElement>(null);
-  const { shown, error } = useMetamodel(call, revision, onEcho, root);
+/** What the graph and the text of the metamodel are given. */
+export interface SheetProps {
+  readonly shown: Shown | undefined;
+  readonly error: string | undefined;
+  readonly buffer: MetamodelBuffer;
+  readonly dispatch: (action: BufferAction) => void;
+  /** The view's element, where the sheet's fonts are measured. */
+  readonly root: React.RefObject<HTMLDivElement | null>;
+}
+
+/** The graph of the metamodel: boxes and curves, the arrows between the boxes. */
+const GraphSheet = ({ shown, error, buffer, dispatch, root }: SheetProps): React.JSX.Element => {
   // Whether the view has opened on a layout: a later one keeps the reader's scroll.
   const opened = useRef(false);
-
-  useEffect(() => {
-    if (shown !== undefined) {
-      onData(buffer.key, { kind: "metamodel", types: shown.output.types.length });
-    }
-  }, [shown]);
 
   const layout = shown?.output.types.length === 0 ? undefined : shown?.layout;
   const first = layout?.nodes[0]?.key ?? "";
@@ -394,4 +393,25 @@ export const MetamodelView = ({
       )}
     </div>
   );
+};
+
+export const MetamodelView = ({
+  call,
+  buffer,
+  revision,
+  dispatch,
+  onData,
+  onEcho,
+}: MetamodelViewProps): React.JSX.Element => {
+  const root = useRef<HTMLDivElement>(null);
+  const { shown, error } = useMetamodel(call, revision, onEcho, root);
+
+  useEffect(() => {
+    if (shown !== undefined) {
+      onData(buffer.key, { kind: "metamodel", types: shown.output.types.length });
+    }
+  }, [shown]);
+
+  const sheet = { shown, error, buffer, dispatch, root };
+  return buffer.mode === "text" ? <MetamodelTextView {...sheet} /> : <GraphSheet {...sheet} />;
 };

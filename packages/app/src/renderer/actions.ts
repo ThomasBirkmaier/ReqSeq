@@ -15,6 +15,7 @@ import type {
   FilterStep,
   GraphBuffer,
   ListBuffer,
+  MetamodelBuffer,
 } from "./buffers.js";
 import {
   DEFAULT_SORT,
@@ -231,6 +232,12 @@ export const GRAPH_SHORTCUT: Shortcut = { mod: true, shift: true, key: "g" };
 const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
 
 /**
+ * Ctrl/Cmd+T also shows the metamodel as text, and the text as a graph again (SR-130 AK4): the key that
+ * switches the representation of the shown buffer. Never available together with the matrix actions.
+ */
+const METAMODEL_SHORTCUT: Shortcut = MATRIX_SHORTCUT;
+
+/**
  * Ctrl/Cmd+Shift+Enter lists the elements with the value at the cursor (SR-132). Ctrl/Cmd+Enter stays
  * "Follow reference", which opens the target of a relation box and the reference of a Markdown box (#610).
  */
@@ -289,6 +296,22 @@ const onList =
   };
 
 /** Shows the buffer: the open one with its key (its text and rows kept), else `buffer`, a new one. */
+/** The shown buffer when it is the metamodel in `mode`. */
+const metamodelIn = (context: ActionContext, mode: MetamodelBuffer["mode"]): MetamodelBuffer | undefined => {
+  const shown = context.buffers[0];
+  return shown?.kind === "metamodel" && shown.mode === mode ? shown : undefined;
+};
+
+/** Shows the metamodel in `to` when it is shown in `from`; the selection stays. */
+const switchMetamodel =
+  (from: MetamodelBuffer["mode"], to: MetamodelBuffer["mode"]) =>
+  (context: ActionContext): void => {
+    const shown = metamodelIn(context, from);
+    if (shown !== undefined) {
+      context.dispatch({ type: "open", buffer: { ...shown, mode: to } });
+    }
+  };
+
 const showBuffer = (context: ActionContext, buffer: Buffer): void => {
   context.dispatch(
     context.buffers.some((open) => open.key === buffer.key)
@@ -1010,15 +1033,36 @@ export const ACTIONS: readonly Action[] = [
     // SR-130 AK1: the title of `metamodel.get` in the catalog; it covers that command, so the command
     // prompt lists it once (initials "sm") and its output opens the metamodel buffer as a graph, never a
     // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the reserved prefix, #472). Not
-    // offered on the metamodel itself (SR-133): there it would do nothing.
+    // offered on the metamodel itself (SR-133): there the toggle switches between graph and text, so on
+    // the text "sm" finds "Show metamodel as graph" only with more letters (review N2). An open metamodel
+    // buffer is shown as a graph and keeps its selection.
     id: "metamodel",
     title: "Show metamodel",
     covers: ["metamodel.get"],
     available: (context: ActionContext): boolean =>
       hasWorkspace(context) && context.buffers[0]?.kind !== "metamodel",
     run: (context: ActionContext): void => {
-      showBuffer(context, metamodelBuffer());
+      const open = context.buffers.find((buffer) => buffer.kind === "metamodel");
+      context.dispatch({
+        type: "open",
+        buffer: open === undefined ? metamodelBuffer() : { ...open, mode: "graph" },
+      });
     },
+  },
+  {
+    // SR-130 AK4: Ctrl/Cmd+T switches the shown metamodel between graph and text; the selected type stays.
+    id: "metamodel-text",
+    title: "Show metamodel as text",
+    shortcut: METAMODEL_SHORTCUT,
+    available: (context: ActionContext): boolean => metamodelIn(context, "graph") !== undefined,
+    run: switchMetamodel("graph", "text"),
+  },
+  {
+    id: "metamodel-graph",
+    title: "Show metamodel as graph",
+    shortcut: METAMODEL_SHORTCUT,
+    available: (context: ActionContext): boolean => metamodelIn(context, "text") !== undefined,
+    run: switchMetamodel("text", "graph"),
   },
   {
     id: "toggle-dark-mode",

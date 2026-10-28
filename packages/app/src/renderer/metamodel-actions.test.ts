@@ -91,7 +91,9 @@ describe("Show metamodel", () => {
         .find(({ item }) => item.name === "Show metamodel");
       expect(found).toBeDefined();
       found?.item.run();
-      expect(dispatched).toEqual([{ type: "open", buffer: { kind: "metamodel", key: METAMODEL_KEY } }]);
+      expect(dispatched).toEqual([
+        { type: "open", buffer: { kind: "metamodel", key: METAMODEL_KEY, mode: "graph" } },
+      ]);
       const after = reduceBuffers(buffers, dispatched[0] ?? { type: "reset" });
       expect(after[0]).toEqual(metamodelBuffer());
       expect(bufferView(metamodelBuffer(), { kind: "metamodel", types: 5 })).toEqual([
@@ -103,16 +105,58 @@ describe("Show metamodel", () => {
     expect(listed([metamodelBuffer(), list])).not.toContain("Show metamodel");
   });
 
-  it("brings the open metamodel buffer to the front with its selection, and is not offered without a workspace", () => {
-    const open = { ...metamodelBuffer(), selected: "type:decision" };
+  it("brings the open metamodel buffer to the front as a graph with its selection, and is not offered without a workspace", () => {
+    const open = { ...metamodelBuffer("text"), selected: "type:decision", row: "relation:blocks" };
     const { context, dispatched } = setup([list, open]);
     if (show === undefined) {
       throw new Error("no action metamodel");
     }
     runAction(show, context);
-    expect(dispatched).toEqual([{ type: "switch", key: METAMODEL_KEY }]);
-    expect(reduceBuffers([list, open], { type: "switch", key: METAMODEL_KEY })[0]).toEqual(open);
+    const graphMode = { ...open, mode: "graph" };
+    expect(dispatched).toEqual([{ type: "open", buffer: graphMode }]);
+    expect(reduceBuffers([list, open], dispatched[0] ?? { type: "reset" })).toEqual([graphMode, list]);
     expect(show.available(setup([list], false).context)).toBe(false);
     expect(bufferView(metamodelBuffer(), { kind: "metamodel", types: 1 })).toEqual(["Metamodel", "1 type"]);
+  });
+});
+
+const toText = ACTIONS.find((action) => action.id === "metamodel-text");
+const toGraph = ACTIONS.find((action) => action.id === "metamodel-graph");
+
+describe("Show metamodel as text, Show metamodel as graph", () => {
+  it("[SR-130/AK4] Show metamodel as text and Show metamodel as graph switch with Ctrl/Cmd+T on the metamodel only and keep the selected type", () => {
+    if (toText === undefined || toGraph === undefined) {
+      throw new Error("no metamodel toggle");
+    }
+    expect(toText.title).toBe("Show metamodel as text");
+    expect(toGraph.title).toBe("Show metamodel as graph");
+    expect(toText.shortcut).toEqual({ mod: true, shift: false, key: "t" });
+    expect(toGraph.shortcut).toEqual(toText.shortcut);
+    const graphMode = { ...metamodelBuffer(), selected: "type:decision" };
+    const textMode = { ...graphMode, mode: "text" as const };
+    // Graph to text and back, the selection kept; never both offered, nowhere else.
+    const onGraph = setup([graphMode, list]);
+    expect([toText.available(onGraph.context), toGraph.available(onGraph.context)]).toEqual([true, false]);
+    runAction(toText, onGraph.context);
+    expect(onGraph.dispatched).toEqual([{ type: "open", buffer: textMode }]);
+    const onText = setup([textMode, list]);
+    expect([toText.available(onText.context), toGraph.available(onText.context)]).toEqual([false, true]);
+    runAction(toGraph, onText.context);
+    expect(onText.dispatched).toEqual([{ type: "open", buffer: graphMode }]);
+    for (const buffers of BUFFERS) {
+      const { context } = setup(buffers);
+      expect([toText.available(context), toGraph.available(context)], bufferName(buffers[0] ?? list)).toEqual(
+        [false, false],
+      );
+    }
+    // Run where it does not apply (a stale prompt), it does nothing.
+    const elsewhere = setup([list]);
+    toText.run(elsewhere.context);
+    toGraph.run(elsewhere.context);
+    expect(elsewhere.dispatched).toEqual([]);
+    expect(bufferView(textMode, { kind: "metamodel", types: 5 })).toEqual(["Metamodel · text", "5 types"]);
+    // On the text, the prompt offers the way back to the graph, not "Show metamodel" (review N2).
+    expect(listed([textMode, list])).toContain("Show metamodel as graph");
+    expect(listed([textMode, list])).not.toContain("Show metamodel");
   });
 });

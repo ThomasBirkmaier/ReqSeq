@@ -1,11 +1,13 @@
-// Screenshots of the metamodel graph (SR-130), light and dark, the window 1280×800:
+// Screenshots of the metamodel graph and text (SR-130), light and dark, the window 1280×800:
 // - on a copy of the repository's own specification (`spec/`): its seven types, "Any type" with the
 //   loop of Refines and Supersedes and the curve of Based on, and the relation properties Validity and
 //   Package;
 // - on fixtures/SR-130/metamodel: the inheritance chain, the loops, the pair of Software Requirement and
 //   System Requirement with "extends" and Derives from on one curve, a close-up of Decision and "Any type"
 //   (Based on and Traces to, one of them drawn afterwards, each with its arrowhead) and of the parent to
-//   subtype curve Delegates to, and the graph with a type selected (its curves lit).
+//   subtype curve Delegates to, and the graph with a type selected (its curves lit);
+// - the text of both (Ctrl/Cmd+T), and on the fixture the text after the switch with Decision selected
+//   in the graph: it opens on Decision.
 // The PNGs go to `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS); keeping them
 // is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
@@ -28,6 +30,13 @@ const showMetamodel = async (window: Page, boxes: number): Promise<void> => {
   await expect(window.locator('.candidates [aria-selected="true"] .name')).toHaveText("Show metamodel");
   await window.keyboard.press("Enter");
   await expect(window.locator(".metamodel")).toHaveAttribute("data-laid-out", String(boxes));
+};
+
+/** Ctrl/Cmd+T from the graph; waits until the text shows its rows. */
+const showText = async (window: Page): Promise<void> => {
+  await window.keyboard.press("ControlOrMeta+T");
+  await expect(window.locator(".metamodel-text")).toBeFocused();
+  await expect(window.locator(".metamodel-text")).toHaveAttribute("data-rows", /^[1-9]/);
 };
 
 /** The number of types `logreq metamodel get` gives, plus "Any type". */
@@ -73,6 +82,8 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(spec.window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
       await showMetamodel(spec.window, await boxCount(spec));
       await spec.window.screenshot({ path: path.join(OUT, `sr-130-spec-graph-${scheme}.png`) });
+      await showText(spec.window);
+      await spec.window.screenshot({ path: path.join(OUT, `sr-130-spec-text-${scheme}.png`) });
     } finally {
       await spec.close();
     }
@@ -84,6 +95,10 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(window.getByLabel("Modeline")).toContainText("Weather station", { timeout: 0 });
       await showMetamodel(window, 6);
       await window.screenshot({ path: path.join(OUT, `sr-130-fixture-graph-${scheme}.png`) });
+      await showText(window);
+      await window.screenshot({ path: path.join(OUT, `sr-130-fixture-text-${scheme}.png`) });
+      await window.keyboard.press("ControlOrMeta+T");
+      await expect(window.locator(".metamodel")).toBeFocused();
       await window.screenshot({
         path: path.join(OUT, `sr-130-fixture-any-type-${scheme}.png`),
         clip: await around(window, ['[data-type="decision"]', "[data-any]"]),
@@ -97,6 +112,12 @@ for (const scheme of ["light", "dark"] as const) {
       await window.keyboard.press("ArrowRight");
       await expect(window.locator('.mm-type[aria-selected="true"]')).toHaveAttribute("data-type", "decision");
       await window.screenshot({ path: path.join(OUT, `sr-130-fixture-selected-${scheme}.png`) });
+      await showText(window);
+      await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute(
+        "data-row",
+        "type:decision",
+      );
+      await window.screenshot({ path: path.join(OUT, `sr-130-fixture-text-selected-${scheme}.png`) });
     } finally {
       await fixture.close();
     }

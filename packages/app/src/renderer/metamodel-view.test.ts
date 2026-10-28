@@ -47,11 +47,9 @@ const query = (selector: string): HTMLElement => {
   return found;
 };
 
-const press = async (key: string, held: KeyboardEventInit = {}): Promise<void> => {
+const press = async (key: string, held: KeyboardEventInit = {}, on = ".metamodel"): Promise<void> => {
   await act(async () => {
-    query(".metamodel").dispatchEvent(
-      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...held }),
-    );
+    query(on).dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...held }));
     await Promise.resolve();
   });
   await flush();
@@ -74,8 +72,10 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
   const actions: BufferAction[] = [];
   const data: [string, BufferData | undefined][] = [];
   const echoed: string[] = [];
+  let reduce: ((action: BufferAction) => void) | undefined;
   const Harness = ({ revision }: { revision: number }): React.ReactElement => {
     const [buffers, dispatch] = useReducer(reduceBuffers, [initial] as readonly Buffer[]);
+    reduce = dispatch;
     const current = buffers[0];
     if (current?.kind !== "metamodel") {
       return createElement("p", { id: "elsewhere" }, current?.key ?? "none");
@@ -100,7 +100,15 @@ const mount = async (call: Call, initial: MetamodelBuffer = metamodelBuffer()) =
     await flush();
   };
   await show(0);
-  return { actions, data, echoed, show };
+  /** Changes the buffer as an action of the window would (Ctrl/Cmd+T). */
+  const change = async (action: BufferAction): Promise<void> => {
+    await act(async () => {
+      reduce?.(action);
+      await Promise.resolve();
+    });
+    await flush();
+  };
+  return { actions, data, echoed, show, change };
 };
 
 const selected = (): string | undefined => {
@@ -295,5 +303,138 @@ describe("MetamodelView", () => {
     });
     await flush();
     expect(container.querySelectorAll(".mm-type")).toHaveLength(6);
+  });
+});
+
+/** The selected row of the text. */
+const selectedRow = (): string | undefined =>
+  container.querySelector<HTMLElement>('.mm-row[aria-selected="true"]')?.dataset["row"];
+
+describe("MetamodelView as text", () => {
+  it("[SR-130/AK5] shows each type with key, name, prefix, parent, properties with value kind and required, and statuses, and each relation kind with its source and target types", async () => {
+    const { data } = await mount(asCall(fakeCall()), metamodelBuffer("text"));
+    expect(container.querySelector(".mm-type")).toBeNull();
+    expect(query(".metamodel-text").dataset["rows"]).toBe("13");
+    expect(data.at(-1)).toEqual(["metamodel", { kind: "metamodel", types: 5 }]);
+    const section = query('[data-row="type:software-requirement"]');
+    expect([...section.querySelectorAll(".mm-text-head > span")].map((part) => part.textContent)).toEqual([
+      "Software Requirement",
+      "SWR",
+      "software-requirement",
+    ]);
+    expect(section.querySelector("[data-parent]")?.textContent).toBe("extends System Requirement");
+    expect(
+      [...section.querySelectorAll<HTMLElement>(".mm-text-property")].map((line) => [
+        [...line.children].map((part) => part.textContent),
+        line.classList.contains("inherited"),
+      ]),
+    ).toEqual([
+      [["Title", "title", "text", "required"], true],
+      [["Rationale", "rationale", "text", ""], true],
+      [["Package", "packages", "list of relation → Package", ""], true],
+      [["Component", "component", "list of choice", "required"], false],
+    ]);
+    expect(section.querySelector("[data-statuses]")?.textContent).toBe("Statuses Draft · Approved · Retired");
+    expect(query('[data-row="type:item"] .mm-note').textContent).toBe("abstract");
+    expect(container.querySelector('[data-row="type:item"] [data-parent]')).toBeNull();
+    expect(query('[data-row="type:package"] [data-statuses]').textContent).toBe("Statuses none");
+    const relation = query('[data-row="relation:concerns"]');
+    expect(relation.querySelector("[data-source]")?.textContent).toBe("any type");
+    expect(relation.querySelector("[data-target]")?.textContent).toBe("System Requirement, Decision");
+    expect(query('[data-row="relation:blocks"] [data-source]').textContent).toBe("none");
+    expect([...container.querySelectorAll(".mm-group")].map((group) => group.textContent)).toEqual([
+      "Types",
+      "Relation kinds",
+    ]);
+  });
+
+  it("[SR-130/AK4] Ctrl/Cmd+T's switch keeps the selected type: the text opens on it, and a type selected in the text is the graph's", async () => {
+    const scrolled = vi.spyOn(Element.prototype, "scrollIntoView");
+    const { actions, change } = await mount(asCall(fakeCall()), {
+      ...metamodelBuffer(),
+      selected: "type:decision",
+    });
+    expect(selected()).toBe("decision");
+    scrolled.mockClear();
+    await change({ type: "open", buffer: { ...metamodelBuffer("text"), selected: "type:decision" } });
+    expect(container.querySelector(".mm-type")).toBeNull();
+    expect(selectedRow()).toBe("type:decision");
+    expect(query(".metamodel-text").getAttribute("aria-activedescendant")).toBe("mm-row-3");
+    expect(scrolled).toHaveBeenCalledWith({ block: "start" });
+    // Down and Up, Ctrl+N and Ctrl+P, Page Down, Home and End move through the rows.
+    await press("ArrowDown", {}, ".metamodel-text");
+    expect(selectedRow()).toBe("type:package");
+    expect(actions.at(-1)).toEqual({ type: "select", key: "metamodel", node: "type:package" });
+    expect(scrolled).toHaveBeenLastCalledWith({ block: "nearest" });
+    await press("n", { ctrlKey: true }, ".metamodel-text");
+    expect(selectedRow()).toBe("relation:derives-from");
+    await press("p", { ctrlKey: true }, ".metamodel-text");
+    expect(selectedRow()).toBe("type:package");
+    await press("ArrowDown", {}, ".metamodel-text");
+    await press("PageDown", {}, ".metamodel-text");
+    expect(selectedRow()).toBe("relation:refines");
+    await press("End", {}, ".metamodel-text");
+    expect(selectedRow()).toBe("relation:blocks");
+    await press("PageDown", {}, ".metamodel-text");
+    expect(selectedRow()).toBe("relation:blocks");
+    // Ctrl/Cmd+T and the other shortcuts are the window's.
+    const before = actions.length;
+    await press("t", { ctrlKey: true }, ".metamodel-text");
+    await press("t", { metaKey: true }, ".metamodel-text");
+    await press("Enter", {}, ".metamodel-text");
+    expect(actions).toHaveLength(before);
+    // A relation kind is no box: back in the graph, the type selected last stays selected.
+    await change({
+      type: "open",
+      buffer: { ...metamodelBuffer("graph"), selected: "type:package", row: "relation:blocks" },
+    });
+    expect(selected()).toBe("package");
+    await change({
+      type: "open",
+      buffer: { ...metamodelBuffer("text"), selected: "type:package", row: "relation:blocks" },
+    });
+    expect(selectedRow()).toBe("relation:blocks");
+    await press("Home", {}, ".metamodel-text");
+    expect(selectedRow()).toBe("type:item");
+    await act(async () => {
+      query('[data-row="type:requirement"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await flush();
+    expect(selectedRow()).toBe("type:requirement");
+    await change({ type: "open", buffer: { ...metamodelBuffer("graph"), selected: "type:requirement" } });
+    expect(selected()).toBe("requirement");
+    scrolled.mockRestore();
+  });
+
+  it("opens on the first row when the selected type is not a row, says why when the call fails, and lists the problems", async () => {
+    let answer: MetamodelGetOutput | Error = new Error("No metamodel");
+    const { show, actions } = await mount(asCall(fakeCall(() => answer)), {
+      ...metamodelBuffer("text"),
+      selected: "any",
+    });
+    expect(query(".metamodel-text p.quiet").textContent).toBe("No metamodel");
+    expect(query(".metamodel-text").getAttribute("aria-activedescendant")).toBeNull();
+    await press("ArrowDown", {}, ".metamodel-text");
+    expect(actions).toEqual([]);
+    answer = {
+      ...metamodelOutput({}),
+      problems: [{ code: "metamodel.invalid", severity: "error", message: "broken" }],
+    };
+    await show(1);
+    expect(query(".metamodel-text p.quiet").textContent).toBe("The metamodel defines no types.");
+    expect([...container.querySelectorAll(".mm-problem")].map((line) => line.textContent)).toEqual([
+      "error  metamodel.invalid  broken",
+    ]);
+    answer = metamodelOutput({ relations: [{ key: "r", name: "R" }] });
+    await show(2);
+    expect(selectedRow()).toBe("relation:r");
+    expect([...container.querySelectorAll(".mm-group")].map((group) => group.textContent)).toEqual([
+      "Relation kinds",
+    ]);
+    answer = FIXTURE_METAMODEL;
+    await show(3);
+    expect(selectedRow()).toBe("type:item");
+    expect(container.querySelector(".mm-problem")).toBeNull();
   });
 });

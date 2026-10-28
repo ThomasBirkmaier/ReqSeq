@@ -131,14 +131,24 @@ export interface GraphBuffer {
 }
 
 /**
- * The metamodel of the open workspace as a graph (SR-130): its types, inheritance, relation kinds and
- * relation properties, from `metamodel.get`. One per workspace.
+ * The metamodel of the open workspace (SR-130), from `metamodel.get`: as a graph of its types,
+ * inheritance, relation kinds and relation properties, or as text (AK5). One per workspace; Ctrl/Cmd+T
+ * switches the mode (AK4) and the selected type stays.
  */
 export interface MetamodelBuffer {
   readonly kind: "metamodel";
   readonly key: typeof METAMODEL_KEY;
-  /** The selected box: `type:<key>` or `any` (`metamodel-graph.ts`); not set: the first type. */
+  readonly mode: "graph" | "text";
+  /**
+   * The selected type, shared by the graph and the text: `type:<key>`, or `any` in the graph
+   * (`metamodel-graph.ts`); not set: the first type.
+   */
   readonly selected?: string;
+  /**
+   * The selected row of the text when it is a relation kind (`relation:<key>`, `metamodel-text.ts`); not
+   * set: the row of the selected type. The graph keeps its type then.
+   */
+  readonly row?: string;
 }
 
 export type Buffer =
@@ -165,7 +175,10 @@ export type BufferAction =
   | { readonly type: "reset"; readonly buffer?: Buffer }
   /** The selected row of a list or search buffer, or of the elements of a package page. */
   | { readonly type: "cursor"; readonly key: string; readonly cursor: number }
-  /** The selected node of a graph, as `<repository>:<id>`, or the selected box of the metamodel. */
+  /**
+   * The selected node of a graph, as `<repository>:<id>`, or the selected box or row of the metamodel
+   * (`type:<key>`, `any`, `relation:<key>`).
+   */
   | { readonly type: "select"; readonly key: string; readonly node: string };
 
 /** The most buffers kept; the least recent one goes first. */
@@ -313,8 +326,21 @@ export const graphBuffer = (id: string, repository: string, name: string): Graph
   depth: 1,
 });
 
-/** The metamodel buffer, its first type selected. */
-export const metamodelBuffer = (): MetamodelBuffer => ({ kind: "metamodel", key: METAMODEL_KEY });
+/** The metamodel buffer as a graph or as text, its first type selected. */
+export const metamodelBuffer = (mode: MetamodelBuffer["mode"] = "graph"): MetamodelBuffer => ({
+  kind: "metamodel",
+  key: METAMODEL_KEY,
+  mode,
+});
+
+/**
+ * The selection of the metamodel buffer once `node` is selected: a type (or "Any type") is the selected
+ * type of both modes; a relation kind, which only the text has as a row, leaves the type as it was.
+ */
+const selectIn = (buffer: MetamodelBuffer, node: string): MetamodelBuffer => {
+  const { row: _before, ...rest } = buffer;
+  return node.startsWith("relation:") ? { ...buffer, row: node } : { ...rest, selected: node };
+};
 
 /** The buffer of an element as a list row, a hit or a read element shows it. */
 export const elementBufferOf = (element: {
@@ -414,7 +440,7 @@ export const bufferName = (buffer: Buffer): string => {
     case "graph":
       return `Graph: ${buffer.name}`;
     case "metamodel":
-      return "Metamodel";
+      return buffer.mode === "text" ? "Metamodel · text" : "Metamodel";
   }
 };
 
@@ -458,10 +484,15 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
           : { ...buffer, cursor: action.cursor };
       });
     case "select":
-      return buffers.map((buffer) =>
-        buffer.key === action.key && (buffer.kind === "graph" || buffer.kind === "metamodel")
+      return buffers.map((buffer) => {
+        if (buffer.key !== action.key) {
+          return buffer;
+        }
+        return buffer.kind === "graph"
           ? { ...buffer, selected: action.node }
-          : buffer,
-      );
+          : buffer.kind === "metamodel"
+            ? selectIn(buffer, action.node)
+            : buffer;
+      });
   }
 };

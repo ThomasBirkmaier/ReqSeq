@@ -118,6 +118,10 @@ const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
   echo === "" ? (view?.message ?? "") : echo;
 
 /** The buffers whose view loads its own data from the same props: lists, search results, neighbourhoods and results. */
+/** The mode of the shown metamodel (SR-130 AK4); undefined for another buffer. */
+const metamodelMode = (buffer: Buffer | undefined): MetamodelBuffer["mode"] | undefined =>
+  buffer?.kind === "metamodel" ? buffer.mode : undefined;
+
 type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer | MetamodelBuffer>;
 
 /**
@@ -656,12 +660,13 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
 
   // The shown buffer has the focus, so its keys work; after a prompt the focus comes back to it, unless
   // the action of the prompt put it into the buffer already (the text editor). The matrix replaces the
-  // list in place (one key), so the mode is a reason to look for the focus too (Ctrl+T has no prompt).
+  // list in place (one key), and the text the graph of the metamodel (SR-130 AK4), so the mode is a reason
+  // to look for the focus too (Ctrl+T has no prompt).
   useEffect(() => {
     if (prompt === undefined && sheet.current?.contains(document.activeElement) !== true) {
       sheet.current?.querySelector<HTMLElement>("[data-buffer]")?.focus();
     }
-  }, [prompt, current?.key, inMatrix(current)]);
+  }, [prompt, current?.key, inMatrix(current), metamodelMode(current)]);
 
   // An element that is shown (opened or switched to) is the newest of the recent elements; not one that
   // the mode „Agent folgen“ showed (SR-117), so an agent does not replace the user's.

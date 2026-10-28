@@ -279,8 +279,9 @@ describe("the matrix mode of a list (SR-125)", () => {
 describe("the metamodel buffer (SR-130)", () => {
   it("is one buffer named Metamodel, whose selected box a select sets and a cursor leaves alone", () => {
     const metamodel = metamodelBuffer();
-    expect(metamodel).toEqual({ kind: "metamodel", key: "metamodel" });
+    expect(metamodel).toEqual({ kind: "metamodel", key: "metamodel", mode: "graph" });
     expect(bufferName(metamodel)).toBe("Metamodel");
+    expect(bufferName(metamodelBuffer("text"))).toBe("Metamodel · text");
     const list = listBuffer("All elements");
     const buffers: Buffers = [metamodel, list];
     expect(reduceBuffers(buffers, { type: "select", key: "metamodel", node: "type:decision" })).toEqual([
@@ -289,5 +290,25 @@ describe("the metamodel buffer (SR-130)", () => {
     ]);
     expect(reduceBuffers(buffers, { type: "cursor", key: "metamodel", cursor: 2 })).toEqual(buffers);
     expect(reduceBuffers(buffers, { type: "open", buffer: metamodelBuffer() })).toEqual(buffers);
+  });
+
+  it("keeps the selected type when the text selects a relation kind, and a type selected anywhere replaces both", () => {
+    const text: Buffers = [{ ...metamodelBuffer("text"), selected: "type:decision" }];
+    const onRelation = reduceBuffers(text, { type: "select", key: "metamodel", node: "relation:based-on" });
+    expect(onRelation).toEqual([
+      { ...metamodelBuffer("text"), selected: "type:decision", row: "relation:based-on" },
+    ]);
+    expect(reduceBuffers(onRelation, { type: "select", key: "metamodel", node: "type:package" })).toEqual([
+      { ...metamodelBuffer("text"), selected: "type:package" },
+    ]);
+    expect(reduceBuffers(onRelation, { type: "select", key: "metamodel", node: "any" })).toEqual([
+      { ...metamodelBuffer("text"), selected: "any" },
+    ]);
+    // A select for another buffer, or for a buffer that has no selection, changes nothing.
+    const list = listBuffer("All elements");
+    expect(reduceBuffers([list, ...text], { type: "select", key: "list", node: "type:x" })).toEqual([
+      list,
+      ...text,
+    ]);
   });
 });

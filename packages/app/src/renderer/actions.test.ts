@@ -1106,6 +1106,7 @@ describe("save element and edit text", () => {
       setup([graphBuffer("uuid", "spec", "X")]).context,
       // The metamodel (SR-130).
       setup([metamodelBuffer()]).context,
+      setup([metamodelBuffer("text")]).context,
       setup([], {}, true).context,
       // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
       ...[false, true].flatMap((on) =>

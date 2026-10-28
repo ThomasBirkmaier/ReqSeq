@@ -1,9 +1,12 @@
-// The metamodel as a graph (SR-130) on the built app, on fixtures/SR-130/metamodel: "Show metamodel" in
-// the command prompt opens it (AK1); every type is a box with its name, prefix and properties, every
-// inheritance and relation kind a labelled curve, as `logreq metamodel get` gives them (AK2); a relation
-// kind open on a side appears once per type of the other side, at "Any type", with the open side in its
-// label (AK3); the arrows move between the boxes (AK4). What the window shows is compared with the CLI's
-// output for the same workspace (SR-080), mapped by this test itself, never through the app's modules.
+// The metamodel as a graph and as text (SR-130) on the built app, on fixtures/SR-130/metamodel: "Show
+// metamodel" in the command prompt opens it (AK1); every type is a box with its name, prefix and
+// properties, every inheritance and relation kind a labelled curve, as `logreq metamodel get` gives them
+// (AK2); a relation kind open on a side appears once per type of the other side, at "Any type", with the
+// open side in its label (AK3); the arrows move between the boxes, and Ctrl/Cmd+T switches between graph
+// and text (AK4); the text names every type's key, name, prefix, parent, properties with value kind and
+// "required" and statuses, and every relation kind's source and target types (AK5), the same that the CLI
+// and the MCP server give (AK6). What the window shows is compared with the CLI's output for the same
+// workspace (SR-080), mapped by this test itself, never through the app's modules.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS.
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
@@ -19,11 +22,14 @@ interface Metamodel {
     readonly extends?: string;
     readonly abstract: boolean;
     readonly properties: readonly string[];
+    readonly required: readonly string[];
+    readonly statuses: readonly string[];
   }[];
   readonly properties: readonly {
     readonly key: string;
     readonly name: string;
     readonly kind: string;
+    readonly many?: boolean;
     readonly "target-types"?: readonly string[];
   }[];
   readonly relations: readonly {
@@ -32,6 +38,7 @@ interface Metamodel {
     readonly "source-types"?: readonly string[];
     readonly "target-types"?: readonly string[];
   }[];
+  readonly statuses: readonly { readonly key: string; readonly name: string }[];
 }
 
 /** What the CLI gives for `metamodel get`. */
@@ -160,11 +167,17 @@ const drawingProblems = (window: Page): Promise<string[]> =>
       .filter((line) => line.scrollWidth > line.clientWidth)
       .map((line) => `cut: ${line.textContent}`);
     const labels = [...document.querySelectorAll<HTMLElement>(".mm-label")];
-    const wide = labels.flatMap((label) =>
-      [...label.querySelectorAll<HTMLElement>(".mm-line")]
-        .filter((line) => line.getBoundingClientRect().width > label.getBoundingClientRect().width + 0.5)
-        .map((line) => `wider than its label: ${line.textContent}`),
-    );
+    // By the edges (review R2 S2 of #631): a line wider than the label's content starts at its padding
+    // and sticks out on the right, past the rectangle the overlap check below uses.
+    const wide = labels.flatMap((label) => {
+      const edges = label.getBoundingClientRect();
+      return [...label.querySelectorAll<HTMLElement>(".mm-line")]
+        .filter((line) => {
+          const box = line.getBoundingClientRect();
+          return box.right > edges.right + 0.5 || box.left < edges.left - 0.5;
+        })
+        .map((line) => `wider than its label: ${line.textContent}`);
+    });
     const name = (element: HTMLElement): string =>
       element.classList.contains("mm-label")
         ? `label ${element.dataset["source"] ?? ""} > ${element.dataset["target"] ?? ""}`
@@ -180,6 +193,73 @@ const drawingProblems = (window: Page): Promise<string[]> =>
     );
     return [...cut, ...wide, ...covered];
   });
+
+/**
+ * One row of the text as words, its lines joined by " | ": the head, "extends …", "Properties", one line
+ * per property (name, key, value kind, "required", "(inherited)"), "Statuses …".
+ */
+const shownText = (window: Page): Promise<string[]> =>
+  window.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>(".mm-row")].map((row) =>
+      [
+        [...row.querySelectorAll(".mm-text-head > span")].map((part) => part.textContent).join(" "),
+        ...[
+          ...row.querySelectorAll("[data-parent], [data-properties], .mm-text-property, [data-statuses]"),
+        ].map((line) =>
+          line.classList.contains("mm-text-property")
+            ? [
+                ...[...line.children].map((part) => part.textContent),
+                line.classList.contains("inherited") ? "(inherited)" : "",
+              ]
+                .filter((part) => part !== "")
+                .join(" ")
+            : line.textContent,
+        ),
+      ].join(" | "),
+    ),
+  );
+
+/** The rows of the text as the CLI's output says they must be (AK5), mapped here, not by the app. */
+const expectedText = (model: Metamodel): string[] => {
+  const typeNames = new Map(model.types.map((type) => [type.key, type.name]));
+  const statusNames = new Map(model.statuses.map((status) => [status.key, status.name]));
+  const properties = new Map(model.properties.map((property) => [property.key, property]));
+  const byKey = new Map(model.types.map((type) => [type.key, type]));
+  const side = (keys: readonly string[] | undefined): string =>
+    keys === undefined
+      ? "any type"
+      : keys.length === 0
+        ? "none"
+        : keys.map((key) => typeNames.get(key) ?? key).join(", ");
+  const types = model.types.map((type) => {
+    const parent = type.extends === undefined ? [] : (byKey.get(type.extends)?.properties ?? []);
+    const lines = type.properties.map((key) => {
+      const property = properties.get(key);
+      const kind = `${property?.many === true ? "list of " : ""}${property?.kind ?? ""}`;
+      const value = property?.kind === "relation" ? `${kind} → ${side(property["target-types"])}` : kind;
+      return [
+        property?.name ?? key,
+        key,
+        value,
+        type.required.includes(key) ? "required" : "",
+        parent.includes(key) ? "(inherited)" : "",
+      ]
+        .filter((part) => part !== "")
+        .join(" ");
+    });
+    return [
+      `${type.name} ${type.prefix} ${type.key}${type.abstract ? " abstract" : ""}`,
+      ...(type.extends === undefined ? [] : [`extends ${typeNames.get(type.extends) ?? type.extends}`]),
+      type.properties.length === 0 ? "Properties none" : "Properties",
+      ...lines,
+      `Statuses ${type.statuses.length === 0 ? "none" : type.statuses.map((key) => statusNames.get(key) ?? key).join(" · ")}`,
+    ].join(" | ");
+  });
+  const kinds = model.relations.map(
+    (kind) => `${kind.name} ${kind.key} ${side(kind["source-types"])} → ${side(kind["target-types"])}`,
+  );
+  return [...types, ...kinds];
+};
 
 /** The selected box is the one of the type `key`. */
 const expectSelected = async (window: Page, key: string): Promise<void> => {
@@ -274,15 +354,106 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expectSelected(window, "item");
     await expect(window.locator(".metamodel")).toHaveAttribute("aria-activedescendant", "mm-type-0");
   });
+
+  test("[SR-130/AK4] Ctrl/Cmd+T switches between graph and text and keeps the selected type, by keys only", async () => {
+    const { window } = await launch();
+    const modeline = window.getByLabel("Modeline");
+    await showMetamodel(window, 6);
+    await window.keyboard.press("ArrowDown");
+    await window.keyboard.press("ArrowRight");
+    await expectSelected(window, "decision");
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".metamodel-text")).toBeFocused();
+    await expect(window.locator(".metamodel-text")).toHaveAttribute("data-rows", "13");
+    await expect(window.locator(".metamodel")).toHaveCount(0);
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute(
+      "data-row",
+      "type:decision",
+    );
+    await expect(modeline).toContainText("Metamodel · text");
+    await expect(modeline).toContainText("5 types");
+    // The text opens on the selected type.
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toBeInViewport();
+    // Down, then a relation kind, which has no box: the graph keeps the type selected last.
+    await window.keyboard.press("ArrowDown");
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute("data-row", "type:package");
+    await window.keyboard.press("ArrowDown");
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute(
+      "data-row",
+      "relation:derives-from",
+    );
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".metamodel")).toBeFocused();
+    await expect(window.locator(".metamodel")).toHaveAttribute("data-laid-out", "6");
+    await expectSelected(window, "package");
+    await expect(window.locator('.mm-type[aria-selected="true"]')).toBeInViewport();
+    await expect(modeline).not.toContainText("Metamodel · text");
+    // A type selected in the graph is the row of the text; the text keys move through its rows.
+    await window.keyboard.press("Home");
+    await expectSelected(window, "item");
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute("data-row", "type:item");
+    await window.keyboard.press("End");
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute(
+      "data-row",
+      "relation:blocks",
+    );
+    await window.keyboard.press("Home");
+    await window.keyboard.press("Control+N");
+    await expect(window.locator('.mm-row[aria-selected="true"]')).toHaveAttribute(
+      "data-row",
+      "type:requirement",
+    );
+    await window.keyboard.press("ControlOrMeta+T");
+    await expectSelected(window, "requirement");
+  });
+
+  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind and required and statuses, and every relation kind's source and target types, as logreq metamodel get gives them", async () => {
+    const { window } = await launch();
+    const model = await metamodel(running);
+    await showMetamodel(window, model.types.length + 1);
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".metamodel-text")).toHaveAttribute(
+      "data-rows",
+      String(model.types.length + model.relations.length),
+    );
+    expect(await shownText(window)).toEqual(expectedText(model));
+  });
+
+  test("[SR-130/AK6] the app shows the types, parents, properties, statuses and relation kinds that the CLI and the MCP server give", async () => {
+    const { window } = await launch();
+    const fromCli = await metamodel(running);
+    const agent = await running.mcp();
+    try {
+      expect(await agent.call("metamodel_get", {})).toEqual(fromCli);
+    } finally {
+      await agent.close();
+    }
+    await showMetamodel(window, fromCli.types.length + 1);
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".metamodel-text")).toHaveAttribute(
+      "data-rows",
+      String(fromCli.types.length + fromCli.relations.length),
+    );
+    expect(await shownText(window)).toEqual(expectedText(fromCli));
+  });
 });
 
-test("[SR-130/AK2] on the specification every name, property and label line can be read whole", async () => {
+test("[SR-130/AK2] on the specification every name, property and label line can be read whole, and the text names what the CLI gives", async () => {
   const running = await launchApp({ folder: SPEC });
   try {
     const { window } = running;
     await expect(window.getByLabel("Modeline")).toContainText("elements", { timeout: 0 });
-    await showMetamodel(window, (await metamodel(running)).types.length + 1);
+    const model = await metamodel(running);
+    await showMetamodel(window, model.types.length + 1);
     expect(await drawingProblems(window)).toEqual([]);
+    // The text of the specification's own metamodel, as the CLI gives it (AK5).
+    await window.keyboard.press("ControlOrMeta+T");
+    await expect(window.locator(".metamodel-text")).toHaveAttribute(
+      "data-rows",
+      String(model.types.length + model.relations.length),
+    );
+    expect(await shownText(window)).toEqual(expectedText(model));
   } finally {
     await running.close();
   }
