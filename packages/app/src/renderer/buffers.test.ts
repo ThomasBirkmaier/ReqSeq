@@ -10,6 +10,7 @@ import {
   filteredList,
   listBuffer,
   listSort,
+  metamodelBuffer,
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
@@ -272,5 +273,21 @@ describe("the matrix mode of a list (SR-125)", () => {
     expect(moved[0]).toEqual({ ...list, cursor: 5, matrix: true });
     expect(withMatrix(withMatrix(list, true), false)).toEqual(list);
     expect(withMatrix(list, false)).not.toHaveProperty("matrix");
+  });
+});
+
+describe("the metamodel buffer (SR-130)", () => {
+  it("is one buffer named Metamodel, whose selected box a select sets and a cursor leaves alone", () => {
+    const metamodel = metamodelBuffer();
+    expect(metamodel).toEqual({ kind: "metamodel", key: "metamodel" });
+    expect(bufferName(metamodel)).toBe("Metamodel");
+    const list = listBuffer("All elements");
+    const buffers: Buffers = [metamodel, list];
+    expect(reduceBuffers(buffers, { type: "select", key: "metamodel", node: "type:decision" })).toEqual([
+      { ...metamodel, selected: "type:decision" },
+      list,
+    ]);
+    expect(reduceBuffers(buffers, { type: "cursor", key: "metamodel", cursor: 2 })).toEqual(buffers);
+    expect(reduceBuffers(buffers, { type: "open", buffer: metamodelBuffer() })).toEqual(buffers);
   });
 });

@@ -1,0 +1,61 @@
+# Properties and relation kinds of the SR-130 fixture. The relation kinds cover every case of the graph:
+# - derives-from: to the parent (the pair that also has the inheritance) and to the type itself (a loop);
+# - replaces: a loop of its own;
+# - delegates-to: from the parent to its subtype, against the inheritance (drawn after the layout, B1);
+# - based-on and concerns: every type as source (AK3), concerns with two target types (one curve each);
+# - refines: every type on both sides (a loop at "Any type");
+# - traces-to: every type as target, the opposite of based-on between Decision and "Any type";
+# - blocks: no source type at all (no curve).
+# The relation property packages is drawn as a curve too (#619 Q1).
+logreq-metamodel: 1
+properties:
+  - { key: title, name: Title, kind: text, meaning: title }
+  - { key: rationale, name: Rationale, kind: text, markdown: true }
+  - key: component
+    name: Component
+    kind: choice
+    many: true
+    content: true
+    choices:
+      - { key: display, name: Display }
+      - { key: sensor, name: Sensor }
+  - { key: packages, name: Package, kind: relation, many: true, target-types: [package], meaning: packages }
+  - { key: severity, name: Severity, kind: number }
+relations:
+  - key: derives-from
+    name: Derives from
+    inverse-name: Derived by
+    source-types: [software-requirement]
+    target-types: [requirement, software-requirement]
+    meaning: derivation
+  - key: replaces
+    name: Replaces
+    inverse-name: Replaced by
+    source-types: [requirement]
+    target-types: [requirement]
+  - key: delegates-to
+    name: Delegates to
+    inverse-name: Delegated by
+    source-types: [requirement]
+    target-types: [software-requirement]
+  - key: based-on
+    name: Based on
+    inverse-name: Basis for
+    target-types: [decision]
+  - key: concerns
+    name: Concerns
+    inverse-name: Concerned by
+    target-types: [requirement, decision]
+  - key: refines
+    name: Refines
+    inverse-name: Refined by
+    meaning: derivation
+  - key: traces-to
+    name: Traces to
+    inverse-name: Traced by
+    source-types: [decision]
+  - key: blocks
+    name: Blocks
+    inverse-name: Blocked by
+    source-types: []
+    target-types: [requirement]

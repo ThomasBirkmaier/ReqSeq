@@ -19,6 +19,7 @@ import {
   listBuffer,
   listSort,
   graphBuffer,
+  metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
   searchBuffer,
@@ -126,6 +127,7 @@ describe("the command prompt", () => {
       "Show traceability matrix",
       "Close buffer",
       "Close all buffers",
+      "Show metamodel",
       "Toggle dark mode",
     ]);
   });
@@ -173,6 +175,7 @@ describe("the command prompt", () => {
       "Show element ID and version",
       "Show neighbourhood",
       "Show graph",
+      "Show metamodel",
       "Toggle dark mode",
     ]);
     expect(items.map((item) => item.hint)).toEqual([
@@ -192,6 +195,7 @@ describe("the command prompt", () => {
       undefined,
       "Ctrl+J",
       "Ctrl+Shift+G",
+      undefined,
       undefined,
     ]);
     expect(commandPrompt({ ...element$.context, mac: true }).items[6]?.hint).toBe("⌘S");
@@ -223,6 +227,7 @@ describe("the command prompt", () => {
       "Show overview",
       "Search elements",
       "List all elements",
+      "Show metamodel",
       "Toggle dark mode",
     ]);
   });
@@ -241,6 +246,7 @@ describe("the command prompt", () => {
       undefined,
       undefined,
       "Ctrl+T",
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -1098,6 +1104,8 @@ describe("save element and edit text", () => {
       setup([neighbourhoodBuffer("uuid", "spec", "X")]).context,
       // The graph (SR-111): Ctrl/Cmd+Shift+G back to the element.
       setup([graphBuffer("uuid", "spec", "X")]).context,
+      // The metamodel (SR-130).
+      setup([metamodelBuffer()]).context,
       setup([], {}, true).context,
       // Follow agent (SR-117): Ctrl/Cmd+Shift+O on and off, on every buffer.
       ...[false, true].flatMap((on) =>

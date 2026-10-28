@@ -111,4 +111,101 @@ describe("metamodel.get", () => {
     expect(out.types).toEqual([]);
     expect(out.problems).toMatchObject([{ code: "metamodel.invalid", severity: "error" }]);
   });
+
+  // SR-130: the app draws and lists the metamodel from this output alone, so these are the values every
+  // access gives (AK6); the graph and the text are tested in the app.
+  it("[SR-130/AK6] gives every type with name, prefix, parent, its properties including the inherited ones, its required properties and statuses", async () => {
+    const out = await get("SR-130/metamodel");
+    expect(out.problems).toEqual([]);
+    expect(out.types).toEqual([
+      {
+        key: "item",
+        name: "Item",
+        prefix: "ITM",
+        abstract: true,
+        ancestors: [],
+        properties: ["title"],
+        required: ["title"],
+        statuses: ["draft", "approved", "retired"],
+      },
+      {
+        key: "requirement",
+        name: "System Requirement",
+        prefix: "SR",
+        extends: "item",
+        meaning: "requirement",
+        abstract: false,
+        ancestors: ["item"],
+        properties: ["title", "rationale", "packages"],
+        required: ["title"],
+        statuses: ["draft", "approved", "retired"],
+      },
+      {
+        key: "software-requirement",
+        name: "Software Requirement",
+        prefix: "SWR",
+        extends: "requirement",
+        meaning: "requirement",
+        abstract: false,
+        ancestors: ["requirement", "item"],
+        properties: ["title", "rationale", "packages", "component"],
+        required: ["title", "component"],
+        statuses: ["draft", "approved", "retired"],
+      },
+      {
+        key: "decision",
+        name: "Decision",
+        prefix: "D",
+        abstract: false,
+        ancestors: [],
+        properties: ["title"],
+        required: [],
+        statuses: ["open", "decided"],
+      },
+      {
+        key: "package",
+        name: "Package",
+        prefix: "PKG",
+        meaning: "package",
+        abstract: false,
+        ancestors: [],
+        properties: ["title"],
+        required: [],
+        statuses: [],
+      },
+    ]);
+    expect(out.statuses.map((status) => [status.key, status.name])).toEqual([
+      ["draft", "Draft"],
+      ["approved", "Approved"],
+      ["retired", "Retired"],
+      ["open", "Open"],
+      ["decided", "Decided"],
+    ]);
+  });
+
+  it("[SR-130/AK6] gives every relation kind with its source and target types as written, left out where every type is allowed and empty where none is, and each property's value kind", async () => {
+    const out = await get("SR-130/metamodel");
+    expect(
+      out.relations.map((kind) => [kind.key, kind.name, kind["source-types"], kind["target-types"]]),
+    ).toEqual([
+      ["derives-from", "Derives from", ["software-requirement"], ["requirement", "software-requirement"]],
+      ["replaces", "Replaces", ["requirement"], ["requirement"]],
+      ["delegates-to", "Delegates to", ["requirement"], ["software-requirement"]],
+      ["based-on", "Based on", undefined, ["decision"]],
+      ["concerns", "Concerns", undefined, ["requirement", "decision"]],
+      ["refines", "Refines", undefined, undefined],
+      ["traces-to", "Traces to", ["decision"], undefined],
+      ["blocks", "Blocks", [], ["requirement"]],
+    ]);
+    expect(out.relations.filter((kind) => "source-types" in kind).map((kind) => kind.key)).not.toContain(
+      "based-on",
+    );
+    expect(out.properties.map((p) => [p.key, p.name, p.kind, p.many, p["target-types"]])).toEqual([
+      ["title", "Title", "text", undefined, undefined],
+      ["rationale", "Rationale", "text", undefined, undefined],
+      ["component", "Component", "choice", true, undefined],
+      ["packages", "Package", "relation", true, ["package"]],
+      ["severity", "Severity", "number", undefined, undefined],
+    ]);
+  });
 });

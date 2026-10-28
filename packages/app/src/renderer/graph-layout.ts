@@ -18,8 +18,9 @@
 // above 0 below it (AK1): a node whose links do not put it on its side (its walk reached it through a
 // node that took its level from the other walk) gets an invisible layout link from the element, or to
 // it, which is never drawn.
-import { Graph, layout } from "@dagrejs/dagre";
 import type { TraceGraphOutput } from "@logreq/core";
+import type { LayoutGraph, Point } from "./dagre.js";
+import { layoutGraphOf, runLayout } from "./dagre.js";
 import type { GraphEdge, GraphNode } from "./graph.js";
 import { keyOfNode, nodeKey } from "./graph.js";
 
@@ -43,10 +44,7 @@ const GUIDE = RANK_SEP / 4;
 /** The ends of a node's links keep this far from its corners. */
 const PORT_INSET = 12;
 
-export interface Point {
-  readonly x: number;
-  readonly y: number;
-}
+export type { Point } from "./dagre.js";
 
 /** A node and its place: `x` and `y` are its top left corner; `layer` counts the drawn layers from the top. */
 export interface PlacedNode {
@@ -212,22 +210,6 @@ const portsOf = (links: readonly Bent[]): Ported[] => {
   return ported;
 };
 
-/**
- * The part of dagre's graph this module uses. The types of dagre 3.1.1 do not resolve under NodeNext
- * (graphlib's declarations import `./lib/graph` without an extension), so they are written here.
- */
-interface LayoutGraph {
-  setGraph(label: Readonly<Record<string, string | number>>): void;
-  setNode(key: string, label: { readonly width: number; readonly height: number }): void;
-  setEdge(v: string, w: string, label: { readonly minlen: number; readonly weight: number }): void;
-  graph(): { readonly width: number; readonly height: number };
-  node(key: string): Point;
-  edge(v: string, w: string): { readonly points: readonly Point[] };
-}
-
-const LayoutGraphOf = Graph as unknown as new () => LayoutGraph;
-const runLayout = layout as unknown as (graph: LayoutGraph) => void;
-
 /** The links of one node to another, drawn as one curve. */
 export interface EdgePath {
   /** The node whose file stores the links, and the node they point at, as `<repository>:<id>`. */
@@ -366,7 +348,7 @@ const anchor = (
 /** Places the nodes of `output` and draws its links; deterministic: the same output gives the same layout. */
 export const layoutGraph = (output: TraceGraphOutput): GraphLayout => {
   const nodes = new Map(output.nodes.map((node) => [keyOfNode(node), node]));
-  const graph = new LayoutGraphOf();
+  const graph = layoutGraphOf();
   graph.setGraph({
     rankdir: RANK_DIRECTION,
     ranker: "tight-tree",

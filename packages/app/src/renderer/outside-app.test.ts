@@ -615,6 +615,19 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(query('[aria-label="Minibuffer"]').textContent).toBe("");
   });
 
+  it("keeps the metamodel buffer for a change of elements and reads it again on a change of the metamodel (SR-130)", async () => {
+    const { outside, send, calls } = await start();
+    await runCommand("Show metamodel");
+    expect(container.querySelector(".metamodel")).not.toBeNull();
+    const metamodel = calls("metamodel.get").length;
+    // Elements only: the metamodel stays, the buffer does not ask again.
+    await outside("uuid-2", { title: "Show gust speed" });
+    expect(calls("metamodel.get")).toHaveLength(metamodel);
+    // A change of the metamodel: the app and the buffer read it again.
+    await send({ reason: "external", scope: "metamodel", elements: { added: [], changed: [], removed: [] } });
+    expect(calls("metamodel.get")).toHaveLength(metamodel + 2);
+  });
+
   it("reads the metamodel again on its scope and still highlights the elements the batch names", async () => {
     const { send, calls, disk } = await start();
     await listAll();

@@ -1,0 +1,7 @@
+logreq-metamodel: 1
+statuses:
+  - { key: draft, name: Draft, initial: true }
+  - { key: approved, name: Approved }
+  - { key: retired, name: Retired, invalid: true }
+  - { key: open, name: Open }
+  - { key: decided, name: Decided }

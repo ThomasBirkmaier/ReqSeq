@@ -23,6 +23,7 @@ import {
   filteredList,
   graphBuffer,
   listBuffer,
+  metamodelBuffer,
   neighbourhoodBuffer,
   onlyOverview,
   overviewBuffer,
@@ -1004,6 +1005,20 @@ export const ACTIONS: readonly Action[] = [
       return shown?.kind === "graph" && hasFilter(shown);
     },
     run: graphPrompt("Also show", alsoChoices, "Every relation kind is shown already."),
+  },
+  {
+    // SR-130 AK1: the title of `metamodel.get` in the catalog; it covers that command, so the command
+    // prompt lists it once (initials "sm") and its output opens the metamodel buffer as a graph, never a
+    // result buffer. No key of its own (keys are scarce, Ctrl/Cmd+K is the reserved prefix, #472). Not
+    // offered on the metamodel itself (SR-133): there it would do nothing.
+    id: "metamodel",
+    title: "Show metamodel",
+    covers: ["metamodel.get"],
+    available: (context: ActionContext): boolean =>
+      hasWorkspace(context) && context.buffers[0]?.kind !== "metamodel",
+    run: (context: ActionContext): void => {
+      showBuffer(context, metamodelBuffer());
+    },
   },
   {
     id: "toggle-dark-mode",

@@ -1,0 +1,35 @@
+# The metamodel graph and text (SR-130): an inheritance chain item -> requirement ->
+# software-requirement (a relisted inherited property: rationale), per-type statuses (inherited, own,
+# none), an abstract type, and a type with the meaning package.
+logreq-metamodel: 1
+types:
+  - key: item
+    name: Item
+    prefix: ITM
+    abstract: true
+    properties: [title]
+    required: [title]
+    statuses: [draft, approved, retired]
+  - key: requirement
+    name: System Requirement
+    prefix: SR
+    extends: item
+    meaning: requirement
+    properties: [rationale, packages]
+  - key: software-requirement
+    name: Software Requirement
+    prefix: SWR
+    extends: requirement
+    properties: [component, rationale]
+    required: [component]
+  - key: decision
+    name: Decision
+    prefix: D
+    properties: [title]
+    statuses: [open, decided]
+  - key: package
+    name: Package
+    prefix: PKG
+    meaning: package
+    properties: [title]
+    statuses: []

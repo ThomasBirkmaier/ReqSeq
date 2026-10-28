@@ -130,6 +130,17 @@ export interface GraphBuffer {
   readonly selected?: string;
 }
 
+/**
+ * The metamodel of the open workspace as a graph (SR-130): its types, inheritance, relation kinds and
+ * relation properties, from `metamodel.get`. One per workspace.
+ */
+export interface MetamodelBuffer {
+  readonly kind: "metamodel";
+  readonly key: typeof METAMODEL_KEY;
+  /** The selected box: `type:<key>` or `any` (`metamodel-graph.ts`); not set: the first type. */
+  readonly selected?: string;
+}
+
 export type Buffer =
   | ListBuffer
   | SearchBuffer
@@ -137,7 +148,8 @@ export type Buffer =
   | OverviewBuffer
   | NeighbourhoodBuffer
   | ResultBuffer
-  | GraphBuffer;
+  | GraphBuffer
+  | MetamodelBuffer;
 
 /** Open buffers, the most recent first; the first one is shown. */
 export type Buffers = readonly Buffer[];
@@ -153,7 +165,7 @@ export type BufferAction =
   | { readonly type: "reset"; readonly buffer?: Buffer }
   /** The selected row of a list or search buffer, or of the elements of a package page. */
   | { readonly type: "cursor"; readonly key: string; readonly cursor: number }
-  /** The selected node of a graph, as `<repository>:<id>`. */
+  /** The selected node of a graph, as `<repository>:<id>`, or the selected box of the metamodel. */
   | { readonly type: "select"; readonly key: string; readonly node: string };
 
 /** The most buffers kept; the least recent one goes first. */
@@ -162,6 +174,8 @@ export const MAX_BUFFERS = 30;
 export const LIST_KEY = "list";
 
 export const OVERVIEW_KEY = "overview";
+
+export const METAMODEL_KEY = "metamodel";
 
 /**
  * The cursor of a list that has no row selected. A fresh list of the main window starts with none (SR-122
@@ -299,6 +313,9 @@ export const graphBuffer = (id: string, repository: string, name: string): Graph
   depth: 1,
 });
 
+/** The metamodel buffer, its first type selected. */
+export const metamodelBuffer = (): MetamodelBuffer => ({ kind: "metamodel", key: METAMODEL_KEY });
+
 /** The buffer of an element as a list row, a hit or a read element shows it. */
 export const elementBufferOf = (element: {
   readonly id: string;
@@ -396,6 +413,8 @@ export const bufferName = (buffer: Buffer): string => {
       return buffer.name;
     case "graph":
       return `Graph: ${buffer.name}`;
+    case "metamodel":
+      return "Metamodel";
   }
 };
 
@@ -431,7 +450,7 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       return action.buffer === undefined ? [] : [action.buffer];
     case "cursor":
       return buffers.map((buffer) => {
-        if (buffer.key !== action.key || buffer.kind === "graph") {
+        if (buffer.key !== action.key || buffer.kind === "graph" || buffer.kind === "metamodel") {
           return buffer;
         }
         return buffer.kind === "element"
@@ -440,7 +459,9 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
       });
     case "select":
       return buffers.map((buffer) =>
-        buffer.key === action.key && buffer.kind === "graph" ? { ...buffer, selected: action.node } : buffer,
+        buffer.key === action.key && (buffer.kind === "graph" || buffer.kind === "metamodel")
+          ? { ...buffer, selected: action.node }
+          : buffer,
       );
   }
 };

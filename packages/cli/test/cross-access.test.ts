@@ -17,7 +17,7 @@ import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@logreq/api";
 import type { Channel, IpcRendererLike } from "@logreq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
-import type { CatalogEntry, CommandName } from "@logreq/core";
+import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@logreq/core";
 import { CommandError, Workspace, createCommandRuntime, rememberWorkspace } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
@@ -82,6 +82,8 @@ const ONE_REPOSITORY: FixtureOptions = { fixture: "SR-004/one-repository", git: 
 const AFFECTED: FixtureOptions = { fixture: "SR-024/affected", git: true };
 /** Needs, system and component requirements and a variant (SR-022). */
 const CHAIN: FixtureOptions = { fixture: "SR-022/chain", git: true };
+/** Inheritance, per-type statuses, relation kinds open on a side or both (SR-130). */
+const METAMODEL: FixtureOptions = { fixture: "SR-130/metamodel", git: true };
 /** Needs, requirements, variants and packages to filter (SR-069). */
 const FILTER: FixtureOptions = { fixture: "SR-069/filter", git: true };
 /** SR-069/filter with saved filters, one written by hand with short IDs and comments, one faulty (SR-070). */
@@ -1770,6 +1772,61 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: IN_CRITERIA,
       input: {},
       expect: "output",
+    },
+    // SR-130 AK6: the app's graph and text of the metamodel show this output alone.
+    {
+      name: "types with inheritance, per-type statuses and open relation kinds (SR-130)",
+      fixture: METAMODEL,
+      input: {},
+      tag: "[SR-130/AK6]",
+      expect: "output",
+      check: (results) => {
+        for (const [access, { outcome }] of Object.entries(results)) {
+          const output = (outcome as { output: MetamodelOutput }).output;
+          const type = (key: string) => output.types.find((candidate) => candidate.key === key);
+          const kind = (key: string) => output.relations.find((candidate) => candidate.key === key);
+          expect(
+            output.types.map((candidate) => candidate.key),
+            access,
+          ).toEqual(["item", "requirement", "software-requirement", "decision", "package"]);
+          expect(type("software-requirement")?.ancestors, access).toEqual(["requirement", "item"]);
+          expect(type("software-requirement")?.properties, access).toEqual([
+            "title",
+            "rationale",
+            "packages",
+            "component",
+          ]);
+          expect(type("package")?.statuses, access).toEqual([]);
+          expect(kind("based-on"), access).not.toHaveProperty("source-types");
+          expect(kind("blocks")?.["source-types"], access).toEqual([]);
+        }
+      },
+    },
+    {
+      name: "the standard model (SR-130)",
+      fixture: CHAIN,
+      input: {},
+      tag: "[SR-130/AK6]",
+      expect: "output",
+    },
+    {
+      name: "a faulty metamodel file: the types of the valid files and the problem (SR-130)",
+      fixture: {
+        ...METAMODEL,
+        files: { "model/broken.yaml": "logreq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
+      },
+      input: {},
+      tag: "[SR-130/AK6]",
+      expect: "output",
+      check: (results) => {
+        for (const [access, { outcome }] of Object.entries(results)) {
+          const output = (outcome as { output: MetamodelOutput }).output;
+          expect(output.types, access).toHaveLength(5);
+          expect(output.problems, access).toMatchObject([
+            { code: "metamodel.invalid", severity: "error", file: "model/broken.yaml" },
+          ]);
+        }
+      },
     },
   ],
 };

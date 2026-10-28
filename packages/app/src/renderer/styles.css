@@ -789,3 +789,143 @@ mark {
   color: var(--muted);
   text-decoration: line-through;
 }
+
+/* The metamodel (SR-130, D-063): a box per type over soft curves on the white sheet, no grid, no legend,
+   no controls, greys only. A box has the size `metamodel-layout.ts` places it with: as wide as its
+   widest line measured in these fonts, at least 224 px; 7 px of border and padding above and below, a
+   22 px line with the name, "abstract" and the prefix, then one 18 px line per property, the inherited
+   ones muted. "Any type" has a dashed edge and its name muted.
+   The inheritance is drawn in the muted grey, the relation kinds and properties in the grey of links;
+   the curves of the selected box in the text colour when they are at most half of the curves. Every curve
+   ends in an arrowhead at its target. A label stands on the sheet colour, so a curve under it stays
+   readable; "extends" in italics. The sheet has half a view of room on every side. */
+.mm-sheet {
+  position: relative;
+}
+
+.mm-canvas {
+  position: absolute;
+  top: 50vh;
+  left: 50vw;
+}
+
+.mm-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.mm-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5px;
+}
+
+.mm-edge.extends {
+  stroke: var(--muted);
+}
+
+.mm-edge.selected {
+  stroke: var(--text);
+}
+
+.mm-arrow {
+  fill: var(--edge);
+}
+
+.mm-arrow.extends {
+  fill: var(--muted);
+}
+
+.mm-arrow.selected {
+  fill: var(--text);
+}
+
+.mm-label {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mm-line {
+  width: fit-content;
+  margin: 0 auto;
+  background: var(--sheet);
+}
+
+.mm-line.extends {
+  font-style: italic;
+}
+
+.mm-type {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--sheet);
+  cursor: default;
+}
+
+.mm-type.any {
+  border-style: dashed;
+  border-color: var(--edge);
+}
+
+.mm-type[aria-selected="true"] {
+  border-color: var(--muted);
+  background: var(--select);
+}
+
+.mm-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  height: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.mm-name {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+}
+
+.mm-type.any .mm-name {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.mm-abstract,
+.mm-prefix {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.mm-prefix {
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-property {
+  overflow: hidden;
+  height: 18px;
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm-property.inherited {
+  color: var(--muted);
+}

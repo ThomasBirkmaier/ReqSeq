@@ -60,6 +60,8 @@ export type BufferData =
   | { readonly kind: "overview"; readonly total: number; readonly incomplete: boolean }
   | { readonly kind: "neighbourhood"; readonly incomplete: boolean }
   | { readonly kind: "result"; readonly total: number | undefined }
+  /** The metamodel (SR-130): how many types it defines. */
+  | { readonly kind: "metamodel"; readonly types: number }
   | {
       readonly kind: "graph";
       readonly nodes: number;
@@ -172,6 +174,9 @@ export const bufferView = (
   }
   if (data.kind === "result") {
     return [bufferName(buffer), ...(data.total === undefined ? [] : [`${String(data.total)} in all`])];
+  }
+  if (data.kind === "metamodel") {
+    return [bufferName(buffer), plural(data.types, "type")];
   }
   if (data.kind === "graph") {
     // Data of a graph belongs to a graph buffer; anything else is named only.

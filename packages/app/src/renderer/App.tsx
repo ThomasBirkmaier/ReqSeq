@@ -20,7 +20,7 @@ import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
-import type { Buffer, ElementBuffer, GraphBuffer, OverviewBuffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, GraphBuffer, MetamodelBuffer, OverviewBuffer } from "./buffers.js";
 import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
@@ -32,6 +32,7 @@ import { graphFilterChoices, graphMeanings } from "./graph-choices.js";
 import { GraphView } from "./GraphView.js";
 import { isMac, matches } from "./keys.js";
 import { ListView } from "./ListView.js";
+import { MetamodelView } from "./MetamodelView.js";
 import type { ListViewProps } from "./ListView.js";
 import { MatrixView } from "./MatrixView.js";
 import { Minibuffer } from "./Minibuffer.js";
@@ -117,7 +118,7 @@ const echoLine = (echo: string, view: WorkspaceView | undefined): string =>
   echo === "" ? (view?.message ?? "") : echo;
 
 /** The buffers whose view loads its own data from the same props: lists, search results, neighbourhoods and results. */
-type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer>;
+type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer | MetamodelBuffer>;
 
 /**
  * The view of such a buffer: a list or a search result as rows, or (a list in matrix mode, SR-125) as the
@@ -746,6 +747,15 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             onData={onData}
             onEcho={setEcho}
             typeNames={typeNames}
+          />
+        ) : current.kind === "metamodel" ? (
+          <MetamodelView
+            call={call}
+            buffer={current}
+            revision={revision}
+            dispatch={dispatch}
+            onData={onData}
+            onEcho={setEcho}
           />
         ) : (
           <LoadingView

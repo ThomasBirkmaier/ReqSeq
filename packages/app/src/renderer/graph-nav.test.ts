@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import { GRAPH_MOVES, graphStep } from "./graph-nav.js";
 import { graphNode } from "./graph-test-data.js";
+import { metamodelGraph } from "./metamodel-graph.js";
+import { layoutMetamodel } from "./metamodel-layout.js";
+import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 
 // Fixed places, three layers:
 //        P1(0)        P2(300)
@@ -91,5 +94,49 @@ describe("graphStep", () => {
     expect(step("gone", "ArrowUp")).toBeUndefined();
     const lost = { ...layout, layers: [] };
     expect(graphStep(lost, "R", "R", "ArrowRight")).toBeUndefined();
+  });
+});
+
+describe("graphStep on the metamodel graph", () => {
+  // fixtures/SR-130/metamodel, three layers: Package and Item; System Requirement and Decision; Software
+  // Requirement and "Any type".
+  const metamodel = layoutMetamodel(metamodelGraph(FIXTURE_METAMODEL));
+  const move = (from: string, key: string): string | undefined =>
+    graphStep(metamodel, "type:item", from, key);
+
+  it("[SR-130/AK4] arrows move along the curves and layers of the metamodel graph, Home goes to the first type", () => {
+    expect(metamodel.layers.map((layer) => layer.map((placed) => placed.key))).toEqual([
+      ["type:package", "type:item"],
+      ["type:requirement", "type:decision"],
+      ["type:software-requirement", "any"],
+    ]);
+    // Down along the inheritance to the subtype, then to the nearest box below that a curve joins.
+    expect(move("type:item", "ArrowDown")).toBe("type:requirement");
+    expect(move("type:requirement", "ArrowDown")).toBe("type:software-requirement");
+    expect(move("type:software-requirement", "ArrowUp")).toBe("type:requirement");
+    // Up from "Any type": Decision (Based on, Traces to) is nearer than System Requirement (Concerns).
+    expect(move("any", "ArrowUp")).toBe("type:decision");
+    // Package has no curve to a box above it, and no box stands left of it.
+    expect(move("type:package", "ArrowUp")).toBeUndefined();
+    expect(move("type:package", "ArrowLeft")).toBeUndefined();
+    expect(move("type:requirement", "ArrowRight")).toBe("type:decision");
+    expect(move("type:decision", "ArrowLeft")).toBe("type:requirement");
+    expect(move("type:decision", "PageUp")).toBe("type:item");
+    expect(move("type:decision", "PageDown")).toBe("any");
+    expect(move("any", "Home")).toBe("type:item");
+    // Every box is reached from the first type.
+    const reached = new Set(["type:item"]);
+    for (let before = 0; reached.size > before;) {
+      before = reached.size;
+      for (const from of [...reached]) {
+        for (const key of GRAPH_MOVES) {
+          const to = move(from, key);
+          if (to !== undefined) {
+            reached.add(to);
+          }
+        }
+      }
+    }
+    expect([...reached].sort()).toEqual(metamodel.nodes.map((placed) => placed.key).sort());
   });
 });
