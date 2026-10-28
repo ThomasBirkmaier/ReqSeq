@@ -1,6 +1,6 @@
 # LogReq architecture (arc42, short)
 
-Status: stage 0 (D-052). The specification is the LogReq workspace in `spec/` (German, maintained with LogReq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters LogReq needs.
+Status: written at stage 0 (D-052); §5 updated to the code on 2026-10-28 (#635). The specification is the LogReq workspace in `spec/` (German, maintained with LogReq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters LogReq needs.
 
 ## 1. Goals
 
@@ -77,6 +77,8 @@ LogReq talks only to the local file system and the local `git` program. Everythi
 
 ## 5. Building blocks
 
+The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files left out) as of 2026-10-28 (#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
+
 ```mermaid
 flowchart TB
   subgraph adapters[Adapters, no logic]
@@ -85,50 +87,85 @@ flowchart TB
     mcp[packages/mcp<br/>MCP SDK, stdio]
     app[packages/app<br/>Electron + React]
   end
-  subgraph core[packages/core]
-    catalog[catalog<br/>defineCommand, registry]
-    commands[commands/*<br/>one file per command]
-    ws[workspace<br/>workspace file, repositories, availability]
-    mm[metamodel<br/>types, properties, relation kinds, statuses, meanings]
-    files[files<br/>frontmatter, YAML document, atomic write, conflict markers]
-    model[model<br/>element store, indexes, cache, watcher]
-    version[version<br/>normal form, hash]
-    trace[trace<br/>chain, related, affected, cycles, neighbourhood, graph]
-    hints[hints<br/>outdated relations, core changes, confirm]
-    query[query<br/>filter engine, sort, search index]
-    evidence[evidence<br/>records, JUnit, status, coverage, degree]
-    variants[variants<br/>views, validity, replace, exclude, diff]
-    baselines[baselines<br/>create, read, compare]
-    reqif[reqif<br/>parse, map, import, export]
-    data[data<br/>JSON export per state]
-    git[git<br/>read-only reader]
+  subgraph core[packages/core/src]
+    index[index.ts<br/>public exports]
+    entry[runtime: invoke, warm, instructions, element-short-ids<br/>entry point, validation, short IDs]
+    commands[commands/*<br/>one file per command, registry in index.ts]
+    subgraph blocks[blocks]
+      data[data<br/>JSON export and store per state]
+      query[query<br/>filter engine, sort, search index, saved filters]
+      hints[hints<br/>outdated relations, evidence hints, confirm]
+      evidence[evidence<br/>records, JUnit, status, coverage, degree]
+      trace[trace<br/>chain, related, affected, cycles, neighbourhood, graph, matrix]
+      variants[variants<br/>views, validity]
+      baselines[baselines<br/>read baseline files]
+      model[model<br/>element store, indexes, cache, writes, watcher, activity]
+      mm[metamodel<br/>types, properties, relation kinds, statuses, meanings]
+      ws[workspace<br/>workspace file, repositories, layout, cache folder, recent]
+      files[files<br/>frontmatter, YAML document, atomic write, lock]
+      version[version<br/>normal form, hash]
+      git[git<br/>read-only reader]
+    end
+    subgraph shared[shared, imported almost everywhere, edges not drawn]
+      state[runtime: workspace, settled, contracts, input-errors<br/>Workspace object, schemas]
+      catalog[catalog.ts, product.ts, generated/<br/>command types, CommandError, defineCommand]
+    end
   end
-  cli & api & mcp & app --> catalog
-  catalog --> commands
-  commands --> ws & model & trace & hints & query & evidence & variants & baselines & reqif & data
-  model --> files & version & mm & ws
-  variants --> model & mm
-  ws --> git
-  baselines --> git
-  version -.-> git
+  cli & api & mcp & app --> index
+  index --> entry
+  entry --> commands & mm & model & query
+  commands -->|every block except git| blocks
+  data --> evidence & files & mm & model & variants & ws
+  query --> baselines & evidence & files & mm & model & trace & variants & ws
+  hints --> evidence & files & mm & model & trace & variants & ws
+  evidence --> files & mm & model & trace & variants & ws
+  trace --> mm & model & ws
+  variants --> mm & model & ws
+  baselines --> files & model & ws
+  model --> files & git & mm & version & ws
+  mm --> files & ws
+  ws --> files
 ```
+
+An arrow means that at least one module of the source imports a value (a function, a class, a constant) from the target. Imports of types only (`import type`, today only `data` → `git`, `query` and runtime state) are not drawn, nor are the imports of the shared modules; the table lists both. Besides `runtime/invoke.ts`, `index.ts` re-exports helpers of `catalog`, `product`, `runtime`, `workspace`, `model`, `files`, `query`, `evidence` and `version` for the adapters.
+
+| Block | Imports (values) | Imports (types only) |
+|---|---|---|
+| runtime entry (`invoke`, `warm`, `instructions`, `element-short-ids`) | commands, metamodel, model, query, runtime state | |
+| `commands` | baselines, data, evidence, files, hints, metamodel, model, query, runtime state, trace, variants, version, workspace | |
+| `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
+| `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
+| `hints` | evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
+| `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
+| `trace` | metamodel, model, runtime state, workspace | |
+| `variants` | metamodel, model, runtime state, workspace | |
+| `baselines` | files, model, runtime state, workspace | |
+| `model` | files, git, metamodel, runtime state, version, workspace | |
+| `metamodel` | files, runtime state, workspace | |
+| `workspace` | files, runtime state | |
+| `files`, `version`, `git`, runtime state (`workspace`, `settled`, `contracts`, `input-errors`) | no other block | |
+
+Every block may also import the root modules `catalog.ts` and `product.ts` and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
+
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`; `commands`; runtime entry. Every import points to a lower layer. This is how the code is today; it is not yet checked by a test or a lint rule (#635).
 
 | Block | Responsibility | Stage |
 |---|---|---|
-| `catalog`, `commands` | Registry and implementations of all catalog commands | 1 onward |
-| `workspace` | Read `logreq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018) | 1 |
+| `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) | 1 onward |
+| `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses), `warmWorkspace` (SR-082), agent instructions for MCP. State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors | 1 onward |
+| `workspace` | Read `logreq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces | 1 |
 | `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) | 1 |
 | `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) | 1 |
 | `version` | Normal form and hash (SR-021) | 1 |
-| `model` | Element store, indexes, cache, watcher (SR-003, SR-007, SR-081, SR-082) | 1 |
+| `model` | Element store, indexes, cache, watcher (SR-003, SR-007, SR-081, SR-082). Sub-areas in the one folder: the store and its cold load (`store`, `contribution`, `discover`, `read-pool`, `model-cache`), writes (`write`, `relation-write`, `targets`, `status`, `supersede`, `bulk-update`), the Markdown scanner (`markdown-links`, `references`), file findings (`duplicates`, `missing-targets`, `required`, `values`, …), the Git-facing modules (`version-date`, `changed`, `uncommitted`, `repository-commit`), the watcher (`watch`, `watch-tree`, `watch-change`) and agent activity (`activity`, SR-117) | 1 onward |
 | `git` | Commits, dirty state, history, old contents, read-only (SR-083) | 1 |
 | `trace`, `hints` | Chains, related, affected, outdated relations, confirm (SR-021..SR-027) | 2 |
 | `query` | Filter language, sort, full-text search (SR-068..SR-070, SR-075) | 3 |
 | `evidence`, `data` | Records (`record`, `folders`, `state`, `by-element` index), readers (`markdown`, `junit`), record findings (`match`), status, coverage, degree, JSON export (SR-028..SR-038, SR-061, SR-062; ADR-0012) | 4 |
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1); the read-only reader of baseline files first (SR-032 AK2, stage 4) | 1, 4, 5 |
-| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059) | 6 |
+| `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059); not in the code yet, no folder | 6 |
 
-Rules: adapters depend only on `@logreq/core`'s public exports; inside `core`, `commands` may use every block, blocks never import `commands`; `git` is the only module that spawns processes; `files` is the only module that writes to disk.
+Rules: adapters depend only on `@logreq/core`'s public exports (`index.ts` and the subpaths `recent-workspaces` and `verification-degree` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 
