@@ -147,7 +147,7 @@ An arrow means that at least one module of the source imports a value (a functio
 
 Every block may also import the root modules `catalog.ts` and `product.ts` and the generated types and data in `generated/`; `catalog.ts` imports only the type `Workspace` of `runtime/workspace.ts`.
 
-With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`; `commands`; runtime entry. Every import points to a lower layer. This is how the code is today; it is not yet checked by a test or a lint rule (#635).
+With `runtime` split, the imports have no cycle and form these layers, from the bottom: `files`, `version`, `git` and runtime state; `workspace`; `metamodel`; `model`; `trace`, `variants`, `baselines`; `evidence`; `hints`, `query`; `data`; `commands`; runtime entry. Every import points to a lower layer. The test `packages/core/src/block-layers.test.ts` holds these layers and the table below and fails on any relative import of the product code that goes to the same or a higher layer or that the table does not list, naming the file, the import and the rule (#635); a new block, runtime module or allowed import is added to this section and to that test.
 
 | Block | Responsibility | Stage |
 |---|---|---|
