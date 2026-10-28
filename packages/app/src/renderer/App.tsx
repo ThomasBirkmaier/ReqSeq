@@ -718,11 +718,23 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   };
 
   const overview = useOverview(call, seen, recent, current?.kind === "overview", setEcho);
+  // The names the overview read, once per answer: a name forgotten since is not brought back by it.
   useEffect(() => {
-    for (const row of overview.recents) {
+    for (const row of overview.read.values()) {
       recentNames.current.set(row.buffer.key, row.buffer);
     }
-  }, [overview.recents]);
+  }, [overview.read]);
+  // A recent element that core no longer knows (deleted outside) is not offered under its old name (#681):
+  // the overview's read, or the read of its buffer, found it gone. One `ref.unknown` is enough: while a
+  // pull rewrites a file core briefly does not know it, and the next read of the overview names it again.
+  useEffect(() => {
+    for (const key of overview.gone) {
+      recentNames.current.delete(key);
+    }
+  }, [overview.gone]);
+  const forgetName = useCallback((key: string): void => {
+    recentNames.current.delete(key);
+  }, []);
 
   // A relation names the repository of its target (#416): its buffer is opened at once.
   const openRelation = (buffer: ElementBuffer): void => {
@@ -743,6 +755,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
             outside={outside}
             onData={onData}
             onEcho={setEcho}
+            onGone={forgetName}
             onCopy={copy}
             onOpenTarget={openTarget}
             onOpenRelation={openRelation}

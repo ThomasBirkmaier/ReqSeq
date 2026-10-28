@@ -5,12 +5,13 @@
 // element that changed outside the app is highlighted briefly (SR-116).
 import { Fragment, useEffect, useState } from "react";
 import type { OverviewBuffer, BufferAction } from "./buffers.js";
-import { elementBufferOf } from "./buffers.js";
+import { elementBuffer, elementBufferOf } from "./buffers.js";
 import type { Call } from "./call.js";
 import { rowTarget } from "./keys.js";
 import type { BufferData } from "./modeline.js";
 import type { RecentRow, TypeCount } from "./overview.js";
 import { openRow, overviewRows, typeLine } from "./overview.js";
+import { isGone } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import type { RecentEntry } from "./recent.js";
 import { activeRow } from "./rows.js";
@@ -31,7 +32,9 @@ const entryKey = (entry: RecentEntry): string => `${entry.repository}\n${entry.i
  * Loads what the overview shows while it is `active`: the counts once per `revision` of the workspace (a
  * return to the overview does not count again, which would take hundreds of milliseconds at 50,000
  * elements), and the recent elements again when the list or the workspace changed. An element that cannot
- * be read any more (deleted outside, repository missing) is left out silently.
+ * be read any more (deleted outside, repository missing) is left out silently; `gone` gives the buffer keys
+ * of those that core no longer knows (`ref.unknown`), so "Go to" forgets their names (#681). `read` is the
+ * last answer itself, so a name is taken from it once, not again after it was forgotten.
  */
 export const useOverview = (
   call: Call,
@@ -39,11 +42,18 @@ export const useOverview = (
   recent: readonly RecentEntry[],
   active: boolean,
   onEcho: (message: string) => void,
-): { readonly data: OverviewData | undefined; readonly recents: readonly RecentRow[] } => {
+): {
+  readonly data: OverviewData | undefined;
+  readonly recents: readonly RecentRow[];
+  /** The rows of the last read of the recent elements; a new map only when a read answered. */
+  readonly read: ReadonlyMap<string, RecentRow>;
+  readonly gone: readonly string[];
+} => {
   const [counted, setCounted] = useState<
     { readonly revision: number; readonly data: OverviewData } | undefined
   >(undefined);
   const [resolved, setResolved] = useState<ReadonlyMap<string, RecentRow>>(new Map());
+  const [gone, setGone] = useState<readonly string[]>([]);
 
   useEffect(() => {
     if (!active || counted?.revision === revision) {
@@ -78,6 +88,11 @@ export const useOverview = (
       })),
     ).then((answers) => {
       if (live) {
+        setGone(
+          answers.flatMap(({ entry, answer }) =>
+            !answer.ok && isGone(answer.code) ? [elementBuffer(entry.id, entry.repository, "").key] : [],
+          ),
+        );
         setResolved(
           new Map(
             answers.flatMap(({ entry, answer }) => {
@@ -108,6 +123,8 @@ export const useOverview = (
       const row = resolved.get(entryKey(entry));
       return row === undefined ? [] : [row];
     }),
+    read: resolved,
+    gone,
   };
 };
 

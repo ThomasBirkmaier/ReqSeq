@@ -133,6 +133,11 @@ export interface ElementViewProps {
   /** What the buffer has loaded, for the modeline. */
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
+  /**
+   * A read found the element gone (`ref.unknown`): when the buffer is shown and nothing was shown yet, or
+   * when its file is deleted (SR-106 AK3). The app forgets its name for "Go to" (#681). Default: nothing.
+   */
+  readonly onGone?: (key: string) => void;
   /** A field is copied (SR-128): its name and its value as text; the app puts it on the clipboard. */
   readonly onCopy: (label: string, text: string) => void;
   /** A relation target is opened: its element buffer, by UUID and repository (#416). */
@@ -371,6 +376,7 @@ export const ElementView = ({
   outside = NO_CHANGES,
   onData,
   onEcho,
+  onGone,
   onCopy,
   onOpenTarget,
   onOpenRelation,
@@ -537,6 +543,7 @@ export const ElementView = ({
     onData,
     onDraft,
     onEcho,
+    onGone,
     onCopy,
     onOpenTarget,
     onPickElement,
@@ -556,6 +563,7 @@ export const ElementView = ({
     onData,
     onDraft,
     onEcho,
+    onGone,
     onCopy,
     onOpenTarget,
     onPickElement,
@@ -926,6 +934,10 @@ export const ElementView = ({
     if (then === "error") {
       setView({ status: "error", message: answer.message });
       now.current.onEcho(answer.message);
+      // A buffer with a draft shows it above and is not here; it forgets the name through `gone()`.
+      if (isGone(answer.code)) {
+        now.current.onGone?.(now.current.buffer.key);
+      }
     } else if (then === "echo") {
       now.current.onEcho(answer.message);
     } else if (then === "gone") {
@@ -945,6 +957,7 @@ export const ElementView = ({
       return;
     }
     now.current.onEcho(deletedOnDisk(now.current.buffer.name));
+    now.current.onGone?.(now.current.buffer.key);
   };
   // The shown buffer is a new one (the app keys this component by buffer), so "loading" shows once; a
   // reload after a change of the workspace keeps the editors (focus, cursor and undo history).

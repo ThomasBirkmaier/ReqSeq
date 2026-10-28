@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { recentKey } from "./recent.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -81,14 +82,44 @@ const HANDLERS: Record<string, Handler> = {
   }),
 };
 
-const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
-  Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) }),
-);
+/** The UUIDs core no longer knows (their files deleted outside): `element.get` answers `ref.unknown`. */
+const gone = new Set<string>();
+/** The UUIDs whose `element.get` does not answer (yet). */
+const pending = new Set<string>();
+/** The workspace `workspace.status` names. */
+let workspaceName = "Weather station";
+
+const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
+  const ref = String(input["ref"]);
+  if (name === "element.get" && pending.has(ref)) {
+    return new Promise<InvokeResult>(() => undefined);
+  }
+  if (name === "element.get" && gone.has(ref)) {
+    return Promise.resolve({
+      ok: false,
+      error: { code: "ref.unknown", message: `No element has the UUID ${ref}` },
+    });
+  }
+  if (name === "workspace.status") {
+    return Promise.resolve({ ok: true, output: { name: workspaceName, readOnly: true } });
+  }
+  return Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) });
+});
+
+/** The listeners of `workspace-changed`: another workspace opens in the window (SR-131). */
+const listeners = new Set<(change: { readonly reason: "opened" }) => void>();
 
 const bridge: LogReqBridge = {
   invoke,
   commands: () => Promise.resolve([]),
-  on: () => () => undefined,
+  on: (event: string, listener: (data: never) => void) => {
+    if (event !== "workspace-changed") {
+      return () => undefined;
+    }
+    const changed = listener as (change: { readonly reason: "opened" }) => void;
+    listeners.add(changed);
+    return () => listeners.delete(changed);
+  },
   copyText: () => Promise.resolve(true),
   recentWorkspaces: () => Promise.resolve([]),
   openWorkspace: () => Promise.resolve({ ok: true }),
@@ -100,6 +131,10 @@ let root: Root;
 
 beforeEach(() => {
   invoke.mockClear();
+  gone.clear();
+  pending.clear();
+  listeners.clear();
+  workspaceName = "Weather station";
   window.localStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
@@ -221,8 +256,9 @@ describe("App, Go to a buffer or an element (SR-115 AK1)", () => {
 describe("App, Go to after a restart (SR-115 AK1)", () => {
   it("[SR-115/AK1] the elements shown before the app was opened again are offered with the names the overview read, without asking core when Ctrl+P opens", async () => {
     // Kept by the start before: element 3, then element 2 (newest first), per workspace (SR-118 AK5).
+    const key = recentKey({ ok: true, output: HANDLERS["workspace.status"]?.({}) });
     window.localStorage.setItem(
-      "logreq.recent.v1\nWeather station",
+      key ?? "",
       JSON.stringify([
         { id: "uuid-3", repository: "spec" },
         { id: "uuid-2", repository: "spec" },
@@ -238,6 +274,81 @@ describe("App, Go to after a restart (SR-115 AK1)", () => {
     await press(query("input"), { key: "ArrowDown" });
     await press(query("input"), { key: "Enter" });
     expect(shown()).toBe("SR-000002 Title 2");
+  });
+});
+
+describe("App, Go to and elements deleted outside (#681)", () => {
+  /** Element 3, then element 2 (newest first) were shown before the app was opened again. */
+  const remembered = (): void => {
+    const key = recentKey({ ok: true, output: { name: workspaceName, readOnly: true } });
+    window.localStorage.setItem(
+      key ?? "",
+      JSON.stringify([
+        { id: "uuid-3", repository: "spec" },
+        { id: "uuid-2", repository: "spec" },
+      ]),
+    );
+  };
+
+  it("[SR-115/AK1] a recent element that the overview no longer finds is not offered under its old name", async () => {
+    remembered();
+    await render();
+    await press(window, { key: "p", ctrlKey: true });
+    expect(candidates()).toEqual(["SR-000003 Title 3", "SR-000002 Title 2"]);
+    await press(query("input"), { key: "Escape" });
+    // Element 3 is deleted outside; the overview reads its recent elements again when it is shown again.
+    gone.add("uuid-3");
+    await runCommand("List all elements");
+    await runCommand("Show overview");
+    expect(shown()).toBe("Overview");
+    expect(container.querySelector(".overview")?.textContent).not.toContain("Title 3");
+    await press(window, { key: "p", ctrlKey: true });
+    expect(candidates()).toEqual(["All elements", "SR-000002 Title 2"]);
+  });
+
+  it("[SR-115/AK1] a recent element chosen in Go to and found gone is not offered again", async () => {
+    remembered();
+    await render();
+    await runCommand("List all elements");
+    // Element 3 is deleted outside after the overview read it; the list is shown, not the overview.
+    gone.add("uuid-3");
+    await press(window, { key: "p", ctrlKey: true });
+    expect(candidates()).toEqual(["Overview", "SR-000003 Title 3", "SR-000002 Title 2"]);
+    await press(query("input"), { key: "ArrowDown" });
+    await press(query("input"), { key: "Enter" });
+    expect(shown()).toBe("SR-000003 Title 3");
+    expect(query("article").textContent).toContain("No element has the UUID uuid-3");
+    // Closed, the list it came from is shown; Go to no longer offers it.
+    await runCommand("Close buffer");
+    expect(shown()).toBe("All elements");
+    await press(window, { key: "p", ctrlKey: true });
+    expect(candidates()).toEqual(["Overview", "SR-000002 Title 2"]);
+  });
+
+  it("[SR-115/AK1] another workspace offers no name of the one before until its overview read them", async () => {
+    remembered();
+    await render();
+    await press(window, { key: "p", ctrlKey: true });
+    expect(candidates()).toEqual(["SR-000003 Title 3", "SR-000002 Title 2"]);
+    await press(query("input"), { key: "Escape" });
+    // Another workspace with the same recent elements opens; its reads of them have not answered yet.
+    workspaceName = "Buoy";
+    remembered();
+    pending.add("uuid-3");
+    pending.add("uuid-2");
+    await act(async () => {
+      for (const listener of listeners) {
+        listener({ reason: "opened" });
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await flush();
+    expect(query('[aria-label="Modeline"]').textContent).toContain("Buoy");
+    await press(window, { key: "p", ctrlKey: true });
+    // The prompt is open, and it offers nothing: no name of the workspace before.
+    expect(query("label").textContent).toBe("Go to");
+    expect(query("#prompt-input").getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector(".candidates")).toBeNull();
   });
 });
 
