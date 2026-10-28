@@ -12,9 +12,11 @@ import {
   arrivals,
   changedFields,
   fieldTexts,
+  marksOnRead,
   nextChanges,
   namedSince,
   removedSince,
+  touchedSince,
 } from "./outside-marks.js";
 import type { OutsideMarks } from "./use-outside-marks.js";
 import { OUTSIDE_CHANGE, rowClass, useOutsideMarks } from "./use-outside-marks.js";
@@ -176,6 +178,40 @@ describe("fieldTexts and changedFields: what to highlight in an element buffer",
 
   it("highlights the title of a buffer that shows the element for the first time", () => {
     expect(changedFields(undefined, fieldTexts(element()), new Set(["Text"]))).toEqual(["Title"]);
+  });
+});
+
+describe("touchedSince and marksOnRead: what an element buffer does with a change from outside", () => {
+  it("[SR-116/AK1] a change from outside that names or removes the element asks for it again; one that names another element does not", () => {
+    const changed = nextChanges(NO_CHANGES, lists(["a"]), () => false);
+    expect(touchedSince(changed, "a", 0)).toBe(true);
+    expect(touchedSince(changed, "b", 0)).toBe(false);
+    expect(touchedSince(changed, "a", changed.seq)).toBe(false);
+    const removed = nextChanges(changed, lists([], [], ["b"]), () => false);
+    expect(touchedSince(removed, "b", changed.seq)).toBe(true);
+    expect(touchedSince(removed, "a", changed.seq)).toBe(false);
+  });
+
+  it("[SR-116/AK1] a fresh read of other bytes highlights the fields that differ, never one with input; the app's own save and a late read none", () => {
+    const before = fieldTexts(element());
+    const after = fieldTexts(
+      element({
+        text: "The station shows gusts in km/h.",
+        properties: { rationale: "Wind", "acceptance-criteria": ["One", "Three"], packages: "PKG-1" },
+      }),
+    );
+    const held = { sha: "one", fields: before };
+    const inputKeys = vi.fn(() => ["Text"]);
+    expect(marksOnRead(true, held, "two", after, inputKeys)).toEqual(["acceptance-criteria"]);
+    expect(inputKeys).toHaveBeenCalledTimes(1);
+    // The first read of a buffer opened just after the change: the title.
+    expect(marksOnRead(true, undefined, "two", after, () => [])).toEqual(["Title"]);
+    inputKeys.mockClear();
+    // The bytes the buffer holds already (its own save): nothing, and the input is not asked for.
+    expect(marksOnRead(true, held, "one", after, inputKeys)).toEqual([]);
+    // A read asked later than FRESH_MS after the change: nothing.
+    expect(marksOnRead(false, held, "two", after, inputKeys)).toEqual([]);
+    expect(inputKeys).not.toHaveBeenCalled();
   });
 });
 

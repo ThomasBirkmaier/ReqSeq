@@ -107,6 +107,13 @@ export const removedSince = (changes: OutsideChanges, id: string, seen: number):
   (changes.removed.get(id) ?? 0) > seen;
 
 /**
+ * Whether an element buffer that saw the change `seen` asks for its element `id` again: a later change
+ * named or removed it. A removal asks too, and only the answer says whether the file is gone (SR-106 AK3).
+ */
+export const touchedSince = (changes: OutsideChanges, id: string, seen: number): boolean =>
+  namedSince(changes, id, seen) || removedSince(changes, id, seen);
+
+/**
  * What each field of the element buffer shows, by its label (`FieldBox`): the title, the text, each
  * property box and each relation group. Two answers differ in a field when its entry differs.
  */
@@ -144,3 +151,18 @@ export const changedFields = (
   // A field that is gone (an emptied box) has nothing left to tint: the title stands for it.
   return shown.length > 0 || changed.some((label) => input.has(label)) ? shown : ["Title"];
 };
+
+/**
+ * The fields an element buffer highlights after a read of its element (SR-116 AK1): none unless the read
+ * was asked within `FRESH_MS` of a change from outside (`fresh`) and the file has other bytes than the
+ * answer shown before (`held`; the app's own save holds them already); then `changedFields`, without the
+ * fields with input. `inputKeys` is asked only then.
+ */
+export const marksOnRead = (
+  fresh: boolean,
+  held: { readonly sha: string; readonly fields: ReadonlyMap<string, string> } | undefined,
+  sha: string,
+  fields: ReadonlyMap<string, string>,
+  inputKeys: () => Iterable<string>,
+): readonly string[] =>
+  fresh && held?.sha !== sha ? changedFields(held?.fields, fields, new Set(inputKeys())) : [];

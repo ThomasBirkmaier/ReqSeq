@@ -44,27 +44,39 @@ import { afterSave, dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
 import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
 import type { ReferenceRequest } from "./editor/slash-menu.js";
+import type { DiskState } from "./disk-state.js";
+import {
+  DISK_START,
+  conflictEnded,
+  decided,
+  failure,
+  fileRead,
+  goneRead,
+  leaveSaves,
+  lockedNote as lockedNoteOf,
+  readFailed,
+  saveNote as saveNoteOf,
+  showsKept,
+  takeFileEdits,
+} from "./disk-state.js";
 import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
 import { boxDrafts, makeDraft, rebased, sameDraft, withShown } from "./drafts.js";
 import { FieldBox } from "./FieldBox.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
-  RESOLVE_FIRST,
   TEXT_FIELD,
   changedOnDisk,
   deletedOnDisk,
   diskMark,
   draftInput,
-  goneWait,
   isGone,
   keptBoxes as keptBoxesOf,
   onDisk,
   outsideChange,
   resolvePrompt,
-  unreadable,
 } from "./outside-change.js";
 import type { OutsideChanges } from "./outside-marks.js";
-import { NO_CHANGES, changedFields, fieldTexts, namedSince, removedSince } from "./outside-marks.js";
+import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep, historyStep, isMac } from "./keys.js";
 import { ListView } from "./ListView.js";
@@ -374,9 +386,7 @@ export const ElementView = ({
   const seenChange = useRef(outside.seq);
   useEffect(() => {
     if (outside.seq !== seenChange.current) {
-      const named =
-        namedSince(outside, buffer.id, seenChange.current) ||
-        removedSince(outside, buffer.id, seenChange.current);
+      const named = touchedSince(outside, buffer.id, seenChange.current);
       seenChange.current = outside.seq;
       if (named) {
         setTouched((count) => count + 1);
@@ -389,19 +399,28 @@ export const ElementView = ({
     undefined,
   );
   const { marked, mark } = useOutsideMarks();
-  // The bytes of the file the input was typed on (SR-106): the file's bytes while there is no conflict.
-  const basis = useRef<string | undefined>(undefined);
-  // The fields with input that the file no longer agrees with (SR-106 AK2): nothing is saved meanwhile. The
-  // ref is what the callbacks read, the state shows the blocks "On disk".
+  // What the buffer knows of its file besides the input (SR-106, `disk-state.ts`): the bytes the input was
+  // typed on, the fields with input that the file no longer agrees with (AK2: nothing is saved meanwhile),
+  // whether the file is gone (AK3: the content stays, read-only, until the file is there again), and the
+  // first read that found it gone (core's store does not know an element whose file is being written
+  // either, so only a read after the next batch of the watcher says that the file is deleted; meanwhile
+  // the buffer stays editable). The ref is what the callbacks read; the state shows the blocks "On disk"
+  // and the modeline.
+  const diskState = useRef<DiskState>(DISK_START);
   const [conflict, setConflict] = useState<readonly ConflictField[] | undefined>(undefined);
-  const conflictRef = useRef<readonly ConflictField[] | undefined>(undefined);
-  // The file is gone (SR-106 AK3): the content stays, read-only, until the file is there again.
   const [deleted, setDeleted] = useState(false);
-  const deletedRef = useRef(false);
-  // The first read that found the file gone, and the read asked for after it (SR-106 AK3): core's store
-  // does not know an element whose file is being written either, so only a read after the next batch of
-  // the watcher says that the file is deleted. Meanwhile the buffer stays editable.
-  const goneSince = useRef<number | undefined>(undefined);
+  // The next disk state: the state that shows it is set only when it changed (by identity).
+  const setDiskState = (next: DiskState): void => {
+    const was = diskState.current;
+    diskState.current = next;
+    if (next.conflict !== was.conflict) {
+      setConflict(next.conflict);
+    }
+    if (next.deleted !== was.deleted) {
+      setDeleted(next.deleted);
+    }
+  };
+  // The read asked for again after a read that found the file gone (SR-106 AK3).
   const askAgain = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(
     () => () => {
@@ -440,9 +459,7 @@ export const ElementView = ({
     return () => {
       mounted.current = false;
       made.dispose();
-      now.current.keep?.left(
-        conflictRef.current === undefined && !deletedRef.current && goneSince.current === undefined,
-      );
+      now.current.keep?.left(leaveSaves(diskState.current));
     };
   }, []);
   const [article, setArticle] = useState<HTMLElement | null>(null);
@@ -596,7 +613,7 @@ export const ElementView = ({
     makeDraft(
       { doc: textDoc ?? now.current.handle?.doc() ?? base, base },
       boxDrafts(stored.current, boxDocs),
-      basis.current,
+      diskState.current.basis,
     );
   // The app keeps the draft of the buffer, with the element it shows. Without input nothing is unsaved.
   const keepDraft = (kept: Draft | undefined): void => {
@@ -621,42 +638,27 @@ export const ElementView = ({
   // What the outside change means for the buffer now (SR-106): a conflict stops saving, and says so once;
   // without one, the input is on the file as it is.
   const decide = (change: OutsideChange): void => {
-    if (change.kind === "conflict") {
-      const was = conflictRef.current;
-      conflictRef.current = change.fields;
-      setConflict(change.fields);
-      if (was === undefined) {
-        now.current.onEcho(changedOnDisk(now.current.buffer.name));
-      }
-      return;
+    const next = decided(diskState.current, change, held.current?.sha);
+    setDiskState(next.disk);
+    if (next.begins) {
+      now.current.onEcho(changedOnDisk(now.current.buffer.name));
     }
-    endConflict(held.current?.sha);
   };
   // The input is on the file with the bytes `sha`: nothing to resolve.
   const endConflict = (sha: string | undefined): void => {
-    basis.current = sha;
-    if (conflictRef.current !== undefined) {
-      conflictRef.current = undefined;
-      setConflict(undefined);
-    }
+    setDiskState(conflictEnded(diskState.current, sha));
   };
   // Why the element cannot be changed now: it is read-only, or its file is gone (SR-106 AK3), or a read
   // found it gone and the buffer asks again before it says so (nothing is written meanwhile).
-  const lockedNote = (): string | undefined => {
-    const { readOnly: locked, buffer: shownBuffer } = now.current;
-    if (locked) {
-      return `${shownBuffer.name} is read-only`;
-    }
-    if (deletedRef.current) {
-      return deletedOnDisk(shownBuffer.name);
-    }
-    return goneSince.current === undefined ? undefined : unreadable(shownBuffer.name);
-  };
+  const lockedNote = (): string | undefined =>
+    lockedNoteOf(diskState.current, now.current.readOnly, now.current.buffer.name);
   // The input changed: during a conflict the blocks follow it, and input that is what the file holds ends it.
   // Input (`typed`, not the file's text put into an editor) is saved one second later (SR-105 AK1).
   const changed = (textDoc?: string, typed = true): void => {
-    if (conflictRef.current !== undefined) {
-      decide(outsideChange(inputDocs(), basis.current, { sha: held.current?.sha, docs: fileDocs() }));
+    if (diskState.current.conflict !== undefined) {
+      decide(
+        outsideChange(inputDocs(), diskState.current.basis, { sha: held.current?.sha, docs: fileDocs() }),
+      );
     }
     keepDraft(currentDraft(textDoc));
     if (typed) {
@@ -762,7 +764,7 @@ export const ElementView = ({
     }
     setBaseline(loaded);
     stored.current = next;
-    decide(outsideChange(input, basis.current, { sha, docs: fileDocs() }));
+    decide(outsideChange(input, diskState.current.basis, { sha, docs: fileDocs() }));
     // The draft is on the new file text: a text that was not typed on is the new one (the editor
     // follows it after this render), so boxes alone never keep the old text.
     keepDraft(currentDraft(input.has(TEXT_FIELD) ? undefined : loaded, loaded, followed));
@@ -778,11 +780,15 @@ export const ElementView = ({
     const typed = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
     keptBoxes.current = new Map(keptBoxesOf(kept, change.dropped, docs));
     keptText.current = typed;
-    basis.current = change.kind === "conflict" ? kept.sha : sha;
+    setDiskState({ ...diskState.current, basis: change.kind === "conflict" ? kept.sha : sha });
     if (change.kind === "conflict") {
       decide(change);
     }
-    const restored = makeDraft({ doc: typed ?? loaded, base: loaded }, [...keptBoxes.current], basis.current);
+    const restored = makeDraft(
+      { doc: typed ?? loaded, base: loaded },
+      [...keptBoxes.current],
+      diskState.current.basis,
+    );
     if (!sameDraft(restored, kept)) {
       keepDraft(restored);
     }
@@ -810,21 +816,15 @@ export const ElementView = ({
     // A save that runs sets the baseline itself with its answer.
     if (!saving.current) {
       const fields = fieldTexts(element);
-      if (changedJustNow && held.current?.sha !== sha) {
-        mark(changedFields(held.current?.fields, fields, new Set(inputDocs().keys())));
-      }
+      mark(marksOnRead(changedJustNow, held.current, sha, fields, () => inputDocs().keys()));
       held.current = { sha, fields };
       shownFile.current = { element, sha };
       // The file is there (again): the buffer is editable as before, and input typed meanwhile is saved.
-      const back = goneSince.current !== undefined || deletedRef.current;
-      goneSince.current = undefined;
-      if (deletedRef.current) {
-        deletedRef.current = false;
-        setDeleted(false);
-      }
+      const { disk: read, back } = fileRead(diskState.current);
+      setDiskState(read);
       if (!loadedOnce.current) {
         setBaseline(loaded);
-        basis.current = sha;
+        setDiskState({ ...diskState.current, basis: sha });
         const kept = initialDraft.current;
         if (kept !== undefined) {
           restore(kept, element, docs, sha);
@@ -846,37 +846,34 @@ export const ElementView = ({
   // shows the element the draft was typed on, with the input, as the shown buffer does.
   const failed = (answer: { readonly code: string; readonly message: string }): void => {
     // Only reads that keep finding the file gone count towards its deletion.
-    if (!isGone(answer.code)) {
-      goneSince.current = undefined;
-    }
+    setDiskState(readFailed(diskState.current, answer.code));
     const kept = initialDraft.current?.shown;
-    if (!loadedOnce.current && isGone(answer.code) && kept !== undefined) {
+    if (showsKept(loadedOnce.current, answer.code, kept)) {
       apply(kept.element, kept.sha, false);
     }
-    if (!loadedOnce.current) {
+    // Read after `apply`, which may have loaded the kept element.
+    const then = failure(loadedOnce.current, answer.code, diskState.current.deleted);
+    if (then === "error") {
       setView({ status: "error", message: answer.message });
       now.current.onEcho(answer.message);
-    } else if (!isGone(answer.code)) {
+    } else if (then === "echo") {
       now.current.onEcho(answer.message);
-    } else if (!deletedRef.current) {
+    } else if (then === "gone") {
       gone();
     }
   };
   // A read found the file gone: the first time the element is asked for again after a batch of the
   // watcher, and only a file still gone then is deleted (a change that names the element asks at once).
   const gone = (): void => {
-    const at = Date.now();
-    const wait = goneWait(goneSince.current, at);
-    goneSince.current ??= at;
-    if (wait > 0) {
+    const read = goneRead(diskState.current, Date.now());
+    setDiskState(read.disk);
+    if (read.kind === "wait") {
       clearTimeout(askAgain.current);
       askAgain.current = setTimeout(() => {
         setTouched((count) => count + 1);
-      }, wait);
+      }, read.wait);
       return;
     }
-    deletedRef.current = true;
-    setDeleted(true);
     now.current.onEcho(deletedOnDisk(now.current.buffer.name));
   };
   // The shown buffer is a new one (the app keys this component by buffer), so "loading" shows once; a
@@ -1065,7 +1062,7 @@ export const ElementView = ({
   // Why the input cannot be saved now, or nothing: the element is read-only or its file is gone or cannot
   // be read (SR-106 AK3), or the file changed under the input (AK2: nothing is saved until the user chose).
   const saveNote = (): string | undefined =>
-    lockedNote() ?? (conflictRef.current === undefined ? undefined : RESOLVE_FIRST);
+    saveNoteOf(diskState.current, now.current.readOnly, now.current.buffer.name);
   // Writes the input that differs from the file, in order with the other saves of the buffer. True when no
   // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
   const saveInput = async (mode: SaveMode): Promise<boolean> => {
@@ -1176,7 +1173,7 @@ export const ElementView = ({
     }
     if (answer.output.fileSha256 !== expected) {
       apply(answer.output.element, answer.output.fileSha256, false);
-      return conflictRef.current === undefined && inputDocs().size === 0;
+      return diskState.current.conflict === undefined && inputDocs().size === 0;
     }
     if (refused === undefined) {
       return write(editor, mode, true);
@@ -1195,7 +1192,7 @@ export const ElementView = ({
     const note = lockedNote();
     if (note !== undefined) {
       echo(note);
-    } else if (editor !== undefined && !saving.current && conflictRef.current !== undefined) {
+    } else if (editor !== undefined && !saving.current && diskState.current.conflict !== undefined) {
       void autosave.current?.now(() => {
         const job = (): Promise<boolean> => write(editor, "asked");
         return now.current.keep?.save(job) ?? job();
@@ -1208,13 +1205,16 @@ export const ElementView = ({
       now.current.onEcho(note);
       return;
     }
-    for (const field of conflictRef.current ?? []) {
-      const editor = field.label === TEXT_FIELD ? now.current.handle : boxEditors.current.get(field.label);
+    const editorOf = (label: string): EditorHandle | undefined =>
+      label === TEXT_FIELD ? now.current.handle : boxEditors.current.get(label);
+    // Taken from the conflict as it is now: each step's edit may end it before the next one.
+    for (const edit of takeFileEdits(diskState.current.conflict, (label) => editorOf(label) !== undefined)) {
+      const editor = edit.via === "editor" ? editorOf(edit.label) : undefined;
       if (editor === undefined) {
         // A choice or relation box: it shows the file's value again, as a change Ctrl/Cmd+Z takes back.
-        setValue(field.label, field.disk);
+        setValue(edit.label, edit.doc);
       } else {
-        editor.set(field.disk);
+        editor.set(edit.doc);
       }
     }
     changed();
