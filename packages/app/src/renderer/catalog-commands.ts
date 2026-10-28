@@ -29,8 +29,16 @@
 // an empty input skips it. Before it runs, the input of every open buffer is saved; when one cannot be
 // saved, it does not run. Its output opens a result buffer that is not asked again (that would write
 // again). `element.bulkUpdate` writes only with `confirm` yes, given with Ctrl/Cmd+Enter; without it, it
-// shows what it would change. The sources only write commands use (status, invalidStatus, relationTarget,
-// relation, property, value, hint, filter) are typed as text until #85 PR 5b's sources follow.
+// shows what it would change.
+//
+// The arguments a command expects are completed with the values the metamodel allows (SR-108 AK4), each
+// source from one read command: `status` the statuses of the element's type (`element.get`,
+// `metamodel.get`; of a list of elements its first), `invalidStatus` the invalid ones; `property` the
+// properties of the element's type, without an element every property of the metamodel, never the title;
+// `value` the choices of the property, elements of its target types, else text; `relationTarget` elements
+// of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
+// kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
+// that can be confirmed (`hint.list`). `filter` and a `view` (variants, stage 5, #737) stay typed text.
 import type { CommandTypes } from "@logreq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
@@ -120,7 +128,13 @@ interface Value {
 /** What one argument offers: a closed list, elements found by search, or typed text. */
 type Offer =
   | { readonly kind: "list"; readonly values: readonly Value[] }
-  | { readonly kind: "element" }
+  /** Elements found by `element.search`, among `types` when given (the target types of a kind or property). */
+  | {
+      readonly kind: "element";
+      readonly types?: readonly string[];
+      /** The value is a relation target `{ id, repository }` (a relation property's value), not a reference. */
+      readonly target?: true;
+    }
   | { readonly kind: "text"; readonly parse: (text: string) => unknown };
 
 /** What the loop needs besides the actions' context. */
@@ -253,7 +267,17 @@ interface Asked {
   readonly context: ActionContext;
   readonly command: CommandListing;
   readonly field: string;
+  /** The value of the field the source reads (`contextField`); of a list field (`refs`) its first value. */
   readonly of: unknown;
+  /** The source of that field: an element, a relation kind, a relation, a property. */
+  readonly ofSource?: Source;
+  /**
+   * The value of the field that field reads in turn: the source of a kind (`relation.add target` ← `kind` ←
+   * `source`). The chain is at most these two steps (the plan's rule for `of`); a source never reads further.
+   */
+  readonly before: unknown;
+  /** The values already given to this field (a list such as `hintIds`): not offered again. */
+  readonly taken: readonly unknown[];
 }
 
 const listOf = <T>(
@@ -261,6 +285,46 @@ const listOf = <T>(
   values: (output: T) => readonly Value[],
 ): Offer | Failed =>
   answer.ok ? { kind: "list", values: values(answer.output) } : { kind: "failed", message: answer.message };
+
+/** The element `ref` names, as `element.get` gives it; nothing without a reference. */
+const elementOf = async (
+  context: ActionContext,
+  ref: unknown,
+): Promise<CommandTypes["element.get"]["output"]["element"] | Failed | undefined> => {
+  if (typeof ref !== "string") {
+    return undefined;
+  }
+  const answer = await context.call("element.get", { ref });
+  return answer.ok ? answer.output.element : { kind: "failed", message: answer.message };
+};
+
+const failed = (value: unknown): value is Failed =>
+  typeof value === "object" && value !== null && "kind" in value && value.kind === "failed";
+
+/**
+ * The statuses the type of the element `ref` names allows, by name (`metamodel.get`), only the invalid
+ * ones for `invalidStatus` (`element.supersede`); without an element every status of the metamodel.
+ */
+const statuses =
+  (invalid: boolean) =>
+  async ({ context, of }: Asked): Promise<Offer | Failed> => {
+    const element = await elementOf(context, of);
+    if (failed(element)) {
+      return element;
+    }
+    return listOf(await context.call("metamodel.get", {}), (output) => {
+      const allowed = output.types.find((type) => type.key === element?.type)?.statuses;
+      return output.statuses
+        .filter((status) => (allowed?.includes(status.key) ?? true) && (!invalid || status.invalid === true))
+        .map((status) => ({ value: status.key, name: status.name }));
+    });
+  };
+
+/** Elements of the types `types` (all types without them; none for an empty list, which allows none). */
+const elementsOf = (types: readonly string[] | undefined, target = false): Offer =>
+  types?.length === 0
+    ? { kind: "list", values: [] }
+    : { kind: "element", ...(types === undefined ? {} : { types }), ...(target ? { target: true } : {}) };
 
 const typed = (parse: (text: string) => unknown) => (): Promise<Offer> =>
   Promise.resolve({ kind: "text", parse });
@@ -309,14 +373,96 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   text: asText,
   // Never asked: the shown list's selection (`inputOf`).
   selection: asText,
-  // The sources of the write commands (#85 PR 5b); typed as text until then.
-  status: asText,
-  invalidStatus: asText,
-  relationTarget: asText,
-  relation: asText,
-  property: asText,
-  value: asText,
-  hint: asText,
+  // The sources of the write commands (SR-108 AK4): the values the metamodel allows, each from one read
+  // command, as ADR-0010 lists them.
+  status: statuses(false),
+  invalidStatus: statuses(true),
+  // The properties of the element's type; without an element (`element.bulkUpdate`) every property of the
+  // metamodel. Never the title, which the commands that take a property refuse.
+  property: async ({ context, of }) => {
+    const element = await elementOf(context, of);
+    if (failed(element)) {
+      return element;
+    }
+    return listOf(await context.call("metamodel.get", {}), (output) => {
+      const typed = output.types.find((type) => type.key === element?.type)?.properties;
+      return output.properties
+        .filter((property) => (typed?.includes(property.key) ?? true) && property.meaning !== "title")
+        .map((property) => ({ value: property.key, name: property.name }));
+    });
+  },
+  // The values of the property it reads: its choices, elements of its target types, else typed text.
+  value: async ({ context, of }) => {
+    const answer = await context.call("metamodel.get", {});
+    if (!answer.ok) {
+      return { kind: "failed", message: answer.message };
+    }
+    const property = answer.output.properties.find((candidate) => candidate.key === of);
+    return property?.kind === "choice"
+      ? {
+          kind: "list",
+          values: (property.choices ?? []).map((choice) => ({ value: choice.key, name: choice.name })),
+        }
+      : property?.kind === "relation"
+        ? elementsOf(property["target-types"], true)
+        : property?.kind === "number"
+          ? await typed(numberOr)()
+          : await asText();
+  },
+  // Elements of the target types of the kind it reads: from the element the kind was offered for
+  // (`relation.options`), else from the metamodel.
+  relationTarget: async ({ context, of, before }) => {
+    if (typeof before === "string") {
+      const answer = await context.call("relation.options", { ref: before });
+      return answer.ok
+        ? elementsOf(answer.output.kinds.find((kind) => kind.kind === of)?.targetTypes)
+        : { kind: "failed", message: answer.message };
+    }
+    const answer = await context.call("metamodel.get", {});
+    return answer.ok
+      ? elementsOf(answer.output.relations.find((kind) => kind.key === of)?.["target-types"])
+      : { kind: "failed", message: answer.message };
+  },
+  // The relations of an element (`relation.remove`): of the element, the kinds of its outgoing relations
+  // (relation kinds only, not the properties of kind relation); of a kind, the targets of that kind.
+  relation: async ({ context, of, ofSource, before }) => {
+    const byKind = ofSource === "relation";
+    const element = await elementOf(context, byKind ? before : of);
+    if (failed(element)) {
+      return element;
+    }
+    const out = (element?.relations ?? []).filter(
+      (relation) => relation.direction === "out" && relation.property !== true,
+    );
+    if (byKind) {
+      return {
+        kind: "list",
+        values: out
+          .filter((relation) => relation.kind === of)
+          .map((relation) => ({
+            value: relation.id,
+            name: [relation.shortId ?? relation.id, relation.title ?? ""].join(" ").trim(),
+          })),
+      };
+    }
+    return listOf(await context.call("metamodel.get", {}), (output) =>
+      output.relations
+        .filter((kind) => out.some((relation) => relation.kind === kind.key))
+        .map((kind) => ({ value: kind.key, name: kind.name })),
+    );
+  },
+  // The hints of the element that can be confirmed (those with a `hintId`), by their message.
+  hint: async ({ context, of, taken }) =>
+    typeof of === "string"
+      ? listOf(await context.call("hint.list", { ref: of }), (output) =>
+          output.hints.flatMap((hint) =>
+            hint.hintId === undefined || taken.includes(hint.hintId)
+              ? []
+              : [{ value: hint.hintId, name: hint.message }],
+          ),
+        )
+      : await asText(),
+  // No command asks a saved filter by name yet; typed text.
   filter: asText,
 };
 
@@ -327,12 +473,23 @@ const offerFor = (
   at: number,
   arg: Argument,
 ): Promise<Offer | Failed> => {
-  const of = contextField(entry.command.arguments, at);
+  const args = entry.command.arguments;
+  const of = contextField(args, at);
+  const ofAt = args.findIndex((earlier) => earlier.field === of);
+  const before = contextField(args, ofAt);
+  const valueOf = (field: string | undefined): unknown =>
+    ordered(entry.given).find((given) => given.field === field && given.skipped !== true)?.value;
+  const ofSource = args[ofAt]?.complete;
   return OFFERS[arg.complete]({
     context,
     command: entry.command,
     field: arg.field,
-    of: entry.given.find((given) => given.field === of)?.value,
+    of: valueOf(of),
+    ...(ofSource === undefined ? {} : { ofSource }),
+    before: valueOf(before),
+    taken: entry.given
+      .filter((given) => given.field === arg.field && given.skipped !== true)
+      .map((given) => given.value),
   });
 };
 
@@ -579,6 +736,12 @@ const skip = (context: CatalogContext, entry: Entry, field: string, more: boolea
   });
 };
 
+/** The relation target a found element is, as a property of kind relation takes it (`{ id, repository }`). */
+const relationTargetOf = (row: Row): { readonly id: string; readonly repository: string } => ({
+  id: row.open.id,
+  repository: row.open.repository,
+});
+
 /** The field of the input that holds the properties (`element.create`: `properties`). */
 const PROPERTIES = "properties";
 
@@ -610,7 +773,7 @@ const giveProperty = (
 /** The target a found element is, for a relation property. */
 const targetOf = (row: Row): { readonly value: PropertyAnswer; readonly label: string } => {
   const label = `${row.label} ${row.title}`.trim();
-  return { value: { id: row.open.id, repository: row.open.repository, label }, label: row.label };
+  return { value: { ...relationTargetOf(row), label }, label: row.label };
 };
 
 /**
@@ -751,9 +914,17 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         };
       }
       if (offer.kind === "element") {
-        // The element shown, else the selected row of the shown list, comes first, so Enter takes it.
+        // A relation property's value is a relation target (`inputValue`); an element argument a reference.
+        const picked = (row: Row): unknown => (offer.target === true ? relationTargetOf(row) : row.open.id);
+        // The element shown, else the selected row of the shown list, comes first, so Enter takes it; not
+        // among target types, which it may not have.
         const shown = context.buffers[0];
-        const first = shown?.kind === "element" || shown?.kind === "neighbourhood" ? shown : context.row;
+        const first =
+          offer.types !== undefined
+            ? undefined
+            : shown?.kind === "element" || shown?.kind === "neighbourhood"
+              ? shown
+              : context.row;
         return {
           items:
             first === undefined
@@ -762,17 +933,21 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
                   {
                     id: first.key,
                     name: bufferName(first),
-                    ...take(first.id, first.name.replace(/ .*$/su, "")),
+                    ...take(
+                      offer.target === true ? { id: first.id, repository: first.repository } : first.id,
+                      first.name.replace(/ .*$/su, ""),
+                    ),
                   },
                 ],
           find: findElements(
             context,
             (row) => {
-              give(context, entry, field, row.open.id, row.label, false);
+              give(context, entry, field, picked(row), row.label, false);
             },
             {
+              ...(offer.types === undefined ? {} : { selection: { where: { type: [...offer.types] } } }),
               more: (row) => {
-                give(context, entry, field, row.open.id, row.label, true);
+                give(context, entry, field, picked(row), row.label, true);
               },
             },
           ),

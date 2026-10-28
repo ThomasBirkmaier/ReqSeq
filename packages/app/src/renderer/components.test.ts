@@ -36,6 +36,10 @@ import type { PropertyInfo, PropertyModel } from "./element-view.js";
 import type { PackageModel } from "./package-page.js";
 import type { RecentEntry } from "./recent.js";
 import { Minibuffer } from "./Minibuffer.js";
+import type { CatalogContext } from "./catalog-commands.js";
+import type { CommandListing } from "../shared/protocol.js";
+import { catalogItems } from "./catalog-commands.js";
+import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import type { Draft, ShownFile } from "./drafts.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 import type { BufferData } from "./modeline.js";
@@ -260,6 +264,56 @@ describe("Minibuffer", () => {
       await type(input(), "der");
       expect(texts('[role="option"]')).toEqual(["derives from"]);
       expect(texts("mark")).toEqual(["der"]);
+    });
+
+    it("[SR-108/AK4] completes a typed fragment of a value as it does commands: initials and a slip find it first, the matched characters marked", async () => {
+      // The status prompt "Set status" builds for a shown requirement, from `element.get` and `metamodel.get`.
+      // The catalog entry of `element.setStatus`, as `commands()` lists it.
+      const setStatus = {
+        name: "element.setStatus",
+        title: "Set status",
+        effect: "write",
+        implemented: true,
+        arguments: [
+          { field: "refs", complete: "element" },
+          { field: "status", complete: "status", of: "refs" },
+        ],
+        input: { type: "object", properties: { refs: { type: "array" } }, required: ["refs", "status"] },
+      } as unknown as CommandListing;
+      const asked: Prompt[] = [];
+      const call = vi.fn((name: string) =>
+        Promise.resolve({
+          ok: true,
+          output: name === "element.get" ? { element: { type: "requirement" } } : FIXTURE_METAMODEL,
+        }),
+      );
+      const context = {
+        workspace: true,
+        buffers: [elementBuffer("uuid-1", "spec", "SR-1 Title 1")],
+        call,
+        ask: (prompt: Prompt) => asked.push(prompt),
+        echo: vi.fn(),
+        drafted: () => false,
+      } as unknown as CatalogContext;
+      const filled = async (): Promise<Prompt> => {
+        await flush();
+        const prompt = asked.at(-1);
+        if (prompt === undefined) {
+          throw new Error("nothing asked");
+        }
+        return prompt.fill === undefined ? prompt : { ...prompt, ...(await prompt.fill) };
+      };
+      catalogItems(context, [setStatus], [])[0]?.run();
+      (await filled()).items[0]?.run();
+      (await filled()).empty?.(false);
+      const status = await filled();
+      expect(status.label).toBe("Set status SR-1 · status:");
+      await mount(status);
+      await type(input(), "aprv");
+      expect(texts('[role="option"] .name')[0]).toBe("Approved");
+      expect(texts("mark").join("")).toBe("Aprv");
+      await type(input(), "aproved");
+      expect(texts('[role="option"] .name')[0]).toBe("Approved");
     });
 
     it("goes back on Backspace in an empty input, and leaves Backspace in a typed text to the input", async () => {

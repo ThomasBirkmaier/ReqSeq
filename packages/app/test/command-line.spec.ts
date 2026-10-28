@@ -153,4 +153,147 @@ test.describe("the command prompt", () => {
     await expect(window.locator(".result")).toContainText("confirmed");
     expect(await hints()).toEqual([]);
   });
+
+  test.describe("arguments completed with the values of the metamodel (SR-108 AK4)", () => {
+    /** What the CLI gives for `metamodel get`. */
+    interface Metamodel {
+      readonly types: readonly { readonly key: string; readonly statuses: readonly string[] }[];
+      readonly statuses: readonly { readonly key: string; readonly name: string }[];
+      readonly properties: readonly {
+        readonly key: string;
+        readonly name: string;
+        readonly meaning?: string;
+        readonly choices?: readonly { readonly name: string }[];
+      }[];
+    }
+    const metamodel = async (): Promise<Metamodel> =>
+      JSON.parse((await running.cli(["metamodel", "get"])).stdout) as Metamodel;
+    const label = (window: Page) => window.locator("label.prompt-label");
+    const open = async (window: Page, shortId: string, title: string): Promise<void> => {
+      await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
+      await window.keyboard.press("ControlOrMeta+P");
+      await window.keyboard.type(shortId);
+      await expect(window.locator('.candidates [role="option"]').first()).toContainText(title);
+      await window.keyboard.press("Enter");
+      await expect(window.locator("article h1")).toContainText(title);
+    };
+    const command = async (window: Page, title: string): Promise<void> => {
+      await window.keyboard.press("ControlOrMeta+Shift+P");
+      await window.keyboard.type(title);
+      await expect(names(window).first()).toHaveText(title);
+      await window.keyboard.press("Enter");
+    };
+
+    test("[SR-108/AK4] Set status offers only the statuses of the element's type, and a typed fragment finds one first", async () => {
+      // Software requirements may only be draft or approved; "Obsolete" is a status of the metamodel.
+      running = await launchApp({
+        ...FIXTURE,
+        files: {
+          "metamodel/software.yaml": [
+            "logreq-metamodel: 1",
+            "types:",
+            "  - key: software-requirement",
+            "    name: Software Requirement",
+            "    prefix: SWR",
+            "    extends: system-requirement",
+            "    properties: [priority]",
+            "    statuses: [draft, approved]",
+            "properties:",
+            "  - { key: priority, name: Priority, kind: number }",
+            "",
+          ].join("\n"),
+        },
+      });
+      const { window } = running;
+      await open(window, "SWR-0000f1", "Filter the sensor signal");
+      await command(window, "Set status");
+      await expect(label(window)).toHaveText("Set status · refs:");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Set status SWR-0000f1 · refs:");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Set status SWR-0000f1 · status:");
+      const model = await metamodel();
+      const allowed = model.types.find((type) => type.key === "software-requirement")?.statuses ?? [];
+      expect(model.statuses.map((status) => status.name)).toContain("Obsolete");
+      await expect(names(window)).toHaveText(
+        model.statuses.filter((status) => allowed.includes(status.key)).map((status) => status.name),
+      );
+      await expect(names(window)).toHaveText(["Draft", "Approved"]);
+      await window.keyboard.type("aprv");
+      await expect(names(window).first()).toHaveText("Approved");
+      await expect(names(window).first().locator("mark")).toHaveText(["Ap", "r", "v"]);
+      await window.keyboard.press("Enter");
+      await expect(window.locator(".result")).toBeVisible();
+      const element = await running.cli(["element", "get", "SWR-0000f1"]);
+      expect((JSON.parse(element.stdout) as { element: { status: string } }).element.status).toBe("approved");
+    });
+
+    test("[SR-108/AK4] Create relation offers the kinds relation options gives and only targets of their types, also for a target typed with a typo", async () => {
+      // One more decision whose title has a word of a requirement and a need ("wind").
+      running = await launchApp({
+        ...FIXTURE,
+        files: {
+          "decisions/D-0000000000e2.md":
+            "---\nid: 69069069-0000-4000-8000-0000000000e2\ntype: decision\nstatus: draft\ntitle: Shield the wind vane\n---\n",
+        },
+      });
+      const { window } = running;
+      await open(window, "SR-0000b1", "Measure wind speed");
+      await command(window, "Create relation");
+      await expect(label(window)).toHaveText("Create relation · source:");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Create relation SR-0000b1 · kind:");
+      const options = await running.cli(["relation", "options", "SR-0000b1"]);
+      const kinds = (JSON.parse(options.stdout) as { kinds: { name: string }[] }).kinds.map(
+        (kind) => kind.name,
+      );
+      // "Excludes" is a kind of the metamodel that a system requirement may not have.
+      expect(kinds).not.toContain("Excludes");
+      await expect(names(window)).toHaveText(kinds);
+      await window.keyboard.type("based");
+      await expect(names(window).first()).toHaveText("Based on");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Create relation SR-0000b1 Based on · target:");
+      // Only decisions: "wind" also names a requirement and a need, which are no targets of "Based on".
+      await window.keyboard.type("wind");
+      await expect(names(window)).toHaveText(["D-0000e2 Shield the wind vane"]);
+      await window.keyboard.press("ControlOrMeta+A");
+      await window.keyboard.type("ultrasnd");
+      await expect(names(window).first()).toHaveText("D-0000e1 Use ultrasound");
+      await window.keyboard.press("Enter");
+      await expect(window.locator(".result")).toBeVisible();
+      const element = await running.cli(["element", "get", "SR-0000b1"]);
+      const relations = (
+        JSON.parse(element.stdout) as { element: { relations: { kind: string; shortId?: string }[] } }
+      ).element.relations;
+      expect(relations.map((relation) => `${relation.kind} ${relation.shortId ?? ""}`)).toContain(
+        "based-on D-0000e1",
+      );
+    });
+
+    test("[SR-108/AK4] Bulk update offers the metamodel's properties and that property's values", async () => {
+      running = await launchApp(FIXTURE);
+      const { window } = running;
+      await listAll(window);
+      await command(window, "Bulk update elements");
+      await expect(label(window)).toHaveText("Bulk update elements · property:");
+      const model = await metamodel();
+      await expect(names(window)).toHaveText(
+        model.properties.filter((property) => property.meaning !== "title").map((property) => property.name),
+      );
+      await window.keyboard.type("Requirement Type");
+      await expect(names(window).first()).toHaveText("Requirement Type");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Bulk update elements Requirement Type · operation:");
+      await window.keyboard.type("set");
+      await expect(names(window).first()).toHaveText("set");
+      await window.keyboard.press("Enter");
+      await expect(label(window)).toHaveText("Bulk update elements Requirement Type set · value:");
+      const choices = model.properties.find((property) => property.key === "requirement-type")?.choices ?? [];
+      await expect(names(window)).toHaveText(choices.map((choice) => choice.name));
+      // Escape: nothing is written.
+      await window.keyboard.press("Escape");
+      await expect(label(window)).toHaveCount(0);
+    });
+  });
 });

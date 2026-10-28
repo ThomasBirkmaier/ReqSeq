@@ -11,6 +11,7 @@ import { WRITES, catalogItems, contextField, fits, refusedOf } from "./catalog-c
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
+import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
@@ -312,7 +313,7 @@ describe("catalog commands in the command prompt", () => {
     expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { revision: 3 } });
   });
 
-  it("finds elements for an element argument and takes the one chosen", async () => {
+  it("[SR-108/AK4] finds elements by element.search for an element argument, and takes the one chosen", async () => {
     const { context, asked, call } = setup([list], {
       "element.search": () => ({ hits: [hit(4)], total: 1 }),
       "trace.affected": () => ({ elements: [], total: 0 }),
@@ -322,6 +323,7 @@ describe("catalog commands in the command prompt", () => {
     // No row of the list has loaded, so nothing comes first.
     expect(ref.items).toEqual([]);
     const found = await ref.find?.("tit");
+    expect(call).toHaveBeenLastCalledWith("element.search", expect.objectContaining({ query: "tit" }));
     expect(found?.map((i) => i.name)).toEqual(["SR-000004 Title 4"]);
     found?.[0]?.run();
     await flush();
@@ -630,7 +632,7 @@ describe("catalog commands in the command prompt", () => {
       { field: "maxValues", complete: "number" as const },
       { field: "data", complete: "json" as const },
       { field: "kinds", complete: "relationKind" as const },
-      { field: "status", complete: "status" as const },
+      { field: "status", complete: "text" as const },
       { field: "meanings", complete: "choice" as const },
       { field: "none", complete: "choice" as const },
     ],
@@ -1142,6 +1144,15 @@ describe('"Create element": the required properties asked in the command line (S
   });
 });
 
+/** What `hint.list` gives for the shown element: one hint that can be confirmed, one that cannot. */
+const HINTS = {
+  hints: [
+    { code: "relation.outdated", severity: "warning", message: "Relation Refines is outdated", hintId: "h1" },
+    { code: "element.missing-required", severity: "warning", message: "Required property x has no value" },
+  ],
+  incomplete: false,
+};
+
 describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   const list = listBuffer("type: need", { where: { type: ["need"] } });
   const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
@@ -1188,6 +1199,7 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
     const { context, asked, call, dispatched } = setup([shown], {
       "hint.confirm": () => ({ confirmed: ["h1"], files: ["f1.md"], problems: [] }),
+      "hint.list": () => HINTS,
     });
     // Without a required argument it asks its first one, so it fits the shown element.
     expect(fits(context, command("hint.confirm"))).toBe(true);
@@ -1209,17 +1221,22 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   });
 
   it("takes the values of an optional argument read from a given one, and offers a skipped one again with Ctrl/Cmd+Enter", async () => {
-    const { context, asked, call } = setup([shown], { "hint.confirm": () => ({ confirmed: [] }) });
+    const { context, asked, call } = setup([shown], {
+      "hint.confirm": () => ({ confirmed: [] }),
+      "hint.list": () => HINTS,
+    });
     start(context, "hint.confirm");
     (await last(asked)).items[0]?.run();
-    (await last(asked)).text?.("h1");
+    item((await last(asked)).items, "Relation Refines is outdated").run();
     const second = await last(asked);
-    expect(second.label).toBe("Confirm hints SR-1 h1 · hintIds:");
+    expect(second.label).toBe("Confirm hints SR-1 Relation Refines is outdated · hintIds:");
+    // A hint taken is not offered again.
+    expect(second.items).toEqual([]);
     second.empty?.(false);
     await flush();
     expect(call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1", hintIds: ["h1"] });
     // Skipped with Ctrl/Cmd+Enter: the optional arguments follow, the skipped one among them.
-    const again = setup([shown], { "hint.confirm": () => ({ confirmed: [] }) });
+    const again = setup([shown], { "hint.confirm": () => ({ confirmed: [] }), "hint.list": () => HINTS });
     start(again.context, "hint.confirm");
     (await last(again.asked)).items[0]?.run();
     (await last(again.asked)).empty?.(true);
@@ -1230,33 +1247,18 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     expect((await last(again.asked)).label).toBe("Confirm hints SR-1 · hintIds:");
   });
 
-  it("asks a bulk update's property, operation and value on a list, and writes only with confirm", async () => {
-    const { context, asked, call } = setup([list], {
-      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
-    });
-    start(context, "element.bulkUpdate");
-    (await last(asked)).text?.("component");
-    const operation = await last(asked);
-    expect(operation.label).toBe("Bulk update elements component · operation:");
-    item(operation.items, "set").run();
-    const value = await last(asked);
-    expect(value.label).toBe("Bulk update elements component set · value:");
-    value.text?.("display");
-    await flush();
-    // No `confirm`: core shows what it would change and writes nothing.
-    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", {
-      selection: { where: { type: ["need"] } },
-      property: "component",
-      operation: "set",
-      value: "display",
-    });
-  });
-
   it("asks no optional argument that reads one not given: Supersede element runs without successor and relation", async () => {
-    const { context, asked, call } = setup([shown], { "element.supersede": () => ({ files: [] }) });
+    const { context, asked, call } = setup([shown], {
+      "element.supersede": () => ({ files: [] }),
+      "element.get": () => ({ element: { ...hit(1), type: "requirement" } }),
+      "metamodel.get": () => FIXTURE_METAMODEL,
+    });
     start(context, "element.supersede");
     (await last(asked)).items[0]?.run();
-    (await last(asked)).text?.("retired");
+    // Only the invalid statuses of the element's type.
+    const status = await last(asked);
+    expect(status.items.map((i) => i.name)).toEqual(["Retired"]);
+    status.items[0]?.run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.supersede", { ref: "uuid-1", status: "retired" });
   });
@@ -1264,7 +1266,10 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   it("saves every open buffer's input before a write command runs, and does not run it when one cannot be saved", async () => {
     const other = elementBuffer("uuid-2", "spec", "SR-2 Title 2");
     const saved: string[] = [];
-    const running = setup([shown, other], { "hint.confirm": () => ({ confirmed: [] }) });
+    const running = setup([shown, other], {
+      "hint.confirm": () => ({ confirmed: [] }),
+      "hint.list": () => HINTS,
+    });
     const context = {
       ...running.context,
       drafted: (key: string) => key === other.key,
@@ -1280,7 +1285,10 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     expect(saved).toEqual([other.key]);
     expect(running.call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
     // Input that cannot be saved stops the command before it is sent.
-    const stopped = setup([shown, other], { "hint.confirm": () => ({ confirmed: [] }) });
+    const stopped = setup([shown, other], {
+      "hint.confirm": () => ({ confirmed: [] }),
+      "hint.list": () => HINTS,
+    });
     const failing = {
       ...stopped.context,
       drafted: () => true,
@@ -1295,6 +1303,7 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     // Without saveDraft nothing is saved, and the command runs; a read command saves nothing.
     const unsaving = setup([shown], {
       "hint.confirm": () => ({ confirmed: [] }),
+      "hint.list": () => HINTS,
       "relation.options": () => OPTIONS,
     });
     const plain = { ...unsaving.context, drafted: () => true };
@@ -1309,5 +1318,347 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     await flush();
     expect(saveDraft).not.toHaveBeenCalled();
     expect(unsaving.call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
+  });
+});
+
+describe("the arguments a command expects, completed with the values of the metamodel (SR-108 AK4)", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const shown = elementBuffer("uuid-1", "spec", "SR-1 Title 1");
+  /** The element `element.get` gives: of `type`, with `relations`. */
+  const element =
+    (type: string, relations: readonly Record<string, unknown>[] = []) =>
+    () => ({
+      element: { ...hit(1), type, properties: {}, relations },
+    });
+  const failure = Object.assign(new Error("No such element"), { name: "ref.unknown" });
+
+  it("[SR-108/AK4] completes the status of an element with the statuses its type allows", async () => {
+    const { context, asked, call } = setup([shown], {
+      "element.get": element("decision"),
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.setStatus": () => ({ files: [] }),
+    });
+    start(context, "element.setStatus");
+    (await last(asked)).items[0]?.run();
+    (await last(asked)).empty?.(false);
+    const status = await last(asked);
+    expect(status.label).toBe("Set status SR-1 · status:");
+    // `refs` is a list: the statuses of its first element's type, by name; core checks the others.
+    expect(call).toHaveBeenCalledWith("element.get", { ref: "uuid-1" });
+    expect(status.items.map((i) => i.name)).toEqual(["Open", "Decided"]);
+    item(status.items, "Decided").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.setStatus", { refs: ["uuid-1"], status: "decided" });
+  });
+
+  it("offers every status of the metamodel without an element, and says why an element cannot be read", async () => {
+    const statusOf = {
+      ...command("element.setStatus"),
+      arguments: [{ field: "status", complete: "status" as const }],
+    };
+    const plain = setup([shown], { "metamodel.get": () => FIXTURE_METAMODEL });
+    catalogItems(plain.context, [statusOf], [])[0]?.run();
+    expect((await last(plain.asked)).items.map((i) => i.name)).toEqual([
+      "Draft",
+      "Approved",
+      "Retired",
+      "Open",
+      "Decided",
+    ]);
+    const gone = setup([shown], { "element.get": () => failure, "metamodel.get": () => FIXTURE_METAMODEL });
+    start(gone.context, "element.setStatus");
+    (await last(gone.asked)).items[0]?.run();
+    (await last(gone.asked)).empty?.(false);
+    expect((await last(gone.asked)).label).toBe("No such element · Set status SR-1 · status:");
+  });
+
+  it("[SR-108/AK4] completes the property of a bulk update with the properties of the metamodel, and its value with the values the metamodel fixes for it", async () => {
+    const { context, asked, call } = setup([list], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.search": () => ({ hits: [hit(5)], total: 1 }),
+      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+    });
+    catalogItems(context, CATALOG, ACTIONS)
+      .find((choice) => choice.name === "Bulk update elements")
+      ?.run();
+    const property = await last(asked);
+    expect(property.label).toBe("Bulk update elements · property:");
+    // Every property of the metamodel but the title, which a bulk update refuses.
+    expect(property.items.map((i) => i.name)).toEqual(["Rationale", "Component", "Package", "Severity"]);
+    item(property.items, "Component").run();
+    item((await last(asked)).items, "set").run();
+    const value = await last(asked);
+    expect(value.label).toBe("Bulk update elements Component set · value:");
+    expect(value.items.map((i) => i.name)).toEqual(["Display", "Sensor"]);
+    item(value.items, "Sensor").run();
+    await flush();
+    // No `confirm`: core shows what it would change and writes nothing.
+    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      selection: { where: { type: ["need"] } },
+      property: "component",
+      operation: "set",
+      value: "sensor",
+    });
+    // A relation property's value: only elements of its target types; a text kind: typed text.
+    start(context, "element.bulkUpdate");
+    item((await last(asked)).items, "Package").run();
+    item((await last(asked)).items, "add").run();
+    const target = await last(asked);
+    expect(target.items).toEqual([]);
+    const packages = await target.find?.("pkg");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "pkg",
+      selection: { where: { type: ["package"] } },
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    // The element found is given as a relation target, as the property stores it, not as a reference.
+    packages?.[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith(
+      "element.bulkUpdate",
+      expect.objectContaining({ property: "packages", value: { id: "uuid-5", repository: "spec" } }),
+    );
+    // A number property's value is a number.
+    start(context, "element.bulkUpdate");
+    item((await last(asked)).items, "Severity").run();
+    item((await last(asked)).items, "set").run();
+    (await last(asked)).text?.("3");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.bulkUpdate", expect.objectContaining({ value: 3 }));
+  });
+
+  it("offers the properties of the element's type for a property of an element, and says why the metamodel cannot be read", async () => {
+    // As a read command: the prompt lists no write command that the element buffer covers.
+    const unset = {
+      ...command("element.update"),
+      effect: "read" as const,
+      arguments: [
+        { field: "ref", complete: "element" as const },
+        { field: "unset", complete: "property" as const, of: "ref" },
+      ],
+      input: { type: "object", required: ["ref", "unset"] },
+    };
+    const { context, asked } = setup([shown], {
+      "element.get": element("requirement"),
+      "metamodel.get": () => FIXTURE_METAMODEL,
+    });
+    catalogItems(context, [unset], [])[0]?.run();
+    (await last(asked)).items[0]?.run();
+    expect((await last(asked)).items.map((i) => i.name)).toEqual(["Rationale", "Package"]);
+    const gone = setup([shown], { "element.get": () => failure });
+    catalogItems(gone.context, [unset], [])[0]?.run();
+    (await last(gone.asked)).items[0]?.run();
+    expect((await last(gone.asked)).label).toBe("No such element · Update element SR-1 · unset:");
+    const noModel = setup([list], {
+      "metamodel.get": () => Object.assign(new Error("Broken"), { name: "x" }),
+    });
+    start(noModel.context, "element.bulkUpdate");
+    expect((await last(noModel.asked)).label).toBe("Broken · Bulk update elements · property:");
+    // The value of an unknown property, or of a property never given, is typed text.
+    const valueOf = {
+      ...command("element.bulkUpdate"),
+      arguments: [
+        { field: "property", complete: "text" as const },
+        { field: "value", complete: "value" as const, of: "property" },
+      ],
+      input: { type: "object", required: ["property", "value"] },
+    };
+    // A relation property without target types: any element, the shown one first, as a relation target.
+    const related = setup([shown], {
+      "metamodel.get": () => CREATE_METAMODEL,
+      "element.bulkUpdate": () => ({ total: 0, changes: [] }),
+    });
+    catalogItems(related.context, [valueOf], [])[0]?.run();
+    (await last(related.asked)).text?.("related");
+    const relatedValue = await last(related.asked);
+    expect(relatedValue.items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    relatedValue.items[0]?.run();
+    await flush();
+    expect(related.call).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      property: "related",
+      value: { id: "uuid-1", repository: "spec" },
+    });
+    const typed = setup([list], { "metamodel.get": () => FIXTURE_METAMODEL });
+    catalogItems(typed.context, [valueOf], [])[0]?.run();
+    (await last(typed.asked)).text?.("nothing");
+    expect((await last(typed.asked)).text).toBeDefined();
+    // A choice property without choices offers none.
+    const bare = setup([list], {
+      "metamodel.get": () => ({
+        ...FIXTURE_METAMODEL,
+        properties: [{ key: "mood", name: "Mood", kind: "choice" }],
+      }),
+    });
+    catalogItems(bare.context, [valueOf], [])[0]?.run();
+    (await last(bare.asked)).text?.("mood");
+    expect((await last(bare.asked)).items).toEqual([]);
+    const broken = setup([list], {
+      "metamodel.get": () => Object.assign(new Error("Broken"), { name: "x" }),
+    });
+    catalogItems(broken.context, [valueOf], [])[0]?.run();
+    (await last(broken.asked)).text?.("component");
+    expect((await last(broken.asked)).label).toBe("Broken · Bulk update elements component · value:");
+  });
+
+  it("[SR-108/AK4] completes the target of a relation with elements of the kind's target types only", async () => {
+    const { context, asked, call } = setup([shown], {
+      "relation.options": () => OPTIONS,
+      "element.search": () => ({ hits: [hit(7)], total: 1 }),
+      "relation.add": () => ({ files: [] }),
+    });
+    start(context, "relation.add");
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "derives from").run();
+    const target = await last(asked);
+    expect(target.label).toBe("Create relation SR-1 derives from · target:");
+    // The shown element is no candidate: it need not be of a target type.
+    expect(target.items).toEqual([]);
+    const found = await target.find?.("tit");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "tit",
+      selection: { where: { type: ["need"] } },
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    found?.[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("relation.add", {
+      source: "uuid-1",
+      kind: "derives-from",
+      target: "uuid-7",
+    });
+  });
+
+  it("[SR-108/AK4] a typed fragment of a relation target with a typo is searched with the kind's target types", async () => {
+    const { context, asked, call } = setup([shown], {
+      "relation.options": () => OPTIONS,
+      "element.search": () => ({ hits: [hit(7)], total: 1 }),
+    });
+    start(context, "relation.add");
+    (await last(asked)).items[0]?.run();
+    item((await last(asked)).items, "refines").run();
+    await (await last(asked)).find?.("Titel 7");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "Titel 7",
+      selection: { where: { type: ["need"] } },
+      fields: ["id", "title"],
+      limit: 20,
+    });
+  });
+
+  it("takes the target types of a kind from the metamodel without a source, and none for a kind that allows none", async () => {
+    const targetOf = {
+      ...command("relation.add"),
+      arguments: [
+        { field: "kind", complete: "relationKind" as const },
+        { field: "target", complete: "relationTarget" as const, of: "kind" },
+      ],
+      input: { type: "object", required: ["kind", "target"] },
+    };
+    const { context, asked, call } = setup([shown], {
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "element.search": () => ({ hits: [], total: 0 }),
+    });
+    catalogItems(context, [targetOf], [])[0]?.run();
+    item((await last(asked)).items, "Based on").run();
+    await (await last(asked)).find?.("x");
+    expect(call).toHaveBeenLastCalledWith(
+      "element.search",
+      expect.objectContaining({ selection: { where: { type: ["decision"] } } }),
+    );
+    // A kind without target types finds any element; an unknown kind too.
+    catalogItems(context, [targetOf], [])[0]?.run();
+    item((await last(asked)).items, "Refines").run();
+    await (await last(asked)).find?.("x");
+    expect(call.mock.lastCall?.[0]).toBe("element.search");
+    expect(call.mock.lastCall?.[1]).not.toHaveProperty("selection");
+    // A kind whose source allows no target type offers nothing.
+    const none = setup([shown], {
+      "relation.options": () => ({ kinds: [{ kind: "blocks", name: "blocks", targetTypes: [] }] }),
+    });
+    start(none.context, "relation.add");
+    (await last(none.asked)).items[0]?.run();
+    item((await last(none.asked)).items, "blocks").run();
+    const empty = await last(none.asked);
+    expect(empty.items).toEqual([]);
+    expect(empty.find).toBeUndefined();
+    // Why the target types cannot be read, in the label.
+    const broken = setup([shown], {
+      "metamodel.get": () => Object.assign(new Error("Broken"), { name: "x" }),
+    });
+    catalogItems(
+      broken.context,
+      [{ ...targetOf, arguments: [{ field: "target", complete: "relationTarget" as const }] }],
+      [],
+    )[0]?.run();
+    expect((await last(broken.asked)).label).toBe("Broken · Create relation · target:");
+    let options = 0;
+    const late = setup([shown], {
+      "relation.options": () => {
+        options += 1;
+        return options === 1 ? OPTIONS : Object.assign(new Error("Gone"), { name: "x" });
+      },
+    });
+    start(late.context, "relation.add");
+    (await last(late.asked)).items[0]?.run();
+    item((await last(late.asked)).items, "refines").run();
+    expect((await last(late.asked)).label).toBe("Gone · Create relation SR-1 refines · target:");
+  });
+
+  it("[SR-108/AK4] completes the relation to remove from the element's relations, and an open hint from hint.list", async () => {
+    const relations = [
+      { kind: "refines", direction: "out", id: "uuid-2", shortId: "SR-000002", title: "Title 2" },
+      { kind: "refines", direction: "out", id: "uuid-3" },
+      { kind: "based-on", direction: "in", id: "uuid-4", shortId: "SR-000004" },
+      { kind: "packages", property: true, direction: "out", id: "uuid-5", shortId: "PKG-000005" },
+    ];
+    const { context, asked, call } = setup([shown], {
+      "element.get": element("requirement", relations),
+      "metamodel.get": () => FIXTURE_METAMODEL,
+      "relation.remove": () => ({ files: [] }),
+      "hint.list": () => HINTS,
+    });
+    start(context, "relation.remove");
+    (await last(asked)).items[0]?.run();
+    const kind = await last(asked);
+    // The kinds of its outgoing relations, not a property of kind relation, not an incoming one.
+    expect(kind.items.map((i) => i.name)).toEqual(["Refines"]);
+    kind.items[0]?.run();
+    const target = await last(asked);
+    expect(target.label).toBe("Remove relation SR-1 Refines · target:");
+    expect(target.items.map((i) => i.name)).toEqual(["SR-000002 Title 2", "uuid-3"]);
+    target.items[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("relation.remove", {
+      source: "uuid-1",
+      kind: "refines",
+      target: "uuid-2",
+    });
+    // An open hint: only the hints that can be confirmed, by their message.
+    start(context, "hint.confirm");
+    (await last(asked)).items[0]?.run();
+    const hints = await last(asked);
+    expect(call).toHaveBeenLastCalledWith("hint.list", { ref: "uuid-1" });
+    expect(hints.items.map((i) => i.name)).toEqual(["Relation Refines is outdated"]);
+    // Without an element the hint IDs are typed; a source that cannot be read says why.
+    const hintOf = {
+      ...command("hint.confirm"),
+      arguments: [{ field: "hintIds", complete: "hint" as const }],
+    };
+    catalogItems(context, [hintOf], [])[0]?.run();
+    expect((await last(asked)).text).toBeDefined();
+    // Without an element there is no relation to offer.
+    const relationOf = {
+      ...command("relation.remove"),
+      arguments: [{ field: "kind", complete: "relation" as const }],
+      input: { type: "object", required: ["kind"] },
+    };
+    catalogItems(context, [relationOf], [])[0]?.run();
+    expect((await last(asked)).items).toEqual([]);
+    const gone = setup([shown], { "element.get": () => failure });
+    start(gone.context, "relation.remove");
+    (await last(gone.asked)).items[0]?.run();
+    expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-1 · kind:");
   });
 });
