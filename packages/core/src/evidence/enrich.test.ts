@@ -297,6 +297,26 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     );
   });
 
+  it("replaces existing properties in place whatever order they stand in", async () => {
+    const xml = suite(
+      `<testcase name="t"><properties>` +
+        prop("logreq:date", "2020-01-01T00:00:00Z") +
+        prop("logreq:item", "old") +
+        prop("logreq:element", "SR-46fb54") +
+        `</properties></testcase>`,
+    );
+    expect(text(await enrich(xml))).toBe(
+      suite(
+        `<testcase name="t"><properties>` +
+          prop("logreq:date", DATE) +
+          prop("logreq:item", "build-1") +
+          prop("logreq:element", LOGIN) +
+          prop("logreq:version", V[LOGIN]) +
+          `</properties></testcase>`,
+      ),
+    );
+  });
+
   it("gives the same bytes when a file is enriched twice", async () => {
     const first = await enrich(
       suite('<testcase name="[SR-46fb54] a"/><testcase name="[SR-0b0036] [SR-0c0037] b"/>'),
@@ -465,6 +485,20 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(read.records.map((r) => [r.testCase, r.variant])).toEqual([["[SR-46fb54] c", variant]]);
   });
 
+  it("reports a logreq:variant that holds more than a UUID", async () => {
+    const variant = "29000000-0000-4000-8000-0000000aaaaa";
+    const xml = suite(
+      `<testcase name="[SR-46fb54] a"><properties>${prop("logreq:variant", `x${variant}`)}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] b"><properties>${prop("logreq:variant", `${variant}x`)}</properties></testcase>`,
+    );
+    const result = await enrich(xml);
+    expect(result.problems.map((p) => p.message)).toEqual([
+      `Test case "[SR-46fb54] a" (line 1) is not enriched: logreq:variant "x${variant}" is not a UUID`,
+      `Test case "[SR-46fb54] b" (line 1) is not enriched: logreq:variant "${variant}x" is not a UUID`,
+    ]);
+    expect(result.changed).toBe(false);
+  });
+
   it("escapes & < > \" ' and line breaks so that they read back unchanged", async () => {
     const item = "build\t1\nline & <tag> \"quoted\" 'single'\r\nend";
     const result = await enrich(
@@ -515,6 +549,20 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("takes the suite timestamp over two own dates that differ, and writes it into both", async () => {
+    const xml =
+      `<testsuites><testsuite name="zone" timestamp="2026-10-27T12:22:13.306Z">` +
+      `<testcase name="[SR-46fb54] two"><properties>` +
+      prop("logreq:date", "2026-10-02T08:00:00+02:00") +
+      prop("logreq:date", "2026-10-03T08:00:00+02:00") +
+      `</properties></testcase></testsuite></testsuites>`;
+    const result = await enrich(xml, { date: undefined });
+    expect(properties(result.bytes)["[SR-46fb54] two"]?.filter((p) => p.startsWith("logreq:date="))).toEqual([
+      "logreq:date=2026-10-27T12:22:13.306Z",
+      "logreq:date=2026-10-27T12:22:13.306Z",
+    ]);
   });
 
   it("enriches a skipped test case, which the reader keeps as a test case without execution", async () => {
@@ -576,6 +624,35 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     for (const bytes of refused) {
       expect(readsBackAs(bytes, wanted)).toBe(false);
     }
+  });
+
+  it("reads an enriched test case back only when every element has its intended version", () => {
+    const wanted: Intended = {
+      name: "[SR-46fb54] a",
+      className: "",
+      outcome: "passed",
+      start: 0,
+      end: 0,
+      pairs: new Map([
+        [LOGIN, V[LOGIN]],
+        [REPORT, V[REPORT]],
+      ]),
+      item: "build-1",
+      date: DATE,
+    };
+    const testCase = (versions: readonly string[]): Buffer =>
+      Buffer.from(
+        `<testcase name="[SR-46fb54] a"><properties>` +
+          prop("logreq:element", LOGIN) +
+          prop("logreq:element", REPORT) +
+          versions.map((v) => prop("logreq:version", v)).join("") +
+          prop("logreq:item", "build-1") +
+          prop("logreq:date", DATE) +
+          `</properties></testcase>`,
+      );
+    expect(readsBackAs(testCase([V[LOGIN], V[REPORT]]), wanted)).toBe(true);
+    expect(readsBackAs(testCase([V[LOGIN], V[LOG]]), wanted)).toBe(false);
+    expect(readsBackAs(testCase([V[REPORT], V[LOGIN]]), wanted)).toBe(false);
   });
 
   it("the read-back refuses with internal a result whose enriched test case does not read back, or whose other bytes differ from the file as read (B3, N1)", () => {

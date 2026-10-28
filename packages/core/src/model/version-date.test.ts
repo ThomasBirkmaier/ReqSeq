@@ -351,6 +351,63 @@ describe("version date", () => {
     ).toEqual([null, null, null, at(repo, "one")]);
   });
 
+  it("dates a version by the next commit when the commit before holds frontmatter that is null, a list or a scalar", async () => {
+    for (const frontmatter of ["null", "- a", "foo"]) {
+      const repo = await repository([
+        { name: "before", files: { [FILE]: `---\n${frontmatter}\n---\n` } },
+        { name: "one", files: { [FILE]: element("One.") } },
+      ]);
+      expect(
+        await dates(repo.workspace, [{ version: await versionOf(repo.workspace, element("One.")) }]),
+      ).toEqual([at(repo, "one")]);
+    }
+  });
+
+  it("reads the file only at the commits that changed it, and at a merge whose sides differ for it", async () => {
+    const repo = await repository([
+      { name: "one", files: { [FILE]: element("One."), "notes.md": "a\n" } },
+      { name: "notes", files: { "notes.md": "b\n" } },
+      { name: "side", parents: ["one"], files: { "notes.md": "c\n" } },
+      // Both sides lead to "one" for the file: the merge is not evaluated.
+      { name: "merged", parents: ["notes", "side"], files: { "notes.md": "d\n" } },
+      { name: "two", files: { [FILE]: element("Two.") } },
+      { name: "branch", parents: ["one"], files: { [FILE]: element("Branch.") } },
+      // The sides differ for the file: the merge is evaluated, though it changed only the notes.
+      { name: "differ", parents: ["two", "branch"], files: { "notes.md": "e\n" } },
+    ]);
+    /** The commits whose file was asked about (`<commit>:<path>`); blobs are read by ID and not counted. */
+    const asked = new Set<string>();
+    const note = (names: readonly string[]): void => {
+      for (const name of names) {
+        if (name.includes(":")) {
+          asked.add(name.slice(0, name.indexOf(":")));
+        }
+      }
+    };
+    vi.mocked(openObjectReader).mockImplementationOnce((folder, options): ObjectReader => {
+      const real = actual.openObjectReader(folder, options);
+      return {
+        info: (names) => {
+          note(names);
+          return real.info(names);
+        },
+        read: (names, open) => {
+          note(names);
+          return real.read(names, open);
+        },
+        close: () => {
+          real.close();
+        },
+      };
+    });
+    expect(
+      await dates(repo.workspace, [{ version: await versionOf(repo.workspace, element("Two.")) }]),
+    ).toEqual([at(repo, "two")]);
+    expect(openObjectReader).toHaveBeenCalledTimes(1);
+    const commits = (names: readonly string[]): string[] => names.map((n) => String(repo.made[n]?.id)).sort();
+    expect([...asked].sort()).toEqual(commits(["one", "two", "branch", "differ"]));
+  });
+
   it("dates a version that a merge resolved or put together from both sides by the merge", async () => {
     const base = element("Base. ![d](d.png)");
     const left = element("Left. ![d](d.png)");

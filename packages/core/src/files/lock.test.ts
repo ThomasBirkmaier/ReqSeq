@@ -208,6 +208,38 @@ describe("lockPrivateFile", () => {
     expect(await lockPrivateFile(file)).toBeUndefined();
   });
 
+  it("counts the lock as held when a crashed breaker's file was replaced by another crashed one, or was gone, between the two looks", async () => {
+    const breaker = `${file}.break`;
+    const stale = lockOf({ pid: DEAD_PID });
+    const readFile = fs.readFile.bind(fs);
+    /** Lets the first read of the breaker's file run `change` after it. */
+    const afterFirstLook = (change: () => Promise<void>): void => {
+      let looks = 0;
+      vi.spyOn(fs, "readFile").mockImplementation(async (...args: Parameters<typeof fs.readFile>) => {
+        const text = await readFile(...args);
+        if (args[0] === breaker && ++looks === 1) {
+          await change();
+        }
+        return text;
+      });
+    };
+    // Another start's breaker crashed in its place: that one is not this start's to remove, and the
+    // lock stays until a later start finds the new breaker stale.
+    await writeLock(stale);
+    await fs.writeFile(breaker, lockOf({ pid: DEAD_PID, nonce: "first" }));
+    const second = lockOf({ pid: DEAD_PID, nonce: "second" });
+    afterFirstLook(() => fs.writeFile(breaker, second));
+    expect(await lockPrivateFile(file)).toBeUndefined();
+    expect(await readFile(breaker, "utf8")).toBe(second);
+    expect(await readFile(file, "utf8")).toBe(stale);
+    vi.restoreAllMocks();
+    // The breaker finished between the two looks: its start may take the lock at any moment.
+    afterFirstLook(() => fs.rm(breaker));
+    expect(await lockPrivateFile(file)).toBeUndefined();
+    expect(await readFile(file, "utf8")).toBe(stale);
+    await expect(fs.stat(breaker)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("takes the lock when the stale one is gone at the break, or was given back meanwhile", async () => {
     await writeLock(lockOf({ pid: DEAD_PID }));
     const open = fs.open.bind(fs);

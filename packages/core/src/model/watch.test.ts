@@ -688,6 +688,46 @@ describe("the watcher's rules (SR-007)", () => {
     expect(await title(workspace, OTHER)).toBe("Other, pulled");
   });
 
+  it("[SR-007/AK2] reads the layout again when the OS dropped the names of the main repository, and not for another one that holds neither the workspace file nor the metamodel", async () => {
+    /** The workspace with a second repository beside it, which holds the metamodel or not. */
+    const beside = async (
+      metamodelIn: "system" | "other",
+    ): Promise<{ fixture: FixtureWorkspace; workspace: Workspace; other: string }> => {
+      const { fixture, workspace } = await opened({
+        files: {
+          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: ${metamodelIn}, path: metamodel }\n`,
+        },
+      });
+      const other = path.join(workspace.root, "..", "other");
+      await fs.mkdir(path.join(other, "requirements"), { recursive: true });
+      await fs.writeFile(path.join(other, "requirements", "SR-0c1d2e3f4a5b.md"), requirement(OTHER, "Other"));
+      await fs.cp(fixture.path("metamodel"), path.join(other, "metamodel"), { recursive: true });
+      await workspace.get(elementStoreState);
+      return { fixture, workspace, other };
+    };
+    const renamed = async (fixture: FixtureWorkspace): Promise<void> => {
+      const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
+      await fixture.write("logreq-workspace.yaml", text.replace("name: W", "name: Pulled"));
+    };
+    // The main repository holds the workspace file, whatever repository holds the metamodel.
+    const main = await beside("other");
+    const { fake, watcher } = await watched(main.workspace);
+    await renamed(main.fixture);
+    fake.of(main.workspace.root).send(null);
+    await watcher.settled();
+    expect((await main.workspace.get(workspaceLayoutState)).name).toBe("Pulled");
+    // The other repository holds neither: the changed workspace file is not looked at.
+    const beside2 = await beside("system");
+    await beside2.workspace.get(workspaceLayoutState);
+    const layout = beside2.workspace.peek(workspaceLayoutState);
+    const second = await watched(beside2.workspace);
+    await renamed(beside2.fixture);
+    second.fake.of(beside2.other).send(null);
+    await second.watcher.settled();
+    expect(beside2.workspace.peek(workspaceLayoutState)).toBe(layout);
+    expect((await beside2.workspace.get(workspaceLayoutState)).name).toBe("W");
+  });
+
   it("reads the layout again when the workspace file or the local file changes, and watches anew", async () => {
     const { fixture, workspace } = await opened();
     await workspace.get(elementStoreState);
@@ -1245,6 +1285,31 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
       ],
     ]);
     expect(watcherProblems(workspace)).toEqual([]);
+  });
+
+  it("reports every folder of one repository that it cannot watch", async () => {
+    const { fixture, workspace } = await treeFixture();
+    const fake = new FakeWatch();
+    fake.throwFor.set(fixture.path("needs"), "ENOSPC");
+    fake.throwFor.set(fixture.path("requirements"), "EACCES");
+    const { watcher } = await perFolder(workspace, fake);
+    expect(watcher.problems.map((p) => [p.repository, p.file])).toEqual([
+      ["system", "needs"],
+      ["system", "requirements"],
+    ]);
+  });
+
+  it("reports a folder it cannot watch once per repository, also where two repositories have a folder of that name", async () => {
+    const { fixture, workspace } = await treeFixture();
+    await fixture.write("vendor/sub/needs/SR-2e3f4a5b6c7d.md", "");
+    const fake = new FakeWatch();
+    fake.throwFor.set(fixture.path("needs"), "ENOSPC");
+    fake.throwFor.set(fixture.path("vendor/sub/needs"), "ENOSPC");
+    const { watcher } = await perFolder(workspace, fake);
+    expect(watcher.problems.map((p) => [p.repository, p.file]).sort()).toEqual([
+      ["sub", "needs"],
+      ["system", "needs"],
+    ]);
   });
 
   it("stops walking and ignores events once closed", async () => {

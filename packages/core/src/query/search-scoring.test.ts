@@ -157,8 +157,13 @@ describe("scoreWords", () => {
       same(mini, words, options({ fuzzy: () => 0 }));
       same(mini, words, options({ fuzzy: () => 2 }));
       same(mini, words, options({ fuzzy: () => 0.4 }));
+      // Exactly 1 is an edit distance, not a share of the length; a share rounds and is capped at 6.
+      same(mini, words, options({ fuzzy: () => 1 }));
+      same(mini, words, options({ fuzzy: () => 0.9 }));
     }
     expect(same(mini, ["temprature"], options({ fuzzy: () => 2 }))).toBeGreaterThan(0);
+    expect(same(mini, ["temprature"], options({ fuzzy: () => 1 }))).toBeGreaterThan(0);
+    expect(same(mini, ["humidities"], options({ fuzzy: () => 0.9 }))).toBeGreaterThan(0);
   });
 
   it("scores a carried MiniSearch object as it is after the change (`generation`)", () => {

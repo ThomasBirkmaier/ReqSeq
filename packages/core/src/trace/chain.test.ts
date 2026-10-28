@@ -464,6 +464,60 @@ describe("trace chain (SR-022)", () => {
     ).toEqual(["The chain stops at a cycle: Component Requirement CR-00c001 derives from itself"]);
   });
 
+  it("[SR-022/AK4] reports both parts of a cycle through the root when maxDepth cuts it differently for each walk", async () => {
+    // R derives from A and B, A from R and C, B from A, C from R: one cycle of four. Within depth 2
+    // the upward walk closes R, A, B (C is reached but not expanded), the downward walk R, A, C (B
+    // is not expanded): two cycles of three elements that share two, so both are reported.
+    const R = `${P}c003`;
+    const A = `${P}c004`;
+    const B = `${P}c005`;
+    const C = `${P}c006`;
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "components/CR-00000000c003.md": component(R, [A, B]),
+        "components/CR-00000000c004.md": component(A, [R, C]),
+        "components/CR-00000000c005.md": component(B, [A]),
+        "components/CR-00000000c006.md": component(C, [R]),
+      },
+    });
+    const members = (cycles: readonly { readonly elements: readonly ElementRecord[] }[]): string[][] =>
+      cycles.map((c) => c.elements.map((e) => e.id).sort());
+    const cut = chainOf(opened, R, { direction: "both", maxDepth: 2 });
+    expect(cut.walks.map((w) => members(w.result.cycles))).toEqual([[[R, A, B]], [[R, A, C]]]);
+    expect(members(cut.cycles)).toEqual([
+      [R, A, B],
+      [R, A, C],
+    ]);
+    // Without the cut both walks see the whole cycle, which is reported once.
+    expect(members(chainOf(opened, R, { direction: "both" }).cycles)).toEqual([[R, A, B, C]]);
+  });
+
+  it("[SR-022/AK4] reports both parts of a cycle through the root when one walk sees only some of its elements", async () => {
+    // R derives from X and Y, X from Y, Y from R. Within depth 2 the upward walk closes R, X, Y, the
+    // downward walk only R, Y (X is reached but not expanded): the part of two elements lies within
+    // the part of three, yet it is another part, so both are reported.
+    const R = `${P}c007`;
+    const X = `${P}c008`;
+    const Y = `${P}c009`;
+    const opened = await open({
+      ...CHAIN,
+      files: {
+        "components/CR-00000000c007.md": component(R, [X, Y]),
+        "components/CR-00000000c008.md": component(X, [Y]),
+        "components/CR-00000000c009.md": component(Y, [R]),
+      },
+    });
+    const members = (cycles: readonly { readonly elements: readonly ElementRecord[] }[]): string[][] =>
+      cycles.map((c) => c.elements.map((e) => e.id).sort());
+    const cut = chainOf(opened, R, { direction: "both", maxDepth: 2 });
+    expect(cut.walks.map((w) => members(w.result.cycles))).toEqual([[[R, X, Y]], [[R, Y]]]);
+    expect(members(cut.cycles)).toEqual([
+      [R, X, Y],
+      [R, Y],
+    ]);
+  });
+
   it("[SR-022/AK4] reports each of several cycles", async () => {
     const opened = await open({
       ...CHAIN,

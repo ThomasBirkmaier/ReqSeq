@@ -18,12 +18,19 @@ import { readUnchanged, writeElementFiles } from "./write.js";
 interface Control {
   /** Called before each write with its 1-based number; may throw to make that write fail. */
   before: (call: number) => void;
+  /** Called with what each write gives, by its 1-based number; may give something else. */
+  after: (call: number, snapshot: files.FileSnapshot) => files.FileSnapshot;
   calls: number;
   /** Paths whose bytes, parsed outside the files block (the check of written bytes), read back as no element. */
   unreadable: readonly string[];
 }
 
-const control: Control = vi.hoisted(() => ({ before: () => undefined, calls: 0, unreadable: [] }));
+const control: Control = vi.hoisted(() => ({
+  before: () => undefined,
+  after: (_call, snapshot) => snapshot,
+  calls: 0,
+  unreadable: [],
+}));
 
 vi.mock("../files/index.js", async (importOriginal) => {
   const actual = await importOriginal<typeof files>();
@@ -31,8 +38,9 @@ vi.mock("../files/index.js", async (importOriginal) => {
     ...actual,
     writeFileAtomic: async (...args: Parameters<typeof files.writeFileAtomic>) => {
       control.calls += 1;
-      control.before(control.calls);
-      return actual.writeFileAtomic(...args);
+      const call = control.calls;
+      control.before(call);
+      return control.after(call, await actual.writeFileAtomic(...args));
     },
     parseFileBytes: (...args: Parameters<typeof files.parseFileBytes>) =>
       control.unreadable.includes(args[0])
@@ -52,6 +60,7 @@ const open = async (): Promise<{ workspace: Workspace; read: (file: string) => P
   onTestFinished(() => workspace.close());
   control.calls = 0;
   control.before = () => undefined;
+  control.after = (_call, snapshot) => snapshot;
   control.unreadable = [];
   return { workspace, read: (file) => fs.readFile(fixture.path(file), "utf8") };
 };
@@ -86,6 +95,28 @@ describe("writeElementFiles rolls back the files it wrote", () => {
     expect(control.calls).toBe(5);
     expect(await read(WIND.file)).toBe(wind);
     expect(await read(GUSTS.file)).toMatch(/^status: in-change /m);
+  });
+
+  it("lists a restored file that does not hold the bytes as read afterwards, and names the failure as the cause", async () => {
+    const { workspace, read } = await open();
+    const refused = new CommandError("file.read-only", "Not written: read-only", { file: BARE.file });
+    control.before = (call) => {
+      if (call === 3) {
+        throw refused;
+      }
+    };
+    // Restore 4 (GUSTS) is written, but what is read back is not the file as read.
+    control.after = (call, snapshot) => (call === 4 ? { ...snapshot, sha256: "0".repeat(64) } : snapshot);
+    const before = await Promise.all([WIND.file, GUSTS.file].map(read));
+    const error = await failure(workspace);
+    expect(error).toBeInstanceOf(CommandError);
+    expect([(error as CommandError).code, (error as CommandError).details]).toEqual([
+      "file.read-only",
+      { file: BARE.file, written: [GUSTS.file] },
+    ]);
+    expect((error as CommandError).cause).toBe(refused);
+    expect(control.calls).toBe(5);
+    expect(await Promise.all([WIND.file, GUSTS.file].map(read))).toEqual(before);
   });
 
   it("throws an error that is no CommandError again as it is, after restoring", async () => {
