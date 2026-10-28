@@ -7,6 +7,8 @@ import {
   THRESHOLD_FAILURE,
   measure,
   measureMedian,
+  measurePeakMemory,
+  memoryIncrease,
   recordValue,
   thresholdMessage,
 } from "./index.js";
@@ -103,5 +105,48 @@ describe("recordValue", () => {
       thresholdMs: 300,
     });
     fs.rmSync(folder, { recursive: true, force: true });
+  });
+});
+
+describe("measurePeakMemory", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("gives the result, the time and the heap before, at its peak and the resident peak", async () => {
+    let kept: number[] = [];
+    const peak = await measurePeakMemory(
+      async () => {
+        kept = Array.from({ length: 200_000 }, (_, i) => i);
+        // A turn of the event loop long enough for samples.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return kept.length;
+      },
+      { sampleMs: 1 },
+    );
+    expect(peak.result).toBe(200_000);
+    expect(peak.ms).toBeGreaterThan(0);
+    expect(peak.peakHeapMb).toBeGreaterThanOrEqual(peak.heapBeforeMb);
+    expect(peak.peakHeapTotalMb).toBeGreaterThanOrEqual(peak.heapTotalBeforeMb);
+    expect(peak.peakRssMb).toBeGreaterThanOrEqual(peak.rssBeforeMb);
+    expect(peak.processMaxRssMb).toBeGreaterThanOrEqual(peak.peakRssMb - 1);
+    expect(memoryIncrease(peak)).toBe(
+      `heap in use +${String(peak.peakHeapMb - peak.heapBeforeMb)} MB (from ${String(peak.heapBeforeMb)} MB), heap reserved +${String(peak.peakHeapTotalMb - peak.heapTotalBeforeMb)} MB, resident memory +${String(peak.peakRssMb - peak.rssBeforeMb)} MB (from ${String(peak.rssBeforeMb)} MB)`,
+    );
+    expect(kept).toHaveLength(200_000);
+  });
+
+  it("collects garbage first when the suite exposes gc, and stops sampling when the run fails", async () => {
+    const gc = vi.fn();
+    vi.stubGlobal("gc", gc);
+    const clear = vi.spyOn(globalThis, "clearInterval");
+    await expect(
+      measurePeakMemory(() => {
+        throw new Error("failed run");
+      }),
+    ).rejects.toThrow("failed run");
+    expect(gc).toHaveBeenCalledOnce();
+    expect(clear).toHaveBeenCalledOnce();
+    clear.mockRestore();
   });
 });

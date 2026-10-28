@@ -70,8 +70,11 @@ export interface FixtureWorkspace {
   ): Promise<Readonly<Record<string, MadeCommit>>>;
   /** Current HEAD commit ID of a repository (default the root). */
   head(repository?: string): Promise<string>;
-  /** Remove the temporary folder. Call it in `afterEach` or `onTestFinished`. */
-  cleanup(): Promise<void>;
+  /**
+   * Remove the temporary folder. Call it in `afterEach` or `onTestFinished`. A function, not a
+   * method: it may be taken out of the object, so a test can let the rest go (E4 perf tests).
+   */
+  readonly cleanup: () => Promise<void>;
 }
 
 /** The content of a file in `commitHistory`: bytes, a symbolic link, or a submodule entry (gitlink). */

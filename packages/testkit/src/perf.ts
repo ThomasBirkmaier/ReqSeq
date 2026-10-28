@@ -108,3 +108,76 @@ export const THRESHOLD_FAILURE = "perf threshold exceeded:";
 /** The message for `expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(...)`. */
 export const thresholdMessage = (measurement: PerfMeasurement): string =>
   `${THRESHOLD_FAILURE} ${measurement.name}`;
+
+/** What `measurePeakMemory` found. Memory in MB (10^6 bytes), rounded to whole MB. */
+export interface PeakMemory<T> {
+  readonly result: T;
+  /** Wall-clock time, rounded to 0.1 ms. */
+  readonly ms: number;
+  /** Heap in use before the run, after a full collection when `--expose-gc` gives `gc`. */
+  readonly heapBeforeMb: number;
+  /** The highest heap in use seen: sampled every `sampleMs` between turns of the event loop and at the end. */
+  readonly peakHeapMb: number;
+  /** Heap reserved (`heapTotal`) before, and the highest seen; it does not shrink before the next collection. */
+  readonly heapTotalBeforeMb: number;
+  readonly peakHeapTotalMb: number;
+  /** Resident memory of the process before the run, and the highest seen while it ran (sampled as the heap). */
+  readonly rssBeforeMb: number;
+  readonly peakRssMb: number;
+  /** The high-water mark of the process since it started (`process.resourceUsage().maxRSS`), for comparison. */
+  readonly processMaxRssMb: number;
+}
+
+const MB = 1e6;
+const mb = (bytes: number): number => Math.round(bytes / MB);
+
+/**
+ * Runs `run` once and measures its time and its memory (review of #561, N4: peak heap, not only time):
+ * heap in use, heap reserved and resident memory before (collected first when the suite runs with
+ * `--expose-gc`) and the highest values sampled while it runs. A synchronous stretch inside `run` is
+ * sampled only when it returns to the event loop, so the peaks are lower bounds; reserved heap and
+ * resident memory do not shrink before a collection, so they keep most of such a stretch. Records
+ * nothing: the caller records what it needs (`recordValue` with `memoryIncrease`).
+ */
+export async function measurePeakMemory<T>(
+  run: () => T | Promise<T>,
+  options: { readonly sampleMs?: number } = {},
+): Promise<PeakMemory<T>> {
+  (globalThis as { gc?: () => void }).gc?.();
+  const before = process.memoryUsage();
+  const peak = { heapUsed: before.heapUsed, heapTotal: before.heapTotal, rss: before.rss };
+  const sample = (): void => {
+    const now = process.memoryUsage();
+    peak.heapUsed = Math.max(peak.heapUsed, now.heapUsed);
+    peak.heapTotal = Math.max(peak.heapTotal, now.heapTotal);
+    peak.rss = Math.max(peak.rss, now.rss);
+  };
+  const timer = setInterval(sample, options.sampleMs ?? 5);
+  const started = performance.now();
+  try {
+    const result = await run();
+    const ms = Math.round((performance.now() - started) * 10) / 10;
+    sample();
+    return {
+      result,
+      ms,
+      heapBeforeMb: mb(before.heapUsed),
+      peakHeapMb: mb(peak.heapUsed),
+      heapTotalBeforeMb: mb(before.heapTotal),
+      peakHeapTotalMb: mb(peak.heapTotal),
+      rssBeforeMb: mb(before.rss),
+      peakRssMb: mb(peak.rss),
+      // `maxRSS` is in kilobytes (1024 bytes) on every platform.
+      processMaxRssMb: mb(process.resourceUsage().maxRSS * 1024),
+    };
+  } finally {
+    clearInterval(timer);
+  }
+}
+
+/**
+ * The memory a call added, for the name of a recorded row: the increase of heap in use, heap
+ * reserved and resident memory over the values before it, with the values before in brackets.
+ */
+export const memoryIncrease = (peak: Omit<PeakMemory<unknown>, "result" | "ms">): string =>
+  `heap in use +${String(peak.peakHeapMb - peak.heapBeforeMb)} MB (from ${String(peak.heapBeforeMb)} MB), heap reserved +${String(peak.peakHeapTotalMb - peak.heapTotalBeforeMb)} MB, resident memory +${String(peak.peakRssMb - peak.rssBeforeMb)} MB (from ${String(peak.rssBeforeMb)} MB)`;

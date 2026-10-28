@@ -123,8 +123,8 @@ const REPOSITORIES: readonly GeneratedRepository[] = [
 /** At most this many elements per folder, so that no folder holds tens of thousands of files. */
 const FOLDER_SIZE = 1000;
 
-/** Seeded PRNG (mulberry32): the same sequence on every platform. */
-class Random {
+/** Seeded PRNG (mulberry32): the same sequence on every platform. Also used by `withEvidenceRecords`. */
+export class Random {
   private state: number;
 
   constructor(seed: number) {
@@ -583,6 +583,18 @@ const elementFile = (draft: Draft): string => {
   return `---\n${entries.join("")}---\n${draft.text}`;
 };
 
+/** `files` in path order and the SHA-256 over all paths and contents (`GeneratedWorkspace.digest`). */
+export const sortedTree = (
+  files: ReadonlyMap<string, string>,
+): { readonly files: ReadonlyMap<string, string>; readonly digest: string } => {
+  const sorted = new Map([...files].sort(([a], [b]) => Number(a > b) - Number(a < b)));
+  const hash = createHash("sha256");
+  for (const [file, content] of sorted) {
+    hash.update(`${file}\0${content}\0`);
+  }
+  return { files: sorted, digest: hash.digest("hex") };
+};
+
 /**
  * Generates a workspace in memory: the workspace file and the metamodel in `system`, element files
  * in all four repositories (needs and use cases in `product`; decisions, variants and packages in
@@ -626,11 +638,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
     ["system/metamodel/standard-model.yaml", metamodel],
     ...drafts.map((draft) => [`${draft.repository}/${draft.file}`, elementFile(draft)] as const),
   ]);
-  const sorted = new Map([...files].sort(([a], [b]) => Number(a > b) - Number(a < b)));
-  const hash = createHash("sha256");
-  for (const [file, content] of sorted) {
-    hash.update(`${file}\0${content}\0`);
-  }
+  const { files: sorted, digest } = sortedTree(files);
   return {
     seed,
     main: "system",
@@ -650,7 +658,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
     references,
     criterionReferences,
     files: sorted,
-    digest: hash.digest("hex"),
+    digest,
   };
 }
 

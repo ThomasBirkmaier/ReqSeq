@@ -145,34 +145,70 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
       - name: Open or update the issue for exceeded thresholds
-        # Runs from other branches stay out of the issue.
+        # Runs from other branches stay out of the issue. `actions/github-script`, not `gh`: the image of the
+        # self-hosted runner has no GitHub CLI (toolchain/self-hosted-runner/README.md; the nightly run of
+        # 2026-10-28 failed with "gh: command not found").
         if: needs.perf.outputs.exceeded != '0' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
         env:
-          GH_TOKEN: ${{ github.token }}
           EXCEEDED: ${{ needs.perf.outputs.exceeded }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          record=perf-results/verification/performance.md
-          # The names of the exceeded measurements; a comment is added only when they change.
-          names="$(grep -F '| **exceeded** |' "$record" | cut -d'|' -f2 | sed 's/^ *//; s/ *$//' | sort | paste -sd ';' -)"
-          marker="<!-- perf-exceeded: $names -->"
-          body="$(printf '%s\n%s threshold(s) exceeded in %s (%s, commit %s).\n\nSee the table below and verification/performance.md (ADR-0011). If the runner has fewer than 4 cores or 16 GB (see the machine in the record), measure again on such a machine before changing code.\n\n%s\n\n---\n_Written by the performance workflow_' \
-            "$marker" "$EXCEEDED" "$RUN_URL" "$GITHUB_EVENT_NAME" "$GITHUB_SHA" "$(cat "$record")")"
-          # Any open issue labelled `perf` is the one to update (for example #148), never a second one.
-          number="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=perf&sort=created&direction=asc&per_page=100" \
-            --jq '[.[] | select(.pull_request == null)][0].number // empty')"
-          if [ -z "$number" ]; then
-            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="perf: thresholds exceeded with 50,000 elements" \
-              -f body="$body" -f "labels[]=perf" > /dev/null
-            echo "opened an issue"
-            exit 0
-          fi
-          # All pages: the latest marker may be past the first 100 comments.
-          last="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$number/comments?per_page=100" \
-            | jq -r 'add | [.[] | select(.body | startswith("<!-- perf-exceeded: "))] | (last // {}) | (.body // "") | split("\n") | (.[0] // "")')"
-          if [ "$last" = "$marker" ]; then
-            echo "#$number already reports these measurements"
-          else
-            gh api "repos/$GITHUB_REPOSITORY/issues/$number/comments" -f body="$body" > /dev/null
-            echo "commented on #$number"
-          fi
+        with:
+          script: |
+            const fs = require("node:fs");
+            const record = fs.readFileSync("perf-results/verification/performance.md", "utf8");
+            const lines = record.split("\n");
+            const exceeded = lines.filter((line) => line.includes("| **exceeded** |"));
+            // The names of the exceeded measurements; a comment is added only when they change.
+            const names = exceeded
+              .map((line) => line.split("|")[1].trim())
+              .sort()
+              .join(";");
+            const marker = `<!-- perf-exceeded: ${names} -->`;
+            const { owner, repo } = context.repo;
+            // Only the exceeded rows: the whole record is longer than an issue body may be (65,536 characters).
+            const machine = lines.find((line) => line.startsWith("- Machine:")) ?? "- Machine: not in the record";
+            const header = "| Measurement | Basis | Time | Threshold | Result |";
+            const full = [
+              marker,
+              `${process.env.EXCEEDED} threshold(s) exceeded in ${process.env.RUN_URL} (${context.eventName}, commit ${context.sha}).`,
+              "",
+              machine,
+              `- Whole record: the artifact \`perf-results\` of ${process.env.RUN_URL} and ${context.serverUrl}/${owner}/${repo}/blob/main/verification/performance.md`,
+              "",
+              "If the runner has fewer than 4 cores or 16 GB, measure again on such a machine before changing code (ADR-0011).",
+              "",
+              header,
+              "|---|---|---|---|---|",
+              ...exceeded,
+              "",
+              "---",
+              "_Written by the performance workflow_",
+            ].join("\n");
+            // Guard: an issue body or comment holds at most 65,536 characters.
+            const LIMIT = 65_000;
+            const note = "\n\n(truncated, see the record)";
+            const body = full.length > LIMIT ? full.slice(0, LIMIT - note.length) + note : full;
+            // The open issue of this workflow (label `perf` and its title) is the one to update, never a second
+            // one; other issues labelled `perf` track single findings (#558, #698) and get no comments.
+            const title = "perf: thresholds exceeded with 50,000 elements";
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: "open", labels: "perf", sort: "created", direction: "asc", per_page: 100,
+            });
+            const issue = open.find((i) => i.pull_request === undefined && i.title === title);
+            if (issue === undefined) {
+              await github.rest.issues.create({ owner, repo, title, body, labels: ["perf"] });
+              core.info("opened an issue");
+              return;
+            }
+            // All pages: the latest marker may be past the first 100 comments.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: issue.number, per_page: 100,
+            });
+            const last = comments.filter((c) => (c.body ?? "").startsWith("<!-- perf-exceeded: ")).at(-1);
+            if ((last?.body ?? "").split("\n")[0] === marker) {
+              core.info(`#${issue.number} already reports these measurements`);
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
+              core.info(`commented on #${issue.number}`);
+            }
