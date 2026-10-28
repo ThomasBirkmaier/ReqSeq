@@ -687,23 +687,21 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       }
     });
   }, [bridge]);
-  // The command prompt: the actions that apply now and the catalog's read commands (#85).
+  // The command prompt: the actions that apply now and the catalog's read and write commands (#85);
+  // without a workspace, "Initialise workspace" of the folder core opened (`catalogItems`).
   const commands = useCallback((): Prompt => {
     const now = latest.current;
-    // Without a workspace no catalog command can run: the prompt offers the actions that apply then.
-    const items = now.workspace
-      ? catalogItems(
-          {
-            ...now,
-            revision: () => revisionNow.current,
-            reopen: () => {
-              ask(commands());
-            },
-          },
-          catalog.current,
-          ACTIONS,
-        )
-      : [];
+    const items = catalogItems(
+      {
+        ...now,
+        revision: () => revisionNow.current,
+        reopen: () => {
+          ask(commands());
+        },
+      },
+      catalog.current,
+      ACTIONS,
+    );
     return commandPrompt(now, promptUse(appStorage), items);
   }, [ask]);
   // The prefix key (SR-109 AK3): Ctrl/Cmd+K, then a letter runs an entry of the command prompt.

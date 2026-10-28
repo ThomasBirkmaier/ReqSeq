@@ -8,7 +8,7 @@ import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultB
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
-import { WRITES, catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
+import { catalogItems, contextField, fits, refusedOf } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
 import { CREATE_METAMODEL } from "./create-test-data.js";
@@ -1220,41 +1220,69 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
   const titles = (context: CatalogContext): string[] =>
     catalogItems(context, CATALOG, ACTIONS).map((choice) => choice.name);
 
-  it("offers every implemented write command but element.update, filter.save and workspace.init", () => {
-    const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
-    expect(
-      writes
-        .filter((entry) => !WRITES.has(entry.name))
-        .map((entry) => entry.name)
-        .sort(),
-    ).toEqual(["element.update", "filter.save", "workspace.init"]);
+  /** The implemented write commands of the catalog. */
+  const writes = CATALOG.filter((entry) => entry.implemented && entry.effect !== "read");
+
+  it("offers every implemented write command by its title, but element.update, which the element buffer does", () => {
+    expect(writes.map((entry) => entry.name)).toEqual(
+      expect.arrayContaining(["filter.save", "workspace.init", "relation.add", "hint.confirm"]),
+    );
     // element.update is the element buffer's: "Save element" covers it.
     expect(ACTIONS.find((action) => action.title === "Save element")?.covers).toEqual(["element.update"]);
     const { context } = setup([list]);
     const offered = titles(context);
-    for (const name of WRITES) {
-      expect(offered).toContain(command(name).title);
-    }
-    expect(offered).not.toContain(command("element.update").title);
-    expect(offered).not.toContain(command("filter.save").title);
-    expect(offered).not.toContain(command("workspace.init").title);
+    expect(writes.filter((entry) => !offered.includes(entry.title)).map((entry) => entry.name)).toEqual([
+      "element.update",
+    ]);
   });
 
-  it("asks every listed write command but hint.confirm for a required argument", () => {
+  it("asks every offered write command but hint.confirm for a required argument", () => {
     expect(
-      [...WRITES].filter((name) => (command(name).input as { required?: unknown }).required === undefined),
+      writes
+        .filter((entry) => entry.name !== "element.update")
+        .filter((entry) => (entry.input as { required?: unknown }).required === undefined)
+        .map((entry) => entry.name),
     ).toEqual(["hint.confirm"]);
   });
 
   it("offers no write command that a read-only workspace refuses, and still the read commands", () => {
     const { context } = setup([list]);
     const readOnly = titles({ ...context, readOnly: true });
-    for (const name of WRITES) {
-      expect(command(name).whileReadOnly).toBe("refuse");
-      expect(readOnly).not.toContain(command(name).title);
+    for (const entry of writes) {
+      expect(readOnly.includes(entry.title)).toBe(
+        entry.whileReadOnly !== "refuse" && entry.name !== "element.update",
+      );
     }
+    expect(readOnly).toContain("Initialise workspace");
     expect(readOnly).toContain("Show relation options");
     expect(titles({ ...context, readOnly: false })).toContain("Create relation");
+  });
+
+  it("offers only Initialise workspace while a folder without a workspace is open, and asks its path and name", async () => {
+    const { context, asked, call, dispatched } = setup([], {
+      "workspace.init": () => ({ root: "/station", files: ["logreq-workspace.yaml"] }),
+    });
+    const bare = { ...context, workspace: false };
+    expect(titles(bare)).toEqual(["Initialise workspace"]);
+    start(bare, "workspace.init");
+    (await last(asked)).text?.(".");
+    const name = await last(asked);
+    expect(name.label).toBe("Initialise workspace . · name:");
+    name.text?.("Station");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("workspace.init", { path: ".", name: "Station" });
+    expect(dispatched.at(-1)).toMatchObject({ type: "open", buffer: { written: true } });
+  });
+
+  it("saves a filter by its name, with its condition typed as JSON", async () => {
+    const { context, asked, call } = setup([list], {
+      "filter.save": () => ({ files: ["filters/open.yaml"] }),
+    });
+    start(context, "filter.save");
+    (await last(asked)).text?.("open");
+    (await last(asked)).text?.('{"status":["draft"]}');
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("filter.save", { name: "open", where: { status: ["draft"] } });
   });
 
   it("Confirm hints: Enter, Enter, Enter on a shown element confirms its hints, and the output is never asked again", async () => {
@@ -1333,7 +1361,7 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     });
     const context = {
       ...running.context,
-      drafted: (key: string) => key === other.key,
+      drafted: () => true,
       saveDraft: (key: string) => {
         saved.push(key);
         return Promise.resolve(true);
@@ -1343,24 +1371,31 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
     (await last(running.asked)).items[0]?.run();
     (await last(running.asked)).empty?.(false);
     await flush();
-    expect(saved).toEqual([other.key]);
+    // The shown buffer last, as a workspace switch saves.
+    expect(saved).toEqual([other.key, shown.key]);
     expect(running.call).toHaveBeenLastCalledWith("hint.confirm", { ref: "uuid-1" });
     // Input that cannot be saved stops the command before it is sent.
     const stopped = setup([shown, other], {
       "hint.confirm": () => ({ confirmed: [] }),
       "hint.list": () => HINTS,
     });
+    const tried: string[] = [];
     const failing = {
       ...stopped.context,
       drafted: () => true,
-      saveDraft: (key: string) => Promise.resolve(key !== shown.key),
+      saveDraft: (key: string) => {
+        tried.push(key);
+        return Promise.resolve(key !== other.key);
+      },
     };
     start(failing, "hint.confirm");
     (await last(stopped.asked)).items[0]?.run();
     (await last(stopped.asked)).empty?.(false);
     await flush();
     expect(stopped.call).not.toHaveBeenCalledWith("hint.confirm", expect.anything());
-    expect(stopped.echoed.at(-1)).toBe("SR-1 Title 1 could not be saved: Confirm hints did not run");
+    // The first that cannot be saved stops the saving too.
+    expect(tried).toEqual([other.key]);
+    expect(stopped.echoed.at(-1)).toBe("SR-2 Title 2 could not be saved: Confirm hints did not run");
     // Without saveDraft nothing is saved, and the command runs; a read command saves nothing.
     const unsaving = setup([shown], {
       "hint.confirm": () => ({ confirmed: [] }),
@@ -1560,6 +1595,34 @@ describe("the arguments a command expects, completed with the values of the meta
     catalogItems(broken.context, [valueOf], [])[0]?.run();
     (await last(broken.asked)).text?.("component");
     expect((await last(broken.asked)).label).toBe("Broken · Bulk update elements component · value:");
+  });
+
+  it("Create relation: the shown element as source, a kind relation options allows from it, a target, and the written result", async () => {
+    const { context, asked, call, dispatched } = setup([shown], {
+      "relation.options": () => OPTIONS,
+      "element.search": () => ({ hits: [hit(7)], total: 1 }),
+      "relation.add": () => ({ files: ["f1.md"] }),
+    });
+    start(context, "relation.add");
+    const source = await last(asked);
+    expect(source.label).toBe("Create relation · source:");
+    expect(source.items.map((i) => i.name)).toEqual(["SR-1 Title 1"]);
+    source.items[0]?.run();
+    const kind = await last(asked);
+    expect(call).toHaveBeenLastCalledWith("relation.options", { ref: "uuid-1" });
+    expect(kind.items.map((i) => i.name)).toEqual(["derives from", "refines"]);
+    item(kind.items, "refines").run();
+    (await (await last(asked)).find?.("tit"))?.[0]?.run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("relation.add", {
+      source: "uuid-1",
+      kind: "refines",
+      target: "uuid-7",
+    });
+    expect(dispatched.at(-1)).toMatchObject({
+      type: "open",
+      buffer: { kind: "result", name: "Create relation SR-1 refines SR-000007", written: true },
+    });
   });
 
   it("[SR-108/AK4] completes the target of a relation with elements of the kind's target types only", async () => {

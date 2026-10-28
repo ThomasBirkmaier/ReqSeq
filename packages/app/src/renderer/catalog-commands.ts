@@ -1,10 +1,10 @@
 // Catalog commands in the command prompt (SR-073 AK2, SR-108, #85). The prompt lists the implemented read
-// commands and the write commands of `WRITES` by their `title`, except those an app action covers; while
-// the workspace is read-only, no write command that core refuses then. Choosing
-// one asks its arguments one by one in the minibuffer, Emacs `completing-read` style, in the order of the
-// catalog's `arguments`; each
-// source is answered by one existing read command and shown as it is (ADR-0002: the app builds the input
-// and decides nothing about what is allowed; core validates). The output opens a result buffer.
+// and write commands by their `title`, except those an app action covers; while the workspace is
+// read-only, no write command that core refuses then; while a folder without a workspace is open, only
+// "Initialise workspace". Choosing one asks its arguments one by one in the minibuffer, Emacs
+// `completing-read` style, in the order of the catalog's `arguments`; each source is answered by one
+// existing read command and shown as it is (ADR-0002: the app builds the input and decides nothing about
+// what is allowed; core validates). The output opens a result buffer.
 //
 // Keys: Enter takes the selected candidate or the typed text; Backspace in an empty input goes back one
 // argument; Escape ends the command; Ctrl/Cmd+Enter takes the answer and then offers the optional
@@ -547,7 +547,9 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
 const unsavedBefore = async (context: CatalogContext): Promise<Buffer | undefined> => {
   const { saveDraft } = context;
   if (saveDraft !== undefined) {
-    for (const buffer of context.buffers) {
+    // The shown buffer last, as a workspace switch saves (`switch.ts`): a failure before it leaves the
+    // shown editor as it is.
+    for (const buffer of [...context.buffers.slice(1), ...context.buffers.slice(0, 1)]) {
       if (context.drafted(buffer.key) && !(await saveDraft(buffer.key))) {
         return buffer;
       }
@@ -1043,29 +1045,24 @@ export const startCommand = (context: CatalogContext, command: CommandListing, m
 };
 
 /**
- * The write commands the prompt offers (SR-073 AK2, #85), each asked like a read command. Not offered:
- * `element.update`, which the element buffer does ("Save element" covers it, with "Edit title", "Add
- * property" and "Clear property"); `filter.save`, whose filter is the shown list's, not JSON typed by hand;
- * `workspace.init`, which creates a workspace in another folder ("Open workspace" is the app's way).
+ * The command that runs in a folder without a workspace: core opens such a folder for it (`core/process.ts`),
+ * and it is the only catalog command the prompt offers there.
  */
-export const WRITES: ReadonlySet<string> = new Set([
-  CREATE_COMMAND,
-  "element.setStatus",
-  "element.supersede",
-  "relation.add",
-  "relation.remove",
-  "hint.confirm",
-  "element.bulkUpdate",
-  "element.addAttachment",
-  "evidence.record",
-  "evidence.enrichJunit",
-  "data.store",
-]);
+const WITHOUT_WORKSPACE = "workspace.init";
 
 /**
- * The catalog commands the command prompt offers now: implemented read commands and the writes it offers,
- * that no action covers (by title or by `covers`), each by its title and whether it fits the shown view
- * (SR-133). While the workspace is read-only, no write command that core refuses then (`whileReadOnly`).
+ * Whether the prompt offers the command (SR-073 AK2: every function of the app by its name): every
+ * implemented read and write command, except `element.update`, which the element buffer does ("Save
+ * element" covers it, with "Edit title", "Add property" and "Clear property"), and only
+ * `workspace.init` while no workspace is open.
+ */
+const listed = (context: CatalogContext, command: CommandListing): boolean =>
+  command.implemented && (context.workspace || command.name === WITHOUT_WORKSPACE);
+
+/**
+ * The catalog commands the command prompt offers now (`listed`) that no action covers (by title or by
+ * `covers`), each by its title and whether it fits the shown view (SR-133). While the workspace is
+ * read-only, no write command that core refuses then (`whileReadOnly`).
  */
 export const catalogItems = (
   context: CatalogContext,
@@ -1076,8 +1073,7 @@ export const catalogItems = (
   return catalog
     .filter(
       (command) =>
-        command.implemented &&
-        (command.effect === "read" || WRITES.has(command.name)) &&
+        listed(context, command) &&
         !(context.readOnly === true && command.whileReadOnly === "refuse") &&
         !covered.has(command.title) &&
         !covered.has(command.name) &&
