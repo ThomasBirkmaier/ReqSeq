@@ -319,6 +319,7 @@ describe("recording the last API or MCP access (SR-117)", () => {
       "evidence.status": "none",
       "evidence.coverage": "none",
       "evidence.degree": "none",
+      "evidence.withoutPassedTest": "none",
       "data.export": "none",
       "data.store": "written element",
       "variant.diff": "variant",

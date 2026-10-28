@@ -25,6 +25,7 @@ import evidenceEnrichJunit from "./evidence/enrichJunit.js";
 import evidenceList from "./evidence/list.js";
 import evidenceRecord from "./evidence/record.js";
 import evidenceStatus from "./evidence/status.js";
+import evidenceWithoutPassedTest from "./evidence/withoutPassedTest.js";
 import filterList from "./filter/list.js";
 import filterSave from "./filter/save.js";
 import hintConfirm from "./hint/confirm.js";
@@ -65,6 +66,7 @@ export const commands: readonly AnyCommand[] = [
   evidenceList,
   evidenceRecord,
   evidenceStatus,
+  evidenceWithoutPassedTest,
   filterList,
   filterSave,
   hintConfirm,

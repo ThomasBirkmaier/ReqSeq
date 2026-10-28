@@ -2375,6 +2375,34 @@ export interface EvidenceDegreeOutput {
 }
 
 /**
+ * Input of `evidence.withoutPassedTest` as `run` gets it: validated, properties with a `default` filled in. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
+ * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest input`.
+ */
+export interface EvidenceWithoutPassedTestInput {
+  /** Default: the core. A variant: only records for it count, and only requirements that apply in it (SR-047). */
+  readonly view?: View;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+/**
+ * Output of `evidence.withoutPassedTest`. Every requirement without a passed test execution in one view (SR-120): no verification record with method test and result passed, of any version, holds there (spec question #532). Each with its verification status.
+ * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest output`.
+ */
+export interface EvidenceWithoutPassedTestOutput {
+  /** One page, by type, then identifier, else short ID: every requirement (type with the meaning `requirement`, status not marked invalid, applies in the view) without a verification record with method `test` and result `passed` that holds in the view, of any version and also when a later run failed (spec question #532). Each as evidence.status gives it, with `verification` and `validation`. */
+  readonly elements: readonly DataExportElement[];
+  /** Every listed requirement, not only the page. */
+  readonly total: number;
+  /** core, or the variant of the view. */
+  readonly view: ViewId;
+  /** A repository of the workspace, or of an evidence location, is not on this machine: its requirements, or a passed test there, are not seen (SR-006 AK2). */
+  readonly incomplete?: Incomplete;
+  /** The elements that `verification` names by UUID only, each once in the order first named: the variant of the view and the missing children (`missingChildren`), so a reader names them by short ID, identifier and title (#588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+}
+
+/**
  * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export input`.
  */
@@ -2653,6 +2681,7 @@ export interface CommandTypes {
   readonly "evidence.status": { readonly input: EvidenceStatusInput; readonly output: EvidenceStatusOutput };
   readonly "evidence.coverage": { readonly input: EvidenceCoverageInput; readonly output: EvidenceCoverageOutput };
   readonly "evidence.degree": { readonly input: EvidenceDegreeInput; readonly output: EvidenceDegreeOutput };
+  readonly "evidence.withoutPassedTest": { readonly input: EvidenceWithoutPassedTestInput; readonly output: EvidenceWithoutPassedTestOutput };
   readonly "data.export": { readonly input: DataExportInput; readonly output: DataExportOutput };
   readonly "data.store": { readonly input: DataStoreInput; readonly output: DataStoreOutput };
   readonly "variant.diff": { readonly input: VariantDiffInput; readonly output: VariantDiffOutput };

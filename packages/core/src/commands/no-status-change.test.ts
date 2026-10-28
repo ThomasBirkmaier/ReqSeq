@@ -213,6 +213,7 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: [WIND, RETIRED], view: "core" } },
     { selection: { ids: ["SR-ffffff"] } },
   ],
+  "evidence.withoutPassedTest": [{}, { view: "core", limit: 1, offset: 1 }, { view: "SR-e88fb3" }],
   "filter.list": [{}, { extra: true }],
   "filter.save": [
     { name: "Drafts", where: { status: ["draft"] }, sort: [{ by: "status" }] },

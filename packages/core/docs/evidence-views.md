@@ -2,7 +2,7 @@
 
 Part of the [`@logreq/core` README](../README.md). Lane C of stage 4 fills this file; the records, folders and index are in [evidence-records.md](evidence-records.md).
 
-"Has evidence" is `hasVerificationRecord` of the index for every view below (#535).
+"Has evidence" is `hasVerificationRecord` of the index for every view below (#535); SR-120 asks something narrower, a passed test (`isPassedTest`, below).
 
 ## Coverage
 
@@ -49,6 +49,16 @@ SR-033 (#45), block file `evidence/views.ts`; `trace.chain` (`commands/trace/cha
   - `incomplete`: the selection's, or an evidence location in a repository that is not on this machine (`evidenceReadState.incomplete`, SR-006 AK2).
   - Order and names: `evidence` comes right after `columns`, before `rows`, so the readable output prints the degree above the rows that hold the status (AK4 „über der Spalte des Nachweisstatus“); the row fields `testCases` and `verification` come before `cells`, in schema order. `names` (#588) names the variant of the view and the missing children of the page's rows (`verificationNameIds`, `namesOf`).
   - Cost: without an evidence location none. With one, the first call builds `evidenceReadState`, `evidenceIndexState` and `verificationState` (as any evidence command) and prepares the whole selection in one batch of versions; each page then evaluates the degree over the whole selection (memoised per element and view in the evaluator) and builds the test cases of its rows only. A page row's version is read twice, once by `prepare` (`own`) and once by `matrixRows`' `versionsOf`. Measured in E4 (#583): cold and warm first page, a deep page, `limit` 5000 (time and JSON size), the degree alone, and the matrix without an evidence location.
+
+## Requirements without passed test
+
+SR-120 (#431), `evidence.withoutPassedTest` (`commands/evidence/withoutPassedTest.ts`), block file `evidence/without-passed-test.ts`; the assumptions are those of spec question #532 (answered from the spec and the glossary in the plan review).
+
+- `isPassedTest(record, view)`: a record with `kind: verification`, `method: test` and `result: passed` that holds in the view (`holdsIn`, SR-047). Of any version, and also when a later run failed (AK2 „mindestens einer bestandenen Testausführung“). Inspection, analysis, demonstration and validation records are none (D-007); a skipped JUnit test case gives no record, so it is none either.
+- `withoutPassedTest(source, elements, view)`: the elements `evidence.degree` counts (`countedIn`: a type with the meaning `requirement`, status not marked invalid, D-044) that apply in the view and have no passed test there, in the order given. Pure. An indirectly verified parent without own test is listed (AK2 „ohne Testausführung … steht darin“), and so is a requirement verified by inspection only. While the metamodel is not valid the source has no records: every requirement is listed (`evidence.status` gives them `open`).
+- Not the filter's „ohne Nachweis“ (`hasVerificationRecord`, SR-069 AK3) and not a verification status: a requirement with only failed records, or only an inspection, is without a passed test but has a Nachweis; one whose newest run failed after a passed one has the status `failed` and is not listed. There is no filter operator for it; CLI, API, MCP and app get the list through the command (SR-080).
+- The command takes `view` (default the core; a variant: its records and the requirements that apply in it), `limit` (default 200) and `offset`, and no selection (SR-120: „alle Requirements“): the app's command prompt runs it without asking (AK1, title "List requirements without passed/no test", found by "without passed", "passed test" and "no test"). Order: type, then identifier, then short ID, the keys of the app's `DEFAULT_SORT` (change both). Each row as `evidence.status` gives it (`withEvidenceStatus`), so it says why it is listed; `total` counts the whole list; `incomplete` is the selection's or the evidence state's.
+- Cost: one pass over the store with set lookups, `appliesIn` and the records of each element; no file is read and no current version computed for the list (any version counts). The listed requirements are sorted on every call (O(k log k)); only the page is prepared (`workspaceStatus`) and built. The first call builds `evidenceReadState` and `verificationState` (with the trace context) like any evidence command. Measured in E4 (#583).
 
 ## Data export and store
 
