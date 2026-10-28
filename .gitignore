@@ -10,5 +10,6 @@ trace-*.md
 test-results/
 .claude/worktrees/
 
-# Python bytecode of scripts/sr-issues tests
+# Python bytecode of scripts/sr-issues tests, and pytest's cache of the example in toolchain/junit/pytest
 __pycache__/
+.pytest_cache/

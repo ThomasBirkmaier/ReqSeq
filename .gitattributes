@@ -6,3 +6,5 @@ pnpm-lock.yaml linguist-generated=true
 schemas/examples/version/** -text -whitespace
 # JUnit files of SR-029 are enriched byte for byte: CRLF and the byte order mark must stay.
 fixtures/SR-029/enrich/results/** -text -whitespace
+# The JUnit file of the pytest example (SR-063) is a recording of the real pytest, kept byte for byte.
+toolchain/junit/pytest/results.xml -text -whitespace

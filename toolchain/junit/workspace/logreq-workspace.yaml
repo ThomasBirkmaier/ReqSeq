@@ -1,0 +1,7 @@
+logreq-workspace: 1
+name: Login station (example)
+repositories:
+  - { name: system, url: "git@git.example.com:example/system.git", main: true }
+metamodel: { repository: system, path: metamodel }
+evidence:
+  - { repository: system, path: evidence }

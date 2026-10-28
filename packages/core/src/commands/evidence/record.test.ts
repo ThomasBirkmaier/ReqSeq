@@ -57,12 +57,12 @@ const failure = async (
 const get = async (workspace: Workspace, ref: string): Promise<CommandOutput<"element.get">["element"]> =>
   ((await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">).element;
 
-/** Every file below the fixture root (relative, `/`), except Git's own. */
+/** Every file below the fixture root (relative, `/`), except those in the repository's own `.git`. */
 const filesOf = async (fixture: FixtureWorkspace): Promise<string[]> =>
   (await fs.readdir(fixture.root, { recursive: true, withFileTypes: true }))
     .filter((e) => e.isFile())
     .map((e) => path.relative(fixture.root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
-    .filter((file) => !file.split("/").includes(".git"))
+    .filter((file) => file !== ".git" && !file.startsWith(".git/"))
     .sort();
 
 /** The frontmatter of a written record, parsed. */

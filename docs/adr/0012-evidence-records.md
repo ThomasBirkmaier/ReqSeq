@@ -20,7 +20,7 @@ After a run, `logreq evidence enrich-junit results.xml <build>` (SR-029) adds pe
 
 ## Consequences
 
-- Any test tool that writes JUnit works without code (SR-063 AK1); pytest and Vitest examples come in `toolchain/` (D-054).
+- Any test tool that writes JUnit works without code (SR-063 AK1). The guide for connecting one and its examples (an example workspace, Vitest, pytest) are in `toolchain/junit/` (SR-063, D-054), tested by `packages/cli/test/e2e/toolchain-junit.test.ts`, which runs the guide's command blocks as written.
 
 ## Block and state
 

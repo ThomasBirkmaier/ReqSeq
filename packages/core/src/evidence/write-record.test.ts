@@ -82,11 +82,11 @@ const failure = async (action: () => Promise<unknown>): Promise<CommandError> =>
   throw new Error("expected a CommandError");
 };
 
-/** Every file and folder below the fixture root (relative, `/`), except Git's own. */
+/** Every file and folder below the fixture root (relative, `/`), except the repository's own `.git` (a created `evidence/.git` shows). */
 const entriesOf = async (fixture: FixtureWorkspace): Promise<string[]> =>
   (await fs.readdir(fixture.root, { recursive: true, withFileTypes: true }))
     .map((e) => path.relative(fixture.root, path.join(e.parentPath, e.name)).split(path.sep).join("/"))
-    .filter((file) => !file.split("/").includes(".git"))
+    .filter((file) => file !== ".git" && !file.startsWith(".git/"))
     .sort();
 
 /** Expects `action` to fail with `input.invalid` (and `reason` when given) and to leave no file or folder behind. */
@@ -523,10 +523,15 @@ describe("evidence.record and the evidence state (S12, S1 of the plan review)", 
     await workspace.get(evidenceRecordsState);
     const read = vi.spyOn(MARKDOWN_READER, "read");
     for (const folder of ["evidence", "missing/new", "evidence/manual", "evidence/a"]) {
-      await record(workspace, { ref: "SR-00c002", ...INSPECTION, folder });
-      expect(await workspace.get(evidenceReadState)).toEqual(await readEvidence(layout));
       read.mockClear();
+      await record(workspace, { ref: "SR-00c002", ...INSPECTION, folder });
+      const state = await workspace.get(evidenceReadState);
+      // A full reset instead of the replace would rebuild the state here, through the reader.
+      expect(read).not.toHaveBeenCalled();
+      // Compared only now: readEvidence uses the reader, and the next mockClear drops those calls.
+      expect(state).toEqual(await readEvidence(layout));
     }
+    read.mockClear();
     await invoke("element.get", { ref: "SR-00c002" }, { workspace });
     await invoke("evidence.status", {}, { workspace });
     expect(read).not.toHaveBeenCalled();

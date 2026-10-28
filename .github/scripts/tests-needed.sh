@@ -9,7 +9,9 @@
 # - docs/**          ADRs and architecture: read by people and agents only.
 # - .claude/**       agent rules and skills.
 # - verification/**  records: read by trace-check only (the Electron screenshots go to test-results/).
-# - toolchain/**/*.md, *.md at the root (README.md, CLAUDE.md).
+# - toolchain/**/*.md, except anything below toolchain/junit/ (read by the e2e test
+#   packages/cli/test/e2e/toolchain-junit.test.ts: the guide and the element files of the example workspace,
+#   SR-063), and *.md at the root (README.md, CLAUDE.md).
 # Everything else needs the tests: spec/ (Electron graph tests, screenshots, spec:check), fixtures/
 # (fixtures/README.md is read by a testkit test), packages/ (README files included), schemas/, scripts/,
 # .github/, toolchain scripts and root configuration. Fail-safe: no paths at all, or a path Git quotes
@@ -24,6 +26,8 @@ while IFS= read -r path || [ -n "$path" ]; do
   count=$((count + 1))
   # In `case`, `*` also matches `/`.
   case "$path" in
+    # First: `case` takes the first arm that matches, and the next arm would take toolchain/junit/*.md.
+    toolchain/junit/*) needed=true ;;
     docs/* | .claude/* | verification/* | toolchain/*.md) ;;
     */*) needed=true ;;
     *.md) ;;
