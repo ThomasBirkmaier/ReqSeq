@@ -8,8 +8,14 @@
 // file. The title is a field like a single text box (#621): keyed `TITLE_FIELD`, compared with the file and
 // kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@logreq/core";
-import type { PropertyBox, PropertyInfo, PropertyModel } from "./element-view.js";
-import { TITLE_FIELD, propertyBoxes, relationLabel } from "./element-view.js";
+import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
+import {
+  TITLE_FIELD,
+  isPropertyTarget,
+  propertyBoxes,
+  relationLabel,
+  rowOfRelation,
+} from "./element-view.js";
 
 /** The kinds whose value is text in a box: what the editor can show and the user can type. */
 export const TEXT_KINDS: readonly PropertyInfo["kind"][] = ["text", "number", "date"];
@@ -397,3 +403,32 @@ export const hintKeys = (
   model: PropertyModel,
 ): string[] =>
   edits.map((edit) => (edit.key === TITLE_FIELD ? (titleKey(model, element.type) ?? edit.key) : edit.key));
+
+/**
+ * The rows of a relation box that is edited: the targets of its document, the stored ones with their state
+ * and the ones that were added with the label of the hit.
+ */
+export const relationRows = (key: string, doc: string, all: readonly DataExportRelation[]): RelationRow[] => {
+  const stored = all
+    .filter((relation) => isPropertyTarget(relation) && relation.kind === key)
+    .map(rowOfRelation);
+  return relationTargets(doc).map(
+    (target) =>
+      stored.find((row) => row.id === target.id && row.repository === target.repository) ?? {
+        ...target,
+        state: "available",
+        outdated: false,
+      },
+  );
+};
+
+/** What the minibuffer says on entering a list with a value that holds a line break (a hand-written file). */
+export const lineBreakNote = (key: string): string =>
+  `${key} has a value with a line break: edit it in the file`;
+
+/** Whether a box that the type knows is not edited: a value with a line break, or a target that cannot be read. */
+export const isLocked = (box: EditableBox): boolean => box.lineBreak || box.unmatched === true;
+
+/** What the minibuffer says on entering a box that `isLocked`. */
+export const lockNote = (key: string, box: EditableBox): string =>
+  box.lineBreak ? lineBreakNote(key) : `${key} has a target that cannot be read: edit it in the file`;

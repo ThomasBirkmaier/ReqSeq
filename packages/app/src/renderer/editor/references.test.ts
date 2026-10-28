@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { markdownSupport } from "./markdown.js";
 import { BUILT_IN_RULES, focusState, previewDecorations } from "./preview.js";
 import {
+  boxReference,
   outdatedKey,
   parseReference,
   referenceAt,
@@ -248,5 +249,21 @@ describe("referencesIn", () => {
       [ID, undefined, "r"],
     ]);
     expect(referencesIn(stateOf("plain"))).toEqual([]);
+  });
+});
+
+describe("boxReference", () => {
+  const doc = `see ${THOMAS} and [B](logreq:${ID}?version=n1:2)`;
+  const box = (cursor: number, focused: boolean) => {
+    const state = stateOf(doc, cursor);
+    return { state: () => state, hasFocus: () => focused };
+  };
+
+  it("takes the reference at the caret of a Markdown box with the focus, else the first one; none in a plain box", () => {
+    expect(boxReference(box(6, true), true)).toEqual(referenceAt(stateOf(doc, 6), 6));
+    expect(boxReference(box(6, true), true)).toBeDefined();
+    expect(boxReference(box(0, true), true)).toBeUndefined();
+    expect(boxReference(box(0, false), true)).toEqual(referencesIn(stateOf(doc, 0))[0]);
+    expect(boxReference(box(6, true), false)).toBeUndefined();
   });
 });

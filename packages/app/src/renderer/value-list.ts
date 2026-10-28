@@ -172,3 +172,7 @@ export const valueSignature = (
   element: Pick<DataExportElement, "id" | "repository" | "type" | "status" | "properties">,
 ): string =>
   JSON.stringify([element.id, element.repository, element.type, element.status ?? null, element.properties]);
+
+/** What decides the values of the shown element that open a list (SR-132); none while it is not shown. */
+export const valueKeyOf = (element: DataExportElement | undefined): string | undefined =>
+  element === undefined ? undefined : valueSignature(element);

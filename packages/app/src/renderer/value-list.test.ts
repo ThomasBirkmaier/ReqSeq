@@ -2,7 +2,14 @@ import type { DataExportElement, DataExportRelation, ElementFacetsOutput } from 
 import { describe, expect, it, vi } from "vitest";
 import { exactTypeStep, propertyStep, statusStep } from "./list-filters.js";
 import type { ListableValue, Pointer } from "./value-list.js";
-import { NO_POINTER, listableValues, pointedValue, valueSignature, valuesPrompt } from "./value-list.js";
+import {
+  NO_POINTER,
+  listableValues,
+  pointedValue,
+  valueKeyOf,
+  valueSignature,
+  valuesPrompt,
+} from "./value-list.js";
 
 /** The facets of one element (`element.facets` with its ID), as core gives them. */
 const facets: ElementFacetsOutput = {
@@ -276,5 +283,18 @@ describe("the prompt and the signature (SR-132)", () => {
     expect(valueSignature({ ...element, properties: { topic: "Gust" } })).not.toBe(same);
     const { status: _status, ...without } = element;
     expect(valueSignature(without)).not.toBe(same);
+  });
+});
+
+describe("valueKeyOf", () => {
+  it("is the value signature of the shown element, none while none is shown", () => {
+    const element = {
+      id: "u",
+      repository: "spec",
+      type: "need",
+      properties: {},
+    } as unknown as DataExportElement;
+    expect(valueKeyOf(element)).toBe(valueSignature(element));
+    expect(valueKeyOf(undefined)).toBeUndefined();
   });
 });

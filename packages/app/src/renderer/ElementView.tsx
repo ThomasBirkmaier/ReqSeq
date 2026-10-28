@@ -22,31 +22,30 @@
 // bytes are no longer those the input was typed on, nothing is saved until "Resolve change on disk" chose
 // the version that holds, and a block "On disk" under each field with input shows the file's value; a file
 // that is gone leaves the content read-only in the editors (`outside-change.ts`).
+// This component holds the refs, the state and the effects and decides in the modules: the buffer towards its
+// file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
+// and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
+// the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
+// (`RelationLink.tsx`), the elements of a package page (`PackageMembers.tsx`) and a block "On disk"
+// (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
-import type { DataExportElement, DataExportRelation } from "@logreq/core";
+import type { DataExportElement } from "@logreq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
-import { elementBuffer, filteredList } from "./buffers.js";
+import { filteredList } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
-import type { PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
-import {
-  TITLE_FIELD,
-  isPropertyTarget,
-  outdatedReferences,
-  relationGroups,
-  rowOfRelation,
-} from "./element-view.js";
+import type { ElementLoad, PropertyModel } from "./element-view.js";
+import { TITLE_FIELD, isReadOnly, outdatedReferences, shownElement } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
-import { Editor } from "./editor/Editor.js";
 import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import { mergePlugins } from "./editor/plugins.js";
-import { referenceAt, references, referencesIn } from "./editor/references.js";
+import { boxReference, referenceAt, references } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { boxNavigation } from "./editor/box-navigation.js";
 import { dirty } from "./editor/save.js";
@@ -96,7 +95,12 @@ import {
   valueDoc as valueDocOf,
   valueSet,
 } from "./field-state.js";
-import { FieldBox } from "./FieldBox.js";
+import { ElementText } from "./ElementText.js";
+import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
+import { OnDisk } from "./OnDisk.js";
+import { PackageMembers } from "./PackageMembers.js";
+import { PropertyField } from "./PropertyField.js";
+import { RelationGroups } from "./RelationLink.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
   TEXT_FIELD,
@@ -104,7 +108,6 @@ import {
   deletedOnDisk,
   diskMark,
   isGone,
-  onDisk,
   outsideChange,
   resolvePrompt,
 } from "./outside-change.js";
@@ -112,14 +115,12 @@ import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep, historyStep, isMac } from "./keys.js";
-import { ListView } from "./ListView.js";
-import { TextBox } from "./TextBox.js";
-import { TitleBox } from "./TitleBox.js";
+import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
-import { memberCount, memberList, memberSummary, packageOf, packageSelection } from "./package-page.js";
+import { packageOf, packageSelection } from "./package-page.js";
 import {
   addableProperties,
   allBoxes,
@@ -129,7 +130,9 @@ import {
   emptyBox,
   fieldBoxes,
   hintKeys,
+  isLocked,
   isValueKind,
+  lockNote,
   relationDoc,
   relationTargets,
   savedHint,
@@ -142,7 +145,14 @@ import type { BoxEdit, EditableBox } from "./property-edit.js";
 import { addPropertyPrompt, choicePrompt, relationPrompt } from "./property-prompts.js";
 import { NO_HISTORY, record, redo, undo } from "./value-history.js";
 import type { ListableValue, Pointer } from "./value-list.js";
-import { NO_POINTER, listableValues, pointedValue, valueSignature, valuesPrompt } from "./value-list.js";
+import {
+  NO_POINTER,
+  listableValues,
+  pointedValue,
+  valueKeyOf,
+  valueSignature,
+  valuesPrompt,
+} from "./value-list.js";
 
 export interface ElementViewProps {
   readonly call: Call;
@@ -197,191 +207,17 @@ export interface ElementViewProps {
   readonly keep?: BufferKeep;
 }
 
-type View =
-  | { readonly status: "loading" }
-  | { readonly status: "error"; readonly message: string }
-  | { readonly status: "ok"; readonly element: DataExportElement };
-
-/** The field a key press on the buffer is for: none on the buffer itself. */
-const fieldLabel = (target: EventTarget, buffer: EventTarget): string | undefined =>
-  target === buffer
-    ? undefined
-    : (target as HTMLElement).closest<HTMLElement>("[data-field]")?.dataset["field"];
-
-/** A key press is for the buffer when its target is the buffer, or a field that has the focus itself (SR-128). */
-const forBuffer = (target: EventTarget, buffer: EventTarget): boolean =>
-  target === buffer || (target instanceof HTMLElement && target.matches(".field[tabindex]"));
-
-/**
- * A key the buffer handles: Enter, Down when there is a field or the elements of a package to go to, and
- * Escape and Up on a field (on the buffer itself they are not for it).
- */
-const fieldKey = (key: string, label: string | undefined, hasMembers: boolean): boolean =>
-  key === "Enter" ||
-  (key === "ArrowDown" && (label !== undefined || hasMembers)) ||
-  (label !== undefined && (key === "Escape" || key === "ArrowUp"));
-
-const Relation = ({
-  row,
-  onOpenRelation,
-}: {
-  readonly row: RelationRow;
-  readonly onOpenRelation: (target: ElementBuffer) => void;
-}): React.JSX.Element => {
-  const target =
-    row.state === "available" && row.repository !== ""
-      ? elementBuffer(row.id, row.repository, row.label)
-      : undefined;
-  return (
-    <li className={target !== undefined ? "relation" : "relation unavailable"}>
-      {target !== undefined ? (
-        <span
-          role="link"
-          tabIndex={0}
-          data-target-id={row.id}
-          data-target-repository={row.repository}
-          onClick={() => {
-            onOpenRelation(target);
-          }}
-          onKeyDown={(event) => {
-            // Enter with Ctrl, Cmd or Alt is a shortcut of the window: "Follow reference" opens the focused
-            // target itself, "List elements with this value" lists it (SR-132).
-            if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey) {
-              event.preventDefault();
-              onOpenRelation(target);
-            }
-          }}
-        >
-          {row.label}
-        </span>
-      ) : (
-        <>
-          <span>{row.label}</span> <span className="state">{row.state}</span>
-        </>
-      )}
-      {row.outdated ? <span className="outdated"> outdated</span> : null}
-    </li>
-  );
-};
-
-/**
- * The rows of a relation box that is edited: the targets of its document, the stored ones with their state
- * and the ones that were added with the label of the hit.
- */
-const rowsOf = (key: string, doc: string, all: readonly DataExportRelation[]): RelationRow[] => {
-  const stored = all
-    .filter((relation) => isPropertyTarget(relation) && relation.kind === key)
-    .map(rowOfRelation);
-  return relationTargets(doc).map(
-    (target) =>
-      stored.find((row) => row.id === target.id && row.repository === target.repository) ?? {
-        ...target,
-        state: "available",
-        outdated: false,
-      },
-  );
-};
-
-/** The reference "Follow reference" takes in a box: at the caret, or the first one when the box has none. */
-const boxReference = (box: EditorHandle, markdown: boolean): Reference | undefined => {
-  if (!markdown) {
-    return undefined;
-  }
-  const state = box.state();
-  return box.hasFocus() ? referenceAt(state, state.selection.main.head) : referencesIn(state)[0];
-};
-
-/** What the minibuffer says on entering a list with a value that holds a line break (a hand-written file). */
-const lineBreakNote = (key: string): string => `${key} has a value with a line break: edit it in the file`;
-
-/** Whether a box that the type knows is not edited: a value with a line break, or a target that cannot be read. */
-const isLocked = (box: EditableBox): boolean => box.lineBreak || box.unmatched === true;
-
-/** What the minibuffer says on entering a box that `isLocked`. */
-const lockNote = (key: string, box: EditableBox): string =>
-  box.lineBreak ? lineBreakNote(key) : `${key} has a target that cannot be read: edit it in the file`;
-
-/** What decides the values of the shown element that open a list (SR-132); none while it is not shown. */
 /** The focused target link of a relation box or a relation group of the element buffer, if one has the focus. */
 const focusedTarget = (): HTMLElement | null =>
   document.activeElement instanceof HTMLElement
     ? document.activeElement.closest<HTMLElement>("[data-buffer] [data-target-id]")
     : null;
 
-const valueKeyOf = (element: DataExportElement | undefined): string | undefined =>
-  element === undefined ? undefined : valueSignature(element);
-
-/** The element the buffer shows: once it is loaded and its parents line has answered too. */
-const shownElement = (view: View, parentsAnswered: boolean): DataExportElement | undefined =>
-  view.status === "ok" && parentsAnswered ? view.element : undefined;
-
-/**
- * The block "On disk" under a field in conflict (SR-106 AK2): the file's value as it is, quiet and read-only,
- * with the lines the input lacks in heavier weight (meaning, no colour: D-062). It is no control: Enter on it
- * asks which version holds, as "Resolve change on disk" does; Escape goes back to the buffer.
- */
-const OnDisk = ({
-  field,
-  info,
-  onResolve,
-  onLeave,
-}: {
-  readonly field: ConflictField;
-  /** The property of the box; none for the text. */
-  readonly info: PropertyInfo | undefined;
-  readonly onResolve: () => void;
-  readonly onLeave: () => void;
-}): React.JSX.Element => {
-  const lines = onDisk(field, info);
-  return (
-    <div
-      className="on-disk"
-      role="group"
-      aria-label={`On disk: ${field.label}`}
-      data-on-disk={field.label}
-      tabIndex={0}
-      onKeyDown={(event) => {
-        const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
-        if (plain && (event.key === "Enter" || event.key === "Escape")) {
-          event.preventDefault();
-          if (event.key === "Enter") {
-            onResolve();
-          } else {
-            onLeave();
-          }
-        }
-      }}
-    >
-      <span className="key">On disk</span>
-      <span className="value">
-        {lines.length === 0 ? (
-          <span className="line">(empty)</span>
-        ) : (
-          lines.map((line, at) => (
-            <span className="line" key={at}>
-              {line.differs ? <mark>{line.text}</mark> : line.text}
-            </span>
-          ))
-        )}
-      </span>
-    </div>
-  );
-};
-
 /** The undo history of the buffer (SR-105 AK2): the app's, kept with the buffer, or else one of the view's own. */
 const useUndoMemory = (keep: BufferKeep | undefined): UndoMemory => {
   const own = useRef<UndoMemory>({ editors: new Map(), values: new Map() });
   return keep?.memory ?? own.current;
 };
-
-/** The loaded element is read-only. */
-const isReadOnly = (view: View): boolean => view.status === "ok" && view.element.readOnly === true;
-
-/** Keys that only modify another key: pressed on their own they are no key of the buffer. */
-const MODIFIER_KEYS: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"]);
-
-/** A key on the buffer after Enter that takes back an "Edit text" still waiting for the editor. */
-const takesBackEdit = (key: string): boolean => key !== "Enter" && !MODIFIER_KEYS.has(key);
 
 export const ElementView = ({
   call,
@@ -405,7 +241,7 @@ export const ElementView = ({
   dispatch,
   keep,
 }: ElementViewProps): React.JSX.Element => {
-  const [view, setView] = useState<View>({ status: "loading" });
+  const [view, setView] = useState<ElementLoad>({ status: "loading" });
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
@@ -1701,30 +1537,30 @@ export const ElementView = ({
         {view.status === "ok" && parents.answered ? (
           <>
             <ParentsRow parents={parents.parents} dispatch={dispatch} />
-            <FieldBox label={TITLE_FIELD} focusable onCopy={copy} marked={marked}>
-              <TitleBox
-                text={view.element.title}
-                {...titleProps(view.element)}
-                open={titleOpen}
-                restore={memory.editors.get(TITLE_FIELD)}
-                onClose={(state) => {
+            <ElementText
+              title={{
+                text: view.element.title,
+                ...titleProps(view.element),
+                open: titleOpen,
+                restore: memory.editors.get(TITLE_FIELD),
+                onClose: (state) => {
                   memory.editors.set(TITLE_FIELD, state);
-                }}
-                onUpdate={() => {
+                },
+                onUpdate: () => {
                   autosave.current?.release();
-                }}
-                onOpen={openTitle}
-                onChange={(_doc, typed) => {
+                },
+                onOpen: openTitle,
+                onChange: (_doc, typed) => {
                   changed(undefined, typed);
-                }}
-                onLeave={() => {
+                },
+                onLeave: () => {
                   fieldOf(TITLE_FIELD)?.focus();
-                }}
-                navigation={{
+                },
+                navigation: {
                   down: () => step(TITLE_FIELD, 1),
                   up: () => step(TITLE_FIELD, -1),
-                }}
-                onHandle={(editor) => {
+                },
+                onHandle: (editor) => {
                   if (editor === undefined) {
                     boxEditors.current.delete(TITLE_FIELD);
                     return;
@@ -1736,30 +1572,28 @@ export const ElementView = ({
                   if (at !== undefined) {
                     editor.focus(at);
                   }
-                }}
-              />
-            </FieldBox>
-            {diskBlock(TITLE_FIELD)}
-            <FieldBox label="Text" onCopy={copy} marked={marked}>
-              <Editor
-                text={text}
-                readOnly={locked}
-                plugins={plugins}
-                {...(keptText.current === undefined ? {} : { initial: keptText.current })}
-                restore={memory.editors.get(TEXT_FIELD)}
-                onClose={(state) => {
+                },
+              }}
+              titleDisk={diskBlock(TITLE_FIELD)}
+              text={{
+                text,
+                readOnly: locked,
+                plugins,
+                ...(keptText.current === undefined ? {} : { initial: keptText.current }),
+                restore: memory.editors.get(TEXT_FIELD),
+                onClose: (state) => {
                   memory.editors.set(TEXT_FIELD, state);
-                }}
-                onUpdate={() => {
+                },
+                onUpdate: () => {
                   autosave.current?.release();
-                }}
-                onChange={(doc, typed) => {
+                },
+                onChange: (doc, typed) => {
                   changed(doc, typed);
-                }}
-                onEscape={() => {
+                },
+                onEscape: () => {
                   article?.focus();
-                }}
-                handle={(editor) => {
+                },
+                handle: (editor) => {
                   if (editor !== undefined) {
                     keptText.current = undefined;
                   }
@@ -1771,132 +1605,101 @@ export const ElementView = ({
                     }
                   }
                   setHandle(editor);
-                }}
-              />
-            </FieldBox>
-            {diskBlock(TEXT_FIELD)}
+                },
+              }}
+              textDisk={diskBlock(TEXT_FIELD)}
+              onCopy={copy}
+              marked={marked}
+            />
             {shown.map((box) => {
               const editable = boxes.get(box.key);
               const kept = keptBoxes.current.get(box.key)?.doc;
               const value = onFile.current.values.get(box.key);
-              const field = (
-                <FieldBox label={box.key} focusable onCopy={copy} marked={marked}>
-                  <div className="box">
-                    <span className="key">{box.key}</span>
-                    <span className="value">
-                      {editable !== undefined && !isValueKind(editable.info.kind) ? (
-                        <TextBox
-                          label={box.key}
-                          text={editable.doc}
-                          {...(kept === undefined ? {} : { initial: kept })}
-                          readOnly={locked || editable.lineBreak}
-                          many={editable.info.many}
-                          markdown={editable.info.markdown}
-                          outdated={outdatedReferences(view.element, box.key)}
-                          follow={follow}
-                          title={title}
-                          pickElement={pick.pickElement}
-                          repository={pick.repository}
-                          restore={memory.editors.get(box.key)}
-                          onClose={(state) => {
-                            memory.editors.set(box.key, state);
-                          }}
-                          onUpdate={() => {
-                            autosave.current?.release();
-                          }}
-                          onChange={(_doc, typed) => {
-                            changed(undefined, typed);
-                          }}
-                          onLeave={() => {
-                            fieldOf(box.key)?.focus();
-                          }}
-                          navigation={{
-                            down: () => step(box.key, 1),
-                            up: () => step(box.key, -1),
-                          }}
-                          onHandle={(editor) => {
-                            if (editor === undefined) {
-                              boxEditors.current.delete(box.key);
-                            } else {
-                              boxEditors.current.set(box.key, editor);
-                              keptBoxes.current.delete(box.key);
-                              if (fresh.current?.key === box.key) {
-                                // The box "Add property" added: the caret is in it.
-                                fresh.current = undefined;
-                                editor.focus("end");
-                              }
-                            }
-                          }}
-                        />
-                      ) : editable?.info.kind === "relation" ? (
-                        <ul>
-                          {rowsOf(box.key, value ?? editable.doc, view.element.relations).map((row, at) => (
-                            <Relation key={at} row={row} onOpenRelation={onOpenRelation} />
-                          ))}
-                        </ul>
-                      ) : box.relations !== undefined ? (
-                        <ul>
-                          {box.relations.map(rowOfRelation).map((row, at) => (
-                            <Relation key={at} row={row} onOpenRelation={onOpenRelation} />
-                          ))}
-                        </ul>
-                      ) : (
-                        (editable === undefined ? box.lines : choiceKeys(value ?? editable.doc)).map(
-                          (line, at) => (
-                            <span className="line" key={at}>
-                              {line}
-                            </span>
-                          ),
-                        )
-                      )}
-                    </span>
-                  </div>
-                </FieldBox>
-              );
+              // A box of a text kind is edited in its editor; a choice or relation is set in the minibuffer.
+              const textBox: TextBoxProps | undefined =
+                editable !== undefined && !isValueKind(editable.info.kind)
+                  ? {
+                      label: box.key,
+                      text: editable.doc,
+                      ...(kept === undefined ? {} : { initial: kept }),
+                      readOnly: locked || editable.lineBreak,
+                      many: editable.info.many,
+                      markdown: editable.info.markdown,
+                      outdated: outdatedReferences(view.element, box.key),
+                      follow,
+                      title,
+                      pickElement: pick.pickElement,
+                      repository: pick.repository,
+                      restore: memory.editors.get(box.key),
+                      onClose: (state) => {
+                        memory.editors.set(box.key, state);
+                      },
+                      onUpdate: () => {
+                        autosave.current?.release();
+                      },
+                      onChange: (_doc, typed) => {
+                        changed(undefined, typed);
+                      },
+                      onLeave: () => {
+                        fieldOf(box.key)?.focus();
+                      },
+                      navigation: {
+                        down: () => step(box.key, 1),
+                        up: () => step(box.key, -1),
+                      },
+                      onHandle: (editor) => {
+                        if (editor === undefined) {
+                          boxEditors.current.delete(box.key);
+                        } else {
+                          boxEditors.current.set(box.key, editor);
+                          keptBoxes.current.delete(box.key);
+                          if (fresh.current?.key === box.key) {
+                            // The box "Add property" added: the caret is in it.
+                            fresh.current = undefined;
+                            editor.focus("end");
+                          }
+                        }
+                      },
+                    }
+                  : undefined;
               return (
-                <Fragment key={box.key}>
-                  {field}
-                  {diskBlock(box.key)}
-                </Fragment>
+                <PropertyField
+                  key={box.key}
+                  box={box}
+                  editable={editable}
+                  value={value}
+                  textBox={textBox}
+                  relations={view.element.relations}
+                  onCopy={copy}
+                  marked={marked}
+                  onOpenRelation={onOpenRelation}
+                  disk={diskBlock(box.key)}
+                />
               );
             })}
-            {relationGroups(view.element.relations).map((group) => (
-              <FieldBox key={group.heading} label={group.heading} onCopy={copy} marked={marked}>
-                <section>
-                  <h2>{group.heading}</h2>
-                  <ul>
-                    {group.relations.map((relation, at) => (
-                      <Relation key={at} row={rowOfRelation(relation)} onOpenRelation={onOpenRelation} />
-                    ))}
-                  </ul>
-                </section>
-              </FieldBox>
-            ))}
+            <RelationGroups
+              relations={view.element.relations}
+              onCopy={copy}
+              marked={marked}
+              onOpenRelation={onOpenRelation}
+            />
             {packageModel === undefined ? null : (
-              <section className="members" hidden={members?.total === 0}>
-                {members !== undefined && members.total > 0 ? (
-                  <h2>
-                    ← {packageModel.key}{" "}
-                    <span className="count">{memberSummary(members, buffer.memberSort)}</span>
-                  </h2>
-                ) : null}
-                <ListView
-                  part
-                  call={call}
-                  buffer={memberList(buffer, selection)}
-                  revision={revision + outside.seq}
-                  outside={outside}
-                  dispatch={dispatch}
-                  onData={(_key, data) => {
-                    setMembers(memberCount(data));
-                  }}
-                  onEcho={onEcho}
-                  onLeave={() => {
-                    article?.focus({ preventScroll: true });
-                  }}
-                  focusOnLoad={returning.current}
-                />
-              </section>
+              <PackageMembers
+                model={packageModel}
+                buffer={buffer}
+                selection={selection}
+                call={call}
+                revision={revision}
+                outside={outside}
+                dispatch={dispatch}
+                members={members}
+                onMembers={setMembers}
+                onEcho={onEcho}
+                onLeave={() => {
+                  article?.focus({ preventScroll: true });
+                }}
+                focusOnLoad={returning.current}
+              />
             )}
           </>
         ) : null}

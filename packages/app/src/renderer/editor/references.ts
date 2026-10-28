@@ -260,3 +260,18 @@ export const references = (options: ReferenceOptions): EditorPlugins => ({
     ...(options.title === undefined ? [] : [askTitles(options.title)]),
   ],
 });
+
+/**
+ * The reference "Follow reference" takes in a box (SR-127): at the caret when the box has the focus, else the
+ * first one; none in a box that is not Markdown.
+ */
+export const boxReference = (
+  box: { readonly state: () => EditorState; readonly hasFocus: () => boolean },
+  markdown: boolean,
+): Reference | undefined => {
+  if (!markdown) {
+    return undefined;
+  }
+  const state = box.state();
+  return box.hasFocus() ? referenceAt(state, state.selection.main.head) : referencesIn(state)[0];
+};

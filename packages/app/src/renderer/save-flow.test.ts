@@ -36,6 +36,7 @@ const element = (body: string, title: string, topic?: string): DataExportElement
     relations: [],
   }) as unknown as DataExportElement;
 const edit = (key: string, base: string, doc: string): BoxEdit => ({ key, info: text, base, doc });
+// A plain object for the editor handle: `saveStep` is generic over it and only passes it on, it never looks into it.
 const EDITOR = { name: "the editor" };
 
 describe("a save (SR-105, SR-106)", () => {

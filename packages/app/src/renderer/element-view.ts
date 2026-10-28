@@ -196,3 +196,17 @@ export const outdatedReferences = (
   }
   return found;
 };
+
+/** What an element buffer shows of its element: loading, why it could not be read, or the element. */
+export type ElementLoad =
+  | { readonly status: "loading" }
+  | { readonly status: "error"; readonly message: string }
+  | { readonly status: "ok"; readonly element: DataExportElement };
+
+/** The element the buffer shows: once it is loaded and its parents line has answered too. */
+export const shownElement = (view: ElementLoad, parentsAnswered: boolean): DataExportElement | undefined =>
+  view.status === "ok" && parentsAnswered ? view.element : undefined;
+
+/** The loaded element is read-only. */
+export const isReadOnly = (view: ElementLoad): boolean =>
+  view.status === "ok" && view.element.readOnly === true;

@@ -25,7 +25,7 @@ export interface SentWrite {
 }
 
 /** What a save does before it writes: nothing more (with its result and what to say), or the write. */
-export type SaveStep<E> =
+export type SaveDecision<E> =
   | { readonly kind: "done"; readonly result: boolean; readonly echo?: string }
   | { readonly kind: "write"; readonly editor: E };
 
@@ -39,7 +39,7 @@ export const saveStep = <E>(o: {
   readonly input: boolean;
   readonly note: string | undefined;
   readonly mode: SaveMode;
-}): SaveStep<E> => {
+}): SaveDecision<E> => {
   if (o.editor === undefined) {
     return { kind: "done", result: true };
   }

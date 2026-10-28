@@ -1,7 +1,9 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
+import type { ElementLoad } from "./element-view.js";
 import {
   isPropertyTarget,
+  isReadOnly,
   outdatedReferences,
   propertyBoxes,
   propertyLines,
@@ -9,6 +11,7 @@ import {
   relationGroups,
   relationLabel,
   rowOfRelation,
+  shownElement,
 } from "./element-view.js";
 
 const relation = (extra: Partial<DataExportRelation>): DataExportRelation => ({
@@ -303,5 +306,25 @@ describe("outdatedReferences in a property (SR-127)", () => {
     expect(outdatedReferences(element, "acceptance-criteria")).toEqual(new Map([[key, "in the criteria"]]));
     expect(outdatedReferences(element, "rationale")).toEqual(new Map([[key, "in the rationale"]]));
     expect(outdatedReferences(element, "topic").size).toBe(0);
+  });
+});
+
+describe("the load of an element buffer", () => {
+  const element = { shortId: "SR-036", readOnly: true } as unknown as DataExportElement;
+  const loaded: ElementLoad = { status: "ok", element };
+
+  it("shows the element once it is loaded and its parents line has answered", () => {
+    expect(shownElement(loaded, true)).toBe(element);
+    expect(shownElement(loaded, false)).toBeUndefined();
+    expect(shownElement({ status: "loading" }, true)).toBeUndefined();
+  });
+
+  it("is read-only when the loaded element is", () => {
+    expect(isReadOnly(loaded)).toBe(true);
+    expect(isReadOnly({ status: "ok", element: { ...element, readOnly: false } })).toBe(false);
+    expect(isReadOnly({ status: "ok", element: { shortId: "SR-036" } as unknown as DataExportElement })).toBe(
+      false,
+    );
+    expect(isReadOnly({ status: "error", message: "gone" })).toBe(false);
   });
 });

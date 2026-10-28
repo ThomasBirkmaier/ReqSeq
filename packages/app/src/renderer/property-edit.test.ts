@@ -14,8 +14,12 @@ import {
   editsOf,
   fieldBoxes,
   hintKeys,
+  isLocked,
   isValueKind,
+  lineBreakNote,
+  lockNote,
   relationDoc,
+  relationRows,
   relationTargetOf,
   relationTargets,
   savedHint,
@@ -656,5 +660,39 @@ describe("the title field (#621)", () => {
     expect(hintKeys(edits, titled("", "other"), model)).toEqual([TITLE_FIELD, "topic"]);
     const message = "Required property Title (title) of type Need (need) has no value";
     expect(savedHint([{ message }], hintKeys([titleEdit("Old", "")], titled(""), model))).toBe(message);
+  });
+});
+
+describe("relation rows and locked boxes", () => {
+  it("shows the targets of a relation document, the stored ones with their state, an added one available", () => {
+    const relations = [
+      target("uses", "a", { targetState: "missing", outdated: true }),
+      target("uses", "b", { direction: "in" }),
+      target("other", "c"),
+    ];
+    const doc = relationDoc([
+      { id: "a", repository: "spec", label: "x" },
+      { id: "n", repository: "spec", label: "SR-9 New" },
+      { id: "a", repository: "other", label: "y" },
+    ]);
+    expect(relationRows("uses", doc, relations)).toEqual([
+      { id: "a", repository: "spec", label: "PKG-1 Stufe 3", state: "missing", outdated: true },
+      { id: "n", repository: "spec", label: "SR-9 New", state: "available", outdated: false },
+      { id: "a", repository: "other", label: "y", state: "available", outdated: false },
+    ]);
+    expect(relationRows("uses", "", relations)).toEqual([]);
+  });
+
+  it("locks a box with a line break in its value or a target that cannot be read, and says why", () => {
+    const box = { key: "topic", info: text, doc: "a", lineBreak: false };
+    expect(isLocked(box)).toBe(false);
+    expect(isLocked({ ...box, unmatched: false })).toBe(false);
+    expect(isLocked({ ...box, lineBreak: true })).toBe(true);
+    expect(isLocked({ ...box, unmatched: true })).toBe(true);
+    expect(lockNote("topic", { ...box, lineBreak: true })).toBe(lineBreakNote("topic"));
+    expect(lineBreakNote("topic")).toBe("topic has a value with a line break: edit it in the file");
+    expect(lockNote("uses", { ...box, unmatched: true })).toBe(
+      "uses has a target that cannot be read: edit it in the file",
+    );
   });
 });
