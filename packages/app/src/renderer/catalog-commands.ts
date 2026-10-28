@@ -1,6 +1,7 @@
 // Catalog commands in the command prompt (SR-073 AK2, SR-108, #85). The prompt lists the implemented read
-// commands by their `title`, except those an app action covers. Choosing one asks its arguments one by
-// one in the minibuffer, Emacs `completing-read` style, in the order of the catalog's `arguments`; each
+// commands by their `title`, except those an app action covers, and "Create element" (SR-064). Choosing
+// one asks its arguments one by one in the minibuffer, Emacs `completing-read` style, in the order of the
+// catalog's `arguments`; each
 // source is answered by one existing read command and shown as it is (ADR-0002: the app builds the input
 // and decides nothing about what is allowed; core validates). The output opens a result buffer.
 //
@@ -8,13 +9,24 @@
 // argument; Escape ends the command; Ctrl/Cmd+Enter takes the answer and then offers the optional
 // arguments ("Run" first). A list field (`refs`) takes one value per Enter, and Enter on an empty input ends it.
 //
-// Write commands follow with #85 PR 5b, and with them the sources only they use (status, invalidStatus,
-// relationTarget, relation, property, value, hint, filter); until then those are typed as text.
+// "Create element" (`element.create`, SR-064) asks, after the type and the title, each required property of
+// the type in turn (`create-element.ts`): a choice among the choices of the metamodel, a relation target
+// found by search among its target types, or typed text; a list property takes one value per Enter. An
+// empty input skips the property, or ends the values of a list. The optional `properties` are not offered:
+// the other properties are added in the element buffer ("Add property", SR-104). The new element opens in
+// its element buffer, and the minibuffer says how many hints core gave.
+//
+// The other write commands follow with #85 PR 5b, and with them the sources only they use (status,
+// invalidStatus, relationTarget, relation, property, value, hint, filter); until then those are typed as text.
 import type { CommandTypes } from "@logreq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
-import { bufferName, resultBuffer } from "./buffers.js";
+import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
+import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
+import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
+import { choiceItems } from "./property-edit.js";
+import type { Row } from "./rows.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -31,6 +43,10 @@ interface Given {
   readonly field: string;
   readonly value: unknown;
   readonly label: string;
+  /** A value of one property of the field (`properties`, SR-064): the key; no value when it was skipped. */
+  readonly property?: string;
+  /** The properties this value asks next: the required properties of the type of a new element (SR-064). */
+  readonly asks?: readonly RequiredProperty[];
 }
 
 /** Where the argument entry of one command stands. */
@@ -39,15 +55,24 @@ interface Entry {
   readonly given: readonly Given[];
   /** The list field that takes more values (Enter on an empty input ends it). */
   readonly collecting?: string;
+  /** The list property that takes more values (Enter on an empty input ends it, SR-064). */
+  readonly filling?: string;
   /** Ctrl/Cmd+Enter was pressed: the optional arguments are offered before the command runs. */
   readonly more: boolean;
   /** Why core refused the input, shown with the argument asked again. */
   readonly error?: string;
 }
 
+/** One value of a closed list; `asks` goes with it to the value given (`Given.asks`). */
+interface Value {
+  readonly value: unknown;
+  readonly name: string;
+  readonly asks?: readonly RequiredProperty[];
+}
+
 /** What one argument offers: a closed list, elements found by search, or typed text. */
 type Offer =
-  | { readonly kind: "list"; readonly values: readonly { readonly value: unknown; readonly name: string }[] }
+  | { readonly kind: "list"; readonly values: readonly Value[] }
   | { readonly kind: "element" }
   | { readonly kind: "text"; readonly parse: (text: string) => unknown };
 
@@ -161,7 +186,7 @@ interface Asked {
 
 const listOf = <T>(
   answer: { readonly ok: true; readonly output: T } | { readonly ok: false; readonly message: string },
-  values: (output: T) => readonly { readonly value: unknown; readonly name: string }[],
+  values: (output: T) => readonly Value[],
 ): Offer | Failed =>
   answer.ok ? { kind: "list", values: values(answer.output) } : { kind: "failed", message: answer.message };
 
@@ -175,9 +200,12 @@ const asText = typed((text) => text);
  */
 const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>> = {
   element: () => Promise.resolve({ kind: "element" }),
-  type: async ({ context }) =>
+  // A new element: only the types that are not abstract, each with the required properties asked next.
+  type: async ({ context, command }) =>
     listOf(await context.call("metamodel.get", {}), (output) =>
-      output.types.map((type) => ({ value: type.key, name: type.name })),
+      command.name === CREATE_COMMAND
+        ? creatableTypes(output).map((type) => ({ value: type.key, name: type.name, asks: type.required }))
+        : output.types.map((type) => ({ value: type.key, name: type.name })),
     ),
   relationKind: async ({ context, of }) =>
     typeof of === "string"
@@ -236,9 +264,21 @@ const offerFor = (
   });
 };
 
-/** "Show relation options SR-1" : the title and the values given so far. */
+/** "Show relation options SR-1" : the title and the values given so far (a skipped property shows nothing). */
 const lineOf = (entry: Entry): string =>
-  [entry.command.title, ...entry.given.map((given) => given.label)].join(" ");
+  [entry.command.title, ...entry.given.map((given) => given.label).filter((label) => label !== "")].join(" ");
+
+/** The properties the given values ask (SR-064): the required properties of the type of a new element. */
+const asksOf = (entry: Entry): readonly RequiredProperty[] =>
+  entry.given.flatMap((given) => given.asks ?? []);
+
+/** The values given to the properties, without the skipped ones. */
+const answersOf = (entry: Entry): { readonly key: string; readonly value: PropertyAnswer }[] =>
+  entry.given.flatMap((given) =>
+    given.property === undefined || given.value === undefined
+      ? []
+      : [{ key: given.property, value: given.value as PropertyAnswer }],
+  );
 
 /** The input the given values make, with the shown list's selection for a `selection` argument. */
 const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> => {
@@ -250,6 +290,11 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
       if (selection !== undefined) {
         input[arg.field] = selection;
       }
+    } else if (entry.given.some((given) => given.field === arg.field && given.property !== undefined)) {
+      const properties = propertiesInput(asksOf(entry), answersOf(entry));
+      if (Object.keys(properties).length > 0) {
+        input[arg.field] = properties;
+      }
     } else if (values.length > 0) {
       input[arg.field] = isListField(entry.command, arg.field) ? values : values[0];
     }
@@ -257,14 +302,21 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   return input;
 };
 
-/** Runs the command with the given values: the output opens a result buffer; a refused input asks again. */
+/**
+ * Runs the command with the given values: the output opens a result buffer, a new element its element
+ * buffer (SR-064); a refused input asks again.
+ */
 const execute = async (context: CatalogContext, entry: Entry): Promise<void> => {
   const input = inputOf(context, entry);
   const name = entry.command.name as keyof CommandTypes;
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
   const answer = await context.call(name, input);
-  if (answer.ok) {
+  if (answer.ok && name === CREATE_COMMAND) {
+    const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
+    context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
+    context.echo(createdEcho(created));
+  } else if (answer.ok) {
     context.dispatch({
       type: "open",
       buffer: resultBuffer(name, input, lineOf(entry), answer.output, revision),
@@ -280,6 +332,15 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
 /** One argument back: the value given last is asked again; before the first, the command prompt. */
 const back = (context: CatalogContext, entry: Entry): void => {
   const last = entry.given.at(-1);
+  const property = asksOf(entry).find((asked) => asked.key === last?.property);
+  if (property !== undefined) {
+    const { collecting: _was, filling: _filling, ...rest } = entry;
+    const given = entry.given.slice(0, -1);
+    // A list property that keeps values takes more again.
+    const keeps = given.some((value) => value.property === property.key);
+    askProperty(context, { ...rest, given, ...(keeps ? { filling: property.key } : {}) }, property);
+    return;
+  }
   const at = entry.command.arguments.findIndex((arg) => arg.field === last?.field);
   const arg = entry.command.arguments[at];
   if (last === undefined || arg === undefined) {
@@ -301,14 +362,135 @@ const give = (
   value: unknown,
   label: string,
   more: boolean,
+  asks?: readonly RequiredProperty[],
 ): void => {
   const { collecting: _was, error: _error, ...rest } = entry;
   step(context, {
     ...rest,
-    given: [...entry.given, { field, value, label }],
+    given: [...entry.given, { field, value, label, ...(asks === undefined ? {} : { asks }) }],
     more: entry.more || more,
     ...(isListField(entry.command, field) && !more ? { collecting: field } : {}),
   });
+};
+
+/** The field of the input that holds the properties (`element.create`: `properties`). */
+const PROPERTIES = "properties";
+
+/**
+ * Takes a value for a property (SR-064); none skips it. A list property takes more values, unless `more`
+ * (Ctrl/Cmd+Enter) offers the optional arguments next.
+ */
+const giveProperty = (
+  context: CatalogContext,
+  entry: Entry,
+  property: RequiredProperty,
+  answer: { readonly value: PropertyAnswer; readonly label: string } | undefined,
+  more: boolean,
+): void => {
+  const { filling: _was, error: _error, ...rest } = entry;
+  step(context, {
+    ...rest,
+    given: [
+      ...entry.given,
+      {
+        field: PROPERTIES,
+        property: property.key,
+        value: answer?.value,
+        label: answer?.label ?? "",
+      },
+    ],
+    more: entry.more || more,
+    ...(answer !== undefined && property.info.many && !more ? { filling: property.key } : {}),
+  });
+};
+
+/** The target a found element is, for a relation property. */
+const targetOf = (row: Row): { readonly value: PropertyAnswer; readonly label: string } => {
+  const label = `${row.label} ${row.title}`.trim();
+  return { value: { id: row.open.id, repository: row.open.repository, label }, label: row.label };
+};
+
+/**
+ * Asks a required property of a new element (SR-064): a choice among its choices (in a list, those not
+ * taken yet), a target among the elements of its target types, or text. An empty input skips it, or ends
+ * the values of a list.
+ */
+const askProperty = (context: CatalogContext, entry: Entry, property: RequiredProperty): void => {
+  const { key, info } = property;
+  const label = `${entry.error === undefined ? "" : `${entry.error} · `}${lineOf(entry)} · ${key}:`;
+  const take = (answer: { readonly value: PropertyAnswer; readonly label: string }) => ({
+    run: () => {
+      giveProperty(context, entry, property, answer, false);
+    },
+    more: () => {
+      giveProperty(context, entry, property, answer, true);
+    },
+  });
+  const shared = {
+    label,
+    back: () => {
+      back(context, entry);
+    },
+    empty: (more: boolean) => {
+      if (entry.filling === key) {
+        const { filling: _was, error: _error, ...rest } = entry;
+        step(context, { ...rest, more: entry.more || more });
+      } else {
+        giveProperty(context, entry, property, undefined, more);
+      }
+    },
+  };
+  if (info.kind === "choice") {
+    // The choices of the metamodel (SR-104 AK3) that are not taken yet.
+    const taken = answersOf(entry).flatMap((answer) =>
+      answer.key === key && typeof answer.value === "string" ? [answer.value] : [],
+    );
+    context.ask({
+      ...shared,
+      items: choiceItems(info, taken)
+        .filter((choice) => !choice.set)
+        .map((choice) => ({
+          id: JSON.stringify(choice.key),
+          name: choice.name,
+          hint: choice.hint,
+          ...take({ value: choice.key, label: choice.name }),
+        })),
+    });
+  } else if (info.kind === "relation") {
+    const types = info.targetTypes;
+    context.ask({
+      ...shared,
+      items: [],
+      // A relation property that may point at no type finds nothing: it can only be skipped.
+      ...(types?.length === 0
+        ? {}
+        : {
+            find: findElements(
+              context,
+              (row) => {
+                take(targetOf(row)).run();
+              },
+              {
+                ...(types === undefined ? {} : { selection: { where: { type: [...types] } } }),
+                more: (row) => {
+                  take(targetOf(row)).more();
+                },
+              },
+            ),
+          }),
+    });
+  } else {
+    context.ask({
+      ...shared,
+      items: [],
+      text: (text) => {
+        take({ value: text, label: text }).run();
+      },
+      more: (text) => {
+        take({ value: text, label: text }).more();
+      },
+    });
+  }
 };
 
 /** Asks the argument at `at`: its candidates from its source, or its text. */
@@ -329,12 +511,16 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         }
       : {}),
   };
-  const take = (value: unknown, name: string): Pick<Choice, "run" | "more"> => ({
+  const take = (
+    value: unknown,
+    name: string,
+    asks?: readonly RequiredProperty[],
+  ): Pick<Choice, "run" | "more"> => ({
     run: () => {
-      give(context, entry, field, value, name, false);
+      give(context, entry, field, value, name, false, asks);
     },
     more: () => {
-      give(context, entry, field, value, name, true);
+      give(context, entry, field, value, name, true, asks);
     },
   });
   // The prompt opens at once with its label, so no key goes to the buffer and Escape ends it while the
@@ -348,10 +534,10 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
       }
       if (offer.kind === "list") {
         return {
-          items: offer.values.map(({ value, name }) => ({
+          items: offer.values.map(({ value, name, asks }) => ({
             id: JSON.stringify(value),
             name,
-            ...take(value, name),
+            ...take(value, name, asks),
           })),
         };
       }
@@ -408,7 +594,9 @@ const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
     items: [
       { id: "run", name: "Run", run, more: run },
       ...entry.command.arguments.flatMap((arg, at) =>
-        arg.complete === "selection" || entry.given.some((given) => given.field === arg.field)
+        arg.complete === "selection" ||
+        entry.given.some((given) => given.field === arg.field) ||
+        (arg.field === PROPERTIES && entry.given.some((given) => given.asks !== undefined))
           ? []
           : [
               {
@@ -424,7 +612,18 @@ const moreArguments = (context: CatalogContext, entry: Entry): Prompt => {
   };
 };
 
-/** The next step: the list field being filled, the next required argument, the optional ones, or the run. */
+/** The property asked next (SR-064): the list property being filled, else the first one not answered yet. */
+const nextProperty = (entry: Entry): RequiredProperty | undefined =>
+  asksOf(entry).find((asked) =>
+    entry.filling === undefined
+      ? !entry.given.some((given) => given.property === asked.key)
+      : asked.key === entry.filling,
+  );
+
+/**
+ * The next step: the list field being filled, the next required argument, the required properties of a new
+ * element (SR-064), the optional ones, or the run.
+ */
 const step = (context: CatalogContext, entry: Entry): void => {
   const { arguments: args } = entry.command;
   const required = requiredOf(entry.command);
@@ -438,8 +637,11 @@ const step = (context: CatalogContext, entry: Entry): void => {
         )
       : args.findIndex((arg) => arg.field === entry.collecting);
   const arg = args[next];
+  const property = nextProperty(entry);
   if (arg !== undefined) {
     ask(context, entry, arg, next);
+  } else if (property !== undefined) {
+    askProperty(context, entry, property);
   } else if (entry.more) {
     context.ask(moreArguments(context, entry));
   } else {
@@ -452,10 +654,13 @@ export const startCommand = (context: CatalogContext, command: CommandListing, m
   step(context, { command, given: [], more });
 };
 
+/** The write commands the prompt offers already: "Create element" (SR-064); the others follow with #85 PR 5b. */
+const WRITES: ReadonlySet<string> = new Set([CREATE_COMMAND]);
+
 /**
- * The catalog commands the command prompt offers now: implemented read commands that no action covers
- * (by title or by `covers`), each by its title and whether it fits the shown view (SR-133). Write
- * commands follow with #85 PR 5b.
+ * The catalog commands the command prompt offers now: implemented read commands and the writes it offers
+ * already, that no action covers (by title or by `covers`), each by its title and whether it fits the
+ * shown view (SR-133).
  */
 export const catalogItems = (
   context: CatalogContext,
@@ -467,7 +672,7 @@ export const catalogItems = (
     .filter(
       (command) =>
         command.implemented &&
-        command.effect === "read" &&
+        (command.effect === "read" || WRITES.has(command.name)) &&
         !covered.has(command.title) &&
         !covered.has(command.name) &&
         offered(context, command),

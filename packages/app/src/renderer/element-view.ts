@@ -87,6 +87,19 @@ export interface PropertyInfo {
 /** The properties of each type, by the key of the type and then of the property, with the inherited ones. */
 export type PropertyModel = ReadonlyMap<string, ReadonlyMap<string, PropertyInfo>>;
 
+/** What the app needs of one property of the metamodel (`metamodel.get`) to edit or ask its value. */
+export const propertyInfo = (property: MetamodelProperty): PropertyInfo => ({
+  name: property.name,
+  kind: property.kind,
+  many: property.many === true,
+  markdown: property.markdown === true,
+  ...(property.choices === undefined
+    ? {}
+    : { choices: property.choices.map(({ key: choice, name }) => ({ key: choice, name })) }),
+  ...(property["target-types"] === undefined ? {} : { targetTypes: property["target-types"] }),
+  ...(property.meaning === undefined ? {} : { meaning: property.meaning }),
+});
+
 /**
  * The properties of each type as the metamodel defines them (`metamodel.get`, SR-127 AK5): kind, list or
  * single value, and whether the values are Markdown. The app only reads what core says; a key a type does
@@ -100,28 +113,7 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
       new Map(
         type.properties.flatMap((key): [string, PropertyInfo][] => {
           const property = defined.get(key);
-          return property === undefined
-            ? []
-            : [
-                [
-                  key,
-                  {
-                    name: property.name,
-                    kind: property.kind,
-                    many: property.many === true,
-                    markdown: property.markdown === true,
-                    ...(property.choices === undefined
-                      ? {}
-                      : {
-                          choices: property.choices.map(({ key: choice, name }) => ({ key: choice, name })),
-                        }),
-                    ...(property["target-types"] === undefined
-                      ? {}
-                      : { targetTypes: property["target-types"] }),
-                    ...(property.meaning === undefined ? {} : { meaning: property.meaning }),
-                  },
-                ],
-              ];
+          return property === undefined ? [] : [[key, propertyInfo(property)]];
         }),
       ),
     ]),

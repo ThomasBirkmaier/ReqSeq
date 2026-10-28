@@ -10,6 +10,7 @@ import type { CatalogContext } from "./catalog-commands.js";
 import { catalogItems, contextField, fits } from "./catalog-commands.js";
 import { rank } from "./fuzzy.js";
 import { rankByUse } from "./usage.js";
+import { CREATE_METAMODEL } from "./create-test-data.js";
 
 const runtime = getCommandRuntime();
 /** The catalog as the bridge lists it (`commands()`), with what this version implements. */
@@ -614,5 +615,292 @@ describe("the commands that fit the shown view", () => {
       ),
     ).toEqual(["Show relation options", "Show trace chain", "Show workspace status", "Check workspace"]);
     expect(order([list], ["Show trace chain", "Show facets"])).toEqual(["Show facets", "Show trace chain"]);
+  });
+});
+
+describe('"Create element": the required properties asked in the command line (SR-064)', () => {
+  /** What core gives for a new element: the element of the input, with a hint for each `hints` key. */
+  const created =
+    (hints: readonly string[] = []) =>
+    (input: Record<string, unknown>) => ({
+      element: {
+        id: "uuid-9",
+        type: input["type"],
+        repository: "spec",
+        file: "report/REP-000009.md",
+        shortId: "REP-000009",
+        title: input["title"],
+        properties: {},
+        relations: [],
+        text: "",
+      },
+      files: ["report/REP-000009.md"],
+      problems: hints.map((key) => ({
+        code: "element.missing-required",
+        severity: "warning",
+        message: `Required property ${key} has no value`,
+      })),
+    });
+
+  const creating = (answers: Record<string, (input: Record<string, unknown>) => Answer> = {}) =>
+    setup([overviewBuffer()], {
+      "metamodel.get": () => CREATE_METAMODEL,
+      "element.create": created(),
+      "element.search": () => ({ hits: [hit(4)], total: 1 }),
+      ...answers,
+    });
+
+  /** Starts "Create element" and answers the type and the title; resolves the prompt asked next. */
+  const typeAndTitle = async (
+    { context, asked }: ReturnType<typeof setup>,
+    type: string,
+    title: string,
+  ): Promise<Prompt> => {
+    start(context, "element.create");
+    item((await last(asked)).items, type).run();
+    (await last(asked)).text?.(title);
+    return last(asked);
+  };
+
+  it("[SR-064/AK1] is in the command prompt once, by the title of element.create, and asks the type among the types that can have elements", async () => {
+    const running = creating();
+    const { context, asked, call } = running;
+    const names = commandPrompt(context, undefined, catalogItems(context, CATALOG, ACTIONS)).items.map(
+      (i) => i.name,
+    );
+    expect(names.filter((name) => name === "Create element")).toHaveLength(1);
+    // The other write commands are not offered yet (#85 PR 5b).
+    expect(names).not.toContain("Update element");
+    start(context, "element.create");
+    const type = await last(asked);
+    expect(type.label).toBe("Create element · type:");
+    expect(call).toHaveBeenLastCalledWith("metamodel.get", {});
+    // Not the abstract "Item"; in metamodel order, by name.
+    expect(type.items.map((i) => i.name)).toEqual([
+      "System Requirement",
+      "Software Requirement",
+      "Decision",
+      "Package",
+      "Report",
+      "Note",
+    ]);
+  });
+
+  it("[SR-064/AK1] asks, after the type and the title, only the required properties of the type, one after the other", async () => {
+    const running = creating();
+    const { asked, call } = running;
+    const labels: string[] = [];
+    let prompt = await typeAndTitle(running, "Report", "Wind gusts");
+    // Each required property but the title, in the order of the type, and none of the optional ones.
+    while (prompt.empty !== undefined) {
+      labels.push(prompt.label);
+      prompt.empty(false);
+      if (call.mock.lastCall?.[0] === "element.create") {
+        break;
+      }
+      prompt = await last(asked);
+    }
+    expect(labels).toEqual([
+      "Create element Report Wind gusts · severity:",
+      "Create element Report Wind gusts · packages:",
+      "Create element Report Wind gusts · component:",
+    ]);
+    // A type whose only required property is the title asks nothing more and creates the element.
+    const decision = creating();
+    start(decision.context, "element.create");
+    item((await last(decision.asked)).items, "Decision").run();
+    (await last(decision.asked)).text?.("Use wind");
+    await flush();
+    expect(decision.call).toHaveBeenLastCalledWith("element.create", { type: "decision", title: "Use wind" });
+    // With Ctrl/Cmd+Enter on the title its optional arguments follow, never `properties`.
+    const more = creating();
+    start(more.context, "element.create");
+    item((await last(more.asked)).items, "Decision").run();
+    (await last(more.asked)).more?.("Use wind");
+    expect((await last(more.asked)).items.map((i) => i.name)).toEqual([
+      "Run",
+      "text",
+      "repository",
+      "folder",
+    ]);
+  });
+
+  it("[SR-064/AK2] creates the element with every required property left empty, opens it, and says how many hints core gave", async () => {
+    const running = creating({ "element.create": created(["severity", "packages", "component"]) });
+    const { asked, call, dispatched, echoed } = running;
+    let prompt = await typeAndTitle(running, "Report", "Wind gusts");
+    for (let at = 0; at < 3; at += 1) {
+      prompt.empty?.(false);
+      prompt = await last(asked);
+    }
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", { type: "report", title: "Wind gusts" });
+    expect(dispatched.at(-1)).toEqual({
+      type: "open",
+      buffer: elementBuffer("uuid-9", "spec", "REP-000009 Wind gusts"),
+    });
+    expect(echoed.at(-1)).toBe("Created REP-000009 Wind gusts · 3 hints");
+  });
+
+  it("[SR-064/AK2] creates the element with an empty title too, when the title is left empty", async () => {
+    const running = creating({ "element.create": created(["title"]) });
+    const { context, asked, call, echoed } = running;
+    start(context, "element.create");
+    item((await last(asked)).items, "Decision").run();
+    (await last(asked)).text?.("");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", { type: "decision", title: "" });
+    expect(echoed.at(-1)).toBe("Created REP-000009 · 1 hint");
+  });
+
+  it("takes a text, the targets found among the target types and the choices of the metamodel, a list one value per Enter", async () => {
+    const running = creating();
+    const { asked, call } = running;
+    const severity = await typeAndTitle(running, "Report", "Wind gusts");
+    expect(severity.items).toEqual([]);
+    severity.text?.("3");
+    const packages = await last(asked);
+    expect(packages.label).toBe("Create element Report Wind gusts 3 · packages:");
+    const found = await packages.find?.("pkg");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "pkg",
+      selection: { where: { type: ["package"] } },
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    found?.[0]?.run();
+    // A list: the same property takes more, Enter on an empty input ends it.
+    const morePackages = await last(asked);
+    expect(morePackages.label).toBe("Create element Report Wind gusts 3 SR-000004 · packages:");
+    morePackages.empty?.(false);
+    const component = await last(asked);
+    expect(component.label).toBe("Create element Report Wind gusts 3 SR-000004 · component:");
+    expect(component.items.map((i) => [i.name, i.hint])).toEqual([
+      ["Display", "display"],
+      ["Sensor", "sensor"],
+    ]);
+    item(component.items, "Sensor").run();
+    // A choice taken is not offered again.
+    const moreComponents = await last(asked);
+    expect(moreComponents.items.map((i) => i.name)).toEqual(["Display"]);
+    moreComponents.empty?.(false);
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "report",
+      title: "Wind gusts",
+      properties: {
+        severity: 3,
+        packages: [{ id: "uuid-4", repository: "spec" }],
+        component: ["sensor"],
+      },
+    });
+  });
+
+  it("finds any element for a relation property without target types, and none for one that may point at no type", async () => {
+    const running = creating();
+    const { asked, call } = running;
+    const related = await typeAndTitle(running, "Note", "On wind");
+    await related.find?.("tit");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "tit",
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    // Ctrl/Cmd+Enter on a found element: taken; the optional arguments follow the required properties.
+    (await related.find?.("tit"))?.[0]?.more?.();
+    const scope = await last(asked);
+    expect(scope.label).toBe("Create element Note On wind SR-000004 · scope:");
+    expect(scope.find).toBeUndefined();
+    scope.empty?.(false);
+    const more = await last(asked);
+    expect(more.label).toBe("Create element Note On wind SR-000004 · more arguments:");
+    // The other properties are added in the element buffer, not as `properties` here.
+    expect(more.items.map((i) => i.name)).toEqual(["Run", "text", "repository", "folder"]);
+    item(more.items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "note",
+      title: "On wind",
+      properties: { related: { id: "uuid-4", repository: "spec" } },
+    });
+  });
+
+  it("offers the optional arguments after the required properties with Ctrl/Cmd+Enter on a property: on a text, an empty input and a choice", async () => {
+    const running = creating();
+    const { asked, call } = running;
+    const severity = await typeAndTitle(running, "Report", "Wind gusts");
+    severity.more?.("2");
+    // The required properties not answered yet come first.
+    const packages = await last(asked);
+    expect(packages.label).toBe("Create element Report Wind gusts 2 · packages:");
+    packages.empty?.(true);
+    const component = await last(asked);
+    // Ctrl/Cmd+Enter on a choice of a list: taken, and the list takes no more.
+    item(component.items, "Display").more?.();
+    const more = await last(asked);
+    expect(more.label).toBe("Create element Report Wind gusts 2 Display · more arguments:");
+    item(more.items, "text").run();
+    (await last(asked)).text?.("Gusts above 20 m/s.");
+    item((await last(asked)).items, "Run").run();
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.create", {
+      type: "report",
+      title: "Wind gusts",
+      text: "Gusts above 20 m/s.",
+      properties: { severity: 2, component: ["display"] },
+    });
+  });
+
+  it("goes back one answer with Backspace in an empty input: a property value, a skipped property, then the title", async () => {
+    const running = creating();
+    const { asked } = running;
+    const severity = await typeAndTitle(running, "Report", "Wind gusts");
+    severity.text?.("3");
+    (await (await last(asked)).find?.("pkg"))?.[0]?.run();
+    (await (await last(asked)).find?.("pkg"))?.[0]?.run();
+    const morePackages = await last(asked);
+    expect(morePackages.label).toBe("Create element Report Wind gusts 3 SR-000004 SR-000004 · packages:");
+    // The target given last goes; the list keeps the one before and takes values again.
+    morePackages.back?.();
+    const onePackage = await last(asked);
+    expect(onePackage.label).toBe("Create element Report Wind gusts 3 SR-000004 · packages:");
+    onePackage.back?.();
+    const packages = await last(asked);
+    expect(packages.label).toBe("Create element Report Wind gusts 3 · packages:");
+    packages.empty?.(false);
+    const component = await last(asked);
+    expect(component.label).toBe("Create element Report Wind gusts 3 · component:");
+    // The skipped list property is asked again, with no value.
+    component.back?.();
+    const again = await last(asked);
+    expect(again.label).toBe("Create element Report Wind gusts 3 · packages:");
+    again.back?.();
+    expect((await last(asked)).label).toBe("Create element Report Wind gusts · severity:");
+    (await last(asked)).back?.();
+    expect((await last(asked)).label).toBe("Create element Report · title:");
+  });
+
+  it("asks a property again with core's message when core refuses the input, and says why it cannot create one otherwise", async () => {
+    const refusal = Object.assign(new Error("properties.severity: must be a number"), {
+      name: "input.invalid",
+    });
+    const refused = creating({ "element.create": () => refusal });
+    let prompt = await typeAndTitle(refused, "Report", "Wind gusts");
+    prompt.text?.("high");
+    for (let at = 0; at < 2; at += 1) {
+      prompt = await last(refused.asked);
+      prompt.empty?.(false);
+    }
+    expect((await last(refused.asked)).label).toBe(
+      "properties.severity: must be a number · Create element Report Wind gusts high · component:",
+    );
+    const readOnly = Object.assign(new Error("The workspace is read-only"), { name: "workspace.read-only" });
+    const locked = creating({ "element.create": () => readOnly });
+    start(locked.context, "element.create");
+    item((await last(locked.asked)).items, "Decision").run();
+    (await last(locked.asked)).text?.("Use wind");
+    await flush();
+    expect(locked.echoed.at(-1)).toBe("The workspace is read-only");
+    expect(locked.dispatched).toEqual([]);
   });
 });

@@ -302,21 +302,22 @@ const DECIMAL = /^-?\d+(\.\d+)?$/;
 const valueOf = (kind: PropertyInfo["kind"], line: string): string | number =>
   kind === "number" && DECIMAL.test(line) ? Number(line) : line;
 
-/** The value a changed box stores: none (the property is removed) when nothing but blank is left. */
-const newValue = (edit: BoxEdit): ElementInputValue | undefined => {
-  const { kind, many } = edit.info;
+/**
+ * The value a box with the document `doc` stores: none (the property is removed) when nothing but blank is
+ * left. The value a new element is created with comes the same way (SR-064, `catalog-commands.ts`).
+ */
+export const inputValueOf = (info: PropertyInfo, doc: string): ElementInputValue | undefined => {
+  const { kind, many } = info;
   if (kind === "relation") {
     // Core keeps the stored version of a target that stays and names the repository when it is another one.
-    const targets = relationTargets(edit.doc).map(
-      ({ id, repository }): { id: string; repository?: string } => ({
-        id,
-        ...(repository === "" ? {} : { repository }),
-      }),
-    );
+    const targets = relationTargets(doc).map(({ id, repository }): { id: string; repository?: string } => ({
+      id,
+      ...(repository === "" ? {} : { repository }),
+    }));
     const [only] = targets;
     return only === undefined ? undefined : many ? targets : only;
   }
-  const lines = many || kind === "choice" ? edit.doc.split("\n") : [edit.doc];
+  const lines = many || kind === "choice" ? doc.split("\n") : [doc];
   const kept = lines.filter((line) => line.trim() !== "").map((line) => valueOf(kind, line));
   const [first] = kept;
   if (first === undefined) {
@@ -360,7 +361,7 @@ export const updateInput = (
       title = edit.doc;
       continue;
     }
-    const value = newValue(edit);
+    const value = inputValueOf(edit.info, edit.doc);
     if (value === undefined) {
       unset.push(edit.key);
     } else {
