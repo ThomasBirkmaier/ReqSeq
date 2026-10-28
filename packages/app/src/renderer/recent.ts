@@ -19,11 +19,12 @@ export const RECENT_SHOWN = 5;
 export const RECENT_KEEP = 10;
 
 /**
- * The storage key of a workspace: its name and its repositories (name and path as `workspace.status` gives
- * them). Two workspaces that look the same share a list. That is harmless: every entry is read with
- * `element.get` when the overview is shown, and one that fails is left out.
+ * What names a workspace in a storage key: its name and its repositories (name and path as
+ * `workspace.status` gives them); undefined without a workspace. Two workspaces that look the same share
+ * what is stored under them. That is harmless: every element stored is read again before it is shown,
+ * and one that fails is left out.
  */
-export const recentKey = (status: InvokeResult): string | undefined => {
+export const workspaceParts = (status: InvokeResult): readonly string[] | undefined => {
   if (!status.ok) {
     return undefined;
   }
@@ -31,8 +32,13 @@ export const recentKey = (status: InvokeResult): string | undefined => {
     readonly name: string;
     readonly repositories?: readonly { readonly name: string; readonly path?: string }[];
   };
-  const parts = (repositories ?? []).map((repository) => `${repository.name}=${repository.path ?? ""}`);
-  return ["logreq.recent.v1", name, ...parts].join("\n");
+  return [name, ...(repositories ?? []).map((repository) => `${repository.name}=${repository.path ?? ""}`)];
+};
+
+/** The storage key of the recent elements of a workspace (`workspaceParts`). */
+export const recentKey = (status: InvokeResult): string | undefined => {
+  const parts = workspaceParts(status);
+  return parts === undefined ? undefined : ["logreq.recent.v1", ...parts].join("\n");
 };
 
 /** `entry` first, once, and at most `max` entries. */

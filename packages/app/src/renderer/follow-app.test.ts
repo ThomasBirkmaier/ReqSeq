@@ -291,8 +291,12 @@ describe("Follow agent in the window (SR-117)", () => {
 
   it("[SR-117/AK4] the mode switches by the command prompt and by the key, and leaves the local storage as it was but the prompt's use", async () => {
     const fake = await started();
+    // The prompt's use and the open buffers (SR-115 AK4: the element the mode showed is an open buffer)
+    // change; nothing else does.
     const stored = (): string[] =>
-      Object.keys(window.localStorage).filter((name) => !name.startsWith("logreq.usage"));
+      Object.keys(window.localStorage).filter(
+        (name) => !name.startsWith("logreq.usage") && !name.startsWith("logreq.buffers"),
+      );
     const before = stored().map((name) => [name, window.localStorage.getItem(name)]);
     await runCommand("Follow agent");
     expect(text("Modeline")).toContain("following agent");
@@ -303,7 +307,8 @@ describe("Follow agent in the window (SR-117)", () => {
     await toggle();
     await fake.activity(access(2));
     expect(title()).toBe("Title 1");
-    // The mode is no stored value: only what the overview and the prompt keep are in the local storage.
+    // The mode is no stored value: only what the overview, the prompt and the open buffers keep are in the
+    // local storage.
     expect(stored().map((name) => [name, window.localStorage.getItem(name)])).toEqual(before);
   });
 
@@ -461,12 +466,14 @@ describe("Follow agent in the window (SR-117)", () => {
     await fake.activity(access(1));
     await toggle();
     await runCommand("Overview");
-    expect(JSON.stringify(window.localStorage)).not.toContain("uuid-1");
+    // Its buffer is open (and kept as such, SR-115 AK4), but it is no recent element.
+    const recent = (): string => window.localStorage.getItem("logreq.recent.v1\nWeather station") ?? "";
+    expect(recent()).not.toContain("uuid-1");
     // Shown by the user later: then it is.
     await keyDown(window, "p", { ctrlKey: true });
     await type("Title 1");
     await keyDown(query("input"), "Enter");
-    expect(JSON.stringify(window.localStorage)).toContain("uuid-1");
+    expect(recent()).toContain("uuid-1");
   });
 
   it("asks again after a restart of the core process, and another workspace ends the mode", async () => {

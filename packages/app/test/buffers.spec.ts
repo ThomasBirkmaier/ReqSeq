@@ -4,6 +4,11 @@
 // and the previous buffer in the order of opening, wrapping, also while typing in the text editor, and as
 // the commands "Next buffer" and "Previous buffer". Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
+// After the app is closed and started again, the buffers open before are back behind the overview
+// (SR-115 AK4).
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -271,5 +276,88 @@ test.describe("Go to and no tab bar", () => {
     await window.keyboard.press("Enter");
     await expect(window.locator(".graph")).toBeFocused();
     await noTabBar(["All elements", "Overview", "Search: wind"]);
+  });
+});
+
+/** Every file below `root` by its content hash. */
+const snapshot = async (root: string): Promise<Record<string, string>> => {
+  const result: Record<string, string> = {};
+  const walk = async (folder: string): Promise<void> => {
+    for (const entry of await fs.readdir(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) {
+        await walk(file);
+      } else {
+        result[path.relative(root, file)] = createHash("sha256")
+          .update(await fs.readFile(file))
+          .digest("hex");
+      }
+    }
+  };
+  await walk(root);
+  return result;
+};
+
+test.describe("the open buffers after a restart", () => {
+  let running: RunningApp;
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  test("[SR-115/AK4] after closing and starting the app again the buffers open before are back", async () => {
+    running = await launchApp(FIXTURE);
+    let { window } = running;
+    const root = running.workspace?.root ?? "";
+    const before = await snapshot(root);
+    // Opened in this order: the overview (at the start), the list, an element, its graph, a search.
+    await listAll(window);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toBeVisible();
+    const element = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    await expect(window.locator(".graph")).toBeFocused();
+    await search(window, "wind");
+    // The list is used last.
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("All elements");
+    await window.keyboard.press("Enter");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+
+    const { kept } = running;
+    await running.close({ keep: true });
+    running = await launchApp(undefined, { kept });
+    ({ window } = running);
+    // The overview shows first; the buffers are behind it, in their order of use.
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", "Overview");
+    // They come back once their elements are named, so the prompt is asked until they are there.
+    const names = window.locator('.candidates [role="option"] .name');
+    await expect
+      .poll(
+        async () => {
+          await window.keyboard.press("ControlOrMeta+P");
+          // Before they are back the prompt may have nothing to offer: no wait longer than a second then.
+          await names
+            .first()
+            .waitFor({ timeout: 1000 })
+            .catch(() => undefined);
+          const offered = await names.allTextContents();
+          await window.keyboard.press("Escape");
+          return offered;
+        },
+        { timeout: 15_000 },
+      )
+      .toEqual(["All elements", "Search: wind", `Graph: ${element}`, element]);
+    // Alt+N walks them in their order of opening.
+    for (const name of ["All elements", element, `Graph: ${element}`, "Search: wind", "Overview"]) {
+      await window.keyboard.press("Alt+KeyN");
+      await expect(shownBuffer(window)).toHaveAttribute("aria-label", name);
+    }
+    // Each shows its content again.
+    await window.keyboard.press("Alt+KeyN");
+    await expect(window.locator(".row").first()).toBeVisible();
+    await window.keyboard.press("Alt+KeyN");
+    await expect(window.locator("article h1")).toBeVisible();
+    // Nothing of it went into the workspace.
+    expect(await snapshot(root)).toEqual(before);
   });
 });

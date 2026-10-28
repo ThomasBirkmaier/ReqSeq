@@ -179,6 +179,19 @@ describe("buffers", () => {
     expect(reduceBuffers([b, a], { type: "reset" })).toEqual([]);
   });
 
+  it("[SR-115/AK4] restores buffers behind the open ones, each key once and at most the buffers kept", () => {
+    const overview = overviewBuffer();
+    const open = [overview];
+    expect(reduceBuffers(open, { type: "restore", buffers: [a, overview, b] })).toEqual([overview, a, b]);
+    // Nothing new: the buffers stay as they are.
+    expect(reduceBuffers(open, { type: "restore", buffers: [overview] })).toBe(open);
+    expect(reduceBuffers(open, { type: "restore", buffers: [] })).toBe(open);
+    const many = Array.from({ length: MAX_BUFFERS }, (_, n) => searchBuffer(String(n)));
+    const restored = reduceBuffers(open, { type: "restore", buffers: many });
+    expect(restored).toHaveLength(MAX_BUFFERS);
+    expect(restored[0]).toBe(overview);
+  });
+
   it("moves the cursor of a list or a search; an element keeps the row of its package page apart", () => {
     const search = searchBuffer("wind");
     const moved = reduceBuffers([a, search, list], { type: "cursor", key: search.key, cursor: 7 });

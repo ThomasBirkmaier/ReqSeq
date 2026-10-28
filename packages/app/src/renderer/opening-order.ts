@@ -22,6 +22,16 @@ export const openingOrder = (previous: readonly string[], buffers: Buffers): rea
 };
 
 /**
+ * The order of opening once buffers are restored (SR-115 AK4): the restored ones in their stored order
+ * (`stored`), then those opened in this window that are not among them, in their order. `openingOrder`
+ * then drops the keys that are not open.
+ */
+export const seedOrder = (stored: readonly string[], current: readonly string[]): readonly string[] => {
+  const known = new Set(stored);
+  return [...stored, ...current.filter((key) => !known.has(key))];
+};
+
+/**
  * The key of the buffer after (`step` 1) or before (-1) `shown` in `order`, wrapping at the ends;
  * undefined with fewer than two buffers or when `shown` is not in the order.
  */

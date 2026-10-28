@@ -173,6 +173,11 @@ export type BufferAction =
   | { readonly type: "close"; readonly key: string }
   /** The workspace was opened: only `buffer` is open, or none. */
   | { readonly type: "reset"; readonly buffer?: Buffer }
+  /**
+   * The buffers open when the workspace was last left (SR-115 AK4): behind the open ones, so the shown
+   * buffer (the overview, SR-118 AK1) stays; one with the key of an open buffer is left out.
+   */
+  | { readonly type: "restore"; readonly buffers: Buffers }
   /** The selected row of a list or search buffer, or of the elements of a package page. */
   | { readonly type: "cursor"; readonly key: string; readonly cursor: number }
   /**
@@ -474,6 +479,11 @@ export const reduceBuffers = (buffers: Buffers, action: BufferAction): Buffers =
     }
     case "reset":
       return action.buffer === undefined ? [] : [action.buffer];
+    case "restore": {
+      const open = new Set(buffers.map((buffer) => buffer.key));
+      const behind = action.buffers.filter((buffer) => !open.has(buffer.key));
+      return behind.length === 0 ? buffers : [...buffers, ...behind].slice(0, MAX_BUFFERS);
+    }
     case "cursor":
       return buffers.map((buffer) => {
         if (buffer.key !== action.key || buffer.kind === "graph" || buffer.kind === "metamodel") {

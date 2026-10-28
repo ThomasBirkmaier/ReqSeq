@@ -9,7 +9,7 @@ import {
   reduceBuffers,
   searchBuffer,
 } from "./buffers.js";
-import { cycleKey, openingOrder } from "./opening-order.js";
+import { cycleKey, openingOrder, seedOrder } from "./opening-order.js";
 
 const overview = overviewBuffer();
 const list = listBuffer("All elements");
@@ -100,5 +100,12 @@ describe("the order in which the buffers were opened (SR-115 AK5)", () => {
     expect(cycleKey([], undefined, -1)).toBeUndefined();
     expect(cycleKey([overview.key, list.key], other.key, 1)).toBeUndefined();
     expect(cycleKey([overview.key, list.key], undefined, 1)).toBeUndefined();
+  });
+
+  it("[SR-115/AK4] restored buffers take their stored order of opening, before those opened in the meantime", () => {
+    const seeded = seedOrder([list.key, overview.key, element.key], [overview.key, search.key]);
+    expect(seeded).toEqual([list.key, overview.key, element.key, search.key]);
+    // Only open buffers stay in the order.
+    expect(openingOrder(seeded, [overview, search, list])).toEqual([list.key, overview.key, search.key]);
   });
 });

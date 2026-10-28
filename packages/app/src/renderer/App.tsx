@@ -17,6 +17,7 @@ import {
 } from "./actions.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
 import { forgetClosed, memoryOf, queueSave, savesDone } from "./buffer-memory.js";
+import { loadSession, restoreSession, saveSession, sessionKey, sessionText } from "./buffer-session.js";
 import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
@@ -38,7 +39,7 @@ import { MatrixView } from "./MatrixView.js";
 import { Minibuffer } from "./Minibuffer.js";
 import { ModelineBar } from "./ModelineBar.js";
 import { NeighbourhoodView } from "./NeighbourhoodView.js";
-import { openingOrder } from "./opening-order.js";
+import { openingOrder, seedOrder } from "./opening-order.js";
 import type { PackageModel } from "./package-page.js";
 import { packageModel } from "./package-page.js";
 import type { BufferData, WorkspaceView } from "./modeline.js";
@@ -74,7 +75,10 @@ const MESSAGES: Readonly<Record<string, string>> = {
 /** No relation kinds or properties: the metamodel is not read (yet). */
 const NO_RELATIONS: Pick<MetamodelGetOutput, "relations" | "properties"> = { relations: [], properties: [] };
 
-/** The app's local storage, where the recent elements are kept (SR-118 AK5); read when needed, it may throw. */
+/**
+ * The app's local storage, where the recent elements (SR-118 AK5) and the open buffers (SR-115 AK4) of a
+ * workspace are kept; read when needed, it may throw.
+ */
 const appStorage = (): RecentStorage => window.localStorage;
 
 /**
@@ -214,6 +218,14 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // Go to asks core nothing when it opens, so its search is not queued behind reads of these elements.
   const recentNames = useRef(new Map<string, ElementBuffer>());
   const scope = useRef<string | undefined>(undefined);
+  // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
+  const openOrder = useRef<readonly string[]>([]);
+  // The workspace whose open buffers are stored (SR-115 AK4): set once the buffers stored for it are
+  // restored, unset when another workspace opens. So the reset of a start or a switch never overwrites
+  // what is still to be restored.
+  const [session, setSession] = useState<string | undefined>(undefined);
+  // What was stored last (the key and the text), so that a change of a selected row alone writes nothing.
+  const sessionStored = useRef<string | undefined>(undefined);
 
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
   const call = useMemo<Call>(() => {
@@ -257,6 +269,40 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     // Counts the workspaces opened in this window: the status of one that was left (a load that hung,
     // answered by the closed connection when the next one opened) never overwrites the next one's view.
     let opened = 0;
+    // The storage key of the open workspace's buffers as its last status gave it: its name or
+    // repositories can change while it is open, and the buffers follow (SR-115 AK4).
+    let currentKey: string | undefined;
+    // The buffers open when this workspace was last left come back behind the overview (SR-115 AK4): the
+    // overview shows at once (SR-118 AK1), the restored ones once their elements are named. Their order
+    // of opening is the stored one (SR-115 AK5), before what was opened while they were read.
+    const restoreBuffers = (key: string | undefined, asked: number): void => {
+      if (key === undefined) {
+        return;
+      }
+      void restoreSession(loadSession(appStorage, key), callOn(bridge), () => bridge.commands()).then(
+        (restored) => {
+          if (!mounted || asked !== opened) {
+            return;
+          }
+          openOrder.current = seedOrder(restored.opened, openOrder.current);
+          // A name that could not be read (core restarting) keeps the stored
+          // buffers as they are: nothing is stored for this workspace until it opens again.
+          if (restored.complete) {
+            setSession(currentKey);
+          }
+          dispatch({ type: "restore", buffers: restored.buffers });
+        },
+      );
+    };
+    // The name or the repositories of the open workspace changed (its file was edited, or core
+    // restarted): the buffers move to the new key, so the next start finds them (SR-115 AK4). A status
+    // without a workspace keeps the key, so a failed read stops nothing.
+    const followKey = (moved: string | undefined): void => {
+      if (moved !== undefined) {
+        currentKey = moved;
+        setSession((before) => (before === undefined ? undefined : moved));
+      }
+    };
     const refresh = async (reason: WorkspaceChangeReason | undefined): Promise<void> => {
       const asked = opened;
       const result = await bridge.invoke("workspace.status", {});
@@ -267,7 +313,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       setView(next);
       document.title = windowTitle(next);
       if (reason === undefined || reason === "opened") {
+        currentKey = sessionKey(result);
         startBuffers(reason, result.ok);
+        restoreBuffers(currentKey, asked);
+      } else {
+        followKey(sessionKey(result));
       }
       // The minibuffer said "Opening another workspace…" until the new one answers.
       if (reason === "opened" || reason === "restarted") {
@@ -331,6 +381,8 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         // new workspace comes with its status.
         if (change.reason === "opened") {
           opened += 1;
+          // Nothing is stored until the buffers of the workspace now opened are restored.
+          setSession(undefined);
           resetDrafts();
           memories.current.clear();
           openPrompt.current = undefined;
@@ -439,15 +491,24 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     );
   }, [buffers]);
 
-  // The order in which the open buffers were opened (SR-115 AK5), kept apart from their order of use.
-  const opened = useRef<readonly string[]>([]);
-  opened.current = openingOrder(opened.current, buffers);
+  openOrder.current = openingOrder(openOrder.current, buffers);
+  // The open buffers are stored on every change, for the next start (SR-115 AK4).
+  useEffect(() => {
+    if (session === undefined) {
+      return;
+    }
+    const text = sessionText(buffers, openOrder.current);
+    if (sessionStored.current !== `${session}\n${text}`) {
+      sessionStored.current = `${session}\n${text}`;
+      saveSession(appStorage, session, text);
+    }
+  }, [buffers, session]);
   // The default of an element argument when no element is shown (#85).
   const row = selectedRow(current, loaded);
   const context: ActionContext = {
     workspace: view?.name !== undefined,
     buffers,
-    opened: opened.current,
+    opened: openOrder.current,
     leaveEditor: () => {
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && focused.closest(".cm-editor") !== null) {
