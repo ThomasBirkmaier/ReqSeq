@@ -314,6 +314,17 @@ describe("createBridge", () => {
     ]);
   });
 
+  it("[SR-105/AK1] tells the window's saver whether main asks before the window closes or before a switch", async () => {
+    const ipc = new FakeIpc();
+    const bridge = createBridge(ipc);
+    const save = vi.fn(() => Promise.resolve(true));
+    bridge.onSave(save);
+    ipc.askToSave({ id: 1, closing: true });
+    ipc.askToSave({ id: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(save.mock.calls).toEqual([[{ closing: true }], [{ closing: false }]]);
+  });
+
   it("[SR-131/AK3] answers main's request to save with what the window's saver gives; without one, saved", async () => {
     const ipc = new FakeIpc();
     const bridge = createBridge(ipc);
@@ -380,8 +391,11 @@ describe("createBridge", () => {
     expect(expired).toHaveBeenCalledExactlyOnceWith({});
     expect(save).not.toHaveBeenCalled();
     expect(ipc.sent).toEqual([]);
+    // Main gave up waiting before the window closes (SR-105 AK1).
+    ipc.askToSave({ id: 3, expired: true, closing: true });
+    expect(expired).toHaveBeenLastCalledWith({ closing: true });
     off();
     ipc.askToSave({ id: 2, expired: true });
-    expect(expired).toHaveBeenCalledOnce();
+    expect(expired).toHaveBeenCalledTimes(2);
   });
 });

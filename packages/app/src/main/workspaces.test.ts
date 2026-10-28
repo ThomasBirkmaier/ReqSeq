@@ -14,6 +14,7 @@ import {
 } from "../shared/protocol.js";
 import { RENDERER_URL } from "./protocols.js";
 import type { RecentWorkspacesModule, WorkspaceSwitch, WorkspacesElectron } from "./workspaces.js";
+import { CLOSE_SAVE_TIMEOUT_MS } from "./close.js";
 import { SAVE_TIMEOUT_MS, handleWorkspaces, loadRecentWorkspaces } from "./workspaces.js";
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown;
@@ -251,6 +252,41 @@ describe("the recent workspaces channels (SR-131)", () => {
     await vi.advanceTimersByTimeAsync(SAVE_TIMEOUT_MS);
     expect(answer).toHaveBeenLastCalledWith({ ok: false, reason: "timeout" });
     expect(window.sent).toHaveLength(3);
+  });
+
+  it("[SR-105/AK1] before the window closes main asks it to save, with closing, and waits at most CLOSE_SAVE_TIMEOUT_MS, then tells it (#611 review N1)", async () => {
+    vi.useFakeTimers();
+    const { window, workspaces, log } = setup();
+    const closing = workspaces.saveBeforeClose();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await closing).toBe(true);
+    window.answer = false;
+    expect(await workspaces.saveBeforeClose()).toBe(false);
+    expect(window.sent).toEqual([
+      { channel: SAVE_CHANNEL, request: { id: 1, closing: true } },
+      { channel: SAVE_CHANNEL, request: { id: 2, closing: true } },
+    ]);
+    // No answer: a timeout after CLOSE_SAVE_TIMEOUT_MS; the window is told (expired, closing), and nothing is logged here.
+    window.answer = undefined;
+    const answer = vi.fn();
+    void workspaces.saveBeforeClose().then(answer);
+    await vi.advanceTimersByTimeAsync(CLOSE_SAVE_TIMEOUT_MS - 1);
+    expect(answer).not.toHaveBeenCalled();
+    expect(window.sent).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(answer).toHaveBeenCalledExactlyOnceWith("timeout");
+    expect(window.sent.slice(2)).toEqual([
+      { channel: SAVE_CHANNEL, request: { id: 3, closing: true } },
+      { channel: SAVE_CHANNEL, request: { id: 3, expired: true, closing: true } },
+    ]);
+    expect(log).not.toHaveBeenCalled();
+    // A window closed while main waited is told nothing.
+    void workspaces.saveBeforeClose().then(answer);
+    await vi.advanceTimersByTimeAsync(0);
+    window.destroyed = true;
+    await vi.advanceTimersByTimeAsync(CLOSE_SAVE_TIMEOUT_MS);
+    expect(answer).toHaveBeenLastCalledWith("timeout");
+    expect(window.sent).toHaveLength(5);
   });
 
   it("[SR-131/AK3] one switch at a time: a second one while the first waits answers busy and asks for no second save", async () => {

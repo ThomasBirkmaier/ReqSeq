@@ -5,7 +5,7 @@
 // facilities of the window ask the main process: `copyText` writes the clipboard (SR-128),
 // `recentWorkspaces` and `openWorkspace` list the workspaces opened last and open one of them, or the
 // workspace of a typed folder, in the window (SR-131), and `onSave` sets what saves the window's unsaved
-// input when main asks before such a switch (AK3). Nothing rejects across the context bridge, which would keep only an error's message:
+// input when main asks before such a switch (AK3) or before the window closes (SR-105 AK1). Nothing rejects across the context bridge, which would keep only an error's message:
 // a failure is the error object of every access, an empty list or a refusal.
 import type {
   CommandListing,
@@ -13,6 +13,7 @@ import type {
   LogReqBridge,
   PortEvent,
   PortRequest,
+  SaveReason,
   WorkspaceMessage,
 } from "../shared/protocol.js";
 import {
@@ -136,7 +137,7 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
   });
 
   // What saves the window's unsaved input when main asks (SR-131 AK3); without one nothing is unsaved.
-  let saver: (() => Promise<boolean>) | undefined;
+  let saver: ((request: SaveReason) => Promise<boolean>) | undefined;
   ipc.on(SAVE_CHANNEL, (_event, value) => {
     const request = saveRequest(value);
     if (request === undefined) {
@@ -144,13 +145,13 @@ export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
     }
     // Main gave up waiting (a timeout): the window learns it as an event.
     if (request.expired === true) {
-      emit({ event: "save-expired", data: {} });
+      emit({ event: "save-expired", data: request.closing === true ? { closing: true } : {} });
       return;
     }
     const save = saver;
     // The renderer is not trusted to keep to the types: only `true` is saved, a rejection is not.
     void Promise.resolve()
-      .then((): unknown => (save === undefined ? true : save()))
+      .then((): unknown => (save === undefined ? true : save({ closing: request.closing === true })))
       .then(
         (saved) => saved === true,
         () => false,

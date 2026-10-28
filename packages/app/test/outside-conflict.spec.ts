@@ -160,6 +160,8 @@ test.describe("an open element changed or deleted outside the app", () => {
     await window.waitForTimeout(1500);
     await expect(fs.access(file)).rejects.toThrow();
     await expect(text(window)).toHaveText(`${TEXT}${MINE}`);
+    // The input of a deleted file cannot be saved: the window would ask once before it closes.
+    running.discardAtClose();
   });
 
   test("[SR-116/AK3] with unsaved changes an outside change through MCP follows the conflict rule and no input is lost", async () => {
@@ -179,6 +181,8 @@ test.describe("an open element changed or deleted outside the app", () => {
     const agent = await onDisk();
     expect(agent).toContain("Measured by the agent.");
     expect(agent).not.toContain(MINE);
+    // The conflict is not resolved: the window would ask once before it closes.
+    running.discardAtClose();
   });
 });
 
@@ -198,7 +202,8 @@ for (const scheme of ["light", "dark"] as const) {
       await window.locator('[data-on-disk="Text"]').focus();
       await window.screenshot({ path: path.join(OUT, `sr-106-c-${scheme}.png`) });
     } finally {
-      await running.close();
+      // The conflict is not resolved: the window would ask once before it closes.
+      await running.close({ discard: true });
     }
   });
 }

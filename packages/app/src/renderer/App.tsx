@@ -46,7 +46,16 @@ import { OverviewView, useOverview } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, arrivals, nextChanges } from "./outside-marks.js";
 import { ResultView } from "./ResultView.js";
-import { leftUnsaved, notSaved, notSavedInTime, saveDrafts, saveOne } from "./switch.js";
+import {
+  CLOSE_NOT_IN_TIME,
+  CLOSE_WINDOW,
+  closeUnsaved,
+  leftUnsaved,
+  notSaved,
+  notSavedInTime,
+  saveDrafts,
+  saveOne,
+} from "./switch.js";
 import type { RecentEntry, RecentStorage } from "./recent.js";
 import { loadRecent, recentKey, remember, saveRecent } from "./recent.js";
 import { createTheme } from "./theme.js";
@@ -446,7 +455,42 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // window is switching: the sheet takes no input and the minibuffer says so, until the other workspace
   // is open, the save failed, or main gave up waiting (`save-expired`).
   useEffect(() => {
-    const unset = bridge.onSave(async () => {
+    // Before the window closes, also when the app quits (SR-105 AK1: closing leaves the element): the
+    // same saves, without the switching state. Input that cannot be saved keeps the window open once,
+    // with the reason in the minibuffer; the next close discards it, unless input or an action came
+    // in between (the question of "Close buffer").
+    // The save of a workspace switch while it runs (SR-131): a close waits for it, so it does not save
+    // the same drafts a second time and report the refused second write as unsaved (#611 review N3).
+    let switchSave: Promise<boolean> | undefined;
+    const beforeClose = async (): Promise<boolean> => {
+      if (armed.current === CLOSE_WINDOW) {
+        return true;
+      }
+      let result: Awaited<ReturnType<typeof saveDrafts>>;
+      try {
+        await switchSave;
+        await controlsNow.current?.flush();
+        await Promise.all([...saves.current.keys()].map((key) => savesDone(saves.current, key)));
+        result = await saveDrafts({
+          call,
+          buffers: latest.current.buffers,
+          drafts: drafts.current,
+          properties: propertiesNow.current,
+          saved: (key) => {
+            onDraft(key, undefined);
+          },
+        });
+      } catch (error) {
+        result = { ok: false, name: "The input", message: String(error) };
+      }
+      if (result.ok) {
+        return true;
+      }
+      armed.current = CLOSE_WINDOW;
+      setEcho(closeUnsaved(result));
+      return false;
+    };
+    const beforeSwitch = async (): Promise<boolean> => {
       switchRun.current += 1;
       const run = switchRun.current;
       switchingNow.current = true;
@@ -480,8 +524,20 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
         leaveSwitching();
       }
       return saved;
+    };
+    const unset = bridge.onSave(({ closing }) => {
+      if (closing) {
+        return beforeClose();
+      }
+      switchSave = beforeSwitch();
+      return switchSave;
     });
-    const unsubscribe = bridge.on("save-expired", () => {
+    const unsubscribe = bridge.on("save-expired", (expired) => {
+      // Before a close: the window stays open, and a close soon after closes it without waiting.
+      if (expired.closing === true) {
+        setEcho(CLOSE_NOT_IN_TIME);
+        return;
+      }
       leaveSwitching();
       setEcho(notSavedInTime(latest.current.workspaces?.name));
     });

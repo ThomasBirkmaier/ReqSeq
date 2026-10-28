@@ -37,6 +37,7 @@ import {
   SAVE_CHANNEL,
   saveAnswer,
 } from "../shared/protocol.js";
+import { CLOSE_SAVE_TIMEOUT_MS } from "./close.js";
 import type { WindowContents } from "./sender.js";
 import { fromLogReqWindow } from "./sender.js";
 
@@ -81,6 +82,8 @@ export interface WorkspacesOptions {
   readonly platform?: NodeJS.Platform;
   /** Default SAVE_TIMEOUT_MS. */
   readonly saveTimeoutMs?: number;
+  /** How long a save before the window closes may take; default CLOSE_SAVE_TIMEOUT_MS. */
+  readonly closeTimeoutMs?: number;
 }
 
 /** What `handleWorkspaces` gives the rest of main. */
@@ -91,6 +94,11 @@ export interface Workspaces {
    * (`unsaved`, `timeout`) or another switch runs (`busy`).
    */
   openFolder(folder: string): Promise<OpenWorkspaceResult>;
+  /**
+   * Asks the window to save its unsaved input before it closes (SR-105 AK1, `close.ts`): whether all is
+   * saved, or `timeout` after CLOSE_SAVE_TIMEOUT_MS, which the window is told (`expired` with `closing`).
+   */
+  saveBeforeClose(): Promise<boolean | "timeout">;
 }
 
 /**
@@ -152,8 +160,11 @@ export const handleWorkspaces = (
       waiting.get(answer.id)?.(answer.saved);
     }
   });
-  /** Asks the window to save its unsaved input; resolves whether it is saved, or `timeout`. */
-  const saved = (): Promise<boolean | "timeout"> => {
+  /**
+   * Asks the window to save its unsaved input (`closing`: before the window closes); resolves whether it
+   * is saved, or `timeout`.
+   */
+  const saved = (closing = false): Promise<boolean | "timeout"> => {
     // Without an open workspace, or before the page has loaded, nothing can be unsaved.
     if (!options.core.running || !options.loaded() || contents.isDestroyed()) {
       return Promise.resolve(true);
@@ -165,16 +176,29 @@ export const handleWorkspaces = (
         waiting.delete(id);
         resolve(value);
       };
-      const timer = setTimeout(() => {
-        options.log("The window did not say whether its unsaved input was saved; the workspace stays open");
-        // The window learns it, so it leaves its switching state and says why nothing opened.
-        if (!contents.isDestroyed()) {
-          contents.send(SAVE_CHANNEL, { id, expired: true });
-        }
-        done("timeout");
-      }, options.saveTimeoutMs ?? SAVE_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => {
+          // The window learns it: before a switch it leaves its switching state and says why nothing
+          // opened; before a close it says that it stays open (the guard decides and logs, `close.ts`).
+          if (!closing) {
+            options.log(
+              "The window did not say whether its unsaved input was saved; the workspace stays open",
+            );
+          }
+          if (!contents.isDestroyed()) {
+            contents.send(
+              SAVE_CHANNEL,
+              closing ? { id, expired: true, closing: true } : { id, expired: true },
+            );
+          }
+          done("timeout");
+        },
+        closing
+          ? (options.closeTimeoutMs ?? CLOSE_SAVE_TIMEOUT_MS)
+          : (options.saveTimeoutMs ?? SAVE_TIMEOUT_MS),
+      );
       waiting.set(id, done);
-      contents.send(SAVE_CHANNEL, { id });
+      contents.send(SAVE_CHANNEL, closing ? { id, closing: true } : { id });
     });
   };
 
@@ -261,5 +285,8 @@ export const handleWorkspaces = (
     },
   );
 
-  return { openFolder: (folder) => switchTo(folder, false) };
+  return {
+    openFolder: (folder) => switchTo(folder, false),
+    saveBeforeClose: () => saved(true),
+  };
 };

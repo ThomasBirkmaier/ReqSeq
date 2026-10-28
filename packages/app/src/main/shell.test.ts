@@ -54,7 +54,13 @@ const fakeElectron = (dark = false) => {
   const ipcHandlers = new Map<string, Handler>();
   const ipcListeners = new Map<string, Handler>();
   const protocolHandlers = new Map<string, (request: { url: string }) => Promise<Response>>();
-  const windows: { options: unknown; webContents: FakeContents; loadURL: ReturnType<typeof vi.fn> }[] = [];
+  const windows: {
+    options: unknown;
+    webContents: FakeContents;
+    loadURL: ReturnType<typeof vi.fn>;
+    close: () => void;
+    closed: boolean;
+  }[] = [];
   const children: FakeChild[] = [];
   const electron = {
     app: {
@@ -93,13 +99,28 @@ const fakeElectron = (dark = false) => {
       }),
     },
     clipboard: { writeText: vi.fn(() => Promise.resolve()) },
-    BrowserWindow: class {
+    BrowserWindow: class extends EventEmitter {
       readonly webContents = new FakeContents();
       readonly loadURL = vi.fn(() => Promise.resolve());
       readonly options: unknown;
+      /** The window closes as Electron closes it: a `close` that a listener may prevent. */
+      readonly close = vi.fn(() => {
+        const close = { prevented: false };
+        this.emit("close", {
+          preventDefault: () => {
+            close.prevented = true;
+          },
+        });
+        this.closed = !close.prevented;
+      });
+      closed = false;
       constructor(options: unknown) {
+        super();
         this.options = options;
         windows.push(this);
+      }
+      isDestroyed(): boolean {
+        return this.closed;
       }
     },
     nativeTheme: { shouldUseDarkColors: dark },
@@ -333,6 +354,18 @@ describe("startShell", () => {
       { sender: contents, senderFrame: contents?.mainFrame },
       { id: 1, saved: false },
     );
+    // Closing the window with input that cannot be saved: it stays open, and no dialog says so.
+    const window = fake.windows[0];
+    window?.close();
+    await vi.waitFor(() => {
+      expect(contents?.sent).toHaveLength(2);
+    });
+    fake.ipcListeners.get(SAVED_CHANNEL)?.(
+      { sender: contents, senderFrame: contents?.mainFrame },
+      { id: 2, saved: false },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(window?.closed).toBe(false);
     fake.appHandlers.get("window-all-closed")?.();
     fake.appHandlers.get("will-quit")?.({ preventDefault: vi.fn() });
     await vi.waitFor(() => {
@@ -342,6 +375,31 @@ describe("startShell", () => {
     for (const shown of Object.values(others)) {
       expect(shown).not.toHaveBeenCalled();
     }
+  });
+
+  it("[SR-105/AK1] closing the window asks it to save first and closes it once everything is saved", async () => {
+    const fake = await start(["electron", ".", "--workspace=/ws"]);
+    const window = fake.windows[0];
+    const contents = window?.webContents;
+    contents?.emit("did-finish-load");
+    const answer = (id: number, saved: boolean): void => {
+      fake.ipcListeners.get(SAVED_CHANNEL)?.(
+        { sender: contents, senderFrame: contents?.mainFrame },
+        { id, saved },
+      );
+    };
+    window?.close();
+    expect(window?.closed).toBe(false);
+    expect(contents?.sent).toEqual([{ channel: SAVE_CHANNEL, message: { id: 1, closing: true } }]);
+    answer(1, false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(window?.closed).toBe(false);
+    window?.close();
+    expect(contents?.sent).toHaveLength(2);
+    answer(2, true);
+    await vi.waitFor(() => {
+      expect(window?.closed).toBe(true);
+    });
   });
 
   it("closes the workspace before the app quits", async () => {

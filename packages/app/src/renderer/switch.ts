@@ -39,6 +39,20 @@ export const notSaved = (result: Extract<SaveResult, { readonly ok: false }>): s
 export const leftUnsaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
   `${result.name} could not be saved (${result.message}); its input stays in its buffer`;
 
+/**
+ * What the minibuffer says when input could not be saved before the window closes (SR-105 AK1): the
+ * window stays open, and closing it again discards the input.
+ */
+export const closeUnsaved = (result: Extract<SaveResult, { readonly ok: false }>): string =>
+  `${result.name} could not be saved (${result.message}): close the window again to discard the unsaved input`;
+
+/** What the minibuffer says when main gave up waiting for the save before the window closes. */
+export const CLOSE_NOT_IN_TIME =
+  "Saving before the window closes took longer than 2 s; the window stays open, and closing it again within 10 s closes it without waiting";
+
+/** The key of the question "close the window again to discard" in the place of a buffer's key. */
+export const CLOSE_WINDOW = "logreq:close-window";
+
 /** Why a draft is not saved over its file. */
 export const CHANGED_ON_DISK = "its file changed on disk since it was typed on";
 

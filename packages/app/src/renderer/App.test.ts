@@ -8,7 +8,14 @@ import { createRoot } from "react-dom/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CommandListing, InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import type {
+  CommandListing,
+  InvokeResult,
+  LogReqBridge,
+  SaveExpired,
+  SaveReason,
+  WorkspaceChange,
+} from "../shared/protocol.js";
 import { EditorView } from "@codemirror/view";
 import { redo, undo } from "@codemirror/commands";
 import { App } from "./App.js";
@@ -41,23 +48,25 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
   const recentWorkspaces = vi.fn<LogReqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
   const openWorkspace = vi.fn<LogReqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
-  // The window's saver, which main calls before a switch (SR-131 AK3).
-  const savers: (() => Promise<boolean>)[] = [];
+  // The window's saver, which main calls before a switch (SR-131 AK3) or before the window closes
+  // (`closing`, SR-105 AK1).
+  const savers: ((request?: SaveReason) => Promise<boolean>)[] = [];
   const onSave = vi.fn<LogReqBridge["onSave"]>((save) => {
-    savers.push(save);
+    const saver = (request: SaveReason = { closing: false }): Promise<boolean> => save(request);
+    savers.push(saver);
     return () => {
-      savers.splice(savers.indexOf(save), 1);
+      savers.splice(savers.indexOf(saver), 1);
     };
   });
   // Main gave up waiting for the save (SR-131 AK3).
-  const expired = new Set<() => void>();
+  const expired = new Set<(data: SaveExpired) => void>();
   const bridge: LogReqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
     // Only the workspace's changes; `agent-activity` (SR-117) subscribes nothing here (follow-app.test.ts).
     on: (event: string, listener: (data: never) => void) => {
       if (event === "save-expired") {
-        const heard = listener as () => void;
+        const heard = listener as (data: SaveExpired) => void;
         expired.add(heard);
         return () => expired.delete(heard);
       }
@@ -81,10 +90,10 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   };
-  const expire = async (): Promise<void> => {
+  const expire = async (data: SaveExpired = {}): Promise<void> => {
     await act(async () => {
       for (const listener of expired) {
-        listener();
+        listener(data);
       }
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -183,6 +192,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // A test with fake timers that fails before it switches them off fails; it must not hang the next one.
+  vi.useRealTimers();
   vi.restoreAllMocks();
   act(() => {
     root.unmount();
@@ -1497,6 +1508,110 @@ describe("App, the text editor", () => {
     expect(query(".sheet").inert).toBe(false);
   });
 
+  it("[SR-105/AK1] saves the unsaved text when main asks before the window closes; text it cannot save keeps the window open once", async () => {
+    const { invoke, savers, handlers } = await openElement();
+    await typeText("!");
+    let saved: boolean | undefined;
+    const close = async (): Promise<void> => {
+      await act(async () => {
+        saved = await savers[0]?.({ closing: true });
+      });
+      await flush();
+    };
+    await close();
+    expect(saved).toBe(true);
+    expect(calls(invoke, "element.update")).toEqual([{ ref: "uuid-1", text: "Hello!" }]);
+    // Closing is no switch: the sheet takes input, and the minibuffer says nothing.
+    expect(query(".sheet").inert).toBe(false);
+    expect(text("Minibuffer")).toBe("");
+    // A save that fails keeps the window open and says why, in the minibuffer (no dialog).
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await typeText("?");
+    await close();
+    expect(saved).toBe(false);
+    expect(text("Minibuffer")).toBe(
+      "SR-000001 Title 1 could not be saved (The element is read-only): close the window again to discard the unsaved input",
+    );
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    // Input after the question asks again.
+    await typeText(".");
+    await close();
+    expect(saved).toBe(false);
+    // The next close discards: nothing more is written.
+    const writes = calls(invoke, "element.update").length;
+    await close();
+    expect(saved).toBe(true);
+    expect(calls(invoke, "element.update")).toHaveLength(writes);
+  });
+
+  it("[SR-105/AK1] when main gave up waiting before the close, the window says it stays open", async () => {
+    const { expire } = await openElement();
+    await expire({ closing: true });
+    expect(text("Minibuffer")).toBe(
+      "Saving before the window closes took longer than 2 s; the window stays open, and closing it again within 10 s closes it without waiting",
+    );
+    expect(query(".sheet").inert).toBe(false);
+  });
+
+  it("[SR-105/AK1] a close while a workspace switch saves waits for that save and does not write the input twice (#611 review N3)", async () => {
+    const { invoke, savers, handlers } = await openElement();
+    await typeText("!");
+    // The buffer is left and its save fails: its input stays as a draft of a buffer that is not shown.
+    handlers["element.update"] = () => new Error("The element is read-only");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await flush();
+    const refused = calls(invoke, "element.update").length;
+    expect(text("Modeline")).not.toContain("SR-000001");
+    const writes: ((result: InvokeResult) => void)[] = [];
+    const answer = invoke.getMockImplementation();
+    invoke.mockImplementation((name, input) =>
+      name === "element.update"
+        ? new Promise((resolve) => {
+            writes.push(resolve);
+          })
+        : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
+    );
+    let switched: Promise<boolean> | undefined;
+    let closed: Promise<boolean> | undefined;
+    await act(async () => {
+      switched = savers[0]?.();
+      await Promise.resolve();
+      closed = savers[0]?.({ closing: true });
+      await Promise.resolve();
+    });
+    await flush();
+    // One write of the draft, by the switch; the close waits for it.
+    expect(writes).toHaveLength(1);
+    for (const write of writes) {
+      write({ ok: true, output: { element: row(1, { text: "Hello!" }), files: [], affected: 0 } });
+    }
+    await act(async () => {
+      expect(await switched).toBe(true);
+      expect(await closed).toBe(true);
+    });
+    expect(calls(invoke, "element.update").slice(refused)).toEqual([{ ref: "uuid-1", text: "Hello!" }]);
+    expect(text("Minibuffer")).not.toContain("could not be saved");
+  });
+
+  it("[SR-105/AK1] a close says the input could not be saved when a save throws", async () => {
+    const { savers, invoke } = await openElement();
+    await typeText("!");
+    const answer = invoke.getMockImplementation();
+    invoke.mockImplementation((name, input) =>
+      name === "element.update"
+        ? Promise.reject(new Error("port closed"))
+        : (answer?.(name, input) ?? Promise.reject(new Error("no fake"))),
+    );
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await savers[0]?.({ closing: true });
+    });
+    await flush();
+    expect(saved).toBe(false);
+    expect(text("Minibuffer")).toContain("close the window again to discard the unsaved input");
+  });
+
   it("[SR-131/AK3] while it saves and the other workspace opens, the window takes no input and says so", async () => {
     const { invoke, savers, change } = await openElement();
     await typeText("!");
@@ -1925,6 +2040,39 @@ describe("App, the text editor", () => {
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
     expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(0);
+  });
+
+  it('[SR-123/AK2] Close all buffers keeps a buffer in conflict: shown again, it says its change on disk after "Closed 1 buffer", and nothing is written', async () => {
+    const { handlers, outside } = withStore();
+    const { invoke } = await openElement(handlers);
+    await typeText("!");
+    // Another editor changes the file: the save of the prompt that opens is refused, a conflict.
+    outside("uuid-1", "Changed");
+    await keyDown(window, "p", { ctrlKey: true });
+    await keyDown(query("input"), "Enter");
+    await runCommand("close all buffers");
+    expect(query("label").textContent).toBe("1 buffer with unsaved changes (SR-000001 Title 1)");
+    // The minibuffer's texts in order: what "Close all buffers" says, then what the buffer it kept says
+    // when it is shown again (the e2e test `main-view.spec.ts` polled only for the last one).
+    const said: string[] = [];
+    const minibuffer = query('[aria-label="Minibuffer"]');
+    const observer = new MutationObserver(() => {
+      said.push(minibuffer.textContent);
+    });
+    observer.observe(minibuffer, { childList: true, subtree: true, characterData: true });
+    await keyDown(query("input"), "Enter");
+    await flush();
+    observer.disconnect();
+    const changed = 'SR-000001 Title 1 changed on disk. Resolve with "Resolve change on disk"';
+    expect(said.filter((line) => line === "Closed 1 buffer" || line === changed)).toEqual([
+      "Closed 1 buffer",
+      changed,
+    ]);
+    expect(editorView().state.doc.toString()).toBe("Hello!");
+    // The only write is the refused one: the app's own writes are no change on disk.
+    expect(calls(invoke, "element.update")).toEqual([
+      { ref: "uuid-1", text: "Hello!", expectedFileSha256: "uuid-1@0" },
+    ]);
   });
 
   it("[SR-123/AK2] [SR-105/AK1] Close all buffers writes the unsaved text first; only text that could not be written makes the minibuffer ask, without a dialog", async () => {

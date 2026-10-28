@@ -746,6 +746,61 @@ describe("the buffer and what the app keeps of it (SR-105)", () => {
     expect(textView().state.doc.toString()).toBe("first\n");
   });
 
+  it("[SR-105/AK1] a save that answers after the buffer was left says whether its kept draft still holds input (#604 review)", async () => {
+    // The app's draft of the buffer, which the answer rebases (`keep.update`).
+    const flushLeft = async (
+      kept: Draft,
+    ): Promise<{ flushed: boolean | undefined; draft: Draft | undefined }> => {
+      let draft: Draft | undefined = kept;
+      const keep: BufferKeep = {
+        ...keepOf().keep,
+        update: (change) => {
+          draft = draft === undefined ? undefined : change(draft);
+        },
+      };
+      const view = await mountView({ keep });
+      let answer: (() => void) | undefined;
+      const real = view.call.getMockImplementation();
+      view.call.mockImplementationOnce(
+        (name, input) =>
+          new Promise((resolve) => {
+            answer = () => {
+              void real?.(name, input).then(resolve);
+            };
+          }),
+      );
+      await typeAt(textView(), "!");
+      let flushed: boolean | undefined;
+      let flush: Promise<void> | undefined;
+      await act(async () => {
+        flush = view
+          .controls()
+          .flush()
+          .then((done) => {
+            flushed = done;
+          });
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      act(() => {
+        root.render(null);
+      });
+      await act(async () => {
+        answer?.();
+        await flush;
+      });
+      vi.useRealTimers();
+      return { flushed, draft };
+    };
+    // Keys typed while the save ran are in the draft: input is left.
+    const typed = await flushLeft({ text: "first!?", base: "first", sha: "sha-0" });
+    expect(typed.flushed).toBe(false);
+    expect(typed.draft).toMatchObject({ text: "first!?", base: "first!", sha: "sha-1" });
+    // The draft holds what was sent: nothing is left.
+    const sent = await flushLeft({ text: "first!", base: "first", sha: "sha-0" });
+    expect(sent.flushed).toBe(true);
+    expect(sent.draft).toBeUndefined();
+  });
+
   it("leaving with a conflict asks the app to save nothing; a save that answers after leaving updates the kept draft", async () => {
     const kept = keepOf();
     const view = await mountView({ keep: kept.keep });

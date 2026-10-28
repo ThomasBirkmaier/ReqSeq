@@ -3,6 +3,7 @@
 // process, which the renderer reaches over a port.
 import type Electron from "electron";
 import { handleCopy } from "./clipboard.js";
+import { guardClose } from "./close.js";
 import { handleWorkspaces } from "./workspaces.js";
 import { CoreProcess } from "./core-process.js";
 import { menuTemplate } from "./menu.js";
@@ -79,6 +80,9 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
     pageLoaded = true;
     core.attach(window.webContents);
   });
+  // Closing the window, also when the app quits, leaves the element: its input is saved first (SR-105
+  // AK1), and input that cannot be saved keeps the window open once (`close.ts`).
+  guardClose(window, () => workspaces.saveBeforeClose(), options.log);
   const openWorkspace = async (): Promise<void> => {
     const chosen = await electron.dialog.showOpenDialog(window, {
       title: "Open Workspace",

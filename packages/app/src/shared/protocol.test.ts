@@ -338,6 +338,8 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
     expect(saveRequest({ id: 3, more: true })).toEqual({ id: 3 });
     expect(saveRequest({ id: 3, expired: true })).toEqual({ id: 3, expired: true });
     expect(saveRequest({ id: 3, expired: "yes" })).toEqual({ id: 3 });
+    expect(saveRequest({ id: 3, closing: true })).toEqual({ id: 3, closing: true });
+    expect(saveRequest({ id: 3, closing: 1 })).toEqual({ id: 3 });
     for (const value of [{ id: "3" }, { id: 1.5 }, { id: Number.MAX_VALUE }, {}, null, 3]) {
       expect(saveRequest(value)).toBeUndefined();
     }
@@ -358,7 +360,11 @@ describe("externalChange: a batch of the watcher as the event of the windows", (
     expect(MAX_ROOT_LENGTH).toBe(CORE_MAX_ROOT_LENGTH);
   });
 
-  it("save-expired carries nothing, and only an object is one", () => {
+  it("save-expired carries only closing, and only an object is one", () => {
+    expect(portMessage({ event: "save-expired", data: { closing: true } })).toEqual({
+      event: "save-expired",
+      data: { closing: true },
+    });
     expect(portMessage({ event: "save-expired", data: { more: 1 } })).toEqual({
       event: "save-expired",
       data: {},

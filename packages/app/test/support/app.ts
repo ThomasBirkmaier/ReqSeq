@@ -13,6 +13,9 @@ import { rememberWorkspace } from "@logreq/core/recent-workspaces";
 
 const execFileAsync = promisify(execFile);
 
+/** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
+const CLOSE_WAIT_MS = 5000;
+
 /** `fixtures/` of the repository (fixtures/README.md). */
 const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url));
 /** packages/app: Electron starts its package.json "main" (out/main/index.js). */
@@ -79,8 +82,16 @@ export interface RunningApp {
    * to it as an MCP client (initialize first). The server ends with the app or with `close()`.
    */
   mcp(): Promise<McpSession>;
-  /** Ends the app. With `keep` the workspace copy and the user data stay, for `launchApp(..., kept)`. */
-  close(options?: { readonly keep?: boolean }): Promise<void>;
+  /**
+   * Ends the app as a user does: it closes the window, which saves its input first (SR-105 AK1), and
+   * waits at most `CLOSE_WAIT_MS` for the app to end. A window that is still open then is destroyed, and
+   * `close` throws, so a close that hangs fails the test. With `discard` (or after `discardAtClose()`)
+   * the window is destroyed at once, for a test that ends with input that cannot be saved. With `keep`
+   * the workspace copy and the user data stay, for `launchApp(..., kept)`.
+   */
+  close(options?: { readonly keep?: boolean; readonly discard?: boolean }): Promise<void>;
+  /** The test ends with input that cannot be saved: the next `close()` discards it (as `discard`). */
+  discardAtClose(): void;
   /** The workspace copy and the user data, to start the app on them again after `close({ keep: true })`. */
   readonly kept: Kept;
 }
@@ -282,6 +293,15 @@ export const launchApp = async (
     await app.close();
     throw new Error(`The app uses the user data folder ${used}, not the test's ${userData}`);
   }
+  let discard = false;
+  // Whether the app ended (`app.process()` throws once it has): a test of quitting ends it itself.
+  let ended = false;
+  const end = new Promise<true>((resolve) => {
+    app.once("close", () => {
+      ended = true;
+      resolve(true);
+    });
+  });
   return {
     app,
     window,
@@ -308,12 +328,46 @@ export const launchApp = async (
       return session;
     },
     kept: { home, workspace },
+    discardAtClose: () => {
+      discard = true;
+    },
     close: async (options) => {
       await Promise.all(sessions.splice(0).map((session) => session.close()));
+      let hung = false;
+      if (options?.discard !== true && !discard && !ended) {
+        // Closing the window quits the app (one window), after the window saved its input (SR-105 AK1).
+        let timer: NodeJS.Timeout | undefined;
+        const late = new Promise<false>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(false);
+          }, CLOSE_WAIT_MS);
+        });
+        await app
+          .evaluate(({ BrowserWindow }) => {
+            BrowserWindow.getAllWindows()[0]?.close();
+          })
+          .catch(() => undefined);
+        hung = !(await Promise.race([end, late]));
+        clearTimeout(timer);
+      }
+      // A window that keeps itself open (input it cannot save asks once, SR-105 AK1) is destroyed:
+      // `destroy()` closes it without a `close` event, so without a save.
+      await app
+        .evaluate(({ BrowserWindow }) => {
+          for (const open of BrowserWindow.getAllWindows()) {
+            open.destroy();
+          }
+        })
+        .catch(() => undefined);
       await app.close();
       if (options?.keep !== true) {
         await workspace?.cleanup();
         await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
+      }
+      if (hung) {
+        throw new Error(
+          `The app did not end within ${String(CLOSE_WAIT_MS)} ms after its window was closed; it was destroyed. A test that ends with input that cannot be saved closes with \`discard\`.`,
+        );
       }
     },
   };

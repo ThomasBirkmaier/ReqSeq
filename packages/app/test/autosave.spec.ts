@@ -214,6 +214,58 @@ test.describe("saving without a save command", () => {
     await written(read(running, SR_FILE), "requirement-type: quality", Date.now());
   });
 
+  test("[SR-105/AK1] quitting the app within a second of the last key writes the change before the window closes", async () => {
+    const { app, window } = running;
+    await window.keyboard.press("Enter");
+    await window.keyboard.type(" Beim Beenden.");
+    await expect(modeline(window)).toContainText("modified");
+    const exited = app.waitForEvent("close");
+    // As Cmd+Q or File > Quit do: the app quits, which closes the window first.
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.quit();
+    });
+    await exited;
+    expect(await read(running, SR_FILE)()).toContain("Beim Beenden.");
+  });
+
+  test("[SR-105/AK1] quitting the app with nothing typed ends it within a few seconds, and writes nothing (#611 review S2)", async () => {
+    const { app } = running;
+    const before = await read(running, SR_FILE)();
+    const exited = app.waitForEvent("close", { timeout: 5000 });
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.quit();
+    });
+    await exited;
+    expect(await read(running, SR_FILE)()).toBe(before);
+  });
+
+  test("[SR-105/AK1] closing the window with input that cannot be saved keeps it open once and says why; closing again discards it", async () => {
+    const { app, window } = running;
+    const file = read(running, SR_FILE);
+    await window.keyboard.press("Enter");
+    await window.keyboard.type(" Meins.");
+    // Another editor changes the file before the autosave: the input is not saved over it (SR-106 AK2).
+    const theirs = elementFile.replace(TEXT, "Fremd geändert.");
+    await fs.writeFile(path.join(running.workspace?.root ?? "", ...SR_FILE.split("/")), theirs);
+    await expect(modeline(window)).toContainText("changed on disk");
+    const closeWindow = (): Promise<void> =>
+      app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.close();
+      });
+    await closeWindow();
+    await expect(minibuffer(window)).toHaveText(
+      /could not be saved \(.*\): close the window again to discard the unsaved input$/,
+    );
+    await expect(window.locator('[role="dialog"], [role="alertdialog"], dialog')).toHaveCount(0);
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+    const exited = app.waitForEvent("close");
+    await closeWindow();
+    await exited;
+    const after = await file();
+    expect(after).toContain("Fremd geändert.");
+    expect(after).not.toContain("Meins.");
+  });
+
   test("[SR-105/AK3] there is no button and no dialog to save, when typing, leaving or closing", async () => {
     const { app, window } = running;
     // Electron's own dialogs: none to save, and no message box (counted in the main process).

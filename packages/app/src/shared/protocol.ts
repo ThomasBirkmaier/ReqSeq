@@ -30,7 +30,7 @@ export const OPEN_WORKSPACE_CHANNEL = "logreq:open-workspace";
 
 /**
  * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
- * opens in it (SR-131 AK3); the window answers on SAVED_CHANNEL.
+ * opens in it (SR-131 AK3) or before the window closes (SR-105 AK1); the window answers on SAVED_CHANNEL.
  */
 export const SAVE_CHANNEL = "logreq:save";
 
@@ -47,6 +47,13 @@ export const SAVED_CHANNEL = "logreq:saved";
 export interface SaveRequest {
   readonly id: number;
   readonly expired?: true;
+  /** The window is about to close (SR-105 AK1), not to switch its workspace. */
+  readonly closing?: true;
+}
+
+/** Why main asks the window to save: before it closes (`closing`), or before a switch of the workspace. */
+export interface SaveReason {
+  readonly closing: boolean;
 }
 
 /** The window's answer to request `id`: whether all its unsaved input is in the files now. */
@@ -169,8 +176,10 @@ export interface BridgeEvents {
   readonly "save-expired": SaveExpired;
 }
 
-/** The data of `save-expired`: nothing more than that it happened. */
-export type SaveExpired = Readonly<Record<string, never>>;
+/** The data of `save-expired`: that it happened, and whether main waited before closing the window. */
+export interface SaveExpired {
+  readonly closing?: true;
+}
 
 export type BridgeEvent = keyof BridgeEvents;
 
@@ -231,11 +240,11 @@ export interface LogReqBridge {
   openWorkspace(root: string, options?: OpenWorkspaceOptions): Promise<OpenWorkspaceResult>;
   /**
    * Sets the function that saves the unsaved input of the window when main asks, before another
-   * workspace opens in it (SR-131 AK3): it resolves `true` when everything is saved; `false`, or a
-   * rejection, keeps the open workspace. Returns the function that unsets it. Without one, main is told
-   * that nothing is unsaved.
+   * workspace opens in it (SR-131 AK3) or before the window closes (`closing`, SR-105 AK1): it resolves
+   * `true` when everything is saved; `false`, or a rejection, keeps the open workspace or the window.
+   * Returns the function that unsets it. Without one, main is told that nothing is unsaved.
    */
-  onSave(save: () => Promise<boolean>): () => void;
+  onSave(save: (request: SaveReason) => Promise<boolean>): () => void;
 }
 
 /** Renderer to core process, over the port. */
@@ -425,7 +434,8 @@ const agentActivity = (value: unknown): AgentActivity | undefined => {
 const EVENT_DATA: { readonly [E in BridgeEvent]: (value: unknown) => BridgeEvents[E] | undefined } = {
   "workspace-changed": workspaceChange,
   "agent-activity": agentActivity,
-  "save-expired": (value) => (isRecord(value) ? {} : undefined),
+  "save-expired": (value) =>
+    isRecord(value) ? (value["closing"] === true ? { closing: true } : {}) : undefined,
 };
 
 /** The names of the bridge's events, in the order of `EVENT_DATA`. */
@@ -493,7 +503,11 @@ export const openWorkspaceResult = (value: unknown): OpenWorkspaceResult => {
 /** `value` as main's request to save, or undefined. */
 export const saveRequest = (value: unknown): SaveRequest | undefined =>
   isRecord(value) && Number.isSafeInteger(value["id"])
-    ? { id: value["id"] as number, ...(value["expired"] === true ? { expired: true } : {}) }
+    ? {
+        id: value["id"] as number,
+        ...(value["expired"] === true ? { expired: true } : {}),
+        ...(value["closing"] === true ? { closing: true } : {}),
+      }
     : undefined;
 
 /** `value` as the window's answer to a request to save, or undefined (the renderer is not trusted). */

@@ -309,8 +309,25 @@ test.describe("the main view on a fixture workspace", () => {
     await runCommand(window, "cab");
     await expect(window.getByLabel("Minibuffer").locator("label")).toContainText("with unsaved changes");
     await expect(window.getByRole("dialog")).toHaveCount(0);
+    // The kept buffer, shown again, says its change on disk again (SR-106 AK2), which can replace
+    // "Closed 1 buffer" at once: every text the minibuffer shows is recorded.
+    await window.evaluate(() => {
+      const shown: string[] = [];
+      (window as unknown as { echoes: string[] }).echoes = shown;
+      const minibuffer = document.querySelector('[aria-label="Minibuffer"]');
+      if (minibuffer !== null) {
+        new MutationObserver(() => {
+          shown.push(minibuffer.textContent);
+        }).observe(minibuffer, { childList: true, subtree: true, characterData: true });
+      }
+    });
     await window.keyboard.press("Enter");
-    await expect(window.getByLabel("Minibuffer")).toContainText("Closed 1 buffer");
+    await expect
+      .poll(() => window.evaluate(() => (window as unknown as { echoes: string[] }).echoes))
+      .toContainEqual(expect.stringContaining("Closed 1 buffer"));
+    // The buffer with the unsaved text is kept and shown, its input there.
+    await expect(window.locator("article h1")).toHaveText("Measure wind speed");
+    await expect(window.locator('[data-field="Text"] .cm-content')).toContainText("ENDE");
     await expect(window.getByLabel("Modeline")).toContainText("modified");
     await runCommand(window, "close all buffers");
     await window.keyboard.press("Control+N");
