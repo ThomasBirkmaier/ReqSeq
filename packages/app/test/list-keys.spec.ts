@@ -251,14 +251,20 @@ test.describe("the physical Ctrl key under macOS", () => {
     const lines = (await content.innerText()).split("\n").filter((line) => line.trim() !== "");
     expect(lines.at(-1)?.trim()).toBe("Siehe das Beispiel.");
     await expect(promptLabel(window)).toHaveCount(0);
-    // On the first line, where the editor cannot go further up, it is still no "Go to".
+    // On the first line Ctrl+P goes up into the title, as Up does (#621), and in the title, where nothing
+    // is above, it is still no "Go to"; Ctrl+N comes back into the text.
+    const title = window.locator('[data-field="Title"] .cm-content');
     for (let line = 0; line < 40; line += 1) {
       await window.keyboard.press("Control+P");
     }
-    await window.keyboard.press("Control+A");
+    await expect(title).toBeFocused();
     await window.keyboard.press("Control+P");
     await expect(promptLabel(window)).toHaveCount(0);
+    await expect(title).toBeFocused();
+    await window.keyboard.press("Control+N");
     await expect(content).toBeFocused();
+    await window.keyboard.press("Control+A");
+    await expect(promptLabel(window)).toHaveCount(0);
     await window.keyboard.type("Y");
     await expect.poll(() => content.innerText()).toMatch(/^Y# Übersicht/);
     // Cmd+P jumps, also from the editor.

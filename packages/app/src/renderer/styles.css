@@ -316,6 +316,21 @@ mark {
   line-height: 1.3;
 }
 
+/* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
+   comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
+.element h1 .editor {
+  margin: 0;
+}
+
+.element h1 .cm-scroller {
+  line-height: 1.3;
+}
+
+.element h1.untitled,
+.element h1 .cm-placeholder {
+  color: var(--muted);
+}
+
 .element h2,
 .neighbourhood h2 {
   margin: 1.5rem 0 0.25rem;

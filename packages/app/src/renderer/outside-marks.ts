@@ -7,7 +7,7 @@
 import type { DataExportElement } from "@logreq/core";
 import type { ChangedElements } from "../shared/protocol.js";
 import { heading } from "./copy.js";
-import { propertyBoxes, relationGroups } from "./element-view.js";
+import { TITLE_FIELD, propertyBoxes, relationGroups } from "./element-view.js";
 
 /** An element shown within this time after its change from outside is highlighted (SR-116 AK1: 2 s). */
 export const FRESH_MS = 2000;
@@ -119,7 +119,7 @@ export const touchedSince = (changes: OutsideChanges, id: string, seen: number):
  */
 export const fieldTexts = (element: DataExportElement): ReadonlyMap<string, string> =>
   new Map<string, string>([
-    ["Title", heading(element)],
+    [TITLE_FIELD, heading(element)],
     ["Text", element.text ?? ""],
     ...propertyBoxes(element).map((box): [string, string] => [
       box.key,
@@ -143,13 +143,13 @@ export const changedFields = (
   input: ReadonlySet<string>,
 ): readonly string[] => {
   if (before === undefined) {
-    return ["Title"];
+    return [TITLE_FIELD];
   }
   const labels = new Set([...before.keys(), ...after.keys()]);
   const changed = [...labels].filter((label) => before.get(label) !== after.get(label));
   const shown = changed.filter((label) => after.has(label) && !input.has(label));
   // A field that is gone (an emptied box) has nothing left to tint: the title stands for it.
-  return shown.length > 0 || changed.some((label) => input.has(label)) ? shown : ["Title"];
+  return shown.length > 0 || changed.some((label) => input.has(label)) ? shown : [TITLE_FIELD];
 };
 
 /**

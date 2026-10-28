@@ -1,5 +1,5 @@
 // An element whose file changed outside the tool while its buffer is open (SR-106), as pure functions: the
-// buffer has fields (the text, each property box), each with what the file holds and, when it was typed
+// buffer has fields (the title, the text, each property box), each with what the file holds and, when it was typed
 // in, the input. What happens is decided per field from the outputs of `element.get` (ADR-0002):
 // - a field without input follows the file (its editor takes the new text, the cursor stays: AK1);
 // - a field whose input is what the file now holds has no input any more (its draft entry is dropped);
@@ -15,7 +15,10 @@ import type { BoxDraft, Draft } from "./drafts.js";
 import type { PropertyInfo } from "./element-view.js";
 import { choiceKeys, relationTargets } from "./property-edit.js";
 
-/** The field of the text; the property boxes are named by their keys. */
+/**
+ * The field of the text; the property boxes are named by their keys, the title by `TITLE_FIELD`
+ * (element-view.ts).
+ */
 export const TEXT_FIELD = "Text";
 
 /** What the file holds: its bytes (`fileSha256`; none from an answer without it) and the document of each field. */

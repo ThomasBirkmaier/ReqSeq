@@ -1,6 +1,7 @@
 import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import { describe, expect, it } from "vitest";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";
+import { TITLE_FIELD } from "./element-view.js";
 import {
   addableProperties,
   allBoxes,
@@ -11,6 +12,8 @@ import {
   chooseTarget,
   editableBoxes,
   editsOf,
+  fieldBoxes,
+  hintKeys,
   isValueKind,
   relationDoc,
   relationTargetOf,
@@ -18,7 +21,10 @@ import {
   savedHint,
   shownBoxes,
   storedDocs,
+  titleBox,
+  titleKey,
   updateInput,
+  withTitle,
 } from "./property-edit.js";
 import type { BoxEdit, RelationTarget } from "./property-edit.js";
 
@@ -578,5 +584,77 @@ describe("editsOf", () => {
       { key: "topic", info: text, base: "Wind", doc: "Gust" },
       { key: "criteria", info: list, base: "a", doc: "a" },
     ]);
+  });
+});
+
+describe("the title field (#621)", () => {
+  const titled = (title: string, type = "need"): DataExportElement => ({
+    ...element({ topic: "Wind" }, type),
+    title,
+  });
+  const titleInfo = prop("title");
+  const titleEdit = (base: string, doc: string): BoxEdit => ({
+    key: TITLE_FIELD,
+    info: titleInfo,
+    base,
+    doc,
+  });
+
+  it("is the key of the property with the meaning title, none for a type without one", () => {
+    expect(titleKey(model, "need")).toBe("title");
+    expect(titleKey(model, "other")).toBeUndefined();
+  });
+
+  it("is a single text field with the title as its document, none for a type without a title property", () => {
+    expect(titleBox(titled("Measure wind"), model)).toEqual({
+      key: TITLE_FIELD,
+      info: titleInfo,
+      doc: "Measure wind",
+      lineBreak: false,
+    });
+    expect(titleBox(titled(""), model)?.doc).toBe("");
+    expect(titleBox(titled("Measure wind", "other"), model)).toBeUndefined();
+  });
+
+  it("is not edited when the stored title holds a line break", () => {
+    expect(titleBox(titled("Measure\nwind"), model)?.lineBreak).toBe(true);
+  });
+
+  it("comes first, beside the boxes, and only when the type has a title", () => {
+    const boxes = editableBoxes(titled("Measure wind"), model);
+    expect([...withTitle(boxes, titled("Measure wind"), model).keys()]).toEqual([TITLE_FIELD, "topic"]);
+    expect([...withTitle(boxes, titled("x", "other"), model).keys()]).toEqual(["topic"]);
+    expect([...fieldBoxes(titled("Measure wind"), model).keys()]).toEqual([TITLE_FIELD, "topic"]);
+    expect(storedDocs(fieldBoxes(titled("Measure wind"), model)).get(TITLE_FIELD)).toBe("Measure wind");
+  });
+
+  it("goes to element.update as title, as typed, never in set or unset", () => {
+    expect(updateInput("N-1", undefined, [titleEdit("Old", " New title ")])).toEqual({
+      ref: "N-1",
+      title: " New title ",
+    });
+    expect(
+      updateInput("N-1", "Text\n", [
+        titleEdit("Old", "New"),
+        { key: "topic", info: prop("topic"), base: "Wind", doc: "Rain" },
+        { key: "effort", info: prop("effort"), base: "3", doc: "" },
+      ]),
+    ).toEqual({ ref: "N-1", title: "New", text: "Text\n", set: { topic: "Rain" }, unset: ["effort"] });
+  });
+
+  it("an emptied title goes as the empty title, not as unset", () => {
+    expect(updateInput("N-1", undefined, [titleEdit("Old", "")])).toEqual({ ref: "N-1", title: "" });
+  });
+
+  it("an unchanged title is not sent", () => {
+    expect(updateInput("N-1", undefined, [titleEdit("Same", "Same")])).toEqual({ ref: "N-1" });
+  });
+
+  it("looks for a hint of core about the saved title by its property key", () => {
+    const edits = [titleEdit("Old", ""), { key: "topic", info: prop("topic"), base: "Wind", doc: "Rain" }];
+    expect(hintKeys(edits, titled(""), model)).toEqual(["title", "topic"]);
+    expect(hintKeys(edits, titled("", "other"), model)).toEqual([TITLE_FIELD, "topic"]);
+    const message = "Required property Title (title) of type Need (need) has no value";
+    expect(savedHint([{ message }], hintKeys([titleEdit("Old", "")], titled(""), model))).toBe(message);
   });
 });

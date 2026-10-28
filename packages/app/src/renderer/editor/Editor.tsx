@@ -16,8 +16,11 @@ import type { EditorPlugins, PreviewRule } from "./plugins.js";
 import { BUILT_IN_RULES, livePreview } from "./preview.js";
 
 export interface EditorHandle {
-  /** Gives the editor the focus, the cursor at the start or the end of the text when asked. */
-  readonly focus: (at?: "start" | "end") => void;
+  /**
+   * Gives the editor the focus, the cursor at the start or the end of the text, or at an offset (kept within
+   * the text), when asked.
+   */
+  readonly focus: (at?: "start" | "end" | number) => void;
   /** The editor has the focus (the caret is in it). */
   readonly hasFocus: () => boolean;
   readonly doc: () => string;
@@ -25,7 +28,10 @@ export interface EditorHandle {
   readonly state: () => EditorState;
   /** Replaces the document without an undo step (the text of the file after a save). */
   readonly replace: (text: string) => void;
-  /** Replaces the document as an edit of the user, which Ctrl/Cmd+Z undoes ("Clear property"). */
+  /**
+   * Replaces the document as an edit of the user, which Ctrl/Cmd+Z undoes ("Clear property", "Take the
+   * file"). Its user event is `input.set`: input, but not typed or pasted.
+   */
   readonly set: (text: string) => void;
   /**
    * Input is still going on: an input method composes, or a completion list (the slash menu) is open,
@@ -257,7 +263,9 @@ export const Editor = ({
       focus: (at) => {
         // The caret first: moving it while the editor has the focus asks the browser for a selection change.
         if (at !== undefined) {
-          editor.dispatch({ selection: { anchor: at === "end" ? editor.state.doc.length : 0 } });
+          const { length } = editor.state.doc;
+          const anchor = at === "end" ? length : at === "start" ? 0 : Math.min(Math.max(at, 0), length);
+          editor.dispatch({ selection: { anchor } });
         }
         editor.focus();
       },
@@ -268,7 +276,10 @@ export const Editor = ({
         replaceDocument(editor, next);
       },
       set: (next) => {
-        editor.dispatch({ changes: minimalChange(editor.state.doc.toString(), next), userEvent: "input" });
+        editor.dispatch({
+          changes: minimalChange(editor.state.doc.toString(), next),
+          userEvent: "input.set",
+        });
       },
       busy: () => editor.composing || completionStatus(editor.state) === "active",
       rebase: (next) => {

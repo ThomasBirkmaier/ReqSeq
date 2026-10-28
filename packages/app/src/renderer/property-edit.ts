@@ -4,10 +4,12 @@
 // document is built from the value as the file stores it (never from the lines the box shows, which leave
 // blank items out), and only a box whose document differs from the stored one goes into the update, so
 // the bytes of every other property stay (core rewrites a changed key in its fixed style, SR-102). The
-// only write is `element.update { ref, text?, set?, unset? }` (ADR-0002); the app never writes a file.
+// only write is `element.update { ref, title?, text?, set?, unset? }` (ADR-0002); the app never writes a
+// file. The title is a field like a single text box (#621): keyed `TITLE_FIELD`, compared with the file and
+// kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
 import type { DataExportElement, DataExportRelation, ElementInputValue } from "@logreq/core";
 import type { PropertyBox, PropertyInfo, PropertyModel } from "./element-view.js";
-import { propertyBoxes, relationLabel } from "./element-view.js";
+import { TITLE_FIELD, propertyBoxes, relationLabel } from "./element-view.js";
 
 /** The kinds whose value is text in a box: what the editor can show and the user can type. */
 export const TEXT_KINDS: readonly PropertyInfo["kind"][] = ["text", "number", "date"];
@@ -119,6 +121,37 @@ export const editableBoxes = (element: DataExportElement, model: PropertyModel):
   }
   return found;
 };
+
+/** The key of the property of the type that holds the title (the meaning `title`, D-059), if it has one. */
+export const titleKey = (model: PropertyModel, type: string): string | undefined =>
+  [...(model.get(type) ?? [])].find(([, info]) => info.meaning === "title")?.[0];
+
+/**
+ * The title as a field the buffer edits like a single text box (#621): keyed `TITLE_FIELD`, its document the
+ * title. None when the type has no property with the meaning `title` (core refuses a title then). A title
+ * with a line break (a hand-written file) is not edited: one line would lie.
+ */
+export const titleBox = (element: DataExportElement, model: PropertyModel): EditableBox | undefined => {
+  const key = titleKey(model, element.type);
+  const info = key === undefined ? undefined : model.get(element.type)?.get(key);
+  return info === undefined
+    ? undefined
+    : { key: TITLE_FIELD, info, doc: element.title, lineBreak: element.title.includes("\n") };
+};
+
+/** The boxes and, first, the title field when the type has one: every field the buffer edits besides the text. */
+export const withTitle = (
+  boxes: ReadonlyMap<string, EditableBox>,
+  element: DataExportElement,
+  model: PropertyModel,
+): Map<string, EditableBox> => {
+  const title = titleBox(element, model);
+  return new Map([...(title === undefined ? [] : [[TITLE_FIELD, title] as const]), ...boxes]);
+};
+
+/** The fields a save compares with the file besides the text: the editable boxes and the title (#621). */
+export const fieldBoxes = (element: DataExportElement, model: PropertyModel): Map<string, EditableBox> =>
+  withTitle(editableBoxes(element, model), element, model);
 
 /**
  * The properties of the type of the element that no box shows (SR-104 AK2): what "Add property" offers, by
@@ -292,9 +325,13 @@ const newValue = (edit: BoxEdit): ElementInputValue | undefined => {
   return many ? kept : first;
 };
 
-/** The input of `element.update` for the text and the boxes that changed (AK4: an emptied box is `unset`). */
+/**
+ * The input of `element.update` for the title, the text and the boxes that changed (AK4: an emptied box is
+ * `unset`; the title never is, an emptied title is the empty title).
+ */
 export interface UpdateInput {
   readonly ref: string;
+  readonly title?: string;
   readonly text?: string;
   readonly set?: Readonly<Record<string, ElementInputValue>>;
   readonly unset?: readonly string[];
@@ -306,7 +343,9 @@ export const changedBoxes = (edits: readonly BoxEdit[]): BoxEdit[] =>
 
 /**
  * The input that saves the text (when given) and the changed boxes together. Lines that are blank are
- * dropped; every other line is kept byte for byte; a box with nothing left is removed with `unset`.
+ * dropped; every other line is kept byte for byte; a box with nothing left is removed with `unset`. A
+ * changed title goes as `title`, as typed: an emptied one is the empty title, which core saves with its
+ * hint about a required property (SR-064 AK2).
  */
 export const updateInput = (
   ref: string,
@@ -315,7 +354,12 @@ export const updateInput = (
 ): UpdateInput => {
   const set: Record<string, ElementInputValue> = {};
   const unset: string[] = [];
+  let title: string | undefined;
   for (const edit of changedBoxes(edits)) {
+    if (edit.key === TITLE_FIELD) {
+      title = edit.doc;
+      continue;
+    }
     const value = newValue(edit);
     if (value === undefined) {
       unset.push(edit.key);
@@ -325,6 +369,7 @@ export const updateInput = (
   }
   return {
     ref,
+    ...(title === undefined ? {} : { title }),
     ...(text === undefined ? {} : { text }),
     ...(Object.keys(set).length === 0 ? {} : { set }),
     ...(unset.length === 0 ? {} : { unset }),
@@ -340,3 +385,14 @@ export const savedHint = (
   keys: readonly string[],
 ): string | undefined =>
   problems?.find((problem) => keys.some((key) => problem.message.includes(key)))?.message;
+
+/**
+ * The keys a hint of core about a save is looked for by (`savedHint`): the keys of the boxes that went, and
+ * for the title its property key, which core names in its message.
+ */
+export const hintKeys = (
+  edits: readonly BoxEdit[],
+  element: DataExportElement,
+  model: PropertyModel,
+): string[] =>
+  edits.map((edit) => (edit.key === TITLE_FIELD ? (titleKey(model, element.type) ?? edit.key) : edit.key));

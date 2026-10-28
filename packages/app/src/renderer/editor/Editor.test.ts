@@ -4,6 +4,7 @@
 import "../../../../../scripts/test-support/dom-selection.mjs";
 import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
+import type { Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdownSupport } from "./markdown.js";
 import { undo } from "@codemirror/commands";
@@ -281,6 +282,12 @@ describe("Editor", () => {
     expect(view().state.selection.main.head).toBe(13);
     given.focus("start");
     expect(view().state.selection.main.head).toBe(0);
+    given.focus(3);
+    expect(view().state.selection.main.head).toBe(3);
+    given.focus(99);
+    expect(view().state.selection.main.head).toBe(13);
+    given.focus(-1);
+    expect(view().state.selection.main.head).toBe(0);
     given.replace("# Title\n\nbody\n");
     expect(given.doc()).toBe("# Title\n\nbody\n");
     expect(undo(view())).toBe(false);
@@ -294,13 +301,21 @@ describe("Editor", () => {
   it("sets the document as an edit that can be undone", async () => {
     const handle = vi.fn<(handle: EditorHandle | undefined) => void>();
     const onChange = vi.fn();
-    await render({ handle, onChange });
+    const set: Transaction[] = [];
+    await render({
+      handle,
+      onChange,
+      plugins: { extensions: [EditorView.updateListener.of((update) => set.push(...update.transactions))] },
+    });
     const given = handleOf(handle);
     act(() => {
       given.set("");
     });
     expect(given.doc()).toBe("");
     expect(onChange).toHaveBeenLastCalledWith("", true);
+    // Input, but neither typed nor pasted (the title's one-line rule leaves it as it is).
+    expect(set.at(-1)?.isUserEvent("input")).toBe(true);
+    expect(set.at(-1)?.isUserEvent("input.set")).toBe(true);
     act(() => {
       expect(undo(view())).toBe(true);
     });

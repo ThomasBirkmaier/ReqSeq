@@ -122,6 +122,11 @@ export interface ElementControls {
   readonly prompting: () => void;
   /** Gives the text editor the focus (the action "Edit text"). */
   readonly edit: () => void;
+  /**
+   * Puts the caret at the end of the title, in its heading, or says why it cannot be edited (the action
+   * "Edit title", #621). Given by the element buffer; a control without it offers no "Edit title".
+   */
+  readonly editTitle?: () => void;
   /** Opens the element of the inline reference at the cursor (the action "Follow reference", #424). */
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
@@ -906,6 +911,16 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.edit();
+    },
+  },
+  {
+    // #621: the title is edited in its heading, like the text in the editor (SR-073 AK2: found by its name).
+    id: "edit-title",
+    title: "Edit title",
+    hint: "Enter on the title",
+    available: (context: ActionContext): boolean => context.element?.editTitle !== undefined,
+    run: (context: ActionContext): void => {
+      context.element?.editTitle?.();
     },
   },
   {

@@ -18,7 +18,7 @@ export interface Draft {
   readonly text: string;
   /** The text of the file when the draft was last compared with it: the text was typed in when it differs. */
   readonly base: string;
-  /** The boxes with unsaved changes (SR-104), by property key. */
+  /** The boxes with unsaved changes (SR-104), by property key, and the title by `TITLE_FIELD` (#621). */
   readonly boxes?: ReadonlyMap<string, BoxDraft>;
   /**
    * The bytes of the file the input was typed on (`fileSha256` of `element.get`): a buffer shown again on

@@ -126,7 +126,24 @@ describe("copy", () => {
     doc = "saved and typed";
     expect(from.fields.map((field) => field.text()).slice(0, 2)).toEqual(["SR-036", "saved and typed"]);
     expect(heading(element({ title: "", identifier: undefined }))).toBe("SR-000001");
+    expect(heading(element({ title: "  ", identifier: undefined }))).toBe("SR-000001");
     expect(heading(element())).toBe("Measure wind");
+  });
+
+  it("copies what the editor of the title holds, the heading when it holds nothing (#621)", () => {
+    let title: string | undefined;
+    const from = copyable(
+      element(),
+      () => "doc",
+      (key) => (key === "Title" ? title : undefined),
+    );
+    expect(from.fields[0]?.text()).toBe("Measure wind");
+    title = "Measure gusts";
+    expect(from.fields[0]?.text()).toBe("Measure gusts");
+    title = "";
+    expect(from.fields[0]?.text()).toBe("Measure wind");
+    title = "  ";
+    expect(from.fields[0]?.text()).toBe("Measure wind");
   });
 
   it("[SR-128/AK3] names the element by its identifier, else its short ID", () => {

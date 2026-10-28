@@ -4,17 +4,19 @@
 // `element.update`, as "Save element" saves it (`property-edit.ts`): the text that was typed, and the
 // boxes whose document differs from what the file stores. One after the other; the first that cannot be
 // saved stops the switch (spec question #523): its draft stays, the minibuffer names the element, and
-// the open workspace stays. A draft whose file changed outside since it was typed on is not saved over
-// that change: the rule of SR-106 (`outside-change.ts`) finds a conflict, and it stops the switch as well.
+// the open workspace stays. The title of a draft goes as `title` (#621, `TITLE_FIELD`). A draft whose file
+// changed outside since it was typed on is not saved over that change: the rule of SR-106
+// (`outside-change.ts`) finds a conflict, and it stops the switch as well.
 // Every write carries the bytes it was made on (`expectedFileSha256`).
 import type { DataExportElement } from "@logreq/core";
 import type { BoxEdit } from "./property-edit.js";
-import { editableBoxes, storedDocs, updateInput } from "./property-edit.js";
+import { fieldBoxes, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { Draft } from "./drafts.js";
 import { makeDraft, withShown } from "./drafts.js";
 import type { PropertyModel } from "./element-view.js";
+import { TITLE_FIELD } from "./element-view.js";
 import { TEXT_FIELD, draftInput, keptBoxes, outsideChange } from "./outside-change.js";
 
 export interface SaveContext {
@@ -82,7 +84,7 @@ interface SavedFile {
  */
 const rebase = (newer: Draft, file: SavedFile, properties: PropertyModel): Draft | undefined => {
   const text = file.element.text ?? "";
-  const docs = storedDocs(editableBoxes(file.element, properties));
+  const docs = storedDocs(fieldBoxes(file.element, properties));
   const draft = makeDraft(
     { doc: newer.text === newer.base ? text : newer.text, base: text },
     keptBoxes(newer, [], docs),
@@ -127,7 +129,7 @@ export const saveOne = async (
     return failed(buffer, read.message);
   }
   const { element, fileSha256 } = read.output;
-  const boxes = editableBoxes(element, context.properties);
+  const boxes = fieldBoxes(element, context.properties);
   const docs = storedDocs(boxes);
   const change = outsideChange(draftInput(kept), kept.sha, {
     sha: fileSha256,
@@ -141,7 +143,10 @@ export const saveOne = async (
   for (const [key, box] of keptBoxes(kept, change.dropped, docs)) {
     const info = boxes.get(key)?.info ?? type?.get(key);
     if (info === undefined) {
-      return failed(buffer, `its type has no property ${key}`);
+      return failed(
+        buffer,
+        key === TITLE_FIELD ? "its type has no title" : `its type has no property ${key}`,
+      );
     }
     edits.push({ key, info, base: box.base, doc: box.doc });
   }

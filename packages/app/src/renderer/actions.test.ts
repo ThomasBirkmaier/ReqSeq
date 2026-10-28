@@ -143,6 +143,28 @@ describe("the command prompt", () => {
     expect(names).not.toContain("Filter list by type");
   });
 
+  it("offers editing the title on an element whose buffer gives it, by its name (#621, SR-073 AK2)", () => {
+    const editTitle = vi.fn();
+    const element$ = setup([element], {}, true, {
+      element: {
+        save: vi.fn(),
+        edit: vi.fn(),
+        editTitle,
+        follow: vi.fn(),
+        copy: vi.fn(),
+        addProperty: vi.fn(),
+        clearProperty: vi.fn(),
+        listValue: vi.fn(),
+        flush: vi.fn(() => Promise.resolve(true)),
+        prompting: vi.fn(),
+      },
+    });
+    const item = commandPrompt(element$.context).items.find((found) => found.name === "Edit title");
+    expect(item?.hint).toBe("Enter on the title");
+    item?.run();
+    expect(editTitle).toHaveBeenCalledTimes(1);
+  });
+
   it("offers saving and editing the text on an element that has loaded", () => {
     const element$ = setup([element], {}, true, {
       element: {

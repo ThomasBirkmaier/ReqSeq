@@ -12,6 +12,7 @@ const MODEL: PropertyModel = new Map([
   [
     "need",
     new Map<string, PropertyInfo>([
+      ["title", { name: "Title", kind: "text", many: false, markdown: false, meaning: "title" }],
       ["topic", { kind: "text", many: false, markdown: false }],
       ["criteria", { kind: "text", many: true, markdown: false }],
     ]),
@@ -20,6 +21,8 @@ const MODEL: PropertyModel = new Map([
 
 /** A file of the workspace: the text and the properties of an element, and its type (default `need`). */
 interface File {
+  /** The title (default: none, the empty title). */
+  title?: string;
   text: string;
   properties: Record<string, unknown>;
   type?: string;
@@ -35,6 +38,7 @@ const elementOf = (id: string, file: File): DataExportElement =>
   ({
     id,
     type: file.type ?? "need",
+    title: file.title ?? "",
     ...(file.text === "" ? {} : { text: file.text }),
     properties: file.properties,
     relations: [],
@@ -55,7 +59,15 @@ const fakeCall = (files: Files, failing: ReadonlyMap<string, string> = new Map()
       const properties = Object.fromEntries(
         Object.entries({ ...file.properties, ...set }).filter(([key]) => !unset.includes(key)),
       );
-      files.set(id, { text: typeof input["text"] === "string" ? input["text"] : file.text, properties });
+      files.set(id, {
+        ...(typeof input["title"] === "string"
+          ? { title: input["title"] }
+          : file.title === undefined
+            ? {}
+            : { title: file.title }),
+        text: typeof input["text"] === "string" ? input["text"] : file.text,
+        properties,
+      });
     }
     const now = files.get(id) ?? file;
     return Promise.resolve({
@@ -340,5 +352,53 @@ describe("saving before a switch", () => {
       name: "SR-1 Title 1",
       message: "its type has no property colour",
     });
+  });
+});
+
+describe("the title of a draft (#621)", () => {
+  it("[SR-105/AK1] a draft with an unsaved title is saved with title, not in set", async () => {
+    const files: Files = new Map([["1", { title: "Old", text: "Text", properties: {}, sha: "one" }]]);
+    const one = buffer("1");
+    const drafts = new Map<string, Draft>([
+      [
+        one.key,
+        { text: "Text", base: "Text", boxes: new Map([["Title", { doc: "New", base: "Old" }]]), sha: "one" },
+      ],
+    ]);
+    const { call, dropped, run } = setup([one], drafts, files);
+    expect(await run()).toEqual({ ok: true });
+    expect(call.mock.calls.filter(([name]) => name === "element.update").map(([, input]) => input)).toEqual([
+      { ref: "1", title: "New", expectedFileSha256: "one" },
+    ]);
+    expect(files.get("1")?.title).toBe("New");
+    expect(dropped).toEqual([one.key]);
+  });
+
+  it("[SR-106/AK2] a draft with an unsaved title on a file whose title changed since is not saved", async () => {
+    const files: Files = new Map([["1", { title: "Theirs", text: "Text", properties: {}, sha: "two" }]]);
+    const one = buffer("1");
+    const drafts = new Map<string, Draft>([
+      [
+        one.key,
+        { text: "Text", base: "Text", boxes: new Map([["Title", { doc: "Mine", base: "Old" }]]), sha: "one" },
+      ],
+    ]);
+    const { call, run } = setup([one], drafts, files);
+    expect(await run()).toEqual({ ok: false, name: one.name, message: CHANGED_ON_DISK });
+    expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([]);
+    expect(files.get("1")?.title).toBe("Theirs");
+  });
+
+  it("a draft with an unsaved title on an element whose type has no title stops the switch, and says so", async () => {
+    const files: Files = new Map([["1", { text: "Text", properties: {}, type: "risk" }]]);
+    const one = buffer("1");
+    const draft: Draft = {
+      text: "Text",
+      base: "Text",
+      boxes: new Map([["Title", { doc: "New", base: "" }]]),
+    };
+    const { run, call } = setup([one], new Map([[one.key, draft]]), files);
+    expect(await run()).toEqual({ ok: false, name: "SR-1 Title 1", message: "its type has no title" });
+    expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get"]);
   });
 });

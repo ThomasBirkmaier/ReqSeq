@@ -221,6 +221,33 @@ describe("element.update", () => {
     ]);
   });
 
+  it("[SR-064/AK2] saves an emptied title as the empty title, keeping its key, and gives its element.missing-required hint; the title is never unset (#621)", async () => {
+    const opened = await open();
+    const before = await read(opened, WIND.file);
+    const out = await update(opened, { ref: WIND.id, title: "" });
+    expect(out.element.title).toBe("");
+    expect(changedLines(before, await read(opened, WIND.file))).toEqual({
+      removed: ["title: Show wind speed"],
+      added: ['title: ""'],
+    });
+    // The element lacks its other required properties too (requirement type, acceptance criteria).
+    const hints = (out.problems ?? []).filter(
+      (problem) => problem.code === "element.missing-required" && problem.message.includes("(title)"),
+    );
+    expect(hints).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringContaining("Required property Title (title)") as unknown,
+        elementId: WIND.id,
+        line: 5,
+      }),
+    ]);
+    expect(out.element.problems).toEqual(out.problems);
+    const refused = await updateError(opened, { ref: WIND.id, unset: ["title"] });
+    expect(refused.code).toBe("input.invalid");
+    expect(await read(opened, WIND.file)).toContain('title: ""\n');
+  });
+
   it("[SR-064/AK3] an element created with only its title takes every other property of its type when opened again, required and optional, in type order; the hints of the filled required properties are gone", async () => {
     const opened = await open();
     const create = async (input: Record<string, unknown>): Promise<CommandOutput<"element.create">> =>

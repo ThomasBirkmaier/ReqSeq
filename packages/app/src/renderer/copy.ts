@@ -3,7 +3,7 @@
 // one value per line (#457). Pure: the window puts it on the clipboard.
 import type { DataExportElement } from "@logreq/core";
 import type { PropertyBox } from "./element-view.js";
-import { propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
+import { TITLE_FIELD, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
 
 /** One field of the element buffer: the name the status line gives, and its value as text. */
 export interface Field {
@@ -17,9 +17,12 @@ export const NOTICE_MS = 3000;
 /** The values of a field as the text that is copied: one per line. */
 export const fieldText = (values: readonly string[]): string => values.join("\n");
 
-/** The heading of the buffer: the title, else the identifier or short ID the element is named by. */
+/**
+ * The heading of the buffer: the title, else (empty or only spaces, as `title-box.ts` shows it) the identifier
+ * or short ID the element is named by.
+ */
 export const heading = (element: DataExportElement): string =>
-  element.title === "" ? (element.identifier ?? element.shortId) : element.title;
+  element.title.trim() === "" ? (element.identifier ?? element.shortId) : element.title;
 
 /** What the status line says about a copy that worked or failed. */
 export const copyNotice = (label: string, copied: boolean): string =>
@@ -53,7 +56,14 @@ export const copyable = (
   boxes: readonly PropertyBox[] = propertyBoxes(element),
 ): Copyable => ({
   fields: [
-    { label: "Title", text: () => heading(element) },
+    {
+      // What the title's editor holds (#621), the unsaved input included; the heading when it holds nothing.
+      label: TITLE_FIELD,
+      text: () => {
+        const doc = boxDoc(TITLE_FIELD);
+        return doc === undefined || doc.trim() === "" ? heading(element) : doc;
+      },
+    },
     { label: "Text", text: doc },
     ...boxes.map((box) => ({
       label: box.key,

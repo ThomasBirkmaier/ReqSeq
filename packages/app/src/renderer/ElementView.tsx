@@ -1,19 +1,21 @@
-// The element buffer: one element as `element.get` gives it. The text is edited in the Markdown editor
-// with live preview (SR-065, D-061). The properties are boxes below it (SR-104): a property of a text
-// kind (text, number, date) is edited in its box, one editor with the values, one per line (`TextBox.tsx`);
-// a property the metamodel marks `markdown` shows its values formatted like the text, with the source on the
-// line with the caret only (SR-127). The value of a choice or relation property is set in the minibuffer, the
-// one control (D-062): Enter on its box asks for the allowed values or for an element (`property-prompts.ts`).
-// "Add property" puts an empty box at its place, with the caret in it, or with the focus on it and the prompt
-// open at once for a choice or relation. A property the type does not know stays a read-only box (D-012, spec
-// question #469). Empty properties are left out; the UUID and the version are shown on request only. The only
-// write is `element.update { ref, text?, set?, unset? }` (ADR-0002): the text and every box that changed go
-// together, and a box that was emptied removes its property (`property-edit.ts`). It is written without a
-// save command (SR-105, `autosave.ts`): one second after the last input, and at once when the buffer is
-// left or a prompt opens; "Save element" (Ctrl/Cmd+S) writes at once. Undo and redo reach back to the
-// opening of the buffer, also across saves and other buffers shown meanwhile (the app keeps the history,
-// `buffer-memory.ts`); a choice or relation box has a value history of its own (`value-history.ts`). The
-// unsaved text and boxes are a draft that the app keeps while another buffer is shown.
+// The element buffer: one element as `element.get` gives it. The title is edited in its heading, one line of
+// plain text (#621, `TitleBox.tsx`), and saved and compared with the file like a box (`TITLE_FIELD`). The
+// text is edited in the Markdown editor with live preview (SR-065, D-061). The properties are boxes below it
+// (SR-104): a property of a text kind (text, number, date) is edited in its box, one editor with the values,
+// one per line (`TextBox.tsx`); a property the metamodel marks `markdown` shows its values formatted like the
+// text, with the source on the line with the caret only (SR-127). The value of a choice or relation property
+// is set in the minibuffer, the one control (D-062): Enter on its box asks for the allowed values or for an
+// element (`property-prompts.ts`). "Add property" puts an empty box at its place, with the caret in it, or
+// with the focus on it and the prompt open at once for a choice or relation. A property the type does not
+// know stays a read-only box (D-012, spec question #469). Empty properties are left out; the UUID and the
+// version are shown on request only. The only write is `element.update { ref, title?, text?, set?, unset? }`
+// (ADR-0002): the title, the text and every box that changed go together, and a box that was emptied removes
+// its property (`property-edit.ts`). It is written without a save command (SR-105, `autosave.ts`): one second
+// after the last input, and at once when the buffer is left or a prompt opens; "Save element" (Ctrl/Cmd+S)
+// writes at once. Undo and redo reach back to the opening of the buffer, also across saves and other buffers
+// shown meanwhile (the app keeps the history, `buffer-memory.ts`); a choice or relation box has a value
+// history of its own (`value-history.ts`). The unsaved text and boxes are a draft that the app keeps while
+// another buffer is shown.
 // A change of the file from outside the app (SR-106, SR-116) is read again when core's watcher names this
 // element: the editors without input take the new text with the cursor kept at its place in the text, and
 // the fields that changed are highlighted briefly when the file's bytes (`fileSha256`) differ. When the
@@ -31,9 +33,15 @@ import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import { elementBuffer, filteredList } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
-import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
+import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
 import type { PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
-import { isPropertyTarget, outdatedReferences, relationGroups, rowOfRelation } from "./element-view.js";
+import {
+  TITLE_FIELD,
+  isPropertyTarget,
+  outdatedReferences,
+  relationGroups,
+  rowOfRelation,
+} from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { Editor } from "./editor/Editor.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -81,6 +89,8 @@ import { useOutsideMarks } from "./use-outside-marks.js";
 import { ctrlStep, historyStep, isMac } from "./keys.js";
 import { ListView } from "./ListView.js";
 import { TextBox } from "./TextBox.js";
+import { TitleBox } from "./TitleBox.js";
+import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
 import type { BufferData } from "./modeline.js";
 import type { MemberCount, PackageModel } from "./package-page.js";
@@ -90,9 +100,10 @@ import {
   allBoxes,
   changedBoxes,
   choiceKeys,
-  editableBoxes,
   editsOf,
   emptyBox,
+  fieldBoxes,
+  hintKeys,
   isValueKind,
   relationDoc,
   relationTargets,
@@ -100,6 +111,7 @@ import {
   shownBoxes,
   storedDocs,
   updateInput,
+  withTitle,
 } from "./property-edit.js";
 import type { BoxEdit, EditableBox } from "./property-edit.js";
 import { addPropertyPrompt, choicePrompt, relationPrompt } from "./property-prompts.js";
@@ -476,8 +488,12 @@ export const ElementView = ({
   // boxes that were added (AK2) have no stored value: their base is the empty document.
   const [added, setAdded] = useState<readonly string[]>([]);
   const addedRef = useRef<readonly string[]>([]);
+  // The title is one of them (#621): its field, saved and compared with the file like a text box.
   const boxes = useMemo(
-    () => (view.status === "ok" ? allBoxes(view.element, properties, added) : new Map<string, EditableBox>()),
+    () =>
+      view.status === "ok"
+        ? withTitle(allBoxes(view.element, properties, added), view.element, properties)
+        : new Map<string, EditableBox>(),
     [view, properties, added],
   );
   const shown = useMemo(
@@ -491,6 +507,11 @@ export const ElementView = ({
   );
   const boxEditors = useRef(new Map<string, EditorHandle>());
   const stored = useRef(new Map<string, string>());
+  // The editor of the title is in its heading (#621): from the first time the title is entered, or the buffer
+  // came back with title input, for the life of the buffer (an input it holds must never go with it). Where
+  // the caret goes when it comes.
+  const [titleOpen, setTitleOpen] = useState(false);
+  const titleFocus = useRef<number | "start" | "end" | undefined>(undefined);
   // The documents of the boxes of a choice or relation (SR-104 AK3) that have input: set in the minibuffer,
   // so no editor holds them. The ref is what the callbacks read, the state makes the boxes show them.
   const [, setValues] = useState<ReadonlyMap<string, string>>(new Map());
@@ -696,10 +717,47 @@ export const ElementView = ({
   // The field with this label: "Text" has no tab stop of its own (its editor takes the focus).
   const fieldOf = (label: string): HTMLElement | null | undefined =>
     article?.querySelector<HTMLElement>(`[data-field="${CSS.escape(label)}"]`);
+  // The title can be edited now (#621): the type has a title, the stored one holds no line break, and the
+  // element is neither read-only nor gone.
+  const titleEditable = (): boolean => {
+    const title = now.current.boxes.get(TITLE_FIELD);
+    return title !== undefined && !title.lineBreak && !now.current.readOnly && !diskState.current.deleted;
+  };
+  // Puts the caret into the title: its editor when it is there, else the editor comes into the heading and
+  // takes the caret when it is made (two renders later).
+  const openTitle = (at: number | "start" | "end"): void => {
+    const editor = boxEditors.current.get(TITLE_FIELD);
+    if (editor === undefined) {
+      titleFocus.current = at;
+      setTitleOpen(true);
+    } else {
+      editor.focus(at);
+    }
+  };
+  // "Edit title": the caret at the end of the title, or why it cannot be edited.
+  const editTitle = (): void => {
+    const title = now.current.boxes.get(TITLE_FIELD);
+    const note =
+      lockedNote() ??
+      (title === undefined
+        ? `${now.current.buffer.name} has no title property: its type has none`
+        : title.lineBreak
+          ? lockNote(TITLE_FIELD, title)
+          : undefined);
+    if (note === undefined) {
+      openTitle("end");
+    } else {
+      now.current.onEcho(note);
+    }
+  };
   // Puts the focus on a field: on the editor of a box (the text is the editor called "Text") at its start or
   // end when `edit` is set, else on the field itself. A box without a usable editor takes the focus itself.
   // False when there is nothing to take it.
   const enter = (label: string, at: "start" | "end", edit = true): boolean => {
+    if (label === TITLE_FIELD && edit && titleEditable()) {
+      openTitle(at);
+      return true;
+    }
     const editor = label === "Text" ? now.current.handle : boxEditors.current.get(label);
     // The text has no tab stop but its editor, so its editor takes the focus either way.
     if ((edit || label === "Text") && editor !== undefined && !editor.state().readOnly) {
@@ -718,14 +776,20 @@ export const ElementView = ({
   };
   // Down at the last line of an editor goes into the next field, Up at the first line into the one before:
   // the text, then the boxes in the order they are shown (`editor/box-navigation.ts`).
-  const step = (from: string, by: 1 | -1): boolean => move(["Text", ...now.current.boxKeys], from, by);
+  const step = (from: string, by: 1 | -1): boolean =>
+    move([TITLE_FIELD, "Text", ...now.current.boxKeys], from, by);
   const stepRef = useRef(step);
   stepRef.current = step;
   const plugins = useMemo(
     () =>
       mergePlugins(references({ outdated: outdated ?? new Map(), follow, title }), slash, brackets, {
         // After the slash menu, which takes Down while it is open.
-        extensions: [boxNavigation({ down: () => stepRef.current("Text", 1) }, Prec.high)],
+        extensions: [
+          boxNavigation(
+            { down: () => stepRef.current("Text", 1), up: () => stepRef.current("Text", -1) },
+            Prec.high,
+          ),
+        ],
       }),
     [signature, slash, brackets],
   );
@@ -780,6 +844,10 @@ export const ElementView = ({
     const typed = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
     keptBoxes.current = new Map(keptBoxesOf(kept, change.dropped, docs));
     keptText.current = typed;
+    // Title input comes back in the title's editor, which stays (#621).
+    if (keptBoxes.current.has(TITLE_FIELD)) {
+      setTitleOpen(true);
+    }
     setDiskState({ ...diskState.current, basis: change.kind === "conflict" ? kept.sha : sha });
     if (change.kind === "conflict") {
       decide(change);
@@ -812,7 +880,7 @@ export const ElementView = ({
   // An answer of `element.get` for the shown element.
   const apply = (element: DataExportElement, sha: string, changedJustNow: boolean): void => {
     const loaded = element.text ?? "";
-    const docs = storedDocs(editableBoxes(element, now.current.properties));
+    const docs = storedDocs(fieldBoxes(element, now.current.properties));
     // A save that runs sets the baseline itself with its answer.
     if (!saving.current) {
       const fields = fieldTexts(element);
@@ -996,7 +1064,7 @@ export const ElementView = ({
     shownFile.current = { element, sha: output.fileSha256 };
     endConflict(output.fileSha256);
     const after = afterSave(sent.doc, element.text ?? "", editor.doc());
-    const docs = storedDocs(editableBoxes(element, now.current.properties));
+    const docs = storedDocs(fieldBoxes(element, now.current.properties));
     const holds = (key: string): string =>
       boxEditors.current.get(key)?.doc() ?? values.current.get(key) ?? "";
     // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
@@ -1046,10 +1114,7 @@ export const ElementView = ({
     setView({ status: "ok", element });
     setNotSaved(false);
     said.current = { ...said.current, error: undefined };
-    const hint = savedHint(
-      output.problems,
-      sent.edits.map((edit) => edit.key),
-    );
+    const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
     if (mode === "asked") {
       echo(hint === undefined ? `Saved ${shown.name}` : `Saved ${shown.name}. ${hint}`);
     } else if (hint !== undefined && hint !== said.current.hint) {
@@ -1136,7 +1201,7 @@ export const ElementView = ({
             element,
             sha,
             text: element.text ?? "",
-            docs: storedDocs(editableBoxes(element, model)),
+            docs: storedDocs(fieldBoxes(element, model)),
           },
         );
         return rest;
@@ -1331,9 +1396,13 @@ export const ElementView = ({
   const intoMembers = (root: HTMLElement): void => {
     root.querySelector<HTMLElement>(".members .list")?.focus();
   };
-  // Enter on a choice or relation box asks for the value in the minibuffer (SR-104 AK3); on a box with an editor
-  // it puts the caret at the end, else (the title, a box that is not edited) in the text.
+  // Enter on a choice or relation box asks for the value in the minibuffer (SR-104 AK3); on the title or a box
+  // with an editor it puts the caret at the end, else (a title or a box that is not edited) in the text.
   const enterField = (label: string | undefined): void => {
+    if (label === TITLE_FIELD && titleEditable()) {
+      openTitle("end");
+      return;
+    }
     const editable = label === undefined ? undefined : now.current.boxes.get(label);
     const box = label === undefined ? undefined : boxEditors.current.get(label);
     if (editable !== undefined && isValueKind(editable.info.kind)) {
@@ -1358,7 +1427,7 @@ export const ElementView = ({
       enterField(label);
     } else if (key === "Escape") {
       article?.focus();
-    } else if (label === undefined || !move(["Title", "Text", ...boxKeys], label, down ? 1 : -1, false)) {
+    } else if (label === undefined || !move([TITLE_FIELD, "Text", ...boxKeys], label, down ? 1 : -1, false)) {
       if (down && (members?.total ?? 0) > 0) {
         intoMembers(root);
       }
@@ -1492,6 +1561,7 @@ export const ElementView = ({
   };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
+    editTitle,
     addProperty,
     clearProperty,
     relationFollowed,
@@ -1504,6 +1574,7 @@ export const ElementView = ({
     listValue,
   });
   api.current = {
+    editTitle,
     addProperty,
     clearProperty,
     relationFollowed,
@@ -1539,6 +1610,9 @@ export const ElementView = ({
       edit: () => {
         handle.focus("end");
       },
+      editTitle: () => {
+        api.current.editTitle();
+      },
       members: packageModel !== undefined,
       // Only while the file changed under the input (SR-106 AK2).
       ...(conflict === undefined
@@ -1572,7 +1646,8 @@ export const ElementView = ({
         // reference when it has no caret; a box that is not Markdown has none. Anywhere else it is the
         // reference at the cursor of the text.
         const label = cursorField(document.activeElement, lastField.current) ?? "";
-        const box = boxEditors.current.get(label);
+        // The title has no references (plain text): from it, the reference at the cursor of the text.
+        const box = label === TITLE_FIELD ? undefined : boxEditors.current.get(label);
         if (api.current.isRelationBox(label)) {
           const row = api.current.relationFollowed(label);
           if (row === undefined) {
@@ -1612,6 +1687,17 @@ export const ElementView = ({
 
   // The editors take no input in a read-only element, and none while its file is gone (SR-106 AK3).
   const locked = readOnly || deleted;
+  // What the heading of the title shows and whether it takes input: a function of its own, so the render
+  // stays small.
+  const titleProps = (element: DataExportElement): Pick<TitleBoxProps, "id" | "readOnly" | "initial"> => {
+    // The unsaved title this buffer was shown with, for its editor when it is made (#621).
+    const kept = keptBoxes.current.get(TITLE_FIELD)?.doc;
+    return {
+      id: element.identifier ?? element.shortId,
+      readOnly: locked || boxes.get(TITLE_FIELD)?.lineBreak !== false,
+      ...(kept === undefined ? {} : { initial: kept }),
+    };
+  };
   // The block "On disk" under a field in conflict (SR-106 AK2).
   const diskBlock = (label: string): React.JSX.Element | null => {
     const field = conflict?.find((candidate) => candidate.label === label);
@@ -1649,9 +1735,45 @@ export const ElementView = ({
         {view.status === "ok" && parents.answered ? (
           <>
             <ParentsRow parents={parents.parents} dispatch={dispatch} />
-            <FieldBox label="Title" focusable onCopy={copy} marked={marked}>
-              <h1>{heading(view.element)}</h1>
+            <FieldBox label={TITLE_FIELD} focusable onCopy={copy} marked={marked}>
+              <TitleBox
+                text={view.element.title}
+                {...titleProps(view.element)}
+                open={titleOpen}
+                restore={memory.editors.get(TITLE_FIELD)}
+                onClose={(state) => {
+                  memory.editors.set(TITLE_FIELD, state);
+                }}
+                onUpdate={() => {
+                  autosave.current?.release();
+                }}
+                onOpen={openTitle}
+                onChange={(_doc, typed) => {
+                  changed(undefined, typed);
+                }}
+                onLeave={() => {
+                  fieldOf(TITLE_FIELD)?.focus();
+                }}
+                navigation={{
+                  down: () => step(TITLE_FIELD, 1),
+                  up: () => step(TITLE_FIELD, -1),
+                }}
+                onHandle={(editor) => {
+                  if (editor === undefined) {
+                    boxEditors.current.delete(TITLE_FIELD);
+                    return;
+                  }
+                  boxEditors.current.set(TITLE_FIELD, editor);
+                  keptBoxes.current.delete(TITLE_FIELD);
+                  const at = titleFocus.current;
+                  titleFocus.current = undefined;
+                  if (at !== undefined) {
+                    editor.focus(at);
+                  }
+                }}
+              />
             </FieldBox>
+            {diskBlock(TITLE_FIELD)}
             <FieldBox label="Text" onCopy={copy} marked={marked}>
               <Editor
                 text={text}

@@ -34,6 +34,12 @@ export const relationLabel = (relation: DataExportRelation): string =>
 export const isPropertyTarget = (relation: DataExportRelation): boolean =>
   relation.property === true && relation.direction === "out";
 
+/**
+ * The field of the title in the element buffer (#621): edited in its heading, saved and compared with the
+ * file like a box. Property keys are lower case (`common.schema.json#/$defs/key`), so no key is this label.
+ */
+export const TITLE_FIELD = "Title";
+
 export interface PropertyBox {
   readonly key: string;
   readonly lines: readonly string[];

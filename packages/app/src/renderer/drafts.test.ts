@@ -125,6 +125,14 @@ describe("rebased", () => {
       sha: "sha-1",
       shown: { element, sha: "sha-1" },
     });
+    // The title is a field like a box (#621): sent, it is in the file; typed meanwhile, it stays.
+    expect(
+      rebased(
+        { ...draft("a", "a", [["Title", "New!", "Old"]]), sha: "sha-0" },
+        { boxes: new Map([["Title", "New"]]) },
+        saved("a", { Title: "New" }),
+      ),
+    ).toMatchObject({ boxes: new Map([["Title", { doc: "New!", base: "New" }]]), sha: "sha-1" });
     // A text that was not sent and not typed is the file's text.
     expect(
       rebased(draft("a", "a", [["topic", "x", "Wind"]]), { boxes: new Map() }, saved("b")),
