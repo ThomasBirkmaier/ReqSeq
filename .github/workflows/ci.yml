@@ -152,9 +152,6 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        # The typed lint of the whole repo needs about the 2 GB old space Node gives by default on the runners (#617).
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
         run: pnpm lint
       - name: Format
         if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
