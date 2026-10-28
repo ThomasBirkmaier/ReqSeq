@@ -391,6 +391,62 @@ describe("go to element or buffer", () => {
     expect(dispatched).toEqual([{ type: "open", buffer: elementBuffer("u1", "spec", "SR-036 Wind") }]);
   });
 
+  it("[SR-115/AK1] Go to offers every open buffer but the shown one, the one used last first, then the elements shown last that are not open, and finds any element through element.search", async () => {
+    const search = searchBuffer("wind");
+    const hit = {
+      id: "u9",
+      repository: "spec",
+      shortId: "SR-000009",
+      title: "Survive icing",
+      type: "t",
+      score: 1,
+      fields: ["title"],
+      terms: ["icing"],
+    };
+    const speed = elementBuffer("u2", "spec", "SR-000002 Wind speed");
+    const direction = elementBuffer("u3", "other", "SR-000003 Wind direction");
+    // In order of use: the search is shown, the element was used before it, the list before that.
+    const { context, dispatched, call } = setup(
+      [search, element, list],
+      { "element.search": { hits: [hit], total: 1, incomplete: false } },
+      true,
+      // Newest first: the open element, then one closed in each of two repositories.
+      { recent: () => [element, speed, direction] },
+    );
+    const prompt = jumpPrompt(context);
+    expect(prompt.items.map((item) => [item.id, item.name])).toEqual([
+      ["element:spec:u1", "SR-036 Title"],
+      ["list", "All elements"],
+      ["element:spec:u2", "SR-000002 Wind speed"],
+      ["element:other:u3", "SR-000003 Wind direction"],
+    ]);
+    // Nothing is asked of core when the prompt opens: the search for the typed text is not queued behind reads.
+    expect(call).not.toHaveBeenCalled();
+    expect(prompt).not.toHaveProperty("fill");
+    prompt.items[3]?.run();
+    prompt.items[0]?.run();
+    expect(dispatched).toEqual([
+      { type: "open", buffer: direction },
+      { type: "switch", key: "element:spec:u1" },
+    ]);
+    // Any other element is found by core for the typed text (typo tolerant, SR-119).
+    const found = await prompt.find?.("icimg");
+    expect(call).toHaveBeenLastCalledWith("element.search", {
+      query: "icimg",
+      fields: ["id", "title"],
+      limit: 20,
+    });
+    expect(found?.map((choice) => choice.name)).toEqual(["SR-000009 Survive icing"]);
+  });
+
+  it("[SR-115/AK1] Go to offers no element shown last that is open, nor the shown buffer, and none without recent elements", () => {
+    const { context } = setup([element, list], {}, true, { recent: () => [element] });
+    expect(jumpPrompt(context).items.map((item) => item.name)).toEqual(["All elements"]);
+    expect(jumpPrompt(setup([list, element]).context).items.map((item) => item.name)).toEqual([
+      "SR-036 Title",
+    ]);
+  });
+
   it("echoes why the search failed and finds nothing", async () => {
     const { context, echoed } = setup([list], {
       "element.search": new Error("The search index is not ready"),

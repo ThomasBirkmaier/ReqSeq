@@ -21,7 +21,7 @@ import { catalogItems } from "./catalog-commands.js";
 import type { Draft } from "./drafts.js";
 import { useDrafts } from "./drafts.js";
 import type { Buffer, ElementBuffer, GraphBuffer, MetamodelBuffer, OverviewBuffer } from "./buffers.js";
-import { elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
+import { elementBuffer, elementBufferOf, inMatrix, overviewBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
 import type { PropertyModel } from "./element-view.js";
@@ -209,6 +209,9 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   // The elements opened last in this workspace (SR-118): kept in the app's storage under `scope`, not in the workspace.
   const [recent, setRecent] = useState<readonly RecentEntry[]>([]);
   const recentRef = useRef<readonly RecentEntry[]>([]);
+  // Their names for "Go to" (SR-115 AK1), by buffer key: as the overview read them, or as they were shown.
+  // Go to asks core nothing when it opens, so its search is not queued behind reads of these elements.
+  const recentNames = useRef(new Map<string, ElementBuffer>());
   const scope = useRef<string | undefined>(undefined);
 
   // After the core process stopped for good nothing is sent to it: the buffers stay as they are.
@@ -271,6 +274,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
       const key = recentKey(result);
       if (key !== scope.current) {
         scope.current = key;
+        recentNames.current.clear();
         recentRef.current = key === undefined ? [] : loadRecent(appStorage, key);
         setRecent(recentRef.current);
       }
@@ -446,6 +450,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
     dispatch,
     ask,
     echo: setEcho,
+    recent: () =>
+      recentRef.current.flatMap((entry) => {
+        const known = recentNames.current.get(elementBuffer(entry.id, entry.repository, "").key);
+        return known === undefined ? [] : [known];
+      }),
     ...(elementControls === undefined ? {} : { element: elementControls }),
     ...(row === undefined ? {} : { row }),
     modified: current !== undefined && drafts.current.has(current.key),
@@ -673,6 +682,7 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   useEffect(() => {
     const byMode = follow.seen(current?.key);
     if (!byMode && current?.kind === "element" && scope.current !== undefined) {
+      recentNames.current.set(current.key, current);
       recentRef.current = remember(recentRef.current, { id: current.id, repository: current.repository });
       setRecent(recentRef.current);
       saveRecent(appStorage, scope.current, recentRef.current);
@@ -698,6 +708,11 @@ export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.El
   };
 
   const overview = useOverview(call, seen, recent, current?.kind === "overview", setEcho);
+  useEffect(() => {
+    for (const row of overview.recents) {
+      recentNames.current.set(row.buffer.key, row.buffer);
+    }
+  }, [overview.recents]);
 
   // A relation names the repository of its target (#416): its buffer is opened at once.
   const openRelation = (buffer: ElementBuffer): void => {

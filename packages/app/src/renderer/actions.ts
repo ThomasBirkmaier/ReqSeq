@@ -168,6 +168,12 @@ export interface ActionContext {
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
+  /**
+   * The elements shown last in this workspace, newest first, as buffers (`recent.ts`, SR-118; their names
+   * as the overview read them or as they were shown), read when "Go to" opens: it offers those that are
+   * not open after the open buffers (SR-115 AK1). Absent: none.
+   */
+  readonly recent?: () => readonly ElementBuffer[];
   /** The shown element buffer, when it has loaded. */
   readonly element?: ElementControls;
   /** The element of the selected row of the shown list or search, when it has loaded. */
@@ -425,20 +431,38 @@ export const findElements =
     }));
   };
 
-/** The prompt of Ctrl/Cmd+P: the open buffers (not the shown one), and elements found by `element.search`. */
-export const jumpPrompt = (context: ActionContext): Prompt => ({
-  label: "Go to",
-  items: context.buffers.slice(1).map((buffer) => ({
-    id: buffer.key,
-    name: bufferName(buffer),
-    run: () => {
-      context.dispatch({ type: "switch", key: buffer.key });
-    },
-  })),
-  find: findElements(context, (row) => {
-    context.dispatch({ type: "open", buffer: row.open });
-  }),
-});
+/**
+ * The prompt of Ctrl/Cmd+P (SR-115 AK1): the open buffers but the shown one, the one used last first, then
+ * the elements shown last that are not open (newest first), and elements found by `element.search` for
+ * the typed text. The fuzzy ranking keeps this order among equal matches. The recent elements come with
+ * their names, so the prompt asks core nothing when it opens and the search is not queued behind reads.
+ */
+export const jumpPrompt = (context: ActionContext): Prompt => {
+  const open = new Set(context.buffers.map((buffer) => buffer.key));
+  const closed = (context.recent?.() ?? []).filter((buffer) => !open.has(buffer.key));
+  return {
+    label: "Go to",
+    items: [
+      ...context.buffers.slice(1).map((buffer): Choice => ({
+        id: buffer.key,
+        name: bufferName(buffer),
+        run: () => {
+          context.dispatch({ type: "switch", key: buffer.key });
+        },
+      })),
+      ...closed.map((buffer): Choice => ({
+        id: buffer.key,
+        name: bufferName(buffer),
+        run: () => {
+          context.dispatch({ type: "open", buffer });
+        },
+      })),
+    ],
+    find: findElements(context, (row) => {
+      context.dispatch({ type: "open", buffer: row.open });
+    }),
+  };
+};
 
 /** The prompt of the slash menu's "Reference to element" (SR-129): an element is picked, the editor writes the reference. */
 export const referencePrompt = (context: ActionContext, request: ReferenceRequest): Prompt => ({

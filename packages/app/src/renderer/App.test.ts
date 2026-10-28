@@ -2144,10 +2144,13 @@ describe("App, the text editor", () => {
     expect(container.querySelectorAll("[data-buffer]")).toHaveLength(1);
     expect(text("Minibuffer")).toBe("Closed 3 buffers");
     expect(text("Modeline")).toBe("Overview3 elementsWeather stationread-only");
-    // No other buffer is left to go to, and the global keys still work.
+    // No other buffer is left to go to, and the global keys still work: Go to offers only the element
+    // shown last, a recent element that is no longer open (SR-115 AK1).
     await keyDown(window, "p", { ctrlKey: true });
     expect(query("label").textContent).toBe("Go to");
-    expect(container.querySelectorAll(".candidates [role=option]")).toHaveLength(0);
+    expect(
+      [...container.querySelectorAll(".candidates [role=option]")].map((option) => option.textContent),
+    ).toEqual(["SR-000001 Title 1"]);
   });
 
   it('[SR-123/AK2] Close all buffers keeps a buffer in conflict: shown again, it says its change on disk after "Closed 1 buffer", and nothing is written', async () => {

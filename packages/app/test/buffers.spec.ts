@@ -1,4 +1,6 @@
-// Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5) on the built app: the next
+// Working in buffers on the built app (SR-115): Ctrl/Cmd+P chooses any buffer and any element with a
+// fuzzy text, the one used last first (AK1); there is no tab bar, however many buffers are open (AK2).
+// Alt+N and Alt+P (Option+N and Option+P on macOS) switch buffers (SR-115 AK5): the next
 // and the previous buffer in the order of opening, wrapping, also while typing in the text editor, and as
 // the commands "Next buffer" and "Previous buffer". Alt is pressed by its physical key (`Alt+KeyN`); a
 // real macOS dead key cannot be typed here, so one test sends the keydown macOS sends for Option+N.
@@ -180,5 +182,94 @@ test.describe("Alt+N and Alt+P switch buffers", () => {
     await expect(window.getByLabel("Minibuffer").locator("label")).toHaveText("Go to");
     await window.keyboard.press("Escape");
     await expect(shownBuffer(window)).toHaveAttribute("aria-label", "All elements");
+  });
+});
+
+test.describe("Go to and no tab bar", () => {
+  let running: RunningApp;
+  test.beforeEach(async () => {
+    running = await launchApp(FIXTURE);
+    await running.window.locator('[aria-label="Sheet"] > *').first().waitFor();
+    await expect(running.window.locator(".overview .line").first()).toBeVisible();
+  });
+  test.afterEach(async () => {
+    await running.close();
+  });
+
+  const names = (window: Page): Locator => window.locator('.candidates [role="option"] .name');
+
+  test("[SR-115/AK1] Ctrl+P offers the open buffers, the one used last first, then the elements used before, and finds any element by a word of its title with a typo", async () => {
+    const { window } = running;
+    // Opened: the overview (at the start), the list, its first element, a second element by Ctrl+P.
+    await listAll(window);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toBeVisible();
+    const first = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await goTo(window, "Warn of storms");
+    // The second element is closed: no longer open, but used.
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Close buffer");
+    await window.keyboard.press("Enter");
+    await expect(shownBuffer(window)).toHaveAttribute("aria-label", first);
+    await search(window, "wind");
+    await window.keyboard.press("ControlOrMeta+P");
+    await expect(names(window)).toHaveText([first, "All elements", "Overview", "N-0000a2 Warn of storms"]);
+    // A word of a title that is not open, with a typo: core's search finds it, as `element search` does.
+    const typo = "icimg";
+    const searched = await running.cli([
+      "element",
+      "search",
+      "--input",
+      JSON.stringify({ query: typo, fields: ["id", "title"], limit: 20 }),
+    ]);
+    const found = JSON.parse(searched.stdout) as { hits: { title: string }[] };
+    expect(found.hits.map((hit) => hit.title)).toEqual(["Survive icing"]);
+    await window.keyboard.type(typo);
+    await expect(names(window)).toHaveText(["SR-0000b3 Survive icing"]);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Survive icing");
+    // The element closed before is chosen like a buffer, by a fuzzy text (a slip).
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("wran of storms");
+    await expect(names(window).first()).toHaveText("N-0000a2 Warn of storms");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Warn of storms");
+  });
+
+  test("[SR-115/AK2] with several buffers open the window has no tab bar", async () => {
+    const { window } = running;
+    // Open: the overview, the list, an element, its graph, a search.
+    await listAll(window);
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toBeVisible();
+    const element = (await window.locator("article").getAttribute("aria-label")) ?? "";
+    await window.keyboard.press("ControlOrMeta+Shift+G");
+    await expect(window.locator(".graph")).toBeFocused();
+    await search(window, "wind");
+    const noTabBar = async (hidden: readonly string[]): Promise<void> => {
+      for (const role of ["tab", "tablist", "navigation"] as const) {
+        expect([role, await window.getByRole(role).count()]).toEqual([role, 0]);
+      }
+      // The window has the sheet, the modeline and the minibuffer, nothing else (on macOS the top strip
+      // that stands in for the title bar, #490); the sheet holds exactly one buffer.
+      expect(
+        await window
+          .locator(".shell > *")
+          .evaluateAll((all) => all.map((e) => e.getAttribute("aria-label") ?? e.getAttribute("class"))),
+      ).toEqual([...(process.platform === "darwin" ? ["titlebar"] : []), "Sheet", "Modeline", "Minibuffer"]);
+      await expect(window.locator('[aria-label="Sheet"] > *')).toHaveCount(1);
+      // No name of a buffer that is not shown is visible.
+      for (const name of hidden) {
+        await expect(window.getByText(name, { exact: true })).toHaveCount(0);
+      }
+    };
+    await noTabBar(["All elements", "Overview", `Graph: ${element}`]);
+    // The same with the graph shown, and the names in the prompt only while it is asked.
+    await window.keyboard.press("ControlOrMeta+P");
+    await expect(names(window)).toHaveText([`Graph: ${element}`, element, "All elements", "Overview"]);
+    await window.keyboard.type("graph");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".graph")).toBeFocused();
+    await noTabBar(["All elements", "Overview", "Search: wind"]);
   });
 });

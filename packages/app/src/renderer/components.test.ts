@@ -663,6 +663,53 @@ describe("Minibuffer", () => {
     expect(texts('[role="option"]')).toEqual(["SR-036 Wind", "All elements"]);
   });
 
+  it("[SR-115/AK1] Go to finds a buffer by a fuzzy text (initials, a slip) and keeps the order of use among equal matches; the elements shown last follow the buffers, an open element is listed once", async () => {
+    const buffers = [
+      choice("element:spec:8", "SR-038 Wind vane"),
+      choice("element:spec:1", "SR-036 Wind speed"),
+      choice("list", "All elements"),
+      choice("overview", "Overview"),
+    ];
+    const recents = [choice("element:spec:2", "SR-037 Wind direction")];
+    const find = vi.fn(() =>
+      Promise.resolve([
+        choice("element:spec:1", "SR-036 Wind speed", { terms: ["wind"] }),
+        choice("element:spec:9", "SR-099 Windmill", { terms: ["windmill"] }),
+      ]),
+    );
+    const { closed } = await mount({
+      label: "Go to",
+      items: [...buffers, ...recents],
+      find,
+    });
+    // Nothing typed: the buffers in order of use, then the element shown last that is not open.
+    expect(texts('[role="option"] .name')).toEqual([
+      "SR-038 Wind vane",
+      "SR-036 Wind speed",
+      "All elements",
+      "Overview",
+      "SR-037 Wind direction",
+    ]);
+    // Initials, and a slip (two letters swapped).
+    await type(input(), "ae");
+    expect(texts('[role="option"] .name')[0]).toBe("All elements");
+    await type(input(), "ovrevie");
+    expect(texts('[role="option"] .name')[0]).toBe("Overview");
+    // Equal matches keep the order of use; core's hits follow, the open element not twice.
+    await type(input(), "wind");
+    expect(texts('[role="option"] .name')).toEqual([
+      "SR-038 Wind vane",
+      "SR-036 Wind speed",
+      "SR-037 Wind direction",
+      "SR-099 Windmill",
+    ]);
+    await press(input(), "ArrowDown");
+    await press(input(), "ArrowDown");
+    await press(input(), "Enter");
+    expect(closed).toHaveBeenCalledOnce();
+    expect(recents[0]?.run).toHaveBeenCalledOnce();
+  });
+
   it("[SR-108/AK2] marks the matched words of an element hit, not the whole name", async () => {
     await mount({
       label: "Go to",
