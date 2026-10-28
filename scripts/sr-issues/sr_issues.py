@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Creates stage epics and one issue per SR (sr-issues skill). Idempotent via body markers.
+# Creates stage epics and one issue per SR (spec-change skill). Idempotent via body markers.
 import json, subprocess, hashlib, re, os, sys, time
 REPO = "repos/ThomasBirkmaier/logreq"
 SPEC = sys.argv[1] if __name__ == "__main__" else "spec"

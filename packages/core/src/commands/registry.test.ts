@@ -10,7 +10,7 @@ import { commands } from "./index.js";
 
 /**
  * Stages (D-035) whose catalog commands must all be implemented. A stage is added here when it is
- * done, in a PR with green CI before its acceptance is prepared (stage-run skill, step 7); until
+ * done, in a PR with green CI before its acceptance is prepared (lead-run skill, "Stage done"); until
  * then its commands arrive one SR at a time.
  */
 const COMPLETED_STAGES: readonly number[] = [1, 2];
