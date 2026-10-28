@@ -202,6 +202,9 @@ const COVERAGE: FixtureOptions = { fixture: "SR-036/levels", git: ["system", "se
 /** Requirements with every verification status, an indirect one, obsolete ones and three packages (SR-037). */
 const DEGREE: FixtureOptions = { fixture: "SR-037/degree", git: true };
 
+/** Requirements with test cases from JUnit, an inspection record, an indirect and an obsolete one (SR-126). */
+const MATRIX_EVIDENCE: FixtureOptions = { fixture: "SR-126/matrix", git: true };
+
 /** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
 const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
 
@@ -1302,6 +1305,18 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "relations seen through the core view (SR-125 AK3)",
       fixture: MATRIX,
       input: { selection: { package: "PKG-000001", view: "core" } },
+      expect: "output",
+    },
+    {
+      name: "the matrix of a selection with evidence (SR-126)",
+      fixture: MATRIX_EVIDENCE,
+      input: { selection: { where: { type: ["system-requirement"] } } },
+      expect: "output",
+    },
+    {
+      name: "one page of the matrix of a selection with evidence (SR-126)",
+      fixture: MATRIX_EVIDENCE,
+      input: { selection: { where: { type: ["system-requirement"] } }, limit: 3, offset: 2 },
       expect: "output",
     },
     {

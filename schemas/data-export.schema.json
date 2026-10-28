@@ -140,24 +140,7 @@
           "type": "array",
           "description": "Verification status per view: core and each variant the element is valid for (SR-047 AK3).",
           "items": {
-            "type": "object",
-            "required": ["view", "status"],
-            "properties": {
-              "view": {
-                "$ref": "common.schema.json#/$defs/viewId"
-              },
-              "status": {
-                "$ref": "common.schema.json#/$defs/verificationStatus"
-              },
-              "missingChildren": {
-                "type": "array",
-                "items": {
-                  "$ref": "common.schema.json#/$defs/uuid"
-                },
-                "description": "SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none."
-              }
-            },
-            "additionalProperties": false
+            "$ref": "#/$defs/verificationEntry"
           }
         },
         "validation": {
@@ -337,6 +320,27 @@
       "if": { "properties": { "executed": { "const": false } } },
       "then": { "properties": { "executions": { "maxItems": 0 } }, "not": { "required": ["last"] } },
       "else": { "properties": { "executions": { "minItems": 1 } }, "required": ["last"] },
+      "additionalProperties": false
+    },
+    "verificationEntry": {
+      "type": "object",
+      "description": "The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).",
+      "required": ["view", "status"],
+      "properties": {
+        "view": {
+          "$ref": "common.schema.json#/$defs/viewId"
+        },
+        "status": {
+          "$ref": "common.schema.json#/$defs/verificationStatus"
+        },
+        "missingChildren": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/uuid"
+          },
+          "description": "SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none."
+        }
+      },
       "additionalProperties": false
     },
     "verificationDegree": {

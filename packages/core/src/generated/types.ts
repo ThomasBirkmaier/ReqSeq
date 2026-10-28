@@ -401,12 +401,7 @@ export interface DataExportElement {
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
-  readonly verification?: readonly {
-    readonly view: ViewId;
-    readonly status: VerificationStatus;
-    /** SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none. */
-    readonly missingChildren?: readonly Uuid[];
-  }[];
+  readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
   readonly problems?: readonly Problem[];
@@ -491,6 +486,17 @@ export interface DataExportTestCase {
   readonly executions: readonly DataExportEvidenceRecord[];
   /** The newest execution, `executions[0]` (SR-126 AK1); left out when `executed` is false. */
   readonly last?: DataExportEvidenceRecord;
+}
+
+/**
+ * The verification status of a requirement in one view (SR-031, SR-034, SR-047 AK3): `element` `verification` gives one per view, `trace.matrix` one for its view (SR-126).
+ * Schema: `schemas/data-export.schema.json#/$defs/verificationEntry`.
+ */
+export interface DataExportVerificationEntry {
+  readonly view: ViewId;
+  readonly status: VerificationStatus;
+  /** SR-034 AK2: for a requirement without own verification record in the view whose status is `open`: its counted children (derivation children whose type has the meaning `requirement`, whose status is not marked invalid and that apply in the view) that are `open`, `failed` or `outdated`; direct children only, in child order, each UUID once (twins in several repositories, SR-088, share one); left out when there is none. */
+  readonly missingChildren?: readonly Uuid[];
 }
 
 /**
@@ -1868,7 +1874,7 @@ export interface TraceNeighbourhoodOutput {
 }
 
 /**
- * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.
+ * Input of `trace.matrix` as `run` gets it: validated, properties with a `default` filled in. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
  * Schema: `schemas/commands/catalog.json trace.matrix input`.
  */
 export interface TraceMatrixInput {
@@ -1885,13 +1891,13 @@ export interface TraceMatrixInput {
 }
 
 /**
- * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.
+ * Output of `trace.matrix`. Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.
  * Schema: `schemas/commands/catalog.json trace.matrix output`.
  */
 export interface TraceMatrixOutput {
-  /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation` for now. */
+  /** One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape. */
   readonly columns: readonly {
-    /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. A later type brings its own fields and cell shape. */
+    /** The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns of SR-126 are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type. */
     readonly type: "relation";
     /** Key of the relation kind, or of the property of kind `relation`. */
     readonly kind: Key;
@@ -1923,13 +1929,35 @@ export interface TraceMatrixOutput {
     readonly file: string;
     /** Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`. */
     readonly depth?: number;
+    /** SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question #528 Q3). The chain and `evidence.list` give every execution. */
+    readonly testCases?: readonly {
+      /** The JUnit `name`, or the `test-case` of the Markdown records. */
+      readonly name: string;
+      /** The JUnit `classname`; left out for a test case of Markdown records. */
+      readonly className?: string;
+      /** The test case has at least one execution of this requirement in the view (SR-033 AK3). */
+      readonly executed: boolean;
+      /** The last execution (letzte Durchführung): the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the Beleg of a JUnit execution. Left out when `executed` is false. */
+      readonly last?: DataExportEvidenceRecord;
+      /** How the cell is marked (AK2; spec questions #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version. */
+      readonly mark?: "not-executed" | "outdated" | "failed";
+    }[];
+    /** SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3). */
+    readonly verification?: readonly DataExportVerificationEntry[];
     /** One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none: a gap (AK3). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: "missing"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's. */
     readonly cells: readonly (readonly DataExportRelation[])[];
   }[];
   /** The number of rows of the whole selection. */
   readonly total: number;
-  /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. */
+  /** The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2). */
   readonly incomplete: Incomplete;
+  /** The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one of SR-125. */
+  readonly evidence?: {
+    /** The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions #593, #592 Q1). `element.get` and `evidence.status` give every view. */
+    readonly view: ViewId;
+    /** SR-126 AK4: the verification degree of the whole selection in `view`, with the count per status, not of the page only; the same as `evidence.degree` gives for the same selection (SR-037). */
+    readonly degree: DataExportVerificationDegree;
+  };
 }
 
 /**

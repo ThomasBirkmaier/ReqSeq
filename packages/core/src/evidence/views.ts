@@ -3,8 +3,9 @@
 //
 // - `evidence.list` (SR-032): each record with its version, item (Prüfling), date, result and
 //   evidence (Beleg) as read (AK1), and the baselines that contain its version (AK2, `baselines`).
-// - The test cases of an element in a view (SR-033, `testCasesIn`) for `evidence.list` and the chain,
-//   and the evidence below an element of the chain (`chainEvidenceOf`, `trace.chain` `evidence`).
+// - The test cases of an element in a view (SR-033, `testCasesIn`) for `evidence.list`, the chain and
+//   the matrix (`verificationTestCasesIn`, SR-126), and the evidence below an element of the chain
+//   (`chainEvidenceOf`, `trace.chain` `evidence`).
 import type { View } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import type { EvidenceRecord, TestCase } from "./record.js";
@@ -76,6 +77,17 @@ export interface ElementEvidence {
 const VERIFICATION: readonly RecordKind[] = ["verification"];
 
 /**
+ * The test cases of the element `id` in `view` with their verification executions only
+ * (`testCasesIn(…, ["verification"])`): what the chain shows below the element and the matrix in its
+ * test case column (SR-126), so both show the same test cases in the same view.
+ */
+export const verificationTestCasesIn = (
+  index: EvidenceIndex,
+  id: string,
+  view: View | undefined,
+): readonly TestCase[] => testCasesIn(index, id, view, VERIFICATION);
+
+/**
  * The evidence below the element `id` in the chain (SR-022 AK1, SR-033 AK1 to AK3): its test cases
  * with their verification executions (`testCasesIn`), and its verification records without a test
  * case (inspection, analysis, demonstration, a manual record without `test-case`), newest first;
@@ -87,7 +99,7 @@ export const chainEvidenceOf = (
   id: string,
   view: View | undefined,
 ): ElementEvidence | undefined => {
-  const testCases = testCasesIn(index, id, view, VERIFICATION);
+  const testCases = verificationTestCasesIn(index, id, view);
   const records = (index.byElement.get(id) ?? []).filter(
     (record) =>
       record.kind === "verification" && record.testCase === undefined && recordHoldsIn(record, view),

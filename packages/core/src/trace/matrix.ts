@@ -24,6 +24,10 @@
 //   page of a 50,000-element selection reads the files of the page only (N-036). `outdated` is the
 //   rule of SR-025 (`isOutdatedVersion`): for `out` against the target's current version, for `in`
 //   against the row element's, whichever column shows the link.
+// - Evidence columns (SR-126): not a column type. The caller passes `rowFields`, which gives a row's
+//   `testCases` and `verification` from the version this file read for it; this block imports no
+//   evidence (`evidence/coverage.ts` imports trace), so the fields come from `evidence/matrix.ts`
+//   through the command.
 import type { DataExportRelation, MetamodelRelationKind, TraceMatrixOutput } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { keyDefinition } from "../metamodel/index.js";
@@ -292,6 +296,15 @@ interface Pending {
   readonly other: ElementRecord | undefined;
 }
 
+/**
+ * The fields a caller adds to a row (SR-126, see the file comment), from the row's element and the
+ * current version read for it (undefined when it is not known).
+ */
+export type MatrixRowFields = (
+  element: ElementRecord,
+  current: string | undefined,
+) => Pick<MatrixOutputRow, "testCases" | "verification">;
+
 /** One row to build: its element, and with a derivation tree (`hierarchy`) its depth in it. */
 export interface MatrixPlace {
   readonly element: ElementRecord;
@@ -301,13 +314,15 @@ export interface MatrixPlace {
 /**
  * The rows for `page`, in its order, with one cell per column (see the file comment). `versionsOf`
  * gives the current versions of the page's rows and of the available targets of their relations;
- * it is called once, with each element once.
+ * it is called once, with each element once. `rowFields`, when given, adds its fields to each row,
+ * called once per row after that read.
  */
 export const matrixRows = async (
   context: MatrixContext,
   page: readonly MatrixPlace[],
   columns: readonly MatrixColumn[],
   versionsOf: VersionsOf,
+  rowFields?: MatrixRowFields,
 ): Promise<TraceMatrixOutput["rows"]> => {
   const { layout, store, shortIds, metamodel } = context;
   const titleKey = titleKeyOrEmpty(metamodel);
@@ -371,6 +386,7 @@ export const matrixRows = async (
           };
         }),
       ),
+      ...rowFields?.(record, versionOf(record)),
     };
   });
 };

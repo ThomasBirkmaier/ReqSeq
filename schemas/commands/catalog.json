@@ -2082,10 +2082,10 @@
     {
       "name": "trace.matrix",
       "title": "Show traceability matrix",
-      "summary": "Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time.",
+      "summary": "Traceability matrix of a selection: one row per element in list order, one column per relation kind and direction that occurs, each cell the elements at the other end with outdated and missing marks; per column how many rows have a link. One page of rows at a time. With evidence locations also each requirement's test cases and verification status, and the degree.",
       "effect": "read",
       "stage": 3,
-      "implements": ["SR-125"],
+      "implements": ["SR-125", "SR-126"],
       "arguments": [
         { "field": "selection", "complete": "selection" },
         { "field": "sort", "complete": "json" },
@@ -2136,13 +2136,13 @@
         "properties": {
           "columns": {
             "type": "array",
-            "description": "One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation` for now.",
+            "description": "One column per relation kind and direction that occurs in the whole selection (SR-125 AK2), not only on the page: a kind or direction no row has makes no column. Order: relation kinds in the order of the metamodel, then properties of kind `relation` in property order; per key `out` before `in`. `type` says what a column holds and so the shape of its cells; every column is `relation`. The evidence columns (SR-126) are no column type: their header is `evidence` and their cells are `rows[].testCases` and `rows[].verification`, so a reader of `columns` and `cells` needs no other shape.",
             "items": {
               "type": "object",
               "properties": {
                 "type": {
                   "enum": ["relation"],
-                  "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. A later type brings its own fields and cell shape."
+                  "description": "The column holds relations: its cell in each row is an array of relations (`data-export#/$defs/relation`) of `kind` and `direction`. The evidence columns of SR-126 are `evidence`, `rows[].testCases` and `rows[].verification`, not a column type."
                 },
                 "kind": {
                   "$ref": "../common.schema.json#/$defs/key",
@@ -2218,6 +2218,61 @@
                   "minimum": 0,
                   "description": "Only when `sort` starts with `hierarchy`: the depth of the element in the derivation tree, as `element.list` gives it in `tree`."
                 },
+                "testCases": {
+                  "type": "array",
+                  "description": "SR-126 AK1, AK2: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. The test cases that name the requirement, with their verification executions that hold in the view of `evidence` (`trace.chain` shows the same test cases in the same view), by class name then name; an empty array when it has none: a gap (AK2). Records without a test case (inspection, analysis, a manual record without `test-case`) are not here; they count for `verification` only (spec question #528 Q3). The chain and `evidence.list` give every execution.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The JUnit `name`, or the `test-case` of the Markdown records."
+                      },
+                      "className": {
+                        "type": "string",
+                        "description": "The JUnit `classname`; left out for a test case of Markdown records."
+                      },
+                      "executed": {
+                        "type": "boolean",
+                        "description": "The test case has at least one execution of this requirement in the view (SR-033 AK3)."
+                      },
+                      "last": {
+                        "$ref": "../data-export.schema.json#/$defs/evidenceRecord",
+                        "description": "The last execution (letzte Durchführung): the newest execution of this requirement in the view, of any version, with result, date, item and version; its record file (`repository`, `file`, `line`) is the Beleg of a JUnit execution. Left out when `executed` is false."
+                      },
+                      "mark": {
+                        "enum": ["not-executed", "outdated", "failed"],
+                        "description": "How the cell is marked (AK2; spec questions #528 Q1, Q2 and #593 Q2), the first that holds: `not-executed` when `executed` is false; `outdated` when `last` is of another version than the requirement's current one, or its current version is not known; `failed` when `last` failed. Left out when the last execution passed for the current version."
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": ["name", "executed"],
+                    "if": {
+                      "properties": {
+                        "executed": {
+                          "const": false
+                        }
+                      }
+                    },
+                    "then": {
+                      "not": {
+                        "required": ["last"]
+                      }
+                    },
+                    "else": {
+                      "required": ["last"]
+                    }
+                  }
+                },
+                "verification": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {
+                    "$ref": "../data-export.schema.json#/$defs/verificationEntry"
+                  },
+                  "description": "SR-126 AK1, AK3: only with `evidence`, on a row whose type has the meaning `requirement` and that applies in its view. Its verification status in the view of `evidence`, one entry, the same as `element.get` and `evidence.status` give for that view: `indirect` when it is verified through its children (AK3)."
+                },
                 "cells": {
                   "type": "array",
                   "description": "One cell per entry of `columns`, in the same order; a cell takes its shape from the type of its column. For `relation`, an array of the relations of the row element in the column's `kind` and `direction`, each with `shortId` and `title` of the other end when it is available (SR-125 AK2), and an empty array when it has none: a gap (AK3). Outgoing relations come in the order of the file, incoming ones in the order of the incoming index (store order). A relation to an older version of its target is `outdated`, one to a target that is not there has `targetState: \"missing\"` (SR-125 AK4); for an incoming relation, `outdated` means its source stores an older version of the row element and `currentVersion` is the row element's.",
@@ -2240,7 +2295,23 @@
           },
           "incomplete": {
             "$ref": "../common.schema.json#/$defs/incomplete",
-            "description": "The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection."
+            "description": "The selection is incomplete (SR-006 AK2), or the workspace file lists a repository that is not on this machine: relations of elements there that point at a row cannot be seen, and its elements may belong to the selection. With `evidence`, also when an evidence location lies in such a repository: its records are not seen (SR-006 AK2)."
+          },
+          "evidence": {
+            "type": "object",
+            "description": "The header of the evidence columns (SR-126): given when the workspace file names an evidence location, the metamodel is valid and the selection holds an element whose type has the meaning `requirement` (spec question #593 Q1); then every requirement row of the page that applies in `view` has `testCases` and `verification`. Other rows have neither (a requirement valid only in variants, without a view): not applicable, no gap. Left out otherwise, and the output is the one of SR-125.",
+            "properties": {
+              "view": {
+                "$ref": "../common.schema.json#/$defs/viewId",
+                "description": "The one view of the test cases, the status and the degree: the selection's view, else its saved filter's, else the core (as `evidence.degree`; spec questions #593, #592 Q1). `element.get` and `evidence.status` give every view."
+              },
+              "degree": {
+                "$ref": "../data-export.schema.json#/$defs/verificationDegree",
+                "description": "SR-126 AK4: the verification degree of the whole selection in `view`, with the count per status, not of the page only; the same as `evidence.degree` gives for the same selection (SR-037)."
+              }
+            },
+            "additionalProperties": false,
+            "required": ["view", "degree"]
           }
         },
         "additionalProperties": false,
