@@ -83,6 +83,23 @@ const SAVED: FixtureOptions = {
   },
   git: true,
 };
+/**
+ * SR-069/filter with a topic shared by a single value and a list, so that a value of a list property selects
+ * its element (SR-132 AK2).
+ */
+const VALUES: FixtureOptions = {
+  fixture: "SR-069/filter",
+  git: true,
+  files: {
+    "requirements/SR-0000000000b6.md": `---\nid: 69069069-0000-4000-8000-0000000000b6\ntype: system-requirement\nstatus: draft\ntitle: Measure the rain\nrequirement-type: functional\nacceptance-criteria: [Given rain, then it holds.]\ntopic: Timing\n---\n`,
+    "requirements/SR-0000000000b7.md": `---\nid: 69069069-0000-4000-8000-0000000000b7\ntype: system-requirement\nstatus: approved\ntitle: Measure the hail\nrequirement-type: functional\nacceptance-criteria: [Given hail, then it holds.]\ntopic: [Wind, Timing]\n---\n`,
+  },
+};
+/** The list of the app (#418): by type, then by ID. */
+const TYPE_AND_ID = [
+  { by: "type", order: "asc" },
+  { by: "identifier", order: "asc" },
+];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
@@ -504,6 +521,30 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "the condition emergent (SR-035)",
       fixture: EMERGENT,
       input: { selection: { where: { all: [{ emergent: true }, { verification: ["open"] }] } } },
+      expect: "output",
+    },
+    {
+      name: "the elements with a topic, one item of a list included, as the app lists them (SR-132)",
+      tag: "[SR-132/AK2]",
+      fixture: VALUES,
+      input: { selection: { where: { property: "topic", op: "eq", value: "Timing" } }, sort: TYPE_AND_ID },
+      expect: "output",
+    },
+    {
+      name: "the elements with a status as the condition property equals value (SR-132)",
+      tag: "[SR-132/AK2]",
+      fixture: VALUES,
+      input: { selection: { where: { property: "status", op: "eq", value: "approved" } }, sort: TYPE_AND_ID },
+      expect: "output",
+    },
+    {
+      name: "the elements with the same package as target (SR-132)",
+      tag: "[SR-132/AK3]",
+      fixture: VALUES,
+      input: {
+        selection: { where: { property: "packages", op: "eq", value: "PKG-0000d1" } },
+        sort: TYPE_AND_ID,
+      },
       expect: "output",
     },
     {

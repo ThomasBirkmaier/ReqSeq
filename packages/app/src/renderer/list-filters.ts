@@ -5,8 +5,8 @@ import type { ElementFacetsOutput } from "@logreq/core";
 import type { Choice, Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 
-type Facet = ElementFacetsOutput["properties"][number];
-type FacetValue = NonNullable<Facet["values"]>[number];
+export type Facet = ElementFacetsOutput["properties"][number];
+export type FacetValue = NonNullable<Facet["values"]>[number];
 
 /** The step for a type; its label is the text before the name in the list's label ("type: need"). */
 export const typeStep = (key: string): FilterStep => ({
@@ -56,10 +56,18 @@ export const hasSavedFilter = (steps: readonly FilterStep[]): boolean =>
   steps.some((step) => step.selection.filter !== undefined);
 
 /** What a value of a property is called in the prompt: a relation target by identifier or short ID and title. */
-const valueName = (facet: Facet, value: FacetValue): string =>
+export const valueName = (facet: Facet, value: FacetValue): string =>
   facet.kind === "relation"
     ? `${value.identifier ?? String(value.value)} ${value.title ?? ""}`.trim()
     : String(value.value);
+
+/**
+ * The step that keeps the elements with this value of the property (`eq`), labelled with the title of a
+ * relation target or the value itself. "Filter list by property" (SR-124) and the list of the elements
+ * with a value (SR-132) build the same step.
+ */
+export const facetValueStep = (facet: Facet, value: FacetValue): FilterStep =>
+  propertyStep(facet.key, value.title ?? String(value.value), value.value);
 
 /** The prompt for the value of one property: its values with their counts, and no value when some lack it. */
 const valuePrompt = (
@@ -74,7 +82,7 @@ const valuePrompt = (
       name: valueName(facet, value),
       hint: String(value.count),
       run: () => {
-        run(propertyStep(facet.key, value.title ?? String(value.value), value.value));
+        run(facetValueStep(facet, value));
       },
     })),
     ...(facet.missing > 0

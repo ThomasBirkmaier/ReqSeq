@@ -398,6 +398,49 @@ describe("element.facets (#425)", () => {
     }
   });
 
+  it("[SR-132/AK2] the facets of one element give each of its values, one item of a list property each, and each selects with eq every element that has it", async () => {
+    const ws = await open(WITH_EXTRA);
+    const all = await facets(ws);
+    const list = async (where: Record<string, unknown>): Promise<CommandOutput<"element.list">> =>
+      (await invoke(
+        "element.list",
+        { selection: { where } },
+        { workspace: ws },
+      )) as CommandOutput<"element.list">;
+    // SR b8 has the topics Timing and Wind (a list); SR b1 a choice, a package and the topic Wind.
+    const b8 = await facets(ws, { selection: { ids: ["SR-0000b8"] } });
+    expect(facet(b8, "topic").values).toEqual([
+      { value: "Timing", count: 1 },
+      { value: "Wind", count: 1 },
+    ]);
+    const b1 = await facets(ws, { selection: { ids: ["SR-0000b1"] } });
+    expect(b1.statuses).toEqual([{ key: "approved", count: 1 }]);
+    expect(b1.types).toEqual([{ key: "system-requirement", name: "System Requirement", count: 1 }]);
+    expect(facet(b1, "packages").values).toEqual([{ value: "PKG-0000d1", count: 1, title: "Sensors" }]);
+    for (const [one, id] of [
+      [b8, `${P}b8`],
+      [b1, `${P}b1`],
+    ] as const) {
+      for (const property of one.properties) {
+        for (const { value } of property.values ?? []) {
+          const listed = await list({ property: property.key, op: "eq", value });
+          const counted = facet(all, property.key).values?.find((v) => v.value === value)?.count;
+          expect([property.key, value, listed.total]).toEqual([property.key, value, counted]);
+          expect(listed.elements.map((element) => element.id)).toContain(id);
+        }
+      }
+    }
+  });
+
+  it("[SR-132/AK4] the facets of one element give no values for its title, rationale and acceptance criteria", async () => {
+    const ws = await open(WITH_EXTRA);
+    const b1 = await facets(ws, { selection: { ids: ["SR-0000b1"] } });
+    expect(facet(b1, "title").values).toBeUndefined();
+    expect(facet(b1, "rationale").values).toBeUndefined();
+    expect(facet(b1, "acceptance-criteria").values).toBeUndefined();
+    expect(facet(b1, "topic").values).toEqual([{ value: "Wind", count: 1 }]);
+  });
+
   it("counts an empty selection as nothing", async () => {
     const out = await facets(await open(), { selection: { where: { type: ["nope"] } } });
     expect(out).toEqual({ total: 0, types: [], statuses: [], properties: [], incomplete: false });

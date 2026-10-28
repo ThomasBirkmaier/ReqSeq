@@ -21,7 +21,7 @@ import {
   searchBuffer,
 } from "./buffers.js";
 import type { Call } from "./call.js";
-import { savedStep } from "./list-filters.js";
+import { propertyStep, savedStep } from "./list-filters.js";
 import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import type { ElementControls } from "./actions.js";
@@ -4878,6 +4878,314 @@ describe("ElementView", () => {
         ]);
       });
     });
+
+    describe("the list of the elements with a value (SR-132)", () => {
+      const facetsOf = (topic: string) => ({
+        total: 1,
+        types: [{ key: "system-requirement", name: "System Requirement", count: 1 }],
+        statuses: [{ key: "draft", count: 1 }],
+        properties: [
+          { key: KEY, name: "Acceptance criteria", kind: "text", count: 1, missing: 0, distinct: 2 },
+          {
+            key: "topic",
+            name: "Topic",
+            kind: "text",
+            count: 1,
+            missing: 0,
+            distinct: 1,
+            values: [{ value: topic, count: 1 }],
+          },
+          {
+            key: "synonyms",
+            name: "Synonyms",
+            kind: "text",
+            count: 1,
+            missing: 0,
+            distinct: 2,
+            values: [
+              { value: "gust", count: 1 },
+              { value: "breeze", count: 1 },
+            ],
+          },
+          {
+            key: "area",
+            name: "Area",
+            kind: "choice",
+            count: 1,
+            missing: 0,
+            distinct: 1,
+            values: [{ value: "quality", count: 1, name: "Quality" }],
+          },
+          {
+            key: "packages",
+            name: "Package",
+            kind: "relation",
+            count: 1,
+            missing: 0,
+            distinct: 2,
+            values: [
+              { value: "PKG-p1", count: 1, title: "Stufe 3" },
+              { value: "PKG-p2", count: 1, title: "Stufe 4", identifier: "Stufe-4" },
+            ],
+          },
+        ],
+        incomplete: false,
+      });
+      const target = (id: string, title: string) => ({
+        kind: "packages",
+        property: true,
+        direction: "out",
+        id,
+        repository: "spec",
+        shortId: `PKG-${id}`,
+        title,
+        accessible: true,
+        targetState: "available",
+      });
+      const PROPERTIES = {
+        topic: "Wind",
+        [KEY]: ["first", "second"],
+        synonyms: ["gust", "breeze"],
+        area: "quality",
+        packages: [{ id: "p1" }, { id: "p2" }],
+      };
+      const RELATIONS = [
+        target("p1", "Stufe 3"),
+        target("p2", "Stufe 4"),
+      ] as unknown as DataExportElement["relations"];
+      /** The element with every kind of box; `facets` answers `element.facets`, `update` a save. */
+      const mountListing = async (
+        facets: (input: Record<string, unknown>) => unknown = () => facetsOf("Wind"),
+        update?: (input: Record<string, unknown>) => unknown,
+      ) => {
+        let properties: Record<string, unknown> = PROPERTIES;
+        const call = fakeCall({
+          "element.get": () => ({ element: withProperties(properties, { relations: RELATIONS }) }),
+          "element.facets": facets,
+          ...(update === undefined ? {} : { "element.update": update }),
+        });
+        await fresh();
+        const mounted = await mount(asCall(call), 0, undefined, { properties: model });
+        await flush();
+        return {
+          ...mounted,
+          call,
+          change: (next: Record<string, unknown>) => {
+            properties = next;
+          },
+        };
+      };
+      const listValue = async (controls: () => ElementControls): Promise<void> => {
+        await act(async () => {
+          controls().listValue();
+          await Promise.resolve();
+        });
+        await flush();
+        await flush();
+      };
+      const opened = (key: string, shown: string, value: string) => ({
+        type: "open",
+        buffer: filteredList([propertyStep(key, shown, value)]),
+      });
+      const facetCalls = (call: ReturnType<typeof fakeCall>) =>
+        call.mock.calls.filter(([name]) => name === "element.facets").map(([, input]) => input);
+      const blurAll = (): void => {
+        act(() => {
+          (document.activeElement as HTMLElement | null)?.blur();
+        });
+      };
+
+      it("[SR-132/AK1] the key on the topic box opens the list of the elements with that topic", async () => {
+        const { controls, dispatched, call } = await mountListing();
+        await caretAt(viewOf("topic"), 0);
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("topic", "Wind", "Wind"));
+        expect(facetCalls(call)).toEqual([{ selection: { ids: ["SR-000001"] } }]);
+        blurAll();
+      });
+
+      it("[SR-132/AK2] a list property opens the value on the line with the caret; the box as a whole asks among its values", async () => {
+        const { controls, dispatched, asked } = await mountListing();
+        await caretAt(viewOf("synonyms"), "gust\nbr".length);
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("synonyms", "breeze", "breeze"));
+        blurAll();
+        act(() => {
+          field("synonyms").focus();
+        });
+        await listValue(controls);
+        expect(asked.at(-1)?.label).toBe("Elements with");
+        expect(asked.at(-1)?.items.map((item) => item.name)).toEqual(["synonyms: gust", "synonyms: breeze"]);
+        act(() => {
+          asked.at(-1)?.items[0]?.run();
+        });
+        expect(dispatched.at(-1)).toEqual(opened("synonyms", "gust", "gust"));
+      });
+
+      it("[SR-132/AK2] a choice box opens the list of its value", async () => {
+        const { controls, dispatched } = await mountListing();
+        act(() => {
+          field("area").focus();
+        });
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("area", "quality", "quality"));
+      });
+
+      it("[SR-132/AK3] the focused target of a relation box opens the list of the elements with that target", async () => {
+        const { controls, dispatched } = await mountListing();
+        const links = [...container.querySelectorAll<HTMLElement>('[data-field="packages"] [role="link"]')];
+        act(() => {
+          links[1]?.focus();
+        });
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("packages", "Stufe 4", "PKG-p2"));
+      });
+
+      it("[SR-132/AK3] Enter with a modifier on a target link is left to the window; plain Enter still opens the target", async () => {
+        const { targets } = await mountListing();
+        const link = query('[data-field="packages"] [role="link"]');
+        const key = new KeyboardEvent("keydown", {
+          key: "Enter",
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        act(() => {
+          link.dispatchEvent(key);
+        });
+        expect(key.defaultPrevented).toBe(false);
+        expect(targets).toEqual([]);
+        await press(link, "Enter");
+        expect(targets).toEqual(["element:spec:p1"]);
+      });
+
+      it("[SR-132/AK4] on the acceptance criteria the key asks among the other values, never the criteria", async () => {
+        const { controls, dispatched, asked } = await mountListing();
+        await caretAt(viewOf(KEY), 0);
+        await listValue(controls);
+        expect(dispatched).toEqual([]);
+        const prompt = asked.at(-1);
+        expect(prompt?.items.map((item) => item.name)).toEqual([
+          "status: draft",
+          "type: system-requirement",
+          "topic: Wind",
+          "synonyms: gust",
+          "synonyms: breeze",
+          "area: quality",
+          "packages: PKG-p1 Stufe 3",
+          "packages: Stufe-4 Stufe 4",
+        ]);
+        expect(prompt?.items.map((item) => item.hint)).toEqual([
+          undefined,
+          "System Requirement",
+          undefined,
+          undefined,
+          undefined,
+          "Quality",
+          undefined,
+          undefined,
+        ]);
+        blurAll();
+        // On no box (the title) it asks the same.
+        act(() => {
+          field("Title").focus();
+        });
+        await listValue(controls);
+        expect(asked.at(-1)?.items).toHaveLength(8);
+      });
+
+      it("[SR-132/AK1] from the command prompt it lists the value the cursor was on before the prompt opened", async () => {
+        const { controls, dispatched } = await mountListing();
+        // The second target of a box with two: once the prompt has the focus, only the snapshot knows it.
+        const links = [...container.querySelectorAll<HTMLElement>('[data-field="packages"] [role="link"]')];
+        act(() => {
+          links[1]?.focus();
+        });
+        act(() => {
+          controls().prompting();
+        });
+        const input = document.createElement("input");
+        input.id = "prompt-input";
+        document.body.append(input);
+        act(() => {
+          input.focus();
+        });
+        // A prompt over the prompt keeps what the cursor was on.
+        act(() => {
+          controls().prompting();
+        });
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("packages", "Stufe 4", "PKG-p2"));
+        // The caret on the second line of a list property, likewise.
+        await caretAt(viewOf("synonyms"), "gust\nbr".length);
+        act(() => {
+          controls().prompting();
+        });
+        act(() => {
+          input.focus();
+        });
+        await listValue(controls);
+        input.remove();
+        expect(dispatched.at(-1)).toEqual(opened("synonyms", "breeze", "breeze"));
+      });
+
+      it("[SR-132/AK1] typed input is saved before the list opens, so the typed value is the one listed", async () => {
+        let saved = "Wind";
+        const { controls, dispatched, call } = await mountListing(
+          () => facetsOf(saved),
+          (input) => {
+            saved = "Gust";
+            const next = { ...PROPERTIES, topic: "Gust" };
+            expect(input).toMatchObject({ set: { topic: "Gust" } });
+            return {
+              element: withProperties(next, { relations: RELATIONS }),
+              files: ["a.md"],
+              affected: 0,
+            };
+          },
+        );
+        await replaceIn("topic", "Gust");
+        await caretAt(viewOf("topic"), 4);
+        await listValue(controls);
+        expect(dispatched.at(-1)).toEqual(opened("topic", "Gust", "Gust"));
+        const names = call.mock.calls.map(([name]) => name);
+        expect(names.indexOf("element.update")).toBeLessThan(names.lastIndexOf("element.facets"));
+        blurAll();
+      });
+
+      it("asks for the facets once per values of the element: not after a reload with the same values, again when they changed", async () => {
+        const { again, change, call } = await mountListing();
+        expect(facetCalls(call)).toHaveLength(1);
+        await again(1);
+        await flush();
+        expect(facetCalls(call)).toHaveLength(1);
+        change({ ...PROPERTIES, topic: "Gust" });
+        await again(2);
+        await flush();
+        expect(facetCalls(call)).toHaveLength(2);
+      });
+
+      it("says why when the facets fail, and when no value lists elements", async () => {
+        const failing = await mountListing(() => new Error("boom"));
+        await listValue(failing.controls);
+        expect(failing.echoed.at(-1)).toBe("boom");
+        // A failed answer is not kept: each press asks again.
+        expect(facetCalls(failing.call)).toHaveLength(2);
+        await listValue(failing.controls);
+        expect(facetCalls(failing.call)).toHaveLength(3);
+        const none = await mountListing(() => ({
+          total: 1,
+          types: [],
+          statuses: [],
+          properties: [],
+          incomplete: false,
+        }));
+        await listValue(none.controls);
+        expect(none.echoed.at(-1)).toBe("No value of SR-036 Measure wind lists elements");
+        expect(none.dispatched).toEqual([]);
+      });
+    });
   });
 
   it("reads again after an error, with no editor to ask", async () => {
@@ -4916,6 +5224,38 @@ describe("ElementView", () => {
     expect(targets).toEqual(["element:spec:n1", "element:platform:r1", "element:spec:p"]);
   });
 
+  it("[SR-132/AK3] Follow reference on a focused link of a relation group opens that link, not the reference at the caret of the text", async () => {
+    const { controls, targets, opened } = await mount(
+      asCall(fakeCall({ "element.get": () => ({ element: read({ text: "[x](logreq:uuid-2)" }) }) })),
+    );
+    // The caret of the text sits on an inline reference.
+    act(() => {
+      editorView().dispatch({ selection: { anchor: 2 } });
+    });
+    const links = [...container.querySelectorAll<HTMLElement>('[role="link"]')];
+    for (const link of [nth(links, 1), nth(links, 2)]) {
+      act(() => {
+        link.focus();
+      });
+      // The link leaves Ctrl+Enter to the window, which runs "Follow reference".
+      const key = new KeyboardEvent("keydown", {
+        key: "Enter",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        link.dispatchEvent(key);
+      });
+      expect(key.defaultPrevented).toBe(false);
+      act(() => {
+        controls().follow();
+      });
+    }
+    expect(targets).toEqual(["element:spec:n1", "element:platform:r1"]);
+    expect(opened).toEqual([]);
+  });
+
   it("shows a target that is not available muted with its state, and no link", async () => {
     await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
     const muted = query(".unavailable");
@@ -4942,8 +5282,14 @@ describe("ElementView", () => {
     const call = fakeCall({ "element.get": () => ({ element: read() }) });
     const { again } = await mount(asCall(call));
     await again(1);
-    // Each time the element and its parents.
-    expect(call).toHaveBeenCalledTimes(4);
+    // Each time the element and its parents; the facets of its values once (SR-132): its values are the same.
+    expect(call.mock.calls.map(([name]) => name)).toEqual([
+      "element.get",
+      "trace.neighbourhood",
+      "element.facets",
+      "element.get",
+      "trace.neighbourhood",
+    ]);
     let answer: (value: unknown) => void = () => undefined;
     const slow = vi.fn(
       () =>
@@ -5047,7 +5393,11 @@ describe("ElementView", () => {
         "element.list": () => members(),
       });
       await mount(asCall(call), 0, undefined, { packages: model });
-      expect(call.mock.calls.map(([name]) => name)).toEqual(["element.get", "trace.neighbourhood"]);
+      expect(call.mock.calls.map(([name]) => name)).toEqual([
+        "element.get",
+        "trace.neighbourhood",
+        "element.facets",
+      ]);
       expect(container.querySelector(".members")).toBeNull();
       // Down keeps scrolling the text of an element that has no elements to go into.
       const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
@@ -5062,7 +5412,11 @@ describe("ElementView", () => {
       root = createRoot(container);
       const pkg = fakeCall({ "element.get": () => ({ element: page() }), "element.list": () => members() });
       await mount(asCall(pkg));
-      expect(pkg.mock.calls.map(([name]) => name)).toEqual(["element.get", "trace.neighbourhood"]);
+      expect(pkg.mock.calls.map(([name]) => name)).toEqual([
+        "element.get",
+        "trace.neighbourhood",
+        "element.facets",
+      ]);
     });
 
     it("shows no heading and nothing to select when no element names the package", async () => {

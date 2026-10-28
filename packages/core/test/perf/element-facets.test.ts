@@ -21,6 +21,8 @@ const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
 /** The filter budget of SR-082 AK4. */
 const RESULT_MS = 500;
+/** The budget of opening an element (SR-082), which the facets of the shown element follow (SR-132). */
+const OPEN_MS = 200;
 /** Runs per measurement: the median blurs pauses of the garbage collector on a shared machine. */
 const RUNS = 5;
 const VERSION: VersionFunction = () => "n1:0000000000000000";
@@ -77,5 +79,33 @@ describe("element.facets with 50,000 elements (#425, N-036)", () => {
     );
     expect(result.total).toBeGreaterThan(0);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  // SR-132: the app asks for the facets of the shown element, by its short ID, to know which of its values
+  // open a list. The free-text rule still passes the whole store for every few-valued or absent text
+  // property of the type; held to the 200 ms of opening an element (SR-082).
+  it("gives the facets of one system requirement within 200 ms", async () => {
+    if (workspace === undefined) {
+      throw new Error("no workspace");
+    }
+    const listed = (await invoke(
+      "element.list",
+      { selection: { where: { type: ["system-requirement"] } }, limit: 1 },
+      { workspace },
+    )) as CommandOutput<"element.list">;
+    const shortId = listed.elements[0]?.shortId ?? "";
+    const input = { selection: { ids: [shortId] } };
+    await facets(input);
+    const { result, measurement } = await measureMedian(
+      "facets: one element (warm, SR-132)",
+      () => facets(input),
+      {
+        basis: "N-036, opening budget of SR-082 (recorded, SR-132)",
+        thresholdMs: OPEN_MS,
+        runs: RUNS,
+      },
+    );
+    expect(result.total).toBe(1);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
   });
 });

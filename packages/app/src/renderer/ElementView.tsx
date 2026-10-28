@@ -29,9 +29,9 @@ import type { DataExportElement, DataExportRelation } from "@logreq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
-import { elementBuffer } from "./buffers.js";
-import type { Call } from "./call.js";
-import { NOTHING, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
+import { elementBuffer, filteredList } from "./buffers.js";
+import type { Answer, Call } from "./call.js";
+import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf, heading } from "./copy.js";
 import type { PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
 import { isPropertyTarget, outdatedReferences, relationGroups, rowOfRelation } from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
@@ -91,6 +91,8 @@ import {
 import type { BoxEdit, EditableBox } from "./property-edit.js";
 import { addPropertyPrompt, choicePrompt, relationPrompt } from "./property-prompts.js";
 import { NO_HISTORY, record, redo, undo } from "./value-history.js";
+import type { ListableValue, Pointer } from "./value-list.js";
+import { NO_POINTER, listableValues, pointedValue, valueSignature, valuesPrompt } from "./value-list.js";
 
 export interface ElementViewProps {
   readonly call: Call;
@@ -189,11 +191,15 @@ const Relation = ({
         <span
           role="link"
           tabIndex={0}
+          data-target-id={row.id}
+          data-target-repository={row.repository}
           onClick={() => {
             onOpenRelation(target);
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            // Enter with Ctrl, Cmd or Alt is a shortcut of the window: "Follow reference" opens the focused
+            // target itself, "List elements with this value" lists it (SR-132).
+            if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey) {
               event.preventDefault();
               onOpenRelation(target);
             }
@@ -247,6 +253,16 @@ const isLocked = (box: EditableBox): boolean => box.lineBreak || box.unmatched =
 /** What the minibuffer says on entering a box that `isLocked`. */
 const lockNote = (key: string, box: EditableBox): string =>
   box.lineBreak ? lineBreakNote(key) : `${key} has a target that cannot be read: edit it in the file`;
+
+/** What decides the values of the shown element that open a list (SR-132); none while it is not shown. */
+/** The focused target link of a relation box or a relation group of the element buffer, if one has the focus. */
+const focusedTarget = (): HTMLElement | null =>
+  document.activeElement instanceof HTMLElement
+    ? document.activeElement.closest<HTMLElement>("[data-buffer] [data-target-id]")
+    : null;
+
+const valueKeyOf = (element: DataExportElement | undefined): string | undefined =>
+  element === undefined ? undefined : valueSignature(element);
 
 /** The element the buffer shows: once it is loaded and its parents line has answered too. */
 const shownElement = (view: View, parentsAnswered: boolean): DataExportElement | undefined =>
@@ -522,6 +538,8 @@ export const ElementView = ({
         )
       : NOTHING;
   const lastField = useRef<string | undefined>(undefined);
+  // What the cursor was on when a prompt opened last (SR-132).
+  const pointed = useRef<Pointer>(NO_POINTER);
   const copy = (label: string | undefined): void => {
     copyField(fields.current, label, now.current.onCopy);
   };
@@ -906,6 +924,38 @@ export const ElementView = ({
   });
   // The modeline shows the element when the buffer does: once its parents line has answered too.
   const loadedElement = shownElement(view, parents.answered);
+  // The values of the element that open a list (SR-132) are `element.facets` for it. They are asked when it
+  // is shown and again only when its type, status or properties changed, or something changed outside (the
+  // free-text rule counts the whole workspace); not after a save of the text alone (N-036).
+  const facetsAsked = useRef<
+    { readonly key: string; readonly answer: Promise<Answer<"element.facets">> } | undefined
+  >(undefined);
+  const outsideSeq = useRef(outside.seq);
+  outsideSeq.current = outside.seq;
+  const valueFacets = (element: DataExportElement): Promise<Answer<"element.facets">> => {
+    const key = `${valueSignature(element)}\n${String(outsideSeq.current)}`;
+    const asked = facetsAsked.current;
+    if (asked?.key === key) {
+      return asked.answer;
+    }
+    const answer = now.current.call("element.facets", { selection: { ids: [element.shortId] } });
+    facetsAsked.current = { key, answer };
+    // A failed answer is not kept: the next press asks again.
+    void answer.then((settled) => {
+      if (!settled.ok && facetsAsked.current?.answer === answer) {
+        facetsAsked.current = undefined;
+      }
+    });
+    return answer;
+  };
+
+  // Asked once the element is shown (with its parents line), so nothing comes before the first display.
+  const valueKey = valueKeyOf(loadedElement);
+  useEffect(() => {
+    if (loadedElement !== undefined) {
+      void valueFacets(loadedElement);
+    }
+  }, [valueKey, outside.seq]);
   // The file changed outside under the input, or is gone (SR-106): the modeline says so.
   const disk = diskMark(deleted, conflict);
   useEffect(() => {
@@ -1354,16 +1404,12 @@ export const ElementView = ({
     }
   };
 
-  // The row of a relation box that "Follow reference" opens: the one with the focus, else the first target;
-  // none when the box is no relation box, and the rows are not links when no target is available.
-  const relationFollowed = (label: string): HTMLElement | undefined => {
-    const rows = [
-      ...document.querySelectorAll<HTMLElement>(
-        `[data-buffer] [data-field="${CSS.escape(label)}"] .relation [role="link"]`,
-      ),
-    ];
-    return rows.find((row) => row === document.activeElement) ?? rows[0];
-  };
+  // The row of a relation box that "Follow reference" opens when no target link has the focus: the first
+  // target; none when the box is no relation box, and the rows are not links when no target is available.
+  const relationFollowed = (label: string): HTMLElement | undefined =>
+    document.querySelector<HTMLElement>(
+      `[data-buffer] [data-field="${CSS.escape(label)}"] .relation [role="link"]`,
+    ) ?? undefined;
   // The box is a relation box: its targets are rows, not text.
   const isRelationBox = (label: string): boolean =>
     now.current.boxes.get(label)?.info.kind === "relation" ||
@@ -1377,6 +1423,65 @@ export const ElementView = ({
   // when no input is left unsaved.
   const flush = (): Promise<boolean> =>
     autosave.current?.now(() => saveInput("quiet")) ?? Promise.resolve(inputDocs().size === 0);
+  // What the cursor is on (SR-132): a box, the line with the caret in a text box, the focused target of a
+  // relation box. A prompt takes the focus, so what it was on before the prompt opened is kept (`pointed`).
+  const pointerNow = (): Pointer => {
+    const label = cursorField(document.activeElement, lastField.current);
+    if (label === undefined || !now.current.boxKeys.includes(label)) {
+      return NO_POINTER;
+    }
+    const editor = boxEditors.current.get(label);
+    if (editor?.hasFocus() === true) {
+      const state = editor.state();
+      return { kind: "box", key: label, line: state.doc.lineAt(state.selection.main.head).text };
+    }
+    const link = focusedTarget();
+    return link?.closest<HTMLElement>("[data-field]")?.dataset["field"] === label
+      ? {
+          kind: "box",
+          key: label,
+          target: { id: link.dataset["targetId"] ?? "", repository: link.dataset["targetRepository"] ?? "" },
+        }
+      : { kind: "box", key: label };
+  };
+  // The list of the elements with the value the cursor is on (SR-132): the input is saved first, so the value
+  // typed is the one listed (the list reads the files); then `element.facets` of the element says which
+  // values can be listed. One value opens its list, several ask in the minibuffer.
+  const listValue = async (): Promise<void> => {
+    const pointer = document.activeElement?.id === PROMPT_INPUT ? pointed.current : pointerNow();
+    // A save that did not happen (a change on disk, a read-only element) leaves the stored values, which
+    // are what the list reads; the modeline already says why it was not saved.
+    if (inputDocs().size > 0) {
+      await flush();
+    }
+    const element = shownFile.current?.element;
+    if (element === undefined) {
+      return;
+    }
+    const answer = await valueFacets(element);
+    if (!mounted.current) {
+      return;
+    }
+    if (!answer.ok) {
+      now.current.onEcho(answer.message);
+      return;
+    }
+    const open = (value: ListableValue): void => {
+      dispatch({ type: "open", buffer: filteredList([value.step]) });
+    };
+    const found = pointedValue(
+      listableValues(answer.output, now.current.boxKeys),
+      pointer,
+      element.relations,
+    );
+    if (found.kind === "open") {
+      open(found.value);
+    } else if (found.kind === "ask") {
+      onAsk(valuesPrompt(found.values, open));
+    } else {
+      now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
+    }
+  };
   // The latest functions of this render, for the controls the app holds on to.
   const api = useRef({
     addProperty,
@@ -1387,6 +1492,8 @@ export const ElementView = ({
     saveInput,
     inputGoing,
     flush,
+    pointerNow,
+    listValue,
   });
   api.current = {
     addProperty,
@@ -1397,6 +1504,8 @@ export const ElementView = ({
     saveInput,
     inputGoing,
     flush,
+    pointerNow,
+    listValue,
   };
 
   // A layout effect, like the editor's: the app has the controls in the same task as the editor (the window's
@@ -1409,6 +1518,10 @@ export const ElementView = ({
       save,
       flush: () => api.current.flush(),
       prompting: () => {
+        // What the cursor is on before the prompt takes the focus (SR-132); a prompt over a prompt keeps it.
+        if (document.activeElement?.id !== PROMPT_INPUT) {
+          pointed.current = api.current.pointerNow();
+        }
         // A prompt opens: typing in the element has ended, so its input is saved now (binding review,
         // point 6), unless the prompt is part of the input ("Reference to element").
         if (!api.current.inputGoing()) {
@@ -1430,6 +1543,9 @@ export const ElementView = ({
       copy: () => {
         copy(cursorField(document.activeElement, lastField.current));
       },
+      listValue: () => {
+        void api.current.listValue();
+      },
       addProperty: () => {
         api.current.addProperty();
       },
@@ -1437,6 +1553,13 @@ export const ElementView = ({
         api.current.clearProperty();
       },
       follow: () => {
+        // A focused target link, in a relation box or a relation group: that target (SR-132: the link
+        // leaves Ctrl/Cmd+Enter to the window, so "Follow reference" opens it).
+        const link = focusedTarget();
+        if (link !== null) {
+          link.click();
+          return;
+        }
         // A box has the focus or was the last field: the reference at the caret of a Markdown box, or its first
         // reference when it has no caret; a box that is not Markdown has none. Anywhere else it is the
         // reference at the cursor of the text.

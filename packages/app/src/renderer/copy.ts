@@ -74,7 +74,7 @@ export const idField = (element: DataExportElement): Field => ({
 });
 
 /** The id of the input of the command prompt (Minibuffer.tsx). */
-const PROMPT_INPUT = "prompt-input";
+export const PROMPT_INPUT = "prompt-input";
 
 /**
  * The field that "Copy field" copies, by its label: the field the focus is in; while the command prompt

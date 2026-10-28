@@ -1134,8 +1134,12 @@ describe("App, the overview (SR-118)", () => {
     expect(options()).toEqual(["Need 2", "System Requirement 3", "SR-000002Title 2", "SR-000001Title 1"]);
     // Only the UUID and the repository are kept, under the key of the workspace.
     expect(JSON.parse(window.localStorage.getItem(KEY()) ?? "null")).toEqual([known(2), known(1)]);
-    // The counts of the workspace are not asked for again when nothing changed.
-    expect(calls(invoke, "element.facets")).toHaveLength(1);
+    // The counts of the workspace are not asked for again when nothing changed; each element shown asks
+    // for the facets of its own values (SR-132), with its ID.
+    const counts = calls(invoke, "element.facets").filter(
+      (input) => typeof input !== "object" || input === null || !("selection" in input),
+    );
+    expect(counts).toHaveLength(1);
   });
 
   it("[SR-118/AK1] keeps the recent elements for the next start of the app", async () => {
@@ -2197,6 +2201,52 @@ describe("App, the text editor", () => {
       await keyDown(query("input"), "Enter", { ctrlKey: true });
       expect(query("label").textContent).toBe("Go to");
       expect(asked(invoke, TARGET)).toEqual([]);
+    });
+  });
+
+  describe("the list of the elements with a value (SR-132)", () => {
+    const options = (): (string | null)[] =>
+      [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+
+    it("[SR-132/AK1] Ctrl+Shift+Enter on an element asks among its values, and the value taken opens its list", async () => {
+      const { invoke } = await openElement();
+      // The facets of the element's own values, with its ID.
+      expect(calls(invoke, "element.facets").at(-1)).toEqual({ selection: { ids: ["SR-000001"] } });
+      await keyDown(query("article"), "Enter", { ctrlKey: true, shiftKey: true });
+      expect(query("label").textContent).toBe("Elements with");
+      expect(options()).toEqual(["status: draft", "type: needNeed"]);
+      await type("type");
+      await keyDown(query("input"), "Enter");
+      expect(calls(invoke, "element.list").at(-1)).toEqual({
+        selection: { where: { type: ["need"], subtypes: false } },
+        sort: DEFAULT_SORT,
+        limit: 200,
+        offset: 0,
+      });
+      expect(text("Modeline")).toContain("type: need");
+    });
+
+    it("[SR-132/AK1] is in the command prompt with its key", async () => {
+      await openElement();
+      await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
+      expect(options()).toContain("List elements with this valueCtrl+Shift+Enter");
+      await type("list elements with");
+      await keyDown(query("input"), "Enter");
+      expect(query("label").textContent).toBe("Elements with");
+    });
+
+    it("[SR-132/AK5] a further filter narrows the list of a value like any list", async () => {
+      const { invoke } = await openElement();
+      await keyDown(query("article"), "Enter", { ctrlKey: true, shiftKey: true });
+      await type("status");
+      await keyDown(query("input"), "Enter");
+      await runCommand("Filter list by type");
+      await type("need");
+      await keyDown(query("input"), "Enter");
+      expect(calls(invoke, "element.list").at(-1)).toMatchObject({
+        selection: { where: { all: [{ status: ["draft"] }, { type: ["need"] }] } },
+      });
+      expect(text("Modeline")).toContain("status: draft · type: need");
     });
   });
 

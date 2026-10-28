@@ -124,6 +124,11 @@ export interface ElementControls {
   readonly follow: () => void;
   /** Copies the field with the cursor, else the ID (the action "Copy field", SR-128). */
   readonly copy: () => void;
+  /**
+   * Opens the list of the elements with the value the cursor is on, or asks among the values of the element
+   * that can be listed (the action "List elements with this value", SR-132).
+   */
+  readonly listValue: () => void;
   /** Asks which property to add and shows its empty box with the cursor in it (the action "Add property", SR-104 AK2). */
   readonly addProperty: () => void;
   /** Empties the box with the cursor, or the one the cursor was in last (the action "Clear property", SR-104 AK4). */
@@ -223,6 +228,12 @@ export const GRAPH_SHORTCUT: Shortcut = { mod: true, shift: true, key: "g" };
 
 /** Ctrl/Cmd+T shows the list as a traceability matrix (SR-125), and the matrix as a list again. */
 const MATRIX_SHORTCUT: Shortcut = { mod: true, shift: false, key: "t" };
+
+/**
+ * Ctrl/Cmd+Shift+Enter lists the elements with the value at the cursor (SR-132). Ctrl/Cmd+Enter stays
+ * "Follow reference", which opens the target of a relation box and the reference of a Markdown box (#610).
+ */
+const LIST_VALUE_SHORTCUT: Shortcut = { mod: true, shift: true, key: "enter" };
 
 /** The command prompt itself; it is not listed in itself. */
 export const COMMAND_SHORTCUT: Shortcut = { mod: true, shift: true, key: "p" };
@@ -856,6 +867,16 @@ export const ACTIONS: readonly Action[] = [
     available: hasElementText,
     run: (context: ActionContext): void => {
       context.element?.follow();
+    },
+  },
+  {
+    // SR-132: shown on every element, whatever core answers about its values (it always has a type).
+    id: "list-value",
+    title: "List elements with this value",
+    shortcut: LIST_VALUE_SHORTCUT,
+    available: hasElementText,
+    run: (context: ActionContext): void => {
+      context.element?.listValue();
     },
   },
   {

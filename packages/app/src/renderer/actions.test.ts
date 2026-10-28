@@ -150,6 +150,7 @@ describe("the command prompt", () => {
         copy: vi.fn(),
         addProperty: vi.fn(),
         clearProperty: vi.fn(),
+        listValue: vi.fn(),
         flush: vi.fn(() => Promise.resolve(true)),
         prompting: vi.fn(),
       },
@@ -165,6 +166,7 @@ describe("the command prompt", () => {
       "Save element",
       "Edit text",
       "Follow reference",
+      "List elements with this value",
       "Copy field",
       "Add property",
       "Clear property",
@@ -183,6 +185,7 @@ describe("the command prompt", () => {
       "Ctrl+S",
       "Enter",
       "Ctrl+Enter",
+      "Ctrl+Shift+Enter",
       "Ctrl+Shift+C",
       "Ctrl+Alt+A",
       undefined,
@@ -204,6 +207,7 @@ describe("the command prompt", () => {
             copy: vi.fn(),
             addProperty: vi.fn(),
             clearProperty: vi.fn(),
+            listValue: vi.fn(),
             flush: vi.fn(() => Promise.resolve(true)),
             prompting: vi.fn(),
           },
@@ -259,6 +263,7 @@ describe("the command prompt", () => {
           copy: vi.fn(),
           addProperty: vi.fn(),
           clearProperty: vi.fn(),
+          listValue: vi.fn(),
           flush: vi.fn(() => Promise.resolve(true)),
           prompting: vi.fn(),
           members: true,
@@ -616,6 +621,7 @@ describe("list actions", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
       members: true,
@@ -852,6 +858,7 @@ describe("close all buffers", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -900,6 +907,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -920,6 +928,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -937,6 +946,45 @@ describe("save element and edit text", () => {
     expect(controls.follow).toHaveBeenCalledTimes(1);
   });
 
+  it("[SR-132/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
+    const controls = {
+      save: vi.fn(),
+      edit: vi.fn(),
+      follow: vi.fn(),
+      copy: vi.fn(),
+      addProperty: vi.fn(),
+      clearProperty: vi.fn(),
+      listValue: vi.fn(),
+      flush: vi.fn(() => Promise.resolve(true)),
+      prompting: vi.fn(),
+    };
+    const { context } = setup([element], {}, true, { element: controls });
+    const key = (event: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }, mac: boolean) =>
+      actionFor({ ...context, mac }, (shortcut) =>
+        matches(
+          { ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, key: "Enter", ...event },
+          shortcut,
+          mac,
+        ),
+      )?.id;
+    expect(key({ ctrlKey: true, shiftKey: true }, false)).toBe("list-value");
+    expect(key({ metaKey: true, shiftKey: true }, true)).toBe("list-value");
+    // On macOS only Cmd is the modifier; Ctrl/Cmd+Enter stays "Follow reference".
+    expect(key({ ctrlKey: true, shiftKey: true }, true)).toBeUndefined();
+    expect(key({ ctrlKey: true }, false)).toBe("follow-reference");
+    action("list-value").run(context);
+    expect(controls.listValue).toHaveBeenCalledTimes(1);
+    expect(action("list-value").available(setup([element]).context)).toBe(false);
+    expect(action("list-value").available(setup([list], {}, true, { element: controls }).context)).toBe(
+      false,
+    );
+    action("list-value").run(setup([element]).context);
+    expect(controls.listValue).toHaveBeenCalledTimes(1);
+    expect(
+      commandPrompt({ ...context, mac: true }).items.find((item) => item.id === "list-value")?.hint,
+    ).toBe("⌘⇧↩");
+  });
+
   it("[SR-128/AK3] Copy field runs the controls with Ctrl/Cmd+Shift+C, on an element with a loaded text only", () => {
     const controls = {
       save: vi.fn(),
@@ -945,6 +993,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -972,6 +1021,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -1006,6 +1056,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
@@ -1030,6 +1081,7 @@ describe("save element and edit text", () => {
       copy: vi.fn(),
       addProperty: vi.fn(),
       clearProperty: vi.fn(),
+      listValue: vi.fn(),
       flush: vi.fn(() => Promise.resolve(true)),
       prompting: vi.fn(),
     };
