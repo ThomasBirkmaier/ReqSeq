@@ -152,9 +152,14 @@ export interface ElementEvidenceContext {
  * (`byElement`), put back into the order of `evidenceRecordsState` (`positionOf`), so a tie of dates
  * picks the same record as the state, and no other element's records are looked at (#698: grouping
  * every record of the workspace cost about 170 ms per open at N-036). Called only against a valid
- * metamodel (`getElement`, the write path), where `element.get` builds the index anyway for the
- * verification status. `element` may be the element as its file holds it now; it is looked up in
- * the store by repository and file. Each problem keeps the line in its record file.
+ * metamodel (`getElement`, the write path). `element.get` builds the index anyway for the
+ * verification status; `element.update` and `element.create` (`model/write.ts`) build it for this
+ * hint alone when it is not built (about 0.28 s at N-036 after `evidence.record` reset it, where the
+ * grouping cost about 0.17 s), until the index is carried over a new record (#698 PR D, #713).
+ * `element` may be the element as its file holds it now; it is looked up in the store by
+ * repository and file. Each problem keeps the line in its record file. For two copies of one UUID
+ * (SR-088) a tie of dates is decided with the version of the copy shown, the state uses one copy's
+ * version for both (known divergence, as before #698, #713).
  */
 export const elementEvidenceFindings = async (
   context: ElementEvidenceContext,

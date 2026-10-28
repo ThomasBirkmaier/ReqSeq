@@ -24,15 +24,28 @@
 // 8. An element marked emergent (SR-035 AK1, `StatusSource.emergent`) has no counted children: without
 //    an own record in the view it is `open` there with no `missingChildren`, never `indirect`, and its
 //    children are not walked (#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
+//
+// Cost (#698): the views share their work. Besides the core and the variants the evaluator keeps one
+// internal neutral view: the applicability of the core (`appliesIn` in the core: no validity) and no
+// record that holds. In a variant `v` the result of an element whose subtree (the element and its
+// candidate children, recursively: requirements that count, whatever their validity; none below an
+// emergent element) holds no seed of `v` is the neutral result: a seed of `v` is a requirement whose
+// validity names `v` (repository and UUID, as `appliesIn`) or an element with a verification record
+// for `v` (its UUID, as `holdsIn`). Below such an element `appliesIn` and `holdsIn` give in `v` what
+// they give in the neutral view, and no rule reads anything else per view, so every variant reuses
+// the one neutral walk and walks itself only through the elements above its seeds. The seeds below
+// each element (`seedsBelow`) are found by one walk over its subtree, exact also on cycles (a
+// fixpoint over the elements of the walk). At N-036 with 100 variants this replaces 101 walks below
+// the top of the tree by about two and the few hundred elements above each variant's seeds.
 import type { VerificationStatus } from "../generated/types.js";
 import { invalidStatuses } from "../model/index.js";
 import type { ElementRecord } from "../model/index.js";
 import type { TraceContext } from "../trace/index.js";
 import { childrenOf, derivationGraph } from "../trace/index.js";
 import type { View } from "../variants/index.js";
-import { appliesIn } from "../variants/index.js";
+import { appliesIn, validityEntries, validityTarget } from "../variants/index.js";
 import type { StatusSource } from "./status.js";
-import { holdsIn, verificationStatusOf } from "./status.js";
+import { verificationStatusOf } from "./status.js";
 
 /** Which elements are children of which, and which of them count (see the file comment, rule 2). */
 export interface ChildRules {
@@ -85,13 +98,55 @@ export type VerificationEvaluator = (
   shown?: Shown,
 ) => VerificationResult | undefined;
 
-/** Whether `element` has a verification record that holds in `view` (rule 1). */
-export const hasOwnRecordIn = (source: StatusSource, element: ElementRecord, view: View): boolean =>
-  source.recordsOf(element.id).some((r) => r.kind === "verification" && holdsIn(r, view));
+/** The views in which an element has an own verification record (rule 1): the core, and variants by UUID. */
+interface OwnViews {
+  readonly core: boolean;
+  readonly variants: ReadonlySet<string>;
+}
+
+const NO_VARIANTS: ReadonlySet<string> = new Set();
+const NO_OWN: OwnViews = { core: false, variants: NO_VARIANTS };
+
+/** The own views of each UUID of a source, built once per UUID and kept with the source. */
+const ownViewsBySource = new WeakMap<StatusSource, Map<string, OwnViews>>();
+
+const ownViewsOf = (source: StatusSource, id: string): OwnViews => {
+  let known = ownViewsBySource.get(source);
+  if (known === undefined) {
+    known = new Map();
+    ownViewsBySource.set(source, known);
+  }
+  let own = known.get(id);
+  if (own === undefined) {
+    let core = false;
+    let variants: Set<string> | undefined;
+    for (const record of source.recordsOf(id)) {
+      if (record.kind !== "verification") {
+        continue;
+      }
+      if (record.variant === undefined) {
+        core = true;
+      } else {
+        (variants ??= new Set()).add(record.variant);
+      }
+    }
+    own = core || variants !== undefined ? { core, variants: variants ?? NO_VARIANTS } : NO_OWN;
+    known.set(id, own);
+  }
+  return own;
+};
+
+/** Whether `element` has a verification record that holds in `view` (rule 1; `holdsIn`, SR-047). */
+export const hasOwnRecordIn = (source: StatusSource, element: ElementRecord, view: View): boolean => {
+  const own = ownViewsOf(source, element.id);
+  return view.kind === "core" ? own.core : own.variants.has(view.variant.id);
+};
 
 const OPEN: VerificationResult = Object.freeze({ status: "open" });
 const INDIRECT: VerificationResult = Object.freeze({ status: "indirect" });
 const NONE: readonly never[] = Object.freeze([]);
+const NO_SEEDS: ReadonlySet<string> = new Set();
+const CORE: View = Object.freeze({ kind: "core" });
 
 /** One element of the walk: its counted children and how many of them were looked at. */
 interface Frame {
@@ -101,7 +156,32 @@ interface Frame {
 }
 
 /** The key of an element's children: its repository and UUID (twins of one repository share them, SR-088). */
-const nodeKey = (element: ElementRecord): string => `${element.repository}\u0000${element.id}`;
+const nodeKeys = new WeakMap<Pick<ElementRecord, "id" | "repository">, string>();
+const nodeKey = (element: Pick<ElementRecord, "id" | "repository">): string => {
+  let key = nodeKeys.get(element);
+  if (key === undefined) {
+    key = `${element.repository}\u0000${element.id}`;
+    nodeKeys.set(element, key);
+  }
+  return key;
+};
+
+/** How one view decides (see the file comment): the core, a variant, or the internal neutral view. */
+interface ViewRules {
+  /** The view (the core for the neutral view, which no record holds in). */
+  readonly view: View;
+  /** The memo of the view. */
+  readonly memo: Map<string, VerificationResult>;
+  readonly applies: (element: ElementRecord) => boolean;
+  readonly holds: (element: ElementRecord) => boolean;
+  /** For a variant: whether the element's subtree holds no seed of it, so the neutral result is its result. */
+  readonly clean: (element: ElementRecord) => boolean;
+}
+
+/** The seed of a variant named by a validity: repository and UUID. */
+const validitySeed = (target: Pick<ElementRecord, "id" | "repository">): string => `v${nodeKey(target)}`;
+/** The seed of a variant named by a record: its UUID (`holdsIn` compares the UUID only). */
+const recordSeed = (variantId: string): string => `r${variantId}`;
 
 /**
  * The evaluator of `source` with `children` (undefined: no element has children) and the current
@@ -114,50 +194,193 @@ export const verificationEvaluator = (
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
 ): VerificationEvaluator => {
-  const memos = new Map<string, Map<string, VerificationResult>>();
-  const memoOf = (view: View): Map<string, VerificationResult> => {
-    const key = view.kind === "core" ? "" : `${view.variant.repository}\u0000${view.variant.id}`;
-    let memo = memos.get(key);
-    if (memo === undefined) {
-      memo = new Map();
-      memos.set(key, memo);
+  /**
+   * The children of an element that may count in some view: requirements whose status counts, each
+   * once, in child order; none below an emergent element (rule 8). Built once per element.
+   */
+  const candidatesOf = new Map<ElementRecord, readonly ElementRecord[]>();
+  const candidates = (element: ElementRecord): readonly ElementRecord[] => {
+    let known = candidatesOf.get(element);
+    if (known === undefined) {
+      if (children === undefined || source.emergent(element)) {
+        known = NONE;
+      } else {
+        const seen = new Set<ElementRecord>();
+        const list: ElementRecord[] = [];
+        for (const child of children.childrenOf(element)) {
+          if (!seen.has(child) && source.requirements.has(child.type) && children.counts(child)) {
+            list.push(child);
+          }
+          seen.add(child);
+        }
+        known = list.length === 0 ? NONE : list;
+      }
+      candidatesOf.set(element, known);
     }
-    return memo;
+    return known;
   };
 
-  const counted = (element: ElementRecord, view: View): readonly ElementRecord[] => {
-    if (children === undefined || source.emergent(element)) {
-      return NONE;
+  /** The seeds of the element itself: the variants its validity names, the variants of its records. */
+  const ownSeeds = (element: ElementRecord): ReadonlySet<string> => {
+    let seeds: Set<string> | undefined;
+    for (const entry of validityEntries(source.validity, element)) {
+      const target = validityTarget(entry.value, element);
+      if (target !== undefined) {
+        (seeds ??= new Set()).add(validitySeed(target));
+      }
     }
-    const seen = new Set<ElementRecord>();
-    return children.childrenOf(element).filter((child) => {
-      const counts =
-        !seen.has(child) &&
-        source.requirements.has(child.type) &&
-        children.counts(child) &&
-        appliesIn(source.validity, child, view);
-      seen.add(child);
-      return counts;
-    });
+    for (const variant of ownViewsOf(source, element.id).variants) {
+      (seeds ??= new Set()).add(recordSeed(variant));
+    }
+    return seeds ?? NO_SEEDS;
+  };
+
+  /** The seeds of the element and of everything below it (see the file comment), once per element. */
+  const seeds = new Map<ElementRecord, ReadonlySet<string>>();
+  const unionOf = (element: ElementRecord, own: ReadonlySet<string>): ReadonlySet<string> => {
+    let union = own;
+    let copied = false;
+    for (const child of candidates(element)) {
+      const below = seeds.get(child) ?? NO_SEEDS;
+      if (below.size === 0 || below === union) {
+        continue;
+      }
+      if (union.size === 0) {
+        union = below;
+        continue;
+      }
+      if (!copied) {
+        union = new Set(union);
+        copied = true;
+      }
+      for (const seed of below) {
+        (union as Set<string>).add(seed);
+      }
+    }
+    return union;
+  };
+  const seedsBelow = (root: ElementRecord): ReadonlySet<string> => {
+    const known = seeds.get(root);
+    if (known !== undefined) {
+      return known;
+    }
+    // The elements below `root` without seeds yet, children before their parents (`root` comes last).
+    const order: ElementRecord[] = [];
+    const done = new Set<ElementRecord>();
+    const visiting = new Set<ElementRecord>([root]);
+    const stack: { element: ElementRecord; next: number }[] = [{ element: root, next: 0 }];
+    let cycle = false;
+    for (let top = stack.at(-1); top !== undefined; top = stack.at(-1)) {
+      const child = candidates(top.element)[top.next];
+      if (child === undefined) {
+        if (top.element !== root) {
+          order.push(top.element);
+        }
+        done.add(top.element);
+        stack.pop();
+        continue;
+      }
+      top.next += 1;
+      if (seeds.has(child)) {
+        continue;
+      }
+      if (visiting.has(child)) {
+        // On the stack: a cycle (a child already done has its seeds once this pass reaches it).
+        cycle ||= !done.has(child);
+        continue;
+      }
+      visiting.add(child);
+      stack.push({ element: child, next: 0 });
+    }
+    // Children first, so each element finds the seeds of the children done before it.
+    const entryOf = (element: ElementRecord) => {
+      const own = ownSeeds(element);
+      const union = unionOf(element, own);
+      seeds.set(element, union);
+      return { element, own, union };
+    };
+    const below = order.map(entryOf);
+    const rootEntry = entryOf(root);
+    const found = [...below, rootEntry];
+    // On a cycle an element may have been done before a child on the cycle: repeat until nothing grows.
+    for (let grown = cycle; grown;) {
+      grown = false;
+      for (const entry of found) {
+        const union = unionOf(entry.element, entry.own);
+        if (union.size !== entry.union.size) {
+          entry.union = union;
+          seeds.set(entry.element, union);
+          grown = true;
+        }
+      }
+    }
+    return rootEntry.union;
+  };
+
+  const coreRules: ViewRules = {
+    view: CORE,
+    memo: new Map(),
+    applies: (element) => appliesIn(source.validity, element, CORE),
+    holds: (element) => ownViewsOf(source, element.id).core,
+    clean: () => false,
+  };
+  const neutral: ViewRules = {
+    view: CORE,
+    memo: new Map(),
+    applies: coreRules.applies,
+    holds: () => false,
+    clean: () => false,
+  };
+  const variantRules = new Map<string, ViewRules>();
+  const rulesOf = (view: View): ViewRules => {
+    if (view.kind === "core") {
+      return coreRules;
+    }
+    const { variant } = view;
+    const key = nodeKey(variant);
+    let rules = variantRules.get(key);
+    if (rules === undefined) {
+      const byValidity = validitySeed(variant);
+      const byRecord = recordSeed(variant.id);
+      rules = {
+        view,
+        memo: new Map(),
+        applies: (element) => appliesIn(source.validity, element, view),
+        holds: (element) => ownViewsOf(source, element.id).variants.has(variant.id),
+        clean: (element) => {
+          const below = seedsBelow(element);
+          return !below.has(byValidity) && !below.has(byRecord);
+        },
+      };
+      variantRules.set(key, rules);
+    }
+    return rules;
+  };
+
+  /** The counted children of `element` in a view (rule 2). */
+  const counted = (element: ElementRecord, rules: ViewRules): readonly ElementRecord[] => {
+    const list = candidates(element);
+    return list.every(rules.applies) ? list : list.filter(rules.applies);
   };
 
   /** The status of a counted child, once its walk is done; one being computed counts as open (rule 6). */
-  const childStatus = (child: ElementRecord, view: View, memo: ReadonlyMap<string, VerificationResult>) =>
-    hasOwnRecordIn(source, child, view)
-      ? verificationStatusOf(source.recordsOf(child.id), currentOf(child), view)
-      : (memo.get(nodeKey(child))?.status ?? "open");
+  const childStatus = (child: ElementRecord, rules: ViewRules) => {
+    if (rules.holds(child)) {
+      return verificationStatusOf(source.recordsOf(child.id), currentOf(child), rules.view);
+    }
+    if (rules.clean(child)) {
+      return derived(child, neutral).status;
+    }
+    return rules.memo.get(nodeKey(child))?.status ?? "open";
+  };
 
-  const fromChildren = (
-    frame: Frame,
-    view: View,
-    memo: ReadonlyMap<string, VerificationResult>,
-  ): VerificationResult => {
+  const fromChildren = (frame: Frame, rules: ViewRules): VerificationResult => {
     if (frame.children.length === 0) {
       return OPEN;
     }
     const missing = new Set<string>();
     for (const child of frame.children) {
-      const status = childStatus(child, view, memo);
+      const status = childStatus(child, rules);
       if (status !== "verified" && status !== "indirect") {
         missing.add(child.id);
       }
@@ -165,9 +388,9 @@ export const verificationEvaluator = (
     return missing.size === 0 ? INDIRECT : { status: "open", missingChildren: [...missing] };
   };
 
-  /** The status of `root`, which has no own record in `view`, from its children (rules 2 to 6). */
-  const derived = (root: ElementRecord, view: View): VerificationResult => {
-    const memo = memoOf(view);
+  /** The status of `root`, which has no own record in the view, from its children (rules 2 to 6). */
+  const derived = (root: ElementRecord, rules: ViewRules): VerificationResult => {
+    const { memo } = rules;
     const known = memo.get(nodeKey(root));
     if (known !== undefined) {
       return known;
@@ -177,7 +400,7 @@ export const verificationEvaluator = (
     const enter = (element: ElementRecord): void => {
       const key = nodeKey(element);
       onStack.add(key);
-      stack.push({ key, children: counted(element, view), next: 0 });
+      stack.push({ key, children: counted(element, rules), next: 0 });
     };
     enter(root);
     let result = OPEN;
@@ -186,12 +409,12 @@ export const verificationEvaluator = (
       if (child !== undefined) {
         frame.next += 1;
         const key = nodeKey(child);
-        if (!hasOwnRecordIn(source, child, view) && !memo.has(key) && !onStack.has(key)) {
+        if (!rules.holds(child) && !memo.has(key) && !onStack.has(key) && !rules.clean(child)) {
           enter(child);
         }
         continue;
       }
-      result = fromChildren(frame, view, memo);
+      result = fromChildren(frame, rules);
       memo.set(frame.key, result);
       onStack.delete(frame.key);
       stack.pop();
@@ -200,13 +423,14 @@ export const verificationEvaluator = (
   };
 
   return (element, view, shown) => {
-    if (!source.requirements.has(element.type) || !appliesIn(source.validity, element, view)) {
+    const rules = rulesOf(view);
+    if (!source.requirements.has(element.type) || !rules.applies(element)) {
       return undefined;
     }
-    if (hasOwnRecordIn(source, element, view)) {
+    if (rules.holds(element)) {
       const current = shown === undefined ? currentOf(element) : shown.current;
       return { status: verificationStatusOf(source.recordsOf(element.id), current, view) };
     }
-    return derived(element, view);
+    return derived(element, rules.clean(element) ? neutral : rules);
   };
 };

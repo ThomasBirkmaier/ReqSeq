@@ -333,6 +333,16 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(warm.id).toBe(top);
     expect(["indirect", "open"]).toContain(warm.verification?.[0]?.status);
     expect((await ws().get(verificationState)).versionBatches()).toBe(batches);
+    // The status state alone built again, with the current versions and the incoming index kept: the
+    // walks below the top in the core, the neutral view and each variant above its seeds (#698), and
+    // the version batch from the kept current versions.
+    await ws().reset(verificationState);
+    const { result: rebuilt } = await measure(
+      "element.get of the top system requirement with its parents line: after a reset of the status state (current versions and incoming index kept)",
+      () => open(top),
+      { basis: "SR-082 AK3, #698 (the walk of the status state; recorded, compare 200 ms)" },
+    );
+    expect(rebuilt).toEqual(warm);
 
     // One element file changed outside LogReq (review of #581, N3): the watcher's batch replaces the
     // store, which resets the status state, so the next open of the top is cold again.

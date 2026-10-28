@@ -16,7 +16,7 @@ import {
 } from "../evidence/index.js";
 import { loadWorkspaceLayout, workspaceLayoutState } from "../workspace/index.js";
 import { metamodelState } from "../metamodel/index.js";
-import { elementStoreState, shortIdState } from "../model/index.js";
+import { currentVersionOf, currentVersionsState, elementStoreState, shortIdState } from "../model/index.js";
 import {
   elementEvidenceFindings,
   outdatedEvidenceFindings,
@@ -322,6 +322,64 @@ describe("outdated evidence (SR-025 AK4)", () => {
       const other = store.byId.get(N)?.[0];
       expect(other === undefined ? undefined : await elementEvidenceFindings(context, other)).toEqual([]);
       expect(asked).toEqual([A, N]);
+    });
+
+    it("[SR-026/AK3] [SR-025/AK4] differs from the state for two copies of one UUID with a tie (known, as before #698)", async () => {
+      // Two copies of one need with different versions (SR-088), one record for each copy's version,
+      // equal dates. The state decides the tie of both copies with the version of the last copy in
+      // the store (`byId` of `outdatedEvidenceFindings`), so it reports the other copy; the hint of one
+      // element uses the version of the copy shown and reports neither. Grouping all records, as
+      // before #698, gave the same result; which version is current for a shared UUID is open (#713).
+      const COPIED = "948a10f1-05c3-4212-bd19-00606ccf2661";
+      const fixture = await createFixtureWorkspace({
+        fixture: "SR-088/copied-file",
+        files: {
+          "system/copies/N-00606ccf2661.md": [
+            "---",
+            `id: ${COPIED}`,
+            "type: need",
+            "status: draft",
+            "title: Wind speed visible at a glance (copy)",
+            "---",
+            "",
+            "The wind speed is visible from the door.",
+            "",
+          ].join("\n"),
+        },
+      });
+      onTestFinished(() => fixture.cleanup());
+      const workspace = new Workspace(fixture.path("system"));
+      onTestFinished(() => workspace.close());
+      const versions = await workspace.get(currentVersionsState);
+      const copies = versions.store.byId.get(COPIED) ?? [];
+      const [first, second] = copies.map((copy) => currentVersionOf(versions, copy) ?? "");
+      expect(copies).toHaveLength(2);
+      expect(first).not.toEqual(second);
+      const at = "2026-01-02T10:00:00Z";
+      await workspace.replace(
+        evidenceRecordsState,
+        workspace.get(evidenceRecordsState),
+        Promise.resolve([
+          record(COPIED, first ?? "", at, { file: "evidence/a.md", line: 1 }),
+          record(COPIED, second ?? "", at, { file: "evidence/b.md", line: 1 }),
+        ]),
+      );
+      const context = {
+        workspace,
+        layout: await workspace.get(workspaceLayoutState),
+        metamodel: await workspace.get(metamodelState),
+        store: versions.store,
+        shortIds: await workspace.get(shortIdState),
+      };
+      const alone: Problem[] = [];
+      for (const copy of copies) {
+        alone.push(...(await elementEvidenceFindings(context, copy)).map((f) => f.problem));
+      }
+      const state = await workspace.get(outdatedEvidenceProblemsState);
+      expect(alone).toEqual([]);
+      expect(state.map((p) => [p.elementFile, p.storedVersion, p.currentVersion])).toEqual([
+        [copies[0]?.file, second, first],
+      ]);
     });
   });
 });
