@@ -16,7 +16,7 @@ derives-from:
   - { id: 6ad3a4c6-cb89-4fc6-acdf-ff0c8aad33ed, version: n1:7eb1cbe08b45f5da, title: Hinweis bei Änderung im Kern }
 based-on:
   - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:d69cab9f2920b732, title: Fassung als Prüfwert über den Inhalt }
-  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n1:7686d429e0fd3295, title: Hinweise werden bestätigt }
+  - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n1:c834fefda56c18dd, title: Hinweise werden bestätigt }
 ---
 
 Wenn sich ein Kern-Requirement ändert, das eine Variante ersetzt, muss das Tool an der Variante einen Hinweis zeigen.
