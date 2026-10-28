@@ -48,7 +48,7 @@ import { mergePlugins } from "./editor/plugins.js";
 import { referenceAt, references, referencesIn } from "./editor/references.js";
 import type { Reference } from "./editor/references.js";
 import { boxNavigation } from "./editor/box-navigation.js";
-import { afterSave, dirty } from "./editor/save.js";
+import { dirty } from "./editor/save.js";
 import { referenceSearch } from "./editor/reference-search.js";
 import type { ReferenceTitles } from "./reference-titles.js";
 import { awaitingReference, slashMenu } from "./editor/slash-menu.js";
@@ -69,7 +69,22 @@ import {
   takeFileEdits,
 } from "./disk-state.js";
 import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
-import { boxDrafts, makeDraft, rebased, sameDraft, withShown } from "./drafts.js";
+import { rebased, withShown } from "./drafts.js";
+import type { BufferFields } from "./field-state.js";
+import {
+  NO_FIELDS,
+  boxDocs as boxDocsOf,
+  draftOf,
+  fileDocs as fileDocsOf,
+  firstLoad,
+  inputDocs as inputDocsOf,
+  propertyAdded,
+  reloaded,
+  restored as restoredOf,
+  settledFields,
+  valueDoc as valueDocOf,
+  valueSet,
+} from "./field-state.js";
 import { FieldBox } from "./FieldBox.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
@@ -77,9 +92,7 @@ import {
   changedOnDisk,
   deletedOnDisk,
   diskMark,
-  draftInput,
   isGone,
-  keptBoxes as keptBoxesOf,
   onDisk,
   outsideChange,
   resolvePrompt,
@@ -400,7 +413,11 @@ export const ElementView = ({
   // "Edit text" (Enter on the buffer) came before the text editor was there, while the element loaded: the
   // caret goes into the editor when it comes, as long as the focus is still in this buffer.
   const editAsked = useRef(false);
-  const baseline = useRef("");
+  // What the buffer holds against its file (`field-state.ts`): the text as last loaded or saved (what the
+  // document is compared with), the stored document of every box and of the title, the boxes that were added,
+  // and the documents of the choices and relations set in the minibuffer. The callbacks read it; `text`,
+  // `added` and `values` are the state that renders.
+  const onFile = useRef<BufferFields>(NO_FIELDS);
   const loadedOnce = useRef(false);
   // The changes from outside that named this element since it was shown: each asks for it again. A removal
   // asks too, and only the answer says whether the file is gone (SR-106 AK3).
@@ -494,11 +511,10 @@ export const ElementView = ({
   const packageModel = view.status === "ok" ? packageOf(packages, view.element.type) : undefined;
   const isPackage = packageModel !== undefined;
   const readOnly = isReadOnly(view);
-  // The boxes that are edited (SR-104), and the editors of those with text by key. `stored` is the document
-  // of each as last loaded or saved, what an editor is compared with (like `baseline` for the text). The
-  // boxes that were added (AK2) have no stored value: their base is the empty document.
+  // The boxes that are edited (SR-104), and the editors of those with text by key. Each is compared with its
+  // stored document in `onFile`, like the text with the baseline. The boxes that were added (AK2) have no
+  // stored value: their base is the empty document.
   const [added, setAdded] = useState<readonly string[]>([]);
-  const addedRef = useRef<readonly string[]>([]);
   // The title is one of them (#621): its field, saved and compared with the file like a text box.
   const boxes = useMemo(
     () =>
@@ -517,16 +533,14 @@ export const ElementView = ({
     [view, properties, added],
   );
   const boxEditors = useRef(new Map<string, EditorHandle>());
-  const stored = useRef(new Map<string, string>());
   // The editor of the title is in its heading (#621): from the first time the title is entered, or the buffer
   // came back with title input, for the life of the buffer (an input it holds must never go with it). Where
   // the caret goes when it comes.
   const [titleOpen, setTitleOpen] = useState(false);
   const titleFocus = useRef<number | "start" | "end" | undefined>(undefined);
   // The documents of the boxes of a choice or relation (SR-104 AK3) that have input: set in the minibuffer,
-  // so no editor holds them. The ref is what the callbacks read, the state makes the boxes show them.
+  // so no editor holds them. `onFile` is what the callbacks read, the state makes the boxes show them.
   const [, setValues] = useState<ReadonlyMap<string, string>>(new Map());
-  const values = useRef<ReadonlyMap<string, string>>(new Map());
   // The box that "Add property" just added: it takes the focus (and the prompt) when it is there.
   const fresh = useRef<EditableBox | undefined>(undefined);
   // The unsaved boxes this buffer was shown with, as compared with the file (set when it first loads).
@@ -598,13 +612,13 @@ export const ElementView = ({
 
   // What the boxes hold, by key: their editors, and the documents set in the minibuffer.
   const editorDocs = (): Map<string, string> =>
-    new Map([
-      ...[...boxEditors.current].map(([key, editor]): [string, string] => [key, editor.doc()]),
-      ...values.current,
-    ]);
+    boxDocsOf(
+      [...boxEditors.current].map(([key, editor]): [string, string] => [key, editor.doc()]),
+      onFile.current.values,
+    );
   // What a copy of a box of a choice or relation gives when it has input: the keys or the labels, one per line.
   const valueText = (key: string): string | undefined => {
-    const doc = values.current.get(key);
+    const doc = onFile.current.values.get(key);
     return doc === undefined || now.current.boxes.get(key)?.info.kind !== "relation"
       ? doc
       : relationTargets(doc)
@@ -612,7 +626,7 @@ export const ElementView = ({
           .join("\n");
   };
   // What a choice or relation box holds now: its input, else the stored document.
-  const valueDoc = (key: string): string => values.current.get(key) ?? stored.current.get(key) ?? "";
+  const valueDoc = (key: string): string => valueDocOf(onFile.current, key);
   // The document of a choice or relation box is set (SR-104 AK3, AK4): the box shows it, the draft has it.
   // The change can be undone (SR-105 AK2), unless it is a step of undo or redo itself (`recorded` false).
   const setValue = (key: string, doc: string, recorded = true): void => {
@@ -620,8 +634,8 @@ export const ElementView = ({
       const { values: histories } = now.current.memory;
       histories.set(key, record(histories.get(key) ?? NO_HISTORY, valueDoc(key), doc));
     }
-    values.current = new Map(values.current).set(key, doc);
-    setValues(values.current);
+    onFile.current = valueSet(onFile.current, key, doc);
+    setValues(onFile.current.values);
     changed();
   };
   // Undo or redo on a choice or relation box: one step through its value history. False when there is
@@ -641,12 +655,13 @@ export const ElementView = ({
   // what is stored. `textDoc` is the document of the text editor when its change is the reason to ask.
   const currentDraft = (
     textDoc?: string,
-    base = baseline.current,
+    base = onFile.current.baseline,
     boxDocs = editorDocs(),
   ): Draft | undefined =>
-    makeDraft(
+    draftOf(
+      onFile.current,
       { doc: textDoc ?? now.current.handle?.doc() ?? base, base },
-      boxDrafts(stored.current, boxDocs),
+      boxDocs,
       diskState.current.basis,
     );
   // The app keeps the draft of the buffer, with the element it shows. Without input nothing is unsaved.
@@ -660,15 +675,10 @@ export const ElementView = ({
   const boxEdits = (): BoxEdit[] => changedBoxes(editsOf(now.current.boxes, editorDocs()));
   // The fields with input and what they hold: the text when it was typed in (a text editor that is not
   // there yet holds none), and every box whose document is not the stored one.
-  const inputDocs = (): Map<string, string> => {
-    const doc = now.current.handle?.doc() ?? baseline.current;
-    return new Map([
-      ...(dirty(doc, baseline.current) ? [[TEXT_FIELD, doc] as const] : []),
-      ...[...editorDocs()].filter(([key, box]) => box !== stored.current.get(key)),
-    ]);
-  };
+  const inputDocs = (): Map<string, string> =>
+    inputDocsOf(onFile.current, now.current.handle?.doc(), editorDocs());
   // What the file holds for each field, as last loaded or saved.
-  const fileDocs = (): Map<string, string> => new Map([[TEXT_FIELD, baseline.current], ...stored.current]);
+  const fileDocs = (): Map<string, string> => fileDocsOf(onFile.current);
   // What the outside change means for the buffer now (SR-106): a conflict stops saving, and says so once;
   // without one, the input is on the file as it is.
   const decide = (change: OutsideChange): void => {
@@ -805,7 +815,7 @@ export const ElementView = ({
   );
 
   const setBaseline = (next: string): void => {
-    baseline.current = next;
+    onFile.current = { ...onFile.current, baseline: next };
     setText(next);
   };
 
@@ -815,77 +825,43 @@ export const ElementView = ({
   // input is lost.
   const reload = (loaded: string, docs: Map<string, string>, sha: string): void => {
     const input = inputDocs();
-    // A box that was added stays while the file has no value for the property, and so does a box with input.
-    const open = [
-      ...addedRef.current,
-      ...[...input.keys()].filter((key) => key !== TEXT_FIELD && !addedRef.current.includes(key)),
-    ].filter((key) => !docs.has(key));
-    const next = new Map([...docs, ...open.map((key): [string, string] => [key, ""])]);
-    const boxDocs = editorDocs();
-    // A box without input follows the file once this render is done, so the draft already has it so.
-    const followed = new Map(
-      [...boxDocs].map(([key, doc]) => [key, doc === stored.current.get(key) ? (next.get(key) ?? doc) : doc]),
-    );
-    // A choice or relation box with input keeps it; one without, or with what the file now holds, follows
-    // the file at once.
-    values.current = new Map(
-      [...values.current].filter(([key, doc]) => doc !== stored.current.get(key) && doc !== next.get(key)),
-    );
-    setValues(values.current);
-    if (open.length !== addedRef.current.length) {
-      addedRef.current = open;
-      setAdded(open);
+    // A box without input follows the file once this render is done, so the draft already has it so; a
+    // choice or relation box with input keeps it, one without follows the file at once.
+    const next = reloaded(onFile.current, loaded, docs, input, editorDocs());
+    onFile.current = next.fields;
+    setValues(next.fields.values);
+    if (next.addedChanged) {
+      setAdded(next.fields.added);
     }
-    setBaseline(loaded);
-    stored.current = next;
+    setText(loaded);
     decide(outsideChange(input, diskState.current.basis, { sha, docs: fileDocs() }));
     // The draft is on the new file text: a text that was not typed on is the new one (the editor
     // follows it after this render), so boxes alone never keep the old text.
-    keepDraft(currentDraft(input.has(TEXT_FIELD) ? undefined : loaded, loaded, followed));
+    keepDraft(currentDraft(next.draftText, loaded, next.followed));
   };
   // The first answer for a buffer that comes back with a draft: the draft is compared with the file as it
   // is now, as a reload compares the input (SR-106).
   const restore = (kept: Draft, element: DataExportElement, docs: Map<string, string>, sha: string): void => {
-    const loaded = element.text ?? "";
-    const change = outsideChange(draftInput(kept), kept.sha, {
-      sha,
-      docs: new Map([[TEXT_FIELD, loaded], ...docs]),
-    });
-    const typed = kept.text !== kept.base && !change.dropped.includes(TEXT_FIELD) ? kept.text : undefined;
-    keptBoxes.current = new Map(keptBoxesOf(kept, change.dropped, docs));
-    keptText.current = typed;
+    const back = restoredOf(kept, element, docs, sha, now.current.properties);
+    keptBoxes.current = back.keptBoxes;
+    keptText.current = back.keptText;
     // Title input comes back in the title's editor, which stays (#621).
-    if (keptBoxes.current.has(TITLE_FIELD)) {
+    if (back.titleOpens) {
       setTitleOpen(true);
     }
-    setDiskState({ ...diskState.current, basis: change.kind === "conflict" ? kept.sha : sha });
-    if (change.kind === "conflict") {
-      decide(change);
+    setDiskState({ ...diskState.current, basis: back.basis });
+    if (back.change.kind === "conflict") {
+      decide(back.change);
     }
-    const restored = makeDraft(
-      { doc: typed ?? loaded, base: loaded },
-      [...keptBoxes.current],
-      diskState.current.basis,
-    );
-    if (!sameDraft(restored, kept)) {
-      keepDraft(restored);
+    if (back.changed) {
+      keepDraft(back.draft);
     }
     // The boxes of the draft that were added come back (their base is the empty document), and the
     // documents of the choices and relations set in the minibuffer with them.
-    const known = [...keptBoxes.current].flatMap(([key, box]) => {
-      const info = now.current.properties.get(element.type)?.get(key);
-      return info === undefined ? [] : [{ key, box, info }];
-    });
-    addedRef.current = known
-      .filter(({ key, box }) => box.base === "" && !docs.has(key))
-      .map(({ key }) => key);
-    setAdded(addedRef.current);
-    values.current = new Map(
-      known.flatMap(({ key, box, info }): [string, string][] =>
-        isValueKind(info.kind) ? [[key, box.doc]] : [],
-      ),
-    );
-    setValues(values.current);
+    onFile.current = { ...onFile.current, added: back.added };
+    setAdded(back.added);
+    onFile.current = { ...onFile.current, values: back.values };
+    setValues(back.values);
   };
   // An answer of `element.get` for the shown element.
   const apply = (element: DataExportElement, sha: string, changedJustNow: boolean): void => {
@@ -907,7 +883,7 @@ export const ElementView = ({
         if (kept !== undefined) {
           restore(kept, element, docs, sha);
         }
-        stored.current = new Map([...docs, ...addedRef.current.map((key): [string, string] => [key, ""])]);
+        onFile.current = firstLoad(onFile.current, docs);
       } else {
         reload(loaded, docs, sha);
       }
@@ -1079,53 +1055,39 @@ export const ElementView = ({
     held.current = { sha: output.fileSha256, fields: fieldTexts(element) };
     shownFile.current = { element, sha: output.fileSha256 };
     endConflict(output.fileSha256);
-    const after = afterSave(sent.doc, element.text ?? "", editor.doc());
     const docs = storedDocs(fieldBoxes(element, now.current.properties));
-    const holds = (key: string): string =>
-      boxEditors.current.get(key)?.doc() ?? values.current.get(key) ?? "";
     // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
-    // added or typed in while the save ran stays.
-    const open = [
-      ...addedRef.current.filter((key) => !docs.has(key) && (!sent.added.includes(key) || holds(key) !== "")),
-      ...sent.edits
-        .filter(
-          (edit) =>
-            !docs.has(edit.key) &&
-            !addedRef.current.includes(edit.key) &&
-            holds(edit.key) !== "" &&
-            holds(edit.key) !== edit.doc,
-        )
-        .map((edit) => edit.key),
-    ];
-    addedRef.current = open;
-    setAdded(open);
-    setBaseline(after.baseline);
-    stored.current = new Map([...docs, ...open.map((key): [string, string] => [key, ""])]);
-    if (after.replace !== undefined) {
-      editor.replace(after.replace);
+    // added or typed in while the save ran stays. Read with the editors as they are at the answer and the
+    // values from before the save.
+    const result = settledFields(onFile.current, { text: element.text ?? "", docs }, sent, {
+      textDoc: editor.doc(),
+      boxDoc: (key) => boxEditors.current.get(key)?.doc(),
+    });
+    // Everything but the values first: the editors call back into `changed` while they are replaced, and
+    // read the values from before the save meanwhile.
+    onFile.current = { ...result.fields, values: onFile.current.values };
+    setAdded(result.fields.added);
+    setText(result.fields.baseline);
+    if (result.textReplace !== undefined) {
+      editor.replace(result.textReplace);
     }
     // The editors compare with what the file holds now, so input typed while the save ran (an undo back
     // to the text before it too) stays when they get the saved text.
-    editor.rebase(after.baseline);
+    editor.rebase(result.fields.baseline);
     // A box that still holds what was sent shows what the file holds now (an emptied one is gone with its
     // property).
-    for (const edit of sent.edits) {
-      const saved = docs.get(edit.key);
-      const box = boxEditors.current.get(edit.key);
-      if (saved !== undefined && box?.doc() === edit.doc && saved !== edit.doc) {
-        box.replace(saved);
+    for (const step of result.boxes) {
+      const box = boxEditors.current.get(step.key);
+      if (step.replace !== undefined) {
+        box?.replace(step.replace);
       }
-      if (saved !== undefined) {
-        box?.rebase(saved);
+      if (step.rebase !== undefined) {
+        box?.rebase(step.rebase);
       }
     }
     // A choice or relation box that still holds what was sent shows what the file holds now.
-    values.current = new Map(
-      [...values.current].filter(
-        ([key, doc]) => !sent.edits.some((edit) => edit.key === key && edit.doc === doc),
-      ),
-    );
-    setValues(values.current);
+    onFile.current = { ...onFile.current, values: result.values };
+    setValues(result.values);
     keepDraft(currentDraft());
     setView({ status: "ok", element });
     setNotSaved(false);
@@ -1189,8 +1151,8 @@ export const ElementView = ({
     const { buffer: shown, call: run, properties: model } = now.current;
     const doc = editor.doc();
     const edits = boxEdits();
-    const textDirty = dirty(doc, baseline.current);
-    const sent: Sent = { doc, edits, added: addedRef.current };
+    const textDirty = dirty(doc, onFile.current.baseline);
+    const sent: Sent = { doc, edits, added: onFile.current.added };
     const expected = held.current?.sha;
     saving.current = true;
     const answer = await run("element.update", {
@@ -1312,7 +1274,7 @@ export const ElementView = ({
       echo(note);
       return;
     }
-    const doc = values.current.get(key) ?? box.doc;
+    const doc = onFile.current.values.get(key) ?? box.doc;
     const name = box.info.name ?? key;
     const done = (): void => {
       fieldOf(key)?.focus();
@@ -1364,9 +1326,8 @@ export const ElementView = ({
       onAsk(
         addPropertyPrompt(addable, ({ key, info }) => {
           fresh.current = emptyBox(key, info);
-          addedRef.current = [...addedRef.current, key];
-          stored.current.set(key, "");
-          setAdded(addedRef.current);
+          onFile.current = propertyAdded(onFile.current, key);
+          setAdded(onFile.current.added);
         }),
       );
     }
@@ -1829,7 +1790,7 @@ export const ElementView = ({
             {shown.map((box) => {
               const editable = boxes.get(box.key);
               const kept = keptBoxes.current.get(box.key)?.doc;
-              const value = values.current.get(box.key);
+              const value = onFile.current.values.get(box.key);
               const field = (
                 <FieldBox label={box.key} focusable onCopy={copy} marked={marked}>
                   <div className="box">
