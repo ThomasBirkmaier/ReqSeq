@@ -19,6 +19,7 @@ import elementSetStatus from "./element/setStatus.js";
 import elementSupersede from "./element/supersede.js";
 import elementUpdate from "./element/update.js";
 import evidenceCoverage from "./evidence/coverage.js";
+import evidenceDegree from "./evidence/degree.js";
 import evidenceEnrichJunit from "./evidence/enrichJunit.js";
 import evidenceList from "./evidence/list.js";
 import evidenceRecord from "./evidence/record.js";
@@ -57,6 +58,7 @@ export const commands: readonly AnyCommand[] = [
   elementSupersede,
   elementUpdate,
   evidenceCoverage,
+  evidenceDegree,
   evidenceEnrichJunit,
   evidenceList,
   evidenceRecord,

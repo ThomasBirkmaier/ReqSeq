@@ -49,6 +49,7 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => {
   return {
     requirements: new Set(["req"]),
     needs: new Set(["need"]),
+    invalid: new Set(),
     validity: { key: "validity", many: true, label: "property Validity (validity)" },
     recordsOf: (id) => index.byElement.get(id) ?? [],
     emergent: (e) => isEmergent(e, "emergent"),

@@ -67,6 +67,19 @@ describe("result lines", () => {
     expect(line?.open).toEqual(elementBuffer("uuid-2", "spec", "uuid-2"));
   });
 
+  it("[SR-037/AK1] shows the share of a verification degree as a percentage, rounded down as on every access", () => {
+    const counts = { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 };
+    const lines = resultLines({ degree: { share: 0.6, total: 10, counts }, view: "core" });
+    expect(lines.slice(0, 3).map((line) => [line.depth, line.label, line.text])).toEqual([
+      [0, "degree", ""],
+      [1, "share", "60 %"],
+      [1, "total", "10"],
+    ]);
+    expect(resultLines({ degree: { share: 9 / 14, total: 14, counts } })[1]?.text).toBe("64.2 %");
+    // Only a share next to counts is a degree.
+    expect(resultLines({ share: 0.6, total: 10 })[0]?.text).toBe("0.6");
+  });
+
   it("shows a bare value and the items of a bare list", () => {
     expect(resultLines("done").map((line) => line.text)).toEqual(["done"]);
     expect(resultLines([1, "a", null]).map((line) => line.text)).toEqual(["1", "a", "null"]);

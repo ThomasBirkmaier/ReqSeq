@@ -16,6 +16,10 @@
     "./recent-workspaces": {
       "types": "./dist/workspace/recent.d.ts",
       "default": "./dist/workspace/recent.js"
+    },
+    "./verification-degree": {
+      "types": "./dist/evidence/degree-text.d.ts",
+      "default": "./dist/evidence/degree-text.js"
     }
   },
   "scripts": {

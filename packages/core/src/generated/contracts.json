@@ -1068,6 +1068,62 @@
             ]
           },
           "additionalProperties": false
+        },
+        "verificationDegree": {
+          "type": "object",
+          "description": "SR-037: the Nachweisgrad of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).",
+          "required": [
+            "total",
+            "counts"
+          ],
+          "properties": {
+            "share": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "(verified + indirect) / total (AK1, AK2), unrounded; left out when total is 0. Shown as a percentage rounded down to one decimal (ADR-0012)."
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "The counted requirements."
+            },
+            "counts": {
+              "type": "object",
+              "description": "How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total.",
+              "required": [
+                "open",
+                "verified",
+                "indirect",
+                "failed",
+                "outdated"
+              ],
+              "properties": {
+                "open": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "verified": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "indirect": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "failed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "outdated": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -6860,7 +6916,7 @@
       {
         "name": "evidence.degree",
         "title": "Show verification degree",
-        "summary": "Verification degree of a selection: share verified and count per status.",
+        "summary": "Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).",
         "effect": "read",
         "stage": 4,
         "implements": [
@@ -6878,7 +6934,8 @@
           "type": "object",
           "properties": {
             "selection": {
-              "$ref": "../common.schema.json#/$defs/selection"
+              "$ref": "../common.schema.json#/$defs/selection",
+              "description": "The requirements to count, as element.list takes them. Its view (else its saved filter's, else the core) is the view of the status."
             }
           },
           "additionalProperties": false
@@ -6887,20 +6944,11 @@
           "type": "object",
           "properties": {
             "degree": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+              "$ref": "../data-export.schema.json#/$defs/verificationDegree"
             },
-            "counts": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "integer",
-                "minimum": 0
-              }
-            },
-            "indirect": {
-              "type": "integer",
-              "minimum": 0
+            "view": {
+              "$ref": "../common.schema.json#/$defs/viewId",
+              "description": "core, or the variant of the selection's view (else of its saved filter's)."
             },
             "incomplete": {
               "$ref": "../common.schema.json#/$defs/incomplete"
@@ -6909,7 +6957,7 @@
           "additionalProperties": false,
           "required": [
             "degree",
-            "counts"
+            "view"
           ]
         }
       },

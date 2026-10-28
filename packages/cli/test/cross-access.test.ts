@@ -199,6 +199,9 @@ const WITH_IMAGE: FixtureOptions = {
 /** Needs, requirements and a subtype in two repositories, an obsolete child, a saved filter (SR-036). */
 const COVERAGE: FixtureOptions = { fixture: "SR-036/levels", git: ["system", "sensor"] };
 
+/** Requirements with every verification status, an indirect one, obsolete ones and three packages (SR-037). */
+const DEGREE: FixtureOptions = { fixture: "SR-037/degree", git: true };
+
 /** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
 const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
 
@@ -786,6 +789,38 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     {
       name: "an unknown package gives the same error (#535 fixture)",
       fixture: EVIDENCE,
+      input: { selection: { package: "PKG-ffffff" } },
+      expect: "error",
+    },
+    {
+      name: "a workspace with an evidence location (#535)",
+      fixture: EVIDENCE,
+      input: { selection: { ids: ["SR-e88fb3"] } },
+      expect: "output",
+    },
+  ],
+  "evidence.degree": [
+    {
+      name: "the whole workspace (SR-037)",
+      fixture: DEGREE,
+      input: {},
+      expect: "output",
+    },
+    {
+      name: "a package with an indirect requirement (SR-037 AK2)",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d002" } },
+      expect: "output",
+    },
+    {
+      name: "a package with obsolete requirements in the core view (SR-037 AK3)",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003", view: "core" } },
+      expect: "output",
+    },
+    {
+      name: "an unknown package gives the same error",
+      fixture: DEGREE,
       input: { selection: { package: "PKG-ffffff" } },
       expect: "error",
     },

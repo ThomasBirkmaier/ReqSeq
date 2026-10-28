@@ -18,8 +18,12 @@
 //   before it (on an earlier page) names it, `[under X]`.
 // - A list of findings other than `problems` (the hints of hint.list) is one line per finding: the
 //   element's short ID, the kind, the message and the hint ID when it has one.
+// - A verification degree (`share` next to `counts`, SR-037), at any depth of a value printed as YAML,
+//   shows its share as a percentage rounded down to one decimal (`degreePercent` of core, the rule of
+//   every access, spec question #592 Q3): `share: 60 %`.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
+import { degreePercent, degreeShareOf } from "@logreq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 
@@ -43,6 +47,23 @@ const listOf = (value: unknown): readonly unknown[] => (Array.isArray(value) ? (
 
 /** `value` as YAML lines. */
 const yamlLines = (value: unknown): string[] => yamlOf(value).replace(/\n$/, "").split("\n");
+
+/** `value` with the share of every verification degree in it, in objects and lists, as its percentage (SR-037). */
+const withPercent = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return (value as unknown[]).map(withPercent);
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+  const share = degreeShareOf(value);
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      key === "share" && share !== undefined ? degreePercent(share) : withPercent(item),
+    ]),
+  );
+};
 
 /** An element as outputs name it: at least its short ID and title. */
 const isElement = (value: unknown): value is Rec & { readonly shortId: string; readonly title: string } =>
@@ -234,7 +255,7 @@ const valueLines = (key: string, value: unknown, details: boolean, lifted: unkno
       return [`${key}:`, ...indent(value)];
     }
   }
-  return yamlLines({ [key]: value });
+  return yamlLines({ [key]: withPercent(value) });
 };
 
 /** A node of a chain (trace.chain `nodes`), as far as the tree reads it. */

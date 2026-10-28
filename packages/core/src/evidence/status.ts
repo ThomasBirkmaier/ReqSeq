@@ -23,7 +23,7 @@ import type { DataExportElement, ValidationStatus, VerificationStatus } from "..
 import type { Metamodel } from "../metamodel/index.js";
 import { typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";
-import { emergentKeyOf, isEmergent } from "../model/index.js";
+import { emergentKeyOf, invalidStatuses, isEmergent } from "../model/index.js";
 import type { Validity, View } from "../variants/index.js";
 import { validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
@@ -123,6 +123,8 @@ export interface StatusSource {
    * (SR-038, #534).
    */
   readonly needs: ReadonlySet<string>;
+  /** The status keys the metamodel marks invalid (D-044): their elements count in no verification degree (SR-037). */
+  readonly invalid: ReadonlySet<string>;
   readonly validity: Validity | undefined;
   /** The records of an element by UUID; none while the metamodel is not valid. */
   readonly recordsOf: (id: string) => readonly EvidenceRecord[];
@@ -141,6 +143,7 @@ export const statusSource = (metamodel: Metamodel, index: EvidenceIndex | undefi
   return {
     requirements: new Set(typesWithMeaning(metamodel, "requirement").map((t) => t.key)),
     needs: new Set(typesWithMeaning(metamodel, "need").map((t) => t.key)),
+    invalid: new Set(invalidStatuses(metamodel).keys()),
     validity: validityOf(metamodel),
     recordsOf: (id) => index?.byElement.get(id) ?? NO_RECORDS,
     emergent: (element) => isEmergent(element, emergentKey),

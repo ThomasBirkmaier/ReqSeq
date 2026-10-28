@@ -494,6 +494,25 @@ export interface DataExportTestCase {
 }
 
 /**
+ * SR-037: the Nachweisgrad of a selection in one view. Counted are the requirements of the selection (type with the meaning `requirement`) whose status the metamodel does not mark invalid (AK3, D-044) and that have a verification status in the view (spec question #592).
+ * Schema: `schemas/data-export.schema.json#/$defs/verificationDegree`.
+ */
+export interface DataExportVerificationDegree {
+  /** (verified + indirect) / total (AK1, AK2), unrounded; left out when total is 0. Shown as a percentage rounded down to one decimal (ADR-0012). */
+  readonly share?: number;
+  /** The counted requirements. */
+  readonly total: number;
+  /** How many counted requirements have each verification status (AK1); indirect apart from verified (AK2); they add up to total. */
+  readonly counts: {
+    readonly open: number;
+    readonly verified: number;
+    readonly indirect: number;
+    readonly failed: number;
+    readonly outdated: number;
+  };
+}
+
+/**
  * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.
  * Schema: `schemas/element.schema.json#`.
  */
@@ -2287,21 +2306,22 @@ export interface EvidenceCoverageOutput {
 }
 
 /**
- * Input of `evidence.degree` as `run` gets it: validated, properties with a `default` filled in. Verification degree of a selection: share verified and count per status.
+ * Input of `evidence.degree` as `run` gets it: validated, properties with a `default` filled in. Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).
  * Schema: `schemas/commands/catalog.json evidence.degree input`.
  */
 export interface EvidenceDegreeInput {
+  /** The requirements to count, as element.list takes them. Its view (else its saved filter's, else the core) is the view of the status. */
   readonly selection?: ElementSelection;
 }
 
 /**
- * Output of `evidence.degree`. Verification degree of a selection: share verified and count per status.
+ * Output of `evidence.degree`. Verification degree of a selection in one view: the share of the requirements verified or indirect, and the count per verification status (SR-037).
  * Schema: `schemas/commands/catalog.json evidence.degree output`.
  */
 export interface EvidenceDegreeOutput {
-  readonly degree: number;
-  readonly counts: Readonly<Record<string, number>>;
-  readonly indirect?: number;
+  readonly degree: DataExportVerificationDegree;
+  /** core, or the variant of the selection's view (else of its saved filter's). */
+  readonly view: ViewId;
   readonly incomplete?: Incomplete;
 }
 

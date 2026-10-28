@@ -1,7 +1,9 @@
 // The lines of the result buffer (SR-073 AK2): the output of a catalog command that no other buffer
 // shows, laid out by its shape alone, like the CLI's text output. Elements are rows that open, problems and
-// hints are one line each with their element, everything else is a quiet indented outline. Layout only:
-// nothing here knows a command (ADR-0002).
+// hints are one line each with their element, everything else is a quiet indented outline. The share of a
+// verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
+// (`degreePercent`, one decimal rounded down, #592 Q3). Layout only: nothing here knows a command (ADR-0002).
+import { degreePercent, degreeShareOf } from "@logreq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer, elementBufferOf } from "./buffers.js";
 
@@ -120,8 +122,9 @@ const linesOf = (value: unknown, depth: number, label: string, sink: Sink): void
   if (label !== "") {
     emit(sink, () => ({ kind: "text", depth, label, text: "" }));
   }
+  const share = degreeShareOf(value);
   for (const [key, item] of Object.entries(value)) {
-    linesOf(item, inner, key, sink);
+    linesOf(key === "share" && share !== undefined ? degreePercent(share) : item, inner, key, sink);
   }
 };
 

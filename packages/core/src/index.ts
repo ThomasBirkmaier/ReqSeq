@@ -32,6 +32,7 @@ export {
 export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
 export { recordOpenedWorkspace } from "./model/recent-record.js";
 export { isTempFile } from "./files/index.js";
+export { degreePercent, degreeShareOf } from "./evidence/degree-text.js";
 export * from "./version/version.js";
 export { watchWorkspace } from "./model/watch.js";
 export { ACTIVITY_FILE, FOLLOWED_ACCESSES, watchActivity } from "./model/activity.js";

@@ -159,6 +159,12 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { selection: { ids: [WIND, OBSOLETE, RETIRED] } },
     { selection: { ids: ["SR-ffffff"] } },
   ],
+  "evidence.degree": [
+    {},
+    { selection: { where: { any: [{ status: ["retired"] }, { invalid: true }] }, view: "core" } },
+    { selection: { ids: [WIND, OBSOLETE, RETIRED] } },
+    { selection: { ids: ["SR-ffffff"] } },
+  ],
   "evidence.enrichJunit": [
     { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z", output: "evidence/ci/raw.xml" },
     { file: RAW_JUNIT, item: "build-513", date: "2026-10-27T10:00:00Z" },

@@ -73,6 +73,7 @@ const SELECTION_TOOLS: readonly string[] = [
   "filter_save",
   "evidence_status",
   "evidence_coverage",
+  "evidence_degree",
   "data_export",
 ];
 /**

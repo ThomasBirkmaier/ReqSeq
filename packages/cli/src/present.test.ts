@@ -446,6 +446,58 @@ describe("renderHuman: validation status (SR-038)", () => {
   });
 });
 
+describe("renderHuman: verification degree (SR-037)", () => {
+  const counts = { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 };
+
+  it("[SR-037/AK1] shows the share of a verification degree as 60 % and the count per status", () => {
+    expect(renderHuman({ degree: { share: 0.6, total: 10, counts }, view: "core", incomplete: false })).toBe(
+      lines(
+        "degree:",
+        "  share: 60 %",
+        "  total: 10",
+        "  counts:",
+        "    open: 2",
+        "    verified: 6",
+        "    indirect: 0",
+        "    failed: 1",
+        "    outdated: 1",
+        "view: core",
+      ),
+    );
+  });
+
+  it("rounds the share down to one decimal (#592 Q3)", () => {
+    const shown = (share: number): string | undefined =>
+      renderHuman({ degree: { share, total: 1, counts } })
+        .split("\n")
+        .find((line) => line.startsWith("  share:"));
+    expect([2 / 3, 9 / 14, 0.29, 1].map(shown)).toEqual([
+      "  share: 66.6 %",
+      "  share: 64.2 %",
+      "  share: 29 %",
+      "  share: 100 %",
+    ]);
+  });
+
+  it("shows no percentage without a share, and a share without counts stays a number", () => {
+    expect(renderHuman({ degree: { total: 0, counts }, view: "core" })).toContain("degree:\n  total: 0\n");
+    expect(renderHuman({ result: { share: 0.6, total: 10 } })).toBe(
+      lines("result:", "  share: 0.6", "  total: 10"),
+    );
+  });
+
+  it("finds a degree at any depth, in nested objects and in lists", () => {
+    const degree = { share: 0.5, total: 2, counts };
+    expect(renderHuman({ evidence: { view: "core", degree } })).toContain("    share: 50 %\n");
+    expect(renderHuman({ rows: [{ degree }, { degree: { ...degree, share: 0.25 } }] })).toContain(
+      "  - degree:\n      share: 50 %\n",
+    );
+    expect(renderHuman({ rows: [{ degree }, { degree: { ...degree, share: 0.25 } }] })).toContain(
+      "      share: 25 %\n",
+    );
+  });
+});
+
 describe("renderHuman: the mark emergent (SR-035)", () => {
   it("[SR-035/AK2] shows [emergent] after the title, before the verification status, and only for a marked element", () => {
     const elements = [

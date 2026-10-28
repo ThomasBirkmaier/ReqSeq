@@ -52,4 +52,11 @@ Cost at N-036: O(records of the element) per element; the filter adds the valida
 
 ## Verification degree
 
-SR-037.
+SR-037 (#49), `degree.ts` and `degree-text.ts`; the rules are ADR-0012 "Status rules", bullet "Verification degree", the open points spec question #592.
+
+- `degreeOf(status, elements, view)`: pure and synchronous over `{ source, evaluate }` of a `WorkspaceStatus`; one pass. An element counts when its type is in `source.requirements`, its status is not in `source.invalid` (the status keys the metamodel marks invalid, `invalidStatuses`) and `evaluate(element, view)` gives a status. Returns `{ share?, total, counts }` (`$defs/verificationDegree`): the five counts in enum order, `share = (verified + indirect) / total`, left out when `total` is 0. The caller has run `prepare(elements, { own: true })` first; SR-126 calls it so after its own `prepare`.
+- `countedIn(source, elements)`: the elements that pass the type and invalid test, in their order (what to prepare). `viewIdOf(view)`: `core` or the variant's UUID, as outputs name a view.
+- `selectionDegree(workspace, elements, view)`: `verificationState`, `prepare(countedIn(...), { own: true })`, `degreeOf`. No second state and no evaluator of its own: the one of `evidence.status`, `element.get`, `element.resolve` and the filter. `evidence.degree` passes the selection's view (`Selected.views[0]`), else the core.
+- `degreePercent(share)` and `degreeShareOf(value)` (`degree-text.ts`, no imports): the display rule of every access, one decimal rounded down (`64.2 %` for 9/14), and the shape a layout recognises a degree by (a number `share` next to an object `counts`). Public as `@logreq/core` and, for the app's renderer, `@logreq/core/verification-degree`.
+
+Cost at N-036: one pass over the selection and one evaluation per counted requirement (memoised per view); at most one version batch per state, none after the filter (`prepare` over the whole store) or an earlier degree; the output is O(1). E4 (#583) measures it cold and warm.

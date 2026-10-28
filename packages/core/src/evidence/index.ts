@@ -14,6 +14,8 @@ export { coverageOf, coverageRules } from "./coverage.js";
 export { enrichJunitBytes, enrichJunitFile } from "./enrich.js";
 export type { EnrichOptions, EnrichResult, RefResolution, UnknownRef, VersionLookup } from "./enrich.js";
 export type { CoverageLevel, CoverageRules } from "./coverage.js";
+export { countedIn, degreeOf, selectionDegree, viewIdOf } from "./degree.js";
+export type { VerificationDegree } from "./degree.js";
 export { EVIDENCE_FILES, evidenceFiles } from "./folders.js";
 export type { EvidenceExtension, EvidenceFile, EvidenceFiles } from "./folders.js";
 export { JUNIT_READER, readJunitRecords } from "./junit.js";
