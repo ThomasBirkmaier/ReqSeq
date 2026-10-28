@@ -35,6 +35,7 @@ The evidence records (Datensätze) of a workspace as an in-memory list, indexed 
 - `byElement`: the records of each element, newest first (`newestFirst`: `date` as an instant, an unreadable date the oldest, then repository, file, line; `sortNewestFirst` parses each date once).
 - `testCases`: every test case by key (`TestCaseEntry`: name, class name, the elements it names, all its records newest first), ordered by class name, then name.
 - `testCasesOf(id)`: the test cases that name the element, each seen from it (`TestCase`), from the records per element each entry keeps (`recordsOf`), so a call costs the test cases of the element and their executions, never the records of other elements; built once per element and kept.
+- `positionOf(record)`: the position of a record in the records the index was built from (`evidenceRecordsState` order), -1 for another record; a map over all records built on first use and kept. The outdated hint of one element uses it (SR-025 AK4, [hints block](hints.md)).
 - `hasVerificationRecord(index, id, view)`: at least one verification record in the view (core: a record without variant; a variant: a record for it, SR-047). The one definition of "has evidence" ("ohne Nachweis", SR-069 AK3; the `no-evidence` gap, SR-022 AK3; coverage, SR-036) for the filter, the chain and the coverage (#535). Version and result do not count (spec question #527).
 
 ## Markdown reader

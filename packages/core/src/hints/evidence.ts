@@ -23,7 +23,7 @@
 //   rules").
 import type { Problem } from "../catalog.js";
 import type { EvidenceRecord } from "../evidence/index.js";
-import { evidenceRecordsState, instantOf } from "../evidence/index.js";
+import { evidenceIndexState, evidenceRecordsState, instantOf } from "../evidence/index.js";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore, LocatableFinding, ShortIds } from "../model/index.js";
@@ -148,8 +148,13 @@ export interface ElementEvidenceContext {
  * The hints `evidence.outdated` of one element shown (SR-026 AK3), as
  * `outdatedEvidenceProblemsState` has them: from that state when its build has ended
  * (`settledValue`), else from the records and the current version of this element alone
- * (`currentVersionsOf`; ADR-0008). `element` may be the element as its file holds it now; it is
- * looked up in the store by repository and file. Each problem keeps the line in its record file.
+ * (`currentVersionsOf`; ADR-0008). Its records are those of its UUID in the evidence index
+ * (`byElement`), put back into the order of `evidenceRecordsState` (`positionOf`), so a tie of dates
+ * picks the same record as the state, and no other element's records are looked at (#698: grouping
+ * every record of the workspace cost about 170 ms per open at N-036). Called only against a valid
+ * metamodel (`getElement`, the write path), where `element.get` builds the index anyway for the
+ * verification status. `element` may be the element as its file holds it now; it is looked up in
+ * the store by repository and file. Each problem keeps the line in its record file.
  */
 export const elementEvidenceFindings = async (
   context: ElementEvidenceContext,
@@ -172,10 +177,12 @@ export const elementEvidenceFindings = async (
   if (record === undefined) {
     return [];
   }
-  const records = await workspace.get(evidenceRecordsState);
-  if (records.length === 0) {
+  const index = await workspace.get(evidenceIndexState);
+  const ofElement = index.byElement.get(element.id);
+  if (ofElement === undefined) {
     return [];
   }
+  const records = [...ofElement].sort((a, b) => index.positionOf(a) - index.positionOf(b));
   const versions = { store, layout, metamodel, byRecord: await currentVersionsOf(workspace, [record]) };
   return outdatedEvidenceFindings(
     [record],

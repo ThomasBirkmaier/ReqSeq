@@ -60,6 +60,16 @@ describe("evidenceIndex", () => {
     expect(sortNewestFirst(all)).toEqual([...all].sort(newestFirst));
   });
 
+  it("evidenceIndex gives each record its position in the records as given (#698)", () => {
+    const first = record(A, "2026-01-01T10:00:00Z", { repository: "zeta" });
+    const second = record(A, "2026-01-01T10:00:00Z", { repository: "alpha" });
+    const index = evidenceIndex([first, second]);
+    // The index orders a tie by repository name; the position keeps the order of the records.
+    expect(index.byElement.get(A)).toEqual([second, first]);
+    expect([index.positionOf(first), index.positionOf(second)]).toEqual([0, 1]);
+    expect(index.positionOf(record(A, "2026-01-01T10:00:00Z"))).toBe(-1);
+  });
+
   it("evidenceIndex shows a test case that names many elements to each with its own records only, built once", () => {
     // One integration test naming 200 requirements, run in 50 files: 10,000 records.
     const elements = Array.from({ length: 200 }, (_, i) => `${P}b${String(i).padStart(10, "0")}`);

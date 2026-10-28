@@ -35,6 +35,14 @@ export interface EvidenceIndex {
    * per element and kept: a second call gives the same array.
    */
   readonly testCasesOf: (id: string) => readonly TestCase[];
+  /**
+   * The position of `record` in the records the index was built from (`evidenceRecordsState`: the
+   * walk order of the evidence locations, then path), -1 for a record that is not among them. The
+   * outdated hint of one element (SR-025 AK4, `hints/evidence.ts`) puts the element's records back
+   * into this order, since on a tie of dates the first record decides there, as in
+   * `workspace.check`. Built on first use (one map over all records) and kept.
+   */
+  readonly positionOf: (record: EvidenceRecord) => number;
 }
 
 /**
@@ -148,7 +156,12 @@ export const evidenceIndex = (
     shown.set(id, cases);
     return cases;
   };
-  return { byElement, testCases, testCasesOf };
+  let positions: Map<EvidenceRecord, number> | undefined;
+  const positionOf = (record: EvidenceRecord): number => {
+    positions ??= new Map(records.map((r, i) => [r, i]));
+    return positions.get(record) ?? -1;
+  };
+  return { byElement, testCases, testCasesOf, positionOf };
 };
 
 /**
