@@ -7,6 +7,7 @@ import type {
   MetamodelProperty,
 } from "@logreq/core";
 import { outdatedKey } from "./editor/references.js";
+import type { OutdatedMark } from "./editor/references.js";
 
 /** The lines of a property value: one per array item; an object with a `title` shows the title. */
 export const propertyLines = (value: unknown): string[] => {
@@ -120,6 +121,100 @@ export const propertyModel = (metamodel: Pick<MetamodelGetOutput, "types" | "pro
   );
 };
 
+/** A hint of an element as `element.get` gives it. */
+type Hint = NonNullable<DataExportElement["problems"]>[number];
+
+/** The code of the hints on outdated relations and inline references (SR-025). */
+const OUTDATED = "relation.outdated";
+
+/**
+ * The word after an outdated reference: "outdated", and the version the reference stores, as the date of
+ * that version (D-013), once the buffer has the dates of the hint (`hintDates`). "unknown date" when Git
+ * cannot tell or no commit has that version, as "Show element ID and version" says it.
+ */
+export const outdatedWord = (hint: Hint): string =>
+  hint.storedDate === undefined
+    ? "outdated"
+    : `outdated · version of ${hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
+
+const markOf = (hint: Hint): OutdatedMark => ({ message: hint.message, word: outdatedWord(hint) });
+
+/** What makes a dated hint stand for an undated one: the same hint ID (place and stored version) and current version. */
+const hintKey = (hint: Hint): string => `${hint.hintId ?? ""} ${hint.currentVersion ?? ""}`;
+
+const undated = (hint: Hint): boolean => hint.code === OUTDATED && hint.storedDate === undefined;
+
+/**
+ * The outdated relations and references of `element` that have no dates yet, as one string; empty when
+ * there are none. The buffer asks `element.get` with `hintDates` for them when it changes (#702).
+ */
+export const undatedHints = (element: DataExportElement): string =>
+  (element.problems ?? []).filter(undated).map(hintKey).join("\n");
+
+/**
+ * `element` with the dated hints `dated` (the hints of `element.get` with `hintDates`) in place of its
+ * undated hints with the same hint ID and current version. The dates come from core; an answer that is
+ * older than a save changes only the hints that are still the same.
+ */
+export const withHintDates = (element: DataExportElement, dated: readonly Hint[]): DataExportElement => {
+  const byKey = new Map(
+    dated.filter((hint) => hint.storedDate !== undefined).map((hint) => [hintKey(hint), hint]),
+  );
+  return byKey.size === 0 || element.problems === undefined
+    ? element
+    : {
+        ...element,
+        problems: element.problems.map((hint) => (undated(hint) ? (byKey.get(hintKey(hint)) ?? hint) : hint)),
+      };
+};
+
+// The hint of a relation item has the place `.../<key>/<target>?version=<stored>[&repository=<name>]` in its
+// ID (`hintIdOf` in core): a metamodel key, where an inline reference has `@text`.
+const RELATION_HINT = /\/([a-z][a-z0-9-]*)\/([^/?]+)\?version=([^&]+)(?:&repository=([^&]*))?$/;
+
+/**
+ * The mark of an outgoing relation of `element` when a `relation.outdated` hint of the element names its
+ * item: its key, target, stored version and repository (#665: `element.get` gives no `relations[].outdated`).
+ */
+export const outdatedRelation = (
+  element: Pick<DataExportElement, "problems" | "repository">,
+  relation: DataExportRelation,
+): OutdatedMark | undefined => {
+  const own = (named: string | undefined): string =>
+    named === undefined ? element.repository : decodeURIComponent(named);
+  const hint = (element.problems ?? []).find((candidate) => {
+    const place = candidate.code === OUTDATED ? RELATION_HINT.exec(candidate.hintId ?? "") : null;
+    return (
+      place !== null &&
+      relation.direction === "out" &&
+      place[1] === relation.kind &&
+      place[2] === relation.id &&
+      place[3] === relation.storedVersion &&
+      own(place[4]) === (relation.repository ?? element.repository)
+    );
+  });
+  return hint === undefined ? undefined : markOf(hint);
+};
+
+/**
+ * The mark of the element's own derivation to the parent `id` in `repository`, for the parents line: the
+ * same hint as the relation row of that derivation.
+ */
+export const outdatedParent = (
+  element: Pick<DataExportElement, "problems" | "repository" | "relations">,
+  id: string,
+  repository: string,
+): OutdatedMark | undefined =>
+  element.relations
+    .filter(
+      (relation) =>
+        relation.meaning === "derivation" &&
+        relation.id === id &&
+        (relation.repository ?? element.repository) === repository,
+    )
+    .map((relation) => outdatedRelation(element, relation))
+    .find((mark) => mark !== undefined);
+
 /** A relation target as a row of the buffer: a group of relations and a relation box show the same rows. */
 export interface RelationRow {
   readonly id: string;
@@ -127,16 +222,20 @@ export interface RelationRow {
   readonly repository: string;
   readonly label: string;
   readonly state: DataExportRelation["targetState"];
-  readonly outdated: boolean;
+  /** The mark of an outdated relation; undefined when it is not outdated. */
+  readonly outdated: OutdatedMark | undefined;
 }
 
-/** The row of a relation of the element. */
-export const rowOfRelation = (relation: DataExportRelation): RelationRow => ({
+/** The row of a relation of `element`. */
+export const rowOfRelation = (
+  relation: DataExportRelation,
+  element: Pick<DataExportElement, "problems" | "repository">,
+): RelationRow => ({
   id: relation.id,
   repository: relation.repository ?? "",
   label: relationLabel(relation),
   state: relation.targetState,
-  outdated: relation.outdated === true,
+  outdated: outdatedRelation(element, relation),
 });
 
 export interface RelationGroup {
@@ -165,15 +264,16 @@ const TEXT_HINT = /\/@text(?::([^/?]+))?\/[^/?]+\?(.*)$/;
 
 /**
  * The outdated inline references of an element for the editor: `outdatedKey` of the target, the stored
- * version and the repository the link names, to the message of the hint. The hints come from core; the
+ * version and the repository the link names, to the message of the hint and the word after the link
+ * (`outdatedWord`, with the date of the stored version once it is there). The hints come from core; the
  * first one of a reference wins. Without `property` those of the text, else those in the values of that
  * property (SR-127): every occurrence of a reference has the same state, so the key tells enough.
  */
 export const outdatedReferences = (
   element: DataExportElement,
   property?: string,
-): ReadonlyMap<string, string> => {
-  const found = new Map<string, string>();
+): ReadonlyMap<string, OutdatedMark> => {
+  const found = new Map<string, OutdatedMark>();
   for (const problem of element.problems ?? []) {
     const place = TEXT_HINT.exec(problem.hintId ?? "");
     const query = place?.[2];
@@ -190,7 +290,7 @@ export const outdatedReferences = (
         ?.slice("repository=".length);
       const key = outdatedKey(problem.targetId, problem.storedVersion, named);
       if (!found.has(key)) {
-        found.set(key, problem.message);
+        found.set(key, markOf(problem));
       }
     }
   }

@@ -2262,7 +2262,7 @@ describe("ElementView", () => {
           title: "Need",
           accessible: true,
           targetState: "available",
-          outdated: true,
+          storedVersion: "n1:aa",
         },
         {
           kind: "derives-from",
@@ -5601,9 +5601,61 @@ describe("ElementView", () => {
     expect(muted.querySelector(".state")?.textContent).toBe("inaccessible");
   });
 
-  it("marks an outdated relation with the word", async () => {
-    await mount(asCall(fakeCall({ "element.get": () => ({ element: read() }) })));
-    expect(texts(".outdated")).toEqual([" outdated"]);
+  describe("an outdated relation (#665, #702)", () => {
+    const hint = {
+      code: "relation.outdated",
+      severity: "warning",
+      message: "derives-from of SR-000001 points to an older version of N-000001",
+      targetId: "n1",
+      storedVersion: "n1:aa",
+      currentVersion: "n1:bb",
+      hintId: "relation.outdated/spec/a.md/uuid-1/derives-from/n1?version=n1:aa",
+    };
+    const dated = {
+      ...hint,
+      message: `${hint.message}: stored version from 2026-03-04T10:00:00Z, current version from 2026-05-06T08:00:00Z`,
+      storedDate: "2026-03-04T10:00:00Z",
+      currentDate: "2026-05-06T08:00:00Z",
+    };
+
+    it("[SR-110/AK2] marks the row from the hint of its item, then with the date of the version it stores", async () => {
+      const call = fakeCall({
+        "element.get": (input) => ({
+          element: read({
+            problems: [input["hintDates"] === true ? dated : hint],
+          } as unknown as Partial<DataExportElement>),
+        }),
+      });
+      await mount(asCall(call));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      // The element is read without dates first (SR-082 AK3), then once more for the dates of its hints.
+      const reads = call.mock.calls.filter(([name]) => name === "element.get").map(([, input]) => input);
+      expect(reads).toEqual([
+        { ref: "uuid-1", repository: "spec" },
+        { ref: "uuid-1", repository: "spec", hintDates: true },
+      ]);
+      expect(texts(".outdated")).toEqual([" outdated · version of 2026-03-04"]);
+      expect(query(".relation .outdated").title).toBe(dated.message);
+    });
+
+    it("keeps the word alone while the dates are not there, and asks no dates for an element without outdated hints", async () => {
+      const call = fakeCall({
+        "element.get": (input) =>
+          input["hintDates"] === true
+            ? new Error("Git is slow")
+            : { element: read({ problems: [hint] } as unknown as Partial<DataExportElement>) },
+      });
+      await mount(asCall(call));
+      expect(texts(".outdated")).toEqual([" outdated"]);
+      expect(query(".relation .outdated").title).toBe(hint.message);
+      await fresh();
+      const plain = fakeCall({ "element.get": () => ({ element: read() }) });
+      await mount(asCall(plain));
+      expect(plain.mock.calls.filter(([name]) => name === "element.get")).toHaveLength(1);
+      expect(texts(".outdated")).toEqual([]);
+    });
   });
 
   it("shows why the element could not be read, and echoes it", async () => {

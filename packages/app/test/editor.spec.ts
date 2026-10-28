@@ -16,6 +16,7 @@ import {
   DEMO_TITLE,
   REFERENCE_FILES,
   REFERENCE_LABEL,
+  REFERENCE_SOURCE_ID,
   REFERENCE_SOURCE_TITLE,
   REFERENCE_TARGET_TITLE,
 } from "./support/demo.js";
@@ -306,6 +307,40 @@ test.describe("the Markdown editor in the element buffer", () => {
     await window.keyboard.press("Escape");
   });
 
+  test("[SR-110/AK2] an outdated inline reference and an outdated relation show the date of the version they store, as element get with hintDates gives it", async () => {
+    const { window } = running;
+    /** The `relation.outdated` hints of `ref` as the CLI dates them (`hintDates`). */
+    const datedHints = async (ref: string): Promise<{ message: string; storedDate?: string | null }[]> => {
+      const got = await running.cli(["element", "get", "--input", JSON.stringify({ ref, hintDates: true })]);
+      expect(got.code, got.stderr).toBe(0);
+      const output = JSON.parse(got.stdout) as {
+        element: { problems?: { code: string; message: string; storedDate?: string | null }[] };
+      };
+      return (output.element.problems ?? []).filter((problem) => problem.code === "relation.outdated");
+    };
+    /** The word after an outdated reference: the day of the stored version (D-013), or "unknown date". */
+    const word = (hint: { storedDate?: string | null }): string =>
+      `outdated · version of ${hint.storedDate === undefined || hint.storedDate === null ? "unknown date" : hint.storedDate.slice(0, 10)}`;
+    // An inline reference in the text.
+    const [reference] = await datedHints(REFERENCE_SOURCE_ID);
+    expect(reference?.message).toMatch(/: stored version from .+, current version from .+$/);
+    await opened(window, REFERENCE_SOURCE_TITLE);
+    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(` ${word(reference ?? {})}`);
+    await expect(window.locator(".cm-lr-outdated")).toHaveAttribute("title", reference?.message ?? "");
+    // A relation of the element: its row is marked with the same word (#665), the dated hint on hover.
+    const [relation] = await datedHints("SR-0000b4");
+    // Not `opened`: this element has a Markdown box besides the text.
+    await window.keyboard.press("ControlOrMeta+P");
+    await window.keyboard.type("Show a dial");
+    await expect(window.locator('.candidates [role="option"]').first()).toContainText("Show a dial");
+    await window.keyboard.press("Enter");
+    await expect(window.locator("article h1")).toHaveText("Show a dial");
+    const mark = window.locator("article .relation .outdated");
+    await expect(mark).toHaveCount(1);
+    await expect(mark).toHaveText(` ${word(relation ?? {})}`);
+    await expect(mark).toHaveAttribute("title", relation?.message ?? "");
+  });
+
   test("an inline reference reads as its label, is marked outdated and opens its element on a click and with Ctrl/Cmd+Enter", async () => {
     const { window } = running;
     await opened(window, REFERENCE_SOURCE_TITLE);
@@ -313,7 +348,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     expect(await shown(window)).not.toContain("logreq:");
     expect(await shown(window)).not.toContain("n1:");
     await expect(window.locator(".cm-lr-outdated")).toBeVisible();
-    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(" outdated");
+    await expect(window.locator(".cm-lr-outdated-word")).toHaveText(/^ outdated/);
     // A click on the label opens the element it refers to.
     await window.locator(".cm-lr-ref").click();
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);

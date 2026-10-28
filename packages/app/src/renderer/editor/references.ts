@@ -98,6 +98,16 @@ export const referencesIn = (state: EditorState, tree: Tree = parsedTree(state))
 };
 
 /**
+ * An outdated relation or inline reference as the buffer marks it (SR-110 AK2): the message of its hint,
+ * the hover text, and the word after the reference, which names the date of the version the reference
+ * stores once the buffer has it (`outdatedWord` in `element-view.ts`).
+ */
+export interface OutdatedMark {
+  readonly message: string;
+  readonly word: string;
+}
+
+/**
  * The key of an outdated reference: its target, the version it stores and the repository it names,
  * percent-encoded as in the ID of the hint (`hintId`), where core writes it that way ("" for none).
  */
@@ -120,8 +130,8 @@ export const titlesField = StateField.define<ReadonlyMap<string, string>>({
 });
 
 export interface ReferenceOptions {
-  /** The outdated references of the element: `outdatedKey` to the message of the hint. */
-  readonly outdated: ReadonlyMap<string, string>;
+  /** The outdated references of the element: `outdatedKey` to the message of the hint and the word. */
+  readonly outdated: ReadonlyMap<string, OutdatedMark>;
   /** A reference is followed. */
   readonly follow: (reference: Reference) => void;
   /**
@@ -141,9 +151,10 @@ const titleOf = (state: EditorState, reference: Reference): string | undefined =
 
 /**
  * The preview rule: the label of a reference is marked, and off the source lines the title of a target in
- * another repository takes its place; an outdated one has the accent and the word.
+ * another repository takes its place; an outdated one has the accent, the message of its hint as hover text
+ * and the word after it, with the date of the version it stores once the buffer has it (SR-110 AK2).
  */
-const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
+const rule = (outdated: ReadonlyMap<string, OutdatedMark>): PreviewRule => ({
   nodes: ["Link"],
   decorate: (node, { state, sourceLine }) => {
     const reference = referenceOf(state, node.node);
@@ -153,7 +164,7 @@ const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
     if (reference === undefined || open === undefined || close === undefined || open.to >= close.from) {
       return [];
     }
-    const message =
+    const mark =
       reference.version === undefined
         ? undefined
         : outdated.get(
@@ -163,6 +174,7 @@ const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
               reference.repository === undefined ? "" : encodeURIComponent(reference.repository),
             ),
           );
+    const message = mark?.message;
     const classes = message === undefined ? "cm-lr-ref" : "cm-lr-ref cm-lr-outdated";
     const title = sourceLine(open.to) ? undefined : titleOf(state, reference);
     // The title takes the place of the label with the label's look, so a press on it follows the reference.
@@ -174,7 +186,7 @@ const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
         : Decoration.replace({
             widget: new LabelWidget(title, `cm-lr-link ${classes} cm-lr-title`, message),
           });
-    if (message === undefined) {
+    if (mark === undefined) {
       return [label.range(open.to, close.from)];
     }
     return [
@@ -183,9 +195,10 @@ const rule = (outdated: ReadonlyMap<string, string>): PreviewRule => ({
       ...(sourceLine(node.to)
         ? []
         : [
-            Decoration.widget({ widget: new GlyphWidget(" outdated", "cm-lr-outdated-word"), side: 1 }).range(
-              node.to,
-            ),
+            Decoration.widget({
+              widget: new GlyphWidget(` ${mark.word}`, "cm-lr-outdated-word"),
+              side: 1,
+            }).range(node.to),
           ]),
     ];
   },

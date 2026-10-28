@@ -466,6 +466,12 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "the outdated relation and reference of an element dated, not the element itself (SR-110 AK2)",
+      fixture: HINTS,
+      input: { ref: "SR-0000b1", hintDates: true },
+      expect: "output",
+    },
+    {
       name: "one element with its version date (D-013)",
       input: { ref: "SR-e88fb3", versionDate: true },
       expect: "output",

@@ -166,11 +166,17 @@ test.describe("copying a field of an element", () => {
     };
     expect(await copied("Title", field(window, "Title"))).toBe(SR_TITLE);
     expect(await copied("Text", field(window, "Text"))).toBe((await stored()).text);
-    const shown = (await field(window, "derives-from").locator("li").allInnerTexts()).map((line) =>
-      line.trim(),
-    );
+    // A relation group copies its targets as their rows show them, one per line: the value of the field
+    // (SR-128 AK2), without the hint after an outdated target (SR-110 AK2), which is about the reference.
+    const rows = field(window, "derives-from").locator("li");
+    const shown = (await rows.locator(":scope > :first-child").allInnerTexts()).map((line) => line.trim());
     expect(shown.length).toBeGreaterThan(0);
-    expect(await copied("derives-from", field(window, "derives-from"))).toBe(shown.join("\n"));
+    expect(shown).toHaveLength(await rows.count());
+    // The fixture's reference stores a version that is not the current one: the row shows the hint.
+    await expect(rows.first().locator(".outdated")).toContainText("outdated");
+    const group = await copied("derives-from", field(window, "derives-from"));
+    expect(group).toBe(shown.join("\n"));
+    expect(group).not.toContain("outdated");
     await window.locator('.modeline [data-field="ID"]').hover();
     await window.locator(".modeline .copy").click();
     await expect(modeline(window)).toContainText("Copied ID");

@@ -705,3 +705,38 @@ describe("element.get gives the same hints on relations to superseded elements a
     ]);
   });
 });
+
+describe("element.get hintDates (#702)", () => {
+  /** fixtures/SR-026/hints, committed: SR-0000b1 has an outdated relation and an outdated inline reference. */
+  const HINTS: FixtureOptions = { fixture: "SR-026/hints", git: true };
+  const outdated = (element: Element): readonly Problem[] =>
+    hints(element).filter((problem) => problem.code === "relation.outdated");
+
+  it("[SR-110/AK2] dates the outdated relations and references of the element, but not its own version", async () => {
+    const opened = await open(HINTS);
+    const plain = await get(opened, { ref: "SR-0000b1" });
+    const dated = await get(opened, { ref: "SR-0000b1", hintDates: true });
+    const both = await get(opened, { ref: "SR-0000b1", versionDate: true });
+    expect(outdated(plain).length).toBeGreaterThanOrEqual(2);
+    for (const problem of outdated(plain)) {
+      expect(problem).not.toHaveProperty("storedDate");
+      expect(problem.message).not.toMatch(/stored version from/);
+    }
+    expect(dated).not.toHaveProperty("versionDate");
+    expect(outdated(dated)).toHaveLength(outdated(plain).length);
+    for (const problem of outdated(dated)) {
+      expect(problem).toHaveProperty("storedDate");
+      expect(problem).toHaveProperty("currentDate");
+      expect(problem.message).toMatch(/: stored version from .+, current version from .+$/);
+    }
+    // The same dated hints as with versionDate, which dates the element's own version too.
+    expect(both).toHaveProperty("versionDate");
+    const { versionDate: _date, ...withoutDate } = both;
+    expect(dated).toEqual(withoutDate);
+  });
+
+  it("[SR-110/AK2] gives an element without outdated relations as without the input", async () => {
+    const opened = await open(TWO);
+    expect(await get(opened, { ref: WIND.id, hintDates: true })).toEqual(await get(opened, { ref: WIND.id }));
+  });
+});

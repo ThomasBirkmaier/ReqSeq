@@ -41,7 +41,15 @@ import { filteredList } from "./buffers.js";
 import type { Answer, Call } from "./call.js";
 import { NOTHING, PROMPT_INPUT, copyField, copyable, cursorField, docOf } from "./copy.js";
 import type { ElementLoad, PropertyModel } from "./element-view.js";
-import { TITLE_FIELD, isReadOnly, outdatedReferences, shownElement } from "./element-view.js";
+import {
+  TITLE_FIELD,
+  isReadOnly,
+  outdatedParent,
+  outdatedReferences,
+  shownElement,
+  undatedHints,
+  withHintDates,
+} from "./element-view.js";
 import type { EditorHandle } from "./editor/Editor.js";
 import { formulasAndDiagrams } from "./editor/formulas-diagrams.js";
 import { mergePlugins } from "./editor/plugins.js";
@@ -218,6 +226,40 @@ const focusedTarget = (): HTMLElement | null =>
   document.activeElement instanceof HTMLElement
     ? document.activeElement.closest<HTMLElement>("[data-buffer] [data-target-id]")
     : null;
+
+/**
+ * An outdated reference shows the version it stores, as the date of that version (SR-110 AK2, D-013). The
+ * element is read without dates, so opening it runs no git (SR-082 AK3); only an element with outdated
+ * relations or references is asked for again, for the dates of these hints alone (`hintDates`: Git reads
+ * the histories of their targets), and again only when these hints change (#702). The answer is the
+ * element as the buffer shows it, with the dated hints in place of the undated ones (`withHintDates`).
+ */
+const useHintDates = (
+  call: Call,
+  buffer: ElementBuffer,
+  view: ElementLoad,
+): ((element: DataExportElement) => DataExportElement) => {
+  const undatedKey = view.status === "ok" ? undatedHints(view.element) : "";
+  const [datedHints, setDatedHints] = useState<NonNullable<DataExportElement["problems"]>>([]);
+  useEffect(() => {
+    if (undatedKey === "") {
+      return;
+    }
+    let current = true;
+    void call("element.get", { ref: buffer.id, repository: buffer.repository, hintDates: true }).then(
+      (answer) => {
+        // A failed read leaves the hints without dates; the load of the element reports why.
+        if (current && answer.ok) {
+          setDatedHints(answer.output.element.problems ?? []);
+        }
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [call, buffer.id, buffer.repository, undatedKey]);
+  return useCallback((element: DataExportElement) => withHintDates(element, datedHints), [datedHints]);
+};
 
 /** The undo history of the buffer (SR-105 AK2): the app's, kept with the buffer, or else one of the view's own. */
 const useUndoMemory = (keep: BufferKeep | undefined): UndoMemory => {
@@ -581,7 +623,9 @@ export const ElementView = ({
 
   // The inline references of the text: followed on a click, and the outdated ones marked (#424). The
   // editor is configured again only when the hints about the text change.
-  const outdated = view.status === "ok" ? outdatedReferences(view.element) : undefined;
+  // The element as the buffer shows it: with the dates of its outdated hints once they are there (#702).
+  const dated = useHintDates(call, buffer, view);
+  const outdated = view.status === "ok" ? outdatedReferences(dated(view.element)) : undefined;
   const signature = JSON.stringify([...(outdated ?? [])]);
   // The slash menu and the `[[` search (SR-066) are created once: they hold state (the `/` typed), which a
   // reconfiguration would keep only for the same extensions.
@@ -1570,7 +1614,11 @@ export const ElementView = ({
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}
         {view.status === "ok" && parents.answered ? (
           <>
-            <ParentsRow parents={parents.parents} dispatch={dispatch} />
+            <ParentsRow
+              parents={parents.parents}
+              dispatch={dispatch}
+              mark={(parent) => outdatedParent(dated(view.element), parent.open.id, parent.open.repository)}
+            />
             <ElementText
               title={{
                 text: view.element.title,
@@ -1659,7 +1707,7 @@ export const ElementView = ({
                       readOnly: locked || editable.lineBreak,
                       many: editable.info.many,
                       markdown: editable.info.markdown,
-                      outdated: outdatedReferences(view.element, box.key),
+                      outdated: outdatedReferences(dated(view.element), box.key),
                       follow,
                       title,
                       pickElement: pick.pickElement,
@@ -1703,7 +1751,7 @@ export const ElementView = ({
                   editable={editable}
                   value={value}
                   textBox={textBox}
-                  relations={view.element.relations}
+                  element={dated(view.element)}
                   onCopy={copy}
                   marked={marked}
                   onOpenRelation={onOpenRelation}
@@ -1712,7 +1760,7 @@ export const ElementView = ({
               );
             })}
             <RelationGroups
-              relations={view.element.relations}
+              element={dated(view.element)}
               onCopy={copy}
               marked={marked}
               onOpenRelation={onOpenRelation}

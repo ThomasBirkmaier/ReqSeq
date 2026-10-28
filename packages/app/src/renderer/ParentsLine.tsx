@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
+import type { OutdatedMark } from "./editor/references.js";
 import { parentLevels, parentsInput } from "./neighbourhood.js";
 import type { Parent, Parents } from "./neighbourhood.js";
 
@@ -23,9 +24,11 @@ export interface ParentsLineProps {
 const ParentLink = ({
   parent,
   open,
+  mark,
 }: {
   readonly parent: Parent;
   readonly open: (target: ElementBuffer) => void;
+  readonly mark: OutdatedMark | undefined;
 }): React.JSX.Element => (
   <span className="parent">
     <span
@@ -44,7 +47,12 @@ const ParentLink = ({
     >
       {parent.name}
     </span>
-    {parent.outdated ? <span className="outdated"> outdated</span> : null}
+    {parent.outdated ? (
+      <span className="outdated" {...(mark === undefined ? {} : { title: mark.message })}>
+        {" "}
+        {mark?.word ?? "outdated"}
+      </span>
+    ) : null}
   </span>
 );
 
@@ -89,9 +97,16 @@ export const useParents = ({
 export const ParentsRow = ({
   parents,
   dispatch,
+  mark = () => undefined,
 }: {
   readonly parents: Parents | undefined;
   readonly dispatch: (action: BufferAction) => void;
+  /**
+   * The mark of the element's own outdated derivation to a direct parent: the hint's message and the word
+   * with the date of the version it stores (SR-110 AK2); undefined while the buffer has none for it. The
+   * neighbourhood buffer has no hints of the element and shows the word alone.
+   */
+  readonly mark?: (parent: Parent) => OutdatedMark | undefined;
 }): React.JSX.Element | null => {
   if (parents === undefined || parents.levels.length === 0) {
     return null;
@@ -107,7 +122,7 @@ export const ParentsRow = ({
           {level.map((parent, index) => (
             <span key={parent.open.key}>
               {index === 0 ? "" : <span className="sep"> · </span>}
-              <ParentLink parent={parent} open={open} />
+              <ParentLink parent={parent} open={open} mark={parent.outdated ? mark(parent) : undefined} />
             </span>
           ))}
         </span>

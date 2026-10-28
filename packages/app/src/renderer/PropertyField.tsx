@@ -2,7 +2,7 @@
 // AK2): a property of a text kind in its editor (`TextBox.tsx`), a relation as the links to its targets, a
 // choice as its keys, and a property the type does not know as its lines, read-only (D-012). Layout only:
 // `ElementView` makes the props of the editor and the block.
-import type { DataExportRelation } from "@logreq/core";
+import type { DataExportElement } from "@logreq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { PropertyBox } from "./element-view.js";
 import { rowOfRelation } from "./element-view.js";
@@ -21,8 +21,11 @@ export interface PropertyFieldProps {
   readonly value: string | undefined;
   /** The props of its editor, for a box of a text kind; none for any other box. */
   readonly textBox: TextBoxProps | undefined;
-  /** The relations of the element: the stored targets of a relation box, with their state. */
-  readonly relations: readonly DataExportRelation[];
+  /**
+   * The element: its relations are the stored targets of a relation box, with their state, and its hints
+   * mark the outdated ones (#702).
+   */
+  readonly element: Pick<DataExportElement, "relations" | "problems" | "repository">;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
   readonly marked: ReadonlySet<string>;
@@ -36,7 +39,7 @@ export const PropertyField = ({
   editable,
   value,
   textBox,
-  relations,
+  element,
   onCopy,
   marked,
   onOpenRelation,
@@ -51,15 +54,17 @@ export const PropertyField = ({
             <TextBox {...textBox} />
           ) : editable?.info.kind === "relation" ? (
             <ul>
-              {relationRows(box.key, value ?? editable.doc, relations).map((row, at) => (
+              {relationRows(box.key, value ?? editable.doc, element).map((row, at) => (
                 <RelationLink key={at} row={row} onOpenRelation={onOpenRelation} />
               ))}
             </ul>
           ) : box.relations !== undefined ? (
             <ul>
-              {box.relations.map(rowOfRelation).map((row, at) => (
-                <RelationLink key={at} row={row} onOpenRelation={onOpenRelation} />
-              ))}
+              {box.relations
+                .map((relation) => rowOfRelation(relation, element))
+                .map((row, at) => (
+                  <RelationLink key={at} row={row} onOpenRelation={onOpenRelation} />
+                ))}
             </ul>
           ) : (
             (editable === undefined ? box.lines : choiceKeys(value ?? editable.doc)).map((line, at) => (

@@ -6,10 +6,14 @@
 // that are missing for an indirect verification, and its validation status come from the evidence
 // block (SR-031, SR-034, SR-038, `withEvidenceStatus`), measured against the version shown. What
 // stage 1 leaves out: see model/get.ts. `view` (SR-043, stage 5) is refused until variants exist, so a
-// caller never takes the whole element for the view of a variant.
+// caller never takes the whole element for the view of a variant. `versionDate` dates the version of
+// the element and its outdated relations (D-013, ADR-0005); `hintDates` only the outdated relations,
+// which the app shows at the reference (SR-110 AK2, #702): Git then reads only the histories of
+// their targets, and nothing when the element has none.
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import type { ElementHints } from "../../model/index.js";
 import { getElement } from "../../model/index.js";
 import { elementHints } from "../../hints/index.js";
 
@@ -24,10 +28,12 @@ export default defineCommand({
       );
     }
     // The variants and hints blocks import the model, so their hints are added here (SR-040 AK3, SR-026 AK3).
+    const hints: ElementHints = (context, record, withDate) =>
+      elementHints(context, record, withDate || input.hintDates);
     const { element, record, fileSha256 } = await getElement(
       ctx.workspace,
       input.ref,
-      elementHints,
+      hints,
       input.versionDate,
       {
         repository: input.repository,

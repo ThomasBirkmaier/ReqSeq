@@ -1,7 +1,7 @@
 // The relations of an element in its buffer: one target as a link that opens its element buffer (#416), or
 // with its state when it cannot be opened, and the groups of the relations that are no property (one field
 // per relation kind, incoming ones with an arrow). `element-view.ts` builds the rows and the groups.
-import type { DataExportRelation } from "@logreq/core";
+import type { DataExportElement } from "@logreq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { RelationRow } from "./element-view.js";
@@ -45,13 +45,19 @@ export const RelationLink = ({ row, onOpenRelation }: RelationLinkProps): React.
           <span>{row.label}</span> <span className="state">{row.state}</span>
         </>
       )}
-      {row.outdated ? <span className="outdated"> outdated</span> : null}
+      {row.outdated === undefined ? null : (
+        <span className="outdated" title={row.outdated.message}>
+          {" "}
+          {row.outdated.word}
+        </span>
+      )}
     </li>
   );
 };
 
 export interface RelationGroupsProps {
-  readonly relations: readonly DataExportRelation[];
+  /** The element: its relations, and its hints, which mark the outdated ones (#702). */
+  readonly element: Pick<DataExportElement, "relations" | "problems" | "repository">;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
   readonly marked: ReadonlySet<string>;
@@ -59,19 +65,19 @@ export interface RelationGroupsProps {
 }
 
 export const RelationGroups = ({
-  relations,
+  element,
   onCopy,
   marked,
   onOpenRelation,
 }: RelationGroupsProps): React.JSX.Element => (
   <>
-    {relationGroups(relations).map((group) => (
+    {relationGroups(element.relations).map((group) => (
       <FieldBox key={group.heading} label={group.heading} onCopy={onCopy} marked={marked}>
         <section>
           <h2>{group.heading}</h2>
           <ul>
             {group.relations.map((relation, at) => (
-              <RelationLink key={at} row={rowOfRelation(relation)} onOpenRelation={onOpenRelation} />
+              <RelationLink key={at} row={rowOfRelation(relation, element)} onOpenRelation={onOpenRelation} />
             ))}
           </ul>
         </section>

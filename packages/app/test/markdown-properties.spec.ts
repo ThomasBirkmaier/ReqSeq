@@ -142,7 +142,8 @@ test.describe("Markdown properties in the element buffer", () => {
     const { window } = running;
     const criteria = field(window, "acceptance-criteria");
     await expect(criteria.locator(".cm-lr-outdated")).toHaveCount(1);
-    await expect(criteria.locator(".cm-lr-outdated-word")).toHaveText(" outdated");
+    // With the date of the version it stores once the buffer has it (SR-110 AK2): no Git here, so unknown.
+    await expect(criteria.locator(".cm-lr-outdated-word")).toHaveText(" outdated · version of unknown date");
     await expect(criteria.locator(".cm-lr-outdated")).toHaveAttribute("title", /older|outdated|changed/i);
     await criteria.locator(".cm-lr-ref").click();
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);

@@ -285,6 +285,7 @@ describe("inputFields", () => {
     );
     expect(byName).toEqual({
       "element.get:file": "string:flag",
+      "element.get:hintDates": "boolean:flag",
       "element.get:ref": "string:positional",
       "element.get:repository": "string:flag",
       "element.get:versionDate": "boolean:flag",

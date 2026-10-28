@@ -14,7 +14,11 @@ import {
   titleKey,
   titlesField,
 } from "./references.js";
+import type { OutdatedMark } from "./references.js";
 import type { GlyphWidget, LabelWidget } from "./widgets.js";
+
+/** The mark of an outdated reference before its dates are there: the message and the word alone. */
+const mark = (message: string): OutdatedMark => ({ message, word: "outdated" });
 
 const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
 const THOMAS = `[D-017](logreq:${ID}?version=n1:1aac78aad3b5e6a8)`;
@@ -104,7 +108,7 @@ describe("the preview of references", () => {
   const KEY = outdatedKey(ID, "n1:1aac78aad3b5e6a8");
   const decorate = (
     doc: string,
-    outdated: ReadonlyMap<string, string>,
+    outdated: ReadonlyMap<string, OutdatedMark>,
     cursor?: number,
     titles?: ReadonlyMap<string, string>,
   ) => {
@@ -118,6 +122,7 @@ describe("the preview of references", () => {
       title?: string;
       widget?: string;
       text?: string;
+      glyph?: string;
       hint?: string;
     }[] = [];
     set.between(0, doc.length, (start, end, value) => {
@@ -134,6 +139,7 @@ describe("the preview of references", () => {
         ...(spec.attributes?.title === undefined ? {} : { title: spec.attributes.title }),
         ...(widget === undefined ? {} : { widget: widget.className }),
         ...(widget !== undefined && "text" in widget ? { text: widget.text } : {}),
+        ...(widget !== undefined && "glyph" in widget ? { glyph: widget.glyph } : {}),
         ...(widget !== undefined && "hint" in widget && widget.hint !== undefined
           ? { hint: widget.hint }
           : {}),
@@ -151,37 +157,54 @@ describe("the preview of references", () => {
   });
 
   it("marks an outdated reference with the accent, the hint as title and the word after it", () => {
-    const found = decorate(THOMAS, new Map([[KEY, "points to an older version"]]));
+    const found = decorate(THOMAS, new Map([[KEY, mark("points to an older version")]]));
     expect(found.filter((entry) => entry.class === "cm-lr-ref cm-lr-outdated")).toEqual([
       { ...label, class: "cm-lr-ref cm-lr-outdated", title: "points to an older version" },
     ]);
     expect(found.filter((entry) => entry.widget === "cm-lr-outdated-word")).toEqual([
-      { from: THOMAS.length, to: THOMAS.length, widget: "cm-lr-outdated-word" },
+      { from: THOMAS.length, to: THOMAS.length, widget: "cm-lr-outdated-word", glyph: " outdated" },
+    ]);
+  });
+
+  it("[SR-110/AK2] shows the date of the version the reference stores in the word, and the dated hint as title", () => {
+    const message =
+      "points to an older version: stored version from 2026-03-04T10:00:00Z, current version from …";
+    const found = decorate(THOMAS, new Map([[KEY, { message, word: "outdated · version of 2026-03-04" }]]));
+    expect(found.filter((entry) => entry.class === "cm-lr-ref cm-lr-outdated")).toEqual([
+      { ...label, class: "cm-lr-ref cm-lr-outdated", title: message },
+    ]);
+    expect(found.filter((entry) => entry.widget === "cm-lr-outdated-word")).toEqual([
+      {
+        from: THOMAS.length,
+        to: THOMAS.length,
+        widget: "cm-lr-outdated-word",
+        glyph: " outdated · version of 2026-03-04",
+      },
     ]);
   });
 
   it("shows no word on a line whose source is shown", () => {
-    const found = decorate(THOMAS, new Map([[KEY, "old"]]), 3);
+    const found = decorate(THOMAS, new Map([[KEY, mark("old")]]), 3);
     expect(found.some((entry) => entry.class === "cm-lr-ref cm-lr-outdated")).toBe(true);
     expect(found.some((entry) => entry.widget === "cm-lr-outdated-word")).toBe(false);
   });
 
   it("takes the repository of the link into account, and a reference without a version is never outdated", () => {
     const withRepository = `[x](logreq:${ID}?version=n1:aa&repository=other repo)`;
-    const outdated = new Map([[outdatedKey(ID, "n1:aa", "other%20repo"), "old"]]);
+    const outdated = new Map([[outdatedKey(ID, "n1:aa", "other%20repo"), mark("old")]]);
     // A space ends a Markdown destination, so the repository is written with %20.
     const encoded = `[x](logreq:${ID}?version=n1:aa&repository=other%20repo)`;
     expect(decorate(withRepository, outdated).some((entry) => entry.title === "old")).toBe(false);
     expect(
-      decorate(encoded, new Map([[outdatedKey(ID, "n1:aa", "other%2520repo"), "old"]])).length,
+      decorate(encoded, new Map([[outdatedKey(ID, "n1:aa", "other%2520repo"), mark("old")]])).length,
     ).toBeGreaterThan(0);
     expect(
-      decorate(encoded, new Map([[outdatedKey(ID, "n1:aa"), "old"]])).some(
+      decorate(encoded, new Map([[outdatedKey(ID, "n1:aa"), mark("old")]])).some(
         (entry) => entry.title !== undefined,
       ),
     ).toBe(false);
     expect(
-      decorate(`[x](logreq:${ID})`, new Map([[outdatedKey(ID, "n1:aa"), "old"]])).some(
+      decorate(`[x](logreq:${ID})`, new Map([[outdatedKey(ID, "n1:aa"), mark("old")]])).some(
         (entry) => entry.title === "old",
       ),
     ).toBe(false);
@@ -218,7 +241,7 @@ describe("the preview of references", () => {
     });
 
     it("keeps the accent, the hint and the word of an outdated reference on the title", () => {
-      const outdated = new Map([[outdatedKey(ID, "n1:aa", "sensor"), "old"]]);
+      const outdated = new Map([[outdatedKey(ID, "n1:aa", "sensor"), mark("old")]]);
       expect(
         decorate(ACROSS, outdated, undefined, TITLES).filter((entry) => entry.widget !== undefined),
       ).toEqual([
@@ -228,7 +251,7 @@ describe("the preview of references", () => {
           text: "Measure gusts",
           hint: "old",
         },
-        { from: ACROSS.length, to: ACROSS.length, widget: "cm-lr-outdated-word" },
+        { from: ACROSS.length, to: ACROSS.length, widget: "cm-lr-outdated-word", glyph: " outdated" },
       ]);
     });
   });

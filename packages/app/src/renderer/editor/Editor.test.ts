@@ -18,6 +18,7 @@ import type { PreviewRule } from "./plugins.js";
 import type { Reference } from "./references.js";
 import { focusEffect } from "./preview.js";
 import { followOnMouseDown, outdatedKey, references } from "./references.js";
+import type { OutdatedMark } from "./references.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -344,7 +345,7 @@ describe("Editor", () => {
       });
       return event;
     };
-    const mount = (outdated: ReadonlyMap<string, string> = new Map()) =>
+    const mount = (outdated: ReadonlyMap<string, OutdatedMark> = new Map()) =>
       render({ text: TEXT, plugins: references({ outdated, follow }) });
 
     it("follows a reference on a press on its label when the line shows no source", async () => {
@@ -411,11 +412,26 @@ describe("Editor", () => {
     });
 
     it("marks an outdated reference with the accent, the word and the hint on request", async () => {
-      await mount(new Map([[outdatedKey(ID, "n1:aa"), "points to an older version"]]));
+      await mount(
+        new Map([[outdatedKey(ID, "n1:aa"), { message: "points to an older version", word: "outdated" }]]),
+      );
       const label = element(".cm-lr-outdated");
       expect(label.getAttribute("title")).toBe("points to an older version");
       expect(element(".cm-lr-outdated-word").textContent).toBe(" outdated");
       expect(element(".cm-content").textContent).toBe("Before D-017 outdated after" + "second line");
+    });
+
+    it("[SR-110/AK2] shows the date of the version an outdated reference stores after it, and both dates on request", async () => {
+      const message =
+        "points to an older version: stored version from 2026-03-04T10:00:00Z, current version from 2026-05-06T08:00:00Z";
+      await mount(
+        new Map([[outdatedKey(ID, "n1:aa"), { message, word: "outdated · version of 2026-03-04" }]]),
+      );
+      expect(element(".cm-lr-outdated").getAttribute("title")).toBe(message);
+      expect(element(".cm-lr-outdated-word").textContent).toBe(" outdated · version of 2026-03-04");
+      expect(element(".cm-content").textContent).toBe(
+        "Before D-017 outdated · version of 2026-03-04 after" + "second line",
+      );
     });
   });
 });

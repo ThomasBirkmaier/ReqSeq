@@ -23,7 +23,7 @@ import type { BoxNavigation } from "./editor/box-navigation.js";
 import { mergePlugins } from "./editor/plugins.js";
 import { inline } from "./editor/preview.js";
 import { references } from "./editor/references.js";
-import type { Reference, ReferenceOptions } from "./editor/references.js";
+import type { OutdatedMark, Reference, ReferenceOptions } from "./editor/references.js";
 import type { ReferenceRequest } from "./editor/reference-pick.js";
 import { referenceSearch } from "./editor/reference-search.js";
 import { valueLines } from "./editor/value-lines.js";
@@ -45,8 +45,8 @@ export interface TextBoxProps {
   readonly many: boolean;
   /** The property is marked `markdown` (SR-127). */
   readonly markdown: boolean;
-  /** The outdated references in the values: `outdatedKey` to the message of the hint. */
-  readonly outdated: ReadonlyMap<string, string>;
+  /** The outdated references in the values: `outdatedKey` to the message of the hint and the word. */
+  readonly outdated: ReadonlyMap<string, OutdatedMark>;
   readonly follow: (reference: Reference) => void;
   /** The title of a target in another repository (D-058). */
   readonly title: NonNullable<ReferenceOptions["title"]>;

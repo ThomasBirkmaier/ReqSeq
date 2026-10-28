@@ -666,7 +666,7 @@ describe("the title field (#621)", () => {
 describe("relation rows and locked boxes", () => {
   it("shows the targets of a relation document, the stored ones with their state, an added one available", () => {
     const relations = [
-      target("uses", "a", { targetState: "missing", outdated: true }),
+      target("uses", "a", { targetState: "missing" }),
       target("uses", "b", { direction: "in" }),
       target("other", "c"),
     ];
@@ -675,12 +675,13 @@ describe("relation rows and locked boxes", () => {
       { id: "n", repository: "spec", label: "SR-9 New" },
       { id: "a", repository: "other", label: "y" },
     ]);
-    expect(relationRows("uses", doc, relations)).toEqual([
-      { id: "a", repository: "spec", label: "PKG-1 Stufe 3", state: "missing", outdated: true },
-      { id: "n", repository: "spec", label: "SR-9 New", state: "available", outdated: false },
-      { id: "a", repository: "other", label: "y", state: "available", outdated: false },
+    const element = { relations, repository: "spec", problems: [] };
+    expect(relationRows("uses", doc, element)).toEqual([
+      { id: "a", repository: "spec", label: "PKG-1 Stufe 3", state: "missing", outdated: undefined },
+      { id: "n", repository: "spec", label: "SR-9 New", state: "available", outdated: undefined },
+      { id: "a", repository: "other", label: "y", state: "available", outdated: undefined },
     ]);
-    expect(relationRows("uses", "", relations)).toEqual([]);
+    expect(relationRows("uses", "", element)).toEqual([]);
   });
 
   it("locks a box with a line break in its value or a target that cannot be read, and says why", () => {

@@ -406,18 +406,22 @@ export const hintKeys = (
 
 /**
  * The rows of a relation box that is edited: the targets of its document, the stored ones with their state
- * and the ones that were added with the label of the hit.
+ * and the ones that were added with the label of the hit; the hints of `element` mark the outdated ones.
  */
-export const relationRows = (key: string, doc: string, all: readonly DataExportRelation[]): RelationRow[] => {
-  const stored = all
+export const relationRows = (
+  key: string,
+  doc: string,
+  element: Pick<DataExportElement, "relations" | "problems" | "repository">,
+): RelationRow[] => {
+  const stored = element.relations
     .filter((relation) => isPropertyTarget(relation) && relation.kind === key)
-    .map(rowOfRelation);
+    .map((relation) => rowOfRelation(relation, element));
   return relationTargets(doc).map(
     (target) =>
       stored.find((row) => row.id === target.id && row.repository === target.repository) ?? {
         ...target,
         state: "available",
-        outdated: false,
+        outdated: undefined,
       },
   );
 };

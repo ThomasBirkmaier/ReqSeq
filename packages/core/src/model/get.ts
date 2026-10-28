@@ -84,7 +84,8 @@ export interface ShowContext {
  * Hints on the element shown from blocks that import the model, so the model cannot ask them itself
  * (`element.get` passes the superseded variants of SR-040 AK3 and the outdated relations of SR-026
  * AK3), before their lines in the file just read are known. Asked only while the metamodel is
- * valid; `record` is the element as its file holds it now, `withDate` the input `versionDate`.
+ * valid; `record` is the element as its file holds it now, `withDate` whether to date the hints of
+ * outdated relations (`element.get` input `versionDate` or `hintDates`).
  */
 export type ElementHints = (
   context: ShowContext,
