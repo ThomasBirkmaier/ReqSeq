@@ -48,7 +48,8 @@ def stage_of(e):
         return None
     return ids[0][len("Stufe-"):] if ids[0].startswith("Stufe-") else ids[0].lower()
 
-# Wishes parked during a stage (package Später, Thomas 2026-10-27): no stage yet, so no issue from this script.
+# Wishes parked during a stage (package Später, product owner decision, 2026-10-27): no stage yet,
+# so no issue from this script.
 PARKED = "später"
 
 def invalid_statuses():
