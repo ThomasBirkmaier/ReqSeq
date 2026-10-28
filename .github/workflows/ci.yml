@@ -2,9 +2,10 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
-  push:
-    branches: [main]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, closed]
+  # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
+  # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
+  # manual run check main; a red nightly run is fixed on main the next morning.
   # macOS runs only here, to save Actions minutes (product owner decision, 2026-10-24). No scheduled run on GitHub's runners
   # (product owner decision, 2026-10-26, #365: no Actions budget): Windows and the reference run on GitHub's runners only run
   # on manual dispatch before a stage acceptance, after the product owner has raised the spending limit.
@@ -25,9 +26,13 @@ concurrency:
   # `spec-export` does not change trace-check's result: its run starts no job and gets a group of its own, so that
   # it never cancels a running text check (#566). A change of the base branch is a full run: the code is checked
   # against the new base.
-  # Scheduled and manual runs get their own groups, so that a push to main never cancels a nightly run that waits
+  # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
+  # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
+  # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly run that waits
   # for the Mac, or a manual run on GitHub's runners.
-  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
+  # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
+  # its ref.
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
   cancel-in-progress: true
 
 # Runners (toolchain/self-hosted-runner/README.md): Linux and macOS jobs run on the self-hosted runners on the
@@ -47,7 +52,7 @@ jobs:
   pr-text:
     name: trace-check (PR text)
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request' && github.event.pull_request.state == 'open' &&
       ((github.event.action == 'edited' && !github.event.changes.base) ||
       (contains(fromJSON('["labeled","unlabeled"]'), github.event.action) &&
       contains(fromJSON('["enabler","spec-export"]'), github.event.label.name)))
@@ -97,14 +102,14 @@ jobs:
     name: checks (${{ matrix.os }})
     # A normal run takes 6-7 minutes; this only ends a hang, so that it does not hold a Linux runner for 6 hours.
     timeout-minutes: 30
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     permissions:
       contents: read
       pull-requests: read # Write PR body
     strategy:
       fail-fast: false
       matrix:
-        # macOS and Windows only on the nightly and manual runs; pull requests and pushes to main use Linux only.
+        # macOS and Windows only on the nightly and manual runs; pull requests use Linux only.
         # Windows minutes cost money (product owner decision, 2026-10-26: Windows only at night); a nightly Windows failure is fixed
         # the next morning, and a manual run covers all three systems before a stage acceptance.
         os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'schedule' && '["ubuntu-24.04","macos-14"]' || '["ubuntu-24.04"]') }}
@@ -127,7 +132,7 @@ jobs:
       # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
       # Markdown at the root; .github/scripts/tests-needed.sh) skip the build, the unit tests, the spec check and
       # e2e, and Electron skips its tests, to spare the three Linux runners (#520). The static checks and
-      # trace-check always run. Pushes to main, nightly and manual runs always run everything. If this step
+      # trace-check always run. Nightly and manual runs always run everything. If this step
       # fails, `tests` stays empty and everything runs (and the job is red).
       - name: Changed files
         id: changes
@@ -266,11 +271,11 @@ jobs:
     name: electron (${{ matrix.os }})
     # A normal run takes a few minutes (install, build, about 20 s of tests); this only ends a hang.
     timeout-minutes: 20
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     strategy:
       fail-fast: false
       matrix:
-        # macOS and Windows only on the nightly and manual runs; pull requests and pushes to main use Linux only.
+        # macOS and Windows only on the nightly and manual runs; pull requests use Linux only.
         os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'schedule' && '["ubuntu-24.04","macos-14"]' || '["ubuntu-24.04"]') }}
     runs-on: ${{ fromJSON(((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || (github.event_name == 'workflow_dispatch' && inputs.github-runners)) && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
     steps:

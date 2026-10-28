@@ -22,14 +22,17 @@ on:
         type: boolean
         default: false
   pull_request:
-    types: [opened, labeled, synchronize, reopened]
+    types: [opened, labeled, synchronize, reopened, closed]
 
 permissions:
   contents: read
 
 concurrency:
-  # Adding a label other than `perf` gets a group of its own, so that it never cancels a running suite.
-  group: perf-${{ github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
+  # Adding a label other than `perf` gets a group of its own, so that it never cancels a running suite. Closing or
+  # merging the pull request joins the suite's group and cancels it; that run starts no job (product owner decision,
+  # 2026-10-28). Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the
+  # base branch as its ref.
+  group: perf-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'perf' && github.run_id || 'suite' }}
   cancel-in-progress: true
 
 jobs:
@@ -40,7 +43,7 @@ jobs:
     name: changed files
     if: >-
       github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'perf') &&
+      contains(github.event.pull_request.labels.*.name, 'perf') && github.event.action != 'closed' &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf')
     runs-on: [self-hosted, logreq-linux]
     outputs:
@@ -67,7 +70,7 @@ jobs:
     if: >-
       !cancelled() && needs.changes.outputs.tests != 'false' &&
       (github.event_name != 'pull_request' ||
-      (contains(github.event.pull_request.labels.*.name, 'perf') &&
+      (contains(github.event.pull_request.labels.*.name, 'perf') && github.event.action != 'closed' &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf')))
     # On the Mac runner (product owner decision, 2026-10-26, #365: no Actions budget); its times are a guide value. A manual run
     # with `github-runners: true` measures on GitHub's runner of the reference size before a stage acceptance.
