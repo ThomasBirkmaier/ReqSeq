@@ -12,7 +12,13 @@ export default defineConfig({
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
     // CLI end-to-end tests spawn the built binary: `pnpm test:e2e` after `pnpm build` (vitest.e2e.config.ts).
     // The performance suite runs apart, nightly and with label `perf`: `pnpm test:perf` (vitest.perf.config.ts).
-    exclude: [...configDefaults.exclude, "packages/*/test/e2e/**", "packages/*/test/perf/**"],
+    // The delivery tests run apart, only in the release workflow: `pnpm test:delivery` (vitest.delivery.config.ts).
+    exclude: [
+      ...configDefaults.exclude,
+      "packages/*/test/e2e/**",
+      "packages/*/test/perf/**",
+      "packages/*/test/delivery/**",
+    ],
     setupFiles: ["./scripts/test-support/block-network.mjs", "./scripts/test-support/dom-selection.mjs"],
     // Worker threads that core starts (ADR-0008) load the TypeScript sources: scripts/test-support/worker-preload.mjs.
     // `--import` takes a URL (a Windows path, C:\..., is no valid specifier). Node strips the types

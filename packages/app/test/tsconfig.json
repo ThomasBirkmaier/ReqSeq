@@ -12,5 +12,5 @@
     "sourceMap": false
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": ".." }]
+  "references": [{ "path": ".." }, { "path": "../../testkit" }]
 }

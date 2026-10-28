@@ -1,0 +1,187 @@
+name: Release
+
+# ADR-0014 (#324): builds the portable delivery of each system with electron-builder, installs (unpacks) and tests
+# it (ADR-0011), and publishes it as a GitHub release. Only on a stage tag (`v*`) or by hand, never on pull requests
+# or pushes (product owner decision, 2026-10-28: the delivery must not slow down PR CI). The tag releases only when
+# it is `v<version>` of the root package.json (`v<major>.<minor>` for a patch of 0) and on `main`.
+# Each system is built and tested on GitHub's runner of SR-076's reference system (macOS 14, Ubuntu 24.04,
+# Windows), so the delivery tests of a run are the evidence for SR-076 AK1 and AK2.
+# Every product, artifact and launcher name comes from toolchain/packaging/names.json.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # Git Bash on Windows.
+    shell: bash
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: --mac
+          - os: ubuntu-24.04
+            target: --linux
+          - os: windows-2025
+            target: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Build the app (electron-vite)
+        run: pnpm --filter "$(node -p 'require("./toolchain/packaging/names.json").packageScope')app" build:electron
+      # electron-builder has its own lockfile outside the workspace, so PR CI never installs it (ADR-0001, ADR-0014).
+      - name: Install and audit electron-builder
+        run: |
+          pnpm install --dir toolchain/packaging --ignore-workspace --frozen-lockfile --ignore-scripts
+          pnpm audit --dir toolchain/packaging --ignore-workspace --audit-level high
+      - name: Stage the app and the command line
+        run: node scripts/package/stage.mjs
+      # Called directly, not through pnpm, so electron-builder does not take the folders for a pnpm workspace.
+      # No certificate is ever used: ad-hoc signature on macOS (ADR-0014).
+      - name: Package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          NO_UPDATE_NOTIFIER: "1"
+          TARGET: ${{ matrix.target }}
+        run: >-
+          toolchain/packaging/node_modules/.bin/electron-builder --projectDir build/package/app
+          --config "$PWD/toolchain/packaging/electron-builder.config.mjs" "$TARGET" --publish never
+      - name: Pack the command line (CLI tarball)
+        if: runner.os == 'Linux'
+        run: node scripts/package/stage.mjs --pack
+      # The app start needs a display and Electron's libraries; GitHub's image has most of them. The AppArmor
+      # setting of the runner is left as shipped: the test takes the documented admin step for chrome-sandbox.
+      - name: Display server and libraries for Electron (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
+          if ! dpkg -s $packages >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends $packages
+          fi
+      - name: Delivery tests
+        run: scripts/package/delivery-tests.sh
+      - name: Upload the delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: delivery-${{ matrix.os }}
+          path: |
+            delivery/*.zip
+            delivery/*.tar.gz
+            delivery/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload JUnit results (evidence, D-050)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-delivery-${{ matrix.os }}
+          path: test-results/junit-delivery.xml
+          if-no-files-found: ignore
+
+  # Publishes the release of a stage tag: a draft first, every asset uploaded, then published. A re-run finds the
+  # release of the tag and replaces assets of the same name. A tag that is not a release tag (`v<major>.<minor>`
+  # or `v<major>.<minor>.<patch>`, e.g. a throwaway `v0.0.0-rc.1` to try the workflow) publishes nothing.
+  release:
+    name: release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # All branches: the tag's commit must be on main.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Check the tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            echo "::notice::$TAG is not a release tag: nothing is published"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node scripts/package/stage.mjs --check-tag "$TAG"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$TAG is not on main"; exit 1; }
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        if: steps.tag.outputs.publish == 'true'
+        with:
+          pattern: delivery-*
+          path: release-assets
+          merge-multiple: true
+      - name: Checksums
+        if: steps.tag.outputs.publish == 'true'
+        working-directory: release-assets
+        run: sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Publish the release
+        if: steps.tag.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          call() {
+            curl -fsS --retry 3 --max-time 600 -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"
+          }
+          product="$(node -p 'require("./toolchain/packaging/names.json").productName')"
+          docs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$TAG/docs/delivery"
+          body="$(
+            echo "Portable delivery: unpack the archive of your system and start ${product} (see [Getting ${product}]($docs/README.md))."
+            echo
+            for file in release-assets/*; do echo "- \`$(basename "$file")\`"; done
+            echo
+            echo "The builds are not signed by a vendor certificate: see [unsigned builds]($docs/unsigned-builds.md)."
+          )"
+          # A draft is not found by its tag, so the list is searched (a re-run of this job).
+          release="$(call "$api/releases?per_page=100" | jq --arg tag "$TAG" '[.[] | select(.tag_name == $tag)][0] // empty')"
+          if [ -z "$release" ]; then
+            release="$(jq -n --arg tag "$TAG" --arg name "$product $TAG" --arg body "$body" \
+              '{tag_name: $tag, name: $name, body: $body, draft: true}' | call -X POST "$api/releases" --data @-)"
+          fi
+          id="$(jq -r .id <<< "$release")"
+          uploads="$(jq -r '.upload_url | sub("\\{.*\\}$"; "")' <<< "$release")"
+          for file in release-assets/*; do
+            name="$(basename "$file")"
+            old="$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .id' <<< "$release")"
+            if [ -n "$old" ]; then call -X DELETE "$api/releases/assets/$old"; fi
+            call -X POST -H "Content-Type: application/octet-stream" --data-binary "@$file" \
+              "$uploads?name=$name" > /dev/null
+            echo "uploaded $name"
+          done
+          jq -n --arg body "$body" '{body: $body, draft: false}' | call -X PATCH "$api/releases/$id" --data @- \
+            | jq -r '.html_url'

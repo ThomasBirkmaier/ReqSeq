@@ -1,0 +1,9 @@
+{
+  "name": "packaging",
+  "version": "0.0.0",
+  "private": true,
+  "description": "electron-builder for the release workflow only (ADR-0014): outside the pnpm workspace, with its own lockfile, so pull requests never install it.",
+  "devDependencies": {
+    "electron-builder": "26.17.0"
+  }
+}

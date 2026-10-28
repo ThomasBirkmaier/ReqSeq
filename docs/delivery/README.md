@@ -6,7 +6,7 @@ LogReq comes as one portable artifact per system (ADR-0014): unpack it and start
 |---|---|---|
 | macOS 14 or newer (Apple silicon) | `LogReq-<version>-mac-arm64.zip` | `LogReq.app` |
 | Linux x64 (Ubuntu 24.04) | `LogReq-<version>-linux-x64.tar.gz` | folder `LogReq-<version>-linux-x64/` |
-| Windows 11 x64 | `LogReq-<version>-win-x64.zip` | one folder (not built yet: no Windows runner) |
+| Windows 11 x64 | `LogReq-<version>-win-x64.zip` | the program folder's contents (unpack into a folder of your choice); built and tested on GitHub's `windows-2025` runner, not yet checked on Windows 11 |
 | Pipelines with Node 22 | `logreq-cli-<version>.tgz` | the command line and the MCP server only |
 
 Every artifact contains the app, the command line `logreq` and the MCP server (`logreq mcp`). The command line and the MCP server run on the Electron runtime inside the artifact; no Node installation is needed.

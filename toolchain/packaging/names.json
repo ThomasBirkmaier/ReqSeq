@@ -1,0 +1,8 @@
+{
+  "productName": "LogReq",
+  "appId": "io.github.thomasbirkmaier.logreq",
+  "launcher": "logreq",
+  "packageScope": "@logreq/",
+  "cliTarball": "logreq-cli-${version}.tgz",
+  "artifact": "${productName}-${version}-${os}-${arch}.${ext}"
+}

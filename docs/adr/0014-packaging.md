@@ -12,7 +12,7 @@ Product owner decision, 2026-10-28, confirmed on a decision card the same day: t
 
 **One portable artifact per system, no installer.** electron-builder builds:
 
-- Windows: a zip with one folder (`LogReq.exe`, `bin\logreq.cmd`, `resources\`), x64.
+- Windows: a zip of the program folder's contents (`LogReq.exe`, `bin\logreq.cmd`, `resources\` at its top level, no folder around them), x64.
 - macOS: a zip with `LogReq.app`, arm64 (the machines that build and test it are Apple silicon; Intel or universal is one configuration line later).
 - Linux: a tar.gz with one folder (`LogReq`, `bin/logreq`, `chrome-sandbox`, `resources/`), x64 (the Ubuntu 24.04 reference of SR-076).
 
@@ -57,7 +57,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 
 **Signing.** Not part of the basic scope. macOS builds get an ad-hoc signature, the minimum Apple silicon runs; Windows builds are unsigned. [docs/delivery/unsigned-builds.md](../delivery/unsigned-builds.md) says how to open them. Signing and notarisation come later.
 
-**Release.** `.github/workflows/release.yml` builds the delivery only on a `v*` tag or a manual run, never on pull requests or pushes, so that CI time of pull requests does not change. macOS builds on the self-hosted runner `logreq-mac`, Linux on `logreq-linux`; the assets are attached to the GitHub release of a tag on `main` whose name is `v<version>`, or `v<major>.<minor>` when the patch is 0 (the stage tags: `v0.<n>` on version `0.<n>.0`). Windows is built once a Windows runner exists. The delivery tests run there (ADR-0011). electron-builder is a dev tool in its own package `toolchain/packaging/` with its own lockfile, installed and audited only by the release workflow, so pull requests never install it (exception to ADR-0001).
+**Release.** `.github/workflows/release.yml` builds the delivery only on a `v*` tag or a manual run, never on pull requests or pushes, so that CI time of pull requests does not change. macOS, Linux and Windows build on GitHub's hosted runners (`macos-14`, `ubuntu-24.04`, `windows-2025`); the assets are attached to the GitHub release of a tag on `main` whose name is `v<version>`, or `v<major>.<minor>` when the patch is 0 (the stage tags: `v0.<n>` on version `0.<n>.0`). The delivery tests run there (ADR-0011). electron-builder is a dev tool in its own package `toolchain/packaging/` with its own lockfile, installed and audited only by the release workflow, so pull requests never install it (exception to ADR-0001).
 
 **Model and core files in the delivery.**
 

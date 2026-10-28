@@ -13,3 +13,7 @@ test-results/
 # Python bytecode of scripts/sr-issues tests, and pytest's cache of the example in toolchain/junit/pytest
 __pycache__/
 .pytest_cache/
+
+# Staged delivery and built artifacts (scripts/package/stage.mjs, electron-builder; #324)
+/build/package/
+/delivery/

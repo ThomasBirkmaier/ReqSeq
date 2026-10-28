@@ -30,6 +30,10 @@ export default tseslint.config(
       "spec/**",
       "scripts/spec-export/raw/**",
       ".claude/worktrees/**",
+      // The staged packages and the built delivery (scripts/package/stage.mjs, ADR-0014).
+      "build/**",
+      "delivery/**",
+      "toolchain/packaging/node_modules/**",
     ],
   },
   js.configs.recommended,
@@ -54,7 +58,12 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["vitest.config.ts", "vitest.e2e.config.ts", "vitest.perf.config.ts"],
+          allowDefaultProject: [
+            "vitest.config.ts",
+            "vitest.e2e.config.ts",
+            "vitest.perf.config.ts",
+            "vitest.delivery.config.ts",
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
