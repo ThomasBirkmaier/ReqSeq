@@ -69,7 +69,17 @@ import {
   takeFileEdits,
 } from "./disk-state.js";
 import type { BoxDraft, Draft, ShownFile } from "./drafts.js";
-import { rebased, withShown } from "./drafts.js";
+import { withShown } from "./drafts.js";
+import type { SaveMode, Said, SentWrite } from "./save-flow.js";
+import {
+  afterRefusal,
+  checkStep,
+  failedSpeech,
+  leftDraft,
+  saveStep,
+  savedSpeech,
+  staleRead,
+} from "./save-flow.js";
 import type { BufferFields } from "./field-state.js";
 import {
   NO_FIELDS,
@@ -185,16 +195,6 @@ export interface ElementViewProps {
    */
   readonly keep?: BufferKeep;
 }
-
-/** What one write sent: the text, the boxes, and the boxes that were added before it went. */
-interface Sent {
-  readonly doc: string;
-  readonly edits: readonly BoxEdit[];
-  readonly added: readonly string[];
-}
-
-/** How a save speaks: "Save element" says what happened; autosave and the other saves only what went wrong. */
-type SaveMode = "asked" | "quiet";
 
 type View =
   | { readonly status: "loading" }
@@ -482,7 +482,7 @@ export const ElementView = ({
   // The last save failed (`not saved` in the modeline), and what was said last about saves: an error or a
   // hint is echoed once while it stays the same, not after every pause (D-062).
   const [notSaved, setNotSaved] = useState(false);
-  const said = useRef<{ readonly error?: string | undefined; readonly hint?: string | undefined }>({});
+  const said = useRef<Said>({});
   // Saves the input one second after the last change, and at once when asked (`autosave.ts`).
   const autosave = useRef<Autosave | undefined>(undefined);
   // Autosave lives as long as the buffer is shown. Leaving the buffer (another buffer shown, closed) saves
@@ -959,7 +959,7 @@ export const ElementView = ({
     // writes while the reload of the last save is on its way).
     const writes = settled.current;
     void asked.then((answer) => {
-      if (!current || writes !== settled.current) {
+      if (!current || staleRead(writes, settled.current)) {
         return;
       }
       if (answer.ok) {
@@ -1043,7 +1043,7 @@ export const ElementView = ({
       readonly fileSha256: string;
       readonly problems?: readonly { message: string }[];
     },
-    sent: Sent,
+    sent: SentWrite,
     editor: EditorHandle,
     mode: SaveMode,
   ): void => {
@@ -1058,7 +1058,9 @@ export const ElementView = ({
     const docs = storedDocs(fieldBoxes(element, now.current.properties));
     // A box that was added is a stored box now, or was left empty and is dropped (no draft); one that was
     // added or typed in while the save ran stays. Read with the editors as they are at the answer and the
-    // values from before the save.
+    // values from before the save: nothing that runs before the loop below writes to a box editor (a
+    // `replace` calls `changed` with `typed` false, which only keeps the draft; there is no conflict, it
+    // ended above), so each box still holds this document when the loop reaches it.
     const result = settledFields(onFile.current, { text: element.text ?? "", docs }, sent, {
       textDoc: editor.doc(),
       boxDoc: (key) => boxEditors.current.get(key)?.doc(),
@@ -1091,15 +1093,12 @@ export const ElementView = ({
     keepDraft(currentDraft());
     setView({ status: "ok", element });
     setNotSaved(false);
-    said.current = { ...said.current, error: undefined };
     const hint = savedHint(output.problems, hintKeys(sent.edits, element, now.current.properties));
-    if (mode === "asked") {
-      echo(hint === undefined ? `Saved ${shown.name}` : `Saved ${shown.name}. ${hint}`);
-    } else if (hint !== undefined && hint !== said.current.hint) {
-      // Autosave is silent (D-062); a hint of core is said once, not after every pause.
-      echo(`Saved ${shown.name}. ${hint}`);
+    const speech = savedSpeech(said.current, mode, shown.name, hint);
+    if (speech.echo !== undefined) {
+      echo(speech.echo);
     }
-    said.current = { ...said.current, hint };
+    said.current = speech.said;
   };
 
   // Why the input cannot be saved now, or nothing: the element is read-only or its file is gone or cannot
@@ -1110,24 +1109,14 @@ export const ElementView = ({
   // input is left unsaved. "Save element" (`asked`) says what happened; the other saves only what went wrong.
   const saveInput = async (mode: SaveMode): Promise<boolean> => {
     const { handle: editor, onEcho: echo } = now.current;
-    if (editor === undefined) {
-      return true;
-    }
-    const input = inputDocs().size > 0;
-    const note = saveNote();
-    if (note !== undefined) {
-      if (mode === "asked") {
-        echo(note);
+    const step = saveStep({ editor, input: inputDocs().size > 0, note: saveNote(), mode });
+    if (step.kind === "done") {
+      if (step.echo !== undefined) {
+        echo(step.echo);
       }
-      return !input;
+      return step.result;
     }
-    if (!input) {
-      if (mode === "asked") {
-        echo("No changes to save");
-      }
-      return true;
-    }
-    const job = (): Promise<boolean> => write(editor, mode);
+    const job = (): Promise<boolean> => write(step.editor, mode);
     return now.current.keep?.save(job) ?? job();
   };
   // "Save element" (Ctrl/Cmd+S): at once, after a save that runs.
@@ -1140,10 +1129,11 @@ export const ElementView = ({
   // stays the same (autosave tries again on the next input, never in a loop).
   const notWritten = (message: string, mode: SaveMode): void => {
     setNotSaved(true);
-    if (mode === "asked" || said.current.error !== message) {
-      now.current.onEcho(message);
+    const speech = failedSpeech(said.current, mode, message);
+    if (speech.echo !== undefined) {
+      now.current.onEcho(speech.echo);
     }
-    said.current = { ...said.current, error: message };
+    said.current = speech.said;
   };
   // Writes the text and the boxes with input, on the bytes of the file the buffer shows (`expectedFileSha256`):
   // core refuses the write when the file changed since (SR-106).
@@ -1152,7 +1142,7 @@ export const ElementView = ({
     const doc = editor.doc();
     const edits = boxEdits();
     const textDirty = dirty(doc, onFile.current.baseline);
-    const sent: Sent = { doc, edits, added: onFile.current.added };
+    const sent: SentWrite = { doc, edits, added: onFile.current.added };
     const expected = held.current?.sha;
     saving.current = true;
     const answer = await run("element.update", {
@@ -1169,19 +1159,8 @@ export const ElementView = ({
       // Input typed while the save ran stays in the draft: then input is left unsaved.
       let rest: Draft | undefined;
       now.current.keep?.update((draft) => {
-        rest = rebased(
-          draft,
-          {
-            ...(textDirty ? { text: doc } : {}),
-            boxes: new Map(edits.map((edit) => [edit.key, edit.doc])),
-          },
-          {
-            element,
-            sha,
-            text: element.text ?? "",
-            docs: storedDocs(fieldBoxes(element, model)),
-          },
-        );
+        // The model read before the write, as the bytes and the input were.
+        rest = leftDraft(draft, { textDirty, doc, edits }, { element, sha }, model);
         return rest;
       });
       return rest === undefined;
@@ -1191,7 +1170,7 @@ export const ElementView = ({
       // Input typed while the save ran is left for the next save.
       return inputDocs().size === 0;
     }
-    if (answer.code === "file.changed-on-disk" || isGone(answer.code)) {
+    if (afterRefusal(answer.code) === "check") {
       return check(editor, expected, mode, retried ? answer.message : undefined);
     }
     // Nothing was written: the text and the boxes stay as typed.
@@ -1214,14 +1193,16 @@ export const ElementView = ({
       failed(answer);
       return false;
     }
-    if (answer.output.fileSha256 !== expected) {
+    const next = checkStep(answer.output.fileSha256, expected, refused);
+    if (next.kind === "apply") {
       apply(answer.output.element, answer.output.fileSha256, false);
+      // Read after `apply`, which may have found a conflict or kept input.
       return diskState.current.conflict === undefined && inputDocs().size === 0;
     }
-    if (refused === undefined) {
+    if (next.kind === "retry") {
       return write(editor, mode, true);
     }
-    notWritten(refused, mode);
+    notWritten(next.message, mode);
     return false;
   };
   // "Resolve change on disk" (SR-106 AK2): which version holds. "Keep my input" writes the fields with input

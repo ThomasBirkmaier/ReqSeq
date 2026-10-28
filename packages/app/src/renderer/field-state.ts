@@ -105,8 +105,9 @@ export interface Reloaded {
 /**
  * The file was read again while the buffer is shown (SR-106): `loaded` and `docs` are the file's text and
  * fields, `input` the fields with input and `boxes` what the boxes hold, both from before. A box that was
- * added stays while the file has no value for it, and so does a box with input (the title too, as any key);
- * a choice or relation value with input stays, one without or with what the file now holds follows it.
+ * added stays while the file has no value for it, and so does a box with input (the title too, as any input
+ * key, unlike `restored`, which keeps only known properties as added); a choice or relation value with input
+ * stays, one without or with what the file now holds follows it.
  */
 export const reloaded = (
   fields: BufferFields,
