@@ -16,7 +16,9 @@ import { createFixtureWorkspace } from "@logreq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
-import { EXIT, exitCodeFor, runCli } from "./main.js";
+import { EXIT, exitCodeFor, runCli, writePieces } from "./main.js";
+import { YAML_OPTIONS } from "./render.js";
+import { stringify } from "yaml";
 
 // Test-only catalog: every field form the CLI knows, findings, errors and an unimplemented command.
 const entry = (name: string, input: Record<string, unknown>, summary = `Test command ${name}.`) => ({
@@ -55,6 +57,7 @@ const catalog = {
     entry("test.root", { properties: {} }),
     entry("test.closeFails", { properties: { fail: { type: "boolean" } } }),
     entry("test.wait", { properties: {} }),
+    entry("test.large", { properties: {} }),
     entry("test.setStatus", { properties: {} }, "Planned, never implemented in this test."),
     entry("other.ping", { properties: {} }),
   ],
@@ -79,7 +82,13 @@ const findings: Record<string, unknown> = {
   failed: { ok: false, problems: [] },
 };
 
+/** About 3 MB of JSON (#277): more than one chunk. */
+const LARGE = {
+  items: Array.from({ length: 30_000 }, (_, n) => ({ n, text: `Größe ${"x".repeat(60)}`, tags: ["a"] })),
+};
+
 const testCommands = [
+  defineTestCommand({ name: "test.large", run: () => Promise.resolve(LARGE) }),
   defineTestCommand({
     name: "test.echo",
     run: (_ctx, input: Record<string, unknown>) => Promise.resolve({ input }),
@@ -645,5 +654,80 @@ describe("workspace discovery", () => {
     const ws = await fixture({ "empty/.keep": "" });
     const result = await run(["test", "root", "--json"], { cwd: ws.path("empty") });
     expect(JSON.parse(result.stdout)).toEqual({ root: ws.path("empty") });
+  });
+});
+
+describe("large outputs in pieces with back-pressure (#277)", () => {
+  /** A sink that pushes back on every second write; `drained` runs `onDrain` and resolves its answer. */
+  class SlowSink {
+    readonly pieces: string[] = [];
+    private readonly onDrain: () => boolean;
+    constructor(onDrain: () => boolean = () => true) {
+      this.onDrain = onDrain;
+    }
+    write(text: string): boolean {
+      this.pieces.push(text);
+      return this.pieces.length % 2 === 1;
+    }
+    drained(): Promise<boolean> {
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          resolve(this.onDrain());
+        }, 1),
+      );
+    }
+  }
+
+  it("writes --json and --yaml in pieces, byte for byte the whole text, waiting for the sink", async () => {
+    const json = new SlowSink();
+    expect(await run(["test", "large", "--json"], { stdout: json })).toMatchObject({ code: EXIT.ok });
+    expect(json.pieces.length).toBeGreaterThan(2);
+    expect(json.pieces.join("")).toBe(`${JSON.stringify(LARGE, null, 2)}\n`);
+    const yaml = new SlowSink();
+    expect(await run(["test", "large", "--yaml"], { stdout: yaml })).toMatchObject({ code: EXIT.ok });
+    expect(yaml.pieces.length).toBeGreaterThan(2);
+    expect(yaml.pieces.join("")).toBe(stringify(LARGE, YAML_OPTIONS));
+  });
+
+  it("stops writing when the sink is closed (EPIPE), keeping the exit code", async () => {
+    const closed = new SlowSink(() => false);
+    expect(await run(["test", "large", "--json"], { stdout: closed })).toMatchObject({ code: EXIT.ok });
+    expect(closed.pieces).toHaveLength(2);
+  });
+
+  it("stops writing on Ctrl-C while a large output is written, with exit code 130", async () => {
+    const controller = new AbortController();
+    const sink = new SlowSink(() => {
+      controller.abort();
+      return true;
+    });
+    const result = await run(["test", "large", "--json"], { stdout: sink, signal: controller.signal });
+    expect(result.code).toBe(EXIT.aborted);
+    expect(sink.pieces).toHaveLength(2);
+  });
+
+  it("stops at Ctrl-C while it waits for a sink that does not drain", async () => {
+    const pieces: string[] = [];
+    const stuck = {
+      write: (text: string): boolean => {
+        pieces.push(text);
+        return false;
+      },
+      drained: (): Promise<boolean> => new Promise<boolean>(() => undefined),
+    };
+    const controller = new AbortController();
+    setTimeout(() => {
+      controller.abort();
+    }, 5);
+    await writePieces(stuck, ["a", "b"], controller.signal);
+    expect(pieces).toEqual(["a"]);
+    await writePieces(stuck, ["c", "d"], controller.signal);
+    expect(pieces).toEqual(["a", "c"]);
+  });
+
+  it("writes to a sink without drained as fast as it takes", async () => {
+    const pieces: string[] = [];
+    await writePieces({ write: (text) => (pieces.push(text), false) }, ["a", "b", "c"]);
+    expect(pieces).toEqual(["a", "b", "c"]);
   });
 });

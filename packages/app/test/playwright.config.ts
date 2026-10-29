@@ -10,6 +10,9 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: process.env["CI"] !== undefined,
   retries: 0,
+  // In CI a run stops after 10 failed tests (#303): when the app does not start at all, every further test would
+  // only wait for its timeout and hold the runner for half an hour. The run stays red and names the first failures.
+  maxFailures: process.env["CI"] !== undefined ? 10 : 0,
   // A start takes about a second; the bound only catches a hang (slow Windows runners at night).
   timeout: 60_000,
   outputDir: "../../../test-results/electron",

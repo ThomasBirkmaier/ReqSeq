@@ -6,6 +6,8 @@ import { EXIT } from "./main.js";
 export interface OutputStream {
   write(text: string, encoding: "utf8"): unknown;
   on(event: "error", listener: (error: NodeJS.ErrnoException) => void): unknown;
+  once(event: "drain", listener: () => void): unknown;
+  removeListener(event: "drain", listener: () => void): unknown;
 }
 
 /** The parts of `process` the binary uses. */
@@ -29,13 +31,22 @@ export interface ProcessIo {
 /**
  * Connect the binary to the process. A closed pipe (`EPIPE`, e.g. `logreq ... | head`) drops the rest of
  * that output quietly and keeps the command's exit code; any other write error makes the exit code 3.
+ * A write that the stream buffers beyond its limit returns false, and `drained` waits for the stream's
+ * `drain` (back-pressure for a large output, #277); it resolves false once the stream failed.
  */
 export function connectProcess(proc: ProcessLike): ProcessIo {
   let writeFailed = false;
   const sink = (stream: OutputStream): TextSink => {
     let open = true;
+    /** Waiting `drained` calls and their `drain` listeners: resolved with false when the stream fails. */
+    const waiting = new Map<(more: boolean) => void, () => void>();
     stream.on("error", (error) => {
       open = false;
+      for (const [resolve, listener] of waiting) {
+        stream.removeListener("drain", listener);
+        resolve(false);
+      }
+      waiting.clear();
       if (error.code !== "EPIPE") {
         writeFailed = true;
         // Also when the error arrives after the run ended.
@@ -44,6 +55,17 @@ export function connectProcess(proc: ProcessLike): ProcessIo {
     });
     return {
       write: (text) => (open ? stream.write(text, "utf8") : false),
+      drained: () =>
+        open
+          ? new Promise<boolean>((resolve) => {
+              const listener = (): void => {
+                waiting.delete(resolve);
+                resolve(open);
+              };
+              waiting.set(resolve, listener);
+              stream.once("drain", listener);
+            })
+          : Promise.resolve(false),
     };
   };
   const controller = new AbortController();

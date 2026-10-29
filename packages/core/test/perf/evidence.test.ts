@@ -345,7 +345,8 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     expect(rebuilt).toEqual(warm);
 
     // One element file changed outside LogReq (review of #581, N3): the watcher's batch replaces the
-    // store, which resets the status state, so the next open of the top is cold again.
+    // store and carries the status state over (#698): the next open of the top computes again only
+    // the changed element and its ancestors.
     const store = await ws().get(elementStoreState);
     const layout = await ws().get(workspaceLayoutState);
     const changed = store.elements.find((e) => e.id === evidence.automated.at(-1));
@@ -363,15 +364,85 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
         ),
       { basis: "SR-007 AK1, #558 (recorded; part of what follows a change)" },
     );
+    await measure(
+      "status state after one changed element file: carried over the store change (copy of its caches)",
+      () => ws().get(verificationState),
+      { basis: "#698 plan §3.3 (recorded; the carry of the status state, after the store update)" },
+    );
     const { result: after, measurement: afterChange } = await measure(
       "element.get of the top system requirement with its parents line: right after one changed file",
       () => open(top),
       {
-        basis: "SR-082 AK3, review of #581 N3 (status state reset by the store change)",
+        basis: "SR-082 AK3, review of #581 N3 (status state carried over the store change, #698)",
         thresholdMs: OPEN_MS,
       },
     );
     expect(after.id).toBe(top);
+
+    // A change deep below the top (review S8 of the #698 plan): the requirement with records that has
+    // the most ancestors, so the open computes the most again (recorded, compare 200 ms).
+    const now = await ws().get(elementStoreState);
+    /** The UUIDs the derivation items of the records of `id` name. */
+    const parentIds = (id: string): string[] =>
+      (now.byId.get(id) ?? []).flatMap((record) =>
+        ["derives-from", "refines"].flatMap((key) => {
+          const items: unknown = record.data[key];
+          return (Array.isArray(items) ? (items as unknown[]) : []).flatMap((item) => {
+            const target = (item as { id?: unknown }).id;
+            return typeof target === "string" ? [target] : [];
+          });
+        }),
+      );
+    const ancestors = (id: string): number => {
+      const found = new Set<string>();
+      const stack = [id];
+      for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+        for (const target of parentIds(next)) {
+          if (!found.has(target)) {
+            found.add(target);
+            stack.push(target);
+          }
+        }
+      }
+      return found.size;
+    };
+    let deepId = "";
+    let most = -1;
+    for (const id of [...evidence.automated, ...evidence.manual]) {
+      const count = ancestors(id);
+      if (count > most) {
+        most = count;
+        deepId = id;
+      }
+    }
+    const deep = now.elements.find((e) => e.id === deepId);
+    if (deep === undefined) {
+      throw new Error("the deep requirement is not in the store");
+    }
+    const deepFile = path.join(
+      layout.repositories.find((r) => r.name === deep.repository)?.folder ?? "",
+      deep.file,
+    );
+    await fs.writeFile(deepFile, `${await fs.readFile(deepFile, "utf8")}\nChanged outside LogReq.\n`);
+    await measure(
+      `store update of one changed element file deep below the top (${String(most)} ancestors; watcher batch; #558)`,
+      () =>
+        applyStoreChange(ws(), (current) =>
+          updateElements(current, layout, new Map([[deep.repository, { paths: [deep.file] }]])),
+        ),
+      { basis: "SR-007 AK1, #558 (recorded; part of what follows a change)" },
+    );
+    await measure(
+      `status state after one changed element file deep below the top (${String(most)} ancestors): carried over the store change`,
+      () => ws().get(verificationState),
+      { basis: "#698 plan §3.3 (recorded; the carry of the status state, after the store update)" },
+    );
+    const { result: afterDeep } = await measure(
+      `element.get of the top system requirement with its parents line: right after one changed file deep below it (${String(most)} ancestors)`,
+      () => open(top),
+      { basis: "SR-082 AK3, review S8 of the #698 plan (status state carried; recorded, compare 200 ms)" },
+    );
+    expect(afterDeep.id).toBe(top);
     expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(OPEN_MS);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(OPEN_MS);
     expect(afterChange.ms, thresholdMessage(afterChange)).toBeLessThanOrEqual(OPEN_MS);

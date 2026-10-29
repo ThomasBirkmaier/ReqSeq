@@ -5,10 +5,12 @@ import { connectProcess } from "./process.js";
 
 class FakeStream extends EventEmitter implements OutputStream {
   readonly written: string[] = [];
+  /** What write answers: false when the stream's buffer is full. */
+  takesMore = true;
   write(text: string, encoding: "utf8"): boolean {
     expect(encoding).toBe("utf8");
     this.written.push(text);
-    return true;
+    return this.takesMore;
   }
 }
 
@@ -53,6 +55,22 @@ describe("connectProcess", () => {
     expect(proc.stderr.written).toEqual([]);
     expect(io.writeFailed).toBe(true);
     expect(proc.exitCode).toBe(3);
+  });
+
+  it("passes back-pressure on: drained waits for drain, and answers false once the stream failed (#277)", async () => {
+    const proc = new FakeProcess();
+    const io = connectProcess(proc);
+    proc.stdout.takesMore = false;
+    expect(io.stdout.write("full")).toBe(false);
+    const more = io.stdout.drained?.();
+    proc.stdout.emit("drain");
+    await expect(more).resolves.toBe(true);
+    const failing = io.stdout.drained?.();
+    proc.stdout.emit("error", errno("EPIPE"));
+    await expect(failing).resolves.toBe(false);
+    expect(proc.stdout.listenerCount("drain")).toBe(0);
+    await expect(io.stdout.drained?.()).resolves.toBe(false);
+    expect(io.stdout.write("dropped")).toBe(false);
   });
 
   it("aborts on the first SIGINT or SIGTERM and exits 130 on the second", () => {

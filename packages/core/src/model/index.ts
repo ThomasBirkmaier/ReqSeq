@@ -26,6 +26,7 @@ export { findingLine, locateFindings } from "./locate.js";
 export type { LocatableFinding, LocateOptions } from "./locate.js";
 export {
   applyStoreChange,
+  carryStoreUpdate,
   elementStoreState,
   ignoredBy,
   loadElements,
@@ -40,6 +41,7 @@ export type {
   RepositoryChanges,
   RepositoryContents,
   RepositoryFile,
+  StoreUpdate,
   WrittenFile,
 } from "./store.js";
 export { allRequiredFindings, requiredFindings, requiredProblemsState } from "./required.js";
@@ -156,8 +158,10 @@ export type { SupersededContext } from "./superseded.js";
 export { buildSuccessionIndex, successionIndexState, successionsFor, successionsOf } from "./successors.js";
 export type { Succession, SuccessionIndex } from "./successors.js";
 export {
+  CARRY_LIMIT,
   buildIncomingIndex,
   incomingFor,
+  incomingIn,
   incomingState,
   incomingTo,
   outgoingLinks,

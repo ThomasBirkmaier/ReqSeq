@@ -1636,7 +1636,13 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
     expect([...last.keys()].sort()).toEqual([...pulled, target].sort());
     // Batched (100 ms after the last event, at most 1 s after the first), not one call per file.
     expect(changes.length).toBeLessThanOrEqual(count / 10);
-    expect(changes.every((c) => c.scope === "elements")).toBe(true);
+    // Never read in full: no batch is a change of the whole workspace. On Windows the pull overflows
+    // ReadDirectoryChangesW, and a batch with dropped names reads the metamodel again as well
+    // (scope `metamodel`, still naming its elements); elsewhere each batch is `elements`.
+    expect(changes.map((c) => c.scope)).not.toContain("workspace");
+    if (process.platform !== "win32") {
+      expect(changes.every((c) => c.scope === "elements")).toBe(true);
+    }
   }, 60_000);
 
   it("[SR-007/AK3] names an element whose file was deleted outside the tool as removed", async () => {

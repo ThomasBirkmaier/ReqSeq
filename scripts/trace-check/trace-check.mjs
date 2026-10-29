@@ -120,11 +120,16 @@ export function readSpec(specDir) {
         criteria: Array.isArray(fm["acceptance-criteria"]) ? fm["acceptance-criteria"] : [],
         method: fm["verification-method"],
         packages: (Array.isArray(fm.packages) ? fm.packages : []).map((p) => String(p?.id)),
-        file: path.relative(specDir, file),
+        file: repoPath(specDir, file),
       });
     }
   }
   return { srs, packages, duplicates };
+}
+
+/** A path relative to base with `/` on every system, as the report and the errors name it. */
+function repoPath(base, file) {
+  return path.relative(base, file).split(path.sep).join("/");
 }
 
 /** The system requirements of a stage: `--stage 3` is the package `Stufe-3`, any other value its identifier. */
@@ -157,7 +162,7 @@ export function testReferences(root) {
           .forEach((line, i) => {
             for (const m of line.matchAll(/\[(SR-\d{3})\/AK(\d+)\]/g)) {
               const k = `${m[1]}/${m[2]}`;
-              refs.set(k, [...(refs.get(k) ?? []), `${path.relative(root, p)}:${i + 1}`]);
+              refs.set(k, [...(refs.get(k) ?? []), `${repoPath(root, p)}:${i + 1}`]);
             }
           });
       }
