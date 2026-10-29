@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import type { RunningApp } from "./support/app.js";
-import { launchApp, listAll } from "./support/app.js";
+import { copyFixture, launchApp, listAll } from "./support/app.js";
 import { DEMO_FILE, DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 const FIXTURE = { fixture: "SR-069/filter", files: DEMO_FILES };
@@ -122,5 +122,52 @@ test.describe("inserting an image in the element buffer", () => {
     await expect(
       fs.stat(path.join(running.workspace?.root ?? "", ...IMAGE_FOLDER.split("/"))),
     ).rejects.toThrow();
+  });
+});
+
+// A workspace opened by a path through a link, as `/tmp/...` is on macOS (`/private/tmp`): the copy lies
+// in the folder the link leads to.
+test.describe("inserting an image in a workspace opened through a link", () => {
+  let running: RunningApp;
+  let top: string;
+  test.beforeEach(async () => {
+    top = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-image-link-"));
+    const workspace = await copyFixture(FIXTURE);
+    const link = path.join(top, "linked");
+    await fs.symlink(path.dirname(workspace.root), link, "dir");
+    await fs.writeFile(path.join(top, "Wind Skizze.png"), PNG);
+    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")));
+    running = await launchApp(undefined, {
+      kept: {
+        home,
+        workspace: {
+          root: path.join(link, path.basename(workspace.root)),
+          cleanup: () => workspace.cleanup(),
+        },
+      },
+    });
+    await listAll(running.window);
+    await editing(running.window);
+  });
+  test.afterEach(async () => {
+    try {
+      await running.close();
+    } finally {
+      await fs.rm(top, { recursive: true, force: true });
+    }
+  });
+
+  test("[SR-097/AK1] Insert image copies the file next to the element file when the workspace path goes through a link", async () => {
+    const { window } = running;
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("Insert image");
+    await window.keyboard.press("Enter");
+    await expect(window.getByLabel("Insert image")).toBeVisible();
+    await window.keyboard.insertText(path.join(top, "Wind Skizze.png"));
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".cm-content")).toContainText(`(${FOLDER_NAME}/Wind-Skizze.png)`);
+    const root = running.workspace?.root ?? "";
+    const copy = path.join(await fs.realpath(root), ...IMAGE_FOLDER.split("/"), "Wind-Skizze.png");
+    expect(await fs.readFile(copy)).toEqual(PNG);
   });
 });
