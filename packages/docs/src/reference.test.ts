@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { appCommandEntry } from "@reqseq/app";
 import { contractsBundle, createCommandRuntime, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { commandSlug } from "./command-page.js";
@@ -28,6 +29,15 @@ describe("command reference", () => {
         expect(section(page, heading), `${entry.name}: ${heading}`).not.toBe("");
       }
       expect(section(page, "CLI")).toMatch(/^`reqseq \S+ \S+`[^]*```text\nUsage: reqseq \S+ \S+/);
+      if (runtime.commands.has(entry.name)) {
+        const app = appCommandEntry(entry, false);
+        expect(section(page, "App"), entry.name).toMatch(
+          new RegExp(
+            `^In the command prompt \\(Ctrl\\+Shift\\+P, macOS .+\\): the ${app.action ? "action" : "command"} \\*\\*`,
+          ),
+        );
+        expect(section(page, "App"), entry.name).toContain(`**${inline(app.name)}**`);
+      }
       expect(section(page, "API")).toContain(`POST /v1/commands/${entry.name}`);
       expect(section(page, "MCP")).toContain(`\`${entry.name.replace(".", "_")}\``);
     }

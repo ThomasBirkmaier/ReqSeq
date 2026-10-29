@@ -9,6 +9,12 @@ export interface ContentPaths {
   readonly contentDir: string;
 }
 
+/**
+ * The folders of docs/guide/ (D-067: Get started, How-to, Concepts); the sidebar lists each of them
+ * (site/astro.config.mjs, GUIDE_SECTIONS). A page elsewhere, except the landing page, would be in no sidebar.
+ */
+export const GUIDE_SECTIONS: readonly string[] = ["start", "how-to", "concepts"];
+
 /** The paths of the repository, from the folder of this package (`packages/docs`). */
 export function contentPaths(packageDir: string): ContentPaths {
   return {
@@ -29,14 +35,29 @@ export async function assembleContent(
 ): Promise<readonly string[]> {
   await rm(paths.contentDir, { recursive: true, force: true });
   await cp(paths.guideDir, paths.contentDir, { recursive: true });
+  const outside = (await files(paths.contentDir)).filter(
+    (file) =>
+      file !== "index.md" &&
+      !(file.includes("/") && GUIDE_SECTIONS.includes(file.slice(0, file.indexOf("/")))),
+  );
+  if (outside.length > 0) {
+    throw new Error(
+      `docs/guide: ${outside.join(", ")} not in a section of the sidebar (${GUIDE_SECTIONS.join(", ")})`,
+    );
+  }
   for (const page of pages) {
     const file = join(paths.contentDir, ...page.path.split("/"));
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, page.text, { flag: "wx" });
   }
-  const entries = await readdir(paths.contentDir, { recursive: true, withFileTypes: true });
+  return files(paths.contentDir);
+}
+
+/** The files below `folder`, relative and with `/`, sorted. */
+async function files(folder: string): Promise<string[]> {
+  const entries = await readdir(folder, { recursive: true, withFileTypes: true });
   return entries
     .filter((entry) => entry.isFile())
-    .map((entry) => relative(paths.contentDir, join(entry.parentPath, entry.name)).split(sep).join("/"))
+    .map((entry) => relative(folder, join(entry.parentPath, entry.name)).split(sep).join("/"))
     .sort();
 }
