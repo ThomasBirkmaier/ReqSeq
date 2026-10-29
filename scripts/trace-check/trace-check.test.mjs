@@ -58,7 +58,7 @@ function repo(extra = {}) {
       "Text.",
       "",
     ].join("\n"),
-    // Written by hand or by LogReq: plain scalars, CRLF, another folder.
+    // Written by hand or by ReqSeq: plain scalars, CRLF, another folder.
     "spec/elsewhere/SR-000000000002.md":
       "---\r\nid: 00000000-0000-4000-8000-000000000002\r\ntype: system-requirement\r\nstatus: obsolete\r\ntitle: Zwei\r\nspec-id: SR-002\r\nacceptance-criteria:\r\n  - >-\r\n    Gegeben e,\r\n    dann f.\r\nverification-method: inspection\r\npackages:\r\n  - { id: " +
       QS +

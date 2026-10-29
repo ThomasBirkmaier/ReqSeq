@@ -196,7 +196,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
 export function buildProgram(options: ProgramOptions): Command {
   const program = new Command("reqseq")
     .description(
-      "LogReq: requirements as plain files in Git. Every command of the catalog, from the command line.",
+      "ReqSeq: requirements as plain files in Git. Every command of the catalog, from the command line.",
     )
     .version(options.version, "-V, --version", "print the version")
     .helpOption("-h, --help", "show help")
