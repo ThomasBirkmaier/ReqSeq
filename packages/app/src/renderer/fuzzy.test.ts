@@ -19,6 +19,9 @@ const ACTIONS = [
 
 const names = (query: string): string[] => rank(ACTIONS, (name) => name, query).map(({ item }) => item);
 
+const matching = (items: readonly string[], query: string): string[] =>
+  rank(items, (name) => name, query).map(({ item }) => item);
+
 describe("rank", () => {
   it("keeps all items in the given order for an empty query", () => {
     expect(rank(ACTIONS, (name) => name, "")).toHaveLength(ACTIONS.length);
@@ -109,6 +112,29 @@ describe("rank", () => {
       [3, 6],
       [7, 11],
     ]);
+  });
+
+  // #304: one key of a typed Windows path took half a minute in the regular expression of all terms.
+  it("answers a long path of many words that matches nothing at once", () => {
+    const station = String.raw`C:\Users\runneradmin\AppData\Local\Temp\reqseq-app-fixture-AbC123\kestrel`;
+    const typed = String.raw`C:\Users\runneradmin\AppData\Local\Temp\reqseq-app-fixture-XyZ789\quokka\requirements`;
+    const started = performance.now();
+    for (let length = 1; length <= typed.length; length += 1) {
+      rank([station], (name) => name, typed.slice(0, length));
+    }
+    expect(rank([station], (name) => name, typed)).toEqual([]);
+    expect(rank(["a b c d e f g h i j ".repeat(20)], (name) => name, "a b c d e f g h q")).toEqual([]);
+    expect(rank(["a ".repeat(40)], (name) => name, `${"a".repeat(25)}b`)).toEqual([]);
+    // Generous for a slow machine; each took seconds to minutes before.
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it("finds the terms in order where the first place of a term leaves no room for the next", () => {
+    // "temp" first matches in "temporal", which leaves no "kestrel" after it; the match is the later one.
+    expect(matching(["temporal kestrel temp"], "kestrel temp")).toEqual(["temporal kestrel temp"]);
+    expect(matching(["temp kestrel"], "kestrel temp")).toEqual([]);
+    expect(matching(["Users runneradmin kestrel"], "users kestrl")).toEqual(["Users runneradmin kestrel"]);
+    expect(matching(["Users runneradmin kestrel"], "kestrl users")).toEqual([]);
   });
 
   it("keeps the given order among equal matches (recent first)", () => {

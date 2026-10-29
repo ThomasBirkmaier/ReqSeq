@@ -48,9 +48,16 @@ const prefixRanges = (name: string, needle: string): Span[] | undefined => {
     start: word.index,
     text: word[0],
   }));
+  // The pieces from a letter on, starting with a word from `first` on, fail the same way every time:
+  // without remembering that, a long word on a name of many words takes exponential time (#304).
+  const failed = new Set<number>();
   const from = (at: number, first: number, last: number): Span[] | undefined => {
     if (at === needle.length) {
       return [];
+    }
+    const key = at * (words.length + 1) + first;
+    if (last === words.length && failed.has(key)) {
+      return undefined;
     }
     for (const [offset, word] of words.slice(first, last).entries()) {
       const index = first + offset;
@@ -62,6 +69,9 @@ const prefixRanges = (name: string, needle: string): Span[] | undefined => {
           }
         }
       }
+    }
+    if (last === words.length) {
+      failed.add(key);
     }
     return undefined;
   };
@@ -80,12 +90,49 @@ const byPrefix = (names: readonly string[], needle: string): Match[] => {
   });
 };
 
+/** Whether `matcher` matches `term` (one term of a needle) somewhere in `text`. */
+const matchesTerm = (matcher: uFuzzy, text: string, term: string): boolean =>
+  (matcher.filter([text], term) ?? []).length > 0;
+
+/**
+ * Whether `matcher` finds the terms of a needle in `name`, in order. uFuzzy tests all terms with one
+ * regular expression, the terms joined by "anything"; when a name does not match, its backtracking
+ * grows with the length of the name to the power of the number of terms: a typed Windows path of ten
+ * terms took half a minute for one key (#304). One term alone is cheap. So each term is placed at its
+ * earliest end, found by halving the part after the term before; the earliest end leaves the most room
+ * to the terms after it, so this is exactly whether the whole needle matches, and uFuzzy then only sees
+ * names that do.
+ */
+const matchesInOrder = (matcher: uFuzzy, name: string, terms: readonly string[]): boolean => {
+  let start = 0;
+  for (const term of terms) {
+    const rest = name.slice(start);
+    if (!matchesTerm(matcher, rest, term)) {
+      return false;
+    }
+    // The shortest beginning of `rest` that the term matches in: longer than `low`, at most `high`.
+    let low = 0;
+    let high = rest.length;
+    while (high - low > 1) {
+      const middle = Math.floor((low + high) / 2);
+      if (matchesTerm(matcher, rest.slice(0, middle), term)) {
+        high = middle;
+      } else {
+        low = middle;
+      }
+    }
+    start += high;
+  }
+  return true;
+};
+
 /** The names `matcher` finds, the best first. */
 const byLetters = (matcher: uFuzzy, names: string[], needle: string): Match[] => {
-  const found = matcher.filter(names, needle);
-  if (found === null) {
+  const terms = matcher.split(needle);
+  if (terms.length === 0) {
     return [];
   }
+  const found = names.flatMap((name, index) => (matchesInOrder(matcher, name, terms) ? [index] : []));
   const info = matcher.info(found, names, needle);
   const order = (matcher.sort as Sort)(info, names, needle, keepOrder);
   return order.map((at) => ({ index: nth(info.idx, at), ranges: pairs(nth(info.ranges, at)) }));
