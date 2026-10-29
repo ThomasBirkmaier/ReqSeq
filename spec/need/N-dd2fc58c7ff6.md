@@ -8,4 +8,4 @@ rationale: "Entscheidung des Produktverantwortlichen, 2026-10-28: Wunsch, die Na
 topic: Nachweis und Abdeckung
 ---
 
-Wenn ich LogReq als Werkzeug nach DO-330, ISO 26262 Teil 8 oder IEC 62304 qualifiziere, muss ich je Release die Nachweise für die Werkzeugqualifizierung exportieren können: Werkzeuganforderungen, Testnachweise, bekannte Fehler und Einsatzgrenzen.
+Wenn ich ReqSeq als Werkzeug nach DO-330, ISO 26262 Teil 8 oder IEC 62304 qualifiziere, muss ich je Release die Nachweise für die Werkzeugqualifizierung exportieren können: Werkzeuganforderungen, Testnachweise, bekannte Fehler und Einsatzgrenzen.
