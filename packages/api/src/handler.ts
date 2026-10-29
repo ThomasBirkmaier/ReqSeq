@@ -4,7 +4,8 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
-import { CommandError, errorClass, jsonChunks } from "@logreq/core";
+import type { CatalogEntry } from "@logreq/core";
+import { CommandError, errorClass, jsonChunks, jsonLines } from "@logreq/core";
 
 /** HTTP status of each error class (ADR-0009 "Errors"); documented in schemas/generated/openapi.json. */
 export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> = {
@@ -83,13 +84,20 @@ const drained = (response: ServerResponse): Promise<void> =>
  * serialised before the headers, so a failure there still gets the error response; a failure later
  * can only cut the connection.
  */
-const send = async (
+const send = (
   response: ServerResponse,
   status: number,
   body: unknown,
   headers: Readonly<Record<string, string>> = {},
+): Promise<void> => sendChunks(response, status, bodyChunks(body), headers);
+
+/** `send` for any text in chunks: JSON, or JSON Lines with their own content type (#319). */
+const sendChunks = async (
+  response: ServerResponse,
+  status: number,
+  chunks: Iterator<string, void>,
+  headers: Readonly<Record<string, string>>,
 ): Promise<void> => {
-  const chunks = bodyChunks(body);
   const first = chunks.next();
   if (response.destroyed) {
     // The client has gone away; nobody reads the answer.
@@ -112,6 +120,43 @@ const send = async (
   }
   response.end();
 };
+
+/** The media type of JSON Lines (#319, ADR-0009). */
+export const JSON_LINES_TYPE = "application/x-ndjson";
+
+const LINES_HEADERS = { "content-type": `${JSON_LINES_TYPE}; charset=utf-8` } as const;
+
+/** The media ranges of an `Accept` header with their weight (RFC 9110 12.5.1); a broken `q` counts as 1. */
+const mediaRanges = (accept: string): Map<string, number> => {
+  const ranges = new Map<string, number>();
+  for (const part of accept.split(",")) {
+    const [range = "", ...params] = part.split(";").map((p) => p.trim().toLowerCase());
+    const q = params.find((p) => p.startsWith("q="))?.slice(2);
+    const weight = q === undefined || !/^[01](\.\d{0,3})?$/.test(q) ? 1 : Number(q);
+    if (range !== "") {
+      ranges.set(range, Math.max(weight, ranges.get(range) ?? 0));
+    }
+  }
+  return ranges;
+};
+
+/** Whether `ranges` accept JSON: `application/json` when named, else `application/*` or `*\/*`. */
+const acceptsJson = (ranges: ReadonlyMap<string, number>): boolean =>
+  (ranges.get("application/json") ?? ranges.get("application/*") ?? ranges.get("*/*") ?? 0) > 0;
+
+/** What a command answers with: its output as JSON, or as JSON Lines by the catalog's `jsonLines`. */
+type Form =
+  | { readonly kind: "json" }
+  | { readonly kind: "lines"; readonly spec: NonNullable<CatalogEntry["jsonLines"]> };
+
+const JSON_FORM: Form = { kind: "json" };
+
+/** A command to run, and the form of its answer. */
+interface Run {
+  readonly run: true;
+  readonly name: string;
+  readonly form: Form;
+}
 
 /** An answer that needs no command: a refusal, or the catalog listing. */
 interface Answer {
@@ -241,7 +286,8 @@ const commandName = (pathname: string): string | undefined => {
 export function createRequestHandler(options: HandlerOptions): RequestHandler {
   const token = Buffer.from(options.token, "utf8");
 
-  const run = async (name: string, text: string, response: ServerResponse): Promise<void> => {
+  const run = async (goal: Run, text: string, response: ServerResponse): Promise<void> => {
+    const { name, form } = goal;
     // Aborted when the client goes away before the response is sent, or when the server closes.
     const gone = new AbortController();
     response.once("close", () => {
@@ -258,14 +304,36 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
         access: "api",
       });
       // Inside the try: a serialiser failure before the headers is answered as an error.
-      await send(response, 200, output ?? null);
+      await (form.kind === "lines"
+        ? sendChunks(response, 200, jsonLines(output, form.spec), LINES_HEADERS)
+        : send(response, 200, output ?? null));
     } catch (error) {
       await sendError(response, error);
     }
   };
 
-  /** What a request asks for: an answer that needs no command, or the name of the command to run. */
-  const target = (request: IncomingMessage): Answer | string => {
+  /**
+   * The form of a command's answer (#319): only an `Accept` that names JSON Lines with q > 0 is
+   * negotiated. A command with `jsonLines` then answers with lines; another one with JSON when JSON is
+   * acceptable too, else 406. Any other request is answered with JSON as before, whatever `Accept` says,
+   * and an unknown command is left to `invoke`.
+   */
+  const formOf = (request: IncomingMessage, name: string): Form | Answer => {
+    const ranges = mediaRanges(request.headers.accept ?? "");
+    const entry = options.runtime.contracts.entry(name);
+    if ((ranges.get(JSON_LINES_TYPE) ?? 0) === 0 || entry === undefined) {
+      return JSON_FORM;
+    }
+    if (entry.jsonLines !== undefined) {
+      return { kind: "lines", spec: entry.jsonLines };
+    }
+    return acceptsJson(ranges)
+      ? JSON_FORM
+      : refusal(406, `${name} answers only with application/json, not with ${JSON_LINES_TYPE}`);
+  };
+
+  /** What a request asks for: an answer that needs no command, or the command to run and its form. */
+  const target = (request: IncomingMessage): Answer | Run => {
     if (!loopbackHost(request)) {
       return refusal(403, "The Host header must name the loopback address and port of this API");
     }
@@ -300,7 +368,8 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
     if (request.method !== "POST") {
       return refusal(405, `Use POST ${COMMANDS_PATH}/<name>`, { allow: "POST" });
     }
-    return name;
+    const form = formOf(request, name);
+    return "kind" in form ? { run: true, name, form } : form;
   };
 
   /**
@@ -313,13 +382,13 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
     const goal = target(request);
     // Listened for before the body is read, so that its end is never missed.
     const ended = new Promise<void>((resolve) => request.once("end", resolve));
-    const text = await readBody(request, typeof goal === "string");
+    const text = await readBody(request, "run" in goal);
     if (text === undefined) {
       // Answered at once; readBody drops the rest of the body, and cuts the connection after DRAIN_BYTES.
-      answerAndClose(response, typeof goal === "string" ? TOO_LARGE : goal, ended);
+      answerAndClose(response, "run" in goal ? TOO_LARGE : goal, ended);
       return;
     }
-    if (typeof goal === "string") {
+    if ("run" in goal) {
       await run(goal, text, response);
       return;
     }

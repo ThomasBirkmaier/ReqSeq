@@ -1,5 +1,5 @@
 // schemas/generated/openapi.json describes what the API does (ADR-0003): one path per catalog command
-// and every status the server answers with.
+// and every status the server answers with, JSON Lines where the catalog offers them (#319).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { loadContracts } from "@logreq/core";
@@ -30,14 +30,23 @@ describe("openapi.json", () => {
     const openapi = JSON.parse(await fs.readFile(file, "utf8")) as {
       paths: Record<string, { get?: Operation; post?: Operation }>;
     };
-    const names = loadContracts().commands.map((e) => e.name);
+    const commands = loadContracts().commands;
+    const names = commands.map((e) => e.name);
     expect(Object.keys(openapi.paths)).toEqual([COMMANDS_PATH, ...names.map((n) => `${COMMANDS_PATH}/${n}`)]);
     expect(Object.keys(openapi.paths[COMMANDS_PATH]?.get?.responses ?? {})).toEqual(["200", "401", "403"]);
     const statuses = [200, 401, 403, 413, ...Object.values(HTTP_STATUS_BY_CLASS)].map(String).sort();
-    for (const name of names) {
+    for (const { name, jsonLines } of commands) {
       const responses = openapi.paths[`${COMMANDS_PATH}/${name}`]?.post?.responses ?? {};
-      expect(Object.keys(responses).sort()).toEqual([...new Set(statuses)]);
+      // 406 only where the command gives no JSON Lines (#319).
+      const own = jsonLines === undefined ? [...statuses, "406"] : statuses;
+      expect([name, Object.keys(responses).sort()]).toEqual([name, [...new Set(own)].sort()]);
+      const types = Object.keys((responses["200"] as { content: object }).content);
+      expect([name, types]).toEqual([
+        name,
+        jsonLines === undefined ? ["application/json"] : ["application/json", "application/x-ndjson"],
+      ]);
     }
+    expect(commands.filter((e) => e.jsonLines !== undefined).map((e) => e.name)).toEqual(["data.export"]);
   });
 
   it("publishes only patterns a client compiles without the Unicode flag (D-029, #305)", async () => {

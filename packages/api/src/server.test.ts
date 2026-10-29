@@ -58,6 +58,7 @@ const catalog = {
     entry("test.later"),
     entry("test.large"),
     entry("test.lateFail"),
+    { ...entry("test.rows"), jsonLines: { items: "rows", fields: ["mark"] } },
   ],
 };
 
@@ -100,6 +101,13 @@ const runtime = createCommandRuntime({
       // Fine in its first chunks, then a value JSON cannot hold.
       name: "test.lateFail",
       run: () => Promise.resolve({ ...largeOutput(3), last: 1n }),
+    }),
+    defineTestCommand({
+      name: "test.rows",
+      run: (_ctx, input: { fail?: boolean; rows?: unknown[] }) =>
+        input.fail === true
+          ? Promise.reject(new CommandError("input.invalid", "No rows"))
+          : Promise.resolve({ mark: 2, other: "x", rows: input.rows ?? [{ a: 1 }, { a: "Größe" }] }),
     }),
     defineTestCommand({
       name: "test.circular",
@@ -201,7 +209,11 @@ const request = (options: RequestOptions = {}): Promise<Reply> =>
           resolve({
             status: res.statusCode,
             headers: res.headers,
-            body: text === "" ? "" : JSON.parse(text),
+            // JSON Lines (#319) stay text.
+            body:
+              text === "" || res.headers["content-type"]?.startsWith("application/json") !== true
+                ? text
+                : JSON.parse(text),
           });
         });
       },
@@ -891,6 +903,92 @@ describe("commands", () => {
     expect(reply.headers["content-type"]).toBe("application/json; charset=utf-8");
     expect(reply.headers["cache-control"]).toBe("no-store");
     expect(reply.body).toEqual({ input: { a: [1, "ü"] } });
+  });
+
+  it("[SR-061/AK4] answers with one line per item when Accept names application/x-ndjson (#319)", async () => {
+    const reply = await request({
+      path: "/v1/commands/test.rows",
+      headers: { accept: "application/x-ndjson" },
+    });
+    expect([reply.status, reply.headers["content-type"], reply.headers["cache-control"]]).toEqual([
+      200,
+      "application/x-ndjson; charset=utf-8",
+      "no-store",
+    ]);
+    expect(reply.body).toBe('{"mark":2,"a":1}\n{"mark":2,"a":"Größe"}\n');
+    // Among other types, and with any weight above 0; none for no items.
+    for (const accept of [
+      "application/json;q=0.5, application/x-ndjson;q=0.9",
+      "*/*, APPLICATION/X-NDJSON; q=1",
+    ]) {
+      const lines = await request({ path: "/v1/commands/test.rows", headers: { accept } });
+      expect([accept, lines.status, lines.body]).toEqual([accept, 200, reply.body]);
+    }
+    const none = await request({
+      path: "/v1/commands/test.rows",
+      headers: { accept: "application/x-ndjson" },
+      body: '{"rows":[]}',
+    });
+    expect([none.status, none.headers["content-type"], none.body]).toEqual([
+      200,
+      "application/x-ndjson; charset=utf-8",
+      "",
+    ]);
+  });
+
+  it("answers as before unless Accept names application/x-ndjson with a weight above 0 (#319)", async () => {
+    for (const accept of ["", "text/plain", "application/x-ndjson;q=0", "application/x-ndjson;q=0.000"]) {
+      const json = await request({ path: "/v1/commands/test.rows", headers: { accept } });
+      expect([accept, json.status, json.headers["content-type"], json.body]).toEqual([
+        accept,
+        200,
+        "application/json; charset=utf-8",
+        { mark: 2, other: "x", rows: [{ a: 1 }, { a: "Größe" }] },
+      ]);
+    }
+    // Errors stay the JSON error object.
+    const failed = await request({
+      path: "/v1/commands/test.rows",
+      headers: { accept: "application/x-ndjson" },
+      body: '{"fail":true}',
+    });
+    expect([failed.status, failed.headers["content-type"], failed.body]).toEqual([
+      400,
+      "application/json; charset=utf-8",
+      { code: "input.invalid", message: "No rows" },
+    ]);
+  });
+
+  it("answers JSON for a command without JSON Lines when JSON is acceptable too, else 406 (#319)", async () => {
+    for (const accept of [
+      "application/x-ndjson, application/json",
+      "application/x-ndjson, */*;q=0.1",
+      "application/x-ndjson, application/*",
+    ]) {
+      const json = await request({ headers: { accept }, body: "{}" });
+      expect([accept, json.status, json.body]).toEqual([accept, 200, { input: {} }]);
+    }
+    for (const accept of [
+      "application/x-ndjson",
+      "application/x-ndjson, application/json;q=0, */*",
+      "application/x-ndjson, */*;q=0",
+    ]) {
+      const refused = await request({ headers: { accept }, body: "{}" });
+      expect([accept, refused.status, refused.body]).toEqual([
+        accept,
+        406,
+        {
+          code: "input.invalid",
+          message: "test.echo answers only with application/json, not with application/x-ndjson",
+        },
+      ]);
+    }
+    // An unknown command is left to core, as without Accept.
+    const unknown = await request({
+      path: "/v1/commands/test.none",
+      headers: { accept: "application/x-ndjson" },
+    });
+    expect([unknown.status, unknown.body]).toMatchObject([400, { message: "Unknown command: test.none" }]);
   });
 
   it("takes an empty body (also with a byte order mark) as {}", async () => {

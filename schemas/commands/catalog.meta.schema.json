@@ -99,6 +99,25 @@
             }
           },
           "input": { "type": "object" },
+          "jsonLines": {
+            "type": "object",
+            "required": ["items", "fields"],
+            "properties": {
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "description": "A top-level array of `output`: one line per item."
+              },
+              "fields": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 },
+                "description": "Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`)."
+              }
+            },
+            "additionalProperties": false,
+            "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319)."
+          },
           "output": {
             "type": "object",
             "required": ["type"],

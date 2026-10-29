@@ -84,7 +84,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
   it("[SR-061/AK1] gives every element of both repositories with its properties, relations, version, verification status and validity", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace);
-    expect(out["logreq-data"]).toBe(1);
+    expect(out["logreq-data"]).toBe(2);
     expect(out.workspace).toBe("Weather station");
     expect(names(out)).toEqual(ALL);
     const b1 = element(out, "b1");
@@ -280,6 +280,8 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
     expect(out.incomplete).toBe(false);
     expect(Object.keys(out)).toEqual([
       "logreq-data",
+      "commit",
+      "dirty",
       "workspace",
       "generated",
       "repositories",
@@ -381,6 +383,12 @@ describe("data.export: the documented schema (SR-061 AK3)", () => {
       ["system", true, "string"],
       ["sensor", true, "string"],
     ]);
-    expect({ ...out, generated: example.generated, repositories: example.repositories }).toEqual(example);
+    expect(out.commit).toBe(out.repositories[0]?.commit);
+    expect({
+      ...out,
+      commit: example.commit,
+      generated: example.generated,
+      repositories: example.repositories,
+    }).toEqual(example);
   });
 });

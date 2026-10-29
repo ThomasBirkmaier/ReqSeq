@@ -31,8 +31,8 @@ export {
 } from "./workspace/recent.js";
 export type { RecentWorkspace, RecentWorkspaceState } from "./workspace/recent.js";
 export { recordOpenedWorkspace } from "./model/recent-record.js";
-export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks } from "./files/index.js";
-export type { JsonChunkOptions } from "./files/index.js";
+export { isTempFile, JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks, jsonLines } from "./files/index.js";
+export type { JsonChunkOptions, JsonLinesSpec } from "./files/index.js";
 export { degreePercent, degreeShareOf } from "./evidence/degree-text.js";
 export * from "./version/version.js";
 export { watchWorkspace } from "./model/watch.js";

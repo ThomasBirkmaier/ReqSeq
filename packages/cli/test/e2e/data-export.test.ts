@@ -1,7 +1,7 @@
 // `logreq data export` end to end (SR-061): the built binary on fixtures/SR-061/export (two Git
 // repositories `system` and `sensor`, Markdown and JUnit record files, variants, a package, a saved
-// filter and baselines; its README lists the elements and the expected selections), as lines and as
-// JSON, and the JSON against the schema files on disk with the Ajv setup of scripts/contracts
+// filter and baselines; its README lists the elements and the expected selections), as lines, as
+// JSON and as JSON Lines (#319), and both against the schema files on disk with the Ajv setup of scripts/contracts
 // (ADR-0003). Run after `pnpm build` with `pnpm test:e2e`.
 import type { FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
@@ -148,5 +148,55 @@ describe("logreq data export (SR-061)", () => {
       const valid = validate?.(JSON.parse(result.stdout));
       expect([args, valid, validate?.errors ?? null]).toEqual([args, true, null]);
     }
+  });
+});
+
+describe("logreq data export --jsonl (SR-061 AK4, #319)", () => {
+  /** The lines of a `--jsonl` run, each parsed; the text ends with a line break. */
+  const linesOf = (stdout: string): Record<string, unknown>[] => {
+    expect(stdout.endsWith("\n")).toBe(true);
+    return stdout
+      .slice(0, -1)
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+  };
+
+  it("[SR-061/AK4] logreq data export --jsonl prints one element per line, the state of the export first", async () => {
+    const ws = await fixture();
+    for (const args of [[], ["--input", JSON.stringify({ selection: { package: "PKG-0000d1" } })]]) {
+      const json = await exportIn(ws, [...args, "--json"]);
+      const lines = await exportIn(ws, [...args, "--jsonl"]);
+      expect([args, lines.code, lines.stderr]).toEqual([args, 0, ""]);
+      const out = JSON.parse(json.stdout) as Exported & Readonly<Record<string, unknown>>;
+      const state = { "logreq-data": 2, commit: await ws.head("system"), dirty: false };
+      expect([args, out["logreq-data"], out["commit"], out["dirty"]]).toEqual([args, 2, state.commit, false]);
+      expect([args, linesOf(lines.stdout)]).toEqual([args, out.elements.map((e) => ({ ...state, ...e }))]);
+      for (const line of lines.stdout.slice(0, -1).split("\n")) {
+        expect(line.startsWith('{"logreq-data":2,"commit":')).toBe(true);
+      }
+    }
+  });
+
+  it("[SR-061/AK3] every line of logreq data export --jsonl matches $defs/line of schemas/data-export.schema.json", async () => {
+    const ws = await fixture();
+    const validate = await schemaValidator("data-export.schema.json#/$defs/line");
+    const result = await exportIn(ws, ["--jsonl"]);
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    const lines = linesOf(result.stdout);
+    expect(lines).toHaveLength(9);
+    for (const line of lines) {
+      expect([line["id"], validate?.(line), validate?.errors ?? null]).toEqual([line["id"], true, null]);
+    }
+  });
+
+  it("refuses --jsonl together with --json, and on a command without JSON Lines, as a usage error", async () => {
+    const ws = await fixture();
+    const both = await exportIn(ws, ["--jsonl", "--json"]);
+    expect([both.code, both.stdout]).toEqual([2, ""]);
+    expect(JSON.parse(both.stderr)).toMatchObject({ code: "input.invalid" });
+    const other = await run(["workspace", "status", "--jsonl"], { cwd: ws.path("system") });
+    expect([other.code, other.stdout]).toEqual([2, ""]);
+    const error = JSON.parse(other.stderr) as { code: string; message: string };
+    expect([error.code, error.message.split("\n")[0]]).toEqual(["input.invalid", "unknown option '--jsonl'"]);
   });
 });

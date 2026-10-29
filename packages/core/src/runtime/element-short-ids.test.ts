@@ -434,7 +434,7 @@ describe("every problem of every output schema is located (#319)", () => {
       "#/properties/conditional/else/properties/b/items/$ref",
       "#/properties/mixed/anyOf/0/additionalProperties/$ref",
       "#/properties/mixed/anyOf/1/properties/c/$ref",
-      "#/properties/element/$ref/properties/problems/items/$ref",
+      "#/properties/element/$ref/allOf/0/$ref/properties/problems/items/$ref",
     ]);
     for (const ref of placed) {
       expect(ref.path && locates(where, ref.path), ref.at).toBe(true);

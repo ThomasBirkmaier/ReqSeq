@@ -33,7 +33,8 @@ const check = (...commands) => checkCatalog({ commands });
 
 describe("catalog checks (titles and argument sources, SR-108)", () => {
   it("accepts the product catalog", () => {
-    expect(checkCatalog(loadContracts().catalog)).toEqual([]);
+    const { catalog, schemas } = loadContracts();
+    expect(checkCatalog(catalog, schemas)).toEqual([]);
   });
 
   it("accepts a complete argument list", () => {
@@ -123,5 +124,54 @@ describe("catalog checks (titles and argument sources, SR-108)", () => {
 
   it("an input without properties has no arguments", () => {
     expect(check(command("test.one", "One", [], { type: "object" }))).toEqual([]);
+  });
+});
+
+describe("catalog checks (jsonLines, #319)", () => {
+  const schemas = {
+    "lines.schema.json": {
+      type: "object",
+      properties: {
+        version: { const: 1 },
+        names: { type: "array", items: { type: "string" } },
+        rows: { type: "array", items: { $ref: "#/$defs/row" } },
+      },
+      $defs: {
+        row: { allOf: [{ $ref: "#/$defs/fields" }], unevaluatedProperties: false },
+        fields: { type: "object", properties: { id: { type: "string" }, version: { type: "integer" } } },
+      },
+    },
+  };
+  const withLines = (jsonLines, output = { type: "object", $ref: "../lines.schema.json" }) => ({
+    ...command("test.one", "One", [], { type: "object" }),
+    output,
+    jsonLines,
+  });
+  const lines = (jsonLines, output) => checkCatalog({ commands: [withLines(jsonLines, output)] }, schemas);
+
+  it("accepts items that are a top-level array and fields that are top-level values", () => {
+    const inline = {
+      type: "object",
+      properties: { mark: { const: 1 }, rows: { type: "array", items: { type: "object" } } },
+    };
+    expect(lines({ items: "rows", fields: [] })).toEqual([]);
+    expect(lines({ items: "rows", fields: ["mark"] }, inline)).toEqual([]);
+  });
+
+  it("refuses items that are no top-level array", () => {
+    expect(lines({ items: "version", fields: [] })).toEqual([
+      'catalog.json: test.one: jsonLines: "version" is not a top-level array of the output',
+    ]);
+    expect(lines({ items: "missing", fields: [] })).toEqual([
+      'catalog.json: test.one: jsonLines: "missing" is not a top-level array of the output',
+    ]);
+  });
+
+  it("refuses fields that are missing, arrays, or also keys of an item", () => {
+    expect(lines({ items: "rows", fields: ["missing", "names", "version"] })).toEqual([
+      'catalog.json: test.one: jsonLines: "missing" is not a top-level field of the output',
+      'catalog.json: test.one: jsonLines: "names" is an array',
+      'catalog.json: test.one: jsonLines: "version" is also a property of the items of "rows"',
+    ]);
   });
 });

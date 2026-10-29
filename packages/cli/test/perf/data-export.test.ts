@@ -1,4 +1,4 @@
-// SR-061 and #277 in the performance suite (ADR-0011): `data.export` of the generated workspace of
+// SR-061 (also its JSON Lines, AK4, #319) and #277 in the performance suite (ADR-0011): `data.export` of the generated workspace of
 // N-036 (50,000 elements, 200,000 relations) with the evidence records a project of that size keeps
 // (`withEvidenceRecords`), through the command line, the local API and the MCP server. The JSON is
 // larger than one string can hold (about 0.55 GB compact, V8 holds at most about 512 MB in one string),
@@ -21,7 +21,15 @@ import { pathToFileURL } from "node:url";
 import { startApiServer } from "@logreq/api";
 import { MAX_TEXT_BYTES, largeOutputNote } from "@logreq/mcp";
 import type { CommandOutput, VersionValue } from "@logreq/core";
-import { Workspace, computeVersion, invoke, jsonByteLength, jsonChunks } from "@logreq/core";
+import {
+  Workspace,
+  computeVersion,
+  invoke,
+  jsonByteLength,
+  jsonChunks,
+  jsonLines,
+  loadContracts,
+} from "@logreq/core";
 import type { VersionFunction } from "@logreq/testkit";
 import {
   createFixtureWorkspace,
@@ -209,6 +217,9 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
   /** UTF-8 bytes of the export made here: compact, and with indent 2. */
   let compactBytes = 0;
   let indentedBytes = 0;
+  /** UTF-8 bytes and lines of its JSON Lines (#319). */
+  let linesBytes = 0;
+  let lineCount = 0;
 
   beforeAll(async () => {
     requireBuiltCli("pnpm test:perf");
@@ -226,6 +237,14 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       for (const chunk of jsonChunks(data, { indent: 2 })) {
         indentedBytes += Buffer.byteLength(chunk);
       }
+      const spec = loadContracts().entry("data.export")?.jsonLines;
+      if (spec === undefined) {
+        throw new Error("data.export has no jsonLines in the catalog");
+      }
+      for (const chunk of jsonLines(data, spec)) {
+        linesBytes += Buffer.byteLength(chunk);
+      }
+      lineCount = (data as CommandOutput<"data.export">).elements.length;
     } finally {
       await workspace.close();
     }
@@ -257,7 +276,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     const { size } = await fsp.stat(file);
     expect(size).toBe(indentedBytes + 1);
     const { head, tail } = await edges(file, 21);
-    expect(head).toBe('{\n  "logreq-data": 1,');
+    expect(head).toBe('{\n  "logreq-data": 2,');
     expect(tail.endsWith("\n}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
@@ -265,6 +284,98 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       0,
       { basis: "SR-061 AK1, #277 (recorded)" },
     );
+  }, 1_800_000);
+
+  it("[SR-061/AK4] gives one element per line on the command line at N-036 (data export --jsonl, #319)", async () => {
+    const file = path.join(scratch, "export.jsonl");
+    const memoryFile = path.join(scratch, "memory-jsonl.json");
+    const env = {
+      LOGREQ_PEAK_MEMORY: memoryFile,
+      NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
+    };
+    const { result: run } = await measure(
+      "logreq data export --jsonl at N-036 into a file (new CLI process, one element per line)",
+      () => logreqToFile(["data", "export", "--jsonl"], root, file, env),
+      {
+        basis: "SR-061 AK4, #319 (command line, from process start to exit; recorded, no limit in the spec)",
+      },
+    );
+    expect(run.stderr).toBe("");
+    expect(run.code).toBe(0);
+    const { size } = await fsp.stat(file);
+    expect(size).toBe(linesBytes);
+    let breaks = 0;
+    for await (const chunk of fs.createReadStream(file) as AsyncIterable<Buffer>) {
+      for (let at = chunk.indexOf(10); at !== -1; at = chunk.indexOf(10, at + 1)) {
+        breaks += 1;
+      }
+    }
+    expect(breaks).toBe(lineCount);
+    const { head, tail } = await edges(file, 17);
+    expect(head).toBe('{"logreq-data":2,');
+    expect(tail.endsWith("}\n")).toBe(true);
+    const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
+    await recordValue(
+      `logreq data export --jsonl at N-036: ${(size / MB).toFixed(0)} MB, ${String(lineCount)} lines; CLI process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
+      0,
+      { basis: "SR-061 AK4, #319 (recorded)" },
+    );
+  }, 1_800_000);
+
+  it("[SR-061/AK4] gives one element per line over the API at N-036 (Accept: application/x-ndjson, #319)", async () => {
+    const workspace = new Workspace(root);
+    const server = await startApiServer({ workspace, cacheFolder: scratch });
+    try {
+      const { token } = JSON.parse(await fsp.readFile(server.endpointFile, "utf8")) as { token: string };
+      const post = (): Promise<{
+        status: number | undefined;
+        type: string | undefined;
+        bytes: number;
+        breaks: number;
+      }> =>
+        new Promise((resolve, reject) => {
+          const req = http.request(
+            {
+              host: "127.0.0.1",
+              port: server.port,
+              method: "POST",
+              path: "/v1/commands/data.export",
+              headers: { authorization: `Bearer ${token}`, accept: "application/x-ndjson" },
+            },
+            (res) => {
+              let bytes = 0;
+              let breaks = 0;
+              res.on("data", (chunk: Buffer) => {
+                bytes += chunk.length;
+                for (let at = chunk.indexOf(10); at !== -1; at = chunk.indexOf(10, at + 1)) {
+                  breaks += 1;
+                }
+              });
+              res.on("end", () => {
+                resolve({ status: res.statusCode, type: res.headers["content-type"], bytes, breaks });
+              });
+              res.on("error", reject);
+            },
+          );
+          req.on("error", reject);
+          req.end("{}");
+        });
+      const { result: reply } = await measure(
+        "POST data.export over the local API at N-036 as JSON Lines (streamed)",
+        post,
+        { basis: "SR-061 AK4, #319 (local API, request to the last byte; recorded, no limit in the spec)" },
+      );
+      expect([reply.status, reply.type]).toEqual([200, "application/x-ndjson; charset=utf-8"]);
+      expect([reply.bytes, reply.breaks]).toEqual([linesBytes, lineCount]);
+      await recordValue(
+        `POST data.export over the local API at N-036 as JSON Lines: ${(reply.bytes / MB).toFixed(0)} MB`,
+        0,
+        { basis: "SR-061 AK4, #319 (recorded)" },
+      );
+    } finally {
+      await server.close();
+      await workspace.close();
+    }
   }, 1_800_000);
 
   it("[SR-061/AK1] gives the data of every element as JSON over the API at N-036 (streamed)", async () => {
@@ -312,7 +423,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       );
       expect(reply.status).toBe(200);
       expect(reply.bytes).toBe(compactBytes + 1);
-      expect(reply.head).toBe('{"logreq-data":1,');
+      expect(reply.head).toBe('{"logreq-data":2,');
       expect(reply.tail.endsWith("}\n")).toBe(true);
       await recordValue(
         `POST data.export over the local API at N-036: ${(reply.bytes / MB).toFixed(0)} MB`,
@@ -343,7 +454,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(run.code).toBe(0);
     const { answer } = run;
     expect(answer.head).toContain(JSON.stringify(largeOutputNote(MAX_TEXT_BYTES)));
-    expect(answer.head).toContain('"structuredContent":{"logreq-data":1,');
+    expect(answer.head).toContain('"structuredContent":{"logreq-data":2,');
     expect(answer.tail.endsWith("}")).toBe(true);
     // The structured content is the compact export; the envelope and the note add less than 1 KB.
     expect(answer.bytes).toBeGreaterThan(compactBytes);

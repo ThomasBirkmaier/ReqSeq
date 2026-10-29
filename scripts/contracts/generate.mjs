@@ -83,6 +83,16 @@ const commandErrors = {
   ),
   503: errorResponse("Command error of class unavailable (e.g. git.unavailable)"),
 };
+// JSON Lines (#319, ADR-0009): only an `Accept` that names application/x-ndjson is negotiated.
+const notAcceptable = errorResponse(
+  "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+);
+const jsonLinesContent = ({ items, fields }) => ({
+  schema: {
+    type: "string",
+    description: `One compact JSON object and LF per item of \`${items}\` of the JSON result: the fields ${fields.map((f) => `\`${f}\``).join(", ")} of the result first (those it gives), then the keys of the item. UTF-8, no other field of the result.`,
+  },
+});
 const catalogEntry = rewrite(
   {
     ...meta.properties.commands.items,
@@ -129,11 +139,20 @@ for (const cmd of catalog.commands) {
       requestBody: { required: true, content: { "application/json": { schema: rewrite(cmd.input, toRef) } } },
       responses: {
         200: {
-          description: "Result",
-          content: { "application/json": { schema: rewrite(cmd.output, toRef) } },
+          description:
+            cmd.jsonLines === undefined
+              ? "Result"
+              : "Result: JSON, or JSON Lines when `Accept` names application/x-ndjson with q > 0 (#319)",
+          content: {
+            "application/json": { schema: rewrite(cmd.output, toRef) },
+            ...(cmd.jsonLines === undefined
+              ? {}
+              : { "application/x-ndjson": jsonLinesContent(cmd.jsonLines) }),
+          },
         },
         ...refusals,
         ...commandErrors,
+        ...(cmd.jsonLines === undefined ? { 406: notAcceptable } : {}),
       },
     },
   };

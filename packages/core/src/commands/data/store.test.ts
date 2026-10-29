@@ -130,7 +130,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const out = await storeIn(root, { folder: "out" });
     expect(out).toEqual({ files: [`out/${commit}.json`], problems: [] });
     const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
-    expect(text.startsWith('{"logreq-data":1,')).toBe(true);
+    expect(text.startsWith('{"logreq-data":2,')).toBe(true);
     expect(text.endsWith("}\n")).toBe(true);
     const data = JSON.parse(text) as Data;
     expect(timeless(data)).toEqual(timeless(await exportIn(root)));
@@ -458,7 +458,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "generated/notes.md", "More.\n");
     });
     await unchanged(() =>
-      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":1}\n'),
+      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":2}\n'),
     );
     await unchanged(() => ws.write("metamodel/extra.json", "{}\n"));
     await unchanged(() => ws.write("requirements/notes.MD", "Not an element file name.\n"));
@@ -680,7 +680,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   it("replaces only a LogReq data file: another file of the name stays as it is", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    for (const text of ['{"logreq-data":2}', "[1]", "null", "not json", "﻿{}"]) {
+    for (const text of ['{"logreq-data":1}', "[1]", "null", "not json", "﻿{}"]) {
       await ws.write(`out/${commit}.json`, text);
       const error = await failure(ws.root, { folder: "out" });
       expect([error.code, error.details]).toEqual([
@@ -701,7 +701,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     async () => {
       const ws = await fixture();
       const commit = await ws.head();
-      await ws.write(`out/${commit}.json`, '{"logreq-data":1}\n');
+      await ws.write(`out/${commit}.json`, '{"logreq-data":2}\n');
       fs.chmodSync(ws.path(`out/${commit}.json`), 0o444);
       expect((await failure(ws.root, { folder: "out" })).code).toBe("file.read-only");
     },
@@ -761,7 +761,7 @@ describe("data.store: a file larger than one string (#277)", () => {
     const ws = await fixture();
     const commit = await ws.head();
     // The frame of a data file around bytes that are no JSON: above the bound only the frame counts.
-    const framed = `{"logreq-data":1,"elements":[${"x".repeat(300)}}\n`;
+    const framed = `{"logreq-data":2,"elements":[${"x".repeat(300)}}\n`;
     const store = async (fullParseUpTo?: number): Promise<Output> => {
       const workspace = new Workspace(ws.root);
       try {
@@ -784,7 +784,7 @@ describe("data.store: a file larger than one string (#277)", () => {
     expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(framed);
     expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
     const text = fs.readFileSync(ws.path(`out/${commit}.json`), "utf8");
-    expect((JSON.parse(text) as Data)["logreq-data"]).toBe(1);
+    expect((JSON.parse(text) as Data)["logreq-data"]).toBe(2);
     // The stored file is over the bound too, and is replaced again.
     expect(text.length).toBeGreaterThan(100);
     expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });

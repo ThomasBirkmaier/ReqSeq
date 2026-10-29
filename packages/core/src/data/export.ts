@@ -21,7 +21,10 @@
 //     narrowed export tells outdated links too.
 //   Not in it: the text, other incoming relations (each relation is at its source), the version
 //   date (D-013 is about display; Git history per element is too slow at N-036), the records.
-// - Header (A5): `generated` = the time of the call (UTC, seconds); `selection` as given;
+// - Header (A5): `logreq-data` 2; `commit`, HEAD of the main repository, and `dirty`, false only when
+//   every available repository has a known commit and is known clean (the state data.store names
+//   its file after; both also on every line of the JSON Lines form, `$defs/line`, #319);
+//   `generated` = the time of the call (UTC, seconds); `selection` as given;
 //   `repositories`: each of the workspace file with `available` and, when Git tells it, `commit`
 //   and `dirty` (SR-062, #531 Q2: uncommitted changes to the files the data is made of, by content);
 //   `incomplete` (SR-006 AK2): the selection is incomplete or an evidence location is in a repository
@@ -183,6 +186,8 @@ export const exportTime = (now: Date): string => `${now.toISOString().slice(0, 1
 /** The header of the export: everything but `elements` (see the file comment). */
 export const exportHeader = (input: {
   readonly name: string;
+  /** The name of the main repository (the one with the workspace file): its commit is `commit`. */
+  readonly main: string;
   readonly generated: string;
   readonly selection: ElementSelection | undefined;
   readonly repositories: readonly {
@@ -192,19 +197,24 @@ export const exportHeader = (input: {
     readonly dirty?: boolean;
   }[];
   readonly incomplete: boolean;
-}): Omit<DataExportFile, "elements"> => ({
-  "logreq-data": 1,
-  workspace: input.name,
-  generated: input.generated,
-  ...(input.selection === undefined ? {} : { selection: input.selection }),
-  repositories: input.repositories.map(({ name, available, commit, dirty }) => ({
-    name,
-    available,
+}): Omit<DataExportFile, "elements"> => {
+  const commit = input.repositories.find((r) => r.name === input.main)?.commit;
+  return {
+    "logreq-data": 2,
     ...(commit === undefined ? {} : { commit }),
-    ...(dirty === undefined ? {} : { dirty }),
-  })),
-  incomplete: input.incomplete,
-});
+    dirty: !input.repositories.every((r) => !r.available || r.dirty === false),
+    workspace: input.name,
+    generated: input.generated,
+    ...(input.selection === undefined ? {} : { selection: input.selection }),
+    repositories: input.repositories.map(({ name, available, commit, dirty }) => ({
+      name,
+      available,
+      ...(commit === undefined ? {} : { commit }),
+      ...(dirty === undefined ? {} : { dirty }),
+    })),
+    incomplete: input.incomplete,
+  };
+};
 
 /** How `exportData` reads what it does not get from the workspace (tests). */
 export interface ExportOptions {
@@ -339,6 +349,7 @@ export const exportDataWithProblems = async (
   const data = {
     ...exportHeader({
       name: layout.name,
+      main: layout.main,
       generated,
       selection,
       repositories: stated.map(({ repository, state }) => ({
@@ -358,8 +369,7 @@ export const exportDataWithProblems = async (
     }),
     ...(incomplete ? layout.problems.filter((p) => p.code === "workspace.repository-missing") : []),
   ];
-  const clean = stated.every(({ state }) => state === undefined || state.dirty === false);
-  return { data, problems, clean };
+  return { data, problems, clean: !data.dirty };
 };
 
 /** The data of the elements `selected` selected in `workspace`, for the input `selection` (see the file comment). */

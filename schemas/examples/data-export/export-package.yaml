@@ -4,7 +4,9 @@
 # current version of its target, including the targets of validity and packages (property: true),
 # validity and packages as UUIDs and the verification status per view. The derivation of SR-0000b2
 # stores an older version of the need, so it is outdated (SR-025).
-logreq-data: 1
+logreq-data: 2
+commit: 61aa061aa061aa061aa061aa061aa061aa061aa0
+dirty: false
 workspace: Weather station
 generated: 2026-10-27T08:00:00Z
 selection:

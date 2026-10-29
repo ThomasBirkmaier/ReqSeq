@@ -60,6 +60,10 @@ const catalog = {
     entry("test.large", { properties: {} }),
     entry("test.setStatus", { properties: {} }, "Planned, never implemented in this test."),
     entry("other.ping", { properties: {} }),
+    {
+      ...entry("test.rows", { properties: { fail: { type: "boolean" } } }),
+      jsonLines: { items: "rows", fields: ["mark", "missing"] },
+    },
   ],
 };
 
@@ -127,6 +131,13 @@ const testCommands = [
     },
   }),
   defineTestCommand({ name: "other.ping", run: () => Promise.resolve({}) }),
+  defineTestCommand({
+    name: "test.rows",
+    run: (_ctx, input: { fail?: boolean }) =>
+      input.fail === true
+        ? Promise.reject(new CommandError("input.invalid", "No rows"))
+        : Promise.resolve({ mark: 2, other: "not in the lines", rows: [{ a: 1 }, { a: "Größe" }] }),
+  }),
 ];
 
 const runtime = createCommandRuntime({
@@ -339,6 +350,32 @@ describe("logreq <group> <action>", () => {
     const both = await run(["test", "findings", "--yaml", "--json"]);
     expect(both.code).toBe(EXIT.usage);
     expect(JSON.parse(both.stderr)).toMatchObject({ code: "input.invalid" });
+  });
+
+  it("[SR-061/AK4] prints one line per item with --jsonl, where the catalog offers JSON Lines (#319)", async () => {
+    expect(await run(["test", "rows", "--jsonl"])).toEqual({
+      code: EXIT.ok,
+      stdout: '{"mark":2,"a":1}\n{"mark":2,"a":"Größe"}\n',
+      stderr: "",
+    });
+    expect((await run(["test", "rows", "--help"])).stdout).toContain("--jsonl");
+    const failed = await run(["test", "rows", "--fail", "--jsonl"]);
+    expect([failed.code, failed.stdout, JSON.parse(failed.stderr)]).toEqual([
+      EXIT.usage,
+      "",
+      { code: "input.invalid", message: "No rows" },
+    ]);
+    // Usage errors come as the error object too.
+    for (const argv of [
+      ["test", "rows", "--jsonl", "--json"],
+      ["test", "rows", "--jsonl", "--yaml"],
+      ["test", "findings", "--jsonl"],
+    ]) {
+      const refused = await run(argv);
+      expect([argv, refused.code, refused.stdout]).toEqual([argv, EXIT.usage, ""]);
+      expect(JSON.parse(refused.stderr)).toMatchObject({ code: "input.invalid" });
+    }
+    expect((await run(["test", "findings", "--help"])).stdout).not.toContain("--jsonl");
   });
 
   it("takes a positional field as a flag too, and fills the other positional fields with the arguments (#310)", async () => {

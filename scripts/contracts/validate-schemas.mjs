@@ -42,9 +42,9 @@ for (const cmd of catalog.commands) {
   }
 }
 
-// Titles and argument sources of the command prompt (SR-108); needs a catalog that matches the meta-schema.
+// Titles, argument sources of the command prompt (SR-108) and jsonLines; needs a catalog that matches the meta-schema.
 if (validCatalog.errors === null) {
-  errors.push(...checkCatalog(catalog));
+  errors.push(...checkCatalog(catalog, schemas));
 }
 
 function parseExample(f, text) {
