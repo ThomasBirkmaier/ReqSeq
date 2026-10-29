@@ -1,7 +1,7 @@
 ---
 id: 6adc6d28-5f68-4cda-a7e1-04bb5a8a3eaf
 type: system-requirement
-status: draft
+status: approved
 title: "Daten eines Stands als JSON liefern"
 spec-id: "SR-061"
 requirement-type: interface

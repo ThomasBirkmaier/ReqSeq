@@ -1,7 +1,7 @@
 ---
 id: 6adc6c4a-6284-4d56-93b7-86aecd1b44e4
 type: system-requirement
-status: draft
+status: approved
 title: "Validierungsstatus zeigen"
 spec-id: "SR-038"
 requirement-type: functional
