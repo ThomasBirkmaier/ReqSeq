@@ -219,9 +219,12 @@ jobs:
         id: build
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.changes.outputs.tests != 'false' }}
         run: pnpm build
-      - name: Unit tests with coverage
+      # Coverage and its thresholds (ADR-0016) are measured on Linux. On macOS and Windows the unit tests run without
+      # coverage (#304): tests of symbolic links, special files and execute bits are skipped there, so the per-file
+      # 100 % could not be reached on those systems, and instrumenting costs time.
+      - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: pnpm test:coverage
+        run: ${{ runner.os == 'Linux' && 'pnpm test:coverage' || 'pnpm test' }}
       # The spec is a LogReq workspace (D-064, #326): LogReq checks it like any other (exit 1 on errors).
       - name: Check the spec with LogReq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -266,12 +269,18 @@ jobs:
   # (`_electron.launch`): it shows the status of a fixture workspace, an invoke gives what the CLI gives
   # (SR-080), the session cancels every request that is not local (SR-078), the renderer is sandboxed.
   # On Linux under xvfb with Chromium's sandbox on (no --no-sandbox; the runner user is not root).
-  # In parallel to `checks`: it is the longest job. `electron-platform` runs the same steps on macOS and Windows.
-  electron:
-    name: electron (ubuntu-24.04)
-    # A normal run takes 8-11 minutes (install, build, about 250 tests one app at a time); the bound ends a hang.
-    timeout-minutes: 20
+  # In parallel to `checks`: it is the longest job, so on Ubuntu it runs in two shards on two runners (#303), each
+  # with one app at a time (two workers on one runner made apps fail to start under load). `electron (ubuntu-24.04)`
+  # below is green when both shards are. `electron-platform` runs the same steps on macOS and Windows in one job.
+  electron-shard:
+    name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
+    # A normal run takes 5-6 minutes (install, build, half of about 260 tests one app at a time); the bound ends a hang.
+    timeout-minutes: 15
     if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on: ubuntu-24.04
     steps: &electron-steps
       - uses: actions/checkout@v4
@@ -343,7 +352,7 @@ jobs:
       # app with electron-vite and runs Playwright.
       - name: Electron tests (xvfb)
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
-        run: xvfb-run -a pnpm --filter @logreq/app test:electron
+        run: xvfb-run -a pnpm --filter @logreq/app test:electron ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
         run: pnpm --filter @logreq/app test:electron
@@ -351,11 +360,24 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-electron-${{ matrix.os || 'ubuntu-24.04' }}
+          name: junit-electron-${{ matrix.os || 'ubuntu-24.04' }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
           path: |
             test-results/junit-electron.xml
             test-results/electron/
           if-no-files-found: ignore
+
+  # The one Ubuntu Electron result that the platform lane and merge.md read: green when both shards are.
+  electron:
+    name: electron (ubuntu-24.04)
+    needs: electron-shard
+    timeout-minutes: 2
+    if: ${{ !cancelled() && (!contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base)) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Both shards passed
+        env:
+          RESULT: ${{ needs.electron-shard.result }}
+        run: test "$RESULT" = success
 
   # The platform lane (#303): the steps of `checks` and `electron` on macOS 14 and Windows 2025. A pull request runs
   # it only when it is not a draft, and only after its Ubuntu lane passed: a red Ubuntu lane starts no macOS or
