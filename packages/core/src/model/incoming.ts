@@ -414,12 +414,19 @@ export const incomingState = defineWorkspaceState(
  * there is none or it was built with another metamodel. Synchronous and without loading any state:
  * the caller reads store and metamodel once and derives everything from them (ADR-0008).
  */
-export const incomingFor = (
-  workspace: Workspace,
+export const incomingFor = (workspace: Workspace, store: ElementStore, metamodel: Metamodel): IncomingIndex =>
+  incomingIn(workspace.get(incomingState), store, metamodel);
+
+/**
+ * The incoming relation index of `store` with `metamodel` from `memo` (the value of `incomingState`),
+ * built and kept there when there is none or it was built with another metamodel. For a caller that
+ * took the memo earlier, as a carry hook does inside `Workspace.replace` (#698).
+ */
+export const incomingIn = (
+  memo: WeakMap<ElementStore, IncomingIndex>,
   store: ElementStore,
   metamodel: Metamodel,
 ): IncomingIndex => {
-  const memo = workspace.get(incomingState);
   let index = memo.get(store);
   if (index?.metamodel !== metamodel) {
     index = buildIncomingIndex(store, metamodel);
