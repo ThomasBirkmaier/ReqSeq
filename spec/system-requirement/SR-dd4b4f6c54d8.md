@@ -1,7 +1,7 @@
 ---
 id: 1c987832-234f-4c88-a8bf-dd4b4f6c54d8
 type: system-requirement
-status: draft
+status: approved
 title: Dokumentation ohne Netz mit jeder Auslieferung
 spec-id: SR-141
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen Systemanforderungen."

@@ -1,7 +1,7 @@
 ---
 id: e6faea96-23af-4d19-bbf0-622baef7e5aa
 type: system-requirement
-status: draft
+status: approved
 title: Einstieg und Anleitungen mit geprüften Beispielen
 spec-id: SR-140
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen Systemanforderungen."

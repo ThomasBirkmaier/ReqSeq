@@ -1,7 +1,7 @@
 ---
 id: cb583de8-288a-4d8a-82f0-b2be57da2cce
 type: decision
-status: draft
+status: accepted
 title: Nutzerdokumentation aus den Quellen des Werkzeugs
 spec-id: D-067
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie. Die Dokumentation bleibt durch Erzeugen und Prüfen aktuell statt durch Disziplin, und sie bleibt schlank, weil zu viel aktuelle Information so wenig hilft wie veraltete. Zuerst wird sie online veröffentlicht, die Auslieferung zum Lesen ohne Netz folgt in einem späteren Schritt."
