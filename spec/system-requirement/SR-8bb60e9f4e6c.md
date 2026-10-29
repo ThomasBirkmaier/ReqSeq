@@ -15,7 +15,7 @@ packages:
 derives-from:
   - { id: 6ad3a129-d7b1-4b17-a9d7-6caf73d38315, version: n1:9b945f99f310e930, title: "Requirement, Baseline und Nachweis" }
 based-on:
-  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n1:d3ce3d35b5c87ef2, title: Baseline als Datei }
+  - { id: 6adc691f-cfbf-4934-9504-21c1fc5849f7, version: n1:5b059ebfcd539c6b, title: Baseline als Datei }
 ---
 
 Das Tool muss zu jedem Nachweis zeigen, für welche Fassung, welchen Prüfling und welche Baselines er gilt.
