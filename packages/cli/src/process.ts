@@ -29,18 +29,19 @@ export interface ProcessIo {
 }
 
 /**
+ * Error codes of a write whose reader went away. Linux reports `EPIPE`; macOS, where a child's stdout is a
+ * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304). Both
+ * count on every platform.
+ */
+const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET"]);
+
+/**
  * Connect the binary to the process. A closed pipe (e.g. `logreq ... | head`) drops the rest of that output
  * quietly and keeps the command's exit code; any other write error makes the exit code 3, and a failed
  * stdout says so on stderr.
  * A write that the stream buffers beyond its limit returns false, and `drained` waits for the stream's
  * `drain` (back-pressure for a large output, #277); it resolves false once the stream failed.
  */
-/**
- * Error codes of a write whose reader went away. Linux reports `EPIPE`; macOS, where a child's stdout is a
- * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304).
- */
-const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET"]);
-
 export function connectProcess(proc: ProcessLike): ProcessIo {
   let writeFailed = false;
   const sink = (stream: OutputStream, report?: OutputStream): TextSink => {

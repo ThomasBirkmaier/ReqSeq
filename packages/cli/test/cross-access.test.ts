@@ -2092,6 +2092,8 @@ beforeAll(async () => {
   }
 }, 120_000);
 
+// Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
+// than the default hook timeout of 30 s (#304).
 afterAll(async () => {
   await Promise.all([...templates.values()].map((f) => f.cleanup()));
   templates.clear();
@@ -2100,7 +2102,7 @@ afterAll(async () => {
       fs.rm(folder, { recursive: true, force: true, maxRetries: 3 }),
     ),
   );
-});
+}, 120_000);
 
 /** The sample hooks of `git init`: half the files of a fixture, and no Git command of LogReq runs hooks. */
 const isSampleHooks = (source: string): boolean =>
