@@ -163,6 +163,12 @@ const NOTE_SECTIONS = [
 ];
 
 /**
+ * A commit subject as safe release-note text: `@name` in code style, so that it mentions nobody (e.g. a bump of
+ * `@types/node`), and `<` escaped, so that it cannot open an HTML tag inside the folded section.
+ */
+const noteText = (subject) => subject.replaceAll(/(^|\s)(@[\w./-]+)/g, "$1`$2`").replaceAll("<", "&lt;");
+
+/**
  * The release notes of a tag (#346): the Conventional Commit subjects since the previous release tag (`previous`,
  * undefined for the first release), grouped into new functions, fixes and specification; all other subjects
  * (enabler, test, ci, docs, ...) are folded into "Other changes". `compareUrl` links the full difference.
@@ -171,7 +177,7 @@ export function releaseNotes(subjects, { previous, compareUrl }) {
   const groups = new Map([...NOTE_SECTIONS.map((s) => [s.title, []]), ["Other changes", []]]);
   for (const subject of subjects.map((s) => s.trim()).filter((s) => s !== "")) {
     const section = NOTE_SECTIONS.find((s) => s.test.test(subject));
-    groups.get(section?.title ?? "Other changes").push(`- ${subject}`);
+    groups.get(section?.title ?? "Other changes").push(`- ${noteText(subject)}`);
   }
   const lines = [previous === undefined ? "## Changes" : `## Changes since ${previous}`, ""];
   for (const [title, items] of groups) {

@@ -122,6 +122,12 @@ describe("releaseNotes", () => {
     );
   });
 
+  it("mentions nobody and opens no HTML tag", () => {
+    expect(
+      releaseNotes(["fix: bump @types/node and <details> handling"], { previous: "v1", compareUrl: "u" }),
+    ).toContain("- fix: bump `@types/node` and &lt;details> handling");
+  });
+
   it("says so when nothing changed and leaves the link out for the first release", () => {
     expect(releaseNotes([""], { previous: undefined, compareUrl: "unused" })).toBe(
       "## Changes\n\nNo changes.\n",

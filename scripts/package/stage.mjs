@@ -168,7 +168,8 @@ async function pack() {
 
 /** The release notes of `ref` (#346), from the git history; the repository must have its tags. */
 function notes(ref) {
-  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).trim();
   let previous;
   try {
     // Release tags only: `v<major>.<minor>` or `v<major>.<minor>.<patch>`, no `-rc` tags.
