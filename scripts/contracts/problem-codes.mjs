@@ -21,6 +21,9 @@ export function checkProblemCodes(text, common) {
     problems: common.$defs.problemCode.enum,
     errors: common.$defs.error.properties.code.enum,
   };
+  for (const key of Object.keys(keysOf(data) ?? {}).filter((k) => !Object.hasOwn(lists, k))) {
+    errors.push(`${PROBLEM_CODES_FILE}: ${key} is no section (problems, errors)`);
+  }
   for (const [section, codes] of Object.entries(lists)) {
     const entries = keysOf(keysOf(data)?.[section]) ?? {};
     for (const code of codes.filter((c) => !Object.hasOwn(entries, c))) {

@@ -16,8 +16,9 @@ describe("checkProblemCodes", () => {
   });
 
   it("names missing and unknown codes and empty texts", () => {
-    const text = `problems:\n  a.one: ${entry}\n  a.three: ${entry}\nerrors:\n  e.one: { cause: "", remedy: 1 }\n`;
+    const text = `problems:\n  a.one: ${entry}\n  a.three: ${entry}\nerrors:\n  e.one: { cause: "", remedy: 1 }\nwarnings: {}\n`;
     expect(checkProblemCodes(text, common)).toEqual([
+      "problem-codes.yaml: warnings is no section (problems, errors)",
       "problem-codes.yaml: problems: a.two is missing",
       "problem-codes.yaml: problems: a.three is no code of common.schema.json",
       "problem-codes.yaml: errors: e.one needs a cause",
