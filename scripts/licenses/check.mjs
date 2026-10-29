@@ -41,7 +41,8 @@ export const VERIFIED_LICENSE_FILES = {
 const sha256 = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
 /**
- * The problems of the production dependencies `byLicense` (the JSON of `pnpm licenses list --json --prod`)
+ * The problems of the production dependencies `byLicense` (the JSON of `pnpm --recursive licenses list --json --prod`;
+ * since pnpm 12, `licenses list` in the workspace root covers only the root project without `--recursive`)
  * against the allowlist and the verified license files; empty when all are allowed.
  */
 export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
@@ -81,7 +82,7 @@ export function licenseProblems(byLicense, verified = VERIFIED_LICENSE_FILES) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const out = execFileSync("pnpm", ["licenses", "list", "--json", "--prod"], {
+  const out = execFileSync("pnpm", ["--recursive", "licenses", "list", "--json", "--prod"], {
     encoding: "utf8",
     shell: process.platform === "win32",
   });

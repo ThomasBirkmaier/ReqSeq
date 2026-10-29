@@ -14,7 +14,7 @@ The tests name only the ID, never the version. When a requirement changes, the t
 
 ## What you need
 
-- **The `reqseq` command line.** It comes with the ReqSeq delivery. Until the installers exist, build it from a checkout of this repository (Node.js 22.12 or newer, pnpm 10):
+- **The `reqseq` command line.** It comes with the ReqSeq delivery. Until the installers exist, build it from a checkout of this repository (Node.js 22.12 or newer, pnpm 12):
 
   ```sh
   pnpm install && pnpm build
