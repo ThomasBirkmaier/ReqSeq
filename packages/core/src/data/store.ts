@@ -18,9 +18,12 @@
 //     path is in a repository is refused; one that leads out of every repository is judged as outside;
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
-//   - an existing file of the name is replaced only when it is a LogReq data file (`"logreq-data": 1`),
-//     under its snapshot and the `json` guard; anything else is `input.invalid` and stays as it is.
-// - The content is compact JSON with a line break, UTF-8 without BOM, `logreq-data` first (K5).
+//   - an existing file of the name is replaced only when it is a LogReq data file (`"logreq-data": 1`;
+//     above 64 MiB the frame LogReq writes, `jsonDataKind` of the files block, #697), under its
+//     snapshot and the `json` guard, which checks the same way; anything else is `input.invalid` and
+//     stays as it is.
+// - The content is compact JSON with a line break, UTF-8 without BOM, `logreq-data` first (K5). It is
+//   written in chunks (`jsonChunks`), never as one string, which V8 cannot hold at N-036 (#697).
 // - `files` is relative to the workspace root when the file lies in a repository, else absolute.
 // - No status is read for writing or written (D-030), Git is only read (D-036), nothing is deleted
 //   (D-045); the replaced file is a data file, never an element.
@@ -29,7 +32,14 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FileSnapshot } from "../files/index.js";
-import { createFolder, readFileSnapshot, writeFileAtomic } from "../files/index.js";
+import {
+  createFolder,
+  JSON_FULL_PARSE_BYTES,
+  jsonChunks,
+  jsonDataKind,
+  readFileSnapshot,
+  writeFileAtomic,
+} from "../files/index.js";
 import type { DataStoreOutput, ElementSelection } from "../generated/types.js";
 import { refuseUnlisted, repositoryCommit } from "../model/index.js";
 import type { Selected } from "../query/index.js";
@@ -43,22 +53,25 @@ import { NO_COMMIT_TEXT, exportDataWithProblems } from "./export.js";
 export const dataFileName = (commit: string, clean: boolean): string =>
   `${commit}${clean ? "" : "-dirty"}.json`;
 
-/** Whether `bytes` are a LogReq data file: UTF-8 JSON of an object with `"logreq-data": 1`. */
-export const isDataFile = (bytes: Uint8Array): boolean => {
-  try {
-    const data: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-    return (
-      typeof data === "object" && data !== null && (data as Record<string, unknown>)["logreq-data"] === 1
-    );
-  } catch {
-    return false;
-  }
-};
+/**
+ * Whether `bytes` are a LogReq data file: UTF-8 JSON of an object with `"logreq-data": 1`; above
+ * `fullParseUpTo` bytes (default 64 MiB) the frame LogReq writes (`jsonDataKind` of the files block).
+ */
+export const isDataFile = (bytes: Uint8Array, fullParseUpTo: number = JSON_FULL_PARSE_BYTES): boolean =>
+  jsonDataKind(bytes, fullParseUpTo) === "data";
+
+/** The text of the file: compact JSON and a line break, in chunks. */
+function* chunksWithNewline(data: unknown): Generator<string, void, undefined> {
+  yield* jsonChunks(data, { indent: 0 });
+  yield "\n";
+}
 
 /** How `storeData` reads what it does not get from the workspace (tests). */
 export interface StoreOptions extends ExportOptions {
   /** Builds the data; default `exportDataWithProblems`. */
   readonly exportData?: typeof exportDataWithProblems;
+  /** Up to this size an existing file is parsed whole (`isDataFile`); default 64 MiB. */
+  readonly fullParseUpTo?: number;
 }
 
 /** Where the file goes (see the file comment). */
@@ -179,7 +192,11 @@ const noCommit = (name: string, why: string): DataStoreOutput => ({
 });
 
 /** The snapshot an existing data file is replaced under, or null to create the file. */
-const existingSnapshot = async (folder: string, name: string): Promise<FileSnapshot | null> => {
+const existingSnapshot = async (
+  folder: string,
+  name: string,
+  fullParseUpTo: number,
+): Promise<FileSnapshot | null> => {
   const read = await readFileSnapshot(folder, name);
   if (read.kind === "problem") {
     if (read.missing) {
@@ -189,7 +206,7 @@ const existingSnapshot = async (folder: string, name: string): Promise<FileSnaps
       file: name,
     });
   }
-  if (!isDataFile(read.bytes)) {
+  if (!isDataFile(read.bytes, fullParseUpTo)) {
     throw new CommandError(
       "input.invalid",
       `Not stored: ${name} is not a LogReq data file; LogReq replaces only its own data files`,
@@ -245,8 +262,13 @@ export const storeData = async (
   } else {
     folder = place.folder;
   }
-  const snapshot = await existingSnapshot(folder, name);
-  await writeFileAtomic(folder, name, `${JSON.stringify(built.data)}\n`, snapshot, { kind: "json" });
+  const fullParseUpTo = options.fullParseUpTo ?? JSON_FULL_PARSE_BYTES;
+  const snapshot = await existingSnapshot(folder, name, fullParseUpTo);
+  // A function, so a second pass (no hard links) gets new chunks; never an array of all of them.
+  await writeFileAtomic(folder, name, () => chunksWithNewline(built.data), snapshot, {
+    kind: "json",
+    fullParseUpTo,
+  });
   const mainFolder = await fs.realpath(layout.root);
   return {
     files: [
