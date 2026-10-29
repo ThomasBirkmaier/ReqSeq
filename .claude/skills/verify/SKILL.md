@@ -7,6 +7,16 @@ description: How to check a ReqSeq change locally - the commands for typecheck, 
 
 CI runs on GitHub's hosted runners on three systems, and a red run costs about ten minutes. So the cheap checks run locally before a push, and CI runs the rest: coverage, build, e2e, the full Electron suite, offline and cross-access tests, the license and security audit, and performance at night.
 
+## First: pnpm 12
+
+The repository pins pnpm 12 (`packageManager`). Corepack 0.34, which Node 22 brings, cannot start it (`Cannot find module .../pnpm/12.x/bin/pnpm.cjs`). If `pnpm --version` fails, run once per container:
+
+```sh
+npm install -g pnpm@12.14.0 --force
+```
+
+This replaces corepack's `pnpm` shim. pnpm then switches to the version a checkout pins, so an older branch still gets its own pnpm.
+
 ## While you work
 
 Run single test files: `pnpm vitest run <path> --reporter=dot`. Keep output short (`| tail`) instead of pasting whole logs.
