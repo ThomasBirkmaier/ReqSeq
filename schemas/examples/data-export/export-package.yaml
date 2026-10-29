@@ -4,7 +4,7 @@
 # current version of its target, including the targets of validity and packages (property: true),
 # validity and packages as UUIDs and the verification status per view. The derivation of SR-0000b2
 # stores an older version of the need, so it is outdated (SR-025).
-reqseq-data: 2
+reqseq-data: 3
 commit: 61aa061aa061aa061aa061aa061aa061aa061aa0
 dirty: false
 workspace: Weather station
@@ -112,7 +112,7 @@ elements:
         currentVersion: n1:9d97d0ccf9b75591
         outdated: true
       - kind: supersedes
-        meaning: replacement
+        meaning: succession
         direction: out
         id: 61061061-0000-4000-8000-0000000000b4
         repository: system

@@ -202,6 +202,7 @@ export const FIXTURE_METAMODEL: MetamodelGetOutput = {
     identifier: [],
     derivation: ["derives-from", "refines"],
     replacement: [],
+    succession: [],
     exclusion: [],
   },
 };

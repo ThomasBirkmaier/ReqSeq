@@ -654,8 +654,8 @@
       ],
       "properties": {
         "reqseq-data": {
-          "const": 2,
-          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`)."
+          "const": 3,
+          "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059)."
         },
         "commit": {
           "$ref": "common.schema.json#/$defs/commit",
@@ -736,7 +736,7 @@
           ],
           "properties": {
             "reqseq-data": {
-              "const": 2
+              "const": 3
             },
             "commit": {
               "$ref": "common.schema.json#/$defs/commit",
@@ -840,7 +840,7 @@
             },
             "relations": {
               "type": "array",
-              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
+              "description": "The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix.",
               "items": {
                 "$ref": "#/$defs/relation"
               }
@@ -886,6 +886,7 @@
               "enum": [
                 "derivation",
                 "replacement",
+                "succession",
                 "exclusion",
                 "reference",
                 null
@@ -1682,6 +1683,7 @@
                   "enum": [
                     "derivation",
                     "replacement",
+                    "succession",
                     "exclusion"
                   ],
                   "description": "Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind."
@@ -2053,10 +2055,11 @@
           "unevaluatedProperties": false
         },
         "relationMeaning": {
-          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
+          "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
           "enum": [
             "derivation",
             "replacement",
+            "succession",
             "exclusion"
           ]
         },
@@ -4068,7 +4071,7 @@
       {
         "name": "element.supersede",
         "title": "Supersede element",
-        "summary": "Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
+        "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).",
         "effect": "write-files",
         "whileReadOnly": "refuse",
         "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
@@ -4113,7 +4116,7 @@
             },
             "relation": {
               "$ref": "../common.schema.json#/$defs/key",
-              "description": "Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
+              "description": "Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
             }
           },
           "additionalProperties": false,
@@ -5336,6 +5339,7 @@
                 "enum": [
                   "derivation",
                   "replacement",
+                  "succession",
                   "exclusion",
                   "reference"
                 ]
@@ -5478,6 +5482,7 @@
                     "enum": [
                       "derivation",
                       "replacement",
+                      "succession",
                       "exclusion",
                       "reference"
                     ],
@@ -5628,6 +5633,7 @@
                     "enum": [
                       "derivation",
                       "replacement",
+                      "succession",
                       "exclusion"
                     ],
                     "description": "The meaning of the relation kind; left out for a kind without a meaning and for a property."
@@ -5917,6 +5923,7 @@
                 "enum": [
                   "derivation",
                   "replacement",
+                  "succession",
                   "exclusion",
                   "reference"
                 ]
@@ -6053,6 +6060,7 @@
                     "enum": [
                       "derivation",
                       "replacement",
+                      "succession",
                       "exclusion",
                       "reference"
                     ],

@@ -316,8 +316,9 @@ describe("element.list (SR-069)", () => {
     ).toEqual([V1, V2]);
     // Without any relation of a relation kind (validity and packages are properties).
     expect(await where(ws, { relation: {}, exists: false })).toEqual([P1, P2, B4, V1, V2]);
-    // A meaning with several kinds: replacement (supersedes, replaces); nothing replaces anything here.
+    // Nothing replaces or supersedes anything here.
     expect(await where(ws, { relation: { meaning: "replacement" }, exists: true })).toEqual([]);
+    expect(await where(ws, { relation: { meaning: "succession" }, exists: true })).toEqual([]);
     expect(
       await where(ws, {
         relation: { kind: "derives-from", meaning: "derivation", direction: "up" },

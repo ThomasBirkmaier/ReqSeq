@@ -4,7 +4,7 @@
 # one requirement have a validation status (SR-038). The emergent requirement (SR-035) has no own record,
 # so it is open in each view, never indirect. Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
-reqseq-data: 2
+reqseq-data: 3
 commit: 0123456789abcdef0123456789abcdef01234567
 dirty: false
 workspace: Weather station

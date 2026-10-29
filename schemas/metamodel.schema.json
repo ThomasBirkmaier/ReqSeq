@@ -278,8 +278,8 @@
       "unevaluatedProperties": false
     },
     "relationMeaning": {
-      "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
-      "enum": ["derivation", "replacement", "exclusion"]
+      "description": "Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.",
+      "enum": ["derivation", "replacement", "succession", "exclusion"]
     },
     "status": {
       "description": "Status value (D-030).",

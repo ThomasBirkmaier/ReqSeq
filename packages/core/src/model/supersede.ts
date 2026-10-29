@@ -1,7 +1,7 @@
 // Superseding an element instead of deleting it (SR-072 AK1, D-045, ADR-0004). The element gets the
 // status the caller chose, which must be one the metamodel marks invalid (D-044); the tool never
-// picks one (D-030). On request, a successor replaces it: a relation of a kind with the meaning
-// `replacement` (D-059) from the successor to the element, written into the successor's file
+// picks one (D-030). On request, a successor supersedes it: a relation of a kind with the meaning
+// `succession` (D-059) from the successor to the element, written into the successor's file
 // (source = new, target = old), so the element's own file changes only in its status line. The
 // relation stores the element's UUID and current version like every new relation (SR-021,
 // `currentTarget`); one the successor already has is kept with its stored version (#177 (a)).
@@ -112,21 +112,21 @@ const invalidStatusKey = (
 };
 
 /**
- * The relation kind with the meaning `replacement` that goes from the successor's type to the
+ * The relation kind with the meaning `succession` that goes from the successor's type to the
  * element's type (`source-types`, `target-types`, subtypes included, SR-086). `wanted` names it;
  * without it exactly one kind must fit (ADR-0004: the caller names it when several do), or, when
  * several fit, the successor must already have the relation under exactly one of them (`present`),
  * so a repeat needs no `relation`.
  */
-const replacementKind = (
+const successionKind = (
   metamodel: Metamodel,
   successorType: MetamodelEffectiveType,
   type: MetamodelEffectiveType,
   wanted: string | undefined,
   present: (kind: MetamodelRelationKind) => boolean,
 ): MetamodelRelationKind => {
-  requireMeaning(metamodel, "replacement", "element.supersede");
-  const kinds = relationKindsWithMeaning(metamodel, "replacement");
+  requireMeaning(metamodel, "succession", "element.supersede");
+  const kinds = relationKindsWithMeaning(metamodel, "succession");
   const fits = (kind: MetamodelRelationKind): boolean =>
     allowsType(kind["source-types"], successorType.key, metamodel) &&
     allowsType(kind["target-types"], type.key, metamodel);
@@ -135,8 +135,8 @@ const replacementKind = (
     const kind = kinds.find((k) => k.key === wanted);
     if (kind === undefined) {
       throw invalid(
-        `${wanted} is no relation kind with the meaning replacement; these are: ${kinds.map((k) => k.key).join(", ")}`,
-        { relation: wanted, reason: "not-a-replacement", allowed: kinds.map((k) => k.key) },
+        `${wanted} is no relation kind with the meaning succession; these are: ${kinds.map((k) => k.key).join(", ")}`,
+        { relation: wanted, reason: "not-a-succession", allowed: kinds.map((k) => k.key) },
       );
     }
     if (!fits(kind)) {
@@ -153,14 +153,14 @@ const replacementKind = (
   if (first === undefined) {
     throw new CommandError(
       "relation.not-allowed",
-      `No relation kind with the meaning replacement may go from ${successorType.name} to ${type.name}`,
+      `No relation kind with the meaning succession may go from ${successorType.name} to ${type.name}`,
       { ...types, candidates: [] },
     );
   }
   const [existing, ...more] = fitting.filter(present);
   if (others.length > 0 && (existing === undefined || more.length > 0)) {
     throw invalid(
-      `More than one relation kind with the meaning replacement fits from ${successorType.name} to ${type.name}: ${fitting.map((k) => k.key).join(", ")}; name one as relation`,
+      `More than one relation kind with the meaning succession fits from ${successorType.name} to ${type.name}: ${fitting.map((k) => k.key).join(", ")}; name one as relation`,
       { ...types, reason: "relation-ambiguous", candidates: fitting.map((k) => k.key) },
     );
   }
@@ -188,7 +188,7 @@ const hasRelation = (source: ElementRecord, key: string, target: ElementRecord):
 /**
  * `element.supersede` (SR-072 AK1, SR-087): sets `input.status`, a status of the element's type
  * that the metamodel marks invalid (#306), on the element `input.ref` and, with `input.successor`,
- * adds a relation of the replacement kind (`input.relation`, or the one that fits) from the
+ * adds a relation of the succession kind (`input.relation`, or the one that fits) from the
  * successor to it. An element without status of a type whose statuses are all invalid gets its
  * `status` line here (#344, option 1). Every check comes before the first write: the element's
  * reference and that it may be written (SR-016 AK3), the status, the successor's reference and that
@@ -223,7 +223,7 @@ export const supersedeElement = async (
   const kind =
     successor === undefined || successorType === undefined
       ? undefined
-      : replacementKind(metamodel, successorType, type, input.relation, (k) =>
+      : successionKind(metamodel, successorType, type, input.relation, (k) =>
           hasRelation(successor, k.key, record),
         );
 

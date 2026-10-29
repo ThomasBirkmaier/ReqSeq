@@ -191,7 +191,7 @@
               "description": "A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it."
             },
             "meaning": {
-              "enum": ["derivation", "replacement", "exclusion"],
+              "enum": ["derivation", "replacement", "succession", "exclusion"],
               "description": "Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind."
             },
             "direction": {

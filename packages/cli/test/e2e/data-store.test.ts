@@ -115,7 +115,7 @@ describe("reqseq data store (SR-062)", () => {
     for (const line of stored) {
       expect([line.shortId, line["reqseq-data"], line.commit, line.dirty]).toEqual([
         line.shortId,
-        2,
+        3,
         commit,
         false,
       ]);

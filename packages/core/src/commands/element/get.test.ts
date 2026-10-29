@@ -567,7 +567,7 @@ describe("a superseded element names its successor without a relation of its own
     expect(element.relations).toEqual([
       {
         kind: "supersedes",
-        meaning: "replacement",
+        meaning: "succession",
         direction: "in",
         id: successor,
         repository: "system",

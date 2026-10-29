@@ -764,7 +764,7 @@ relations:
   - key: supersedes
     name: Supersedes
     inverse-name: Superseded by
-    meaning: replacement
+    meaning: succession
   - key: replaces
     name: Replaces
     inverse-name: Replaced by
