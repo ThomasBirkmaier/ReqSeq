@@ -581,6 +581,37 @@ const readOf = (seq: number): Promise<void> => {
   });
 };
 
+/**
+ * Drops the file events of the watcher of the workspace (it calls the real `fs.watch`; the watch of
+ * the cache folder goes through the mock above and is not affected) until the returned function is
+ * called. FSEvents (macOS) can report the fixture's own files, written just before the watch
+ * started: a batch with the workspace file resets the layout and with it the store, and a held
+ * access is then reported at once, by design (`watchActivity`: the next read reads the files as they
+ * are), not when its hold ends (#304). A test of the hold has no use for these events.
+ */
+const holdWorkspaceEvents = async (): Promise<() => void> => {
+  let dropping = true;
+  const real = (await vi.importActual<{ default: typeof NodeFs }>("node:fs")).default;
+  // The real one, taken before the spy replaces it; it needs no `this`.
+  const original = real.watch;
+  const spy = vi.spyOn(real, "watch").mockImplementation(((
+    folder: string,
+    options: NodeFs.WatchOptionsWithStringEncoding,
+    listener: NodeFs.WatchListener<string>,
+  ) =>
+    original(folder, options, (event, name) => {
+      if (!dropping) {
+        listener(event, name);
+      }
+    })) as typeof real.watch);
+  onTestFinished(() => {
+    spy.mockRestore();
+  });
+  return () => {
+    dropping = false;
+  };
+};
+
 /** Another process of the copy: its own workspace on the same root and cache folder. */
 const server = (opened: Copy): Workspace => open(opened.fixture.root, opened.cache);
 
@@ -642,6 +673,7 @@ describe("watching the last access (SR-117)", () => {
     const opened = await copy(IDENTIFIERS);
     const store = await opened.workspace.get(elementStoreState);
     const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
+    const resume = await holdWorkspaceEvents();
     const seen = accesses();
     await watching(opened.workspace, { ...seen.options, holdMs });
     const write = (file: ActivityFile): Promise<string> =>
@@ -665,6 +697,7 @@ describe("watching the last access (SR-117)", () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
 
     // A change of the files while nothing is held reports nothing.
+    resume();
     const changed = new Promise<void>((resolve) => {
       const stop = watchWorkspace(opened.workspace).onChange(() => {
         stop();
@@ -682,6 +715,8 @@ describe("watching the last access (SR-117)", () => {
     const opened = await copy(IDENTIFIERS);
     const store = await opened.workspace.get(elementStoreState);
     const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
+    // The access with seq 1 stays held until its hold ends, whatever the OS reports of the fixture.
+    await holdWorkspaceEvents();
     // The events of the cache folder pass until `late` is set: then they are lost, as a late or
     // merged FSEvents batch on macOS looks until the hold ends (#304).
     let late = false;
