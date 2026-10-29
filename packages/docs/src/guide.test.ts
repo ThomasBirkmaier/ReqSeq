@@ -17,7 +17,11 @@ describe("guide", () => {
       await access(join(cwd, "reqseq-workspace.yaml"));
       const [need] = await readdir(join(cwd, "need"));
       expect(need).toMatch(/^N-[0-9a-f]{12}\.md$/);
-      const chain = await runReqseq(["trace", "chain", `N-${need?.slice(-9, -3) ?? ""}`, "--json"], cwd);
+      const chain = await runReqseq(
+        ["trace", "chain", `N-${need?.slice(-9, -3) ?? ""}`, "--json"],
+        cwd,
+        new AbortController().signal,
+      );
       expect(chain.exitCode).toBe(0);
       const { nodes } = JSON.parse(chain.stdout) as { nodes: { depth: number }[] };
       expect(nodes.length).toBe(2);

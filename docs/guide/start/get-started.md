@@ -30,7 +30,7 @@ No problems.
 
 ReqSeq reads Git but never commits. Put the folder under Git yourself when you want its history.
 
-In the app: open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**.
+In the app: open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. The reference has the details of [workspace.init](/reference/commands/workspace-init/).
 
 ## Write a first need
 
@@ -49,7 +49,7 @@ No problems.
 
 `N-7fe707` is the short ID of the need. Yours differs: use it in place of `N-7fe707` below. A new element starts as draft. Only people change a status; ReqSeq never does.
 
-In the app: **Create element**.
+In the app: **Create element**. Reference: [element.create](/reference/commands/element-create/).
 
 ## Derive a system requirement
 
@@ -83,7 +83,7 @@ No problems.
 
 The relation is stored in the file of the requirement, with the version of the need it points to. When the need changes later, ReqSeq shows the relation as outdated, so you know to review the requirement.
 
-In the app: **Create relation**.
+In the app: **Create relation**. Reference: [relation.add](/reference/commands/relation-add/).
 
 ## Look at the chain
 
@@ -101,7 +101,7 @@ No problems.
 
 The chain runs from the need down to its requirements and on to their evidence. The gap says that no test or other evidence shows the requirement yet.
 
-In the app: **Show trace chain**.
+In the app: **Show trace chain**. Reference: [trace.chain](/reference/commands/trace-chain/).
 
 ## Check the workspace
 
@@ -117,8 +117,8 @@ checkedElements: 2
 
 `ok: true` means there are no errors. The warnings about the two empty properties stay until you fill them in. In a pipeline, the command exits with 1 when there are errors; with `--fail-on warning`, warnings count too.
 
-In the app: **Check workspace**.
+In the app: **Check workspace**. Reference: [workspace.check](/reference/commands/workspace-check/).
 
 ## The same through the API and MCP
 
-Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The local API (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The MCP server (`reqseq mcp`) offers it as the tool `element_create`.
+Every step on this page is a command, and the app, the CLI, the API and the MCP server give the same result for it. The local API (`reqseq serve api`) runs a command as `POST /v1/commands/element.create`. The MCP server (`reqseq mcp`) offers it as the tool `element_create`. The [command reference](/reference/commands/) shows the call of every command in each of the four.

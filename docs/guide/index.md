@@ -12,4 +12,4 @@ You can use it in four ways, and each gives the same result:
 - **API**: a local HTTP API on loopback only, started with `reqseq serve api`.
 - **MCP**: an MCP server for AI agents, started with `reqseq mcp`.
 
-New to ReqSeq? [Get started](/ReqSeq/start/get-started/) takes you from an empty folder to a first traced requirement. How-to guides and a reference for every command follow.
+New to ReqSeq? [Get started](/start/get-started/) takes you from an empty folder to a first traced requirement. The [command reference](/reference/commands/) shows every command with its input, its output and its call in each of the four. How-to guides follow.

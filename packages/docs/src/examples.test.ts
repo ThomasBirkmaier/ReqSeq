@@ -32,7 +32,14 @@ describe("commandWords", () => {
     expect(commandWords("  reqseq ")).toEqual(["reqseq"]);
   });
 
+  it("ends a command at a comment, and keeps `#` inside a word and `$` in single quotes", () => {
+    expect(commandWords("reqseq a#b 'c$d' # the rest")).toEqual(["reqseq", "a#b", "c$d"]);
+  });
+
   it("refuses an unclosed quote and shell features", () => {
+    for (const line of ['reqseq "a$b"', 'reqseq "a`b`"', 'reqseq "a\\b"']) {
+      expect(() => commandWords(line), line).toThrow("shell feature");
+    }
     expect(() => commandWords('reqseq "open')).toThrow("unclosed quote");
     for (const line of ["reqseq a | b", "reqseq $X", "reqseq a > b", "reqseq a && b", "reqseq C:\\x"]) {
       expect(() => commandWords(line), line).toThrow("shell feature");
@@ -67,11 +74,11 @@ describe("pageSteps", () => {
       "ls",
       "```",
       "```js",
-      "reqseq never",
+      "// reqseq never runs here",
       "```",
       "````text",
       "```",
-      "reqseq not this",
+      "not this: reqseq",
       "````",
       "```sh",
       "reqseq a",
@@ -89,6 +96,41 @@ describe("pageSteps", () => {
       { line: 34, argv: ["b"] },
       { line: 37, argv: ["unclosed"] },
     ]);
+  });
+
+  it("runs bash, shell and zsh blocks and blocks indented in list items, without their indent", () => {
+    const text = [
+      "1. First:",
+      "",
+      "   ```bash",
+      "   reqseq a",
+      "   ```",
+      "",
+      '   ```text title="Output"',
+      "     indented",
+      " less",
+      "   ```",
+      "```zsh",
+      "reqseq b",
+      "```",
+    ].join("\n");
+    expect(pageSteps(page(text))).toEqual([
+      { line: 4, argv: ["a"], expected: ["  indented", "less"] },
+      { line: 12, argv: ["b"] },
+    ]);
+  });
+
+  it("refuses a reqseq command in a block that does not run, also after a prompt", () => {
+    for (const block of [
+      "```console\n$ reqseq a\n```",
+      "```text\nreqseq a\n```",
+      "```powershell\nPS> reqseq a\n```",
+    ]) {
+      expect(() => pageSteps(page(block, "how-to/x.md")), block).toThrow(
+        /^how-to\/x\.md:1: a `reqseq` command in a `\w+` block would not run; write examples in a `sh` block$/,
+      );
+    }
+    expect(pageSteps(page('```text title="Output"\nreqseq-workspace.yaml\n```'))).toEqual([]);
   });
 
   it("refuses a block that mixes reqseq with other commands", () => {
@@ -118,7 +160,11 @@ describe("runSteps", () => {
       },
     ];
     expect(await runSteps("p.md", steps, "/w", run)).toEqual([]);
-    expect(run).toHaveBeenLastCalledWith(["get", "N-abc123", "need/N-000000abc123.md", "SR-111111"], "/w");
+    expect(run).toHaveBeenLastCalledWith(
+      ["get", "N-abc123", "need/N-000000abc123.md", "SR-111111"],
+      "/w",
+      expect.any(AbortSignal),
+    );
   });
 
   it("reports a non-zero exit code and stops", async () => {
@@ -149,6 +195,23 @@ describe("runSteps", () => {
     expect(await differs(["N-7fe707 N-7fe707"], "N-aaaaaa N-bbbbbb\n")).toHaveLength(1);
     expect(await differs(["N-7fe707"], "SR-aaaaaa\n")).toHaveLength(1);
     expect(await differs([], "")).toEqual([]);
+  });
+});
+
+describe("runSteps timeout", () => {
+  it("stops a command that does not end in time and reports it", async () => {
+    let stopped: AbortSignal | undefined;
+    const run: CliRun = (_argv, _cwd, signal) => {
+      stopped = signal;
+      return new Promise(() => undefined);
+    };
+    expect(await runSteps("p.md", [{ line: 3, argv: ["serve", "api"] }], "/w", run, 10)).toEqual([
+      "p.md:3: reqseq serve api: did not end within 10 ms",
+    ]);
+    expect(stopped?.aborted).toBe(true);
+    await expect(checkExamples([page("```sh\nreqseq mcp\n```")], run, 10)).rejects.toThrow(
+      "did not end within 10 ms",
+    );
   });
 });
 
@@ -202,12 +265,13 @@ describe("readGuidePages", () => {
 
 describe("runReqseq", () => {
   it("runs the command line of this build in-process and returns its output and exit code", async () => {
-    const version = await runReqseq(["--version"], tmpdir());
+    const version = await runReqseq(["--version"], tmpdir(), new AbortController().signal);
     expect(version.exitCode).toBe(0);
     expect(version.stdout).toMatch(/\d+\.\d+\.\d+/);
     const unknown = await runReqseq(
       ["element", "get", "N-000000", "--workspace", "missing-folder"],
       tmpdir(),
+      new AbortController().signal,
     );
     expect(unknown.exitCode).not.toBe(0);
     expect(unknown.stderr).not.toBe("");

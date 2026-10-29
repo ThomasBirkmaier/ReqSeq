@@ -3,12 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Generator of the user documentation site (ADR-0017): assembles the content folder of the Starlight site in site/. Never shipped with the product.",
+  "description": "Generator of the user documentation site (ADR-0017): assembles the content folder of the Starlight site in site/, with the reference generated from the catalog. Never shipped with the product.",
   "type": "module",
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@reqseq/cli": "workspace:*"
+    "@reqseq/api": "workspace:*",
+    "@reqseq/app": "workspace:*",
+    "@reqseq/cli": "workspace:*",
+    "@reqseq/core": "workspace:*",
+    "@reqseq/mcp": "workspace:*"
+  },
+  "devDependencies": {
+    "micromark": "4.0.3",
+    "micromark-extension-gfm": "3.0.0"
   }
 }

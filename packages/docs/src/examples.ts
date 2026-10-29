@@ -1,6 +1,7 @@
-// Tested examples (SR-140 AK2): every `reqseq` command in a ```sh block of a guide page runs, in page order, in a
-// fresh empty folder, with the command line of this build; a ```text title="Output" block right after it is the
-// expected output of the block's last command. A failing example stops `docs:generate` and fails the docs test.
+// Tested examples (SR-140 AK2): every `reqseq` command in a ```sh (or bash, shell, zsh) block of a guide page,
+// indented ones in list items too, runs, in page order, in a fresh empty folder, with the command line of this build;
+// a ```text title="Output" block right after it is the expected output of the block's last command. A failing or
+// hanging example, and a `reqseq` command in any other block, stop `docs:generate` and fail the docs test.
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
@@ -27,8 +28,11 @@ export interface CliResult {
   readonly stderr: string;
 }
 
-/** Runs `reqseq` with these arguments in the folder `cwd`. */
-export type CliRun = (argv: readonly string[], cwd: string) => Promise<CliResult>;
+/** Runs `reqseq` with these arguments in the folder `cwd`; `signal` stops it (a server, for example). */
+export type CliRun = (argv: readonly string[], cwd: string, signal: AbortSignal) => Promise<CliResult>;
+
+/** How long one example command may run before it fails (and is stopped). */
+export const COMMAND_TIMEOUT_MS = 60_000;
 
 interface Block {
   readonly line: number;
@@ -39,7 +43,7 @@ interface Block {
   readonly adjacent: boolean;
 }
 
-const FENCE = /^(`{3,}|~{3,})([^\s`]*)\s*(.*)$/;
+const FENCE = /^([ \t]*)(`{3,}|~{3,})([^\s`]*)\s*(.*)$/;
 
 /** A closing fence: only the fence character, at least as many as the opening fence. */
 const closes = (line: string, fence: string): boolean => {
@@ -50,7 +54,8 @@ const closes = (line: string, fence: string): boolean => {
 /** The fenced code blocks of a page, with the line of their opening fence (from 1); an unclosed one runs to the end. */
 function blocks(text: string): Block[] {
   const found: Block[] = [];
-  let open: (Block & { readonly fence: string; readonly lines: string[] }) | undefined;
+  let open:
+    (Block & { readonly fence: string; readonly indent: number; readonly lines: string[] }) | undefined;
   let prose = true;
   for (const [index, line] of text.split(/\r?\n/).entries()) {
     if (open !== undefined) {
@@ -59,7 +64,8 @@ function blocks(text: string): Block[] {
         open = undefined;
         prose = false;
       } else {
-        open.lines.push(line);
+        // A fence indented in a list item: its lines lose that indent, as far as they have it.
+        open.lines.push(line.slice(Math.min(open.indent, line.length - line.trimStart().length)));
       }
       continue;
     }
@@ -68,9 +74,9 @@ function blocks(text: string): Block[] {
       prose ||= line.trim() !== "";
       continue;
     }
-    // The three groups always take part in a match.
-    const [, mark, lang, meta] = fence as unknown as [string, string, string, string];
-    open = { line: index + 1, fence: mark, lang, meta, lines: [], adjacent: !prose };
+    // The four groups always take part in a match.
+    const [, indent, mark, lang, meta] = fence as unknown as [string, string, string, string, string];
+    open = { line: index + 1, fence: mark, indent: indent.length, lang, meta, lines: [], adjacent: !prose };
   }
   return open === undefined ? found : [...found, open];
 }
@@ -80,7 +86,10 @@ const SHELL = /[|&;<>()$`\\*?{}[\]~]/;
 // A double-quoted part, a single-quoted part, blanks, a plain part, or a quote without its end.
 const WORD_PARTS = /"([^"]*)"|'([^']*)'|(\s+)|([^\s"']+)|(["'])/g;
 
-/** The words of a command line: split at blanks, '...' and "..." quote; shell features are refused. */
+/**
+ * The words of a command line: split at blanks, '...' and "..." quote, and a word that starts with `#` begins a
+ * comment. Shell features are refused: outside quotes, and `$`, `` ` `` and `\` in double quotes.
+ */
 export function commandWords(line: string): string[] {
   const words: string[] = [];
   let word: string | undefined;
@@ -89,12 +98,16 @@ export function commandWords(line: string): string[] {
     if (quote !== undefined) {
       throw new Error(`unclosed quote in \`${line}\``);
     }
+    if (word === undefined && text.startsWith("#")) {
+      break;
+    }
     if (blank !== undefined) {
       words.push(...(word === undefined ? [] : [word]));
       word = undefined;
       continue;
     }
-    const shell = double === undefined && single === undefined ? SHELL.exec(text) : null;
+    const shell =
+      double !== undefined ? /[$`\\]/.exec(double) : single === undefined ? SHELL.exec(text) : null;
     if (shell !== null) {
       throw new Error(`\`${shell[0]}\` is a shell feature, which examples cannot use: \`${line}\``);
     }
@@ -105,12 +118,23 @@ export function commandWords(line: string): string[] {
 
 const isOutput = (block: Block): boolean => block.lang === "text" && /\btitle="Output"/.test(block.meta);
 
-/** The steps of a page: the commands of its ```sh blocks that start with `reqseq`, in order. */
+/** The languages of the blocks whose `reqseq` commands run. */
+export const EXAMPLE_LANGUAGES: readonly string[] = ["sh", "bash", "shell", "zsh"];
+
+/** A `reqseq` command, also after a prompt (`$`, `>`, `%`, `PS>`). */
+const PROMPTED = /^(?:(?:\$|>|%|PS>)\s*)?reqseq(?:\s|$)/;
+
+/** The steps of a page: the commands of its example blocks that start with `reqseq`, in order. */
 export function pageSteps(page: GuidePage): Step[] {
   const found = blocks(page.text);
   const steps: Step[] = [];
   for (const [index, block] of found.entries()) {
-    if (block.lang !== "sh") {
+    if (!EXAMPLE_LANGUAGES.includes(block.lang)) {
+      if (!isOutput(block) && block.lines.some((line) => PROMPTED.test(line.trim()))) {
+        throw new Error(
+          `${page.path}:${String(block.line)}: a \`reqseq\` command in a \`${block.lang}\` block would not run; write examples in a \`sh\` block`,
+        );
+      }
       continue;
     }
     const commands = block.lines
@@ -211,18 +235,42 @@ const outputLines = (text: string | readonly string[]): string[] => {
   return lines;
 };
 
+/** Runs `argv` and returns its result, or `undefined` when it did not end within `timeoutMs`; then it is stopped. */
+async function runWithin(
+  run: CliRun,
+  argv: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+): Promise<CliResult | undefined> {
+  const controller = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve(undefined);
+    }, timeoutMs);
+  });
+  const result = await Promise.race([run(argv, cwd, controller.signal), late]);
+  clearTimeout(timer);
+  return result;
+}
+
 /** Runs the steps of one page in `cwd`, in order, and returns what failed (empty when all passed). */
 export async function runSteps(
   path: string,
   steps: readonly Step[],
   cwd: string,
   run: CliRun,
+  timeoutMs = COMMAND_TIMEOUT_MS,
 ): Promise<string[]> {
   let ids = new Map<string, string>();
   for (const step of steps) {
     const argv = step.argv.map((arg) => arg.replace(ID, (sample) => ids.get(sample) ?? sample));
     const shown = `${path}:${String(step.line)}: reqseq ${argv.join(" ")}`;
-    const result = await run(argv, cwd);
+    const result = await runWithin(run, argv, cwd, timeoutMs);
+    if (result === undefined) {
+      return [`${shown}: did not end within ${String(timeoutMs)} ms`];
+    }
     if (result.exitCode !== 0) {
       return [`${shown}: exit code ${String(result.exitCode)}\n${result.stderr}${result.stdout}`];
     }
@@ -253,7 +301,11 @@ export async function readGuidePages(guideDir: string): Promise<GuidePage[]> {
 }
 
 /** Runs the examples of every page, each page in a fresh empty folder; throws with every failure. */
-export async function checkExamples(pages: readonly GuidePage[], run: CliRun): Promise<number> {
+export async function checkExamples(
+  pages: readonly GuidePage[],
+  run: CliRun,
+  timeoutMs = COMMAND_TIMEOUT_MS,
+): Promise<number> {
   const failures: string[] = [];
   let count = 0;
   for (const page of pages) {
@@ -264,7 +316,7 @@ export async function checkExamples(pages: readonly GuidePage[], run: CliRun): P
     count += steps.length;
     const cwd = await mkdtemp(join(tmpdir(), "reqseq-docs-"));
     try {
-      failures.push(...(await runSteps(page.path, steps, cwd, run)));
+      failures.push(...(await runSteps(page.path, steps, cwd, run, timeoutMs)));
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
@@ -276,13 +328,14 @@ export async function checkExamples(pages: readonly GuidePage[], run: CliRun): P
 }
 
 /** `reqseq` of this build, in-process, with empty standard input. */
-export const runReqseq: CliRun = async (argv, cwd) => {
+export const runReqseq: CliRun = async (argv, cwd, signal) => {
   let stdout = "";
   let stderr = "";
   const exitCode = await runCli({
     argv,
     cwd,
     stdin: Readable.from([]),
+    signal,
     stdout: { write: (text: string) => void (stdout += text) },
     stderr: { write: (text: string) => void (stderr += text) },
   });
