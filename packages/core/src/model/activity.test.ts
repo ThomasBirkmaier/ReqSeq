@@ -680,8 +680,13 @@ const holdWorkspaceEvents = async (): Promise<() => void> => {
 /** Another process of the copy: its own workspace on the same root and cache folder. */
 const server = (opened: Copy): Workspace => open(opened.fixture.root, opened.cache);
 
-/** An access recorded `at` (default now): the hold of a watch counts from it. */
-const activityFile = (sha256: string, seq: number, id = SR_036, at = new Date()): ActivityFile => ({
+/** An access recorded `at` (default now; a string as written): the hold of a watch counts from it. */
+const activityFile = (
+  sha256: string,
+  seq: number,
+  id = SR_036,
+  at: Date | string = new Date(),
+): ActivityFile => ({
   version: 1,
   process: "1-0000abcd",
   seq,
@@ -690,7 +695,7 @@ const activityFile = (sha256: string, seq: number, id = SR_036, at = new Date())
     access: "mcp",
     command: "element.get",
     effect: "read",
-    at: at.toISOString(),
+    at: typeof at === "string" ? at : at.toISOString(),
     element: { id, repository: "spec" },
   },
 });
@@ -760,10 +765,12 @@ describe("watching the last access (SR-117)", () => {
     const agent = server(opened);
     await call(agent, "element.get", { ref: "SR-036" }, "cli");
     const next = seen.next();
-    const started = Date.now();
     await call(agent, "element.update", { ref: "SR-037", title: "Show IDs" }, "mcp");
-    expect((await next).element.id).toBe(SR_037);
-    const took = Date.now() - started;
+    const access = await next;
+    expect(access.element.id).toBe(SR_037);
+    // AK1 counts from the change, which `access.at` records when the call ends; the server's write
+    // path before it is not part of following.
+    const took = Date.now() - Date.parse(access.at);
     expect(took).toBeGreaterThanOrEqual(ACTIVITY_HOLD_MS - 50);
     expect(took).toBeLessThan(1000);
   });
@@ -783,6 +790,7 @@ describe("watching the last access (SR-117)", () => {
     let started = Date.now();
     await write(activityFile("5".repeat(64), 1, SR_036, new Date(started - 800)));
     await early;
+    expect(Date.now() - started).toBeGreaterThanOrEqual(150);
     expect(Date.now() - started).toBeLessThan(600);
 
     // Recorded in the future (another clock): held for holdMs from its arrival, not longer.
@@ -790,6 +798,14 @@ describe("watching the last access (SR-117)", () => {
     started = Date.now();
     await write(activityFile("6".repeat(64), 2, SR_036, new Date(started + 3_600_000)));
     await future;
+    expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(Date.now() - started).toBeLessThan(holdMs + 500);
+
+    // A time the schema takes but Date.parse does not (a leap second): held for holdMs from arrival.
+    const leap = seen.next();
+    started = Date.now();
+    await write(activityFile("9".repeat(64), 3, SR_036, "2026-12-31T23:59:60Z"));
+    await leap;
     expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
     expect(Date.now() - started).toBeLessThan(holdMs + 500);
   });
@@ -886,6 +902,7 @@ describe("watching the last access (SR-117)", () => {
     const written = Date.now();
     await write(activityFile("8".repeat(64), 4, SR_037));
     expect((await newer).element.id).toBe(SR_037);
+    expect(Date.now() - written).toBeGreaterThanOrEqual(1000 - 50);
     expect(Date.now() - written).toBeLessThan(1000 + 400);
     expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037, SR_037]);
   });

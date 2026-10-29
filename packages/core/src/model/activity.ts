@@ -406,8 +406,12 @@ export const lastAccess = async (workspace: Workspace): Promise<ActivityAccess |
 export interface ActivityWatchOptions {
   /**
    * Called once per new access (a new `(process, seq)`), at the latest `holdMs` after it was recorded
-   * (`access.at`), plus the time to read the file once more. What it throws is caught and logged; the
-   * watch goes on.
+   * (`access.at`), plus the time to read the file once more; for an `access.at` in the future or one
+   * that does not parse, `holdMs` after it arrived. SR-117 AK1 (1 s) wins over waiting for the store:
+   * when the hold ends first (the workspace watcher batches changes for up to 1 s; an event that
+   * arrives after the hold is over gets none), the element may be one the store does not hold yet
+   * (a created one) or holds in an older state, which the listener has to expect (open in #325). What it
+   * throws is caught and logged; the watch goes on.
    */
   readonly onAccess: (access: ActivityAccess) => void;
   /** Why the watch could not start or ended, or a report failed (the app's core process passes its log). */
