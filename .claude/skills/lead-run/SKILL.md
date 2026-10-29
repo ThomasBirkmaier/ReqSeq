@@ -23,7 +23,7 @@ Run at most three agents at once, reviewers included (budget rule, product owner
 
 ## Checks against the spec
 
-About every ten merges, and at least once a day, a fresh agent compares the closed SR issues of the stage with their acceptance criteria and the spec text, and runs `pnpm trace-check --stage <n>`. Gaps between what is claimed and what is there become issues. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
+About every ten merges, and at least once a day, a fresh agent compares the closed SR issues of the stage with their acceptance criteria and the spec text, and runs `pnpm trace-check --stage <n>`. Gaps between what is claimed and what is there become issues. The report marks what the agent could not confirm and says where it looked. Collect the open `spec-frage` issues into one message for the product owner at most once a day, and enter the answers with `spec-change`.
 
 ## Handover
 
