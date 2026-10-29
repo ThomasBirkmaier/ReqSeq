@@ -107,7 +107,10 @@ interface OwnViews {
 const NO_VARIANTS: ReadonlySet<string> = new Set();
 const NO_OWN: OwnViews = { core: false, variants: NO_VARIANTS };
 
-/** The own views of each UUID of a source, built once per UUID and kept with the source. */
+/**
+ * The own views of each UUID of a source, built once per UUID and kept with the source: the records
+ * of a source must not change while it is used (build a new source per records state).
+ */
 const ownViewsBySource = new WeakMap<StatusSource, Map<string, OwnViews>>();
 
 const ownViewsOf = (source: StatusSource, id: string): OwnViews => {
@@ -157,7 +160,7 @@ interface Frame {
 
 /** The key of an element's children: its repository and UUID (twins of one repository share them, SR-088). */
 const nodeKeys = new WeakMap<Pick<ElementRecord, "id" | "repository">, string>();
-const nodeKey = (element: Pick<ElementRecord, "id" | "repository">): string => {
+export const nodeKey = (element: Pick<ElementRecord, "id" | "repository">): string => {
   let key = nodeKeys.get(element);
   if (key === undefined) {
     key = `${element.repository}\u0000${element.id}`;
@@ -184,21 +187,94 @@ const validitySeed = (target: Pick<ElementRecord, "id" | "repository">): string 
 const recordSeed = (variantId: string): string => `r${variantId}`;
 
 /**
+ * What an evaluator has found so far, by element (candidate children, seeds below) and by view and
+ * repository and UUID (results): what `carriedEvaluator` takes over.
+ */
+interface EvaluatorCaches {
+  readonly candidatesOf: Map<ElementRecord, readonly ElementRecord[]>;
+  readonly seeds: Map<ElementRecord, ReadonlySet<string>>;
+  readonly core: Map<string, VerificationResult>;
+  readonly neutral: Map<string, VerificationResult>;
+  /** The memo of each variant view, by the variant's repository and UUID. */
+  readonly variants: Map<string, Map<string, VerificationResult>>;
+}
+
+const cachesOf = new WeakMap<VerificationEvaluator, EvaluatorCaches>();
+
+/**
  * The evaluator of `source` with `children` (undefined: no element has children) and the current
  * version of each element (`currentOf`; only asked for requirements with records). Results computed
- * from children are kept per view and element for the life of the evaluator, so `currentOf` must not
- * change while it lives (the evidence block builds one per state of store, metamodel and records).
+ * from children are kept per view and element for the life of the evaluator, so neither `currentOf`
+ * nor the records of `source` may change while it lives: the own views of each UUID are kept with
+ * `source` (`ownViewsOf`) and every result built on them in the memos. The evidence block builds a
+ * new source and evaluator per records state (review of #714, S1), and one per store, or carries
+ * this one over a store change with `carriedEvaluator`.
  */
 export const verificationEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
+): VerificationEvaluator => evaluatorWith(source, children, currentOf, undefined);
+
+/** A copy of `map` without the entries whose key `drop` names. */
+const without = <K, V>(map: ReadonlyMap<K, V>, drop: (key: K) => boolean): Map<K, V> => {
+  const copy = new Map<K, V>();
+  for (const [key, value] of map) {
+    if (!drop(key)) {
+      copy.set(key, value);
+    }
+  }
+  return copy;
+};
+
+/**
+ * The evaluator of a store after a change, carried over from `old`, the evaluator of the store
+ * before it with the same `source` (ADR-0008, #698): it keeps what `old` found for every element
+ * whose repository and UUID (`nodeKey`) `affected` does not name. `affected` must name every element
+ * whose candidate children, seeds below or results may differ in the new store: the changed ones and
+ * their ancestors before and after the change (`carriedStatus` in `verification.ts`). `old` is not
+ * changed; a command that still holds it keeps a consistent view.
+ */
+export const carriedEvaluator = (
+  old: VerificationEvaluator,
+  source: StatusSource,
+  children: ChildRules | undefined,
+  currentOf: (element: ElementRecord) => string | undefined,
+  affected: ReadonlySet<string>,
 ): VerificationEvaluator => {
+  const caches = cachesOf.get(old);
+  if (caches === undefined) {
+    return verificationEvaluator(source, children, currentOf);
+  }
+  const dropKey = (key: string): boolean => affected.has(key);
+  const dropElement = (element: ElementRecord): boolean => affected.has(nodeKey(element));
+  return evaluatorWith(source, children, currentOf, {
+    candidatesOf: without(caches.candidatesOf, dropElement),
+    seeds: without(caches.seeds, dropElement),
+    core: without(caches.core, dropKey),
+    neutral: without(caches.neutral, dropKey),
+    variants: new Map([...caches.variants].map(([key, memo]) => [key, without(memo, dropKey)])),
+  });
+};
+
+const evaluatorWith = (
+  source: StatusSource,
+  children: ChildRules | undefined,
+  currentOf: (element: ElementRecord) => string | undefined,
+  carried: EvaluatorCaches | undefined,
+): VerificationEvaluator => {
+  const caches: EvaluatorCaches = carried ?? {
+    candidatesOf: new Map(),
+    seeds: new Map(),
+    core: new Map(),
+    neutral: new Map(),
+    variants: new Map(),
+  };
   /**
    * The children of an element that may count in some view: requirements whose status counts, each
    * once, in child order; none below an emergent element (rule 8). Built once per element.
    */
-  const candidatesOf = new Map<ElementRecord, readonly ElementRecord[]>();
+  const { candidatesOf } = caches;
   const candidates = (element: ElementRecord): readonly ElementRecord[] => {
     let known = candidatesOf.get(element);
     if (known === undefined) {
@@ -236,7 +312,7 @@ export const verificationEvaluator = (
   };
 
   /** The seeds of the element and of everything below it (see the file comment), once per element. */
-  const seeds = new Map<ElementRecord, ReadonlySet<string>>();
+  const { seeds } = caches;
   const unionOf = (element: ElementRecord, own: ReadonlySet<string>): ReadonlySet<string> => {
     let union = own;
     let copied = false;
@@ -319,14 +395,14 @@ export const verificationEvaluator = (
 
   const coreRules: ViewRules = {
     view: CORE,
-    memo: new Map(),
+    memo: caches.core,
     applies: (element) => appliesIn(source.validity, element, CORE),
     holds: (element) => ownViewsOf(source, element.id).core,
     clean: () => false,
   };
   const neutral: ViewRules = {
     view: CORE,
-    memo: new Map(),
+    memo: caches.neutral,
     applies: coreRules.applies,
     holds: () => false,
     clean: () => false,
@@ -342,9 +418,14 @@ export const verificationEvaluator = (
     if (rules === undefined) {
       const byValidity = validitySeed(variant);
       const byRecord = recordSeed(variant.id);
+      let memo = caches.variants.get(key);
+      if (memo === undefined) {
+        memo = new Map();
+        caches.variants.set(key, memo);
+      }
       rules = {
         view,
-        memo: new Map(),
+        memo,
         applies: (element) => appliesIn(source.validity, element, view),
         holds: (element) => ownViewsOf(source, element.id).variants.has(variant.id),
         clean: (element) => {
@@ -422,7 +503,7 @@ export const verificationEvaluator = (
     return result;
   };
 
-  return (element, view, shown) => {
+  const evaluate: VerificationEvaluator = (element, view, shown) => {
     const rules = rulesOf(view);
     if (!source.requirements.has(element.type) || !rules.applies(element)) {
       return undefined;
@@ -433,4 +514,6 @@ export const verificationEvaluator = (
     }
     return derived(element, rules.clean(element) ? neutral : rules);
   };
+  cachesOf.set(evaluate, caches);
+  return evaluate;
 };
