@@ -44,6 +44,7 @@ import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
+import { coveringAction } from "./command-entry.js";
 import type { Buffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
@@ -1069,14 +1070,12 @@ export const catalogItems = (
   catalog: readonly CommandListing[],
   actions: readonly Action[],
 ): Choice[] => {
-  const covered = new Set(actions.flatMap((action) => [action.title, ...(action.covers ?? [])]));
   return catalog
     .filter(
       (command) =>
         listed(context, command) &&
         !(context.readOnly === true && command.whileReadOnly === "refuse") &&
-        !covered.has(command.title) &&
-        !covered.has(command.name) &&
+        coveringAction(command, actions) === undefined &&
         offered(context, command),
     )
     .map((command) => {
