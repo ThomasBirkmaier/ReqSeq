@@ -15,6 +15,16 @@ const execFileAsync = promisify(execFile);
 
 /** How long `close()` waits for the app to end after it closed the window (main waits at most 2 s for the save). */
 const CLOSE_WAIT_MS = 5000;
+/** How long a call into the main process may take while `close()` ends the app or describes a hang. */
+const CALL_WAIT_MS = 1000;
+/**
+ * What Node writes to standard error when the main process has ended but Playwright's inspector session
+ * (`--inspect=0`) is still attached. Node writes it while it frees the main process's JavaScript
+ * environment, after Electron's main loop has ended, so after the last event of the app (`quit`): the
+ * app's own code is done. Playwright closes its session on this line (as it does in `_electron.launch`),
+ * and the process then ends with Chromium's shutdown, which took more than 5 s once on Windows (#304).
+ */
+const DEBUGGER_WAIT = "Waiting for the debugger to disconnect...";
 
 /** `fixtures/` of the repository (fixtures/README.md). */
 const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url));
@@ -237,11 +247,32 @@ const delay = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
+/** `promise`, or `fallback` when it rejects or takes longer than `ms`. */
+const within = async <T, F>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: (error: unknown) => F,
+): Promise<T | F> => {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<F>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(fallback(new Error(`no answer within ${String(ms)} ms`)));
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise.catch(fallback), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /** The state of an app that did not end after its window was closed, for the error of the test. */
 const hangState = async (app: ElectronApplication, window: Page, stderr: string): Promise<string> => {
-  const windows = await app
-    .evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
-    .catch((error: unknown) => `unknown (${String(error)})`);
+  const windows = await within(
+    app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
+    CALL_WAIT_MS,
+    (error: unknown) => `unknown (${String(error)})`,
+  );
   const minibuffer = await window
     .getByLabel("Minibuffer")
     .innerText({ timeout: 1000 })
@@ -300,8 +331,16 @@ export const launchApp = async (
   });
   let stderr = "";
   const sessions: McpSession[] = [];
+  // The app's code has ended once Node waits for the debugger, even before its process has ended.
+  let debuggerWait: (() => void) | undefined;
+  const codeEnded = new Promise<void>((resolve) => {
+    debuggerWait = resolve;
+  });
   app.process().stderr?.on("data", (chunk: Buffer) => {
     stderr += chunk.toString("utf8");
+    if (stderr.includes(DEBUGGER_WAIT)) {
+      debuggerWait?.();
+    }
   });
   const window = await app.firstWindow();
   await throttle(window);
@@ -316,14 +355,15 @@ export const launchApp = async (
     throw new Error(`The app uses the user data folder ${used}, not the test's ${userData}`);
   }
   let discard = false;
-  // Whether the app ended (`app.process()` throws once it has): a test of quitting ends it itself.
+  // Whether the app ended: its process ended, or its code did and the process is shutting down (a test of
+  // quitting ends it itself).
   let ended = false;
-  const end = new Promise<true>((resolve) => {
-    app.once("close", () => {
+  const end = Promise.race([new Promise<void>((resolve) => app.once("close", resolve)), codeEnded]).then(
+    () => {
       ended = true;
-      resolve(true);
-    });
-  });
+      return true as const;
+    },
+  );
   return {
     app,
     window,
@@ -364,7 +404,8 @@ export const launchApp = async (
             resolve(false);
           }, CLOSE_WAIT_MS);
         });
-        await app
+        // Not awaited on its own: a main process that does not answer is a hang, within the same wait.
+        void app
           .evaluate(({ BrowserWindow }) => {
             BrowserWindow.getAllWindows()[0]?.close();
           })
@@ -377,13 +418,17 @@ export const launchApp = async (
       const left = hung ? await hangState(app, window, stderr) : "";
       // A window that keeps itself open (input it cannot save asks once, SR-105 AK1) is destroyed:
       // `destroy()` closes it without a `close` event, so without a save.
-      await app
-        .evaluate(({ BrowserWindow }) => {
-          for (const open of BrowserWindow.getAllWindows()) {
-            open.destroy();
-          }
-        })
-        .catch(() => undefined);
+      if (!ended) {
+        await within(
+          app.evaluate(({ BrowserWindow }) => {
+            for (const open of BrowserWindow.getAllWindows()) {
+              open.destroy();
+            }
+          }),
+          CALL_WAIT_MS,
+          () => undefined,
+        );
+      }
       // How long a hung app still took to end by itself after its windows were destroyed, for the error.
       const started = Date.now();
       const endedLate = hung
