@@ -15,6 +15,7 @@ import {
   readFileSha256,
   readFileSnapshot,
   readFileStat,
+  readJsonlSnapshot,
   readYamlFile,
 } from "./read.js";
 import type { FileReadResult, YamlReadResult } from "./read.js";
@@ -444,6 +445,54 @@ describe("readFileSnapshot (a file ReqSeq rewrites as a whole, SR-029)", () => {
       missing: false,
       problem: { message: expect.stringContaining("not a regular file") as string },
     });
+  });
+});
+
+describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
+  it("tells a ReqSeq data file by its first line, with the snapshot of the whole file", async () => {
+    const text = '{"logreq-data":2,"dirty":false,"id":"a"}\n{"x":"Größe"}\n';
+    await put("out/a.jsonl", text);
+    await put("out/b.jsonl", '{"a":1}\n');
+    const content = Buffer.from(text, "utf8");
+    expect(await readJsonlSnapshot(path.join(root, "out"), "a.jsonl")).toMatchObject({
+      kind: "read",
+      dataFile: true,
+      snapshot: {
+        path: "a.jsonl",
+        size: content.byteLength,
+        sha256: createHash("sha256").update(content).digest("hex"),
+      },
+    });
+    expect(await readJsonlSnapshot(root, "out/b.jsonl")).toMatchObject({ kind: "read", dataFile: false });
+  });
+
+  it("tells a missing file from a link, a folder and a folder linked out of the root", async () => {
+    await put("out/a.jsonl", '{"logreq-data":2}\n');
+    await fs.symlink(path.join(root, "out", "a.jsonl"), path.join(root, "out", "link.jsonl"));
+    expect(await readJsonlSnapshot(root, "out/gone.jsonl")).toMatchObject({
+      kind: "problem",
+      missing: true,
+      problem: { code: "file.unreadable", file: "out/gone.jsonl" },
+    });
+    expect(await readJsonlSnapshot(root, "out/a.jsonl/below.jsonl")).toMatchObject({ missing: true });
+    expect(await readJsonlSnapshot(root, "out/link.jsonl")).toMatchObject({
+      kind: "problem",
+      missing: false,
+      problem: { message: expect.stringContaining("symbolic link") as string },
+    });
+    expect(await readJsonlSnapshot(root, "out")).toMatchObject({ kind: "problem", missing: false });
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
+    try {
+      await fs.writeFile(path.join(outside, "c.jsonl"), '{"logreq-data":2}\n');
+      await fs.symlink(outside, path.join(root, "linked"), "junction");
+      expect(await readJsonlSnapshot(root, "linked/c.jsonl")).toMatchObject({
+        kind: "problem",
+        missing: false,
+        problem: { message: expect.stringContaining("outside the workspace") as string },
+      });
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
   });
 });
 

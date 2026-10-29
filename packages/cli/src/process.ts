@@ -29,14 +29,22 @@ export interface ProcessIo {
 }
 
 /**
- * Connect the binary to the process. A closed pipe (`EPIPE`, e.g. `reqseq ... | head`) drops the rest of
- * that output quietly and keeps the command's exit code; any other write error makes the exit code 3.
+ * Error codes of a write whose reader went away. Linux reports `EPIPE`; macOS, where a child's stdout is a
+ * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304). Both
+ * count on every platform.
+ */
+const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET"]);
+
+/**
+ * Connect the binary to the process. A closed pipe (e.g. `reqseq ... | head`) drops the rest of that output
+ * quietly and keeps the command's exit code; any other write error makes the exit code 3, and a failed
+ * stdout says so on stderr.
  * A write that the stream buffers beyond its limit returns false, and `drained` waits for the stream's
  * `drain` (back-pressure for a large output, #277); it resolves false once the stream failed.
  */
 export function connectProcess(proc: ProcessLike): ProcessIo {
   let writeFailed = false;
-  const sink = (stream: OutputStream): TextSink => {
+  const sink = (stream: OutputStream, report?: OutputStream): TextSink => {
     let open = true;
     /** Waiting `drained` calls and their `drain` listeners: resolved with false when the stream fails. */
     const waiting = new Map<(more: boolean) => void, () => void>();
@@ -47,8 +55,9 @@ export function connectProcess(proc: ProcessLike): ProcessIo {
         resolve(false);
       }
       waiting.clear();
-      if (error.code !== "EPIPE") {
+      if (!READER_GONE.has(error.code)) {
         writeFailed = true;
+        report?.write(`Writing the output failed: ${error.code ?? error.message}\n`, "utf8");
         // Also when the error arrives after the run ended.
         proc.exitCode = EXIT.internal;
       }
@@ -80,7 +89,7 @@ export function connectProcess(proc: ProcessLike): ProcessIo {
   proc.on("SIGINT", onSignal);
   proc.on("SIGTERM", onSignal);
   return {
-    stdout: sink(proc.stdout),
+    stdout: sink(proc.stdout, proc.stderr),
     stderr: sink(proc.stderr),
     signal: controller.signal,
     get writeFailed() {

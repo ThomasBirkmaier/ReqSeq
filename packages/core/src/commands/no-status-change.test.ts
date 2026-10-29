@@ -432,11 +432,14 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     const { fixture, workspace } = await open(true);
     const commit = await fixture.head();
     const out = await runtime.invoke("data.store", { folder: "out" }, { workspace });
-    expect(out).toEqual({ files: [`out/${commit}.json`], problems: [] });
-    const data = JSON.parse(fs.readFileSync(fixture.path(`out/${commit}.json`), "utf8")) as {
-      elements: { status: string }[];
-    };
-    expect(new Set(data.elements.map((e) => e.status))).toEqual(
+    expect(out).toEqual({ files: [`out/${commit}.jsonl`], problems: [] });
+    // One element per line (#319).
+    const lines = fs
+      .readFileSync(fixture.path(`out/${commit}.jsonl`), "utf8")
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { status: string });
+    expect(new Set(lines.map((e) => e.status))).toEqual(
       new Set(["draft", "approved", "obsolete", "retired"]),
     );
     await expect(runtime.invoke("data.store", { folder: "out/.git" }, { workspace })).rejects.toMatchObject({

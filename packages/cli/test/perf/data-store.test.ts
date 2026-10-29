@@ -2,19 +2,19 @@
 // new process of the built CLI on the generated workspace of N-036 (50,000 elements, 200,000
 // relations) with the evidence records a project of that size keeps (`withEvidenceRecords`), every
 // repository a Git repository. The data of that state is larger than one string can hold (about
-// 0.5 GB of JSON, V8 holds at most about 512 MB in one string), so the file is written in chunks
-// (`jsonChunks`, core files block). Runs with `pnpm test:perf` after `pnpm build`, nightly and on pull
+// 0.5 GB of JSON Lines, V8 holds at most about 512 MB in one string), so the file is written in chunks
+// (`jsonLines`, core files block, #319) and an existing one is read in pieces for its check and hash. Runs with `pnpm test:perf` after `pnpm build`, nightly and on pull
 // requests labelled `perf`, never in the required test run. SR-062 names no time: the rows record the
 // time of the whole process, the peaks of its memory (`support/peak-memory.mjs`, default heap flags)
 // and the bytes of the file; the tagged test asserts that the file is delivered (exit code, name,
-// frame), the second run that a data file of that size is replaced (review B1). A last row records
-// `jsonChunks` of the same export in this process (time, chunks, largest chunk).
+// first line), the second run that a data file of that size is replaced (review PS3 of #319). A last
+// row records `jsonLines` of the same export in this process (time, chunks, largest chunk).
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CommandOutput, VersionValue } from "@reqseq/core";
-import { Workspace, computeVersion, invoke, jsonChunks } from "@reqseq/core";
+import { Workspace, computeVersion, invoke, jsonLines, loadContracts } from "@reqseq/core";
 import type { VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
@@ -148,12 +148,12 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
     expect(first.run.code).toBe(0);
     const output = JSON.parse(first.run.stdout) as CommandOutput<"data.store">;
     expect(output.problems).toEqual([]);
-    expect(output.files).toEqual([expect.stringMatching(/[0-9a-f]{40}\.json$/)]);
+    expect(output.files).toEqual([expect.stringMatching(/[0-9a-f]{40}\.jsonl$/)]);
     const file = output.files[0] ?? "";
     expect(path.dirname(file)).toBe(out);
     const { size } = await fs.stat(file);
-    const { head, tail } = await edges(file, 17);
-    expect(head).toBe('{"logreq-data":2,');
+    const { head, tail } = await edges(file, 27);
+    expect(head).toBe('{"logreq-data":2,"commit":"');
     expect(tail.endsWith("}\n")).toBe(true);
     const basis = "SR-062 AK1, #277 (recorded)";
     await recordValue(
@@ -161,8 +161,8 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
       0,
       { basis },
     );
-    // The same commit again: the file of that commit is replaced; it is over the bound of a full parse,
-    // so the guard and the refusal check its frame (review B1).
+    // The same commit again: the file of that commit is replaced; the guard and the refusal read it in
+    // pieces and check its first line and UTF-8 (review PS3 of #319).
     const second = await store("reqseq data store --json at N-036 again, replacing the file of the commit");
     expect(second.run.stderr).toBe("");
     expect(second.run.code).toBe(0);
@@ -176,17 +176,21 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
     );
   }, 1_800_000);
 
-  it("records jsonChunks of the data.export of the whole workspace (time, chunks, largest chunk)", async () => {
+  it("records jsonLines of the data.export of the whole workspace (time, chunks, largest chunk)", async () => {
     const workspace = new Workspace(root);
     try {
       const data = await invoke("data.export", {}, { workspace });
+      const spec = loadContracts().entry("data.export")?.jsonLines;
+      if (spec === undefined) {
+        throw new Error("data.export has no jsonLines in the catalog");
+      }
       const { result } = await measure(
-        "jsonChunks of the data.export of the whole workspace (compact)",
+        "jsonLines of the data.export of the whole workspace",
         () => {
           let chunks = 0;
           let largest = 0;
           let length = 0;
-          for (const chunk of jsonChunks(data, { indent: 0 })) {
+          for (const chunk of jsonLines(data, spec)) {
             chunks += 1;
             largest = Math.max(largest, chunk.length);
             length += chunk.length;
@@ -196,9 +200,9 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
         { basis: "#277 (recorded)" },
       );
       await recordValue(
-        `jsonChunks of the data.export of the whole workspace: ${String(result.chunks)} chunks, largest ${(result.largest / MB).toFixed(2)} M code units, ${(result.length / MB).toFixed(0)} M code units in all`,
+        `jsonLines of the data.export of the whole workspace: ${String(result.chunks)} chunks, largest ${(result.largest / MB).toFixed(2)} M code units, ${(result.length / MB).toFixed(0)} M code units in all`,
         0,
-        { basis: "#277 (recorded)" },
+        { basis: "#277, #319 (recorded)" },
       );
       expect(result.chunks).toBeGreaterThan(1);
       expect(result.largest).toBeLessThan(4 * 1024 * 1024);
