@@ -13,6 +13,7 @@ acceptance-criteria:
   - "Gegeben SR-K hat Children und SR-A ersetzt SR-K in A, wenn Kette, Abdeckung oder indirekter Nachweis in der Sicht von A berechnet werden, dann hängen die Children von SR-K nicht unter SR-A: SR-A hat nur seine eigenen Beziehungen, und die Children von SR-K stehen dort, wo ihre eigene Gültigkeit sie hinstellt."
   - "Gegeben ein Requirement ohne Gültigkeit mit der Beziehung ersetzt auf SR-K, wenn eine Sicht berechnet wird, dann bleibt SR-K in jeder Sicht: Ersetzen wirkt nur in den Varianten der Gültigkeit des ersetzenden Requirements. Soll ein Kern-Requirement für alle durch ein anderes abgelöst werden, geschieht das mit Ablösen (SR-072)."
   - Gegeben SR-A1 und SR-A2 haben beide die Gültigkeit [A] und ersetzen SR-K, wenn die Sicht von A berechnet wird, dann erscheinen SR-A1 und SR-A2 statt SR-K, und das Tool gibt dazu keinen Hinweis.
+  - Gegeben SR-A mit Gültigkeit [A] hat die Beziehung ersetzt auf ein Requirement mit Gültigkeit oder auf ein Element ohne Property mit der Bedeutung Gültigkeit, zum Beispiel einen Need oder ein Paket, wenn eine Sicht berechnet wird oder `workspace.check` läuft, dann ändert sich keine Sicht, das Tool meldet einen Hinweis an der Zeile des Eintrags (wie SR-039 AK3), und im Unterschied von A zum Kern (SR-044) steht SR-A bei den ergänzten Requirements.
 verification-method: test
 topic: "Varianten"
 packages:
