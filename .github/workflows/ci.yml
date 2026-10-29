@@ -103,13 +103,15 @@ jobs:
           # A pull request's merge commit and its parents: the first parent is the base branch (size warning).
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
-      # Large pull requests run long and are hard to review (#303): over 800 changed lines, generated files not
-      # counted (.gitattributes), the job shows a warning. It never fails the job.
+      # Large pull requests run long and are hard to review (#303): over 800 changed lines, the generated files of
+      # .gitattributes not counted, the job shows a warning. It never fails the job. A moved file counts only its
+      # changed lines.
       - name: Pull request size
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         shell: bash
         run: |
-          lines="$(git diff --numstat --no-renames HEAD^1 HEAD -- . ':(exclude)schemas/generated' \
+          lines="$(git diff --numstat -M HEAD^1 HEAD -- . ':(exclude)schemas/generated' \
             ':(exclude)packages/core/src/generated' ':(exclude)pnpm-lock.yaml' |
             awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')"
           echo "Changed lines without generated files: $lines" >> "$GITHUB_STEP_SUMMARY"
