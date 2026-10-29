@@ -581,13 +581,50 @@ const readOf = (seq: number): Promise<void> => {
   });
 };
 
-/** What happens to a file event of the watcher of the workspace: passed on, dropped, or queued. */
+/**
+ * Resolves once a watch has read an activity file of `command` and has looked at the element store
+ * of `workspace` for that access (it is then held, or reported if the store holds the element).
+ */
+const lookedAt = (workspace: Workspace, command: string): Promise<void> => {
+  const read = vi.mocked(WorkspaceBlock.readCacheFile);
+  const settled = vi.mocked(settledValue);
+  const originalRead = read.getMockImplementation() as typeof WorkspaceBlock.readCacheFile;
+  const originalSettled = settled.getMockImplementation() as typeof settledValue;
+  onTestFinished(() => {
+    read.mockImplementation(originalRead);
+    settled.mockImplementation(originalSettled);
+  });
+  return new Promise((resolve) => {
+    read.mockImplementation(async (...args) => {
+      const text = await originalRead(...args);
+      if (args[1] === ACTIVITY_FILE && text?.includes(`"command":"${command}"`) === true) {
+        read.mockImplementation(originalRead);
+        settled.mockImplementation(async (promise: Promise<unknown> | undefined) => {
+          const value = await originalSettled(promise);
+          if (promise === workspace.peek(elementStoreState)) {
+            settled.mockImplementation(originalSettled);
+            // After the reactions to the look: the access is held or reported by then.
+            setImmediate(resolve);
+          }
+          return value;
+        });
+      }
+      return text;
+    });
+  });
+};
+
+/**
+ * What happens to a file event of the watcher of the workspace: passed on, dropped, or queued.
+ * Setting "drop" drops the queued events too; setting "pass" passes them on, in order.
+ */
 type Gate = "pass" | "drop" | "queue";
 
 /**
  * Gates the file events of the watcher of the workspace (it calls the real `fs.watch`; the watch of
  * the cache folder goes through the mock above and is not affected), starting with `initial`. The
- * returned function sets the gate; setting "pass" first passes on the queued events, in order.
+ * returned function sets the gate. Each queued event is passed on in a microtask of its own, so
+ * that a throwing listener loses no other event, as with events the OS reports.
  */
 const gateWorkspaceEvents = async (initial: Gate): Promise<(gate: Gate) => void> => {
   let gate = initial;
@@ -614,10 +651,13 @@ const gateWorkspaceEvents = async (initial: Gate): Promise<(gate: Gate) => void>
   });
   return (next) => {
     gate = next;
+    const pending = queued.splice(0);
     if (next === "pass") {
-      for (const pass of queued.splice(0)) {
-        pass();
+      for (const pass of pending) {
+        queueMicrotask(pass);
       }
+    } else if (next === "queue") {
+      queued.push(...pending);
     }
   };
 };
@@ -685,7 +725,8 @@ describe("watching the last access (SR-117)", () => {
     // The new element reaches the store only after the access was looked at, whichever file event
     // the OS reports first (#304): the access to an element the built store does not know is held.
     gate("queue");
-    const held = readOf(1);
+    // The update's access has seq 1 too (each server process counts its own), so match the command.
+    const held = lookedAt(opened.workspace, "element.create");
     const created = seen.next();
     const output = (await call(
       server(opened),
@@ -694,7 +735,6 @@ describe("watching the last access (SR-117)", () => {
       "mcp",
     )) as CommandOutput<"element.create">;
     await held;
-    await quiet(100);
     expect(seen.seen).toHaveLength(1);
     expect(opened.workspace.peek(elementStoreState)).toBeDefined();
     expect((await opened.workspace.get(elementStoreState)).byId.has(output.element.id)).toBe(false);
