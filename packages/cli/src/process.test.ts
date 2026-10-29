@@ -58,7 +58,7 @@ describe("connectProcess", () => {
   });
 
   it.each(["ECONNRESET", "ENOTCONN"])(
-    "also treats %s as the reader gone, as macOS reports a closed socket pair",
+    "also treats %s as the reader gone, as macOS reports a closed socket pair (#304, #392)",
     (code) => {
       const proc = new FakeProcess();
       const io = connectProcess(proc);

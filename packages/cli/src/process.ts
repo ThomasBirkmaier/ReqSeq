@@ -30,8 +30,8 @@ export interface ProcessIo {
 
 /**
  * Error codes of a write whose reader went away. Linux reports `EPIPE`; macOS, where a child's stdout is a
- * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304) or `ENOTCONN` once
- * the pair is shut down. All count on every platform.
+ * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304) and has also been seen to
+ * report `ENOTCONN` (#392). All count on every platform.
  */
 const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET", "ENOTCONN"]);
 
