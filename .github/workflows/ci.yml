@@ -20,14 +20,13 @@ concurrency:
   # against the new base.
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
-  # Marking a pull request ready for review joins the full group without cancelling (#303): it waits for a running
-  # Ubuntu lane of the same commit instead of cancelling it, because a cancelled check on the head commit blocks the
-  # merge (merge.md); a later push cancels it like any full run, so no platform lane runs on a superseded commit.
+  # Marking a pull request ready for review gets a group of its own (#303): it must not cancel the Ubuntu lane that
+  # still runs on the same commit, because a cancelled check on the head commit blocks the merge (merge.md).
   # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
   # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
   # its ref.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
-  cancel-in-progress: ${{ github.event.action != 'ready_for_review' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || github.event.action == 'ready_for_review' && 'ready' || 'full' }}
+  cancel-in-progress: true
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
 # run code from pull requests on a machine of its own).
@@ -408,6 +407,11 @@ jobs:
     needs: [static, checks, electron]
     # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
     timeout-minutes: 25
+    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
+    # does (#303): a later run's platform job cancels the one still running on a superseded commit.
+    concurrency:
+      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-${{ github.job }}-${{ matrix.os }}
+      cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
       (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
@@ -425,6 +429,11 @@ jobs:
     needs: [static, checks, electron]
     # Windows took more than 20 minutes on 2026-10-29 (one app at a time); the bound ends a hang.
     timeout-minutes: 30
+    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
+    # does (#303): a later run's platform job cancels the one still running on a superseded commit.
+    concurrency:
+      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-${{ github.job }}-${{ matrix.os }}
+      cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
       (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
