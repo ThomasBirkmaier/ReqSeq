@@ -20,10 +20,15 @@ import {
   incomingState,
   updateElements,
 } from "../model/index.js";
+import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import type * as CurrentVersionsModule from "../model/current-versions.js";
 import { workspaceLayoutState } from "../workspace/index.js";
+import type { EvidenceIndex } from "./by-element.js";
+import { evidenceIndexState } from "./by-element.js";
 import { carriedEvaluator, verificationEvaluator } from "./indirect.js";
+import type { EvidenceRecord } from "./record.js";
+import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
 import { statusSource } from "./status.js";
 import type { StateStatus } from "./verification.js";
 import { verificationOf, verificationState } from "./verification.js";
@@ -1099,5 +1104,248 @@ describe("carriedEvaluator (#698)", () => {
     for (const element of store.elements) {
       expect(carried(element, { kind: "core" })).toEqual(fresh(element, { kind: "core" }));
     }
+  });
+});
+
+describe("the evidence index and verificationState carried over evidence.record (#278, plan §3.4)", () => {
+  const DATE = "2026-10-28T10:00:00Z";
+  /** Writes a record through the command, as every access does. */
+  const recorded = async (
+    opened: Opened,
+    file: string,
+    more: Readonly<Record<string, unknown>> = {},
+  ): Promise<void> => {
+    await invoke(
+      "evidence.record",
+      {
+        ref: specOf(opened, file).id,
+        kind: "verification",
+        result: "passed",
+        method: "inspection",
+        item: "unit 1",
+        date: DATE,
+        ...more,
+      },
+      { workspace: opened.workspace },
+    );
+  };
+
+  /** Everything the index tells, by element of the store (keys in any order). */
+  const indexSeen = async (workspace: Workspace) => {
+    const index: EvidenceIndex = await workspace.get(evidenceIndexState);
+    const records = await workspace.get(evidenceRecordsState);
+    const store = await workspace.get(elementStoreState);
+    return {
+      byElement: store.elements.map((e) => index.byElement.get(e.id)),
+      testCases: [...index.testCases],
+      testCasesOf: store.elements.map((e) => index.testCasesOf(e.id)),
+      positions: records.map((r) => index.positionOf(r)),
+      records,
+    };
+  };
+
+  /** The index and the status equal a fresh build; both were carried. */
+  const expectCarriedFresh = async (
+    opened: Opened,
+    before: { status: unknown; index: unknown },
+  ): Promise<void> => {
+    const { workspace } = opened;
+    expect(workspace.peek(evidenceIndexState)).toBeDefined();
+    expect(workspace.peek(evidenceIndexState)).not.toBe(before.index);
+    expectCarried(workspace, before.status as Promise<StateStatus>);
+    const seenHere = await indexSeen(workspace);
+    expect(seenHere.positions).toEqual(seenHere.records.map((_, i) => i));
+    const fresh = new Workspace(opened.fixture.root);
+    try {
+      expect(seenHere).toEqual(await indexSeen(fresh));
+    } finally {
+      await fresh.close();
+    }
+    await expectFresh(opened);
+  };
+
+  const peeked = (workspace: Workspace) => ({
+    status: workspace.peek(verificationState),
+    index: workspace.peek(evidenceIndexState),
+  });
+
+  /** A requirement without records or children that applies in every view: a leaf seen from its parent. */
+  const bareLeaf = async (opened: Opened): Promise<string> => {
+    const status = await opened.workspace.get(verificationState);
+    const parents = new Set([...opened.generated.specs.values()].flatMap((s) => s.parents));
+    const leaf = opened.generated.requirements.find((file) => {
+      const spec = specOf(opened, file);
+      return (
+        !parents.has(spec.id) &&
+        status.source.recordsOf(spec.id).length === 0 &&
+        spec.validity.length === 0 &&
+        !spec.emergent &&
+        spec.status !== "obsolete" &&
+        spec.parents.length > 0
+      );
+    });
+    if (leaf === undefined) {
+      throw new Error("no bare leaf");
+    }
+    return leaf;
+  };
+
+  it("equals a fresh build after records in the core, for a variant, with test cases and on a parent", async () => {
+    const opened = await open(698);
+    await built(opened);
+    const steps: readonly (() => Promise<void>)[] = [
+      () => recorded(opened, opened.generated.deep),
+      () => recorded(opened, opened.generated.deep, { result: "failed", testCase: "TC-new" }),
+      () =>
+        recorded(opened, opened.generated.requirements[1] ?? "", {
+          testCase: "TC-new",
+          variant: VARIANTS[0],
+        }),
+      // A parent: its own record decides now (rule 1).
+      () => recorded(opened, opened.generated.requirements[0] ?? ""),
+      () => recorded(opened, "gen/N-0.md", { kind: "validation", method: undefined, item: undefined }),
+    ];
+    for (const step of steps) {
+      const before = peeked(opened.workspace);
+      await step();
+      await expectCarriedFresh(opened, before);
+    }
+  });
+
+  it("shows the first record for a variant on a leaf at its parent, which was evaluated before (review S1 of #714)", async () => {
+    const opened = await open(698);
+    await built(opened);
+    const leaf = await bareLeaf(opened);
+    const before = peeked(opened.workspace);
+    await recorded(opened, leaf, { variant: VARIANTS[1] });
+    await expectCarriedFresh(opened, before);
+    const status = await opened.workspace.get(verificationState);
+    const store = await opened.workspace.get(elementStoreState);
+    const element = store.elements.find((e) => e.file === leaf);
+    if (element === undefined) {
+      throw new Error("no leaf");
+    }
+    expect(verificationOf(status, element)?.find((e) => e.view === VARIANTS[1])?.status).toBe("verified");
+  });
+
+  it("carries each of two records written back to back with its own index (plan review B5)", async () => {
+    const opened = await open(698);
+    const { workspace } = opened;
+    const old = await built(opened);
+    const leaf = await bareLeaf(opened);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    expect(
+      await workspace.replace(
+        verificationState,
+        workspace.peek(verificationState),
+        held.then(() => old),
+      ),
+    ).toBe(true);
+    const before = peeked(workspace);
+    await recorded(opened, opened.generated.deep);
+    const first = workspace.peek(verificationState);
+    const middle = workspace.peek(evidenceIndexState);
+    await recorded(opened, leaf, { variant: VARIANTS[2] });
+    release();
+    expect((await first)?.inputs.index).toBe(await middle);
+    expect((await workspace.get(verificationState)).inputs.index).toBe(
+      await workspace.get(evidenceIndexState),
+    );
+    await expectCarriedFresh(opened, before);
+  });
+
+  it("keeps the versions read: the open after a record reads no version batch but those of the record", async () => {
+    const opened = await open(698, { image: false });
+    const status = await built(opened);
+    await recorded(opened, opened.generated.deep);
+    const carried = await built(opened);
+    expect(carried.versionBatches()).toBe(status.versionBatches());
+  });
+
+  it("resets the index and the status when the records are replaced by hand (the seam of #127)", async () => {
+    const opened = await open(698);
+    const { workspace } = opened;
+    await built(opened);
+    const records = await workspace.get(evidenceRecordsState);
+    expect(
+      await workspace.replace(
+        evidenceRecordsState,
+        workspace.peek(evidenceRecordsState),
+        Promise.resolve([...records]),
+      ),
+    ).toBe(true);
+    expect(workspace.peek(evidenceIndexState)).toBeUndefined();
+    expect(workspace.peek(verificationState)).toBeUndefined();
+  });
+
+  it("resets the index and the status when the read is replaced without a registered record", async () => {
+    const opened = await open(698);
+    const { workspace } = opened;
+    await built(opened);
+    const read = await workspace.get(evidenceReadState);
+    expect(
+      await workspace.replace(
+        evidenceReadState,
+        workspace.peek(evidenceReadState),
+        Promise.resolve({ ...read }),
+      ),
+    ).toBe(true);
+    // The records follow the new read; the index and the status are built again.
+    expect(await workspace.get(evidenceRecordsState)).toBe(read.records);
+    expect(workspace.peek(evidenceIndexState)).toBeUndefined();
+    expect(workspace.peek(verificationState)).toBeUndefined();
+  });
+
+  it("resets the status over a replace of another state it depends on", async () => {
+    const opened = await open(698);
+    const { workspace } = opened;
+    await built(opened);
+    expect(await workspace.replace(incomingState, workspace.peek(incomingState), new WeakMap())).toBe(true);
+    expect(workspace.peek(verificationState)).toBeUndefined();
+  });
+
+  it("keeps the status as it is while the metamodel is not valid (the records are not compared)", async () => {
+    const opened = await open(698, {
+      files: {
+        "metamodel/standard-model.yaml": `${await fs.readFile(
+          new URL("../../../../fixtures/SR-034/indirect/metamodel/standard-model.yaml", import.meta.url),
+          "utf8",
+        )}  - { key: broken }\n`,
+      },
+    });
+    const { workspace } = opened;
+    expect((await workspace.get(metamodelState)).valid).toBe(false);
+    const old = await built(opened);
+    await workspace.get(evidenceIndexState);
+    const read = await workspace.get(evidenceReadState);
+    const [first] = read.records;
+    if (first === undefined) {
+      throw new Error("no record");
+    }
+    const added: EvidenceRecord = { ...first, file: "evidence/zz-added.md" };
+    const next = Promise.resolve({ ...read, records: [...read.records, added] });
+    registerInsertion(next, added);
+    expect(await workspace.replace(evidenceReadState, workspace.peek(evidenceReadState), next)).toBe(true);
+    expect(await workspace.get(verificationState)).toBe(old);
+    expect((await workspace.get(evidenceIndexState)).byElement.get(added.element)).toContain(added);
+  });
+
+  it("is built afresh from the record when no relation kind has the meaning derivation", async () => {
+    const model = await fs.readFile(
+      new URL("../../../../fixtures/SR-034/indirect/metamodel/standard-model.yaml", import.meta.url),
+      "utf8",
+    );
+    const opened = await open(698, {
+      files: { "metamodel/standard-model.yaml": model.replaceAll("    meaning: derivation\n", "") },
+    });
+    const old = await built(opened);
+    expect(old.children).toBeUndefined();
+    const before = peeked(opened.workspace);
+    await recorded(opened, opened.generated.deep);
+    await expectCarriedFresh(opened, before);
+    expect((await opened.workspace.get(verificationState)).versionBatches()).toBe(1);
   });
 });

@@ -5,8 +5,9 @@
 import type { View } from "../variants/index.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { EvidenceRecord, SkippedTestCase, TestCase } from "./record.js";
-import { testCaseKey } from "./record.js";
-import { evidenceReadState, evidenceRecordsState } from "./state.js";
+import { testCaseKey, testCaseKeyOf } from "./record.js";
+import type { EvidenceRead } from "./state.js";
+import { evidenceReadState, evidenceRecordsState, insertionOf } from "./state.js";
 
 /** One test case across all its files and elements (internal form of `$defs/testCase`). */
 export interface TestCaseEntry {
@@ -80,62 +81,52 @@ export const sortNewestFirst = (records: readonly EvidenceRecord[]): EvidenceRec
 /** Each value once, in first-seen order. */
 const unique = (values: Iterable<string>): string[] => [...new Set(values)];
 
-/** The index of `records` and the skipped test cases `skipped` (see `EvidenceIndex`). */
-export const evidenceIndex = (
+/** The order of `testCases`: class name, then name (code units). */
+const byName = (a: TestCaseEntry, b: TestCaseEntry): number =>
+  byCodeUnits(a.className ?? "", b.className ?? "") || byCodeUnits(a.name, b.name);
+
+/** A test case from its records (newest first) and the elements its skipped appearances name. */
+const entryOf = (
+  key: string,
+  name: string,
+  className: string | undefined,
   records: readonly EvidenceRecord[],
-  skipped: readonly SkippedTestCase[] = [],
-): EvidenceIndex => {
-  const sorted = sortNewestFirst(records);
-  const byElement = new Map<string, EvidenceRecord[]>();
-  interface Group {
-    readonly name: string;
-    readonly className: string | undefined;
-    readonly records: EvidenceRecord[];
-    readonly recordsOf: Map<string, EvidenceRecord[]>;
-    readonly named: string[];
+  skippedNamed: readonly string[],
+): TestCaseEntry => {
+  const recordsOf = new Map<string, EvidenceRecord[]>();
+  for (const record of records) {
+    const ofElement = recordsOf.get(record.element) ?? [];
+    ofElement.push(record);
+    recordsOf.set(record.element, ofElement);
   }
-  const grouped = new Map<string, Group>();
-  const group = (name: string, className: string | undefined): Group => {
-    const key = testCaseKey(name, className);
-    const entry = grouped.get(key) ?? { name, className, records: [], recordsOf: new Map(), named: [] };
-    grouped.set(key, entry);
-    return entry;
-  };
-  for (const record of sorted) {
-    const own = byElement.get(record.element) ?? [];
-    own.push(record);
-    byElement.set(record.element, own);
-    if (record.testCase !== undefined) {
-      const entry = group(record.testCase, record.className);
-      entry.records.push(record);
-      const ofElement = entry.recordsOf.get(record.element) ?? [];
-      ofElement.push(record);
-      entry.recordsOf.set(record.element, ofElement);
-      entry.named.push(record.element);
-    }
-  }
-  for (const test of skipped) {
-    group(test.name, test.className).named.push(...test.elements);
-  }
-  const entries: TestCaseEntry[] = [...grouped].map(([key, entry]) => ({
+  return {
     key,
-    name: entry.name,
-    ...(entry.className === undefined ? {} : { className: entry.className }),
-    elements: unique(entry.named),
-    records: entry.records,
-    recordsOf: entry.recordsOf,
-  }));
-  entries.sort((a, b) => byCodeUnits(a.className ?? "", b.className ?? "") || byCodeUnits(a.name, b.name));
-  const testCases = new Map(entries.map((e) => [e.key, e]));
-  const ofElement = new Map<string, TestCaseEntry[]>();
-  for (const entry of entries) {
-    for (const id of entry.elements) {
-      const of = ofElement.get(id) ?? [];
-      of.push(entry);
-      ofElement.set(id, of);
-    }
-  }
-  const shown = new Map<string, readonly TestCase[]>();
+    name,
+    ...(className === undefined ? {} : { className }),
+    elements: unique([...records.map((r) => r.element), ...skippedNamed]),
+    records,
+    recordsOf,
+  };
+};
+
+/** What an index keeps besides its fields, so that `evidenceIndexWith` can carry it. */
+interface IndexParts {
+  /** The test cases of each element, in the order of `testCases`. */
+  readonly ofElement: ReadonlyMap<string, readonly TestCaseEntry[]>;
+  /** What `testCasesOf` gave so far. */
+  readonly shown: Map<string, readonly TestCase[]>;
+}
+
+const partsOf = new WeakMap<EvidenceIndex, IndexParts>();
+
+/** The index of its parts; `records` is the array it is built from (`positionOf`). */
+const assembled = (
+  byElement: ReadonlyMap<string, readonly EvidenceRecord[]>,
+  testCases: ReadonlyMap<string, TestCaseEntry>,
+  parts: IndexParts,
+  records: readonly EvidenceRecord[],
+): EvidenceIndex => {
+  const { ofElement, shown } = parts;
   const testCasesOf = (id: string): readonly TestCase[] => {
     const kept = shown.get(id);
     if (kept !== undefined) {
@@ -161,7 +152,131 @@ export const evidenceIndex = (
     positions ??= new Map(records.map((r, i) => [r, i]));
     return positions.get(record) ?? -1;
   };
-  return { byElement, testCases, testCasesOf, positionOf };
+  const index: EvidenceIndex = { byElement, testCases, testCasesOf, positionOf };
+  partsOf.set(index, parts);
+  return index;
+};
+
+/** The index of `records` and the skipped test cases `skipped` (see `EvidenceIndex`). */
+export const evidenceIndex = (
+  records: readonly EvidenceRecord[],
+  skipped: readonly SkippedTestCase[] = [],
+): EvidenceIndex => {
+  const sorted = sortNewestFirst(records);
+  const byElement = new Map<string, EvidenceRecord[]>();
+  interface Group {
+    readonly name: string;
+    readonly className: string | undefined;
+    readonly records: EvidenceRecord[];
+    readonly skippedNamed: string[];
+  }
+  const grouped = new Map<string, Group>();
+  const group = (name: string, className: string | undefined): Group => {
+    const key = testCaseKey(name, className);
+    const entry = grouped.get(key) ?? { name, className, records: [], skippedNamed: [] };
+    grouped.set(key, entry);
+    return entry;
+  };
+  for (const record of sorted) {
+    const own = byElement.get(record.element) ?? [];
+    own.push(record);
+    byElement.set(record.element, own);
+    if (record.testCase !== undefined) {
+      group(record.testCase, record.className).records.push(record);
+    }
+  }
+  for (const test of skipped) {
+    group(test.name, test.className).skippedNamed.push(...test.elements);
+  }
+  const entries = [...grouped].map(([key, g]) =>
+    entryOf(key, g.name, g.className, g.records, g.skippedNamed),
+  );
+  entries.sort(byName);
+  const testCases = new Map(entries.map((e) => [e.key, e]));
+  const ofElement = new Map<string, TestCaseEntry[]>();
+  for (const entry of entries) {
+    for (const id of entry.elements) {
+      const of = ofElement.get(id) ?? [];
+      of.push(entry);
+      ofElement.set(id, of);
+    }
+  }
+  return assembled(byElement, testCases, { ofElement, shown: new Map() }, records);
+};
+
+/**
+ * `list` (newest first) with `record` at its `newestFirst` place; on a full tie (the same instant
+ * and place) after the records that come before it in `records` (`positionOf`), as the stable sort
+ * of `evidenceIndex` puts it.
+ */
+const inserted = (
+  list: readonly EvidenceRecord[],
+  record: EvidenceRecord,
+  positionOf: (record: EvidenceRecord) => number,
+): EvidenceRecord[] => {
+  const at = list.findIndex((r) => {
+    const order = newestFirst(record, r);
+    return order < 0 || (order === 0 && positionOf(r) > positionOf(record));
+  });
+  const copy = [...list];
+  copy.splice(at === -1 ? copy.length : at, 0, record);
+  return copy;
+};
+
+/**
+ * The index of `records` and `skipped` when they are the records and skipped test cases of `index`
+ * with one record more, `record` (the read after `evidence.record`, `withRecord`; #278): equal to
+ * `evidenceIndex(records, skipped)`, built from `index` without sorting all records again. The
+ * element's list gets `record` at its place (a copy; every other list is the same array), and when
+ * it names a test case, that test case is built again (or added in its order), with the test cases
+ * of its elements; `positionOf` counts in `records`, so every record after `record` moves by one
+ * (review N2 of #708). `index` is not changed.
+ */
+export const evidenceIndexWith = (
+  index: EvidenceIndex,
+  record: EvidenceRecord,
+  records: readonly EvidenceRecord[],
+  skipped: readonly SkippedTestCase[],
+): EvidenceIndex => {
+  const parts = partsOf.get(index);
+  if (parts === undefined) {
+    return evidenceIndex(records, skipped);
+  }
+  // Asked only on a full tie of instant and place (records without a place), so rarely.
+  const positionIn = (r: EvidenceRecord): number => records.indexOf(r);
+  const byElement = new Map(index.byElement);
+  byElement.set(record.element, inserted(index.byElement.get(record.element) ?? [], record, positionIn));
+  const key = testCaseKeyOf(record);
+  if (key === undefined || record.testCase === undefined) {
+    // The test cases are those of `index`; their cache is shared, its values are the same.
+    return assembled(byElement, index.testCases, parts, records);
+  }
+  const before = index.testCases.get(key);
+  const skippedNamed = skipped
+    .filter((test) => testCaseKey(test.name, test.className) === key)
+    .flatMap((test) => test.elements);
+  const entry = entryOf(
+    key,
+    before?.name ?? record.testCase,
+    before === undefined ? record.className : before.className,
+    inserted(before?.records ?? [], record, positionIn),
+    skippedNamed,
+  );
+  const ordered =
+    before === undefined
+      ? [...index.testCases.values(), entry].sort(byName)
+      : [...index.testCases.values()].map((e) => (e === before ? entry : e));
+  const testCases = new Map(ordered.map((e) => [e.key, e]));
+  const ofElement = new Map(parts.ofElement);
+  const shown = new Map(parts.shown);
+  for (const id of entry.elements) {
+    const of = (parts.ofElement.get(id) ?? []).filter((e) => e !== before);
+    of.push(entry);
+    of.sort(byName);
+    ofElement.set(id, of);
+    shown.delete(id);
+  }
+  return assembled(byElement, testCases, { ofElement, shown }, records);
 };
 
 /**
@@ -175,7 +290,11 @@ export const hasVerificationRecord = (index: EvidenceIndex, id: string, view: Vi
     (r) => r.kind === "verification" && r.variant === (view.kind === "core" ? undefined : view.variant.id),
   );
 
-/** The index of the workspace's records (`evidenceRecordsState`) and skipped test cases (`evidenceReadState`). */
+/**
+ * The index of the workspace's records (`evidenceRecordsState`) and skipped test cases
+ * (`evidenceReadState`). Carried over the read after `evidence.record` (`insertionOf`,
+ * `evidenceIndexWith`, #278); reset by any other change of the read or of the records.
+ */
 export const evidenceIndexState = defineWorkspaceState(
   "evidence-index",
   async (workspace): Promise<EvidenceIndex> => {
@@ -183,5 +302,18 @@ export const evidenceIndexState = defineWorkspaceState(
     const { skipped } = await workspace.get(evidenceReadState);
     return evidenceIndex(records, skipped);
   },
-  { dependsOn: [evidenceRecordsState, evidenceReadState] },
+  {
+    dependsOn: [evidenceRecordsState, evidenceReadState],
+    carry: (value, change) => {
+      const record = insertionOf(change);
+      if (record === undefined) {
+        return undefined;
+      }
+      // The new read as the change gives it, never what the workspace holds later (review B5).
+      const read = change.to as Promise<EvidenceRead>;
+      return Promise.all([value, read]).then(([index, now]) =>
+        evidenceIndexWith(index, record, now.records, now.skipped),
+      );
+    },
+  },
 );
