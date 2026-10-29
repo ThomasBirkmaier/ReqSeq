@@ -11,6 +11,22 @@
       "Bash(gh run:*)",
       "Bash(xvfb-run:*)"
     ],
-    "deny": ["Bash(git push --force:*)", "Bash(git push -f:*)"]
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/protect-files.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }
