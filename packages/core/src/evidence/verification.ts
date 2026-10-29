@@ -39,7 +39,7 @@ import {
   incomingIn,
   incomingState,
 } from "../model/index.js";
-import type { Workspace } from "../runtime/workspace.js";
+import type { StateChange, Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { derivationKinds } from "../trace/index.js";
 import type { View } from "../variants/index.js";
@@ -56,6 +56,8 @@ import {
   nodeKey,
   verificationEvaluator,
 } from "./indirect.js";
+import type { EvidenceRecord } from "./record.js";
+import { insertionOf } from "./state.js";
 import type { StatusSource, VerificationEntries } from "./status.js";
 import { hasValidationRecord, statusSource, validationStatusOf } from "./status.js";
 
@@ -393,17 +395,44 @@ const carriedStatus = (
   }
   const incoming = incomingIn(memo, update.to, metamodel);
   const inputs: StatusInputs = { ...old.inputs, store: update.to, incoming };
-  const keys = derivationKinds(metamodel, "evidence.status").map((kind) => kind.key);
+  const children = childRulesOf({ ...inputs, incoming });
+  return keptOver(old, update, { inputs, source: old.source, children, versionsOfChanged: false }, read);
+};
+
+/** The change a status is carried over (`keptOver`): the stores before and after, the UUIDs it names. */
+interface Reach {
+  readonly from: ElementStore;
+  readonly to: ElementStore;
+  readonly ids: ReadonlySet<string>;
+}
+
+/** What the carried status is built of. */
+interface Next {
+  readonly inputs: StatusInputs;
+  readonly source: StatusSource;
+  readonly children: ChildRules | undefined;
+  /** Keep the versions of the records of `ids` (their files did not change). */
+  readonly versionsOfChanged: boolean;
+}
+
+/**
+ * The status `next` from `old`, which has children, keeping what the change `reach` cannot reach
+ * (see `carriedStatus`): the records of `reach.ids` in both stores and the volatile records, with
+ * their ancestors in both stores, lose their walks and results, and the old records among them
+ * their versions (the volatile ones always, those of `ids` unless `versionsOfChanged`).
+ */
+const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReader): StateStatus => {
+  const keys = derivationKinds(next.inputs.metamodel, "evidence.status").map((kind) => kind.key);
   const { versions, walked, volatile } = old.caches;
-  const changedIn = (store: ElementStore): ElementRecord[] => [
-    ...[...update.ids].flatMap((id) => store.byId.get(id) ?? []),
-    ...volatile,
-  ];
-  const before = changedIn(update.from);
+  const ofIds = (store: ElementStore): ElementRecord[] =>
+    [...reach.ids].flatMap((id) => store.byId.get(id) ?? []);
+  const before = [...ofIds(reach.from), ...volatile];
   const affected = new Set<string>();
-  upwardsFrom(update.from, before, keys, affected);
-  upwardsFrom(update.to, changedIn(update.to), keys, affected);
-  const dropped = new Set(before);
+  upwardsFrom(reach.from, before, keys, affected);
+  if (reach.to !== reach.from) {
+    upwardsFrom(reach.to, [...ofIds(reach.to), ...volatile], keys, affected);
+  }
+  const dropped = new Set(next.versionsOfChanged ? volatile : before);
   const keptVersions = new Map<ElementRecord, string | undefined>();
   for (const [record, version] of versions) {
     if (!dropped.has(record)) {
@@ -416,17 +445,53 @@ const carriedStatus = (
       keptWalked.add(key);
     }
   }
-  const children = childRulesOf({ ...inputs, incoming });
   const evaluate = old.evaluate;
+  const { source, children } = next;
   const status = statusWith(
-    old.source,
+    source,
     old.variants,
     children,
     read,
     { versions: keptVersions, walked: keptWalked, volatile: new Set(), batches: old.caches.batches },
-    (currentOf) => carriedEvaluator(evaluate, old.source, children, currentOf, affected),
+    (currentOf) => carriedEvaluator(evaluate, source, children, currentOf, affected),
   );
-  return { ...status, inputs };
+  return { ...status, inputs: next.inputs };
+};
+
+/**
+ * The status after `evidence.record` wrote `record`, carried over from `old`, the status of the
+ * records before it (#278, plan §3.4): `index` is the carried index with the record (taken inside
+ * the hook, review B5). The source is new (its records changed: the evaluator must not keep the own
+ * views of the old one, review S1 of #714); the records of the element's UUID and their ancestors
+ * lose their walks and results, so a first record for a variant reaches the seeds of its ancestors.
+ * The versions are kept but those of the volatile records (as over a store change). Unchanged while
+ * the metamodel is not valid (the records are not compared then); built afresh without children.
+ */
+const recordedStatus = (
+  old: StateStatus,
+  record: EvidenceRecord,
+  index: EvidenceIndex,
+  read: VersionReader,
+): StateStatus => {
+  if (old.inputs.index === undefined) {
+    return old;
+  }
+  const inputs: StatusInputs = { ...old.inputs, index };
+  if (old.children === undefined) {
+    return statusOfInputs(inputs, read);
+  }
+  const { store } = inputs;
+  return keptOver(
+    old,
+    { from: store, to: store, ids: new Set([record.element]) },
+    {
+      inputs,
+      source: statusSource(inputs.metamodel, index),
+      children: old.children,
+      versionsOfChanged: true,
+    },
+    read,
+  );
 };
 
 /** Reads current versions from the workspace's files (`currentVersionsOf`). */
@@ -434,6 +499,40 @@ const readerOf =
   (workspace: Workspace): VersionReader =>
   (records) =>
     currentVersionsOf(workspace, records);
+
+/** The carry of `verificationState` over a change of the element store (`carriedStatus`). */
+const carryStore = carryStoreUpdate((value: Promise<StateStatus>, update, workspace) => {
+  // Not over a large change (the bound of the incoming index); the memo was carried first (a
+  // dependency): it holds the index of the new store only when it held one of the old store.
+  if (update.ids.size > CARRY_LIMIT) {
+    return undefined;
+  }
+  const memo = workspace.get(incomingState);
+  if (memo.get(update.to) === undefined) {
+    return undefined;
+  }
+  const read = readerOf(workspace);
+  return value.then((old) => carriedStatus(old, update, memo, read));
+});
+
+/**
+ * The carry of `verificationState` over the read after `evidence.record` (`recordedStatus`): the
+ * record and the carried index are taken here, inside `Workspace.replace` (review B5); the index
+ * state was carried first (a dependency), else this hook does not run.
+ */
+const carryRecord = (
+  value: Promise<StateStatus>,
+  change: StateChange,
+  workspace: Workspace,
+): Promise<StateStatus> | undefined => {
+  const record = insertionOf(change);
+  if (record === undefined) {
+    return undefined;
+  }
+  const index = workspace.get(evidenceIndexState);
+  const read = readerOf(workspace);
+  return value.then(async (old) => recordedStatus(old, record, await index, read));
+};
 
 /**
  * The verification status of a workspace (see the file comment): the records of `evidenceIndexState`
@@ -460,19 +559,10 @@ export const verificationState = defineWorkspaceState(
   },
   {
     dependsOn: [metamodelState, elementStoreState, evidenceIndexState, incomingState, workspaceLayoutState],
-    carry: carryStoreUpdate((value, update, workspace) => {
-      // Not over a large change (the bound of the incoming index); the memo was carried first (a
-      // dependency): it holds the index of the new store only when it held one of the old store.
-      if (update.ids.size > CARRY_LIMIT) {
-        return undefined;
-      }
-      const memo = workspace.get(incomingState);
-      if (memo.get(update.to) === undefined) {
-        return undefined;
-      }
-      const read = readerOf(workspace);
-      return value.then((old) => carriedStatus(old, update, memo, read));
-    }),
+    carry: (value, change, workspace) =>
+      change.key === elementStoreState
+        ? carryStore(value, change, workspace)
+        : carryRecord(value, change, workspace),
   },
 );
 

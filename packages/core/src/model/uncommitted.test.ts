@@ -2,6 +2,7 @@
 // each rule without files, Git's blob hash against `git hash-object` (SHA-1 and SHA-256), and the
 // branches of `repositoryState` through its reader seam. The command: commands/data/store.test.ts.
 import fs from "node:fs";
+import path from "node:path";
 import { Readable } from "node:stream";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import type { FixtureWorkspace } from "@logreq/testkit";
@@ -25,9 +26,10 @@ const fixture = async (options: Parameters<typeof createFixtureWorkspace>[0]): P
   return created;
 };
 
+// Absolute folders as the layout gives them, in the spelling of the system (`D:\w\system` on Windows).
 const repository = (name: string, main: boolean, excludes: readonly string[] = []) => ({
   name,
-  folder: `/w/${name}`,
+  folder: path.resolve("/w", name),
   main,
   excludes,
 });
@@ -51,7 +53,11 @@ const layout = {
 } as unknown as Pick<WorkspaceLayout, "file" | "main" | "metamodel">;
 
 describe("stateRules and isStateFile (K2)", () => {
-  const system = stateRules(layout, repository("system", true, ["/w/system/sensor"]), new Set(["img/Ä.png"]));
+  const system = stateRules(
+    layout,
+    repository("system", true, [path.resolve("/w/system/sensor")]),
+    new Set(["img/Ä.png"]),
+  );
   const model = stateRules(layout, repository("model", false), new Set());
 
   it("finds the YAML and evidence folders of each repository; a location that leaves it does not count", () => {

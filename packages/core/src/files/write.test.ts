@@ -412,6 +412,116 @@ describe("writeFileAtomic: review findings", () => {
   });
 });
 
+describe("writeFileAtomic: chunk content (#277)", () => {
+  const CHUNKS = ["---\nid: a\n", Buffer.from("title: Grüße 😀\n", "utf8"), "---\n", "", "text\n"];
+  const WHOLE = "---\nid: a\ntitle: Grüße 😀\n---\ntext\n";
+
+  /** Counts the writes of the handles opened for `target`. */
+  const countWrites = (target: string): { count: number } => {
+    const counter = { count: 0 };
+    const open = fs.open.bind(fs);
+    vi.spyOn(fs, "open").mockImplementation(async (file, flags, mode) => {
+      const handle = await open(file, flags, mode);
+      if (path.basename(String(file)).includes(target)) {
+        const writeFile = handle.writeFile.bind(handle);
+        vi.spyOn(handle, "writeFile").mockImplementation((data, options) => {
+          counter.count += 1;
+          return writeFile(data, options);
+        });
+      }
+      return handle;
+    });
+    return counter;
+  };
+
+  it("replaces and creates with the same bytes and snapshot as a string, one write per chunk", async () => {
+    await put("a.md", A);
+    const file = await parsed("a.md");
+    const writes = countWrites("a.md");
+    const snap = await writeFileAtomic(root, "a.md", () => CHUNKS, file.snapshot);
+    expect(await text("a.md")).toBe(WHOLE);
+    expect(snap).toEqual((await parsed("a.md")).snapshot);
+    expect(snap.size).toBe(Buffer.byteLength(WHOLE));
+    expect(writes.count).toBe(CHUNKS.length);
+    const created = await writeFileAtomic(root, "b.md", () => CHUNKS, null);
+    expect(created).toEqual({ ...(await parsed("b.md")).snapshot });
+    expect(await text("b.md")).toBe(WHOLE);
+    expect(await fs.readdir(root)).toEqual(["a.md", "b.md"]);
+  });
+
+  it("writes a string in one piece, never character by character (review N2)", async () => {
+    const writes = countWrites("a.md");
+    await writeFileAtomic(root, "a.md", WHOLE, null);
+    expect(writes.count).toBe(1);
+    expect(await text("a.md")).toBe(WHOLE);
+  });
+
+  it("writes the chunks again where hard links are not supported (review B2)", async () => {
+    vi.spyOn(fs, "link").mockRejectedValue(errno("ENOTSUP"));
+    let passes = 0;
+    const content = function* (): Generator<string> {
+      passes += 1;
+      yield* ["---\n", "id: a\n", "---\n"];
+    };
+    const snap = await writeFileAtomic(root, "a.md", content, null);
+    expect(passes).toBe(2);
+    expect(await text("a.md")).toBe(A);
+    expect(await fs.readdir(root)).toEqual(["a.md"]);
+    expect(snap).toEqual((await parsed("a.md")).snapshot);
+  });
+
+  it("refuses a changed file as with a string, and leaves nothing when the chunks fail", async () => {
+    await put("a.md", A);
+    const file = await parsed("a.md");
+    await put("a.md", "---\nid: b\n---\n");
+    await expect(writeFileAtomic(root, "a.md", () => CHUNKS, file.snapshot)).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    const failing = function* (): Generator<string> {
+      yield "---\n";
+      throw new Error("no more");
+    };
+    await expect(writeFileAtomic(root, "n.md", failing, null)).rejects.toMatchObject({
+      code: "internal",
+      message: "Not written: n.md (its content could not be produced)",
+      cause: expect.objectContaining({ message: "no more" }) as unknown,
+    });
+    expect(await fs.readdir(root)).toEqual(["a.md"]);
+  });
+
+  it("replaces a JSON file over the bound that has the frame of a data file, and refuses one without (review B1)", async () => {
+    // Not JSON between the frame: above the bound it is not parsed.
+    const large = `{"logreq-data":1,"x":"${"a".repeat(200)}"{}\n`;
+    await put("d.json", large);
+    const options = { kind: "json", fullParseUpTo: 100 } as const;
+    await writeFileAtomic(
+      root,
+      "d.json",
+      () => ['{"logreq-data":1,', '"y":2}', "\n"],
+      await forge("d.json"),
+      options,
+    );
+    expect(await text("d.json")).toBe('{"logreq-data":1,"y":2}\n');
+    await put("d.json", large);
+    await expect(
+      writeFileAtomic(root, "d.json", "{}", await forge("d.json"), { kind: "json" }),
+    ).rejects.toMatchObject({
+      code: "file.faulty",
+      message: expect.stringContaining("no readable JSON") as string,
+    });
+    await put("e.json", `[${"1,".repeat(100)}1]\n`);
+    await expect(writeFileAtomic(root, "e.json", "{}", await forge("e.json"), options)).rejects.toMatchObject(
+      {
+        code: "file.faulty",
+        message: expect.stringContaining(
+          "is larger than 100 bytes and not framed as a LogReq data file",
+        ) as string,
+      },
+    );
+    expect(await text("e.json")).toBe(`[${"1,".repeat(100)}1]\n`);
+  });
+});
+
 describe("retry", () => {
   it("passes on errors without a code or with another code at once", async () => {
     const plain = vi.fn().mockRejectedValue(new Error("plain"));

@@ -423,6 +423,12 @@ test.describe("the prefix key Ctrl/Cmd+K and the shortcuts in the prompt", () =>
     await native("O");
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     await expect(window.getByRole("list", { name: "Next keys" })).toHaveCount(0);
+    // macOS: Electron hands a key the page did not take to the native menu only with the event of the
+    // OS, which a key from `sendInputEvent` lacks, so the menu's Cmd+O never fires here and neither
+    // check below could fail. They run where the menu takes such keys (Windows, Linux).
+    if (mod === "Meta") {
+      return;
+    }
     await window.waitForTimeout(500);
     expect(await dialogs()).toBe(0);
     // Without the prefix the same key is the menu's: the stub counts, so the check above can fail.

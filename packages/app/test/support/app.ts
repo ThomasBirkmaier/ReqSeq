@@ -18,8 +18,12 @@ const CLOSE_WAIT_MS = 5000;
 
 /** `fixtures/` of the repository (fixtures/README.md). */
 const FIXTURES = fileURLToPath(new URL("../../../../fixtures/", import.meta.url));
-/** packages/app: Electron starts its package.json "main" (out/main/index.js). */
-const APP_FOLDER = fileURLToPath(new URL("../..", import.meta.url));
+/**
+ * packages/app: Electron starts its package.json "main" (out/main/index.js). Without a trailing separator:
+ * on Windows Playwright starts Electron through a shell with each argument in double quotes, and a
+ * backslash before the closing quote escapes it, which merged all later arguments into this one (#304).
+ */
+const APP_FOLDER = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 /** The built CLI (`pnpm build`). */
 const CLI = fileURLToPath(new URL("../../../cli/dist/bin.js", import.meta.url));
 /** Fails every connection that leaves the machine in a spawned CLI, as in the CLI's end-to-end tests (SR-077). */

@@ -7,14 +7,20 @@
 // one working copy are not locked against each other.
 //
 // Create: write and fsync a temp file, then hard-link it to the target, which never replaces an
-// existing file. Where hard links are not supported the file is created exclusively in place.
+// existing file. Where hard links are not supported the file is created exclusively in place, and
+// the content is written a second time (so chunk content is a function giving a new iterable).
+//
+// Content is a string (UTF-8), bytes, or chunks: a function that gives an iterable of strings and
+// bytes, called once per pass, for a text larger than one string (`jsonChunks`, #277). Chunks are
+// written one by one, hashed and counted as they go, so the snapshot is that of the whole file.
 //
 // After a rename or link the folder is fsynced, best effort (Windows cannot open folders).
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes, parseYamlFileBytes } from "./parse.js";
+import { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
 import { errorCode, folderInsideRoot, replaceErrorCode, resolveInRoot } from "./paths.js";
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
@@ -36,6 +42,28 @@ export type FileKind = "element" | "yaml" | "xml" | "json";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
+  /**
+   * `json` only: up to this size the target is parsed whole, above it only the frame of a LogReq
+   * data file is checked (`jsonDataKind`); default `JSON_FULL_PARSE_BYTES` (tests take small ones).
+   */
+  readonly fullParseUpTo?: number;
+}
+
+/**
+ * What `writeFileAtomic` writes: a string (as UTF-8), bytes as they are, or chunks: a function that
+ * gives a new iterable of strings (as UTF-8) and bytes each time it is called (once per pass).
+ */
+export type FileContent = string | Uint8Array | (() => Iterable<string | Uint8Array>);
+
+/** Content as chunks; a string or bytes are one chunk (a string is never iterated by character). */
+const chunksOf = (content: FileContent): (() => Iterable<string | Uint8Array>) =>
+  typeof content === "function" ? content : () => [content];
+
+/** What a pass wrote. */
+interface Written {
+  readonly mtimeMs: number;
+  readonly size: number;
+  readonly sha256: string;
 }
 
 const tempPathFor = (absolute: string): string =>
@@ -52,7 +80,9 @@ const changedOnDisk = (file: string, reason: string): CommandError =>
   new CommandError("file.changed-on-disk", `Not written: ${file} ${reason}. Read it again first.`);
 
 /** Why the current bytes must not be written over, or undefined when they still parse. */
-const REFUSAL: Readonly<Record<FileKind, (file: string, bytes: Uint8Array) => string | undefined>> = {
+const REFUSAL: Readonly<
+  Record<FileKind, (file: string, bytes: Uint8Array, options: WriteOptions) => string | undefined>
+> = {
   element: (file, bytes) => {
     const current = parseFileBytes(file, bytes);
     return current.kind === "problem"
@@ -71,13 +101,14 @@ const REFUSAL: Readonly<Record<FileKind, (file: string, bytes: Uint8Array) => st
       ? `is no readable XML (line ${String(current.line)}); fix it by hand`
       : undefined;
   },
-  json: (_file, bytes) => {
-    try {
-      JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-      return undefined;
-    } catch {
-      return "is no readable JSON; fix it by hand";
-    }
+  json: (_file, bytes, options) => {
+    const bound = options.fullParseUpTo ?? JSON_FULL_PARSE_BYTES;
+    const kind = jsonDataKind(bytes, bound);
+    return kind === "faulty"
+      ? "is no readable JSON; fix it by hand"
+      : kind === "unchecked"
+        ? `is larger than ${String(bound)} bytes and not framed as a LogReq data file; fix it by hand`
+        : undefined;
   },
 };
 
@@ -86,7 +117,19 @@ const toCommandError = (error: unknown, file: string, replacing: boolean): Comma
   if (error instanceof CommandError) {
     return error;
   }
-  const code = String(errorCode(error));
+  const code = errorCode(error);
+  if (code === undefined) {
+    // No file system error: the content itself failed (a chunk function that threw, such as a
+    // serialiser on a value JSON cannot hold). Its text stays in `cause`.
+    return new CommandError(
+      "internal",
+      `Not written: ${file} (its content could not be produced)`,
+      undefined,
+      {
+        cause: error,
+      },
+    );
+  }
   if (code !== "ENOENT") {
     return new CommandError("internal", `Not written: ${file} (${code})`);
   }
@@ -119,15 +162,16 @@ const syncFolder = async (folder: string): Promise<void> => {
 };
 
 /**
- * Creates `target` exclusively, writes and fsyncs it; returns its mtime. A replaced file keeps its
- * permission bits (`mode`); a new file gets the default (umask applies).
+ * Creates `target` exclusively, writes the chunks of one pass and fsyncs it; returns its mtime, size
+ * and hash. A replaced file keeps its permission bits (`mode`); a new file gets the default (umask
+ * applies).
  */
 const writeNew = async (
   target: string,
   file: string,
-  bytes: Uint8Array,
+  chunks: () => Iterable<string | Uint8Array>,
   mode: number | undefined,
-): Promise<number> => {
+): Promise<Written> => {
   let handle: fs.FileHandle;
   try {
     handle = await fs.open(target, "wx", mode === undefined ? 0o666 : 0o600);
@@ -139,14 +183,22 @@ const writeNew = async (
   }
   let written = false;
   try {
-    await handle.writeFile(bytes);
+    const hash = createHash("sha256");
+    let size = 0;
+    for (const chunk of chunks()) {
+      const bytes = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk;
+      hash.update(bytes);
+      size += bytes.byteLength;
+      // Each call writes from the current position of the handle, after the chunk before.
+      await handle.writeFile(bytes);
+    }
     if (mode !== undefined) {
       await handle.chmod(mode);
     }
     await handle.sync();
     const { mtimeMs } = await handle.stat();
     written = true;
-    return mtimeMs;
+    return { mtimeMs, size, sha256: hash.digest("hex") };
   } finally {
     await handle.close();
     if (!written) {
@@ -182,7 +234,7 @@ const checkUnchanged = async (
   absolute: string,
   file: string,
   expected: FileSnapshot,
-  kind: FileKind,
+  options: WriteOptions,
 ): Promise<void> => {
   await inspectTarget(absolute, file);
   let bytes: Uint8Array;
@@ -194,23 +246,28 @@ const checkUnchanged = async (
   if (sha256(bytes) !== expected.sha256) {
     throw changedOnDisk(file, "changed on disk since it was read");
   }
-  const refusal = REFUSAL[kind](file, bytes);
+  const refusal = REFUSAL[options.kind ?? "element"](file, bytes, options);
   if (refusal !== undefined) {
     throw new CommandError("file.faulty", `Not written: ${file} ${refusal}`);
   }
 };
 
-const create = async (absolute: string, file: string, temp: string, bytes: Uint8Array): Promise<number> => {
+const create = async (
+  absolute: string,
+  file: string,
+  temp: string,
+  chunks: () => Iterable<string | Uint8Array>,
+): Promise<Written> => {
   try {
     await fs.lstat(absolute);
   } catch (e) {
     if (errorCode(e) !== "ENOENT") {
       throw e;
     }
-    const mtimeMs = await writeNew(temp, file, bytes, undefined);
+    const written = await writeNew(temp, file, chunks, undefined);
     try {
       await fs.link(temp, absolute);
-      return mtimeMs;
+      return written;
     } catch (linkError) {
       const code = String(errorCode(linkError));
       if (!NO_HARD_LINKS.includes(code)) {
@@ -218,7 +275,7 @@ const create = async (absolute: string, file: string, temp: string, bytes: Uint8
       }
     }
     try {
-      return await writeNew(absolute, file, bytes, undefined);
+      return await writeNew(absolute, file, chunks, undefined);
     } catch (exclusiveError) {
       throw replaceErrorCode(exclusiveError, "EEXIST", changedOnDisk(file, "already exists"));
     }
@@ -230,23 +287,24 @@ const replace = async (
   absolute: string,
   file: string,
   temp: string,
-  bytes: Uint8Array,
+  chunks: () => Iterable<string | Uint8Array>,
   expected: FileSnapshot,
-  kind: FileKind,
-): Promise<number> => {
+  options: WriteOptions,
+): Promise<Written> => {
   const mode = await inspectTarget(absolute, file);
-  const mtimeMs = await writeNew(temp, file, bytes, mode);
+  const written = await writeNew(temp, file, chunks, mode);
   // The check runs again before every rename attempt, so a save made while a transient error is
   // retried is never overwritten.
   await retry(async () => {
-    await checkUnchanged(absolute, file, expected, kind);
+    await checkUnchanged(absolute, file, expected, options);
     await fs.rename(temp, absolute);
   }, TRANSIENT_CODES);
-  return mtimeMs;
+  return written;
 };
 
 /**
- * Writes `content` (a string as UTF-8, or bytes as they are, such as an image) to `relativePath`
+ * Writes `content` (a string as UTF-8, bytes as they are, such as an image, or chunks, see
+ * `FileContent`) to `relativePath`
  * below `root` atomically and returns the snapshot of the written file.
  * - `expected` is the snapshot of a successful read: the file is replaced only while its bytes on
  *   disk are unchanged and still parse as `options.kind`; otherwise `file.changed-on-disk` or
@@ -258,7 +316,7 @@ const replace = async (
 export const writeFileAtomic = async (
   root: string,
   relativePath: string,
-  content: string | Uint8Array,
+  content: FileContent,
   expected: FileSnapshot | null,
   options: WriteOptions = {},
 ): Promise<FileSnapshot> => {
@@ -266,7 +324,7 @@ export const writeFileAtomic = async (
   if (expected !== null && expected.path !== file) {
     throw new CommandError("internal", `Not written: the snapshot belongs to ${expected.path}, not ${file}`);
   }
-  const bytes = typeof content === "string" ? Buffer.from(content, "utf8") : content;
+  const chunks = chunksOf(content);
   const temp = tempPathFor(absolute);
   try {
     if (!(await folderInsideRoot(root, absolute))) {
@@ -275,12 +333,12 @@ export const writeFileAtomic = async (
         `Not written: the folder of ${file} is linked outside the workspace`,
       );
     }
-    const mtimeMs =
+    const written =
       expected === null
-        ? await create(absolute, file, temp, bytes)
-        : await replace(absolute, file, temp, bytes, expected, options.kind ?? "element");
+        ? await create(absolute, file, temp, chunks)
+        : await replace(absolute, file, temp, chunks, expected, options);
     await syncFolder(path.dirname(absolute));
-    return makeSnapshot(file, bytes.byteLength, mtimeMs, sha256(bytes));
+    return makeSnapshot(file, written.size, written.mtimeMs, written.sha256);
   } catch (e) {
     throw toCommandError(e, file, expected !== null);
   } finally {
