@@ -1,7 +1,7 @@
 ---
 id: 6adc7242-69ec-4828-bdfb-87b5bdeda6ce
 type: decision
-status: accepted
+status: superseded
 title: "Eigenes Repository für Testdaten"
 spec-id: "D-055"
 ---
