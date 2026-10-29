@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled, closed]
+    types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled, closed]
   # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
   # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
   # manual run check main; a red nightly run is fixed on main the next morning.
@@ -27,8 +27,13 @@ concurrency:
   cancel-in-progress: true
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
-# run code from pull requests on a machine of its own). Every run covers the three reference systems of SR-076
-# (Ubuntu 24.04, macOS 14, Windows 2025) in parallel.
+# run code from pull requests on a machine of its own).
+# Two lanes (#303, product owner decision, 2026-10-29): every run starts the Ubuntu lane (`static`, `checks` and
+# `electron` on ubuntu-24.04, in parallel). A draft pull request stops there, so the pushes while it is worked on cost
+# a few runner minutes each. A pull request that is ready for review (`ready_for_review` and each push after it), the
+# nightly and the manual run add the platform lane: `checks` and `electron` on macos-14 and windows-2025, after the
+# Ubuntu lane of the same run passed (a pull request) or finished (nightly, manual). So every pull request is checked
+# on all three systems before its merge (merge.md), but not every push.
 
 jobs:
   # Title, body and label edits only matter to trace-check, which reads the PR text (D-050). The full run's
@@ -77,26 +82,101 @@ jobs:
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
-  # One job for every check but Electron (#566): one checkout, one install, one build. On Linux it runs, in this
-  # order, the static checks (they do not depend on the operating system, so Linux only), the build, the unit tests
-  # with coverage, the spec check, the CLI e2e suite without network and trace-check. Each step after the install
-  # runs even when an earlier check failed (`!cancelled()`), so that one red step never hides another result; the
-  # job is red if any step is.
-  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
-  checks:
-    name: checks (${{ matrix.os }})
-    # A normal run takes 6-7 minutes; this only ends a hang, so that it does not hold a Linux runner for 6 hours.
-    timeout-minutes: 30
+  # Static checks: they do not depend on the operating system and need no build, so Ubuntu only and apart from the
+  # tests (#303). Each step after the install runs even when an earlier one failed (`!cancelled()`), so that one red
+  # step never hides another result; the job is red if any step is.
+  static:
+    name: static
+    # A normal run takes 2-3 minutes; the bound ends a hang early.
+    timeout-minutes: 8
     if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     permissions:
       contents: read
       pull-requests: read # Write PR body
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        id: install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm typecheck
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm lint
+      - name: Format
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm format:check
+      - name: Schemas
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm schemas:check
+      - name: Generated contracts
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm contracts:check
+      - name: Licenses
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm licenses:check
+      # scripts/sr-issues (Python, run by the spec-change skill); the label and reopen rules are unit-tested.
+      # setup-python pins the version (it has builds for Ubuntu 24.04 on x64).
+      - uses: actions/setup-python@v6
+        id: python
+        if: ${{ !cancelled() }}
+        with:
+          python-version: "3.14.8"
+      - name: Python unit tests (scripts/sr-issues)
+        if: ${{ !cancelled() && steps.python.outcome == 'success' }}
+        run: python3 -m unittest discover -s scripts/sr-issues
+      - name: Audit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm audit --prod --audit-level high
+      # trace-check reads the LogReq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
+      - name: Write PR body
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.url }}
+        # The pull request as it is now, not as the event saw it: a label added right after opening the pull
+        # request (`enabler`) counts in the run of `opened` too, and a re-run reads the current text (#571).
+        run: |
+          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$PR_URL" > pr.json
+          jq -r '.title + "\n\n" + (.body // "")' pr.json > pr-body.txt
+          jq -r '[.labels[].name] | any(. == "enabler" or . == "spec-export")' pr.json > pr-enabler.txt
+      - name: Trace check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          args=""
+          if [ "$IS_PR" = "true" ]; then
+            # A pull request is always checked with its text: without it (`Write PR body` failed) the check fails.
+            [ -f pr-body.txt ] && [ -f pr-enabler.txt ] || { echo "No PR body (see Write PR body)"; exit 1; }
+            args="--pr-body pr-body.txt"
+            if [ "$(cat pr-enabler.txt)" = "true" ]; then args="$args --enabler"; fi
+          fi
+          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
+      - name: Trace report
+        if: always()
+        run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+  # Build, unit tests with coverage (ADR-0016), the spec check and the CLI e2e suite (ADR-0011), on Ubuntu in the
+  # Ubuntu lane. `checks-platform` runs the same steps on macOS and Windows.
+  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
+  checks:
+    name: checks (ubuntu-24.04)
+    # A normal run takes 6-7 minutes; the bound ends a hang early.
+    timeout-minutes: 15
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    runs-on: ubuntu-24.04
+    steps: &checks-steps
       - uses: actions/checkout@v4
         with:
           # A pull request's merge commit and its parents: the first parent is the base branch (changed files).
@@ -113,9 +193,8 @@ jobs:
 
       # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
       # Markdown at the root; .github/scripts/tests-needed.sh) skip the build, the unit tests, the spec check and
-      # e2e, and Electron skips its tests, to save runner time (#520). The static checks and
-      # trace-check always run. Nightly and manual runs always run everything. If this step
-      # fails, `tests` stays empty and everything runs (and the job is red).
+      # e2e, and Electron skips its tests, to save runner time (#520). Nightly and manual runs always run
+      # everything. If this step fails, `tests` stays empty and everything runs (and the job is red).
       - name: Changed files
         id: changes
         if: github.event_name == 'pull_request'
@@ -132,39 +211,6 @@ jobs:
             printf '%s\n' "$files"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      # Static checks, once (Linux).
-      - name: Typecheck
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm typecheck
-      - name: Lint
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm lint
-      - name: Format
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm format:check
-      - name: Schemas
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm schemas:check
-      - name: Generated contracts
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm contracts:check
-      - name: Licenses
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm licenses:check
-      # scripts/sr-issues (Python, run by the spec-change skill); the label and reopen rules are unit-tested.
-      # setup-python pins the version (it has builds for Ubuntu 24.04 on x64).
-      - uses: actions/setup-python@v6
-        id: python
-        if: ${{ !cancelled() && matrix.os == 'ubuntu-24.04' }}
-        with:
-          python-version: "3.14.8"
-      - name: Python unit tests (scripts/sr-issues)
-        if: ${{ !cancelled() && steps.python.outcome == 'success' }}
-        run: python3 -m unittest discover -s scripts/sr-issues
-      - name: Audit
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        run: pnpm audit --prod --audit-level high
 
       - name: Build
         id: build
@@ -195,42 +241,12 @@ jobs:
           # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (#125).
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
 
-      # trace-check reads the LogReq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
-      - name: Write PR body
-        if: ${{ !cancelled() && matrix.os == 'ubuntu-24.04' && github.event_name == 'pull_request' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ github.event.pull_request.url }}
-        # The pull request as it is now, not as the event saw it: a label added right after opening the pull
-        # request (`enabler`) counts in the run of `opened` too, and a re-run reads the current text (#571).
-        run: |
-          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" "$PR_URL" > pr.json
-          jq -r '.title + "\n\n" + (.body // "")' pr.json > pr-body.txt
-          jq -r '[.labels[].name] | any(. == "enabler" or . == "spec-export")' pr.json > pr-enabler.txt
-      - name: Trace check
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
-        env:
-          IS_PR: ${{ github.event_name == 'pull_request' }}
-        run: |
-          args=""
-          if [ "$IS_PR" = "true" ]; then
-            # A pull request is always checked with its text: without it (`Write PR body` failed) the check fails.
-            [ -f pr-body.txt ] && [ -f pr-enabler.txt ] || { echo "No PR body (see Write PR body)"; exit 1; }
-            args="--pr-body pr-body.txt"
-            if [ "$(cat pr-enabler.txt)" = "true" ]; then args="$args --enabler"; fi
-          fi
-          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
-      - name: Trace report
-        if: ${{ always() && matrix.os == 'ubuntu-24.04' }}
-        run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
-
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-${{ matrix.os }}
+          name: junit-${{ matrix.os || 'ubuntu-24.04' }}
           path: |
             test-results/
             !test-results/junit-e2e.xml
@@ -239,7 +255,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-e2e-${{ matrix.os }}
+          name: junit-e2e-${{ matrix.os || 'ubuntu-24.04' }}
           path: test-results/junit-e2e.xml
           if-no-files-found: ignore
 
@@ -247,18 +263,14 @@ jobs:
   # (`_electron.launch`): it shows the status of a fixture workspace, an invoke gives what the CLI gives
   # (SR-080), the session cancels every request that is not local (SR-078), the renderer is sandboxed.
   # On Linux under xvfb with Chromium's sandbox on (no --no-sandbox; the runner user is not root).
-  # In parallel to `checks`: it is the longest job.
+  # In parallel to `checks`: it is the longest job. `electron-platform` runs the same steps on macOS and Windows.
   electron:
-    name: electron (${{ matrix.os }})
-    # A normal run takes a few minutes (install, build, about 20 s of tests); this only ends a hang.
+    name: electron (ubuntu-24.04)
+    # A normal run takes 8-11 minutes (install, build, about 250 tests one app at a time); the bound ends a hang.
     timeout-minutes: 20
     if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
-    runs-on: ${{ matrix.os }}
-    steps:
+    runs-on: ubuntu-24.04
+    steps: &electron-steps
       - uses: actions/checkout@v4
         with:
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
@@ -282,6 +294,20 @@ jobs:
           cache: pnpm
       - if: steps.changes.outputs.tests != 'false'
         run: pnpm install --frozen-lockfile
+      # The Electron binary (about 100 MB) is downloaded once per version and system, not on every run (#303):
+      # @electron/get keeps its downloads in `electron_config_cache`.
+      - name: Electron version
+        id: electron
+        if: steps.changes.outputs.tests != 'false'
+        shell: bash
+        run: |
+          echo "version=$(node -p "require('./packages/app/node_modules/electron/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "electron_config_cache=$RUNNER_TEMP/electron-cache" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.tests != 'false'
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron.outputs.version }}
       # Core (the app loads it in its core process) and the CLI (the tests compare with it).
       - if: steps.changes.outputs.tests != 'false'
         run: pnpm build
@@ -299,8 +325,8 @@ jobs:
           if ! unshare -r true 2>/dev/null; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-      # `test:electron` downloads the Electron binary (pnpm runs no install scripts), builds the app with
-      # electron-vite and runs Playwright.
+      # `test:electron` downloads the Electron binary unless it is cached (pnpm runs no install scripts), builds the
+      # app with electron-vite and runs Playwright.
       - name: Electron tests (xvfb)
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
         run: xvfb-run -a pnpm --filter @logreq/app test:electron
@@ -311,11 +337,48 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-electron-${{ matrix.os }}
+          name: junit-electron-${{ matrix.os || 'ubuntu-24.04' }}
           path: |
             test-results/junit-electron.xml
             test-results/electron/
           if-no-files-found: ignore
+
+  # The platform lane (#303): the steps of `checks` and `electron` on macOS 14 and Windows 2025. A pull request runs
+  # it only when it is not a draft, and only after its Ubuntu lane passed: a red Ubuntu lane starts no macOS or
+  # Windows job. Nightly and manual runs run it after the Ubuntu lane whatever its result, so that every system's
+  # result is there. A skipped platform job shows its name without the system (`checks (${{ matrix.os }})`), so
+  # merge.md asks for the jobs of all three systems to be present and green.
+  checks-platform:
+    name: checks (${{ matrix.os }})
+    needs: [static, checks, electron]
+    # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
+    timeout-minutes: 25
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' ||
+      (!github.event.pull_request.draft && needs.static.result == 'success' &&
+      needs.checks.result == 'success' && needs.electron.result == 'success')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps: *checks-steps
+
+  electron-platform:
+    name: electron (${{ matrix.os }})
+    needs: [static, checks, electron]
+    # Windows took more than 20 minutes on 2026-10-29 (one app at a time); the bound ends a hang.
+    timeout-minutes: 30
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' ||
+      (!github.event.pull_request.draft && needs.static.result == 'success' &&
+      needs.checks.result == 'success' && needs.electron.result == 'success')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps: *electron-steps
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs
