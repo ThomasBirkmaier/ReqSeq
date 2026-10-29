@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -42,6 +42,14 @@ describe("formats", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it("keeps an error of reading an example folder other than a missing one", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "reqseq-docs-"));
+    await mkdir(join(dir, "schemas", "examples"), { recursive: true });
+    await writeFile(join(dir, "schemas", "examples", "workspace"), "a file, no folder");
+    await expect(readExamples(dir)).rejects.toMatchObject({ code: "ENOTDIR" });
+    await rm(dir, { recursive: true, force: true });
+  });
+
   it("renders a format without title, fields, definitions or examples, and examples by their language", () => {
     const bare = formatPage(schema("baseline", { type: "string" }), [], { schemas: [] }, 1);
     expect(bare).toContain('title: "baseline"');
@@ -56,10 +64,13 @@ describe("formats", () => {
   });
 
   it("gives every common definition an anchor and lists internal formats by name", () => {
-    const common = schema("common", { $defs: { uuid: { type: "string", description: "An ID." }, flag: {} } });
+    const common = schema("common", {
+      $defs: { uuid: { type: "string", description: "An ID." }, isFlag: {} },
+    });
     const page = commonTypesPage(common, { schemas: [common] });
-    expect(page).toContain('<a id="uuid"></a>\n\n### `uuid`\n\nAn ID.\n\nType: `string`.');
-    expect(page).toContain('<a id="flag"></a>\n\n### `flag`\n\nType: `any`.');
+    expect(page).toContain("\n### `uuid`\n\nAn ID.\n\nType: `string`.");
+    expect(page).not.toContain('<a id="uuid">');
+    expect(page).toContain('<a id="isFlag"></a>\n\n### `isFlag`\n\nType: `any`.');
     const index = formatsIndex([schema("workspace", { title: "Workspace file" })], "/");
     expect(index).toContain("- [Workspace file](/reference/formats/workspace/)");
     expect(index).toContain("- [baseline](/reference/formats/baseline/)");
