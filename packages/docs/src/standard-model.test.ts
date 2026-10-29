@@ -64,7 +64,9 @@ describe("standardModelPage", () => {
     );
     expect(page).toContain("### Loose (`loose`)\n\n\n## Statuses");
     expect(page).toContain("Draft.\n\n- The status of a new element.\n");
-    expect(page).toContain("- Invalid: the element does not count for coverage and verification.\n");
+    expect(page).toContain(
+      "- Invalid: the element counts neither for coverage nor for indirect verification.\n",
+    );
     expect(modelAnchor("status", "draft")).toBe("status-draft");
   });
 });

@@ -117,7 +117,7 @@ export function standardModelPage(model: StandardModel): string {
       entry(modelAnchor("status", status.key), status, [
         status.initial === true ? "The status of a new element." : undefined,
         status.invalid === true
-          ? "Invalid: the element does not count for coverage and verification."
+          ? "Invalid: the element counts neither for coverage nor for indirect verification."
           : undefined,
       ]),
     ),
