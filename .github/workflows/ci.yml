@@ -219,12 +219,12 @@ jobs:
         id: build
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.changes.outputs.tests != 'false' }}
         run: pnpm build
-      # Coverage and its thresholds (ADR-0016) are measured on Linux. On macOS and Windows the unit tests run without
+      # Coverage and its thresholds (ADR-0016) are measured on Linux and macOS. On Windows the unit tests run without
       # coverage (#304): tests of symbolic links, special files and execute bits are skipped there, so the per-file
-      # 100 % could not be reached on those systems, and instrumenting costs time.
+      # 100 % cannot be reached on that system.
       - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: ${{ runner.os == 'Linux' && 'pnpm test:coverage' || 'pnpm test' }}
+        run: ${{ runner.os != 'Windows' && 'pnpm test:coverage' || 'pnpm test' }}
       # The spec is a LogReq workspace (D-064, #326): LogReq checks it like any other (exit 1 on errors).
       - name: Check the spec with LogReq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -327,7 +327,8 @@ jobs:
         if: steps.changes.outputs.tests != 'false'
         run: pnpm --filter @logreq/app electron:install
       - uses: actions/cache/save@v4
-        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true'
+        # One shard saves; both would try the same key.
+        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && matrix.shard != 2
         with:
           path: ${{ runner.temp }}/electron-cache
           key: ${{ steps.electron-cache.outputs.cache-primary-key }}
@@ -379,7 +380,7 @@ jobs:
           RESULT: ${{ needs.electron-shard.result }}
         run: test "$RESULT" = success
 
-  # The platform lane (#303): the steps of `checks` and `electron` on macOS 14 and Windows 2025. A pull request runs
+  # The platform lane (#303): the steps of `checks` and `electron-shard` (unsharded) on macOS 14 and Windows 2025. A pull request runs
   # it only when it is not a draft, and only after its Ubuntu lane passed: a red Ubuntu lane starts no macOS or
   # Windows job. The run of `ready_for_review` has no Ubuntu lane and starts the platform lane at once. Nightly and manual runs run it after the Ubuntu lane whatever its result, so that every system's
   # result is there. A skipped platform job shows its name without the system (`checks (${{ matrix.os }})`), so
