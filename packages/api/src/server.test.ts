@@ -1198,7 +1198,7 @@ describe("large answers are streamed (#277)", () => {
     expect((await request()).status).toBe(200);
   });
 
-  it("waits for the client to read, and stops writing when it goes away", async () => {
+  it("waits for the client to read, and stops and finishes writing when it goes away", async () => {
     await start();
     const write = vi.spyOn(http.ServerResponse.prototype, "write");
     const gone = new Promise<void>((resolve) => {
@@ -1225,9 +1225,15 @@ describe("large answers are streamed (#277)", () => {
     });
     await gone;
     await new Promise((resolve) => setTimeout(resolve, 200));
-    // 40 MB are about 40 chunks; the server stopped long before.
-    expect(write.mock.calls.length).toBeGreaterThan(0);
-    expect(write.mock.calls.length).toBeLessThan(30);
+    // The answer stopped and its writing finished (review S1): no more writes, and no drain wait
+    // left on the response, whatever the socket buffers took before the client went away.
+    const writes = write.mock.calls.length;
+    const response = write.mock.contexts.at(-1) as http.ServerResponse;
+    expect(writes).toBeGreaterThan(0);
+    expect(response.destroyed).toBe(true);
+    expect(response.listenerCount("drain")).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(write.mock.calls.length).toBe(writes);
     write.mockRestore();
     expect((await request()).status).toBe(200);
   });

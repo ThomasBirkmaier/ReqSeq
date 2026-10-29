@@ -80,13 +80,36 @@ export interface TextSink {
  * Writes `pieces` to `sink` one by one, waiting for `drained` whenever a write returns false. Stops when
  * the sink is closed or `signal` aborts (Ctrl-C while a large output is written).
  */
+/** `drained`, or false as soon as `signal` aborts (Ctrl-C while the reader does not read). */
+const drainedOrAborted = (drained: Promise<boolean>, signal: AbortSignal | undefined): Promise<boolean> =>
+  signal === undefined
+    ? drained
+    : new Promise((resolve) => {
+        if (signal.aborted) {
+          resolve(false);
+          return;
+        }
+        const onAbort = (): void => {
+          resolve(false);
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+        void drained.then((more) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(more);
+        });
+      });
+
 export async function writePieces(
   sink: TextSink,
   pieces: Iterable<string>,
   signal?: AbortSignal,
 ): Promise<void> {
   for (const piece of pieces) {
-    if (sink.write(piece) === false && sink.drained !== undefined && !(await sink.drained())) {
+    if (
+      sink.write(piece) === false &&
+      sink.drained !== undefined &&
+      !(await drainedOrAborted(sink.drained(), signal))
+    ) {
       return;
     }
     if (signal?.aborted === true) {

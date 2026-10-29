@@ -107,8 +107,16 @@ export const problemsEnd = (output: Readonly<Record<string, unknown>>, shown: nu
  */
 export const YAML_OPTIONS = { lineWidth: 0, aliasDuplicateObjects: false } as const;
 
-/** `text` with every line that is not empty indented by two spaces (YAML keeps empty lines empty). */
-const indented = (text: string): string => text.replace(/^(?=.)/gm, "  ");
+/**
+ * `text` with every line that is not empty indented by two spaces (YAML keeps empty lines empty).
+ * Lines end at `\n` only: `yaml` writes U+2028, U+2029 and CR raw inside scalars, and a regular
+ * expression with the `m` flag would take them for line ends and change the value.
+ */
+const indented = (text: string): string =>
+  text
+    .split("\n")
+    .map((line) => (line === "" ? line : `  ${line}`))
+    .join("\n");
 
 /**
  * `stringify(value, YAML_OPTIONS)` in pieces: the items of an array one by one; for an object each key
@@ -121,13 +129,15 @@ export function* yamlPieces(value: unknown): Generator<string, void, undefined> 
     }
     return;
   }
-  if (!isRecord(value) || Object.keys(value).length === 0) {
+  // An object whose fields are all undefined is `{}`, as the whole writes it.
+  if (!isRecord(value) || !Object.values(value).some((item) => item !== undefined)) {
     yield stringify(value, YAML_OPTIONS);
     return;
   }
   for (const [key, item] of Object.entries(value)) {
     if (Array.isArray(item) && item.length > 0) {
-      // The key line as the whole writes it (quoted where needed), then the items below it.
+      // The key line as the whole writes it (quoted where needed), then the items below it. A key
+      // over 1024 characters is an explicit `? key` there; output keys are schema names, never so long.
       yield `${stringify({ [key]: [null] }, YAML_OPTIONS).split("\n")[0] ?? ""}\n`;
       for (const entry of item as readonly unknown[]) {
         yield indented(stringify([entry], YAML_OPTIONS));

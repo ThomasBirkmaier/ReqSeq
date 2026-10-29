@@ -706,6 +706,25 @@ describe("large outputs in pieces with back-pressure (#277)", () => {
     expect(sink.pieces).toHaveLength(2);
   });
 
+  it("stops at Ctrl-C while it waits for a sink that does not drain", async () => {
+    const pieces: string[] = [];
+    const stuck = {
+      write: (text: string): boolean => {
+        pieces.push(text);
+        return false;
+      },
+      drained: (): Promise<boolean> => new Promise<boolean>(() => undefined),
+    };
+    const controller = new AbortController();
+    setTimeout(() => {
+      controller.abort();
+    }, 5);
+    await writePieces(stuck, ["a", "b"], controller.signal);
+    expect(pieces).toEqual(["a"]);
+    await writePieces(stuck, ["c", "d"], controller.signal);
+    expect(pieces).toEqual(["a", "c"]);
+  });
+
   it("writes to a sink without drained as fast as it takes", async () => {
     const pieces: string[] = [];
     await writePieces({ write: (text) => (pieces.push(text), false) }, ["a", "b", "c"]);

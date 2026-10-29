@@ -35,6 +35,12 @@ describe("jsonOutput and yamlPieces: the whole text in pieces (#277)", () => {
     nothing: undefined,
     nested: [[1, [2, []]], { a: { b: [] } }],
     text: [{ block: "line 1\n\nline 3\n", plain: "x" }, "two\nlines"],
+    // Line terminators of JavaScript that are no line breaks of the pieces (review B1).
+    separators: [
+      { text: "line\u2028next", other: "para\u2029next" },
+      "a\rb",
+      { block: "one\r\ntwo\n\u2028three\n" },
+    ],
     twice: [shared, { last: shared }],
     "": [null],
     map: { a: 1 },
@@ -53,6 +59,8 @@ describe("jsonOutput and yamlPieces: the whole text in pieces (#277)", () => {
       expect([...yamlPieces(v)].join("")).toBe(stringify(v, YAML_OPTIONS));
     }
     expect([...yamlPieces(value)].join("")).not.toMatch(/[&*]a1/);
+    expect([...yamlPieces({ a: undefined })].join("")).toBe("{}\n");
+    expect(renderYaml({ hidden: undefined, problems: [] })).toBe("{}\nNo problems.\n");
     expect([...yamlPieces(value)].length).toBeGreaterThan(Object.keys(value).length);
   });
 });

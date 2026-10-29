@@ -68,6 +68,7 @@ describe("connectProcess", () => {
     const failing = io.stdout.drained?.();
     proc.stdout.emit("error", errno("EPIPE"));
     await expect(failing).resolves.toBe(false);
+    expect(proc.stdout.listenerCount("drain")).toBe(0);
     await expect(io.stdout.drained?.()).resolves.toBe(false);
     expect(io.stdout.write("dropped")).toBe(false);
   });

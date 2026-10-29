@@ -51,16 +51,29 @@ function* bodyChunks(body: unknown): Generator<string, void, undefined> {
   yield "\n";
 }
 
-/** Resolves when `response` takes more after a write returned false, or when it closed. */
+/** Whether nobody reads the answer any more: the client went away, or it was ended or cut. */
+const gone = (response: ServerResponse): boolean => response.destroyed || response.writableEnded;
+
+/**
+ * Resolves when `response` takes more after a write returned false, or at once when it is gone or
+ * when it closes or fails meanwhile; its listeners are removed either way. (`writable` stays true on a
+ * destroyed response, so it cannot tell.)
+ */
 const drained = (response: ServerResponse): Promise<void> =>
   new Promise((resolve) => {
+    if (gone(response)) {
+      resolve();
+      return;
+    }
     const done = (): void => {
       response.off("drain", done);
       response.off("close", done);
+      response.off("error", done);
       resolve();
     };
     response.on("drain", done);
     response.on("close", done);
+    response.on("error", done);
   });
 
 /**
@@ -85,7 +98,7 @@ const send = async (
   response.writeHead(status, { ...HEADERS, ...headers });
   try {
     for (let next = first; next.done !== true; next = chunks.next()) {
-      if (!response.writable) {
+      if (gone(response)) {
         // The client has gone away (or the connection failed): stop serialising.
         return;
       }

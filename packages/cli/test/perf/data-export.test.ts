@@ -6,9 +6,10 @@
 // on pull requests labelled `perf`, never in the required test run. SR-061 names no time: the rows
 // record the time, the peaks of the CLI process's memory (`support/peak-memory.mjs`, default heap
 // flags) and the bytes; the tagged tests assert that the JSON is delivered: exit code 0 or status 200,
-// exactly the bytes of `JSON.stringify` (indent 2 on the command line, compact over the API, each with a
-// line break; the bytes of an export of the same state made here, whose `generated` has the same
-// length), and the frame of the export. The time of a call is in its `generated`, so no hash compares.
+// the byte count of `JSON.stringify` (indent 2 on the command line, compact over the API, each with a
+// line break) of an export of the same state made here (its `generated` has the same length), and the
+// frame of the export (start and end). The content itself is not compared: the time of a call is in
+// its `generated`, and the unit and cross-access tests compare the text.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
