@@ -57,8 +57,15 @@ export const ACTIVITY_MAX_BYTES = 4096;
 /** A process writes the file at most once per this time; the latest access of a burst wins. */
 export const ACTIVITY_WRITE_MS = 100;
 
-/** How long a watch holds an access back at most until the store holds the state it saw (`watchActivity`). */
-export const ACTIVITY_HOLD_MS = 1000;
+/**
+ * How long after an access was recorded (`access.at`) a watch reports it at the latest, when its store
+ * does not hold the state the access saw by then (`watchActivity`). SR-117 AK1 gives the app 1 s from
+ * the access; the other 200 ms are the margin for what follows the hold: the timer firing late on a
+ * busy machine, the read of the file once more at its end, and the report to the windows. The file
+ * event and the write delay of the recorder (`ACTIVITY_WRITE_MS`) are inside the hold, since it counts
+ * from `access.at`, not from when the watch saw the file (#304).
+ */
+export const ACTIVITY_HOLD_MS = 800;
 
 /**
  * Which element a call of a catalog command names (`accessSubject`):
@@ -398,7 +405,12 @@ export const lastAccess = async (workspace: Workspace): Promise<ActivityAccess |
 
 export interface ActivityWatchOptions {
   /**
-   * Called once per new access (a new `(process, seq)`), at most `holdMs` after it was written. What it
+   * Called once per new access (a new `(process, seq)`), at the latest `holdMs` after it was recorded
+   * (`access.at`), plus the time to read the file once more; for an `access.at` in the future or one
+   * that does not parse, `holdMs` after it arrived. SR-117 AK1 (1 s) wins over waiting for the store:
+   * when the hold ends first (the workspace watcher batches changes for up to 1 s; an event that
+   * arrives after the hold is over gets none), the element may be one the store does not hold yet
+   * (a created one) or holds in an older state, which the listener has to expect (open in #325). What it
    * throws is caught and logged; the watch goes on.
    */
   readonly onAccess: (access: ActivityAccess) => void;
@@ -423,6 +435,17 @@ interface Held {
   readonly file: ActivityFile;
   readonly timer: NodeJS.Timeout;
 }
+
+/**
+ * How much of the hold of `file` is left now: `holdMs` counted from when the access was recorded
+ * (`access.at`), so that the file event, the write delay of the recorder and a late event (a newer
+ * access found when an older hold ends, #325) are inside it; 0 once it is over. Never more than
+ * `holdMs` (a time in the future, from another clock or not parsable), so a hold always ends.
+ */
+const holdLeft = (file: ActivityFile, holdMs: number): number => {
+  const left = Date.parse(file.access.at) + holdMs - Date.now();
+  return left <= holdMs ? Math.max(left, 0) : holdMs;
+};
 
 const keyOf = (file: ActivityFile | undefined): string | undefined =>
   file === undefined ? undefined : `${file.process}/${String(file.seq)}`;
@@ -553,16 +576,20 @@ class ActivityWatcher implements ActivityWatch {
   }
 
   /**
-   * A new access: held, with a timer that reports it at the latest after `holdMs`, and reported at
-   * once when the store holds what it saw (point 7 of the plan review). It drops an older held one.
+   * A new access: held, with a timer that reports it at the latest `holdMs` after it was recorded, and
+   * reported at once when the store holds what it saw (point 7 of the plan review). It drops an older
+   * held one.
    */
   async #arrive(file: ActivityFile): Promise<void> {
     this.#drop();
     const held: Held = {
       file,
-      timer: setTimeout(() => {
-        void this.#expire(held);
-      }, this.#options.holdMs ?? ACTIVITY_HOLD_MS),
+      timer: setTimeout(
+        () => {
+          void this.#expire(held);
+        },
+        holdLeft(file, this.#options.holdMs ?? ACTIVITY_HOLD_MS),
+      ),
     };
     held.timer.unref();
     this.#held = held;
@@ -636,8 +663,9 @@ class ActivityWatcher implements ActivityWatch {
  * A new access is reported once the element store of `workspace` holds the element's file with the
  * hash the access saw (after the watcher of `workspace` applied the change; the watcher is started
  * when it is not running), at once when the store is not built, and at the latest `holdMs` after it
- * arrived, unless the file then holds a newer access (read once more, for an event that came late);
- * a newer access drops a held one. A file that is too large, broken or of another version is
+ * was recorded (`access.at`, never more than `holdMs` after it arrived), unless the file then holds a
+ * newer access (read once more, for an event that came late), which is held for what is left of its
+ * own hold; a newer access drops a held one. A file that is too large, broken or of another version is
  * ignored. A watch that cannot start or fails is logged and ends; there is no polling.
  */
 export const watchActivity = (workspace: Workspace, options: ActivityWatchOptions): ActivityWatch =>
