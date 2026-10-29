@@ -1,5 +1,5 @@
 // element.supersede (SR-072, SR-087): sets a status the metamodel marks invalid and, on request, a
-// relation with the meaning replacement from the successor; returns the hints on relations to the
+// relation with the meaning succession from the successor; returns the hints on relations to the
 // superseded element. There is no delete (D-045, SR-099). See model/supersede.ts.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";

@@ -173,7 +173,7 @@ describe("standard model", () => {
     const metamodel = await standardModel();
     // Open question #150, option 1 (assumption): a relation meaning may have several relation kinds
     // (D-012: "Jede Beziehungsart ist entweder eine Parent-Child-Beziehung ..."); the standard
-    // model has two for derivation (Refines, Derives from) and replacement (Supersedes, Replaces).
+    // model has two for derivation (Refines, Derives from).
     const expected: Readonly<Record<Meaning, readonly string[]>> = {
       requirement: ["system-requirement"],
       need: ["need"],
@@ -193,7 +193,8 @@ describe("standard model", () => {
       // so the standard model has none; a workspace adds one with `meaning: identifier`.
       identifier: [],
       derivation: ["refines", "derives-from"],
-      replacement: ["supersedes", "replaces"],
+      replacement: ["replaces"],
+      succession: ["supersedes"],
       exclusion: ["excludes"],
     };
     expect(metamodel.meanings).toEqual(expected);

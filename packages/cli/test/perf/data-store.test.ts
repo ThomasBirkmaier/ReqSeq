@@ -153,7 +153,7 @@ describe("reqseq data store with 50,000 elements and their records (SR-062, N-03
     expect(path.dirname(file)).toBe(out);
     const { size } = await fs.stat(file);
     const { head, tail } = await edges(file, 27);
-    expect(head).toBe('{"reqseq-data":2,"commit":"');
+    expect(head).toBe('{"reqseq-data":3,"commit":"');
     expect(tail.endsWith("}\n")).toBe(true);
     const basis = "SR-062 AK1, #277 (recorded)";
     await recordValue(
