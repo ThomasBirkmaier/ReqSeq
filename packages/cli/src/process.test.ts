@@ -57,15 +57,18 @@ describe("connectProcess", () => {
     expect(proc.exitCode).toBe(3);
   });
 
-  it("also treats ECONNRESET as the reader gone, as macOS reports a closed socket pair (#304)", () => {
-    const proc = new FakeProcess();
-    const io = connectProcess(proc);
-    proc.stdout.emit("error", errno("ECONNRESET"));
-    expect(io.stdout.write("dropped")).toBe(false);
-    expect(proc.stderr.written).toEqual([]);
-    expect(io.writeFailed).toBe(false);
-    expect(proc.exitCode).toBeUndefined();
-  });
+  it.each(["ECONNRESET", "ENOTCONN"])(
+    "also treats %s as the reader gone, as macOS reports a closed socket pair",
+    (code) => {
+      const proc = new FakeProcess();
+      const io = connectProcess(proc);
+      proc.stdout.emit("error", errno(code));
+      expect(io.stdout.write("dropped")).toBe(false);
+      expect(proc.stderr.written).toEqual([]);
+      expect(io.writeFailed).toBe(false);
+      expect(proc.exitCode).toBeUndefined();
+    },
+  );
 
   it("says on stderr why stdout failed, by code or else by message", () => {
     const proc = new FakeProcess();

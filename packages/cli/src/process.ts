@@ -30,10 +30,10 @@ export interface ProcessIo {
 
 /**
  * Error codes of a write whose reader went away. Linux reports `EPIPE`; macOS, where a child's stdout is a
- * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304). Both
- * count on every platform.
+ * socket pair, can report `ECONNRESET` when the reader closes with output still unread (#304) or `ENOTCONN` once
+ * the pair is shut down. All count on every platform.
  */
-const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET"]);
+const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET", "ENOTCONN"]);
 
 /**
  * Connect the binary to the process. A closed pipe (e.g. `reqseq ... | head`) drops the rest of that output
