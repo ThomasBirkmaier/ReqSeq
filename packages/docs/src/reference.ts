@@ -4,6 +4,8 @@ import { join } from "node:path";
 import type { CommandRuntime } from "@reqseq/core";
 import type { GeneratedContracts } from "./access.js";
 import { commandAccess } from "./access.js";
+import type { ProblemCodes } from "./codes.js";
+import { CODES_PAGE, codesPage } from "./codes.js";
 import { COMMANDS_FOLDER, commandIndex, commandPage, commandSlug } from "./command-page.js";
 
 /** A page of the content folder: its path relative to it, with `/`, and its Markdown. */
@@ -22,14 +24,23 @@ export async function readGeneratedContracts(repoRoot: string): Promise<Generate
   };
 }
 
-/** The index and one page per command of `runtime`'s catalog, in catalog order. */
-export async function commandReference(
-  runtime: CommandRuntime,
-  generated: GeneratedContracts,
+/** The sources of the reference: the catalog (of `runtime`), the generated contracts and the code texts. */
+export interface ReferenceSources {
+  readonly runtime: CommandRuntime;
+  readonly generated: GeneratedContracts;
+  readonly codes: ProblemCodes;
+}
+
+/** The command index, one page per command of the catalog in its order, and the page of the codes. */
+export async function referencePages(
+  { runtime, generated, codes }: ReferenceSources,
   base: string,
 ): Promise<Page[]> {
   const entries = runtime.contracts.commands;
-  const pages: Page[] = [{ path: `${COMMANDS_FOLDER}/index.md`, text: commandIndex(entries, base) }];
+  const pages: Page[] = [
+    { path: `${COMMANDS_FOLDER}/index.md`, text: commandIndex(entries, base) },
+    { path: CODES_PAGE, text: codesPage(codes) },
+  ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);
     pages.push({

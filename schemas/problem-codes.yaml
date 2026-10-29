@@ -1,0 +1,208 @@
+# Cause and remedy of every problem code and every error code of common.schema.json (SR-139 AK2). The keys of
+# `problems` equal `$defs/problemCode`, the keys of `errors` equal `$defs/error` `code`; `pnpm schemas:check` fails
+# otherwise. The user documentation shows these texts (packages/docs, ADR-0017). Plain English for users of ReqSeq.
+
+problems:
+  file.invalid-yaml:
+    cause: The YAML of a file (an element's frontmatter, the workspace file, the metamodel) cannot be parsed, for example a wrong indentation, an unclosed frontmatter or an unresolved alias.
+    remedy: Fix the YAML at the line and column the message gives. ReqSeq does not show or change the file until it parses.
+  file.conflict-markers:
+    cause: The file contains an unresolved Git merge conflict (lines starting with <<<<<<<, ======= or >>>>>>>).
+    remedy: Resolve the conflict in Git and commit the result. ReqSeq never writes a file with conflict markers.
+  file.unreadable:
+    cause: A file or folder cannot be read, for example because of missing permissions.
+    remedy: Check the permissions of the file or folder the message names.
+  file.faulty:
+    cause: An element has no version, because its file cannot be read the way its version is computed (for example a value without a normal form), or a JUnit test case is not enriched because its element has no current version.
+    remedy: Fix the element's file as the message says; then its version is computed and the test case can be enriched.
+  file.yaml-warning:
+    cause: The YAML parses, but the parser warns about it, for example about a tag or directive it does not know.
+    remedy: Change the YAML at the line the message gives, so that it is plain YAML 1.2.
+  file.skipped:
+    cause: A file or folder is not read, because it is a symbolic link, not a regular file, has its extension in upper case (`.MD`), or is excluded by the workspace file.
+    remedy: Replace a link by the real file, rename the extension to lower case (`.md`), or change the ignore globs of the workspace file if the file should be read.
+  element.invalid:
+    cause: An element file lacks what every element needs, for example an `id` that is a UUID version 4 in lower case or a `type` key.
+    remedy: Correct the field the message names in the element's frontmatter.
+  element.duplicate-id:
+    cause: Several element files have the same `id`, usually because a file was copied. A relation to that ID is ambiguous.
+    remedy: Give the copy a new UUID. ReqSeq decides nothing and changes neither file.
+  element.duplicate-identifier:
+    cause: Two elements of the same type have the same identifier, so a reference by that identifier is ambiguous.
+    remedy: Give one of them another identifier.
+  element.file-name-clash:
+    cause: Two element files in one folder have the same short file name, derived from the end of their UUIDs. This version does not raise it yet.
+    remedy: Rename one of the files by hand. ReqSeq never renames files.
+  element.unknown-type:
+    cause: The element's `type` is not in the metamodel. ReqSeq shows the element but only reads it.
+    remedy: Use a type of the metamodel, or add the type to the metamodel.
+  element.unknown-property:
+    cause: The element has a property that its type in the metamodel does not define.
+    remedy: Remove or rename the property, or add it to the type in the metamodel.
+  element.missing-required:
+    cause: A property that the element's type requires has no value.
+    remedy: Give the property a value. ReqSeq changes no file by itself.
+  element.wrong-value-kind:
+    cause: A property value does not have the kind the metamodel defines for it, for example text where a list or a relation target belongs.
+    remedy: Correct the value so that it has the kind of the property.
+  element.status-not-allowed:
+    cause: The element's status is not one of the statuses of its type.
+    remedy: Set one of the statuses the message lists.
+  element.missing-status:
+    cause: The element's type has statuses, but the element has none.
+    remedy: Set one of the type's statuses.
+  relation.missing-target:
+    cause: A relation or an inline reference points to an ID that no element in the named repository has, for example because the target file was removed or its file cannot be read.
+    remedy: Point the relation to an existing element, remove it, or fix the target's file if the message names one.
+  relation.inaccessible-target:
+    cause: The target of a relation is in a repository of the workspace that is not on this machine. This version does not raise it yet; it shows such targets as not accessible.
+    remedy: Clone the repository where the workspace file expects it.
+  relation.not-allowed:
+    cause: A relation connects two element types that the metamodel does not allow for this relation kind.
+    remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
+  relation.outdated:
+    cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review.
+    remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.
+  relation.target-superseded:
+    cause: A relation points to an element whose status marks it as superseded.
+    remedy: Point the relation to the successor the message names, or confirm that the old target is still meant.
+  relation.not-found:
+    cause: The relation to remove does not exist, so nothing was removed.
+    remedy: None needed; check the source and target if you expected the relation.
+  relation.version-added:
+    cause: The relation existed without a valid stored version; the target's current version was stored now.
+    remedy: None needed.
+  hint.not-confirmable:
+    cause: Only a hint on a changed version (`relation.outdated`) can be confirmed; the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place.
+    remedy: Other hints go away when what they report is fixed. For a file the message names, correct it by hand.
+  hint.not-found:
+    cause: No open hint has the given ID. It was confirmed already, or the relation, its target or the file changed since.
+    remedy: List the open hints with `hint.list` and use one of their IDs.
+  trace.cycle:
+    cause: Relations of a deriving kind form a cycle, so the chain of the elements in it never ends.
+    remedy: Remove or change one of the relations of the cycle the message lists.
+  variant.core-changed:
+    cause: An element of the core that a variant replaces or extends has changed since the variant was written. This version does not raise it yet.
+    remedy: Review the variant's element against the changed core element.
+  variant.superseded-in-validity:
+    cause: The validity of an element lists a variant element that is superseded.
+    remedy: List the successor instead, or remove the entry.
+  variant.nested:
+    cause: A variant is based on another variant, which ReqSeq does not support. This version does not raise it yet.
+    remedy: Base the variant on the core.
+  evidence.unknown-element:
+    cause: An evidence record or a test case names an element that the workspace does not have.
+    remedy: Correct the element named in the record or test, or check that its repository is on this machine.
+  evidence.invalid-record:
+    cause: An evidence record or a JUnit file does not match its format.
+    remedy: Fix the record at the place the message gives.
+  evidence.outdated:
+    cause: The newest evidence record of the element is for an older version of it.
+    remedy: Verify the current version again, for example by running the test, so that a new record is written.
+  evidence.not-enriched:
+    cause: Test cases of a JUnit file name a requirement but carry no element version, so they give no evidence record.
+    remedy: Enrich the file with `evidence.enrichJunit` right after the test run.
+  evidence.folder-missing:
+    cause: The evidence folder the workspace file names does not exist yet.
+    remedy: None needed; ReqSeq creates it with the first record.
+  evidence.ambiguous-element:
+    cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
+    remedy: Give the copied element file a new UUID (see `element.duplicate-id`).
+  baseline.invalid:
+    cause: A baseline file cannot be read or does not match its format.
+    remedy: Fix the file at the place the message gives.
+  filter.invalid:
+    cause: A saved filter cannot be read or does not match its format.
+    remedy: Fix or save the filter again.
+  filter.duplicate-name:
+    cause: Two saved filters have the same name.
+    remedy: Rename one of them.
+  metamodel.invalid:
+    cause: The metamodel is missing or faulty. An error makes the workspace read-only; a warning does not.
+    remedy: Fix the metamodel files at the places the messages give and open the workspace again.
+  metamodel.meaning-unassigned:
+    cause: No relation kind of the metamodel has the meaning a command needs (for example derivation for the chain), so that part of the result is empty.
+    remedy: Assign the meaning to a relation kind in the metamodel.
+  workspace.repository-missing:
+    cause: A repository of the workspace file is not on this machine. Its elements are missing from the results.
+    remedy: Clone the repository where the workspace file expects it, if you need its elements.
+  workspace.invalid:
+    cause: The workspace file does not match its format, for example a repository listed twice.
+    remedy: Fix the workspace file at the place the message gives.
+  workspace.not-watched:
+    cause: ReqSeq cannot watch a folder for changes, for example because the system's limit of watched folders is reached.
+    remedy: Raise the limit (on Linux `fs.inotify.max_user_watches`) or restart ReqSeq after changes in that folder.
+  git.unavailable:
+    cause: Git cannot read a repository, because the `git` program is not on the PATH, the folder is not a Git repository, Git refuses a repository that another user owns (`safe.directory`), or its work tree sees none of the files.
+    remedy: Install Git and put it on the PATH, check the repository, or add it to `safe.directory` in the Git configuration. ReqSeq only reads Git.
+  git.revision-missing:
+    cause: The commit to compare with is not in a repository, so its changes were not looked at.
+    remedy: Fetch the commit, or deepen a shallow clone.
+
+errors:
+  input.invalid:
+    cause: The input of the command does not match its schema, or names something the command cannot do, for example an unknown command.
+    remedy: Correct the fields the message names; the reference page of the command lists its input.
+  ref.unknown:
+    cause: No element matches the given ID, short ID or identifier.
+    remedy: Check the reference; a short ID may be outdated, and the message suggests the element meant when it can.
+  ref.ambiguous:
+    cause: The reference matches several elements, for example a short ID or an identifier that several elements have, or copies of a file that share a UUID.
+    remedy: Give the full UUID of the element meant, or for copies of a file its repository or file, as the candidates in the error's details show.
+  workspace.not-found:
+    cause: The folder has no `reqseq-workspace.yaml`, and no folder above it has one.
+    remedy: Run the command inside a workspace, give `--workspace`, or create one with `workspace.init`.
+  workspace.read-only:
+    cause: The workspace is read-only because its metamodel is missing or faulty, so the command changes no file.
+    remedy: Fix the metamodel files and open the workspace again.
+  element.read-only:
+    cause: The element can only be read, for example because its type is not in the metamodel.
+    remedy: Use a type of the metamodel for the element, or add its type to the metamodel.
+  element.not-found:
+    cause: The element the command needs is not in the workspace. This version does not raise it yet.
+    remedy: Check the reference and that the element's repository is on this machine.
+  metamodel.meaning-unassigned:
+    cause: No relation kind of the metamodel has the meaning the command needs.
+    remedy: Assign the meaning to a relation kind in the metamodel.
+  relation.not-allowed:
+    cause: The metamodel does not allow this relation kind between the types of source and target.
+    remedy: Use an allowed relation kind, or change the metamodel.
+  variant.nested:
+    cause: The variant would be based on another variant, which ReqSeq does not support. This version does not raise it yet.
+    remedy: Base the variant on the core.
+  baseline.uncommitted-changes:
+    cause: A baseline needs a committed state, but the working tree has uncommitted changes. This version does not raise it yet.
+    remedy: Commit or stash the changes first.
+  reqif.invalid:
+    cause: The ReqIF file cannot be read or does not match the ReqIF format. This version does not raise it yet.
+    remedy: Check the file, or export it again from the source tool.
+  reqif.unmapped:
+    cause: The ReqIF file has types or attributes that the mapping does not map. This version does not raise it yet.
+    remedy: Complete the mapping and run the import again.
+  git.unavailable:
+    cause: The command needs Git, but the `git` program is not on the PATH or the folder is not a Git repository.
+    remedy: Install Git and put it on the PATH, or check the repository.
+  git.commit-not-found:
+    cause: The given commit is not available locally in any repository of the workspace.
+    remedy: Fetch the commit, or deepen a shallow clone.
+  file.changed-on-disk:
+    cause: The file changed on disk since it was read, so writing it would overwrite someone else's change; `workspace.init` also gives it when the workspace file or the metamodel file exists already.
+    remedy: Read the element again and repeat the change; for `workspace.init`, choose a folder without these files.
+  file.faulty:
+    cause: A file the command needs cannot be read correctly, for example a faulty `reqseq-workspace.yaml`, an image to attach or a folder that cannot be read, or a file to be replaced.
+    remedy: Fix the file or its permissions as the message says, or move it away, and run the command again.
+  file.read-only:
+    cause: The folder of the file is not writable.
+    remedy: Check the permissions of the folder.
+  file.not-regular:
+    cause: The path is a symbolic link or not a regular file, or a path above a folder to create is a file.
+    remedy: Use a path to a regular file or folder.
+  file.folder-missing:
+    cause: The folder to write to does not exist or is in a repository that is not on this machine. Outside the workspace's repositories ReqSeq creates no folders.
+    remedy: Create the folder, or clone the repository.
+  command.not-implemented:
+    cause: The command is in the catalog, but this version does not implement it yet.
+    remedy: Use a later version of ReqSeq.
+  internal:
+    cause: An error inside ReqSeq, or a call that its caller aborted.
+    remedy: Repeat the call; if it fails again, report it with the message.

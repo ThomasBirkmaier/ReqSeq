@@ -124,6 +124,8 @@ export function commandIndex(entries: readonly CatalogEntry[], base: string): st
     "---",
     "",
     "Every command of ReqSeq, grouped as in its catalog. Each page shows the input, the output and the call in the app, the command line, the API and MCP.",
+    "",
+    `What the codes of problems and errors mean, and what to do about them: [Problem and error codes](${base.replace(/\/$/, "")}/reference/problem-codes/).`,
     ...[...groups].flatMap(([group, members]) => [
       "",
       `## ${group}`,
