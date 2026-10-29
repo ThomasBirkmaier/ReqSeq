@@ -14,7 +14,7 @@ Status: Proposed · Based on: D-026, D-050, D-051, D-054, D-055 · SRs: SR-019, 
 **Fixtures and data**
 - Small fixtures per SR in `fixtures/<sr-id>/`, built as temporary Git repositories by a helper (`fixtures/README.md`).
 - Generator for large workspaces (50,000 elements, 200,000 relations, mixed types and repositories) with a fixed seed, in `packages/testkit` from stage 1 (D-055); from stage 4 with evidence records of that workspace (`withEvidenceRecords`: JUnit files of CI runs, Markdown verification and validation records, #583).
-- Realistic multi-repository scenarios come from `reqseq-testdata` (D-055), checked out in CI.
+- Realistic multi-repository scenarios come from `ReqSeq-testdata` (D-055), checked out in CI.
 
 **Product rules as tests**
 - *Offline:* every Vitest run loads `scripts/test-support/block-network.mjs`, which fails any connection that is not loopback (SR-077, SR-078). The Electron tests additionally assert that the session blocked all non-local requests. On Linux CI the CLI e2e suite also runs inside `unshare -rn` (no network namespace).
