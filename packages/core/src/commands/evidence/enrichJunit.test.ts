@@ -302,7 +302,10 @@ describe("evidence.enrichJunit (SR-029)", () => {
       const error = await failure(workspace, input);
       expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "git-folder"]);
     }
-    expect(await fs.readdir(fixture.path(".git"))).toEqual(["results.xml"]);
+    // On a case-insensitive file system (macOS, Windows) `.GIT/x` is the folder `x` inside `.git`.
+    const inGit = (await fs.readdir(fixture.path(".git"))).filter((name) => name !== "x");
+    expect(inGit).toEqual(["results.xml"]);
+    expect(await fs.readdir(fixture.path(".GIT/x"))).toEqual(["keep"]);
   });
 
   it("refuses an output whose folder does not exist (file.folder-missing)", async () => {

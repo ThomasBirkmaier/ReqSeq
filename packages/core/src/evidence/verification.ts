@@ -15,20 +15,47 @@
 // With `own`, `prepare` also reads the versions of the elements themselves that have validation
 // records; the walk below them stays on verification. The element shown is measured against the
 // version it is shown with (`Shown`), which is never kept. Children are measured against the versions
-// of the store as read: a change made outside LogReq shows once the watcher's batch resets the state.
+// of the store as read: a change made outside LogReq shows once the watcher's batch carries the state
+// over (the changed elements, those that embed images or had no version, and their ancestors are
+// read and computed again; `carriedStatus`) or resets it.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).
 import type { DataExportElement, ValidationStatus } from "../generated/types.js";
+import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
-import type { CurrentVersion, ElementRecord } from "../model/index.js";
-import { currentVersionsOf, elementStoreState } from "../model/index.js";
+import type {
+  CurrentVersion,
+  ElementRecord,
+  ElementStore,
+  IncomingIndex,
+  StoreUpdate,
+} from "../model/index.js";
+import {
+  CARRY_LIMIT,
+  carryStoreUpdate,
+  currentVersionsOf,
+  elementStoreState,
+  hasId,
+  incomingFor,
+  incomingIn,
+  incomingState,
+} from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
-import { traceContext } from "../trace/index.js";
+import { derivationKinds } from "../trace/index.js";
 import type { View } from "../variants/index.js";
 import { appliesIn, variantsOf } from "../variants/index.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
+import { workspaceLayoutState } from "../workspace/index.js";
+import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
 import type { ChildRules, Shown, VerificationEvaluator } from "./indirect.js";
-import { childRulesOf, hasOwnRecordIn, verificationEvaluator } from "./indirect.js";
+import {
+  carriedEvaluator,
+  childRulesOf,
+  hasOwnRecordIn,
+  nodeKey,
+  verificationEvaluator,
+} from "./indirect.js";
 import type { StatusSource, VerificationEntries } from "./status.js";
 import { hasValidationRecord, statusSource, validationStatusOf } from "./status.js";
 
@@ -110,10 +137,59 @@ export const workspaceStatusOf = (
   variants: readonly ElementRecord[],
   children: ChildRules | undefined,
   read: VersionReader,
-): WorkspaceStatus => {
-  const versions = new Map<ElementRecord, string | undefined>();
-  // Elements whose children were walked by an earlier `prepare`, by repository and UUID.
-  const walked = new Set<string>();
+): WorkspaceStatus =>
+  statusWith(source, variants, children, read, freshCaches(), freshEvaluator(source, children));
+
+/** The caches of a status that has read and walked nothing yet. */
+const freshCaches = (): StatusCaches => ({
+  versions: new Map(),
+  walked: new Set(),
+  volatile: new Set(),
+  batches: 0,
+});
+
+/** Builds the evaluator of a status over its versions (`currentOf`). */
+type EvaluatorOf = (currentOf: (element: ElementRecord) => string | undefined) => VerificationEvaluator;
+
+/** A new evaluator of `source` with `children`. */
+const freshEvaluator =
+  (source: StatusSource, children: ChildRules | undefined): EvaluatorOf =>
+  (currentOf) =>
+    verificationEvaluator(source, children, currentOf);
+
+/** What a status has read and walked (`workspaceStatusOf`), to start a status carried over a store change. */
+interface StatusCaches {
+  /** The current versions read, by record (none for a record whose read gave none). */
+  readonly versions: Map<ElementRecord, string | undefined>;
+  /** Elements whose children were walked by an earlier `prepare`, by repository and UUID (`nodeKey`). */
+  readonly walked: Set<string>;
+  /**
+   * The records read whose version may change while their file does not: one that embeds images
+   * (the watcher does not report images, ADR-0008) or one whose read gave no version.
+   */
+  readonly volatile: Set<ElementRecord>;
+  /** The batches read before (`versionBatches` goes on counting). */
+  readonly batches: number;
+}
+
+/**
+ * A status with its caches, so that `verificationState` can carry it (`carriedStatus`). It holds no
+ * reference to the status it was carried from, so a chain of saves keeps only the newest.
+ */
+export interface KeptStatus extends WorkspaceStatus {
+  readonly children: ChildRules | undefined;
+  readonly caches: StatusCaches;
+}
+
+const statusWith = (
+  source: StatusSource,
+  variants: readonly ElementRecord[],
+  children: ChildRules | undefined,
+  read: VersionReader,
+  caches: StatusCaches,
+  evaluatorOf: EvaluatorOf,
+): KeptStatus => {
+  const { versions, walked, volatile } = caches;
   const views: View[] = [
     { kind: "core" },
     ...variants.map((variant): View => ({ kind: "variant", variant })),
@@ -125,7 +201,7 @@ export const workspaceStatusOf = (
   const decidedByChildren = (element: ElementRecord): boolean =>
     !source.emergent(element) &&
     views.some((view) => appliesIn(source.validity, element, view) && !hasOwnRecordIn(source, element, view));
-  let batches = 0;
+  let { batches } = caches;
 
   /**
    * The elements below `elements` whose version is needed and not known, and the elements walked
@@ -154,7 +230,7 @@ export const workspaceStatusOf = (
     const stack = elements.filter((e) => source.requirements.has(e.type));
     const done = new Set<string>();
     for (let element = stack.pop(); element !== undefined; element = stack.pop()) {
-      const key = `${element.repository}\u0000${element.id}`;
+      const key = nodeKey(element);
       if (children === undefined || walked.has(key) || done.has(key) || !decidedByChildren(element)) {
         continue;
       }
@@ -177,6 +253,9 @@ export const workspaceStatusOf = (
       for (const element of wanted) {
         const entry = found.get(element);
         versions.set(element, entry?.kind === "version" ? entry.version : undefined);
+        if (entry?.kind !== "version" || entry.images.length > 0) {
+          volatile.add(element);
+        }
       }
     }
     // Only once the versions are in: a failed read walks again next time.
@@ -190,12 +269,21 @@ export const workspaceStatusOf = (
   return {
     source,
     variants,
+    children,
+    caches: {
+      versions,
+      walked,
+      volatile,
+      get batches() {
+        return batches;
+      },
+    },
     prepare: (elements, options = {}) => {
       const run = queue.then(() => fill(elements, options.own === true));
       queue = run.catch(() => undefined);
       return run;
     },
-    evaluate: verificationEvaluator(source, children, (element) => versions.get(element)),
+    evaluate: evaluatorOf((element) => versions.get(element)),
     validate: (element, shown) => {
       const records = source.recordsOf(element.id);
       if (!source.needs.has(element.type) && !hasValidationRecord(records)) {
@@ -207,32 +295,185 @@ export const workspaceStatusOf = (
   };
 };
 
+/** What the verification status of one store is built from (`verificationState`). */
+export interface StatusInputs {
+  readonly metamodel: Metamodel;
+  readonly layout: WorkspaceLayout;
+  readonly store: ElementStore;
+  /** The records; none while the metamodel is not valid. */
+  readonly index: EvidenceIndex | undefined;
+  /** The incoming relation index of `store`, for the children; none while the metamodel is not valid. */
+  readonly incoming: IncomingIndex | undefined;
+}
+
+/** The status of `verificationState`: one built from `inputs`, which a store change can carry. */
+export interface StateStatus extends KeptStatus {
+  readonly inputs: StatusInputs;
+}
+
+const statusOfInputs = (inputs: StatusInputs, read: VersionReader): StateStatus => {
+  const { metamodel, layout, store, index, incoming } = inputs;
+  const children = incoming === undefined ? undefined : childRulesOf({ layout, metamodel, store, incoming });
+  const source = statusSource(metamodel, index);
+  const status = statusWith(
+    source,
+    variantsOf(store, metamodel),
+    children,
+    read,
+    freshCaches(),
+    freshEvaluator(source, children),
+  );
+  return { ...status, inputs };
+};
+
+/**
+ * The records of `store` under the UUIDs `ids` and the records whose derivation relations name them,
+ * recursively: everything whose status may depend on them, as far as `store` tells. A relation item
+ * counts for every record of its UUID, in every repository, so this holds the derivation parents
+ * the trace block resolves (`parentsOf`, `childrenOf`), and possibly more.
+ */
+const upwardsFrom = (
+  store: ElementStore,
+  starts: Iterable<ElementRecord>,
+  keys: readonly string[],
+  into: Set<string>,
+): void => {
+  const seen = new Set<ElementRecord>();
+  const stack = [...starts];
+  for (let record = stack.pop(); record !== undefined; record = stack.pop()) {
+    if (seen.has(record)) {
+      continue;
+    }
+    seen.add(record);
+    into.add(nodeKey(record));
+    for (const key of keys) {
+      const value: unknown = record.data[key];
+      if (!Array.isArray(value)) {
+        continue;
+      }
+      for (const item of value as readonly unknown[]) {
+        if (hasId(item)) {
+          stack.push(...(store.byId.get(item.id) ?? []));
+        }
+      }
+    }
+  }
+};
+
+/**
+ * The verification status of the store after `update`, carried over from `old`, the status of the
+ * store before it (ADR-0008, #184, #698): the versions read, the walks of `prepare` and the results
+ * of the evaluator are kept for every element that the change cannot reach. Affected are the
+ * records of the changed UUIDs (`update.ids`, before and after: a twin that comes or goes changes
+ * the children of its UUID, SR-088) and the records whose version may have changed without their
+ * file (`volatile`: images, no version), with their ancestors before the change (in the old store)
+ * and after it (in the new one); a child stores its derivation (ADR-0004), so the old and the new
+ * parents of a changed element are among them. The new store's status is built afresh (no versions
+ * kept) when the metamodel is not valid or has no derivation, or the variants changed (the views
+ * change). `memo` is the incoming index memo as the hook took it, so no `get` runs later (review B5
+ * of the #698 plan): a second change before this one resolved pairs its own store and index.
+ */
+const carriedStatus = (
+  old: StateStatus,
+  update: StoreUpdate,
+  memo: WeakMap<ElementStore, IncomingIndex>,
+  read: VersionReader,
+): StateStatus => {
+  const { metamodel } = old.inputs;
+  const variants = variantsOf(update.to, metamodel);
+  const sameViews =
+    variants.length === old.variants.length && variants.every((v, i) => v === old.variants[i]);
+  // Without children (an invalid metamodel, no derivation) nothing was walked; other variants
+  // change the views; a status of another store than the one changed (the store is replaced by
+  // compare and set, so only a value put in place by hand) cannot be carried by the change. Built
+  // afresh from the values of the change, still without any `get`.
+  if (old.children === undefined || !sameViews || old.inputs.store !== update.from) {
+    const incoming = old.inputs.incoming === undefined ? undefined : incomingIn(memo, update.to, metamodel);
+    return statusOfInputs({ ...old.inputs, store: update.to, incoming }, read);
+  }
+  const incoming = incomingIn(memo, update.to, metamodel);
+  const inputs: StatusInputs = { ...old.inputs, store: update.to, incoming };
+  const keys = derivationKinds(metamodel, "evidence.status").map((kind) => kind.key);
+  const { versions, walked, volatile } = old.caches;
+  const changedIn = (store: ElementStore): ElementRecord[] => [
+    ...[...update.ids].flatMap((id) => store.byId.get(id) ?? []),
+    ...volatile,
+  ];
+  const before = changedIn(update.from);
+  const affected = new Set<string>();
+  upwardsFrom(update.from, before, keys, affected);
+  upwardsFrom(update.to, changedIn(update.to), keys, affected);
+  const dropped = new Set(before);
+  const keptVersions = new Map<ElementRecord, string | undefined>();
+  for (const [record, version] of versions) {
+    if (!dropped.has(record)) {
+      keptVersions.set(record, version);
+    }
+  }
+  const keptWalked = new Set<string>();
+  for (const key of walked) {
+    if (!affected.has(key)) {
+      keptWalked.add(key);
+    }
+  }
+  const children = childRulesOf({ ...inputs, incoming });
+  const evaluate = old.evaluate;
+  const status = statusWith(
+    old.source,
+    old.variants,
+    children,
+    read,
+    { versions: keptVersions, walked: keptWalked, volatile: new Set(), batches: old.caches.batches },
+    (currentOf) => carriedEvaluator(evaluate, old.source, children, currentOf, affected),
+  );
+  return { ...status, inputs };
+};
+
+/** Reads current versions from the workspace's files (`currentVersionsOf`). */
+const readerOf =
+  (workspace: Workspace): VersionReader =>
+  (records) =>
+    currentVersionsOf(workspace, records);
+
 /**
  * The verification status of a workspace (see the file comment): the records of `evidenceIndexState`
  * while the metamodel is valid, none otherwise; children through the trace block. Shared by
  * `evidence.status`, `element.get`, `element.resolve` and the filter (`query/evidence.ts`), so all of
  * them give the same status (SR-080 AK2) and a repeated call reads no version again (SR-082). Reset
- * with the metamodel, the element store and the evidence records.
+ * with the metamodel and the evidence records; carried over a change of the element store
+ * (`carriedStatus`) while the incoming relation index was carried with it (`incomingState`, at most
+ * `CARRY_LIMIT` UUIDs), reset otherwise.
  */
 export const verificationState = defineWorkspaceState(
   "verification",
-  async (workspace): Promise<WorkspaceStatus> => {
-    const [metamodel, store] = await Promise.all([
+  async (workspace): Promise<StateStatus> => {
+    const [metamodel, store, layout] = await Promise.all([
       workspace.get(metamodelState),
       workspace.get(elementStoreState),
+      workspace.get(workspaceLayoutState),
     ]);
     // While the metamodel is not valid the records are not compared and no element has children.
     const valid = metamodel.valid;
     const index = valid ? await workspace.get(evidenceIndexState) : undefined;
-    const children = valid ? childRulesOf(await traceContext(workspace)) : undefined;
-    return workspaceStatusOf(
-      statusSource(metamodel, index),
-      variantsOf(store, metamodel),
-      children,
-      (records) => currentVersionsOf(workspace, records),
-    );
+    const incoming = valid ? incomingFor(workspace, store, metamodel) : undefined;
+    return statusOfInputs({ metamodel, layout, store, index, incoming }, readerOf(workspace));
   },
-  { dependsOn: [metamodelState, elementStoreState, evidenceIndexState] },
+  {
+    dependsOn: [metamodelState, elementStoreState, evidenceIndexState, incomingState, workspaceLayoutState],
+    carry: carryStoreUpdate((value, update, workspace) => {
+      // Not over a large change (the bound of the incoming index); the memo was carried first (a
+      // dependency): it holds the index of the new store only when it held one of the old store.
+      if (update.ids.size > CARRY_LIMIT) {
+        return undefined;
+      }
+      const memo = workspace.get(incomingState);
+      if (memo.get(update.to) === undefined) {
+        return undefined;
+      }
+      const read = readerOf(workspace);
+      return value.then((old) => carriedStatus(old, update, memo, read));
+    }),
+  },
 );
 
 /**
