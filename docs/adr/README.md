@@ -22,3 +22,4 @@ Format: context, decision, consequences, rejected alternatives. Status `Proposed
 | [0014](0014-packaging.md) | Packaging and delivery | D-003, SR-076, SR-078 |
 | [0015](0015-dependencies-and-licenses.md) | Dependency policy | N-047, D-051 |
 | [0016](0016-strict-quality-gates.md) | Strictest compiler settings, strict lint and coverage thresholds | D-050, D-051 |
+| [0017](0017-user-documentation-site.md) | User documentation site | D-067, SR-139..SR-141 |

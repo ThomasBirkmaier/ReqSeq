@@ -1,0 +1,93 @@
+name: Docs pages
+
+# ADR-0017: builds the user documentation of a release tag and deploys it to GitHub Pages. Only the latest release
+# is online (D-067), so a tag that is not the latest release is built but not deployed. Called by release.yml after it
+# published a release (a release published with `github.token` starts no workflow of its own), or by hand for a tag.
+# Once in the repository settings: Pages source "GitHub Actions", and the tags `v*` allowed in the environment
+# `github-pages`.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag whose documentation is built
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose documentation is built
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build docs
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    outputs:
+      latest: ${{ steps.latest.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            packages/docs/site/pnpm-lock.yaml
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Build the documentation
+        run: |
+          pnpm docs:install
+          pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+          pnpm docs:build
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: packages/docs/site/dist
+      - name: Is the tag the latest release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          latest="$(curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/latest" |
+            jq -r .tag_name)"
+          if [ "$latest" = "$TAG" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$TAG is not the latest release ($latest): the documentation is not deployed"
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: deploy docs
+    needs: build
+    if: needs.build.outputs.latest == 'true'
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deploy

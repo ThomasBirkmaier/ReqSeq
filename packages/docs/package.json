@@ -1,0 +1,11 @@
+{
+  "name": "@reqseq/docs",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Generator of the user documentation site (ADR-0017): assembles the content folder of the Starlight site in site/. Never shipped with the product.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

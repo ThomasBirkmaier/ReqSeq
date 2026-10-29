@@ -264,6 +264,30 @@ jobs:
           # Only loopback inside the namespace, and up, so API tests on 127.0.0.1 work there too (#125).
           unshare -rn sh -c 'ip link set lo up && exec ./node_modules/.bin/vitest run --config vitest.e2e.config.ts'
 
+      # ADR-0017: the user documentation site is generated and built on every pull request that needs the tests,
+      # Linux only. The site (Astro, Starlight) has its own lockfile outside the workspace; only these steps and
+      # docs-pages.yml install it. The build runs without network, so Pagefind and Astro must not download anything,
+      # and the links validator fails it on a dead internal link.
+      - name: Docs - generate the content
+        id: docs-generate
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
+        run: pnpm docs:generate
+      - name: Docs - install the site
+        id: docs-install
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
+        run: pnpm docs:install
+      # `pnpm audit --prod` above sees only the workspace; the site's dev packages are audited here.
+      - name: Docs - audit the site's dependencies
+        if: ${{ !cancelled() && steps.docs-install.outcome == 'success' }}
+        run: pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+      - name: Docs - build the site without network (unshare -rn)
+        if: ${{ !cancelled() && steps.docs-generate.outcome == 'success' && steps.docs-install.outcome == 'success' }}
+        run: |
+          if ! unshare -rn true 2>/dev/null; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          unshare -rn node packages/docs/site/run.mjs build
+
       # Evidence (D-050): the unit tests' and the e2e suite's JUnit files, as separate artifacts as before.
       - name: Upload JUnit results of the unit tests (evidence, D-050)
         if: always()
