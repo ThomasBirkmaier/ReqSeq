@@ -263,6 +263,7 @@ export type ProblemCode =
   | "variant.core-changed"
   | "variant.superseded-in-validity"
   | "variant.nested"
+  | "variant.target-not-core"
   | "evidence.unknown-element"
   | "evidence.invalid-record"
   | "evidence.outdated"
@@ -340,7 +341,7 @@ export interface ElementSelection {
 export type ViewId = ElementId;
 
 /**
- * `core`, a variant ID, or absent for all elements (SR-043).
+ * `core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043).
  * Schema: `schemas/common.schema.json#/$defs/view`.
  */
 export type View = ElementRef;
@@ -415,13 +416,20 @@ export interface DataExportElement {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
@@ -456,13 +464,20 @@ export interface DataExportLine {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
@@ -502,13 +517,20 @@ export interface DataExportElementFields {
   readonly validity?: readonly Uuid[];
   /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
   readonly packages?: readonly Uuid[];
+  /** Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty. */
+  readonly replacedBy?: readonly {
+    readonly variant: Uuid;
+    readonly replacement: Uuid;
+  }[];
+  /** The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty. */
+  readonly excludedBy?: readonly Uuid[];
   /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
   /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
-  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  /** Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
@@ -746,7 +768,7 @@ export type FilterCondition =
     readonly package: ElementRef;
   }
   | {
-    /** Elements that apply in this view by their validity. */
+    /** Elements that apply in this view by their validity only, not the view: replacements and exclusions do not count. */
     readonly validFor: View;
   }
   | {
@@ -1389,7 +1411,7 @@ export interface ElementGetInput {
   readonly view?: View;
   /** Also give the date of the version (`versionDate`, D-013, ADR-0005), read from the Git history. Without it no git runs and `versionDate` is left out, so opening an element stays fast (SR-082 AK3); the app asks for the date in a second call. */
   readonly versionDate: boolean;
-  /** Date only the outdated relations and inline references among the hints (`relation.outdated`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
+  /** Date only the outdated relations and inline references and the changed core requirements of replacements among the hints (`relation.outdated`, `variant.core-changed`: `storedDate`, `currentDate` and both dates in the message, D-013, ADR-0005), not the version of the element itself. Git reads only the histories of their targets, and none when the element has no outdated relation; the app asks for it in a second call after the element is shown, only for an element with such hints (SR-110 AK2, SR-082 AK3). `versionDate` dates these hints too. */
   readonly hintDates: boolean;
   /** Which of the elements ref names is meant: the workspace name of its repository, as details.candidates of ref.ambiguous give it (for example one copy of a file whose UUID another file shares, SR-088; #255). Only the elements ref names count; when none of them lies there, the error is ref.unknown with them as details.candidates. */
   readonly repository?: string;
@@ -1402,10 +1424,14 @@ export interface ElementGetInput {
  * Schema: `schemas/commands/catalog.json element.get output`.
  */
 export interface ElementGetOutput {
-  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in the core and in each variant it applies in, as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. The variants that replace or exclude the element (SR-046, stage 5) have no field in the schema yet; they come with that stage. */
+  /** Text, properties, version and, with the input `versionDate`, its date (`versionDate`, D-013, ADR-0005: the committer date in UTC of the newest commit that started this version; null for content no commit has and when Git cannot tell, including a git call that timed out; left out without the input), the own relations, the successors of a superseded element (SR-072 AK3), the hints of the element (none while the metamodel is not valid; also `variant.superseded-in-validity`, SR-040 AK3, the outdated relations and inline references of the element, `relation.outdated`, SR-026 AK3, whose messages name the dates of both versions only with the input `versionDate` or `hintDates`, and `metamodel.meaning-unassigned` when no property has the meaning title) and `readOnly`, always given (unknown type, invalid metamodel or a repository folder that cannot be written). An element with a value that counts and has no normal form (`.inf`, `.nan`, ADR-0005) comes without `version` and `versionDate`, with a `file.faulty` warning last in its hints that says why (#276). The incoming relations of every kind: `trace.neighbourhood` with `direction: down`. `verification`, for an element whose type has the meaning `requirement`: its verification status in each view it is in by the view rule (SR-043, SR-047 AK3), as evidence.status gives it (SR-031), with the indirect verification and the children that are missing (SR-034). `validation`: its validation status (SR-038), for every need and for any other element with a validation record, separate from `verification`. `replacedBy` and `excludedBy`, for a core requirement: the variants that replace it (with the replacing requirement) and those that exclude it (SR-046 AK3). */
   readonly element: DataExportElement;
   /** Of the file this answer was read from, for expectedFileSha256 of element.update (SR-106). */
   readonly fileSha256: FileSha256;
+  /** The elements the element names by UUID only, each once in the order first named: the variants of `validity`, `replacedBy` and `excludedBy`, the replacements and the views of `verification` (SR-046 AK1/AK2, SR-047 AK3, #588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+  /** A repository of the workspace is not here (SR-006 AK2): replacements, exclusions and records stored there are missing. */
+  readonly incomplete?: Incomplete;
 }
 
 /**
@@ -1429,7 +1455,7 @@ export interface ElementResolveInput {
  * Schema: `schemas/commands/catalog.json element.resolve output`.
  */
 export interface ElementResolveOutput {
-  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status (SR-031, SR-034) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
+  /** The element as element.get shows it, with title, text, status, current version (SR-060 AK1), verification status per view it is in (SR-031, SR-034, SR-047 AK3) and validation status (SR-038) and, with the input `versionDate`, the date of that version (as element.get gives it; left out without the input). Without a version (a value that counts has no normal form) `version` and `versionDate` are left out and the hints end with a `file.faulty` warning, as in element.get (#276). An unknown reference is the error ref.unknown, one that fits several elements ref.ambiguous with details.candidates (AK3). A short ID whose prefix fits no element stays ref.unknown, never another element; when its tail fits exactly one element of another type, details.candidates names that element and the message asks whether its short ID was meant (prefix may be outdated, #275). */
   readonly element: DataExportElement;
   /** Whether the given version is the element's current version, computed from its file as it is now (SR-060 AK2): "current" or "outdated"; "unknown" when the element has no version to compare with (a value that counts has no normal form, `.inf` or `.nan`, ADR-0005: `element` comes without `version` and with a `file.faulty` warning that says why, #276); null when no version was given. Strings, not booleans, so a caller that tests the field for truth never takes "unknown" for current. */
   readonly current: "current" | "outdated" | "unknown" | null;
@@ -2165,7 +2191,7 @@ export interface HintListInput {
   readonly type?: readonly Key[];
   /** Only hints about elements whose property with the meaning packages lists this package. */
   readonly package?: ElementRef;
-  /** Only hints about elements that apply in this variant by their validity: those without a validity and those whose validity lists it (SR-040). */
+  /** Only hints about elements in the view of this variant (SR-043); a hint about a variant element only for that variant. */
   readonly variant?: ElementRef;
   /** Only the hints about this element. */
   readonly ref?: ElementRef;
@@ -2183,22 +2209,22 @@ export interface HintListOutput {
 }
 
 /**
- * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Input of `hint.confirm` as `run` gets it: validated, properties with a `default` filled in. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm input`.
  */
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
   readonly hintIds?: readonly string[];
-  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores. */
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. */
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;
-  /** Only selected hints with one of these codes (with `ref` or `target`). */
+  /** Only selected hints with one of these codes (with `ref` or `target`); the confirmable codes are `relation.outdated` and `variant.core-changed`. */
   readonly kind?: readonly ProblemCode[];
 }
 
 /**
- * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
+ * Output of `hint.confirm`. Confirm hints, by ID (hintIds) or all of one element (ref, target): writes the current target version into the relation or inline reference (in the text or in a property marked `markdown`, SR-127; `relation.outdated`) or into the `replaces` item (`variant.core-changed`, SR-045), and nothing else but the current titles of the file's same-repository targets (D-042); an ID no open hint has gives a warning, for example one confirmed already.
  * Schema: `schemas/commands/catalog.json hint.confirm output`.
  */
 export interface HintConfirmOutput {
@@ -2338,7 +2364,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
@@ -2411,7 +2437,7 @@ export interface EvidenceStatusInput {
  * Schema: `schemas/commands/catalog.json evidence.status output`.
  */
 export interface EvidenceStatusOutput {
-  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in the core and in each variant it applies in (SR-040, SR-047), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
+  /** One page of the selection in workspace order, each element as element.list gives it, with `verification` for every element whose type has the meaning `requirement`: its verification status (SR-031, ADR-0012 "Status rules") in each view it is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-043, SR-047 AK3), and for a requirement without own verification record in a view its indirect verification from its children (`indirect`) or the children that are missing (`missingChildren`, SR-034); an element marked emergent (SR-035) is never `indirect`; and `validation`, the validation status (SR-038, `$defs/element` `validation`: every need, any other element with a validation record). Derived from the evidence records; it is not the element's `status` and never changes it (D-030). While the metamodel is not valid the records are not compared: every requirement is `open`, every need `open`, and no other element has `validation`. */
   readonly elements: readonly DataExportElement[];
   /** Every element of the selection, not only the page. */
   readonly total: number;
@@ -2545,6 +2571,7 @@ export interface DataStoreOutput {
  * Schema: `schemas/commands/catalog.json variant.diff input`.
  */
 export interface VariantDiffInput {
+  /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
   readonly variant: ElementRef;
 }
 
@@ -2553,12 +2580,21 @@ export interface VariantDiffInput {
  * Schema: `schemas/commands/catalog.json variant.diff output`.
  */
 export interface VariantDiffOutput {
+  /** Requirements whose validity names the variant and that replace no core requirement that is not excluded in it (SR-044 AK1), also the source of a replaces onto an element that is no core requirement (SR-041 AK8). Store order. */
   readonly added: readonly Uuid[];
+  /** One row per pair, in store order of the core requirement, then of the replacement: two replacements of one core requirement are two rows (SR-041 AK7). A core requirement that is also excluded is not here (SR-042 AK5). */
   readonly replaced: readonly {
     readonly core: Uuid;
     readonly replacement: Uuid;
   }[];
+  /** Core requirements the variant excludes, also when replaced too; store order. */
   readonly excluded: readonly Uuid[];
+  /** Every element the lists name, each once, in order first named (#588). Left out when it names none. */
+  readonly names?: readonly ElementName[];
+  /** The variant.target-not-core hints of the variant's own entries and of its replacements. */
+  readonly problems?: readonly Problem[];
+  /** A repository is not here: a replacement or exclusion stored there is missing (SR-006 AK2). */
+  readonly incomplete?: Incomplete;
 }
 
 /**
@@ -2566,8 +2602,11 @@ export interface VariantDiffOutput {
  * Schema: `schemas/commands/catalog.json variant.exclude input`.
  */
 export interface VariantExcludeInput {
+  /** The variant. An element whose type has no meaning `variant` is `input.invalid` with `details.reason: "not-a-variant"`; an unknown or ambiguous reference is `ref.unknown` or `ref.ambiguous`. */
   readonly variant: ElementRef;
+  /** The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: "not-core"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7). */
   readonly refs: readonly ElementRef[];
+  /** Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone. */
   readonly undo: boolean;
 }
 
