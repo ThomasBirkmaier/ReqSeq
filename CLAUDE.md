@@ -42,7 +42,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
 - The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
-- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only and macOS and Windows first run when a PR is ready.
+- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only, macOS and Windows run when a PR is ready (and on later pushes once Ubuntu passed), and main is checked on all three at night.
 
 ## How we work
 
