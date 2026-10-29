@@ -11,8 +11,10 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import * as exportModule from "../../data/export.js";
+import { storeData } from "../../data/index.js";
 import * as files from "../../files/index.js";
 import * as reader from "../../git/reader.js";
+import { resolveSelection } from "../../query/index.js";
 import { fileSchemaValidator } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
@@ -28,7 +30,11 @@ vi.mock("../../git/reader.js", async (importOriginal) => {
 });
 vi.mock("../../files/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof files>();
-  return { ...original, createFolder: vi.fn(original.createFolder) };
+  return {
+    ...original,
+    createFolder: vi.fn(original.createFolder),
+    writeFileAtomic: vi.fn(original.writeFileAtomic),
+  };
 });
 vi.mock("../../data/export.js", async (importOriginal) => {
   const original = await importOriginal<typeof exportModule>();
@@ -733,6 +739,55 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       ],
     });
     expect(fs.existsSync(ws.path("out"))).toBe(false);
+  });
+});
+
+describe("data.store: a file larger than one string (#277)", () => {
+  it("[SR-062/AK1] writes the bytes of JSON.stringify and a line break, in chunks given lazily (review S6)", async () => {
+    const ws = await fixture(EXPORT);
+    const commit = await ws.head("system");
+    vi.mocked(files.writeFileAtomic).mockClear();
+    vi.mocked(exportModule.exportDataWithProblems).mockClear();
+    await storeIn(ws.path("system"), { folder: "out" });
+    const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
+    const built = (await vi.mocked(exportModule.exportDataWithProblems).mock.results[0]
+      ?.value) as exportModule.ExportWithProblems;
+    expect(text).toBe(`${JSON.stringify(built.data)}\n`);
+    const content = vi.mocked(files.writeFileAtomic).mock.calls[0]?.[2];
+    expect(typeof content).toBe("function");
+  });
+
+  it("replaces a data file over the bound by its frame, which the guard and the refusal check alike (review B1)", async () => {
+    const ws = await fixture();
+    const commit = await ws.head();
+    // The frame of a data file around bytes that are no JSON: above the bound only the frame counts.
+    const framed = `{"logreq-data":1,"elements":[${"x".repeat(300)}}\n`;
+    const store = async (fullParseUpTo?: number): Promise<Output> => {
+      const workspace = new Workspace(ws.root);
+      try {
+        const selected = await resolveSelection(workspace, {}, "data.store", { baseline: true });
+        return await storeData(
+          workspace,
+          selected,
+          { folder: "out" },
+          fullParseUpTo === undefined ? {} : { fullParseUpTo },
+        );
+      } finally {
+        await workspace.close();
+      }
+    };
+    await ws.write(`out/${commit}.json`, framed);
+    await expect(store()).rejects.toMatchObject({
+      code: "input.invalid",
+      details: { reason: "not-a-data-file" },
+    });
+    expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(framed);
+    expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
+    const text = fs.readFileSync(ws.path(`out/${commit}.json`), "utf8");
+    expect((JSON.parse(text) as Data)["logreq-data"]).toBe(1);
+    // The stored file is over the bound too, and is replaced again.
+    expect(text.length).toBeGreaterThan(100);
+    expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
   });
 });
 
