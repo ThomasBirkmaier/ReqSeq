@@ -1,7 +1,7 @@
 ---
 id: 6adc6c93-699d-4e53-a117-72ad9d26b2cf
 type: system-requirement
-status: draft
+status: approved
 title: "Unterschied einer Variante zum Kern zeigen"
 spec-id: "SR-044"
 requirement-type: functional

@@ -1,7 +1,7 @@
 ---
 id: 6adc6c94-23b3-4151-b702-ab8e8d17dc02
 type: system-requirement
-status: draft
+status: approved
 title: "Hinweis bei Änderung im Kern geben"
 spec-id: "SR-045"
 requirement-type: functional

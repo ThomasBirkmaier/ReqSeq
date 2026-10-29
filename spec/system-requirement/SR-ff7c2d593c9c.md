@@ -1,7 +1,7 @@
 ---
 id: 6adc6c8f-e59c-42b0-a9db-ff7c2d593c9c
 type: system-requirement
-status: draft
+status: approved
 title: "Kern-Requirement in einer Variante ersetzen"
 spec-id: "SR-041"
 requirement-type: functional
