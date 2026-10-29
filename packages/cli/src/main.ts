@@ -21,7 +21,7 @@ import { buildInput } from "./input.js";
 import type { Invocation, ServeRequest } from "./program.js";
 import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
-import { outcomeExitCode, renderError, renderJson, renderYaml, spelledMessage } from "./render.js";
+import { jsonOutput, outcomeExitCode, renderError, spelledMessage, yamlOutput } from "./render.js";
 
 /** Exit codes of `logreq` (ADR-0009). */
 export const EXIT = {
@@ -67,7 +67,32 @@ export const exitCodeFor = (
 
 /** Where text goes; strings are written as UTF-8. */
 export interface TextSink {
+  /** `false` when the sink buffers more than it wants (then wait for `drained`) or is closed. */
   write(text: string): unknown;
+  /**
+   * After a write returned false: resolves true when the sink takes more, false when it is closed (the
+   * rest of the output is dropped). A sink without it never pushes back.
+   */
+  drained?(): Promise<boolean>;
+}
+
+/**
+ * Writes `pieces` to `sink` one by one, waiting for `drained` whenever a write returns false. Stops when
+ * the sink is closed or `signal` aborts (Ctrl-C while a large output is written).
+ */
+export async function writePieces(
+  sink: TextSink,
+  pieces: Iterable<string>,
+  signal?: AbortSignal,
+): Promise<void> {
+  for (const piece of pieces) {
+    if (sink.write(piece) === false && sink.drained !== undefined && !(await sink.drained())) {
+      return;
+    }
+    if (signal?.aborted === true) {
+      return;
+    }
+  }
 }
 
 export interface RunCliOptions {
@@ -141,12 +166,14 @@ async function execute(
     options.stderr.write(renderError(error, invocation.json, spelledMessage(error, invocation.entry)));
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
-  options.stdout.write(
+  await writePieces(
+    options.stdout,
     invocation.json
-      ? renderJson(output)
+      ? jsonOutput(output)
       : invocation.yaml
-        ? renderYaml(output)
-        : renderHuman(output, invocation.entry.effect === "read"),
+        ? yamlOutput(output)
+        : [renderHuman(output, invocation.entry.effect === "read")],
+    options.signal,
   );
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
 }

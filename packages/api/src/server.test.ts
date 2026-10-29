@@ -56,8 +56,15 @@ const catalog = {
     entry("test.nothing"),
     entry("test.circular"),
     entry("test.later"),
+    entry("test.large"),
+    entry("test.lateFail"),
   ],
 };
+
+/** About `megabytes` MB of compact JSON in one output (#277). */
+const largeOutput = (megabytes: number): { items: { n: number; text: string }[] } => ({
+  items: Array.from({ length: megabytes * 10_000 }, (_, n) => ({ n, text: `Größe ${"x".repeat(80)}` })),
+});
 
 let aborted: ((reason: unknown) => void) | undefined;
 let started: (() => void) | undefined;
@@ -85,6 +92,15 @@ const runtime = createCommandRuntime({
         }),
     }),
     defineTestCommand({ name: "test.nothing", run: () => Promise.resolve(undefined) }),
+    defineTestCommand({
+      name: "test.large",
+      run: (_ctx, input: { megabytes?: number }) => Promise.resolve(largeOutput(input.megabytes ?? 3)),
+    }),
+    defineTestCommand({
+      // Fine in its first chunks, then a value JSON cannot hold.
+      name: "test.lateFail",
+      run: () => Promise.resolve({ ...largeOutput(3), last: 1n }),
+    }),
     defineTestCommand({
       name: "test.circular",
       run: () => {
@@ -1117,5 +1133,102 @@ describe("a runtime that fails outside of a CommandError", () => {
       500,
       { code: "internal", message: "Internal error in the local API" },
     ]);
+  });
+});
+
+describe("large answers are streamed (#277)", () => {
+  /** The raw answer: status, headers, text, and whether the connection broke before the end. */
+  const raw = (body = "{}", path = "/v1/commands/test.large") =>
+    new Promise<{
+      status: number | undefined;
+      headers: http.IncomingHttpHeaders;
+      text: string;
+      broken: boolean;
+    }>((resolve) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port: server?.port,
+          method: "POST",
+          path,
+          headers: { authorization: `Bearer ${token}` },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          const done = (broken: boolean) => (): void => {
+            resolve({
+              status: res.statusCode,
+              headers: res.headers,
+              text: Buffer.concat(chunks).toString("utf8"),
+              broken,
+            });
+          };
+          res.on("end", done(false));
+          res.on("error", done(true));
+        },
+      );
+      req.end(body);
+    });
+
+  it("streams an answer larger than one chunk with chunked encoding, byte for byte the compact JSON", async () => {
+    await start();
+    const reply = await raw();
+    expect(reply.status).toBe(200);
+    expect(reply.headers["transfer-encoding"]).toBe("chunked");
+    expect(reply.headers["content-length"]).toBeUndefined();
+    expect(reply.headers["content-type"]).toBe("application/json; charset=utf-8");
+    expect(reply.broken).toBe(false);
+    expect(reply.text).toBe(`${JSON.stringify(largeOutput(3))}\n`);
+  });
+
+  it("sends a small answer with the same headers and bytes as before", async () => {
+    await start();
+    const reply = await raw('{"a":"ä"}', "/v1/commands/test.echo");
+    expect(reply.headers["transfer-encoding"]).toBe("chunked");
+    expect(reply.headers["content-length"]).toBeUndefined();
+    expect(reply.text).toBe('{"input":{"a":"ä"}}\n');
+  });
+
+  it("cuts the connection when serialising fails after the headers were sent", async () => {
+    await start();
+    const reply = await raw("{}", "/v1/commands/test.lateFail");
+    expect(reply.status).toBe(200);
+    expect(reply.broken).toBe(true);
+    expect((await request()).status).toBe(200);
+  });
+
+  it("waits for the client to read, and stops writing when it goes away", async () => {
+    await start();
+    const write = vi.spyOn(http.ServerResponse.prototype, "write");
+    const gone = new Promise<void>((resolve) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port: server?.port,
+          method: "POST",
+          path: "/v1/commands/test.large",
+          headers: { authorization: `Bearer ${token}` },
+        },
+        (res) => {
+          // Reads one piece, then stops reading (back-pressure) and goes away.
+          res.once("data", () => {
+            res.pause();
+            setTimeout(() => {
+              req.destroy();
+              resolve();
+            }, 100);
+          });
+        },
+      );
+      req.end('{"megabytes":40}');
+    });
+    await gone;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // 40 MB are about 40 chunks; the server stopped long before.
+    expect(write.mock.calls.length).toBeGreaterThan(0);
+    expect(write.mock.calls.length).toBeLessThan(30);
+    write.mockRestore();
+    expect((await request()).status).toBe(200);
   });
 });

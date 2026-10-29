@@ -4,7 +4,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
-import { CommandError, errorClass } from "@logreq/core";
+import { CommandError, errorClass, jsonChunks } from "@logreq/core";
 
 /** HTTP status of each error class (ADR-0009 "Errors"); documented in schemas/generated/openapi.json. */
 export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> = {
@@ -45,20 +45,59 @@ const HEADERS = {
   "x-content-type-options": "nosniff",
 } as const;
 
-const send = (
+/** Compact JSON of `body` and a line break, in chunks of about 1 MB (`jsonChunks` of core). */
+function* bodyChunks(body: unknown): Generator<string, void, undefined> {
+  yield* jsonChunks(body, { indent: 0 });
+  yield "\n";
+}
+
+/** Resolves when `response` takes more after a write returned false, or when it closed. */
+const drained = (response: ServerResponse): Promise<void> =>
+  new Promise((resolve) => {
+    const done = (): void => {
+      response.off("drain", done);
+      response.off("close", done);
+      resolve();
+    };
+    response.on("drain", done);
+    response.on("close", done);
+  });
+
+/**
+ * Sends `body` as compact JSON and a line break, chunk by chunk (about 1 MB each, #277) with
+ * back-pressure, and stops when the client goes away. Node sends such an answer with chunked transfer
+ * encoding, as it did the whole text before. The first chunk (the whole of a small answer) is
+ * serialised before the headers, so a failure there still gets the error response; a failure later
+ * can only cut the connection.
+ */
+const send = async (
   response: ServerResponse,
   status: number,
   body: unknown,
   headers: Readonly<Record<string, string>> = {},
-): void => {
-  // Serialised first: a failure here still leaves the headers unsent for the error response.
-  const text = `${JSON.stringify(body)}\n`;
+): Promise<void> => {
+  const chunks = bodyChunks(body);
+  const first = chunks.next();
   if (response.destroyed) {
     // The client has gone away; nobody reads the answer.
     return;
   }
   response.writeHead(status, { ...HEADERS, ...headers });
-  response.end(text);
+  try {
+    for (let next = first; next.done !== true; next = chunks.next()) {
+      if (!response.writable) {
+        // The client has gone away (or the connection failed): stop serialising.
+        return;
+      }
+      if (!response.write(next.value)) {
+        await drained(response);
+      }
+    }
+  } catch (error) {
+    response.destroy(error instanceof Error ? error : undefined);
+    return;
+  }
+  response.end();
 };
 
 /** An answer that needs no command: a refusal, or the catalog listing. */
@@ -100,10 +139,10 @@ const answerAndClose = (response: ServerResponse, answer: Answer, ended: Promise
   void ended.then(() => response.end());
 };
 
-const sendError = (response: ServerResponse, error: unknown): void => {
+const sendError = (response: ServerResponse, error: unknown): Promise<void> => {
   const commandError =
     error instanceof CommandError ? error : new CommandError("internal", "Internal error in the local API");
-  send(response, HTTP_STATUS_BY_CLASS[errorClass(commandError.code)], commandError.toJSON());
+  return send(response, HTTP_STATUS_BY_CLASS[errorClass(commandError.code)], commandError.toJSON());
 };
 
 /**
@@ -205,9 +244,10 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
         signal,
         access: "api",
       });
-      send(response, 200, output ?? null);
+      // Inside the try: a serialiser failure before the headers is answered as an error.
+      await send(response, 200, output ?? null);
     } catch (error) {
-      sendError(response, error);
+      await sendError(response, error);
     }
   };
 
@@ -270,12 +310,10 @@ export function createRequestHandler(options: HandlerOptions): RequestHandler {
       await run(goal, text, response);
       return;
     }
-    send(response, goal.status, goal.body, goal.headers);
+    await send(response, goal.status, goal.body, goal.headers);
   };
 
   return (request, response) => {
-    route(request, response).catch((error: unknown) => {
-      sendError(response, error);
-    });
+    route(request, response).catch((error: unknown) => sendError(response, error));
   };
 }

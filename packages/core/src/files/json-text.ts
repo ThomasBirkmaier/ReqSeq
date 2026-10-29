@@ -3,8 +3,9 @@
 // the text of `JSON.stringify(value, null, indent || undefined)` in pieces of about one chunk.
 //
 // It descends by size, not by depth: it walks into every plain object and array and hands a subtree
-// to the native `JSON.stringify` only when `jsonByteLength` (with its early stop) says the subtree is
-// at most one chunk, so any shape streams (a top-level array, `data.export`, an MCP message that holds
+// to the native `JSON.stringify` only when its measured UTF-8 length (with an early stop, as
+// `jsonByteLength`; for `indent: 2` the length of its text re-indented to its level) is at most one
+// chunk, so any shape streams (a top-level array, `data.export`, an MCP message that holds
 // the output some levels down). The extra work is the measuring: about one chunk for every walked
 // node, plus one measuring pass over each subtree handed to the native call. The rules are those of
 // `JSON.stringify`: `toJSON(key)` at every walked level (the native call does it below; inside a
@@ -29,6 +30,9 @@ export interface JsonChunkOptions {
 
 /** A value `JSON.stringify` leaves out of an object (and writes as `null` in an array). */
 const SKIPPED = -1;
+
+/** The padding of compact JSON (none) for the measuring. */
+const COMPACT = -1;
 
 /** Printable ASCII without `"` and `\`: such a string is its own JSON text between quotes. */
 const PLAIN = /^[\x20\x21\x23-\x5b\x5d-\x7e]*$/;
@@ -88,10 +92,12 @@ const primitiveBytes = (v: unknown): number | undefined => {
 };
 
 /**
- * UTF-8 bytes of the compact JSON of a resolved value, `SKIPPED` for one left out; stops once the
- * count is over `budget` and returns the count so far. `stack` holds the objects being walked.
+ * UTF-8 bytes of the JSON of a resolved value, `SKIPPED` for one left out; stops once the count is
+ * over `budget` and returns the count so far. `pad` is the padding of the value's line for the text of
+ * `JSON.stringify(value, null, 2)` re-indented to it, `COMPACT` for compact JSON. `stack` holds the
+ * objects being walked.
  */
-const bytesOf = (v: unknown, budget: number, stack: Set<object>): number => {
+const bytesOf = (v: unknown, budget: number, stack: Set<object>, pad: number): number => {
   const primitive = primitiveBytes(v);
   if (primitive !== undefined) {
     return primitive;
@@ -103,18 +109,26 @@ const bytesOf = (v: unknown, budget: number, stack: Set<object>): number => {
   stack.add(container);
   try {
     return Array.isArray(container)
-      ? arrayBytes(container as readonly unknown[], budget, stack)
-      : objectBytes(container as Readonly<Record<string, unknown>>, budget, stack);
+      ? arrayBytes(container as readonly unknown[], budget, stack, pad)
+      : objectBytes(container as Readonly<Record<string, unknown>>, budget, stack, pad);
   } finally {
     stack.delete(container);
   }
 };
 
-const arrayBytes = (items: readonly unknown[], budget: number, stack: Set<object>): number => {
-  let total = 2;
+/** The padding of the members of a container at `pad`, and what each member line adds before it. */
+const memberLayout = (pad: number): { readonly inner: number; readonly line: number } =>
+  pad === COMPACT ? { inner: COMPACT, line: 0 } : { inner: pad + 2, line: pad + 3 };
+
+/** What the closing line of a container with members adds (a line break and the padding). */
+const closing = (pad: number): number => (pad === COMPACT ? 0 : pad + 1);
+
+const arrayBytes = (items: readonly unknown[], budget: number, stack: Set<object>, pad: number): number => {
+  const { inner, line } = memberLayout(pad);
+  let total = items.length > 0 ? 2 + closing(pad) : 2;
   for (let i = 0; i < items.length && total <= budget; i += 1) {
-    const size = bytesOf(resolved(items[i], i), budget - total, stack);
-    total += (size === SKIPPED ? 4 : size) + (i > 0 ? 1 : 0);
+    const size = bytesOf(resolved(items[i], i), budget - total, stack, inner);
+    total += (size === SKIPPED ? 4 : size) + (i > 0 ? 1 : 0) + line;
   }
   return total;
 };
@@ -123,20 +137,24 @@ const objectBytes = (
   record: Readonly<Record<string, unknown>>,
   budget: number,
   stack: Set<object>,
+  pad: number,
 ): number => {
+  const { inner, line } = memberLayout(pad);
+  // `": "` instead of `":"` when indented.
+  const colon = pad === COMPACT ? 1 : 2;
   let total = 2;
   let count = 0;
   for (const key of Object.keys(record)) {
     if (total > budget) {
       break;
     }
-    const size = bytesOf(resolved(record[key], key), budget - total, stack);
+    const size = bytesOf(resolved(record[key], key), budget - total, stack, inner);
     if (size !== SKIPPED) {
-      total += stringBytes(key) + 1 + size + (count > 0 ? 1 : 0);
+      total += stringBytes(key) + colon + size + (count > 0 ? 1 : 0) + line;
       count += 1;
     }
   }
-  return total;
+  return count > 0 ? total + closing(pad) : total;
 };
 
 /**
@@ -144,7 +162,7 @@ const objectBytes = (
  * text. Stops early once the count is over `atMost` and then returns some number above `atMost`.
  */
 export const jsonByteLength = (value: unknown, atMost = Number.POSITIVE_INFINITY): number => {
-  const size = bytesOf(resolved(value, ""), atMost, new Set());
+  const size = bytesOf(resolved(value, ""), atMost, new Set(), COMPACT);
   return size === SKIPPED ? 0 : size;
 };
 
@@ -218,7 +236,7 @@ export function* jsonChunks(value: unknown, options: JsonChunkOptions): Generato
       push(JSON.stringify(v));
     } else if (
       typeof (v as { toJSON?: unknown }).toJSON !== "function" &&
-      bytesOf(v, chunkLength, stack) <= chunkLength
+      bytesOf(v, chunkLength, stack, indented ? pad.length : COMPACT) <= chunkLength
     ) {
       // Small enough for one native call. A value whose own toJSON is still callable (a toJSON that
       // returned such an object) is walked instead, since the native call would call it once more.
