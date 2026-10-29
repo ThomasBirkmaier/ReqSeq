@@ -60,7 +60,7 @@ describe("perf report", () => {
       date: "2026-10-24",
     });
     expect(report).toContain("Verification method: Analyse");
-    expect(report).toContain("**Not confirmed.**");
+    expect(report).toContain("**Confirmed** by the product owner");
     expect(report).toContain("- Commit: abc123\n- Run: https://github.com/o/r/actions/runs/1\n");
     expect(report).toContain("- Machine: Linux 6 (x64), 4 cores, 16 GB, Node v22.12.0");
     expect(report).toContain("| cold load | N-036, SR-082 AK2 | 40.9 s | 30.0 s | **exceeded** |");
