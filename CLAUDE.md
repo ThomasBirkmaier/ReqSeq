@@ -1,18 +1,18 @@
-# LogReq
+# ReqSeq
 
-LogReq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout.
+ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app), built against its own specification in `spec/` until every system requirement is shown by a test. `README.md` has the layout.
 
 ## Sources of truth
 
-- `spec/` is the specification, a LogReq workspace (D-064). It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with LogReq, in a PR of its own: see the `spec-change` skill.
+- `spec/` is the specification, a ReqSeq workspace (D-064). It is German, so quote it verbatim. Read it with `node packages/cli/dist/bin.js element get SR-036 --workspace spec` after `pnpm build`. Change it only with ReqSeq, in a PR of its own: see the `spec-change` skill.
 - Decisions in `spec/decision/` say what to build, and ADRs in `docs/adr/` say how. An ADR never contradicts a decision. Before architecture work, read `docs/architecture/README.md` and the ADRs of your area.
 - If a system requirement is unclear, incomplete or contradicts another one, open a `spec-frage` issue with the question and your assumption, and carry the assumption in the PR. Never resolve a spec question silently in code. Do not create component requirements.
 
 ## Product rules that are easy to break
 
-- LogReq never opens network connections. Tests run with the network blocked.
-- LogReq reads Git and never writes to it (D-036).
-- LogReq never deletes elements. It supersedes them (D-045).
+- ReqSeq never opens network connections. Tests run with the network blocked.
+- ReqSeq reads Git and never writes to it (D-036).
+- ReqSeq never deletes elements. It supersedes them (D-045).
 - Status values are set only by people, never computed by the tool.
 - Every function is available in the app, CLI, API and MCP, with the same result (D-029, SR-080). New functions start in `schemas/commands/catalog.json`, with one implementation in `packages/core/src/commands/`. No logic goes into `cli`, `api`, `mcp` or `app` (ADR-0002).
 - Performance target: 50,000 requirements (N-036).
@@ -41,7 +41,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main`, which regenerates conflicting generated files.
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
-- The GitHub project "LogReq" is filled from the labels by `project-sync`. Change labels, never project fields.
+- The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
 - Keep code platform-neutral (paths via `node:path`, CRLF-safe), because PRs run on Linux only and Windows runs at night.
 
 ## How we work
@@ -52,6 +52,6 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - About one focused test per acceptance criterion, plus what the coverage threshold needs. Update the docs the change makes outdated (package README, block file under `packages/core/docs/`, CLI help). Implementation PRs never change `spec/`.
 - Stop and ask the product owner only when you cannot continue without them, or before anything destructive or irreversible, here or on GitHub: deleting files, issues or releases (merged PR branches excepted), force-pushing or rewriting history, or changing branch protection or access.
 - Opus at effort medium by default. Effort high only for risky plans and changes and for the periodic check against the spec.
-- Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If LogReq behaves badly while you use it, open a `dogfooding` issue.
+- Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If ReqSeq behaves badly while you use it, open a `dogfooding` issue.
 - Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` blocks force-pushes and deletion but requires no checks. Direct commits to `main` only for trivial fixes. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
 - Small PRs, one SR each unless SRs are inseparable. Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day; a pure wording fix may go straight to `main` (product owner decision, 2026-10-28, #722).

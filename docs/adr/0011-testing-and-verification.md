@@ -6,15 +6,15 @@ Status: Proposed · Based on: D-026, D-050, D-051, D-054, D-055 · SRs: SR-019, 
 
 **Tools**
 - Unit and integration tests: **Vitest**, one root config (`vitest.config.ts`), test files `packages/*/src/**/*.test.ts` and `packages/*/test/**/*.test.ts`.
-- CLI end-to-end: Vitest tests that spawn the built `logreq` binary on fixture workspaces (`packages/cli/test/e2e/`).
+- CLI end-to-end: Vitest tests that spawn the built `reqseq` binary on fixture workspaces (`packages/cli/test/e2e/`).
 - App: **Playwright** with its Electron support (`_electron.launch`), under `xvfb-run` on Linux (`packages/app/test/`), from stage 3.
 - Delivery (ADR-0014): Vitest tests in `packages/*/test/delivery/` (`pnpm test:delivery`, own config) unpack and inspect the built artifacts and start their launcher, MCP server and app. They run only in the release workflow, never on pull requests. On Linux they run in a network namespace with loopback only, created by root, as a non-root user with Chromium's sandbox on (never `--no-sandbox`); `unshare -rn` is not used for them, because Chromium refuses to run as the mapped root. Every release run builds and tests each system on GitHub's `macos-14`, `ubuntu-24.04` and `windows-2025`: SR-076's macOS 14 and Ubuntu 24.04 evidence, and Windows evidence from Windows Server 2025 (not Windows 11 itself).
-- Test names start with `[SR-xxx/AKn]` for every acceptance criterion with method Test (D-050). JUnit XML (`test-results/junit.xml`) is the evidence record; from stage 4 LogReq reads it itself.
+- Test names start with `[SR-xxx/AKn]` for every acceptance criterion with method Test (D-050). JUnit XML (`test-results/junit.xml`) is the evidence record; from stage 4 ReqSeq reads it itself.
 
 **Fixtures and data**
 - Small fixtures per SR in `fixtures/<sr-id>/`, built as temporary Git repositories by a helper (`fixtures/README.md`).
 - Generator for large workspaces (50,000 elements, 200,000 relations, mixed types and repositories) with a fixed seed, in `packages/testkit` from stage 1 (D-055); from stage 4 with evidence records of that workspace (`withEvidenceRecords`: JUnit files of CI runs, Markdown verification and validation records, #583).
-- Realistic multi-repository scenarios come from `logreq-testdata` (D-055), checked out in CI.
+- Realistic multi-repository scenarios come from `ReqSeq-testdata` (D-055), checked out in CI.
 
 **Product rules as tests**
 - *Offline:* every Vitest run loads `scripts/test-support/block-network.mjs`, which fails any connection that is not loopback (SR-077, SR-078). The Electron tests additionally assert that the session blocked all non-local requests. On Linux CI the CLI e2e suite also runs inside `unshare -rn` (no network namespace).

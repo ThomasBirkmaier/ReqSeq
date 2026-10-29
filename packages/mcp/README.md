@@ -1,9 +1,9 @@
 # @reqseq/mcp
 
-The MCP server of LogReq (ADR-0009) for AI agents: stdio only, one tool per command of the catalog of `@reqseq/core` (ADR-0002). It has no logic of its own; every tool call is one `invoke` call. Started by `logreq mcp`.
+The MCP server of ReqSeq (ADR-0009) for AI agents: stdio only, one tool per command of the catalog of `@reqseq/core` (ADR-0002). It has no logic of its own; every tool call is one `invoke` call. Started by `reqseq mcp`.
 
 ```json
-{ "mcpServers": { "logreq": { "command": "logreq", "args": ["mcp", "--workspace", "/path/to/copy"] } } }
+{ "mcpServers": { "reqseq": { "command": "reqseq", "args": ["mcp", "--workspace", "/path/to/copy"] } } }
 ```
 
 - Tools are named `group_action` (`element_setStatus`) with the input schemas of `schemas/generated/mcp-tools.json`, each with only the definitions it reaches, flat (`#/$defs/common.uuid`); no output schemas, so the list stays small (about 30 KB, #303); read commands have `readOnlyHint`. Only implemented commands are listed; a call to a catalog command of a later stage gives the tool error `command.not-implemented`, as CLI and API do.
