@@ -134,7 +134,7 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     top = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-image-link-"));
     const workspace = await copyFixture(FIXTURE);
     const link = path.join(top, "linked");
-    await fs.symlink(path.dirname(workspace.root), link, "dir");
+    await fs.symlink(path.dirname(workspace.root), link, "junction");
     await fs.writeFile(path.join(top, "Wind Skizze.png"), PNG);
     const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")));
     running = await launchApp(undefined, {
@@ -166,8 +166,7 @@ test.describe("inserting an image in a workspace opened through a link", () => {
     await window.keyboard.insertText(path.join(top, "Wind Skizze.png"));
     await window.keyboard.press("Enter");
     await expect(window.locator(".cm-content")).toContainText(`(${FOLDER_NAME}/Wind-Skizze.png)`);
-    const root = running.workspace?.root ?? "";
-    const copy = path.join(await fs.realpath(root), ...IMAGE_FOLDER.split("/"), "Wind-Skizze.png");
+    const copy = path.join(running.workspace?.root ?? "", ...IMAGE_FOLDER.split("/"), "Wind-Skizze.png");
     expect(await fs.readFile(copy)).toEqual(PNG);
   });
 });
