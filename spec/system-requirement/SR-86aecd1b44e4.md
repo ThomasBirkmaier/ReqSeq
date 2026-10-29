@@ -9,6 +9,7 @@ acceptance-criteria:
   - "Gegeben ein Need mit einem Datensatz der Art Validierung zur aktuellen Fassung, wenn er angezeigt wird, dann zeigt das Tool den Validierungsstatus getrennt vom Nachweisstatus."
   - "Gegeben eine Validierung zu einer älteren Fassung, wenn der Status berechnet wird, dann ist er veraltet."
   - "Gegeben die Validierungs-Datensätze eines Elements, wenn der Validierungsstatus berechnet wird, dann ist er offen ohne Datensatz, erfolgreich oder nicht erfolgreich nach dem neuesten Datensatz zur aktuellen Fassung und veraltet, wenn es nur Datensätze zu älteren Fassungen gibt."
+  - Gegeben ein Datensatz der Art Validierung mit Angabe einer Variante, wenn er gelesen oder erfasst wird, dann weist das Tool ihn ab, nennt den Grund und er zählt für keinen Status.
 verification-method: test
 topic: "Nachweis und Abdeckung"
 packages:
@@ -20,4 +21,4 @@ based-on:
   - { id: 6adc58f5-a349-4870-af2f-971ec1cee679, version: n1:adee5264c0b69be1, title: Ein offenes Format für Nachweis-Datensätze }
 ---
 
-Das Tool muss für jedes Element mit Validierungs-Datensätzen einen eigenen Validierungsstatus berechnen und zeigen.
+Das Tool muss für jeden Need und jedes Element mit Validierungs-Datensätzen einen eigenen Validierungsstatus berechnen und zeigen.
