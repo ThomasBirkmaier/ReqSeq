@@ -180,7 +180,11 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
-  packages/docs: {}
+  packages/docs:
+    dependencies:
+      '@reqseq/cli':
+        specifier: workspace:*
+        version: link:../cli
 
   packages/mcp:
     dependencies:

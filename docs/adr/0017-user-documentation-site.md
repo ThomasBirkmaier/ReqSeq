@@ -19,6 +19,8 @@ D-067: ReqSeq has documentation for its users, in Get started, How-to, Reference
 
 **Generated.** The reference of SR-139: one page per catalog command with its call in App, CLI, API and MCP, the problem codes with cause and remedy, the file formats and the standard model, each read from the catalog, the schemas and the files core uses. Plain Markdown, no MDX. Never written by hand.
 
+**Tested examples (SR-140).** Every `reqseq` command in a ```` ```sh ```` block of a guide page is an example; a block that mixes it with other commands is refused. `docs:generate` and the `[SR-140/AK2]` test run the examples of each page in order, in a fresh empty folder, with `runCli` of this build in-process (no shell: the words are split by the generator, quotes only, and shell syntax is refused). A ```` ```text title="Output" ```` block right after a block is the expected output of its last command: a line `...` stands for any lines, `...` in a line for any text, and a short or file ID (`N-7fe707`, `N-d0e44b7fe707`) for the ID the run creates, which later commands of the page then get in its place. A non-zero exit code or a differing output stops the build. Hand pages above 600 words of prose get a warning.
+
 **No network.** No web fonts, CDN or analytics; system font stacks. `packages/docs/site/run.mjs` starts Astro with telemetry and the update check off (`ASTRO_TELEMETRY_DISABLED`, `ASTRO_DISABLE_UPDATE_CHECK`). CI builds the site under `unshare -rn`, so a download during the build fails it.
 
 **Base path.** `site` is `https://thomasbirkmaier.github.io`, `base` comes from `REQSEQ_DOCS_BASE` (default `/ReqSeq` for Pages, `/` for the offline build).
