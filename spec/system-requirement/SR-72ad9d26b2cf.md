@@ -6,8 +6,9 @@ title: "Unterschied einer Variante zum Kern zeigen"
 spec-id: "SR-044"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird, dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements."
-  - "Gegeben ein ersetztes Requirement, wenn es in der Liste ausgewählt wird, dann zeigt das Tool Kern-Requirement und Ersatz nebeneinander."
+  - "Gegeben eine Variante, wenn ihr Unterschied zum Kern abgefragt wird (App, CLI, API, MCP: `variant.diff`), dann listet das Tool getrennt die ergänzten, ersetzten und ausgeschlossenen Requirements."
+  - Gegeben ein ersetztes Requirement in dieser Liste in der App, wenn es mit Enter ausgewählt wird, dann zeigt die App Kern-Requirement und Ersatz nebeneinander, nur lesend, mit Text und Akzeptanzkriterien beider.
+  - Gegeben ein ersetztes Requirement, wenn `variant.diff` über CLI, API oder MCP abgefragt wird, dann nennt seine Zeile die IDs von Kern-Requirement und Ersatz.
 verification-method: test
 topic: "Varianten"
 packages:

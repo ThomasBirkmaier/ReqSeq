@@ -6,8 +6,9 @@ title: "Hinweis bei Änderung im Kern geben"
 spec-id: "SR-045"
 requirement-type: functional
 acceptance-criteria:
-  - "Gegeben ein ersetztes Kern-Requirement wird inhaltlich geändert, wenn das Tool die Änderung bemerkt, dann zeigt es an der Variante einen Hinweis mit der gespeicherten und der aktuellen Fassung."
-  - "Gegeben der Hinweis wird bestätigt, wenn erneut geprüft wird, dann erscheint er nicht mehr."
+  - "Gegeben SR-A mit Gültigkeit [A] ersetzt das Kern-Requirement SR-K, und der Inhalt von SR-K wird geändert, wenn die Hinweise abgefragt werden (CLI, API, MCP: `hint.list` oder `workspace.check`; App: Seite von SR-A und Liste der Hinweise von A), dann steht am ersetzenden Requirement SR-A ein Hinweis mit der gespeicherten und der aktuellen Fassung von SR-K, und `hint.list` mit der Variante A listet ihn. Es ist ein Hinweis, kein zweiter neben dem Hinweis auf die veraltete Beziehung."
+  - Gegeben der Hinweis wird mit `hint.confirm` bestätigt, wenn die Hinweise erneut abgefragt werden, dann erscheint er nicht mehr, und die Beziehung ersetzt enthält die aktuelle Fassung und den aktuellen Titel von SR-K (D-042).
+  - Gegeben an SR-K ändert sich nur der Titel, wenn die Hinweise abgefragt werden, dann gibt es keinen Hinweis; den gespeicherten Titel schreibt das Tool neu, wenn es die Datei von SR-A das nächste Mal schreibt (D-042).
 verification-method: test
 topic: "Varianten"
 packages:
@@ -19,4 +20,4 @@ based-on:
   - { id: 6adc6921-d1f2-4800-aa1b-0a39de119f56, version: n1:eec226f317cdbcf7, title: Hinweise werden bestätigt }
 ---
 
-Wenn sich ein Kern-Requirement ändert, das eine Variante ersetzt, muss das Tool an der Variante einen Hinweis zeigen.
+Wenn sich ein Kern-Requirement ändert, das eine Variante durch ein eigenes Requirement ersetzt hat, muss das Tool am ersetzenden Requirement einen Hinweis zeigen, den die Variante auflistet.
