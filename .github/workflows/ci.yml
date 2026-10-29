@@ -407,6 +407,12 @@ jobs:
     needs: [static, checks, electron]
     # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
     timeout-minutes: 25
+    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
+    # does (#303): a later run's platform job cancels the one still running on a superseded commit. The job name is
+    # written out: `github.job` is empty when a job's concurrency is evaluated.
+    concurrency:
+      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-checks-${{ matrix.os }}
+      cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
       (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
@@ -424,6 +430,12 @@ jobs:
     needs: [static, checks, electron]
     # Windows took more than 20 minutes on 2026-10-29 (one app at a time); the bound ends a hang.
     timeout-minutes: 30
+    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
+    # does (#303): a later run's platform job cancels the one still running on a superseded commit. The job name is
+    # written out: `github.job` is empty when a job's concurrency is evaluated.
+    concurrency:
+      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-electron-${{ matrix.os }}
+      cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
       (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
