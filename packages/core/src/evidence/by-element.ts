@@ -230,7 +230,7 @@ const inserted = (
  * element's list gets `record` at its place (a copy; every other list is the same array), and when
  * it names a test case, that test case is built again (or added in its order), with the test cases
  * of its elements; `positionOf` counts in `records`, so every record after `record` moves by one
- * (review N2 of #708). `index` is not changed.
+ * (review N2 of #708). `index` tells what it told (the test-case cache may be shared).
  */
 export const evidenceIndexWith = (
   index: EvidenceIndex,
@@ -248,7 +248,8 @@ export const evidenceIndexWith = (
   byElement.set(record.element, inserted(index.byElement.get(record.element) ?? [], record, positionIn));
   const key = testCaseKeyOf(record);
   if (key === undefined || record.testCase === undefined) {
-    // The test cases are those of `index`; their cache is shared, its values are the same.
+    // The test cases are those of `index`; their cache is shared (what either index tells is the
+    // same, so `index` tells what it told; only its cache may fill from the new one).
     return assembled(byElement, index.testCases, parts, records);
   }
   const before = index.testCases.get(key);

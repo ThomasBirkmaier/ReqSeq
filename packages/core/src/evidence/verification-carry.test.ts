@@ -28,7 +28,8 @@ import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
 import { carriedEvaluator, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
-import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
+import { evidenceReadState, evidenceRecordsState, readEvidence, registerInsertion } from "./state.js";
+import { withRecord } from "./write-record.js";
 import { statusSource } from "./status.js";
 import type { StateStatus } from "./verification.js";
 import { verificationOf, verificationState } from "./verification.js";
@@ -1263,6 +1264,58 @@ describe("the evidence index and verificationState carried over evidence.record 
     await recorded(opened, opened.generated.deep);
     const carried = await built(opened);
     expect(carried.versionBatches()).toBe(status.versionBatches());
+  });
+
+  it("equals a fresh build after a record on a UUID with a twin (SR-088), and leaves the old status as it was", async () => {
+    const opened = await open(698);
+    const old = await built(opened);
+    const { store } = await stateOf(opened.workspace);
+    const before = await table(old, store);
+    const peekedBefore = peeked(opened.workspace);
+    // `gen/SR-5-twin.md` shares the UUID of `gen/SR-5.md`: evidence.record refuses the ambiguous
+    // reference, so the record is written and put in as `updateEvidence` does.
+    const { workspace, fixture } = opened;
+    await fixture.write(
+      "evidence/zz-twin.md",
+      record(specOf(opened, "gen/SR-5-twin.md").id, STALE, { variant: VARIANTS[2] }),
+    );
+    const layout = await workspace.get(workspaceLayoutState);
+    const added = (await readEvidence(layout)).records.find((r) => r.file === "evidence/zz-twin.md");
+    if (added?.file === undefined || added.repository === undefined) {
+      throw new Error("no record read back");
+    }
+    const placed = { ...added, repository: added.repository, file: added.file };
+    const next = Promise.resolve(withRecord(layout, await workspace.get(evidenceReadState), placed));
+    registerInsertion(next, placed);
+    expect(await workspace.replace(evidenceReadState, workspace.peek(evidenceReadState), next)).toBe(true);
+    await expectCarriedFresh(opened, peekedBefore);
+    expect(await table(old, store)).toEqual(before);
+  });
+
+  it("equals a fresh build after a record that follows records put in place through the seam of #127", async () => {
+    const opened = await open(698);
+    const { workspace } = opened;
+    await built(opened);
+    const records = await workspace.get(evidenceRecordsState);
+    expect(
+      await workspace.replace(
+        evidenceRecordsState,
+        workspace.peek(evidenceRecordsState),
+        Promise.resolve(records.slice(1)),
+      ),
+    ).toBe(true);
+    await built(opened);
+    await recorded(opened, opened.generated.deep);
+    // Not carried from the injected records: built again from the read with the new record.
+    expect(workspace.peek(evidenceIndexState)).toBeUndefined();
+    expect(workspace.peek(verificationState)).toBeUndefined();
+    const fresh = new Workspace(opened.fixture.root);
+    try {
+      expect(await indexSeen(workspace)).toEqual(await indexSeen(fresh));
+    } finally {
+      await fresh.close();
+    }
+    await expectFresh(opened);
   });
 
   it("resets the index and the status when the records are replaced by hand (the seam of #127)", async () => {

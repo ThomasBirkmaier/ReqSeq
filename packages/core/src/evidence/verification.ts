@@ -429,7 +429,9 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
   const before = [...ofIds(reach.from), ...volatile];
   const affected = new Set<string>();
   upwardsFrom(reach.from, before, keys, affected);
-  upwardsFrom(reach.to, [...ofIds(reach.to), ...volatile], keys, affected);
+  if (reach.to !== reach.from) {
+    upwardsFrom(reach.to, [...ofIds(reach.to), ...volatile], keys, affected);
+  }
   const dropped = new Set(next.versionsOfChanged ? volatile : before);
   const keptVersions = new Map<ElementRecord, string | undefined>();
   for (const [record, version] of versions) {

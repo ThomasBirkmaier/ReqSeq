@@ -52,7 +52,7 @@ import { locate, workspaceLayoutState } from "../workspace/index.js";
 import { readMarkdownRecord, RECORD_KEY } from "./markdown.js";
 import type { EvidenceRecord } from "./record.js";
 import type { EvidenceRead } from "./state.js";
-import { evidenceReadState, registerInsertion } from "./state.js";
+import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
 
 const COMMAND = "evidence.record";
 
@@ -377,9 +377,15 @@ const updateEvidence = async (
     await workspace.reset(evidenceReadState);
     return;
   }
+  // The records state carries only as the read's own records: not after records were put in place
+  // through the seam of #127 (then the index is of those, and the states are reset as before).
+  const records = workspace.peek(evidenceRecordsState);
+  const ofRead = records === undefined || (await settledValue(records)) === read.records;
   const next = Promise.resolve(withRecord(layout, read, record));
-  // The states built on the read carry the one record over (#278).
-  registerInsertion(next, record);
+  // The states built on the read carry the one record over (#278); no `await` from here to `replace`.
+  if (ofRead && workspace.peek(evidenceRecordsState) === records) {
+    registerInsertion(next, record);
+  }
   await workspace.replace(evidenceReadState, from, next);
 };
 
