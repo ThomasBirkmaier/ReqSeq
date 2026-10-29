@@ -1,7 +1,7 @@
 ---
 id: 6adc6938-28fa-42f6-b018-5bbf010cc58c
 type: need
-status: draft
+status: approved
 title: "Bestand prüfen"
 spec-id: "N-065"
 topic: "Metamodell und Typen"

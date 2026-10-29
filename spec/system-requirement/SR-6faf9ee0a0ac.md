@@ -1,7 +1,7 @@
 ---
 id: 6adc6ba7-f2b0-4877-9f7d-6faf9ee0a0ac
 type: system-requirement
-status: draft
+status: approved
 title: "Standardmodell mitliefern"
 spec-id: "SR-014"
 requirement-type: functional
@@ -20,7 +20,7 @@ based-on:
   - { id: 6adc615b-272a-4377-82e5-9ae991d75bb2, version: n1:bbc1feca6a7d2220, title: Statuswerte kommen aus dem Metamodell }
   - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n1:f2e6b92128858d5d, title: Keine feste Reihenfolge }
   - { id: 6adc691e-6394-45b3-a796-31e830aa3392, version: n1:63da2ba5c1572d36, title: Das Standardmodell entspricht dem Modell dieser Spec }
-  - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n1:36cc0b2a7fb041d1, title: Bedeutungen und Standardmodell vervollständigt }
+  - { id: 6adc78d3-0812-43dc-94fe-7af63b9acd96, version: n1:be14797fb9d20d4c, title: Bedeutungen und Standardmodell vervollständigt }
 ---
 
 Das Tool muss das Standardmodell mitliefern und es beim Anlegen eines neuen Arbeitsbereichs als Metamodell anlegen.

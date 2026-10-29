@@ -1,7 +1,7 @@
 ---
 id: 6adc6acb-a6e4-4ffc-9258-3dbe90fc40b9
 type: system-requirement
-status: draft
+status: approved
 title: "Fehlerhafte Dateien melden"
 spec-id: "SR-008"
 requirement-type: functional
