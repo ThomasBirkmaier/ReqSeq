@@ -370,7 +370,10 @@ jobs:
       # app with electron-vite and runs Playwright.
       - name: Electron tests (xvfb)
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
-        run: xvfb-run -a pnpm --filter @logreq/app test:electron ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
+        # Each shard runs every second file (test/playwright.config.ts); without a shard, all of them.
+        env:
+          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
+        run: xvfb-run -a pnpm --filter @logreq/app test:electron
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
         run: pnpm --filter @logreq/app test:electron

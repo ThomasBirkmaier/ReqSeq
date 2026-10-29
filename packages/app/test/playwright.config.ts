@@ -1,10 +1,34 @@
 // Electron tests (ADR-0011): Playwright drives the built app (`pnpm build:electron`) through
 // `_electron.launch`, under `xvfb-run` on Linux. `pnpm test:electron` builds and runs them.
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
+
+// The Ubuntu lane of CI runs the files in shards (#303), given as ELECTRON_SHARD=<shard>/<total>, for example 1/2;
+// unset or empty runs all files. Playwright's own --shard cuts the sorted list into blocks, and the slow files sort
+// first (about 340 s against 190 s for two shards); every <total>-th file per shard evens that out (about 255 s
+// against 280 s).
+function shardFiles(value: string): string[] {
+  const match = /^(\d+)\/(\d+)$/.exec(value);
+  const shard = Number(match?.[1]);
+  const total = Number(match?.[2]);
+  if (match === null || shard < 1 || shard > total) {
+    throw new Error(`ELECTRON_SHARD must be <shard>/<total> with 1 <= shard <= total, got "${value}"`);
+  }
+  return readdirSync(import.meta.dirname, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".spec.ts"))
+    .sort()
+    .filter((_, index) => index % total === shard - 1)
+    .map((file) => join(import.meta.dirname, file));
+}
+
+const shard = process.env["ELECTRON_SHARD"];
+// Absolute paths, so that a file name never also matches a file of the same name in another folder.
+const testMatch = shard === undefined || shard === "" ? "**/*.spec.ts" : shardFiles(shard);
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "**/*.spec.ts",
+  testMatch,
   // One app at a time: each test starts its own Electron with its own workspace and cache folder.
   workers: 1,
   fullyParallel: false,
