@@ -243,7 +243,13 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
   });
 
   it("parses a file again that changed less than RACY_MS before it was read", async () => {
-    const { layout } = await open();
+    const { fixture, layout } = await open();
+    // Written now, not only copied: on Windows the copy keeps the modification and change time of
+    // the checkout, which may lie more than RACY_MS back.
+    for (const name of ["beta", "release-1.0", "release-1.1"]) {
+      const file = `baselines/${name}.yaml`;
+      await fixture.write(file, await fs.readFile(fixture.path(file), "utf8"));
+    }
     const kept: BaselineFiles = new Map();
     const first = await readBaselines(layout, kept);
     expect([...kept.values()].map((k) => k.stamp)).toEqual([undefined, undefined, undefined]);
