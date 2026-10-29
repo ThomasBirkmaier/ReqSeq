@@ -658,7 +658,11 @@ describe("workspace discovery", () => {
 });
 
 describe("large outputs in pieces with back-pressure (#277)", () => {
-  /** A sink that pushes back on every second write; `drained` runs `onDrain` and resolves its answer. */
+  /**
+   * A sink that pushes back on every second write; `drained` runs `onDrain` and resolves its answer
+   * on the next turn of the event loop. `setImmediate`, not a timer: Windows rounds a 1 ms timer up to
+   * about 15 ms, which made the 30,000 YAML pieces of `LARGE` take minutes there (#277).
+   */
   class SlowSink {
     readonly pieces: string[] = [];
     private readonly onDrain: () => boolean;
@@ -671,9 +675,9 @@ describe("large outputs in pieces with back-pressure (#277)", () => {
     }
     drained(): Promise<boolean> {
       return new Promise((resolve) =>
-        setTimeout(() => {
+        setImmediate(() => {
           resolve(this.onDrain());
-        }, 1),
+        }),
       );
     }
   }
