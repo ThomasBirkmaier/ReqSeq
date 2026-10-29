@@ -154,3 +154,48 @@ export async function removeBuildLeftovers(folder) {
  * hard-linked to another file of the package as such an entry, and `npm install` leaves those out.
  */
 export const hardLinkEntries = (listing) => listing.split(/\r?\n/).filter((line) => line.startsWith("h"));
+
+/** The sections of the release notes (#346), in order; a subject goes to the first section that matches it. */
+const NOTE_SECTIONS = [
+  { title: "New", test: /^(?:feat(?:\([^)]*\))?!?|SR-\d+):/ },
+  { title: "Fixes", test: /^fix(?:\([^)]*\))?!?:/ },
+  { title: "Specification", test: /^spec(?:\([^)]*\))?!?:/ },
+];
+
+/**
+ * A commit subject as safe release-note text: `@name` in code style, so that it mentions nobody (e.g. a bump of
+ * `@types/node`), and `<` escaped, so that it cannot open an HTML tag inside the folded section.
+ */
+const noteText = (subject) => subject.replaceAll(/(^|\s)(@[\w./-]+)/g, "$1`$2`").replaceAll("<", "&lt;");
+
+/**
+ * The release notes of a tag (#346): the Conventional Commit subjects since the previous release tag (`previous`,
+ * undefined for the first release), grouped into new functions, fixes and specification; all other subjects
+ * (enabler, test, ci, docs, ...) are folded into "Other changes". `compareUrl` links the full difference.
+ */
+export function releaseNotes(subjects, { previous, compareUrl }) {
+  const groups = new Map([...NOTE_SECTIONS.map((s) => [s.title, []]), ["Other changes", []]]);
+  for (const subject of subjects.map((s) => s.trim()).filter((s) => s !== "")) {
+    const section = NOTE_SECTIONS.find((s) => s.test.test(subject));
+    groups.get(section?.title ?? "Other changes").push(`- ${noteText(subject)}`);
+  }
+  const lines = [previous === undefined ? "## Changes" : `## Changes since ${previous}`, ""];
+  for (const [title, items] of groups) {
+    if (items.length === 0) {
+      continue;
+    }
+    lines.push(
+      ...(title === "Other changes"
+        ? [`<details><summary>${title} (${items.length})</summary>`, "", ...items, "", "</details>"]
+        : [`### ${title}`, "", ...items]),
+      "",
+    );
+  }
+  if (subjects.every((s) => s.trim() === "")) {
+    lines.push("No changes.", "");
+  }
+  if (previous !== undefined) {
+    lines.push(`Full list: ${compareUrl}`, "");
+  }
+  return lines.join("\n");
+}

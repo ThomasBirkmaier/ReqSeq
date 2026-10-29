@@ -1,7 +1,7 @@
 ---
 id: 6adc6d96-2f86-4aa8-9f72-1fcf3679c4cf
 type: system-requirement
-status: draft
+status: approved
 title: "Getrennte Kopien parallel bearbeiten"
 spec-id: "SR-081"
 requirement-type: functional

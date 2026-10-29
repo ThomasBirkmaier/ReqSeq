@@ -1,7 +1,7 @@
 ---
 id: 6adc4b47-50a8-4546-9007-f7cfdfa7b9cb
 type: need
-status: draft
+status: approved
 title: "Traceability bis zu Testfall und Durchführung"
 spec-id: "N-038"
 topic: "Nachweis und Abdeckung"

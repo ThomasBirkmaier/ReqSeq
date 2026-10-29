@@ -1,7 +1,7 @@
 ---
 id: 6adc6d8c-633d-449f-9015-82fb7ba816df
 type: system-requirement
-status: draft
+status: approved
 title: "Mehrere Elemente gemeinsam ändern"
 spec-id: "SR-071"
 requirement-type: functional

@@ -1,7 +1,7 @@
 ---
 id: 6adc6bae-acdb-43e4-8540-bc31d4ebca76
 type: system-requirement
-status: draft
+status: approved
 title: "Bestand schnell prüfen"
 spec-id: "SR-020"
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-24: Zielwert bestätigt. Die Prüfung läuft in jedem Merge Request und soll ihn nicht spürbar verzögern."

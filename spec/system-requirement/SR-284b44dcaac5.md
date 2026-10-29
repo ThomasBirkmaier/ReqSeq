@@ -1,7 +1,7 @@
 ---
 id: 6adc6c45-b044-4aaa-b079-284b44dcaac5
 type: system-requirement
-status: draft
+status: approved
 title: "Testfälle und Durchführungen verfolgen"
 spec-id: "SR-033"
 requirement-type: functional

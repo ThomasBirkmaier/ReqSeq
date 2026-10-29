@@ -106,11 +106,12 @@ jobs:
 
   # Publishes the release of a stage tag: a draft first, every asset uploaded, then published. A re-run finds the
   # release of the tag and replaces assets of the same name. A tag that is not a release tag (`v<major>.<minor>`
-  # or `v<major>.<minor>.<patch>`, e.g. a throwaway `v0.0.0-rc.1` to try the workflow) publishes nothing.
+  # or `v<major>.<minor>.<patch>`, e.g. a throwaway `v0.0.0-rc.1` to try the workflow) publishes nothing. A manual
+  # run publishes nothing either and only shows the release notes of its commit in the job summary (#346).
   release:
     name: release
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     timeout-minutes: 20
     permissions:
       contents: write
@@ -132,6 +133,11 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo "::notice::a manual run publishes nothing"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
             echo "::notice::$TAG is not a release tag: nothing is published"
             echo "publish=false" >> "$GITHUB_OUTPUT"
@@ -140,6 +146,13 @@ jobs:
           node scripts/package/stage.mjs --check-tag "$TAG"
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$TAG is not on main"; exit 1; }
           echo "publish=true" >> "$GITHUB_OUTPUT"
+      # The Conventional Commit subjects since the previous release tag, grouped (#346).
+      - name: Release notes
+        run: |
+          ref="$GITHUB_SHA"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then ref="$GITHUB_REF_NAME"; fi
+          node scripts/package/stage.mjs --release-notes "$ref" > release-notes.md
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v4
         if: steps.tag.outputs.publish == 'true'
         with:
@@ -169,6 +182,8 @@ jobs:
             for file in release-assets/*; do echo "- \`$(basename "$file")\`"; done
             echo
             echo "The builds are not signed by a vendor certificate: see [unsigned builds]($docs/unsigned-builds.md)."
+            echo
+            cat release-notes.md
           )"
           # A draft is not found by its tag, so the list is searched (a re-run of this job).
           release="$(call "$api/releases?per_page=100" | jq --arg tag "$TAG" '[.[] | select(.tag_name == $tag)][0] // empty')"

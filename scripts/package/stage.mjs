@@ -8,6 +8,8 @@
 //                                                 electron-builder (and append it to $GITHUB_ENV in Actions)
 //   node scripts/package/stage.mjs --pack        npm pack the staged CLI into delivery/ (the CLI tarball)
 //   node scripts/package/stage.mjs --check-tag T exit 0 when tag T releases the root version, else 1
+//   node scripts/package/stage.mjs --release-notes R  print the release notes of ref R (a tag or HEAD): the
+//                                                 first-parent commits since the previous release tag (#346)
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -15,6 +17,7 @@ import {
   hardLinkEntries,
   noticesText,
   packageFolders,
+  releaseNotes,
   removeBuildLeftovers,
   renderLauncher,
   stagedManifest,
@@ -163,6 +166,23 @@ async function pack() {
   console.log(target);
 }
 
+/** The release notes of `ref` (#346), from the git history; the repository must have its tags. */
+function notes(ref) {
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).trim();
+  let previous;
+  try {
+    // Release tags only: `v<major>.<minor>` or `v<major>.<minor>.<patch>`, no `-rc` tags.
+    previous = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "*-*", `${ref}^`);
+  } catch {
+    previous = undefined;
+  }
+  const range = previous === undefined ? ref : `${previous}..${ref}`;
+  const subjects = git("log", "--first-parent", "--format=%s", range).split("\n");
+  const repo = `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${process.env.GITHUB_REPOSITORY ?? "ThomasBirkmaier/ReqSeq"}`;
+  return releaseNotes(subjects, { previous, compareUrl: `${repo}/compare/${previous}...${ref}` });
+}
+
 const [mode, argument] = process.argv.slice(2);
 if (mode === undefined) {
   await stage();
@@ -172,7 +192,9 @@ if (mode === undefined) {
   const ok = tagReleasesVersion(argument, version);
   console.log(ok ? `${argument} releases ${version}` : `${argument} does not release version ${version}`);
   process.exitCode = ok ? 0 : 1;
+} else if (mode === "--release-notes" && argument !== undefined) {
+  process.stdout.write(notes(argument));
 } else {
-  console.error("usage: node scripts/package/stage.mjs [--pack | --check-tag <tag>]");
+  console.error("usage: node scripts/package/stage.mjs [--pack | --check-tag <tag> | --release-notes <ref>]");
   process.exitCode = 2;
 }

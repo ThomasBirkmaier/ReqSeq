@@ -1,7 +1,7 @@
 ---
 id: 6adc6d90-2b1b-4060-86c6-1b5a0fd6e27a
 type: system-requirement
-status: draft
+status: approved
 title: "Nach Property oder Hierarchie sortieren"
 spec-id: "SR-075"
 requirement-type: functional

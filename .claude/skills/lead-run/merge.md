@@ -16,13 +16,15 @@ Merge `main` with `pnpm merge:main`, which regenerates conflicting generated fil
 
 ## Merge as soon as it is green
 
-PRs labelled `blocked` or `needs-human` are not merged. GitHub auto-merge is not available. Subscribe to the PR's activity and merge on the CI event, when the check runs of the head commit (`GET /repos/ThomasBirkmaier/ReqSeq/commits/{sha}/check-runs?per_page=100`) show all of this:
+PRs labelled `blocked` or `needs-human` are not merged. GitHub auto-merge is not available. Subscribe to the PR's activity and merge on the check-run event, when the check runs of the head commit (`GET /repos/ThomasBirkmaier/ReqSeq/commits/{sha}/check-runs?per_page=100`) show all of this:
 
-- The PR is not a draft, and `static` as well as `checks` and `electron` for `ubuntu-24.04`, `macos-14` and `windows-2025` exist on the head commit and concluded `success`. Each of these names needs one `success` on the head commit; skipped or cancelled runs of the same name from label, text or ready runs do not count against it, and skipped matrix jobs show names like `checks (${{ matrix.os }})` or `electron (ubuntu-24.04, ${{ matrix.shard }}/2)` and do not count; one green workflow is not enough, and `electron` is green with skipped steps on a docs-only PR (#520).
-- The newest `trace-check (PR text)` that was not skipped, if there is one, concluded `success`.
+- The PR is not a draft, and `static` as well as `checks` and `electron` for `ubuntu-24.04`, `macos-14` and `windows-2025` exist on the head commit and concluded `success`. Each of these names needs one `success` on the head commit; skipped or cancelled runs of the same name from ready runs do not count against it, and skipped matrix jobs show names like `checks (${{ matrix.os }})` or `electron (ubuntu-24.04, ${{ matrix.shard }}/2)` and do not count; one green workflow is not enough, and `electron` is green with skipped steps on a docs-only PR (#520).
+- The newest `trace-check (PR text)` that was not skipped, if there is one, concluded `success`. It runs in `pr-text.yml`, not in CI, because GitHub reads the required checks from the newest CI run of the head commit (#372).
 - Every other check run completed with `success` or `skipped`. The one exception is a PR that works on performance (product owner decision, 2026-10-28): there `perf` may be red when every row over its limit was already over it on main and no measurement is worse. The PR names the rows and the comparison. The label `perf` starts the perf job once when it is added, not on later pushes, so add it after the last reviewed push, and measure the comparison locally in the container.
 
 Right after a PR leaves draft, the merge API can answer 405 "Required status check static is expected" until the ready run has reported its skipped `static`; merge again once that check run shows as completed.
+
+A change of the base branch starts no CI run (#372): after it, merge the new base with `pnpm merge:main` and push before the merge, so the checks ran against it.
 
 If `static` failed only in its Trace check step, or a job in a flaky step, and you fixed the cause without a push, re-run the failed jobs: `POST /repos/ThomasBirkmaier/ReqSeq/actions/runs/{run_id}/rerun-failed-jobs`. Check the text first with `pnpm trace-check --pr-body <file>`; a green `trace-check (PR text)` does not replace the rerun. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
 
