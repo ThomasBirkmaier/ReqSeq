@@ -1,7 +1,7 @@
 ---
 id: b2a258f3-51fa-4ce6-9462-f2e744cdd32e
 type: decision
-status: draft
+status: accepted
 title: Das Werkzeug heißt ReqSeq
 spec-id: D-066
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-28: Der frühere Name liest sich als „Log Request“; ReqSeq steht für Requirements suchen und finden. Entscheidung des Produktverantwortlichen, 2026-10-29: alles umbenennen, ohne Rückwärtskompatibilität, und die Fassungen dürfen dafür einmal neu berechnet werden (#333)."
