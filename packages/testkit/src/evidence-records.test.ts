@@ -40,12 +40,12 @@ describe("withEvidenceRecords", () => {
     expect(withEvidenceRecords(generated, { seed: 8 }).workspace.digest).not.toBe(a.workspace.digest);
     expect(a.workspace.digest).not.toBe(generated.digest);
     for (const [file, content] of generated.files) {
-      if (file !== "system/logreq-workspace.yaml") {
+      if (file !== "system/reqseq-workspace.yaml") {
         expect(a.workspace.files.get(file)).toBe(content);
       }
     }
-    expect(a.workspace.files.get("system/logreq-workspace.yaml")).toBe(
-      `${String(generated.files.get("system/logreq-workspace.yaml"))}evidence:\n  - { repository: system, path: evidence }\n`,
+    expect(a.workspace.files.get("system/reqseq-workspace.yaml")).toBe(
+      `${String(generated.files.get("system/reqseq-workspace.yaml"))}evidence:\n  - { repository: system, path: evidence }\n`,
     );
     expect([...a.workspace.files.keys()]).toEqual([...a.workspace.files.keys()].sort());
   });
@@ -80,12 +80,12 @@ describe("withEvidenceRecords", () => {
     const named = [...all.matchAll(/<testcase [^]*?<\/testcase>/g)].map((m) => m[0]);
     const records = named
       .filter((t) => !t.includes("<skipped/>"))
-      .reduce((sum, t) => sum + count(t, /logreq:element/g), 0);
+      .reduce((sum, t) => sum + count(t, /reqseq:element/g), 0);
     expect(records).toBe(evidence.counts.junitRecords);
-    expect(named.every((t) => count(t, /logreq:element/g) === count(t, /logreq:version/g))).toBe(true);
-    const multi = named.filter((t) => count(t, /logreq:element/g) > 1);
+    expect(named.every((t) => count(t, /reqseq:element/g) === count(t, /reqseq:version/g))).toBe(true);
+    const multi = named.filter((t) => count(t, /reqseq:element/g) > 1);
     expect(multi.length / executions).toBeGreaterThan(0.05);
-    expect(Math.max(...named.map((t) => count(t, /logreq:element/g)))).toBeLessThanOrEqual(5);
+    expect(Math.max(...named.map((t) => count(t, /reqseq:element/g)))).toBeLessThanOrEqual(5);
     // The newest run holds every test case; older runs fewer.
     const run3 = count(
       junit
@@ -97,7 +97,7 @@ describe("withEvidenceRecords", () => {
     expect(run3).toBe(evidence.counts.testCases);
     expect(executions).toBeGreaterThan(evidence.counts.testCases);
     expect(executions).toBeLessThanOrEqual(3 * evidence.counts.testCases);
-    expect(all).toContain('<property name="logreq:item" value="build-3"/>');
+    expect(all).toContain('<property name="reqseq:item" value="build-3"/>');
   });
 
   it("writes one large file per history run with every test case, older than the CI runs", () => {
@@ -110,7 +110,7 @@ describe("withEvidenceRecords", () => {
     for (const [n, [, text]] of history.entries()) {
       expect(count(text, /<testcase /g)).toBe(evidence.counts.testCases);
       expect(text).toContain('timestamp="2026-08-');
-      expect(text).toContain(`<property name="logreq:item" value="history-${String(n + 1)}"/>`);
+      expect(text).toContain(`<property name="reqseq:item" value="history-${String(n + 1)}"/>`);
     }
     expect(evidence.counts.junitFiles).toBe(evidenceFiles(evidence, "ci/").length + 2);
   });
@@ -140,7 +140,7 @@ describe("withEvidenceRecords", () => {
     const fields = frontmatter(text);
     const element = byId.get(String(fields["element"]));
     expect(Object.keys(fields)).toEqual([
-      "logreq-record",
+      "reqseq-record",
       "kind",
       "element",
       "version",
@@ -182,8 +182,8 @@ describe("withEvidenceRecords", () => {
     const stored = new Map<string, string[]>();
     for (const [, text] of runsInOrder) {
       for (const [testCase] of text.matchAll(/<testcase [^]*?<\/testcase>/g)) {
-        const ids = [...testCase.matchAll(/logreq:element" value="([^"]+)"/g)].map((m) => m[1] ?? "");
-        const versions = [...testCase.matchAll(/logreq:version" value="([^"]+)"/g)].map((m) => m[1] ?? "");
+        const ids = [...testCase.matchAll(/reqseq:element" value="([^"]+)"/g)].map((m) => m[1] ?? "");
+        const versions = [...testCase.matchAll(/reqseq:version" value="([^"]+)"/g)].map((m) => m[1] ?? "");
         ids.forEach((id, n) => stored.set(id, [...(stored.get(id) ?? []), versions[n] ?? ""]));
       }
     }
@@ -202,7 +202,7 @@ describe("withEvidenceRecords", () => {
       ...runsInOrder
         .map(([, t]) => t)
         .join("")
-        .matchAll(/logreq:variant" value="([^"]+)"/g),
+        .matchAll(/reqseq:variant" value="([^"]+)"/g),
     ];
     expect(named.length).toBeGreaterThan(0);
     expect(named.every((m) => variants.has(m[1] ?? ""))).toBe(true);
@@ -218,7 +218,7 @@ describe("withEvidenceRecords", () => {
     expect(Math.max(...folders.values())).toBeLessThanOrEqual(1000);
     // Pinned: a change of the generator shifts every perf baseline, so it shows here.
     expect(evidence.workspace.digest).toBe(
-      "dce71a1ec33a3e8c7ef2dc0238e84855c3ebfe019f710936c8701a17f8dc8ace",
+      "2b01beeffbec1123f7ec859f9cb7847b8dae9d8d06a3f8cb4a768228b4e4462d",
     );
   });
 
@@ -236,7 +236,7 @@ describe("pytestJunit", () => {
     expect(content.length).toBeGreaterThanOrEqual(50_000);
     expect(content.split("\n")).toHaveLength(2);
     expect(count(content, /<testcase /g)).toBe(testCases);
-    expect(content).not.toContain("logreq:");
+    expect(content).not.toContain("reqseq:");
     const refs = [...content.matchAll(/\[(SR-[0-9a-f]{6})\]/g)].map((m) => m[1]);
     expect(refs).toHaveLength(testCases);
     const tails = generated.elements.map((e) => e.id.slice(-6));

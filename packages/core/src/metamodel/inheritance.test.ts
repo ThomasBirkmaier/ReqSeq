@@ -170,9 +170,9 @@ describe("type inheritance", () => {
     const ws = await fixture({
       files: {
         "model/z-hazard.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: requirement\n    properties: [severty, severity, refines]\n    required:\n      - colour\n  - { key: sub-hazard, name: Sub-hazard, prefix: SHZ, extends: hazard }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: requirement\n    properties: [severty, severity, refines]\n    required:\n      - colour\n  - { key: sub-hazard, name: Sub-hazard, prefix: SHZ, extends: hazard }\n",
         "model/z-relations.yaml":
-          "logreq-metamodel: 1\nrelations:\n  - { key: refines, name: Refines, inverse-name: Refined by }\n",
+          "reqseq-metamodel: 1\nrelations:\n  - { key: refines, name: Refines, inverse-name: Refined by }\n",
       },
     });
     const workspace = open(ws.root);
@@ -208,7 +208,7 @@ describe("type inheritance", () => {
     const ws = await fixture({
       files: {
         "model/z-hazard.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: requirement\n    properties: [severty]\n    required: [colour]\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: requirement\n    properties: [severty]\n    required: [colour]\n",
         "requirements/HAZ-0b1c2d3e4f5a.md":
           "---\nid: 9a8b7c6d-5e4f-4a3b-8c2d-0b1c2d3e4f5a\ntype: hazard\nstatus: draft\ntitle: Ice on the sensor\nseverty: high\n---\n",
       },
@@ -252,7 +252,7 @@ describe("type inheritance", () => {
     const ws = await fixture({
       files: {
         "model/z-hazard.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: risk\n    properties: [title, severty]\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: risk\n    properties: [title, severty]\n",
       },
     });
     const workspace = open(ws.root);
@@ -273,9 +273,9 @@ describe("type inheritance", () => {
   it("does not report an unknown parent or property while a file is faulty, which may define them", async () => {
     const ws = await fixture({
       files: {
-        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
+        "model/z-faulty.yaml": "reqseq-metamodel: 1\ntypes: [\n",
         "model/z-hazard.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: risk\n    required: [colour]\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    extends: risk\n    required: [colour]\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -289,8 +289,8 @@ describe("type inheritance", () => {
   it("reports an inheritance cycle also while a file is faulty", async () => {
     const ws = await fixture({
       files: {
-        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
-        "model/z-cycle.yaml": "logreq-metamodel: 1\ntypes:\n  - { key: c, name: C, prefix: C, extends: c }\n",
+        "model/z-faulty.yaml": "reqseq-metamodel: 1\ntypes: [\n",
+        "model/z-cycle.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: c, name: C, prefix: C, extends: c }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -304,9 +304,9 @@ describe("type inheritance", () => {
     const ws = await fixture({
       files: {
         "model/cycle-a.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: a\n    name: A\n    prefix: A\n    extends: b\n    properties: [title]\n  - key: d\n    name: D\n    prefix: D\n    extends: a\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: a\n    name: A\n    prefix: A\n    extends: b\n    properties: [title]\n  - key: d\n    name: D\n    prefix: D\n    extends: a\n",
         "model/cycle-b.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: b\n    name: B\n    prefix: B\n    extends: a\n    properties: [rationale]\n  - { key: c, name: C, prefix: C, extends: c }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: b\n    name: B\n    prefix: B\n    extends: a\n    properties: [rationale]\n  - { key: c, name: C, prefix: C, extends: c }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -423,7 +423,7 @@ describe("statuses per type (#306)", () => {
     const ws = await fixture({
       files: {
         "model/z-gone.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: gone, name: Gone, prefix: GO, abstract: true, statuses: [withdrawn] }\n  - key: gone-item\n    name: Gone item\n    prefix: GI\n    extends: gone\n  - { key: gone-empty, name: Gone empty, prefix: GE, extends: gone, statuses: [] }\nstatuses:\n  - { key: withdrawn, name: Withdrawn, invalid: true }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: gone, name: Gone, prefix: GO, abstract: true, statuses: [withdrawn] }\n  - key: gone-item\n    name: Gone item\n    prefix: GI\n    extends: gone\n  - { key: gone-empty, name: Gone empty, prefix: GE, extends: gone, statuses: [] }\nstatuses:\n  - { key: withdrawn, name: Withdrawn, invalid: true }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -473,7 +473,7 @@ describe("statuses per type (#306)", () => {
     const ws = await fixture({
       files: {
         "model/z-decision.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: decision\n    name: Decision\n    prefix: D\n    properties: [title]\n    statuses: [approved, withdrawn]\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: decision\n    name: Decision\n    prefix: D\n    properties: [title]\n    statuses: [approved, withdrawn]\n",
       },
     });
     const workspace = open(ws.root);

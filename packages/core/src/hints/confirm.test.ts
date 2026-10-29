@@ -23,9 +23,9 @@ const N_FILE = "needs/N-0a0000000001.md";
 const V_FILE = "variants/V-0c0000000001.md";
 const A_FILE = "requirements/SR-0b0000000001.md";
 const B_FILE = "requirements/SR-0b0000000002.md";
-const N_VERSION = "n1:4a120bac998acdc8";
-const V_VERSION = "n1:b3f17e3d2a46ea1e";
-const A_VERSION = "n1:c432bd0d8bcd0958";
+const N_VERSION = "n1:323df2732ed684b0";
+const V_VERSION = "n1:b72330c9018ce26f";
+const A_VERSION = "n1:e73a2cb229cfa29d";
 const OLD = "n1:0000000000000000";
 /** Where A is stored, as hint IDs name it. */
 const AT_A = `system/${encodeURIComponent(A_FILE)}/${A}`;
@@ -144,7 +144,7 @@ describe("hint.confirm (SR-027)", () => {
     const afterValidity = before.replace(item, item.replace(V_VERSION, currentOf(hints, VALIDITY)));
     expect(read(ws, A_FILE)).toBe(afterValidity);
     await confirm(workspace, [LINK]);
-    const link = `[See the wind](logreq:${N}?version=${N_VERSION})`;
+    const link = `[See the wind](reqseq:${N}?version=${N_VERSION})`;
     expect(read(ws, A_FILE)).toBe(
       afterValidity.replace(link, link.replace(N_VERSION, currentOf(hints, LINK))),
     );
@@ -171,7 +171,7 @@ describe("hint.confirm (SR-027)", () => {
       `  - {id: ${N}, version: "${OLD}", title: 'See the wind'}`,
       "---",
       "",
-      `[One](logreq:${N}?a=1&version=${OLD}&b=2) and [two](logreq:${N}?version=${OLD}) and [three](<logreq:${N}?version=${OLD}>) and [unversioned](logreq:${N}).`,
+      `[One](reqseq:${N}?a=1&version=${OLD}&b=2) and [two](reqseq:${N}?version=${OLD}) and [three](<reqseq:${N}?version=${OLD}>) and [unversioned](reqseq:${N}).`,
       "",
     ].join("\r\n");
     const ws = await fixture({ files: { [A_FILE]: text } });
@@ -197,12 +197,12 @@ describe("hint.confirm (SR-027)", () => {
       text
         .replace(`'${OLD}'   # old`, `'${current}'   # old`)
         .replace(`"${OLD}"`, `"${current}"`)
-        .replace(`<logreq:${N}?version=${OLD}>`, `<logreq:${N}?version=${current}>`),
+        .replace(`<reqseq:${N}?version=${OLD}>`, `<reqseq:${N}?version=${current}>`),
     );
     // n=1 is the first of them; the other parameters stay where they are.
     expect(await confirm(workspace, [link(1)])).toMatchObject({ confirmed: [link(1)] });
     expect(read(ws, A_FILE)).toContain(
-      `[One](logreq:${N}?a=1&version=${current}&b=2) and [two](logreq:${N}?version=${OLD})`,
+      `[One](reqseq:${N}?a=1&version=${current}&b=2) and [two](reqseq:${N}?version=${OLD})`,
     );
   });
 
@@ -262,7 +262,7 @@ describe("hint.confirm (SR-027)", () => {
       files: {
         [B_FILE]: fromFixture(B_FILE)
           .replace(A_VERSION, OLD)
-          .replace("Refines how", `[A](logreq:${A}?version=${OLD}) refines how`),
+          .replace("Refines how", `[A](reqseq:${A}?version=${OLD}) refines how`),
         [C_FILE]: `---\nid: ${C}\ntype: system-requirement\nstatus: draft\ntitle: C\nrequirement-type: functional\nacceptance-criteria: [C]\nrefines:\n  - { id: ${B}, version: ${OLD} }\n---\n`,
       },
     });
@@ -276,7 +276,7 @@ describe("hint.confirm (SR-027)", () => {
     expect((await confirm(workspace, chain.toReversed())).files).toEqual([C_FILE, B_FILE, A_FILE]);
     expect((await outdated(workspace)).map((h) => h.hintId)).toEqual([VALIDITY, DERIVES]);
     // A ring: A's text points at B and B's text at A. Each write changes the other's target.
-    await ws.write(A_FILE, `${read(ws, A_FILE)}\n[B](logreq:${B}?version=${OLD})\n`);
+    await ws.write(A_FILE, `${read(ws, A_FILE)}\n[B](reqseq:${B}?version=${OLD})\n`);
     await workspace.reset(elementStoreState);
     const ring = (await outdated(workspace)).filter(
       (h) => h.code === "relation.outdated" && h.storedVersion === OLD,
@@ -308,8 +308,8 @@ describe("hint.confirm (SR-027)", () => {
   it("[SR-027/AK2] ends a call that confirms both sides of a ring of references, writes both files, and leaves the ring outdated (spec question #281)", async () => {
     const ws = await fixture({
       files: {
-        [A_FILE]: `${fromFixture(A_FILE)}\n[B](logreq:${B}?version=${OLD})\n`,
-        [B_FILE]: `${fromFixture(B_FILE)}\n[A](logreq:${A}?version=${OLD})\n`,
+        [A_FILE]: `${fromFixture(A_FILE)}\n[B](reqseq:${B}?version=${OLD})\n`,
+        [B_FILE]: `${fromFixture(B_FILE)}\n[A](reqseq:${A}?version=${OLD})\n`,
       },
     });
     const workspace = open(ws.root);
@@ -350,7 +350,7 @@ describe("hint.confirm (SR-027)", () => {
       `  - { id: ${V}, version: *v, title: Pro }`,
       "---",
       "",
-      `So that the operator can [See the wind](logreq:${N}?version=${N_VERSION}).`,
+      `So that the operator can [See the wind](reqseq:${N}?version=${N_VERSION}).`,
       "",
     ].join("\n");
     const ws = await fixture({

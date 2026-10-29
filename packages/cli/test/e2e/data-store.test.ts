@@ -64,7 +64,7 @@ const schemaValidator = async (schema: string): Promise<Validate | undefined> =>
 
 /** What the evaluation reads of a line of a stored file: only fields of `$defs/line`. */
 interface StoredLine {
-  readonly "logreq-data": number;
+  readonly "reqseq-data": number;
   readonly commit?: string;
   readonly dirty: boolean;
   readonly id: string;
@@ -95,7 +95,7 @@ const linesOf = (text: string): StoredLine[] => {
 const RAW_JUNIT =
   '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="direction.test.ts">\n' +
   '    <testcase classname="direction.test.ts" name="[SR-0000b3] shows the wind direction"><properties>' +
-  '<property name="logreq:variant" value="61061061-0000-4000-8000-0000000000c2"/></properties></testcase>\n' +
+  '<property name="reqseq:variant" value="61061061-0000-4000-8000-0000000000c2"/></properties></testcase>\n' +
   "  </testsuite>\n</testsuites>\n";
 
 describe("reqseq data store (SR-062)", () => {
@@ -113,7 +113,7 @@ describe("reqseq data store (SR-062)", () => {
     const stored = linesOf(text);
     expect(stored.map((l) => l.shortId)).toHaveLength(9);
     for (const line of stored) {
-      expect([line.shortId, line["logreq-data"], line.commit, line.dirty]).toEqual([
+      expect([line.shortId, line["reqseq-data"], line.commit, line.dirty]).toEqual([
         line.shortId,
         2,
         commit,

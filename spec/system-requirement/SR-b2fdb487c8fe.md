@@ -12,12 +12,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Ablage und Repositories"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:f5900659a91cb0df, title: "Stufe 1: Fundament" }
+  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:7315eea66e551d94, title: "Stufe 1: Fundament" }
 derives-from:
-  - { id: 6ad4f636-3b68-4ace-a3be-12ebdcba9b2a, version: n1:b72c11dc833cc242, title: Ein oder viele Repositories }
+  - { id: 6ad4f636-3b68-4ace-a3be-12ebdcba9b2a, version: n1:fb6a0af7414140ba, title: Ein oder viele Repositories }
 based-on:
-  - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n1:1b21638ff73567ba, title: Das Metamodell gehört zum Stand }
-  - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n1:e5c63949e3f1d81b, title: Arbeitsbereich als Datei }
+  - { id: 6adc5317-4e70-4297-942b-10bf39e10d85, version: n1:180d45183746b285, title: Das Metamodell gehört zum Stand }
+  - { id: 6adc6921-ddaf-4756-954c-0072d0fc0739, version: n1:c4e82ee52111436d, title: Arbeitsbereich als Datei }
 ---
 
 Das Tool muss die Repositories eines Arbeitsbereichs aus der Arbeitsbereichs-Datei im Haupt-Repository lesen und alle lokal vorhandenen gemeinsam öffnen.

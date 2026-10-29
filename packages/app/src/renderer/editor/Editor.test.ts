@@ -354,7 +354,7 @@ describe("Editor", () => {
 
   describe("inline references", () => {
     const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
-    const TEXT = `Before [D-017](logreq:${ID}?version=n1:aa) after\n\nsecond line`;
+    const TEXT = `Before [D-017](reqseq:${ID}?version=n1:aa) after\n\nsecond line`;
     const follow = vi.fn<(reference: Reference) => void>();
     const mousedown = (target: Element, init: MouseEventInit = {}): MouseEvent => {
       const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0, ...init });
@@ -377,7 +377,7 @@ describe("Editor", () => {
         id: ID,
         version: "n1:aa",
         from: 7,
-        to: 7 + `[D-017](logreq:${ID}?version=n1:aa)`.length,
+        to: 7 + `[D-017](reqseq:${ID}?version=n1:aa)`.length,
       });
     });
 

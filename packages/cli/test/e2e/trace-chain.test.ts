@@ -197,7 +197,7 @@ describe("reqseq trace chain follows the meaning derivation (SR-013)", () => {
       files: {
         ...OWN.files,
         "model/relations.yaml":
-          "logreq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, inverse-name: Satisfied by }\n",
+          "reqseq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, inverse-name: Satisfied by }\n",
       },
     });
     const human = await reqseq(["trace", "chain", "W-0000f1"], ws.root);
@@ -262,10 +262,10 @@ describe("reqseq trace chain: test cases and executions (SR-033)", () => {
       files: {
         "evidence/2026-10-19-SR-33b001-test.md": [
           "---",
-          "logreq-record: 1",
+          "reqseq-record: 1",
           "kind: verification",
           `element: ${Q}b001`,
-          "version: n1:7eb1cc5815e307fa",
+          "version: n1:477785ae73c91542",
           "method: test",
           "item: Prototype P2",
           "result: passed",

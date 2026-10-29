@@ -2,7 +2,7 @@
 spec/**
 !spec/metamodel/
 !spec/metamodel/*.yaml
-!spec/logreq-workspace.yaml
+!spec/reqseq-workspace.yaml
 pnpm-lock.yaml
 scripts/spec-export/raw/
 schemas/generated/

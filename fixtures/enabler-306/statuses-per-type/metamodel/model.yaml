@@ -1,6 +1,6 @@
 # Statuses per type (#306): the top-level statuses are the vocabulary; a type restricts them with
 # `statuses`, inherited like properties. Needs have every status, glossary terms have none.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: need

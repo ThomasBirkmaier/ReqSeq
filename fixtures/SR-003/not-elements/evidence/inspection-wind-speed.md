@@ -1,5 +1,5 @@
 ---
-logreq-record: 1
+reqseq-record: 1
 kind: verification
 element: e20fc471-6776-4698-bc3b-1ee3f1697bfe
 version: n1:0000000000000000

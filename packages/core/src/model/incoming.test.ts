@@ -33,7 +33,7 @@ const MISSING = uuid(8);
 const A1 = uuid(9);
 
 const WORKSPACE = [
-  "logreq-workspace: 1",
+  "reqseq-workspace: 1",
   "name: Incoming",
   "repositories:",
   "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -47,7 +47,7 @@ const WORKSPACE = [
 
 /** A relation-valued property with one target (not `many`), next to the standard model. */
 const EXTRA_MODEL = [
-  "logreq-metamodel: 1",
+  "reqseq-metamodel: 1",
   "properties:",
   "  - { key: predecessor, name: Predecessor, kind: relation }",
   "",
@@ -77,16 +77,16 @@ const S1_FILE = element(
   ],
   [
     "",
-    `See [the need](logreq:${N1}?version=${V}).`,
+    `See [the need](reqseq:${N1}?version=${V}).`,
     "",
-    `And [P](logreq:${P1}?version=${V}&repository=platform), [old P](logreq:${P1}?version=${V}),`,
-    `[gone](logreq:${MISSING}?version=${V}) and [twice](logreq:${DUP}?version=${V}).`,
+    `And [P](reqseq:${P1}?version=${V}&repository=platform), [old P](reqseq:${P1}?version=${V}),`,
+    `[gone](reqseq:${MISSING}?version=${V}) and [twice](reqseq:${DUP}?version=${V}).`,
     "",
   ].join("\n"),
 );
 
 const FILES = {
-  "system/logreq-workspace.yaml": WORKSPACE,
+  "system/reqseq-workspace.yaml": WORKSPACE,
   "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   "system/metamodel/extra.yaml": EXTRA_MODEL,
   "system/needs/N-000000000001.md": element(N1, "need"),
@@ -343,7 +343,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     await updateElement(workspace, {
       ref: S2,
       set: { validity: [{ id: VAR1 }], packages: [{ id: P1, repository: "platform" }] },
-      text: `See [the need](logreq:${N1}?version=${V}).\n`,
+      text: `See [the need](reqseq:${N1}?version=${V}).\n`,
     });
     const updated = await expectCarried(fixture, workspace);
     expect(updated.relationsById.get(N1)?.[0]).toBe(index.relationsById.get(N1)?.[0]);
@@ -366,7 +366,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     await createElement(workspace, {
       type: "need",
       title: "New",
-      text: `Points at [the need](logreq:${N1}?version=${V}).\n`,
+      text: `Points at [the need](reqseq:${N1}?version=${V}).\n`,
     });
     const created = await expectCarried(fixture, workspace);
     expect(created.referencesById.get(N1)?.map((l) => l.source.file)).toEqual([
@@ -383,7 +383,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     await indexNow(workspace);
     await updateElement(workspace, {
       ref: S2,
-      set: { "acceptance-criteria": [`Then [the need](logreq:${N1}?version=${V}).`] },
+      set: { "acceptance-criteria": [`Then [the need](reqseq:${N1}?version=${V}).`] },
     });
     const saved = await expectCarried(fixture, workspace);
     const criterion = (l: IncomingLink): unknown =>
@@ -395,7 +395,7 @@ describe("incoming relation index carried over a change of the store (ADR-0008, 
     ).toContainEqual([S2, "acceptance-criteria", 0]);
     await external(fixture, workspace, {
       "system/requirements/SR-000000000003.md": element(S2, "system-requirement", [
-        `acceptance-criteria:\n  - Plain.\n  - "Also [P](logreq:${P1}?version=${V}&repository=platform)"`,
+        `acceptance-criteria:\n  - Plain.\n  - "Also [P](reqseq:${P1}?version=${V}&repository=platform)"`,
       ]),
     });
     const changed = await expectCarried(fixture, workspace);

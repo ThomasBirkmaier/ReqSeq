@@ -1,4 +1,4 @@
-logreq-filter: 1
+reqseq-filter: 1
 name: Stage SRs
 where:
   all:

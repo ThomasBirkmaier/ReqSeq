@@ -1,4 +1,4 @@
-logreq-reqif-mapping: 1
+reqseq-reqif-mapping: 1
 source: { name: ACME, tool-id: DOORS Next }
 target: { repository: system, path: imported/acme }
 types:

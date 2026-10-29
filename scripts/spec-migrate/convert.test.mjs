@@ -151,12 +151,12 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
     // Links: everything but rings, self mentions, code and the test-name example.
     expect(read(ws, "system-requirement", U.sr1)).toMatch(
       new RegExp(
-        `\\(\\[D-001\\]\\(logreq:${U.d1}\\?version=n1:[0-9a-f]{16}\\), \\[D-003\\]\\(logreq:${U.d3}\\?version=n1:[0-9a-f]{16}\\)\\), siehe \`D-002\` und \\[N-001/AK2\\]\\.\\n\\n\`\`\`\\nD-002 im Code\\n\`\`\`\\n$`,
+        `\\(\\[D-001\\]\\(reqseq:${U.d1}\\?version=n1:[0-9a-f]{16}\\), \\[D-003\\]\\(reqseq:${U.d3}\\?version=n1:[0-9a-f]{16}\\)\\), siehe \`D-002\` und \\[N-001/AK2\\]\\.\\n\\n\`\`\`\\nD-002 im Code\\n\`\`\`\\n$`,
       ),
     );
-    expect(read(ws, "decision", U.d2)).toContain("Ring mit D-001, Verweis auf [D-003](logreq:");
+    expect(read(ws, "decision", U.d2)).toContain("Ring mit D-001, Verweis auf [D-003](reqseq:");
     expect(read(ws, "decision", U.d1)).toContain("Ring mit D-002.");
-    expect(read(ws, "need", U.n2)).toMatch(/Abgelöst durch \[N-001\]\(logreq:[^)]+\); N-002 selbst\.\n$/);
+    expect(read(ws, "need", U.n2)).toMatch(/Abgelöst durch \[N-001\]\(reqseq:[^)]+\); N-002 selbst\.\n$/);
     expect(read(ws, "decision", U.d3)).toBe(
       `---\nid: ${U.d3}\ntype: decision\nstatus: accepted\ntitle: "Drei"\nspec-id: "D-003"\n---\n\nKein Verweis.\n`,
     );
@@ -243,7 +243,7 @@ describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
     const stats = { linked: 0, self: 0, example: 0, unknown: [], ring: [] };
     const text = "Siehe (D-001) und `D-001` und [D-001](https://x) und D-0012.\n";
     const linked = linkMentions(text, "N-001", new Map([["D-001", U.d1]]), stats);
-    expect(linked).toBe(`Siehe ([D-001](logreq:${U.d1})) und \`D-001\` und [D-001](https://x) und D-0012.\n`);
+    expect(linked).toBe(`Siehe ([D-001](reqseq:${U.d1})) und \`D-001\` und [D-001](https://x) und D-0012.\n`);
     expect(unlink(linked)).toBe(text);
     expect(stats.linked).toBe(1);
   });

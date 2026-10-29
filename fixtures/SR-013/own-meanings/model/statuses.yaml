@@ -1,4 +1,4 @@
-logreq-metamodel: 1
+reqseq-metamodel: 1
 statuses:
   - { key: open, name: Open, initial: true }
   - { key: withdrawn, name: Withdrawn, invalid: true }

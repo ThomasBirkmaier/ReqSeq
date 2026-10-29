@@ -11,11 +11,11 @@ acceptance-criteria:
 verification-method: test
 topic: "Varianten"
 packages:
-  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n1:54e1ce86e105e590, title: "Stufe 5: Pakete, Baselines und Varianten" }
+  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n1:6b74dcb250ac00c8, title: "Stufe 5: Pakete, Baselines und Varianten" }
 derives-from:
-  - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:4e36884ccd4580cf, title: Unterschied zum Kern erkennbar }
+  - { id: 6ad3a422-7a13-458e-87c5-cf0c3829c511, version: n1:674bb62923239dd9, title: Unterschied zum Kern erkennbar }
 based-on:
-  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n1:25b099d02473c3e0, title: Unterschiede zeigt die Versionsverwaltung }
+  - { id: 6adc615d-b1c4-489a-8843-ecc4593d0bf6, version: n1:b966e12f6fc9ba93, title: Unterschiede zeigt die Versionsverwaltung }
 ---
 
 Das Tool muss für jede Variante zeigen, welche Requirements sie gegenüber dem Kern ergänzt, ersetzt oder ausschließt.

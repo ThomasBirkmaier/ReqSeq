@@ -3,7 +3,7 @@
 # each type and property meaning exactly one, derivation and replacement two relation kinds each
 # (open question #150).
 # Marked "assumption": not yet covered by a decision.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: need

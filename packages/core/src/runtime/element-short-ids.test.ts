@@ -777,7 +777,7 @@ describe("every command names the short ID of the element of each problem (#315)
 
   it("gives the same short IDs against an invalid metamodel, whatever ran before on the workspace (SR-080 AK2)", async () => {
     const files = {
-      "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: 5\n",
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n",
       "needs/N-1111110000a1.md": "---\nid: " + N1 + "\ntype: need\nstatus: draft\ntitle: Copy\n---\n",
     };
     const checked = async (warm: boolean): Promise<CommandOutput<"workspace.check">> => {

@@ -133,7 +133,7 @@ export const comparableContent = (input: VersionInput): string => contentOf(inpu
 
 function contentOf(input: VersionInput, nonFinite: NonFinite): string {
   // The text is one JSON string line, so no text can look like a `prop` or `file` section.
-  const parts = [`logreq-version ${NORMAL_FORM}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
+  const parts = [`reqseq-version ${NORMAL_FORM}\n`, `text\n${JSON.stringify(normalizeText(input.text))}\n`];
   const counted = input.definitions.filter((d) => d.content === true);
   for (const def of counted.sort((a, b) => byCodePoint(a.key, b.key))) {
     // Own keys only: a property key such as `constructor` must not read Object.prototype.

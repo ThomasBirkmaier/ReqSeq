@@ -13,13 +13,13 @@ acceptance-criteria:
 verification-method: test
 topic: Bearbeiten und Finden
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:3ec49c0d5a7866d3, title: "Stufe 3: Oberfläche" }
+  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:06520a1e692d8288, title: "Stufe 3: Oberfläche" }
 derives-from:
-  - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:7ea137b2c763b6b2, title: Nur Aussagekräftiges sehen }
+  - { id: d546b567-fda6-410d-a379-78deec04bfe2, version: n1:ff4acfc7f0085726, title: Nur Aussagekräftiges sehen }
 based-on:
-  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n1:ce1d13c56aad179c, title: Oberfläche als weißes Blatt }
+  - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n1:b92a8ab44c7ea641, title: Oberfläche als weißes Blatt }
 refines:
-  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n1:203241827a27aca5, title: In Buffern arbeiten }
+  - { id: 0f759f3b-b03d-42f5-a38a-b0ca831ca864, version: n1:6369c855fdfd8f58, title: In Buffern arbeiten }
 ---
 
 Die App muss alle offenen Buffer mit einem Befehl schließen lassen.

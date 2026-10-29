@@ -307,12 +307,12 @@ describe("invoke (product runtime)", () => {
 
   it("runs on a fixture workspace and reports catalog commands without implementation", async () => {
     const fixture = await createFixtureWorkspace({
-      files: { "logreq-workspace.yaml": "logreq-workspace: 1\n" },
+      files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\n" },
       git: true,
     });
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
-    expect(fs.existsSync(fixture.path("logreq-workspace.yaml"))).toBe(true);
+    expect(fs.existsSync(fixture.path("reqseq-workspace.yaml"))).toBe(true);
     // baseline.list is a stage 5 command: in the catalog, not implemented yet.
     const err = await rejection(invoke("baseline.list", {}, { workspace: ws }));
     expect(err.toJSON()).toEqual({

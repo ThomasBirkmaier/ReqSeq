@@ -181,7 +181,7 @@ describe("the header of an export", () => {
     };
     const out = exportHeader({ ...header, selection: { package: "PKG-0000d1" } });
     expect(out).toEqual({
-      "logreq-data": 2,
+      "reqseq-data": 2,
       commit: "0123456789abcdef0123456789abcdef01234567",
       dirty: true,
       workspace: "Weather station",
@@ -190,8 +190,8 @@ describe("the header of an export", () => {
       repositories: header.repositories,
       incomplete: true,
     });
-    // `logreq-data` first, then the state: the order of every line of the JSON Lines form.
-    expect(Object.keys(out).slice(0, 3)).toEqual(["logreq-data", "commit", "dirty"]);
+    // `reqseq-data` first, then the state: the order of every line of the JSON Lines form.
+    expect(Object.keys(out).slice(0, 3)).toEqual(["reqseq-data", "commit", "dirty"]);
     expect(exportHeader({ ...header, selection: undefined })).not.toHaveProperty("selection");
   });
 

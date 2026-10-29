@@ -1,5 +1,0 @@
-logreq-workspace: 1
-name: Spec in code
-repositories:
-  - { name: spec, url: "git@git.example.com:ws/tool.git", main: true }
-metamodel: { repository: spec, path: metamodel }

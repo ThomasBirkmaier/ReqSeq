@@ -1,5 +1,5 @@
 # Unknown properties and types (SR-016): one type with a title, two more properties and a relation kind.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: system-requirement

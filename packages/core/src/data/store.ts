@@ -20,11 +20,11 @@
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
 //   - an existing file of the name is replaced only when it is a ReqSeq data file (its first line starts
-//     with `"logreq-data"` 2 or later, and valid UTF-8; `jsonl-data.ts` of the files block, #319),
+//     with `"reqseq-data"` 2 or later, and valid UTF-8; `jsonl-data.ts` of the files block, #319),
 //     read in pieces under its snapshot and the `jsonl` guard, which checks the same way; anything else
 //     is `input.invalid` and stays as it is. Old `<commit>.json` files are neither read nor replaced.
 // - The content is the JSON Lines of `data export --jsonl` (`jsonLines` with `DATA_LINES`, the
-//   catalog's `jsonLines` of data.export): per element `logreq-data`, `commit` and `dirty`, then the
+//   catalog's `jsonLines` of data.export): per element `reqseq-data`, `commit` and `dirty`, then the
 //   element; compact, LF, UTF-8 without BOM (K5). It is written in chunks, never as one string, which
 //   V8 cannot hold at N-036 (#277).
 // - `files` is relative to the workspace root when the file lies in a repository, else absolute.
@@ -51,7 +51,7 @@ export const dataFileName = (commit: string, clean: boolean): string =>
   `${commit}${clean ? "" : "-dirty"}.jsonl`;
 
 /** The lines of the file: the catalog's `jsonLines` of data.export (a test keeps them equal). */
-export const DATA_LINES: JsonLinesSpec = { items: "elements", fields: ["logreq-data", "commit", "dirty"] };
+export const DATA_LINES: JsonLinesSpec = { items: "elements", fields: ["reqseq-data", "commit", "dirty"] };
 
 /** How `storeData` reads what it does not get from the workspace (tests). */
 export interface StoreOptions extends ExportOptions {

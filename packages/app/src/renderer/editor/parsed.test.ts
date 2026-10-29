@@ -16,7 +16,7 @@ import { referenceAt, referencesIn } from "./references.js";
 import { opensMenu } from "./slash-entries.js";
 
 const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
-const REFERENCE = `[D-017](logreq:${ID}?version=n1:1aac78aad3b5e6a8)`;
+const REFERENCE = `[D-017](reqseq:${ID}?version=n1:1aac78aad3b5e6a8)`;
 /** Blocks before the place a test is about, so a parse cut short does not reach it. */
 const BEFORE = "One.\n\nTwo.\n\nThree.\n\n";
 

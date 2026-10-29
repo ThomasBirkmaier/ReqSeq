@@ -18,11 +18,11 @@ import { EVIDENCE_READERS, evidenceReadState, evidenceRecordsState } from "./sta
 /** Requirement A (current record) and B (record of an older version) of the fixture. */
 const A = "3c3c3c3c-3333-4333-8333-0d0000000001";
 const B = "3c3c3c3c-3333-4333-8333-0d0000000002";
-const A_VERSION = "n1:e62ed39c555648e2";
-const B_VERSION = "n1:1b52356e55a694d7";
+const A_VERSION = "n1:de6d3ed288b0f3de";
+const B_VERSION = "n1:7db6e9d75d39b846";
 
 const WORKSPACE_FILE =
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
   '  - { name: ci-results, url: "git@git.example.com:ci/ci-results.git" }\n' +
   "metamodel: { repository: system, path: metamodel }\nevidence:\n" +
@@ -86,7 +86,7 @@ const read = (text: string | Uint8Array): ReturnType<typeof readMarkdownRecord> 
 const record = (extra = "", eol = "\n"): string =>
   [
     "---",
-    "logreq-record: 1",
+    "reqseq-record: 1",
     "kind: verification",
     `element: ${A}`,
     `version: ${A_VERSION}`,
@@ -175,7 +175,7 @@ describe("SR-028 reading Markdown records", () => {
   it("[SR-028/AK1] reads every record in the evidence folders of the workspace file, nested folders included", async () => {
     const own = record().replace("item: model v3", "item: model v4");
     const { workspace } = await open({
-      "system/logreq-workspace.yaml": `${WORKSPACE_FILE}  - { repository: system, path: verification }\n`,
+      "system/reqseq-workspace.yaml": `${WORKSPACE_FILE}  - { repository: system, path: verification }\n`,
       "system/verification/deep/er/2026-10-22-SR-000001-analysis.md": own,
     });
     expect(EVIDENCE_READERS).toContain(MARKDOWN_READER);
@@ -219,10 +219,10 @@ describe("SR-028 reading Markdown records", () => {
     ]);
   });
 
-  it("[SR-028/AK2] a Markdown file without logreq-record in an evidence folder is no record", async () => {
+  it("[SR-028/AK2] a Markdown file without reqseq-record in an evidence folder is no record", async () => {
     const { workspace } = await open({
       "ci-results/evidence/notes.md": "# Notes\n\nNo frontmatter at all.\n",
-      "ci-results/evidence/list.md": "---\n- logreq-record\n---\n",
+      "ci-results/evidence/list.md": "---\n- reqseq-record\n---\n",
       "ci-results/evidence/odd.md": "---\ntitle: !odd x\n---\n",
     });
     // README.md of the fixture has frontmatter without the key; odd.md's YAML warning is not shown either.
@@ -281,8 +281,8 @@ describe("SR-028 reading Markdown records", () => {
         },
       ],
     });
-    // `logreq-record` of another value is a faulty record, not a file to skip.
-    expect(read(record().replace("logreq-record: 1", "logreq-record: 2")).problems).toMatchObject([
+    // `reqseq-record` of another value is a faulty record, not a file to skip.
+    expect(read(record().replace("reqseq-record: 1", "reqseq-record: 2")).problems).toMatchObject([
       { code: "evidence.invalid-record", line: 2 },
     ]);
   });
@@ -386,7 +386,7 @@ describe("SR-028 reading Markdown records", () => {
         },
       ],
     });
-    expect(read("---\nlogreq-record: [1\n---\n").problems).toMatchObject([
+    expect(read("---\nreqseq-record: [1\n---\n").problems).toMatchObject([
       { code: "file.invalid-yaml", repository: "results", file: "evidence/r.md", line: 2 },
     ]);
   });

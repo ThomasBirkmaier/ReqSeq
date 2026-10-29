@@ -438,8 +438,8 @@ describe("element.list (SR-069)", () => {
     const ws = await open({
       ...FILTER,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
           '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n",
@@ -538,7 +538,7 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
 
   it("refuses a choice given by a display name that names several choices (#309)", async () => {
     const odd =
-      "logreq-metamodel: 1\nproperties:\n  - key: level\n    name: Level\n    kind: choice\n    choices:\n      - { key: high, name: Low }\n      - { key: low, name: High }\n";
+      "reqseq-metamodel: 1\nproperties:\n  - key: level\n    name: Level\n    kind: choice\n    choices:\n      - { key: high, name: Low }\n      - { key: low, name: High }\n";
     const ws = await open({ ...FILTER, files: { "metamodel/odd.yaml": odd } });
     expect(await refused(ws, { property: "level", op: "eq", value: "HIGH" })).toEqual({
       code: "input.invalid",
@@ -577,12 +577,12 @@ describe("element.list refuses what it cannot do yet, and wrong conditions", () 
 
   it("refuses a condition whose meaning no key of the metamodel has (SR-013 AK3)", async () => {
     const bare =
-      "logreq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
+      "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
       "  - { key: title, name: Title, kind: text, meaning: title }\nrelations:\n" +
       "  - { key: derives-from, name: Derives from, inverse-name: Derived by }\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n";
     const ws = await open({
       ...FILTER,
-      files: { "metamodel/standard-model.yaml": bare, "metamodel/software.yaml": "logreq-metamodel: 1\n" },
+      files: { "metamodel/standard-model.yaml": bare, "metamodel/software.yaml": "reqseq-metamodel: 1\n" },
     });
     const meaning = async (condition: unknown): Promise<unknown> => {
       const error = await failure(ws, { selection: { where: condition } });

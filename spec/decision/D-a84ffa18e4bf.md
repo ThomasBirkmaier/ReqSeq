@@ -12,4 +12,4 @@ Eine Prüfung in der Pipeline lässt einen Pull Request scheitern, wenn er kein 
 
 Analyse, Inspektion und Demonstration werden als Protokoll im Repository festgehalten und bei der Abnahme der Stufe von einem Menschen bestätigt.
 
-Grund: Die JUnit-Dateien sind genau die Datensätze, die das Tool als Nachweis lesen soll ([D-026](logreq:6adc58f5-a349-4870-af2f-971ec1cee679?version=n1:9355a14c6f926710)). Spätestens ab Stufe 4 berechnet das Tool die Abdeckung der eigenen Spec.
+Grund: Die JUnit-Dateien sind genau die Datensätze, die das Tool als Nachweis lesen soll ([D-026](reqseq:6adc58f5-a349-4870-af2f-971ec1cee679?version=n1:adee5264c0b69be1)). Spätestens ab Stufe 4 berechnet das Tool die Abdeckung der eigenen Spec.

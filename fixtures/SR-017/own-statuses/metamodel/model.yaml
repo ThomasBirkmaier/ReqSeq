@@ -1,5 +1,5 @@
 # A metamodel with statuses of its own (SR-017): none of the standard model's draft, approved, obsolete.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: requirement

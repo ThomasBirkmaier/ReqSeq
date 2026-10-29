@@ -110,7 +110,7 @@ const readLines = (file: string): Line[] => {
 /** The lines `data` gives: its state, then each element (SR-062 AK1, #319). */
 const linesOf = (data: Data): Line[] =>
   data.elements.map((element) => ({
-    "logreq-data": 2,
+    "reqseq-data": 2,
     ...(data.commit === undefined ? {} : { commit: data.commit }),
     dirty: data.dirty,
     ...element,
@@ -162,7 +162,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(lines).toHaveLength(exported.elements.length);
     expect(lines).toEqual(linesOf(exported));
     for (const line of text.slice(0, -1).split("\n")) {
-      expect(line.startsWith(`{"logreq-data":2,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
+      expect(line.startsWith(`{"reqseq-data":2,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
     }
   });
 
@@ -200,7 +200,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     await storeIn(ws.root, { folder: "out" });
     const first = fs.readFileSync(file, "utf8");
     // An older file of ReqSeq: its first line is enough (review PS3), also when a crash cut it.
-    const old = `{"logreq-data":2,"commit":"${commit}","dirty":false,"id":"older"}\n{"logreq-data":2,"ti`;
+    const old = `{"reqseq-data":2,"commit":"${commit}","dirty":false,"id":"older"}\n{"reqseq-data":2,"ti`;
     fs.writeFileSync(file, old);
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
       files: [`out/${commit}.jsonl`],
@@ -217,7 +217,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
   it("[SR-062/AK1] leaves an old <commit>.json as it is and writes <commit>.jsonl next to it", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    const old = '{"logreq-data":1,"workspace":"W","elements":[]}\n';
+    const old = '{"reqseq-data":1,"workspace":"W","elements":[]}\n';
     await ws.write(`out/${commit}.json`, old);
     expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
     expect(namesIn(ws.path("out"))).toEqual([`${commit}.json`, `${commit}.jsonl`]);
@@ -365,7 +365,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     expect(await dirtyAfter(ws, () => undefined)).toBe(false);
     expect(
       await dirtyAfter(ws, () => {
-        append(ws, "logreq-workspace.yaml", "# changed\n");
+        append(ws, "reqseq-workspace.yaml", "# changed\n");
       }),
     ).toBe(true);
     expect(
@@ -388,7 +388,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
         append(ws, "README.md", "Changed.\n");
       }),
     ).toBe(true);
-    expect(await dirtyAfter(ws, () => ws.write("baselines/release-2.yml", "logreq-baseline: 1\n"))).toBe(
+    expect(await dirtyAfter(ws, () => ws.write("baselines/release-2.yml", "reqseq-baseline: 1\n"))).toBe(
       true,
     );
   });
@@ -480,7 +480,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "evidence/2026-10-20-SR-a1-test.md", "More.\n");
     });
     await unchanged(() => ws.write("evidence/ci/run.xml", "<testsuites/>\n"));
-    await unchanged(() => ws.write(".logreq/local.yaml", "logreq-local: 1\n"));
+    await unchanged(() => ws.write(".reqseq/local.yaml", "reqseq-local: 1\n"));
     await unchanged(() => {
       append(ws, "src/tool.py", "MORE = 2\n");
     });
@@ -488,10 +488,10 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "generated/notes.md", "More.\n");
     });
     await unchanged(() =>
-      ws.write("out/0000000000000000000000000000000000000000.jsonl", '{"logreq-data":2,"dirty":false}\n'),
+      ws.write("out/0000000000000000000000000000000000000000.jsonl", '{"reqseq-data":2,"dirty":false}\n'),
     );
     await unchanged(() =>
-      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":1}\n'),
+      ws.write("out/0000000000000000000000000000000000000000.json", '{"reqseq-data":1}\n'),
     );
     await unchanged(() => ws.write("metamodel/extra.json", "{}\n"));
     await unchanged(() => ws.write("requirements/notes.MD", "Not an element file name.\n"));
@@ -612,8 +612,8 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     const json = await fixture({
       fixture: "SR-062/store",
       files: {
-        "logreq-workspace.yaml": fs
-          .readFileSync(ws.path("logreq-workspace.yaml"), "utf8")
+        "reqseq-workspace.yaml": fs
+          .readFileSync(ws.path("reqseq-workspace.yaml"), "utf8")
           .replace('  - "generated/**"', '  - "generated/**"\n  - "**/*.jsonl"'),
       },
       git: true,
@@ -712,16 +712,16 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     const ws = await fixture();
     const commit = await ws.head();
     // Not ReqSeq's: the old JSON form of version 1, another first line, a byte order mark, a first key
-    // other than logreq-data, a first line cut inside the signature.
+    // other than reqseq-data, a first line cut inside the signature.
     for (const text of [
-      '{"logreq-data":1}\n',
-      '{"logreq-data":1,"workspace":"W","elements":[]}\n',
+      '{"reqseq-data":1}\n',
+      '{"reqseq-data":1,"workspace":"W","elements":[]}\n',
       "[1]\n",
       "null\n",
       "not json\n",
-      '\ufeff{"logreq-data":2}\n',
-      '{"id":"a","logreq-data":2}\n',
-      '{"logreq-data":2',
+      '\ufeff{"reqseq-data":2}\n',
+      '{"id":"a","reqseq-data":2}\n',
+      '{"reqseq-data":2',
     ]) {
       await ws.write(`out/${commit}.jsonl`, text);
       const error = await failure(ws.root, { folder: "out" });
@@ -735,7 +735,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     await ws.write(
       `out/${commit}.jsonl`,
       Buffer.concat([
-        Buffer.from('{"logreq-data":2,"dirty":false}\n{"t":"'),
+        Buffer.from('{"reqseq-data":2,"dirty":false}\n{"t":"'),
         Buffer.from([0xff]),
         Buffer.from('"}\n'),
       ]),
@@ -751,7 +751,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     async () => {
       const ws = await fixture();
       const commit = await ws.head();
-      await ws.write(`out/${commit}.jsonl`, '{"logreq-data":2,"dirty":false}\n');
+      await ws.write(`out/${commit}.jsonl`, '{"reqseq-data":2,"dirty":false}\n');
       fs.chmodSync(ws.path(`out/${commit}.jsonl`), 0o444);
       expect((await failure(ws.root, { folder: "out" })).code).toBe("file.read-only");
     },
@@ -848,7 +848,7 @@ describe("data.store: selection and read-only workspace", () => {
 
   it("data.store is refused with workspace.read-only while the metamodel is faulty", async () => {
     const ws = await fixture();
-    fs.writeFileSync(ws.path("metamodel/standard-model.yaml"), "logreq-metamodel: 1\ntypes: nope\n");
+    fs.writeFileSync(ws.path("metamodel/standard-model.yaml"), "reqseq-metamodel: 1\ntypes: nope\n");
     const error = await failure(ws.root, { folder: "out" });
     expect(error.code).toBe("workspace.read-only");
     expect(fs.existsSync(ws.path("out"))).toBe(false);
@@ -860,8 +860,8 @@ describe("data.store: nested repositories", () => {
     const ws = await fixture({
       fixture: "SR-062/store",
       files: {
-        "logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: Nested\nrepositories:\n  - { name: system, url: "u", main: true }\n' +
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: Nested\nrepositories:\n  - { name: system, url: "u", main: true }\n' +
           '  - { name: inner, url: "v", path: inner }\nmetamodel: { repository: system, path: metamodel }\n',
         "inner/requirements/SR-0000000000c1.md":
           "---\nid: 62062062-0000-4000-8000-0000000000c1\ntype: system-requirement\nstatus: draft\ntitle: Inner\n---\n",

@@ -293,7 +293,7 @@ describe("element.facets (#425)", () => {
       files: {
         ...EXTRA,
         "metamodel/ids.yaml":
-          "logreq-metamodel: 1\nproperties:\n  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\ntypes:\n  - { key: package, name: Package, prefix: PKG, properties: [spec-id] }\n",
+          "reqseq-metamodel: 1\nproperties:\n  - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }\ntypes:\n  - { key: package, name: Package, prefix: PKG, properties: [spec-id] }\n",
         "packages/PKG-0000000000d1.md": `---\nid: ${P1}\ntype: package\nstatus: approved\ntitle: Sensors\nspec-id: P-1\n---\n`,
       },
     });
@@ -332,7 +332,7 @@ describe("element.facets (#425)", () => {
       ...FILTER,
       files: {
         "metamodel/graded.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: graded, name: Graded, prefix: GRD, extends: system-requirement, properties: [grade] }\nproperties:\n  - { key: grade, name: Grade, kind: choice }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: graded, name: Graded, prefix: GRD, extends: system-requirement, properties: [grade] }\nproperties:\n  - { key: grade, name: Grade, kind: choice }\n",
         "requirements/GRD-0000000000a9.md": `---\nid: ${P}a9\ntype: graded\nstatus: draft\ntitle: Graded\nrequirement-type: functional\nacceptance-criteria: [Given a9]\ngrade: A\n---\n`,
       },
     });
@@ -458,8 +458,8 @@ describe("element.facets (#425)", () => {
     const ws = await open({
       ...FILTER,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
           '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n",

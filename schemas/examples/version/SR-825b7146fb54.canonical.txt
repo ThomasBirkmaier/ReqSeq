@@ -1,6 +1,6 @@
-logreq-version n1
+reqseq-version n1
 text
-"The display shows the wind speed in large digits, readable from three metres.\nUnit and rounding follow [Wind speed visible at a glance](logreq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:e6d4dfefa66d5095).\n\n| Wind | Display |\n|------|---------|\n| 12.4 m/s | 12 |\n\n![Layout](SR-825b7146fb54/layout.png)"
+"The display shows the wind speed in large digits, readable from three metres.\nUnit and rounding follow [Wind speed visible at a glance](reqseq:878e339e-1f73-4746-abab-42cdd0f51ca7?version=n1:4d6e3c81753d1f36).\n\n| Wind | Display |\n|------|---------|\n| 12.4 m/s | 12 |\n\n![Layout](SR-825b7146fb54/layout.png)"
 prop acceptance-criteria
 ["Given the station is running, when wind is measured, then the display shows the speed in digits at least 30 mm high.","Given no measurement for 10 s, when the display refreshes, then it shows \"--\"."]
 prop emergent

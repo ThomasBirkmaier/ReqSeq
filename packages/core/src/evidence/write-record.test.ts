@@ -46,7 +46,7 @@ const REPOSITORIES =
 
 /** A workspace file of the SR-030 fixture with `rest` (evidence, ignore, more repositories) appended. */
 const workspaceFile = (rest: string, repositories = ""): string =>
-  `logreq-workspace: 1\nname: Weather station\n${REPOSITORIES}${repositories}metamodel: { repository: system, path: metamodel }\n${rest}`;
+  `reqseq-workspace: 1\nname: Weather station\n${REPOSITORIES}${repositories}metamodel: { repository: system, path: metamodel }\n${rest}`;
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -121,19 +121,19 @@ describe("record files (SR-030, pure)", () => {
     expect(recordDate(new Date("2026-10-27T10:00:00.789Z"))).toBe("2026-10-27T10:00:00Z");
   });
 
-  it("renders the frontmatter in schema order with logreq-record first, absent fields left out, LF and no body", () => {
+  it("renders the frontmatter in schema order with reqseq-record first, absent fields left out, LF and no body", () => {
     const fields: RecordFields = {
       "test-case": "TC-1",
       date: DATE,
       result: "passed",
       kind: "verification",
       element: S2,
-      version: "n1:13810fc0dec541b7",
+      version: "n1:8a2f8c93f0261f80",
       method: "test",
       item: "build-30",
     };
     expect(renderRecordFile(fields)).toBe(
-      `---\nlogreq-record: 1\nkind: verification\nelement: ${S2}\nversion: n1:13810fc0dec541b7\nmethod: test\nitem: build-30\nresult: passed\ndate: ${DATE}\ntest-case: TC-1\n---\n`,
+      `---\nreqseq-record: 1\nkind: verification\nelement: ${S2}\nversion: n1:8a2f8c93f0261f80\nmethod: test\nitem: build-30\nresult: passed\ndate: ${DATE}\ntest-case: TC-1\n---\n`,
     );
   });
 
@@ -141,7 +141,7 @@ describe("record files (SR-030, pure)", () => {
     const base = {
       kind: "verification",
       element: S2,
-      version: "n1:13810fc0dec541b7",
+      version: "n1:8a2f8c93f0261f80",
       result: "passed",
       date: DATE,
     };
@@ -326,7 +326,7 @@ describe("evidence.record (SR-030)", () => {
     const { fixture, workspace } = await open();
     const before = await entriesOf(fixture);
     for (const render of [
-      (): string => "---\nlogreq-record: 1\n---\n",
+      (): string => "---\nreqseq-record: 1\n---\n",
       (fields: RecordFields): string => renderRecordFile({ ...fields, result: "failed" }),
       (fields: RecordFields): string => renderRecordFile(fields).replace("---\n", "---\nextra: 1\n"),
     ]) {
@@ -360,7 +360,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
 
   it("creates a location that does not exist yet, and passes over locations whose repository is not on this machine", async () => {
     const { workspace } = await open({
-      "logreq-workspace.yaml": workspaceFile(
+      "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: tests, path: evidence }\n  - { repository: unknown, path: evidence }\n  - { repository: system, path: records }\n",
         '  - { name: tests, url: "git@git.example.com:ws/tests.git", path: ../no-such-repository-sr030 }\n',
       ),
@@ -378,7 +378,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
   });
 
   it("refuses when no location can take the record", async () => {
-    const { fixture, workspace } = await open({ "logreq-workspace.yaml": workspaceFile("") });
+    const { fixture, workspace } = await open({ "reqseq-workspace.yaml": workspaceFile("") });
     const none = await refusedLeavingNothing(
       fixture,
       () => record(workspace, { ref: "SR-00c002", ...INSPECTION }),
@@ -388,7 +388,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
       "The workspace file lists no evidence location, so a record has no folder that is read",
     );
     const away = await open({
-      "logreq-workspace.yaml": workspaceFile(
+      "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: tests, path: evidence }\n",
         '  - { name: tests, url: "git@git.example.com:ws/tests.git", path: ../no-such-repository-sr030 }\n',
       ),
@@ -419,7 +419,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
 
   it("refuses a folder the walk would not read (.git, node_modules, ignored, a link) and creates no folder (B1)", async () => {
     const { fixture, workspace } = await open({
-      "logreq-workspace.yaml": workspaceFile(
+      "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: system, path: evidence }\nignore:\n  - evidence/drafts/**\n",
       ),
     });
@@ -440,7 +440,7 @@ describe("evidence.record folders (SR-030 AK2)", () => {
 
   it("takes a location at the repository root, and the most specific of nested locations", async () => {
     const { workspace } = await open({
-      "logreq-workspace.yaml": workspaceFile(
+      "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: system, path: . }\n  - { repository: system, path: evidence/manual }\n",
       ),
     });
@@ -466,7 +466,7 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
   const variants = (): Promise<{ fixture: FixtureWorkspace; workspace: Workspace }> =>
     open(
       {
-        "logreq-workspace.yaml": `logreq-workspace: 1\nname: Weather station\n${REPOSITORIES}metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n`,
+        "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: Weather station\n${REPOSITORIES}metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n`,
         "evidence/.keep": "",
       },
       "SR-040/validity",
@@ -514,10 +514,10 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
 describe("evidence.record and the evidence state (S12, S1 of the plan review)", () => {
   it("adds the record to a built read at its walk position, so the next element.get reads no evidence file", async () => {
     const { workspace } = await open({
-      "logreq-workspace.yaml": workspaceFile(
+      "reqseq-workspace.yaml": workspaceFile(
         "evidence:\n  - { repository: system, path: evidence }\n  - { repository: system, path: evidence/manual }\n  - { repository: system, path: missing }\n",
       ),
-      "evidence/2026-12-01-SR-00c002-test.md": `---\nlogreq-record: 1\nkind: verification\nelement: ${S2}\nversion: n1:13810fc0dec541b7\nmethod: test\nitem: x\nresult: failed\ndate: 2026-12-01T10:00:00Z\n---\n`,
+      "evidence/2026-12-01-SR-00c002-test.md": `---\nreqseq-record: 1\nkind: verification\nelement: ${S2}\nversion: n1:8a2f8c93f0261f80\nmethod: test\nitem: x\nresult: failed\ndate: 2026-12-01T10:00:00Z\n---\n`,
     });
     const layout = await workspace.get(workspaceLayoutState);
     await workspace.get(evidenceRecordsState);
@@ -580,7 +580,7 @@ describe("evidence.record and the evidence state (S12, S1 of the plan review)", 
     } as unknown as Parameters<typeof withRecord>[0];
     const injected: EvidenceRecord = {
       element: S2,
-      version: "n1:13810fc0dec541b7",
+      version: "n1:8a2f8c93f0261f80",
       kind: "validation",
       result: "passed",
       date: DATE,

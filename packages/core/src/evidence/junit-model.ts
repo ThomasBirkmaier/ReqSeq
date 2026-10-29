@@ -19,7 +19,7 @@ export interface JunitProperty {
   /** The byte after the property element. */
   readonly end: number;
   /**
-   * Where the value is written, for replacing it in place (an existing `logreq:*` property is
+   * Where the value is written, for replacing it in place (an existing `reqseq:*` property is
    * replaced, never written twice):
    * - the text between the quotes of the `value` attribute, with `quote` (`"` or `'`): a new value
    *   must be escaped for that quote;
@@ -211,7 +211,7 @@ export const junitTestCases = (bytes: Uint8Array): JunitReadOutcome => {
  */
 export type ElementRefKind = "shortId" | "uuid" | "other";
 
-/** Where a reference comes from: a `logreq:element` property, or a token of the test case name. */
+/** Where a reference comes from: a `reqseq:element` property, or a token of the test case name. */
 export type ElementRefSource = "property" | "name";
 
 export interface ElementRefToken {
@@ -238,7 +238,7 @@ const tokens = (texts: readonly string[], source: ElementRefSource): readonly El
 
 /**
  * The element references of a test case, each text once per source, in this order: the values of
- * its `logreq:element` properties (`source: "property"`), then the `[<ref>]` and `[<ref>/<anything>]`
+ * its `reqseq:element` properties (`source: "property"`), then the `[<ref>]` and `[<ref>/<anything>]`
  * tokens of its name (`source: "name"`).
  *
  * Each comes classified by syntax only; resolving is left to the caller (SR-029, SR-093) with these
@@ -257,7 +257,7 @@ export const elementRefsOf = (
 ): readonly ElementRefToken[] => [
   ...tokens(
     testCase.properties
-      .filter((property) => property.name === "logreq:element")
+      .filter((property) => property.name === "reqseq:element")
       .map((property) => property.value),
     "property",
   ),

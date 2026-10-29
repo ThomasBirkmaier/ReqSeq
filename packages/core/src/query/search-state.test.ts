@@ -25,14 +25,14 @@ const need = (id: string, title: string): string =>
   `---\nid: ${id}\ntype: need\nstatus: draft\ntitle: ${title}\n---\n`;
 
 const WORKSPACE =
-  "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
+  "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A workspace of 600 needs, more than a build reads before its first turn, with its model loaded. */
 const loaded = async (): Promise<{ readonly fixture: FixtureWorkspace; readonly workspace: Workspace }> => {
   const files: Record<string, string> = {
-    "logreq-workspace.yaml": WORKSPACE,
+    "reqseq-workspace.yaml": WORKSPACE,
     "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   };
   for (let n = 0; n < 600; n += 1) {
@@ -189,8 +189,8 @@ describe("search index over a large change (ADR-0008)", () => {
   it("is built again, not carried, after a change of more than SEARCH_CARRY_LIMIT UUIDs", async () => {
     const fixture = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
         "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
         "needs/N-545b7b379da2.md": need(N1, "Wind"),
       },

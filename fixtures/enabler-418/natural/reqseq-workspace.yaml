@@ -1,0 +1,5 @@
+reqseq-workspace: 1
+name: ReqSeq spec
+repositories:
+  - { name: spec, url: "git@git.example.com:reqseq/spec.git", main: true }
+metamodel: { repository: spec, path: metamodel }

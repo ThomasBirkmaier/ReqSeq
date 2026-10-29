@@ -234,7 +234,7 @@ describe("workspace.check restricted to changed elements (SR-092)", () => {
           `  - { id: ${P}ffffffffff01, version: n1:0000000000000000 }`,
           "---",
           "",
-          `See [gone](logreq:${P}ffffffffff02).`,
+          `See [gone](reqseq:${P}ffffffffff02).`,
           "",
         ].join("\n"),
       },
@@ -604,8 +604,8 @@ const versionOf =
 const standardModel = async (): Promise<Metamodel> => {
   const ws = await fixture({
     files: {
-      "logreq-workspace.yaml":
-        'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
       "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
     },
   });
@@ -613,8 +613,8 @@ const standardModel = async (): Promise<Metamodel> => {
 };
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-/** The targets a file names: relation items (`{ id: … }`) and inline references (`logreq:…`). */
-const TARGET = new RegExp(`\\{ id: (${UUID})|\\(logreq:(${UUID})`, "g");
+/** The targets a file names: relation items (`{ id: … }`) and inline references (`reqseq:…`). */
+const TARGET = new RegExp(`\\{ id: (${UUID})|\\(reqseq:(${UUID})`, "g");
 
 describe("SR-092 AK1 on a generated workspace", () => {
   it("[SR-092/AK1] reports only the findings of the 3 of 1,000 elements a merge request changed and of their targets", async () => {

@@ -239,7 +239,7 @@ describe("the app offers no delete (SR-099)", () => {
     const bridge = createBridge({
       // The workspace of the window; main's requests to save (SR-131) do not come here.
       on: (channel, listener) => {
-        if (channel === "logreq:workspace") {
+        if (channel === "reqseq:workspace") {
           deliver = listener;
         }
       },

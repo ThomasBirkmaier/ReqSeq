@@ -64,7 +64,7 @@ const RAW_JUNIT_TEXT =
  * does not know; an evidence location with a Markdown record and an enriched JUnit file of WIND.
  */
 const FILES: Readonly<Record<string, string>> = {
-  "logreq-workspace.yaml": evidenceFixture("logreq-workspace.yaml"),
+  "reqseq-workspace.yaml": evidenceFixture("reqseq-workspace.yaml"),
   [EVIDENCE_RECORD]: evidenceFixture(EVIDENCE_RECORD),
   [EVIDENCE_JUNIT]: evidenceFixture(EVIDENCE_JUNIT),
   [RAW_JUNIT]: RAW_JUNIT_TEXT,
@@ -377,7 +377,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       const added = Object.entries(statusLines(fixture.root)).filter(
         ([file]) =>
           !(file in STATUS_LINES) &&
-          !fs.readFileSync(path.join(fixture.root, file), "utf8").startsWith("---\nlogreq-record: 1\n"),
+          !fs.readFileSync(path.join(fixture.root, file), "utf8").startsWith("---\nreqseq-record: 1\n"),
       );
       expect(added.map(([, line]) => line).filter((line) => line !== "status: draft")).toEqual([]);
       if (name === "element.create") {
@@ -424,7 +424,7 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
       { workspace },
     );
     expect(out).toEqual({ testCases: 4, unknown: [], files: [RAW_JUNIT], problems: [] });
-    expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/logreq:version/g)).toHaveLength(4);
+    expect(fs.readFileSync(fixture.path(RAW_JUNIT), "utf8").match(/reqseq:version/g)).toHaveLength(4);
     expect(statusLines(fixture.root)).toEqual(STATUS_LINES);
   });
 

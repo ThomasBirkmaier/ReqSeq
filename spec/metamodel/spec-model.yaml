@@ -1,4 +1,4 @@
-# Metamodel of the LogReq specification (enabler #326). It is the standard model (D-037,
+# Metamodel of the ReqSeq specification (enabler #326). It is the standard model (D-037,
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
 # - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Stufe-3;
@@ -9,8 +9,8 @@
 #   spec itself traces requirement -> issue (dogfooding, product owner decision, 2026-10-26). Not content, so
 #   setting it changes no version; filled by scripts/sr-issues.
 # rationale and acceptance-criteria carry markdown: true as in the standard model (SR-127, #444).
-# LogReq has no command that changes a metamodel: this file is changed by hand in a pull request.
-logreq-metamodel: 1
+# ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
+reqseq-metamodel: 1
 
 types:
   - key: need
@@ -190,7 +190,7 @@ relations:
     source-types: [variant]
     target-types: [system-requirement]
     meaning: exclusion
-  # Glossary relations (Logseq: Oberbegriff, Abgrenzung, Siehe auch). LogReq has no symmetric relation
+  # Glossary relations (Logseq: Oberbegriff, Abgrenzung, Siehe auch). ReqSeq has no symmetric relation
   # kinds; each is stored in the direction the graph had it.
   - key: broader-term
     name: Broader term

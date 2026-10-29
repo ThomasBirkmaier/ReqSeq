@@ -164,9 +164,9 @@ describe("listMarkdownFiles", () => {
 
   it("gives the store a warning, not an error, for a linked Markdown file", async () => {
     const ws = await fixture({
-      "logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: metamodel }\n",
-      "metamodel/m.yaml": "logreq-metamodel: 1\n",
+      "reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: metamodel }\n",
+      "metamodel/m.yaml": "reqseq-metamodel: 1\n",
       "AGENTS.md": "# Rules\n",
       "elsewhere/SR-0c1d2e3f4a5b.md": "---\nid: 6b1f1b9e-2a39-4c4c-9a4e-0c1d2e3f4a5b\ntype: t\n---\n",
     });

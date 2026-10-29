@@ -1,4 +1,4 @@
-// Creating a workspace (SR-014): `logreq-workspace.yaml` and a metamodel file (the standard model,
+// Creating a workspace (SR-014): `reqseq-workspace.yaml` and a metamodel file (the standard model,
 // passed in by `workspace.init`) in an existing folder. Writes only through the files block,
 // creates files without ever replacing one, and never touches Git (D-036): no `git init`, no commit.
 import fs from "node:fs/promises";
@@ -55,7 +55,7 @@ const workspaceFileFor = (main: string, input: NewWorkspace): WorkspaceFile => {
   if (metamodel.repository !== main) {
     repositories.push({ name: metamodel.repository, url: "" });
   }
-  const file: WorkspaceFile = { "logreq-workspace": 1, name: input.name, repositories, metamodel };
+  const file: WorkspaceFile = { "reqseq-workspace": 1, name: input.name, repositories, metamodel };
   const validate = fileSchemaValidator("workspace.schema.json");
   if (!validate(file)) {
     const errors = schemaViolations(validate.errors);
@@ -98,7 +98,7 @@ const checkFolder = async (root: string): Promise<void> => {
 
 /**
  * Creates a workspace in the existing folder `root`: the metamodel file in the metamodel folder of
- * the main repository (created when missing), then `logreq-workspace.yaml`, which makes the folder
+ * the main repository (created when missing), then `reqseq-workspace.yaml`, which makes the folder
  * a workspace. The folder may hold other files (a fresh clone has `.git`). Before anything is
  * written it refuses a missing folder (`file.folder-missing`), a path that is no folder or input
  * that gives an invalid workspace file (`input.invalid`), and a workspace file or metamodel file

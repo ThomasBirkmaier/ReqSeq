@@ -43,7 +43,7 @@ const errorOf = (fn: () => unknown): CommandError => {
 };
 
 const HAZARD_FILE =
-  "logreq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    properties: [severity]\n    required: [title, severity]\n";
+  "reqseq-metamodel: 1\ntypes:\n  - key: hazard\n    name: Hazard\n    prefix: HAZ\n    properties: [severity]\n    required: [title, severity]\n";
 
 describe("typeForNewElement", () => {
   it("[SR-012/AK1] offers a new type with key, name, prefix and required properties once the workspace is opened", async () => {

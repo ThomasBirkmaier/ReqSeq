@@ -127,7 +127,7 @@ export const writeGraphFixture = async (): Promise<GraphFixture> => {
   const folder = path.join(top, "workspace");
   await fs.mkdir(folder);
   await fs.cp(path.join(FIXTURE, "metamodel"), path.join(folder, "metamodel"), { recursive: true });
-  await fs.copyFile(path.join(FIXTURE, "logreq-workspace.yaml"), path.join(folder, "logreq-workspace.yaml"));
+  await fs.copyFile(path.join(FIXTURE, "reqseq-workspace.yaml"), path.join(folder, "reqseq-workspace.yaml"));
   const roots = [1, 2, 3].map((root) => ({
     id: uuid(root, 0, 0),
     title: PACKAGE_TITLES[root - 1] ?? "",

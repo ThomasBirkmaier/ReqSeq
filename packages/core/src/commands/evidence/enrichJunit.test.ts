@@ -60,7 +60,7 @@ const failure = async (workspace: Workspace, input: Record<string, unknown>): Pr
 
 const bytesOf = (fixture: FixtureWorkspace, file: string): Promise<Buffer> => fs.readFile(fixture.path(file));
 
-/** Each test case of a JUnit file with its `logreq:*` properties as `name=value`. */
+/** Each test case of a JUnit file with its `reqseq:*` properties as `name=value`. */
 const properties = (bytes: Uint8Array): [string, string[]][] => {
   const read = junitTestCases(bytes);
   if (read.kind !== "junit") {
@@ -68,7 +68,7 @@ const properties = (bytes: Uint8Array): [string, string[]][] => {
   }
   return read.file.testCases.map((t) => [
     t.name,
-    t.properties.filter((p) => p.name.startsWith("logreq:")).map((p) => `${p.name}=${p.value}`),
+    t.properties.filter((p) => p.name.startsWith("reqseq:")).map((p) => `${p.name}=${p.value}`),
   ]);
 };
 
@@ -76,7 +76,7 @@ const properties = (bytes: Uint8Array): [string, string[]][] => {
 const enrichedNames = (bytes: Uint8Array): string[] =>
   properties(bytes)
     .filter(([, list]) =>
-      ["logreq:element=", "logreq:version=", "logreq:item=build-512", `logreq:date=${DATE}`].every((start) =>
+      ["reqseq:element=", "reqseq:version=", "reqseq:item=build-512", `reqseq:date=${DATE}`].every((start) =>
         list.some((p) => p.startsWith(start)),
       ),
     )
@@ -176,10 +176,10 @@ describe("evidence.enrichJunit (SR-029)", () => {
     // Nine lines as before, each ending in CRLF: the properties are written on the line of the test case.
     expect(after.toString("utf8").split("\r\n")).toHaveLength(10);
     expect(after.toString("utf8").replaceAll("\r\n", "")).not.toContain("\n");
-    const dates = properties(after).flatMap(([, list]) => list.filter((p) => p.startsWith("logreq:date=")));
+    const dates = properties(after).flatMap(([, list]) => list.filter((p) => p.startsWith("reqseq:date=")));
     expect(dates).toHaveLength(3);
     for (const date of dates) {
-      expect(Math.abs(Date.parse(date.slice("logreq:date=".length)) - Date.now())).toBeLessThan(60_000);
+      expect(Math.abs(Date.parse(date.slice("reqseq:date=".length)) - Date.now())).toBeLessThan(60_000);
     }
   });
 
@@ -208,7 +208,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
 
   it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {
     const { fixture, workspace } = await open({
-      "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: [ { key: x } ]\n",
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n",
     });
     const before = await bytesOf(fixture, "results/pytest.xml");
     expect((await failure(workspace, { file: "results/pytest.xml" })).code).toBe("workspace.read-only");
@@ -387,7 +387,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
 
   it("reports a reference that names several copies of one UUID with the candidates, and notes a repository that is not on this machine", async () => {
     const workspaceFile = [
-      "logreq-workspace: 1",
+      "reqseq-workspace: 1",
       "name: Enrich JUnit",
       "repositories:",
       '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
@@ -397,7 +397,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       "  - { repository: system, path: evidence }",
       "",
     ].join("\n");
-    const { fixture, workspace } = await open({ "logreq-workspace.yaml": workspaceFile });
+    const { fixture, workspace } = await open({ "reqseq-workspace.yaml": workspaceFile });
     await fs.mkdir(fixture.path("copy"));
     await fs.copyFile(
       fixture.path("requirements/SR-825b7146fb54.md"),

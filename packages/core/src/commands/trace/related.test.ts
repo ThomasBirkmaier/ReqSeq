@@ -504,7 +504,7 @@ describe("trace.related (SR-023)", () => {
   describe("repositories that are not on this machine (SR-006 AK2)", () => {
     const AWAY_ID = "a0a0a0a0-0000-4000-8000-0000000000f1";
     const workspaceFile = [
-      "logreq-workspace: 1",
+      "reqseq-workspace: 1",
       "name: Weather station",
       "repositories:",
       '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
@@ -517,7 +517,7 @@ describe("trace.related (SR-023)", () => {
       const opened = await open({
         ...RELATED,
         files: {
-          "logreq-workspace.yaml": workspaceFile,
+          "reqseq-workspace.yaml": workspaceFile,
           "requirements/SR-0000000000b6.md": requirement(
             "b6",
             `derives-from:\n  - { id: ${N1}, version: ${V} }\n  - { id: ${AWAY_ID}, version: ${V}, repository: away }`,

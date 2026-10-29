@@ -1,4 +1,4 @@
-logreq-metamodel: 1
+reqseq-metamodel: 1
 properties:
   - { key: label, name: Label, kind: text, meaning: title }
   # The validity of SR-013 AK2: an own key. The property keyed `validity` has no meaning.

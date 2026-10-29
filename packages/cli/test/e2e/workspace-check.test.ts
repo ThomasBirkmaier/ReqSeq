@@ -273,8 +273,8 @@ describe("findings handed over to workspace check", () => {
     await fs.writeFile(
       ws.path("requirements/SR-0b0000000003.md"),
       (await fs.readFile(ws.path("requirements/SR-0b0000000003.md"), "utf8")).replace(
-        `{ id: ${CYCLE}1, version: n1:bf80fe67ff43c803 }`,
-        "{ id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001, version: n1:3e5f74ee1859b526 }",
+        `{ id: ${CYCLE}1, version: n1:e1d275bfedfd8f93 }`,
+        "{ id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001, version: n1:3bb0ba3cfe019202 }",
       ),
     );
     const fixed = await reqseq(["workspace", "check", ...FAIL_ON_WARNING], ws.root);

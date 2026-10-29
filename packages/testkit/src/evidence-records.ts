@@ -72,7 +72,7 @@ const FAILED_SHARE = 0.05;
  * version (outdated), the later ones the current version. Manual records: of an older version.
  */
 const OUTDATED_SHARE = 0.15;
-/** Test cases run for a variant (`logreq:variant`), so the status walk meets variant records. */
+/** Test cases run for a variant (`reqseq:variant`), so the status walk meets variant records. */
 const VARIANT_SHARE = 0.02;
 /** Validation records (SR-038): about 10,000 of the 50,000 elements. */
 const VALIDATED_NEEDS = 0.6;
@@ -110,7 +110,7 @@ interface TestCaseSpec {
   readonly elements: readonly GeneratedElement[];
   /** Executions: it runs in the newest `executions` CI runs. */
   readonly executions: number;
-  /** The variant it runs for (`logreq:variant`); none: the core. */
+  /** The variant it runs for (`reqseq:variant`); none: the core. */
   readonly variant?: string;
 }
 
@@ -147,13 +147,13 @@ const testCaseXml = (
   return [
     `    <testcase classname="${spec.classname}" name="${spec.name}" time="0.012">\n`,
     "      <properties>\n",
-    ...spec.elements.map((e) => `        <property name="logreq:element" value="${e.id}"/>\n`),
-    ...versions.map((v) => `        <property name="logreq:version" value="${v}"/>\n`),
-    `        <property name="logreq:item" value="${run.item}"/>\n`,
+    ...spec.elements.map((e) => `        <property name="reqseq:element" value="${e.id}"/>\n`),
+    ...versions.map((v) => `        <property name="reqseq:version" value="${v}"/>\n`),
+    `        <property name="reqseq:item" value="${run.item}"/>\n`,
     ...(spec.variant === undefined
       ? []
-      : [`        <property name="logreq:variant" value="${spec.variant}"/>\n`]),
-    `        <property name="logreq:date" value="${date}"/>\n`,
+      : [`        <property name="reqseq:variant" value="${spec.variant}"/>\n`]),
+    `        <property name="reqseq:date" value="${date}"/>\n`,
     "      </properties>\n",
     outcome,
     "    </testcase>\n",
@@ -269,7 +269,7 @@ const manualRecords = (manual: readonly GeneratedElement[], random: Random, add:
     add(
       `manual/${String(Math.floor(index / FOLDER_SIZE)).padStart(3, "0")}/${date.slice(0, 10)}-${shortIdOf(requirement)}-${method}.md`,
       recordFile([
-        ["logreq-record", 1],
+        ["reqseq-record", 1],
         ["kind", "verification"],
         ["element", requirement.id],
         ["version", random.next() < OUTDATED_SHARE ? otherVersion(random) : requirement.version],
@@ -295,7 +295,7 @@ const validationRecords = (validated: readonly GeneratedElement[], random: Rando
       add(
         `validation/${String(Math.floor(written / FOLDER_SIZE)).padStart(3, "0")}/${date.slice(0, 10)}-${shortIdOf(element)}-validation${n === 0 ? "" : "-2"}.md`,
         recordFile([
-          ["logreq-record", 1],
+          ["reqseq-record", 1],
           ["kind", "validation"],
           ["element", element.id],
           ["version", outdated ? otherVersion(random) : element.version],
@@ -342,7 +342,7 @@ export function withEvidenceRecords(
   const random = new Random((options.seed ?? generated.seed) ^ 0x583);
   const root = `${generated.main}/${EVIDENCE_FOLDER}`;
   const files = new Map(generated.files);
-  const workspaceFile = `${generated.main}/logreq-workspace.yaml`;
+  const workspaceFile = `${generated.main}/reqseq-workspace.yaml`;
   files.set(
     workspaceFile,
     `${String(files.get(workspaceFile))}evidence:\n  - { repository: ${generated.main}, path: ${EVIDENCE_FOLDER} }\n`,

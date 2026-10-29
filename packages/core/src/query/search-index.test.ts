@@ -37,7 +37,7 @@ const DUP = "2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f60";
 const GADGET = "3e4f5a6b-7c8d-4e9f-8a0b-1c2d3e4f5a6c";
 
 const WORKSPACE = [
-  "logreq-workspace: 1",
+  "reqseq-workspace: 1",
   "name: Search",
   "repositories:",
   "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -55,7 +55,7 @@ const N1_FILE = element(
   ["status: draft", "title: Wind speed on the display", "rationale: Pilots need it", "topic: Weather"],
   [
     "",
-    `The station shall show [the gusts](logreq:${S1}?version=${V}) and ![a chart](images/chart.png "Chart").`,
+    `The station shall show [the gusts](reqseq:${S1}?version=${V}) and ![a chart](images/chart.png "Chart").`,
     "",
   ].join("\n"),
 );
@@ -79,7 +79,7 @@ const S1_FILE = element(S1, "system-requirement", [
 ]);
 
 const FILES: Readonly<Record<string, string>> = {
-  "system/logreq-workspace.yaml": WORKSPACE,
+  "system/reqseq-workspace.yaml": WORKSPACE,
   "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   "system/needs/N-545b7b379da2.md": N1_FILE,
   "system/requirements/SR-0c1d2e3f4a5b.md": S1_FILE,

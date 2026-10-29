@@ -37,13 +37,13 @@ const N1 = "6adc6d88-2177-457b-959d-545b7b379da2";
 const S1 = "0b0e6f6c-3c1f-4c55-9d0e-0c1d2e3f4a5b";
 
 const WORKSPACE =
-  "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
+  "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
 
 const element = (id: string, type: string, title: string, text: string): string =>
   `---\nid: ${id}\ntype: ${type}\nstatus: draft\ntitle: ${title}\n---\n${text}\n`;
 
 const FILES: Readonly<Record<string, string>> = {
-  "logreq-workspace.yaml": WORKSPACE,
+  "reqseq-workspace.yaml": WORKSPACE,
   "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   "needs/N-545b7b379da2.md": element(N1, "need", "Wind speed", "Gusts and squalls."),
   "requirements/SR-0c1d2e3f4a5b.md": element(S1, "system-requirement", "Air pressure", "Barometer."),

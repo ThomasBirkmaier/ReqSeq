@@ -363,7 +363,7 @@ describe("derived states carried while the metamodel is not valid (#208, #220 op
     await buildAll(workspace);
     await faulty(fixture, workspace);
     expectCarried(workspace);
-    await fixture.write("metamodel/broken.yaml", "logreq-metamodel: 1\n");
+    await fixture.write("metamodel/broken.yaml", "reqseq-metamodel: 1\n");
     await workspace.reset(metamodelState);
     for (const state of AGAINST_METAMODEL) {
       expect(workspace.peek(state), state.name).toBeUndefined();

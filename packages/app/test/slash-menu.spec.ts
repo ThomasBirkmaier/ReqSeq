@@ -186,7 +186,7 @@ test.describe("the slash menu in the element buffer", () => {
     expect(file).toContain("| Messwert | Column 2 |\n| --- | --- |\n|  |  |\n");
     expect(file).not.toMatch(/\/(h2|table|reference)/);
     const link = new RegExp(
-      `\\[${REFERENCE_TARGET_TITLE}\\]\\(logreq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)`,
+      `\\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)`,
     );
     expect(file).toMatch(link);
     expect(tail).toBeDefined();
@@ -197,7 +197,7 @@ test.describe("the slash menu in the element buffer", () => {
     });
     expect(html).toContain("<h2>Neuer Abschnitt</h2>");
     expect(html).toContain("<th>Messwert</th>");
-    expect(html).toContain(`<a href="logreq:${REFERENCE_TARGET_ID}?version=`);
+    expect(html).toContain(`<a href="reqseq:${REFERENCE_TARGET_ID}?version=`);
   });
 
   test("[SR-129/AK3] Escape in Insert reference leaves the / and the query, and the focus in the editor", async () => {

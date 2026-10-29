@@ -119,8 +119,8 @@ describe("workspace.status", () => {
     const ws = await fixture({
       fixture: "SR-004/one-repository",
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Solo\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Solo\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: metamodel }\n",
       },
     });
     const out = await status(open(ws.root));
@@ -161,8 +161,8 @@ describe("workspace.status", () => {
   it("[SR-004/AK3] treats a repository whose local override points nowhere as missing", async () => {
     const ws = await threeRepositories();
     await ws.write(
-      "system/.logreq/local.yaml",
-      "logreq-local: 1\nrepositories:\n  sensor: { path: ../checkouts/sensor }\n",
+      "system/.reqseq/local.yaml",
+      "reqseq-local: 1\nrepositories:\n  sensor: { path: ../checkouts/sensor }\n",
     );
     const out = await status(open(ws.path("system")));
     expect(out.repositories.map((r) => [r.name, r.available, r.path])).toEqual([
@@ -184,8 +184,8 @@ describe("workspace.status", () => {
   it("[SR-004/AK3] reports the metamodel as not valid when its repository is missing, without failing", async () => {
     const ws = await threeRepositories(["system", "product"]);
     await ws.write(
-      "system/logreq-workspace.yaml",
-      "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: model }\n",
+      "system/reqseq-workspace.yaml",
+      "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: model }\n",
     );
     const out = await status(open(ws.path("system")));
     expect(out.metamodel).toEqual({ repository: "models", path: "model", valid: false });
@@ -306,7 +306,7 @@ describe("workspace.status with the metamodel (SR-011)", () => {
 
   it("[SR-011/AK3] opens the workspace read-only and reports file, line and reason of faulty YAML", async () => {
     const ws = await splitFolder({
-      files: { "model/statuses.yaml": "logreq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
+      files: { "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
     });
     const out = await status(open(ws.root));
     expect(out.metamodel).toEqual({ repository: "system", path: "model", valid: false });

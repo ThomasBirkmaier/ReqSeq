@@ -142,7 +142,7 @@ describe("missing relation targets (SR-089)", () => {
     expect(all[0]?.target).toEqual({
       id: REMOVED,
       // The version of the need before its removal: its current one, so the relation was not outdated (SR-025).
-      version: "n1:1fafa3d2afe9cbdd",
+      version: "n1:4363323727498cf5",
       title: "Wind speed visible at a glance",
     });
     const sr = recordOf(context.store, SR);
@@ -394,15 +394,15 @@ const OTHER_GONE = "11111111-2222-4333-8444-555555555555";
  * written before references named their repository.
  */
 const SR_TEXT = [
-  `Own [N-4e5f6a](logreq:${REMOVED}?version=${VERSION}) and [Gusts visible](logreq:${KEPT}?version=${VERSION}).`,
-  `Named [N-4e5f6a](logreq:${REMOVED}?version=${VERSION}&repository=system), in code \`[x](logreq:${OTHER_GONE})\`.`,
-  `Not here: [D-9c39db](logreq:${IN_VAULT}?version=${VERSION}&repository=vault), [x](logreq:${OTHER_GONE}?repository=elsewhere).`,
-  `Old: [SR-8b7c6d](logreq:${SENSOR_SR}?version=${VERSION}).`,
+  `Own [N-4e5f6a](reqseq:${REMOVED}?version=${VERSION}) and [Gusts visible](reqseq:${KEPT}?version=${VERSION}).`,
+  `Named [N-4e5f6a](reqseq:${REMOVED}?version=${VERSION}&repository=system), in code \`[x](reqseq:${OTHER_GONE})\`.`,
+  `Not here: [D-9c39db](reqseq:${IN_VAULT}?version=${VERSION}&repository=vault), [x](reqseq:${OTHER_GONE}?repository=elsewhere).`,
+  `Old: [SR-8b7c6d](reqseq:${SENSOR_SR}?version=${VERSION}).`,
   "",
 ].join("\n");
 
 /** The sensor's file with a reference to the need in the system repository: line 13. */
-const SENSOR_TEXT = `Across: [N-4e5f6a](logreq:${REMOVED}?version=${VERSION}&repository=system).\n`;
+const SENSOR_TEXT = `Across: [N-4e5f6a](reqseq:${REMOVED}?version=${VERSION}&repository=system).\n`;
 
 const referenceGone = (source: string, id: string, repository: string): string =>
   `Reference in the text of ${source} points to ${id}, which is not in repository ${repository}`;
@@ -453,7 +453,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on #177 
         "status: draft",
         "title: Notes",
         "---",
-        `Gone: [x](logreq:${OTHER_GONE}?version=${VERSION}) and [y](logreq:${KEPT}?version=${VERSION}).`,
+        `Gone: [x](reqseq:${OTHER_GONE}?version=${VERSION}) and [y](reqseq:${KEPT}?version=${VERSION}).`,
         "",
       ].join("\n"),
     });

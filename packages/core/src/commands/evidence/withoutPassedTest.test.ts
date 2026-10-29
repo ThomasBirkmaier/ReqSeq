@@ -241,23 +241,23 @@ describe("evidence.withoutPassedTest (SR-120)", () => {
   });
 
   it("[SR-006/AK2] is incomplete when a repository of the workspace is not available", async () => {
-    const file = await edited("logreq-workspace.yaml", (text) =>
+    const file = await edited("reqseq-workspace.yaml", (text) =>
       text.replace(
         "main: true }",
         'main: true }\n  - { name: other, url: "git@git.example.com:ws/other.git" }',
       ),
     );
-    const out = await run(await open({ ...MATRIX, files: { "logreq-workspace.yaml": file } }));
+    const out = await run(await open({ ...MATRIX, files: { "reqseq-workspace.yaml": file } }));
     expect([shortIds(out), out.incomplete]).toEqual([LISTED, true]);
   });
 
   it("is incomplete when an evidence location lies in a repository that is not available", async () => {
     const file = await edited(
-      "logreq-workspace.yaml",
+      "reqseq-workspace.yaml",
       (text) =>
         `${text.replace("main: true }", 'main: true }\n  - { name: vault, url: "git@git.example.com:ws/vault.git" }')}  - { repository: vault, path: results }\n`,
     );
-    const out = await run(await open({ ...MATRIX, files: { "logreq-workspace.yaml": file } }));
+    const out = await run(await open({ ...MATRIX, files: { "reqseq-workspace.yaml": file } }));
     expect([shortIds(out), out.incomplete]).toEqual([LISTED, true]);
   });
 

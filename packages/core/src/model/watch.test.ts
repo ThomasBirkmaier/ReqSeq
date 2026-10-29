@@ -30,7 +30,7 @@ const SAVE_LIMIT_MS = 2000;
 const PULL_LIMIT_MS = 10_000;
 
 const requirement = (id: string, title: string, status = "draft", target = NEED): string =>
-  `---\nid: ${id}\ntype: system-requirement\nstatus: ${status}\ntitle: ${title}\nderives-from:\n  - { id: ${target}, version: "n1:56c3cc9cb6dcd50b" }\n---\n\nText of ${title}.\n`;
+  `---\nid: ${id}\ntype: system-requirement\nstatus: ${status}\ntitle: ${title}\nderives-from:\n  - { id: ${target}, version: "n1:dfd74d650df581e5" }\n---\n\nText of ${title}.\n`;
 
 const need = (id: string, title: string): string =>
   `---\nid: ${id}\ntype: need\nstatus: draft\ntitle: ${title}\n---\n\nNeed.\n`;
@@ -227,8 +227,8 @@ describe("watching a workspace with the file system (SR-007)", () => {
     }
     const typed = same ? NFC : NFD;
     await fixture.write(
-      "logreq-workspace.yaml",
-      `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\n`,
+      "reqseq-workspace.yaml",
+      `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\n`,
     );
     await watching(fixture, workspace);
     await fixture.write(`${NFD}/SR-0c1d2e3f4a5b.md`, requirement(OTHER, "Decomposed, edited"));
@@ -255,8 +255,8 @@ describe("watching a workspace with the file system (SR-007)", () => {
     const nested = sameForm ? NFC : NFD;
     const metamodel = sameCase ? "Metamodel" : "metamodel";
     await fixture.write(
-      "logreq-workspace.yaml",
-      `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: "vendor/${nested}" }\nmetamodel: { repository: system, path: ${metamodel} }\n`,
+      "reqseq-workspace.yaml",
+      `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: "vendor/${nested}" }\nmetamodel: { repository: system, path: ${metamodel} }\n`,
     );
     await watching(fixture, workspace);
     const layout = workspace.peek(workspaceLayoutState);
@@ -352,7 +352,7 @@ describe("watching a workspace with the file system (SR-007)", () => {
     expect(store.elements.some((e) => e.file === NEED_FILE)).toBe(false);
     const source = records(store, REQUIREMENT)[0];
     expect(source?.data["derives-from"]).toEqual([
-      { id: NEED, version: "n1:56c3cc9cb6dcd50b", title: "Wind speed visible at a glance" },
+      { id: NEED, version: "n1:dfd74d650df581e5", title: "Wind speed visible at a glance" },
     ]);
     // The file of the relation is not touched.
     expect(await fs.readFile(fixture.path(REQUIREMENT_FILE), "utf8")).toContain(`id: ${NEED}`);
@@ -468,7 +468,7 @@ const folderOf = (layout: { readonly repositories: readonly { readonly folder: s
 };
 
 const NESTED_WORKSPACE =
-  "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\n  - { name: gone, url: z, path: ../gone }\nmetamodel: { repository: gone, path: metamodel }\n";
+  "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\n  - { name: gone, url: z, path: ../gone }\nmetamodel: { repository: gone, path: metamodel }\n";
 
 /** State built on the store whose disposal fails. */
 const fragile = defineWorkspaceState("fragile", () => 1, {
@@ -496,7 +496,7 @@ describe("the watcher's rules (SR-007)", () => {
   it("watches every available repository once, recursively, and the nested one through the outer watcher", async () => {
     const { fixture, workspace } = await opened({
       files: {
-        "logreq-workspace.yaml": NESTED_WORKSPACE,
+        "reqseq-workspace.yaml": NESTED_WORKSPACE,
         "vendor/sub/SR-0c1d2e3f4a5b.md": requirement(OTHER, "Sub"),
       },
     });
@@ -596,9 +596,9 @@ describe("the watcher's rules (SR-007)", () => {
     const layout = workspace.peek(workspaceLayoutState);
     const { fake, watcher } = await watched(workspace);
     const first = fake.only();
-    const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
+    const text = await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
     await fixture.write(
-      "logreq-workspace.yaml",
+      "reqseq-workspace.yaml",
       text.replace("name: Weather station", "name: Pulled station"),
     );
     first.send(null);
@@ -609,7 +609,7 @@ describe("the watcher's rules (SR-007)", () => {
     expect((await workspace.get(workspaceLayoutState)).name).toBe("Pulled station");
     expect(fake.only().recursive).toBe(true);
     // A workspace file that no longer reads: the layout is reset and only the root is watched for it.
-    await fixture.write("logreq-workspace.yaml", "logreq-workspace: [\n");
+    await fixture.write("reqseq-workspace.yaml", "reqseq-workspace: [\n");
     fake.only().send(null);
     await watcher.settled();
     expect(workspace.peek(workspaceLayoutState)).toBeUndefined();
@@ -632,9 +632,9 @@ describe("the watcher's rules (SR-007)", () => {
     const { fake, watcher } = await watched(workspace);
     const first = fake.only();
     expect(first.folder).not.toBe(link);
-    const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
+    const text = await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
     await fixture.write(
-      "logreq-workspace.yaml",
+      "reqseq-workspace.yaml",
       text.replace("name: Weather station", "name: Linked station"),
     );
     first.send(null);
@@ -646,8 +646,8 @@ describe("the watcher's rules (SR-007)", () => {
   it("[SR-007/AK2] reads the metamodel again after a nameless event in another repository that holds it", async () => {
     const { workspace } = await opened({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
       },
     });
     const other = path.join(workspace.root, "..", "model");
@@ -665,8 +665,8 @@ describe("the watcher's rules (SR-007)", () => {
   it("[SR-007/AK2] checks only the repository whose names the OS dropped when it holds neither the workspace file nor the metamodel", async () => {
     const { workspace } = await opened({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: system, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: system, path: metamodel }\n",
       },
     });
     const other = path.join(workspace.root, "..", "other");
@@ -695,7 +695,7 @@ describe("the watcher's rules (SR-007)", () => {
     ): Promise<{ fixture: FixtureWorkspace; workspace: Workspace; other: string }> => {
       const { fixture, workspace } = await opened({
         files: {
-          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: ${metamodelIn}, path: metamodel }\n`,
+          "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: other, url: y, path: ../other }\nmetamodel: { repository: ${metamodelIn}, path: metamodel }\n`,
         },
       });
       const other = path.join(workspace.root, "..", "other");
@@ -706,8 +706,8 @@ describe("the watcher's rules (SR-007)", () => {
       return { fixture, workspace, other };
     };
     const renamed = async (fixture: FixtureWorkspace): Promise<void> => {
-      const text = await fs.readFile(fixture.path("logreq-workspace.yaml"), "utf8");
-      await fixture.write("logreq-workspace.yaml", text.replace("name: W", "name: Pulled"));
+      const text = await fs.readFile(fixture.path("reqseq-workspace.yaml"), "utf8");
+      await fixture.write("reqseq-workspace.yaml", text.replace("name: W", "name: Pulled"));
     };
     // The main repository holds the workspace file, whatever repository holds the metamodel.
     const main = await beside("other");
@@ -732,7 +732,7 @@ describe("the watcher's rules (SR-007)", () => {
     const { fixture, workspace } = await opened();
     await workspace.get(elementStoreState);
     const { fake, watcher } = await watched(workspace);
-    for (const name of ["logreq-workspace.yaml", ".logreq/local.yaml"]) {
+    for (const name of ["reqseq-workspace.yaml", ".reqseq/local.yaml"]) {
       const layout = workspace.peek(workspaceLayoutState);
       const first = fake.only();
       fake.only().send(name);
@@ -800,8 +800,8 @@ describe("the watcher's rules (SR-007)", () => {
         await fixture.write(`${typed}/model.yaml`, model);
       }
       await fixture.write(
-        "logreq-workspace.yaml",
-        `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}" }\n`,
+        "reqseq-workspace.yaml",
+        `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}" }\n`,
       );
       const store = workspace.get(elementStoreState);
       await Promise.all([store, workspace.get(metamodelState)]);
@@ -826,7 +826,7 @@ describe("the watcher's rules (SR-007)", () => {
     for (const [typed, created] of [[NFC, NFC] as const, ...SPELLINGS]) {
       const { fixture, workspace } = await opened({
         files: {
-          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\n`,
+          "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\n`,
         },
       });
       const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
@@ -858,7 +858,7 @@ describe("the watcher's rules (SR-007)", () => {
   it("reads the layout again when the metamodel folder or a folder above it is renamed, moved, deleted or created, in any letter case (#231)", async () => {
     const { fixture, workspace } = await opened({
       files: {
-        "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: docs/model }\n`,
+        "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: docs/model }\n`,
       },
     });
     const model = await fs.readFile(fixture.path("metamodel/model.yaml"), "utf8");
@@ -888,8 +888,8 @@ describe("the watcher's rules (SR-007)", () => {
   it("[SR-007/AK2] reads the layout again after a nameless event in another repository whose missing metamodel folder appeared (#231)", async () => {
     const { workspace } = await opened({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: model, url: y, path: ../model }\nmetamodel: { repository: model, path: metamodel }\n",
       },
     });
     const other = path.join(workspace.root, "..", "model");
@@ -938,7 +938,7 @@ describe("the watcher's rules (SR-007)", () => {
     const { fixture, workspace } = await opened();
     const { fake, watcher } = await watched(workspace);
     const stale = fake.only();
-    stale.send("logreq-workspace.yaml");
+    stale.send("reqseq-workspace.yaml");
     await watcher.settled();
     expect(stale.closed).toBe(true);
     await workspace.get(elementStoreState);
@@ -964,18 +964,18 @@ describe("the watcher's rules (SR-007)", () => {
     fake.only().send("README.md");
     await watcher.settled();
     expect(fake.handles).toHaveLength(1);
-    // Without details, or for `.logreq`, the layout is tried again; still none.
-    for (const name of [null, ".logreq"]) {
+    // Without details, or for `.reqseq`, the layout is tried again; still none.
+    for (const name of [null, ".reqseq"]) {
       fake.only().send(name);
       await watcher.settled();
       expect(fake.open().map((h) => h.recursive)).toEqual([false]);
     }
     expect(fake.handles).toHaveLength(3);
     await fixture.write(
-      "logreq-workspace.yaml",
-      "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n",
+      "reqseq-workspace.yaml",
+      "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n",
     );
-    fake.only().send("logreq-workspace.yaml");
+    fake.only().send("reqseq-workspace.yaml");
     await watcher.settled();
     expect(fake.open().map((h) => h.recursive)).toEqual([true]);
   });
@@ -990,7 +990,7 @@ describe("the watcher's rules (SR-007)", () => {
     const { fake, watcher } = await watched(workspace);
     const root = fake.only();
     await watcher.close();
-    root.send("logreq-workspace.yaml");
+    root.send("reqseq-workspace.yaml");
     await watcher.settled();
     expect(fake.handles).toEqual([root]);
   });
@@ -1111,7 +1111,7 @@ describe("the watcher's rules (SR-007)", () => {
 
 /** The workspace file of the per-folder tests: a nested repository, a missing one, ignore globs. */
 const treeWorkspace = (metamodelRepository: string): string =>
-  `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\n  - { name: gone, url: z, path: ../gone }\nmetamodel: { repository: ${metamodelRepository}, path: metamodel }\nignore: ["site/**", "metamodel/**"]\n`;
+  `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\n  - { name: gone, url: z, path: ../gone }\nmetamodel: { repository: ${metamodelRepository}, path: metamodel }\nignore: ["site/**", "metamodel/**"]\n`;
 
 describe("the watcher's watch per folder (SR-007, Linux)", () => {
   const perFolder = async (
@@ -1127,7 +1127,7 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
   const treeFixture = (metamodelRepository = "system"): ReturnType<typeof opened> =>
     opened({
       files: {
-        "logreq-workspace.yaml": treeWorkspace(metamodelRepository),
+        "reqseq-workspace.yaml": treeWorkspace(metamodelRepository),
         "vendor/sub/SR-0c1d2e3f4a5b.md": requirement(OTHER, "Sub"),
         "site/docs/page.md": "# Site\n",
         "node_modules/x/a.md": "",
@@ -1166,7 +1166,7 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
     for (const [typed, onDisk] of FORMS) {
       const { workspace } = await opened({
         files: {
-          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\nignore: ["docs/**"]\n`,
+          "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "docs/${typed}" }\nignore: ["docs/**"]\n`,
           [`docs/${onDisk}/model.yaml`]: "",
           "docs/other/page.md": "",
         },
@@ -1190,7 +1190,7 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
     ] as const) {
       const { workspace } = await opened({
         files: {
-          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\nignore: ["${onDisk}/**"]\n`,
+          "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: "${typed}/metamodel" }\nignore: ["${onDisk}/**"]\n`,
           [`${onDisk}/other/page.md`]: "",
         },
       });
@@ -1445,8 +1445,8 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
       expect(held).toBe(1);
     });
     const stale = fake.of(workspace.root);
-    await fixture.write("logreq-workspace.yaml", treeWorkspace("system").replace("name: W", "name: V"));
-    stale.send("logreq-workspace.yaml");
+    await fixture.write("reqseq-workspace.yaml", treeWorkspace("system").replace("name: W", "name: V"));
+    stale.send("reqseq-workspace.yaml");
     await vi.waitFor(() => {
       expect(fake.open().filter((h) => h.folder === workspace.root)).toHaveLength(1);
       expect(fake.of(workspace.root)).not.toBe(stale);
@@ -1738,7 +1738,7 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
       }),
     );
     const changes = changesOf(watcher);
-    first.send("logreq-workspace.yaml");
+    first.send("reqseq-workspace.yaml");
     await watcher.settled();
     expect(changes).toEqual([{ scope: "workspace", elements: elements() }]);
     expect(watchedWhenTold).toEqual([true]);
@@ -1897,7 +1897,7 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
       },
     });
     workspace.get(closer);
-    fake.only().send("logreq-workspace.yaml");
+    fake.only().send("reqseq-workspace.yaml");
     await watcher.settled();
     await closing;
     expect(closing).toBeDefined();

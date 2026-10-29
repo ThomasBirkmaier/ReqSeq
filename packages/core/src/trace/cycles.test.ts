@@ -15,7 +15,7 @@ import type { GraphEdge } from "./walk.js";
  * The current version of every `requirement(id)` without text: the id and relation kinds are no
  * content (ADR-0005), so the relations these tests write are not outdated (SR-025).
  */
-const V = "n1:e56561e2ecbb739f";
+const V = "n1:7ca5d406afb00989";
 
 /** The UUIDs of fixtures/SR-090/cycle: the need, A, B, C (the cycle) and D (derives from A). */
 const P = "5e9c0a7d-2b4f-4c61-9d08-0";
@@ -28,7 +28,7 @@ const uuid = (n: number): string => `00000000-0000-4000-8000-${String(n).padStar
 
 const workspaceFile = (repositories: readonly string[] = []): string =>
   [
-    "logreq-workspace: 1",
+    "reqseq-workspace: 1",
     "name: Cycles",
     "repositories:",
     "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -70,7 +70,7 @@ const derivesFrom = (...targets: readonly (string | readonly [string, string])[]
 const file = (id: string): string => `requirements/SR-${id.slice(-12)}.md`;
 
 const BASE = {
-  "system/logreq-workspace.yaml": workspaceFile(),
+  "system/reqseq-workspace.yaml": workspaceFile(),
   "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
 };
 
@@ -187,7 +187,7 @@ describe("cycles in the derivations (SR-090)", () => {
   it("[SR-090/AK1] reports each cycle on its own, across repositories, in the order of their first element", async () => {
     const [X, Y, Q, R, T] = [1, 2, 3, 4, 5].map(uuid) as [string, string, string, string, string];
     const workspace = await open({
-      "system/logreq-workspace.yaml": workspaceFile([PLATFORM]),
+      "system/reqseq-workspace.yaml": workspaceFile([PLATFORM]),
       ...requirements({
         [X]: derivesFrom([Y, "platform"]),
         [Q]: derivesFrom(R),
@@ -314,7 +314,7 @@ describe("cycles in the derivations (SR-090)", () => {
       string,
     ];
     const workspace = await open({
-      "system/logreq-workspace.yaml": workspaceFile([AWAY]),
+      "system/reqseq-workspace.yaml": workspaceFile([AWAY]),
       // A replacement is no derivation, and neither is an inline reference (ADR-0004).
       [`system/${file(X)}`]: requirement(X, [
         ...derivesFrom(Y),
@@ -323,7 +323,7 @@ describe("cycles in the derivations (SR-090)", () => {
       [`system/${file(Y)}`]: requirement(
         Y,
         [`supersedes:\n  - { id: ${X}, version: ${V} }`],
-        `See [X](logreq:${X}?version=${V}).`,
+        `See [X](reqseq:${X}?version=${V}).`,
       ),
       // Z and its copy share a UUID (SR-088): a relation to it is ambiguous and leads nowhere.
       [`system/${file(Z)}`]: requirement(Z, derivesFrom(W)),
@@ -345,7 +345,7 @@ describe("cycles in the derivations (SR-090)", () => {
     // The current version of the need in fixtures/SR-090/cycle, so that the new relation is not outdated (SR-025).
     await fixture.write(
       "requirements/SR-0b0000000003.md",
-      requirement(C, ["derives-from:", `  - { id: ${NEED}, version: n1:3e5f74ee1859b526 }`]),
+      requirement(C, ["derives-from:", `  - { id: ${NEED}, version: n1:3bb0ba3cfe019202 }`]),
     );
     await workspace.reset(elementStoreState);
     expect(await cycles(workspace)).toEqual([]);

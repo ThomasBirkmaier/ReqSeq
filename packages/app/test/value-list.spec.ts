@@ -26,7 +26,7 @@ const FIXTURE = {
     "requirements/SR-0000000000b6.md": `---\nid: ${P}b6\ntype: system-requirement\nstatus: draft\ntitle: Measure the rain\nrationale: Rain falls on the sensor.\nrequirement-type: functional\nacceptance-criteria:\n  - Given rain, when it is checked, then it holds.\ntopic: Timing\npackages:\n${PACKAGE_D1}---\n`,
     "requirements/SR-0000000000b7.md": `---\nid: ${P}b7\ntype: system-requirement\nstatus: draft\ntitle: Measure the hail\nrequirement-type: functional\nacceptance-criteria:\n  - Given hail, when it is checked, then it holds.\ntopic: Wind\npackages:\n${PACKAGE_D1}---\n`,
     "metamodel/software.yaml":
-      "logreq-metamodel: 1\n\ntypes:\n  - key: software-requirement\n    name: Software Requirement\n    prefix: SWR\n    extends: system-requirement\n    properties: [priority, labels]\n\nproperties:\n  - { key: priority, name: Priority, kind: number }\n  - { key: labels, name: Labels, kind: text, many: true }\n",
+      "reqseq-metamodel: 1\n\ntypes:\n  - key: software-requirement\n    name: Software Requirement\n    prefix: SWR\n    extends: system-requirement\n    properties: [priority, labels]\n\nproperties:\n  - { key: priority, name: Priority, kind: number }\n  - { key: labels, name: Labels, kind: text, many: true }\n",
     "requirements/SWR-0000000000f3.md": SWR("f3", "Time the samples", "[Timing, Safety]"),
     "requirements/SWR-0000000000f4.md": SWR("f4", "Guard the samples", "[Safety]"),
   },

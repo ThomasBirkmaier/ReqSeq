@@ -14,7 +14,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import YAML from "yaml";
 
-const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".logreq"]);
+const SKIP = new Set(["node_modules", ".git", "dist", "out", "coverage", "spec", ".reqseq"]);
 const TEST_FILE = /\.(test|spec)\.(ts|tsx|js|mjs)$|^test_.*\.py$|_test\.py$/;
 
 /** The frontmatter of a Markdown file as an object, or undefined when it has none that parses. */
@@ -38,7 +38,7 @@ function markdownFiles(dir) {
     if (
       entry.isDirectory() &&
       entry.name !== ".git" &&
-      entry.name !== ".logreq" &&
+      entry.name !== ".reqseq" &&
       entry.name !== "node_modules"
     ) {
       out.push(...markdownFiles(p));
@@ -56,7 +56,7 @@ function markdownFiles(dir) {
  * (default `../<name>`) relative to it.
  */
 export function metamodelFolder(specDir) {
-  const ws = YAML.parse(fs.readFileSync(path.join(specDir, "logreq-workspace.yaml"), "utf8")) ?? {};
+  const ws = YAML.parse(fs.readFileSync(path.join(specDir, "reqseq-workspace.yaml"), "utf8")) ?? {};
   const repos = Array.isArray(ws.repositories) ? ws.repositories : [];
   const repo = repos.find((r) => r?.name === ws.metamodel?.repository);
   if (repo === undefined || typeof ws.metamodel?.path !== "string") {

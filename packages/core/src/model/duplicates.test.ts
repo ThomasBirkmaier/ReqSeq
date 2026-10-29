@@ -85,8 +85,8 @@ describe("duplicate IDs (SR-088)", () => {
   it("[SR-088/AK1] reports every file when the UUID is in three files of two repositories", async () => {
     const third = "old/N-00606ccf2661.md";
     const { workspace } = await open({
-      "system/logreq-workspace.yaml": [
-        "logreq-workspace: 1",
+      "system/reqseq-workspace.yaml": [
+        "reqseq-workspace: 1",
         "name: Weather station",
         "repositories:",
         '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',

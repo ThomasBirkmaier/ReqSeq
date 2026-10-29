@@ -7,7 +7,7 @@
 # - traces-to: every type as target, the opposite of based-on between Decision and "Any type";
 # - blocks: no source type at all (no curve).
 # The relation property packages is drawn as a curve too (#619 Q1).
-logreq-metamodel: 1
+reqseq-metamodel: 1
 properties:
   - { key: title, name: Title, kind: text, meaning: title }
   - { key: rationale, name: Rationale, kind: text, markdown: true }

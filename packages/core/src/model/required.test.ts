@@ -10,7 +10,7 @@ import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 
 const MODEL = [
-  "logreq-metamodel: 1",
+  "reqseq-metamodel: 1",
   "types:",
   "  - { key: base, name: Base, prefix: B, properties: [title, tags], required: [title, tags] }",
   "  - { key: derived, name: Derived, prefix: D, extends: base, properties: [weight], required: [weight] }",
@@ -24,11 +24,11 @@ const MODEL = [
 ].join("\n");
 
 const WORKSPACE =
-  "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n";
+  "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n";
 
 const loaded = async (): Promise<{ metamodel: Metamodel; store: ElementStore }> => {
   const fixture = await createFixtureWorkspace({
-    files: { "logreq-workspace.yaml": WORKSPACE, "metamodel/model.yaml": MODEL },
+    files: { "reqseq-workspace.yaml": WORKSPACE, "metamodel/model.yaml": MODEL },
   });
   onTestFinished(() => fixture.cleanup());
   const workspace = new Workspace(fixture.root);

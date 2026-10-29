@@ -11,7 +11,7 @@ import type { SavedFilter } from "./saved.js";
 import { filterSlug, inSavedFilter, newFilterFile, readSavedFilters } from "./saved.js";
 
 const WORKSPACE = (filters: string): string =>
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
   `metamodel: { repository: system, path: metamodel }\nfilters: ${filters}\n`;
 
@@ -27,7 +27,7 @@ describe("saved filter files (SR-070)", () => {
   it("[SR-070/AK1] reads and writes filters at the root of a repository, never the workspace file", async () => {
     const workspace = await open({
       fixture: "SR-069/filter",
-      files: { "logreq-workspace.yaml": WORKSPACE("{ repository: system, path: . }") },
+      files: { "reqseq-workspace.yaml": WORKSPACE("{ repository: system, path: . }") },
     });
     const saved = await invoke("filter.save", { name: "All", where: { all: [] } }, { workspace });
     expect(saved).toEqual({ files: ["all.yaml"], problems: [] });
@@ -51,7 +51,7 @@ describe("saved filter files (SR-070)", () => {
     expect((error as CommandError).code).toBe("file.not-regular");
     const unknown = await open({
       fixture: "SR-069/filter",
-      files: { "logreq-workspace.yaml": WORKSPACE("{ repository: elsewhere, path: filters }") },
+      files: { "reqseq-workspace.yaml": WORKSPACE("{ repository: elsewhere, path: filters }") },
     });
     expect(await readSavedFilters(await unknown.get(workspaceLayoutState))).toMatchObject({
       repository: undefined,
@@ -64,15 +64,15 @@ describe("saved filter files (SR-070)", () => {
     const workspace = await open({
       fixture: "SR-069/filter",
       files: {
-        "filters/a.yaml": "logreq-filter: 2\nname: Twice\nwhere: { all: [] }\n",
-        "filters/b.yaml": "logreq-filter: 1\nname: Twice\n",
+        "filters/a.yaml": "reqseq-filter: 2\nname: Twice\nwhere: { all: [] }\n",
+        "filters/b.yaml": "reqseq-filter: 1\nname: Twice\n",
         "filters/c.yaml": "",
       },
     });
     const read = await readSavedFilters(await workspace.get(workspaceLayoutState));
     expect(read.faultyNames).toEqual(new Map([["twice", ["filters/a.yaml", "filters/b.yaml"]]]));
     expect(read.problems.map((p) => [p.file, p.line, p.message])).toEqual([
-      ["filters/a.yaml", 1, "Invalid saved filter filters/a.yaml: logreq-filter 2 is not 1"],
+      ["filters/a.yaml", 1, "Invalid saved filter filters/a.yaml: reqseq-filter 2 is not 1"],
       ["filters/b.yaml", 1, "Invalid saved filter filters/b.yaml: where is required"],
       [
         "filters/c.yaml",

@@ -724,7 +724,7 @@ describe("element.update: directly affected elements (SR-024)", () => {
       opened.fixture.path("requirements/SR-00000000b002.md"),
       gusts.replace(
         "The station shows gusts.",
-        "Gusts beside [Show wind speed](logreq:5c0e1d2a-0024-4024-8024-00000000b001?version=n1:0000000000000000).",
+        "Gusts beside [Show wind speed](reqseq:5c0e1d2a-0024-4024-8024-00000000b001?version=n1:0000000000000000).",
       ),
     );
     expect((await update(opened, { ref: SPEED, text: "Speed.\n" })).affected).toBe(2);

@@ -24,9 +24,9 @@ const N_FILE = "needs/N-0a0000000001.md";
 const V_FILE = "variants/V-0c0000000001.md";
 const A_FILE = "requirements/SR-0b0000000001.md";
 const B_FILE = "requirements/SR-0b0000000002.md";
-const N_VERSION = "n1:4a120bac998acdc8";
-const V_VERSION = "n1:b3f17e3d2a46ea1e";
-const A_VERSION = "n1:c432bd0d8bcd0958";
+const N_VERSION = "n1:323df2732ed684b0";
+const V_VERSION = "n1:b72330c9018ce26f";
+const A_VERSION = "n1:e73a2cb229cfa29d";
 
 const N_LINE = `  - { id: ${N}, version: ${N_VERSION}, title: See the wind }`;
 const V_LINE = `  - { id: ${V}, version: ${V_VERSION}, title: Pro }`;
@@ -94,7 +94,7 @@ describe("stored titles of relation targets (decision on #307)", () => {
         .replace(V_LINE, V_LINE.replace("Pro }", "Pro 2 }")),
     );
     // The label of the inline reference is text, which counts to the version: it stays.
-    expect(read(opened, A_FILE)).toContain(`[See the wind](logreq:${N}?version=${N_VERSION})`);
+    expect(read(opened, A_FILE)).toContain(`[See the wind](reqseq:${N}?version=${N_VERSION})`);
     // The stored versions stay: nothing in A was confirmed or became outdated.
     expect(await outdated(opened, A)).toEqual([]);
     expect(result.element.relations).toContainEqual(

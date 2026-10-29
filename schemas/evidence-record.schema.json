@@ -4,9 +4,9 @@
   "title": "Evidence record (Datensatz), Markdown frontmatter",
   "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
   "type": "object",
-  "required": ["logreq-record", "kind", "element", "version", "result", "date"],
+  "required": ["reqseq-record", "kind", "element", "version", "result", "date"],
   "properties": {
-    "logreq-record": { "const": 1 },
+    "reqseq-record": { "const": 1 },
     "kind": {
       "enum": ["verification", "validation"],
       "description": "Nachweis or Validierung (D-007). Validation counts only for the validation status (SR-030 AK3)."

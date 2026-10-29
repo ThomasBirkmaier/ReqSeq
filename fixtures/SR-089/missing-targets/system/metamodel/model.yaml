@@ -1,5 +1,5 @@
 # Missing targets (SR-089): relation kinds and relation-valued properties, one of them a list.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - { key: need, name: Need, prefix: N, properties: [title] }

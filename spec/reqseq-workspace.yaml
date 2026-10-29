@@ -1,0 +1,9 @@
+reqseq-workspace: 1
+name: ReqSeq specification
+repositories:
+  - name: spec
+    url: ""
+    main: true
+metamodel:
+  repository: spec
+  path: metamodel

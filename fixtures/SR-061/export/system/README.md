@@ -4,14 +4,14 @@ Two repositories: `system` (main, this folder: metamodel = standard model of `fi
 
 | Element | Version | Content |
 |---|---|---|
-| N-0000a1 | `n1:c2b89c0554cf891b` | need; validation record passed (`evidence/2026-10-21-N-0000a1-validation.md`): validated (SR-038) |
-| PKG-0000d1 | `n1:36c40870aebec141` | package |
-| SR-0000b1 | `n1:d7089e63fea26191` | derives from a1 (current), validity [c1], packages [d1], `requirement-type: functional`, unknown key `x-supplier`; test passed in VAR-0000c1 (`evidence/2026-10-20-SR-0000b1-test.md`) |
-| SR-0000b2 | `n1:46f520a356e92a87` | derives from a1 with the old version `n1:0000000000000000` (outdated), packages [d1], `performance`, supersedes b4; JUnit test failed in the core (`evidence/ci/run-1.xml`, enriched) |
-| SR-0000b3 | `n1:79eb8daf0d9b3780` | derives from a1 (current), validity [c2], `functional` |
-| SR-0000b4 | `n1:4e09d2361f4d1948` | status `obsolete`, superseded by b2, `functional` |
-| VAR-0000c1, VAR-0000c2 | `n1:bbd84fb6aed6ac43`, `n1:6f4623cafec0993e` | variants Coast, Mountain |
-| SR-0000e1 (sensor) | `n1:195697954ef3980b` | derives from b1 in `system`, `quality` |
+| N-0000a1 | `n1:9d97d0ccf9b75591` | need; validation record passed (`evidence/2026-10-21-N-0000a1-validation.md`): validated (SR-038) |
+| PKG-0000d1 | `n1:5862e4d618683af6` | package |
+| SR-0000b1 | `n1:697a2ad17ed49170` | derives from a1 (current), validity [c1], packages [d1], `requirement-type: functional`, unknown key `x-supplier`; test passed in VAR-0000c1 (`evidence/2026-10-20-SR-0000b1-test.md`) |
+| SR-0000b2 | `n1:077d46fbf1a6a93d` | derives from a1 with the old version `n1:0000000000000000` (outdated), packages [d1], `performance`, supersedes b4; JUnit test failed in the core (`evidence/ci/run-1.xml`, enriched) |
+| SR-0000b3 | `n1:4b17a5494b8e80e5` | derives from a1 (current), validity [c2], `functional` |
+| SR-0000b4 | `n1:1e68aa41d13d05b1` | status `obsolete`, superseded by b2, `functional` |
+| VAR-0000c1, VAR-0000c2 | `n1:f0136de1de07212d`, `n1:88d1931ebfec35a5` | variants Coast, Mountain |
+| SR-0000e1 (sensor) | `n1:31d60ac7c791e279` | derives from b1 in `system`, `quality` |
 
 Expected selections (SR-061 AK2):
 

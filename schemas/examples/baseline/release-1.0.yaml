@@ -1,4 +1,4 @@
-logreq-baseline: 1
+reqseq-baseline: 1
 name: Release 1.0
 date: 2026-10-24T09:30:00Z
 selection: { package: 19fd3f5e-9caf-4c94-9e30-c4eb8a40324a }

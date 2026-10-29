@@ -119,13 +119,13 @@ afterEach(async () => {
   }
 });
 
-/** A folder in a new test folder, with `logreq-workspace.yaml`, and a folder inside it without one. */
+/** A folder in a new test folder, with `reqseq-workspace.yaml`, and a folder inside it without one. */
 const workspaceOnDisk = async (): Promise<{ readonly root: string; readonly inside: string }> => {
   top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-typed-")));
   const root = path.join(top, "station");
   const inside = path.join(root, "requirements", "system");
   await fs.mkdir(inside, { recursive: true });
-  await fs.writeFile(path.join(root, "logreq-workspace.yaml"), "logreq-workspace: 1\n");
+  await fs.writeFile(path.join(root, "reqseq-workspace.yaml"), "reqseq-workspace: 1\n");
   return { root, inside };
 };
 
@@ -350,7 +350,7 @@ describe("the recent workspaces channels (SR-131)", () => {
 
   it("a typed folder without a workspace answers no-workspace and leaves the running core process alone", async () => {
     const { inside } = await workspaceOnDisk();
-    await fs.rm(path.join(path.dirname(path.dirname(inside)), "logreq-workspace.yaml"));
+    await fs.rm(path.join(path.dirname(path.dirname(inside)), "reqseq-workspace.yaml"));
     const { typed, core, window } = setup();
     expect(await typed(inside)).toEqual({ ok: false, reason: "no-workspace" });
     expect(core.open).not.toHaveBeenCalled();

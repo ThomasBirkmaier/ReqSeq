@@ -397,7 +397,7 @@ describe("duplicate identifiers (#305)", () => {
   it("reports nothing against a metamodel that is not valid", async () => {
     const opened = await open({
       [TWIN_FILE]: twin("SR-036"),
-      "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes:\n  - { key: need, name: Again, prefix: NN }\n",
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Again, prefix: NN }\n",
     });
     const problems = await problemsOf(opened);
     expect(problems.some((p) => p.code === "metamodel.invalid")).toBe(true);

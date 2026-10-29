@@ -91,7 +91,7 @@ describe("reqseq data export (SR-061)", () => {
     ]);
     const byId = new Map(out.elements.map((e) => [e.id.slice(-2), e]));
     expect(byId.get("b1")).toMatchObject({
-      version: "n1:d7089e63fea26191",
+      version: "n1:697a2ad17ed49170",
       properties: { "x-supplier": "Anemo Ltd" },
       validity: [`${P}c1`],
       packages: [`${P}d1`],
@@ -168,11 +168,11 @@ describe("reqseq data export --jsonl (SR-061 AK4, #319)", () => {
       const lines = await exportIn(ws, [...args, "--jsonl"]);
       expect([args, lines.code, lines.stderr]).toEqual([args, 0, ""]);
       const out = JSON.parse(json.stdout) as Exported & Readonly<Record<string, unknown>>;
-      const state = { "logreq-data": 2, commit: await ws.head("system"), dirty: false };
-      expect([args, out["logreq-data"], out["commit"], out["dirty"]]).toEqual([args, 2, state.commit, false]);
+      const state = { "reqseq-data": 2, commit: await ws.head("system"), dirty: false };
+      expect([args, out["reqseq-data"], out["commit"], out["dirty"]]).toEqual([args, 2, state.commit, false]);
       expect([args, linesOf(lines.stdout)]).toEqual([args, out.elements.map((e) => ({ ...state, ...e }))]);
       for (const line of lines.stdout.slice(0, -1).split("\n")) {
-        expect(line.startsWith('{"logreq-data":2,"commit":')).toBe(true);
+        expect(line.startsWith('{"reqseq-data":2,"commit":')).toBe(true);
       }
     }
   });

@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/workspace-local.schema.json",
   "title": "Local workspace overrides",
-  "description": "`.logreq/local.yaml` next to `logreq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.logreq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
+  "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
   "type": "object",
-  "required": ["logreq-local"],
+  "required": ["reqseq-local"],
   "properties": {
-    "logreq-local": { "const": 1 },
+    "reqseq-local": { "const": 1 },
     "repositories": {
       "type": "object",
       "description": "Per repository name of the workspace file: where it lies on this machine.",
@@ -18,7 +18,7 @@
           "path": {
             "type": "string",
             "minLength": 1,
-            "description": "Absolute path, or relative to the main repository (the folder with `logreq-workspace.yaml`). No `~` expansion."
+            "description": "Absolute path, or relative to the main repository (the folder with `reqseq-workspace.yaml`). No `~` expansion."
           }
         },
         "additionalProperties": false

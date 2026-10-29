@@ -1,6 +1,6 @@
 # SR-029: enriching JUnit XML
 
-`enrich/`: one repository `system` with the standard model plus the property `spec-id` with the meaning `identifier` (#305), four requirements and the evidence location `evidence/` (empty: `evidence/ci/.gitkeep`). The result files lie outside the evidence folder in `results/`, as a pipeline writes them before `logreq evidence enrich-junit` (SR-029) runs. `.gitattributes` keeps their bytes (CRLF, byte order mark).
+`enrich/`: one repository `system` with the standard model plus the property `spec-id` with the meaning `identifier` (#305), four requirements and the evidence location `evidence/` (empty: `evidence/ci/.gitkeep`). The result files lie outside the evidence folder in `results/`, as a pipeline writes them before `reqseq evidence enrich-junit` (SR-029) runs. `.gitattributes` keeps their bytes (CRLF, byte order mark).
 
 | Requirement | UUID | Named by |
 |---|---|---|

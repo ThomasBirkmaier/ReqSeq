@@ -60,7 +60,7 @@ const COMMAND = "evidence.record";
 const TRIES = 3;
 
 /** The frontmatter of a record file as ReqSeq writes it, in schema order (rule 3). */
-export type RecordFields = Omit<EvidenceRecordFile, "logreq-record">;
+export type RecordFields = Omit<EvidenceRecordFile, "reqseq-record">;
 
 /** What `recordEvidence` uses to render, write and tell the time; tests inject other ones (seams). */
 export interface RecordDeps {
@@ -70,7 +70,7 @@ export interface RecordDeps {
 }
 
 /**
- * The bytes of a record file (pure): `---`, the frontmatter in schema order with `logreq-record: 1`
+ * The bytes of a record file (pure): `---`, the frontmatter in schema order with `reqseq-record: 1`
  * first and absent fields left out, `---`, and no body (the text below is the user's to add). LF, no BOM.
  */
 export const renderRecordFile = (fields: RecordFields): string => {
@@ -84,7 +84,7 @@ export const renderRecordFile = (fields: RecordFields): string => {
   return `---\n${renderYamlDocument(frontmatter)}---\n`;
 };
 
-/** The keys of the format after `logreq-record`, in schema order. */
+/** The keys of the format after `reqseq-record`, in schema order. */
 const FORMAT_ORDER: readonly (keyof RecordFields)[] = [
   "kind",
   "element",

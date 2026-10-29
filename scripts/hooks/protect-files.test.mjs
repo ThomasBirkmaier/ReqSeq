@@ -16,7 +16,7 @@ describe("protect-files hook", () => {
 
   it("allows the hand-edited spec files and everything else", () => {
     expect(protectedReason("spec/metamodel/standard-model.yaml")).toBeUndefined();
-    expect(protectedReason("spec/logreq-workspace.yaml")).toBeUndefined();
+    expect(protectedReason("spec/reqseq-workspace.yaml")).toBeUndefined();
     expect(protectedReason("spec/README.md")).toBeUndefined();
     expect(protectedReason("fixtures/SR-062/subfolder/spec/requirements/SR-0000000000b1.md")).toBeUndefined();
     expect(protectedReason("packages/core/src/commands/x.ts")).toBeUndefined();

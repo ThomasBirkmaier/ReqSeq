@@ -40,8 +40,8 @@ describe("hint.confirm cost (SR-027 AK2, N-036)", () => {
       fixture: "SR-025/outdated",
       files: {
         ...others,
-        "requirements/SR-0b0000000001.md": requirement(A, "", `[B](logreq:${B}?version=${OLD})`),
-        "requirements/SR-0b0000000002.md": requirement(B, "", `[A](logreq:${A}?version=${OLD})`),
+        "requirements/SR-0b0000000001.md": requirement(A, "", `[B](reqseq:${B}?version=${OLD})`),
+        "requirements/SR-0b0000000002.md": requirement(B, "", `[A](reqseq:${A}?version=${OLD})`),
       },
     });
     onTestFinished(() => ws.cleanup());

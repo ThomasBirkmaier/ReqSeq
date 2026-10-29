@@ -1,4 +1,4 @@
-// The `workspace` block (SR-004, SR-006, SR-018): `logreq-workspace.yaml`, local overrides, where
+// The `workspace` block (SR-004, SR-006, SR-018): `reqseq-workspace.yaml`, local overrides, where
 // the repositories lie, which are available and which are writable. Core blocks and commands import
 // it relatively.
 export { LOCAL_FILE, WORKSPACE_FILE, readLocalFile, readWorkspaceFile } from "./config.js";

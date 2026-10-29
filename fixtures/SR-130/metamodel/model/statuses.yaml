@@ -1,4 +1,4 @@
-logreq-metamodel: 1
+reqseq-metamodel: 1
 statuses:
   - { key: draft, name: Draft, initial: true }
   - { key: approved, name: Approved }

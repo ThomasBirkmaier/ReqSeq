@@ -1447,7 +1447,7 @@ describe("App, the text editor", () => {
     await type("title");
     expect(calls(invoke, "element.search")).toEqual([{ query: "title", fields: ["id", "title"], limit: 20 }]);
     await keyDown(query("input"), "Enter");
-    expect(editorView().state.doc.toString()).toBe("Hello [Title 2](logreq:uuid-2)");
+    expect(editorView().state.doc.toString()).toBe("Hello [Title 2](reqseq:uuid-2)");
     expect(container.querySelector("input")).toBeNull();
     expect(editorView().hasFocus).toBe(true);
     expect(document.activeElement).toBe(query(".cm-content"));
@@ -1533,7 +1533,7 @@ describe("App, the text editor", () => {
     vi.useRealTimers();
     expect(document.activeElement).toBe(query(".cm-content"));
     expect(calls(invoke, "element.update")).toEqual([
-      { ref: "uuid-1", text: "Hello [Title 2](logreq:uuid-2)", expectedFileSha256: "uuid-1@0" },
+      { ref: "uuid-1", text: "Hello [Title 2](reqseq:uuid-2)", expectedFileSha256: "uuid-1@0" },
     ]);
   });
 
@@ -1548,7 +1548,7 @@ describe("App, the text editor", () => {
           ? Object.assign(new Error("No element"), { code: "ref.unknown" })
           : {
               element: row(1, {
-                text: `See [N-0e9d7c](logreq:${GUSTS}?version=n1:aa&repository=sensor) and [N-555555](logreq:${GONE}?version=n1:bb&repository=sensor).`,
+                text: `See [N-0e9d7c](reqseq:${GUSTS}?version=n1:aa&repository=sensor) and [N-555555](reqseq:${GONE}?version=n1:bb&repository=sensor).`,
                 relations: [],
               }),
             };
@@ -1557,7 +1557,7 @@ describe("App, the text editor", () => {
     expect(calls(invoke, "element.get")).toContainEqual({ ref: GUSTS, repository: "sensor" });
     expect(calls(invoke, "element.get")).toContainEqual({ ref: GONE, repository: "sensor" });
     expect(texts(".cm-lr-ref")).toEqual(["Measure gusts", "N-555555"]);
-    expect(editorView().state.doc.toString()).toContain("[N-0e9d7c](logreq:");
+    expect(editorView().state.doc.toString()).toContain("[N-0e9d7c](reqseq:");
   });
 
   it.each(["opened", "restarted"] as const)(
@@ -1570,7 +1570,7 @@ describe("App, the text editor", () => {
           ? { element: row(9, { id: GUSTS, title: "Measure gusts", repository: "sensor", relations: [] }) }
           : {
               element: row(1, {
-                text: `See [N-0e9d7c](logreq:${GUSTS}?version=n1:aa&repository=sensor).`,
+                text: `See [N-0e9d7c](reqseq:${GUSTS}?version=n1:aa&repository=sensor).`,
                 relations: [],
               }),
             };
@@ -1609,7 +1609,7 @@ describe("App, the text editor", () => {
     await type("gusts");
     await keyDown(query("input"), "Enter");
     expect(editorView().state.doc.toString()).toBe(
-      `Hello [N-0e9d7c](logreq:${GUSTS}?version=&repository=sensor)`,
+      `Hello [N-0e9d7c](reqseq:${GUSTS}?version=&repository=sensor)`,
     );
     // Off the line with the caret the title shows, from the pick.
     await act(async () => {
@@ -2333,7 +2333,7 @@ describe("App, the text editor", () => {
       calls(invoke, "element.get").filter((input) => (input as { ref: string }).ref === ref);
 
     it("follows an inline reference with Ctrl+Enter, and Follow reference is in the command prompt with its key", async () => {
-      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?version=n1:aa)`));
+      const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       expect([...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)).toContain(
         "Follow referenceCtrl+Enter",
@@ -2345,7 +2345,7 @@ describe("App, the text editor", () => {
     });
 
     it("opens a reference that names a repository in that repository", async () => {
-      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?repository=r2)`));
+      const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?repository=r2)`));
       await runCommand("follow reference");
       // The editor asked for the title of the target in r2 (D-058, SR-066 AK2), then the command opened it there.
       expect(asked(invoke, TARGET)).toEqual([
@@ -2361,7 +2361,7 @@ describe("App, the text editor", () => {
     });
 
     it("says why a reference cannot be opened, and keeps the element", async () => {
-      const { handlers } = await openElement(withReference(`[Two](logreq:${TARGET})`));
+      const { handlers } = await openElement(withReference(`[Two](reqseq:${TARGET})`));
       handlers["element.get"] = () => new Error(`More than one element has the ID "${TARGET}"`);
       await keyDown(query("article"), "Enter", { ctrlKey: true });
       expect(text("Minibuffer")).toBe(`More than one element has the ID "${TARGET}"`);
@@ -2369,7 +2369,7 @@ describe("App, the text editor", () => {
     });
 
     it("Ctrl+Enter in an open prompt runs the candidate only", async () => {
-      const { invoke } = await openElement(withReference(`[Two](logreq:${TARGET}?version=n1:aa)`));
+      const { invoke } = await openElement(withReference(`[Two](reqseq:${TARGET}?version=n1:aa)`));
       await keyDown(window, "P", { ctrlKey: true, shiftKey: true });
       await type("go to");
       await keyDown(query("input"), "Enter", { ctrlKey: true });

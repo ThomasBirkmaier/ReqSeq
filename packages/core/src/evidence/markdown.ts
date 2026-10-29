@@ -1,19 +1,19 @@
 // The Markdown reader of the evidence block (SR-028, ADR-0012 "Manual record"): one record per
-// Markdown file whose frontmatter has the key `logreq-record`, checked against
+// Markdown file whose frontmatter has the key `reqseq-record`, checked against
 // `evidence-record.schema.json` (D-026).
 //
 // - The bytes are parsed as an element file is (`parseFileBytes` of the files block: strict UTF-8, BOM,
 //   CRLF, conflict markers, YAML 1.2 with lines). A file that does not parse gives the problem of the
 //   files block (`file.invalid-yaml`, `file.conflict-markers`, `file.unreadable`) and no record; the
 //   element store reports the same file too, so `evidenceProblemsState` shows such a problem once.
-// - A file without frontmatter, or whose frontmatter is no mapping with `logreq-record`, is no record
+// - A file without frontmatter, or whose frontmatter is no mapping with `reqseq-record`, is no record
 //   (a README in an evidence folder) and gives nothing, not even its YAML warnings.
 // - A key the format does not know is read with a warning `evidence.invalid-record` naming it, and
 //   the record counts (spec question #533 Q1, assumption: as D-012 does for elements). Every other
 //   violation of the schema is an error `evidence.invalid-record` at the line of the failing key,
 //   and the file gives no record.
 // - The record is `$defs/evidenceRecord` of `data-export.schema.json`: the frontmatter without
-//   `logreq-record`, `test-case` as `testCase`, and where it lies (`source: markdown`, line 1).
+//   `reqseq-record`, `test-case` as `testCase`, and where it lies (`source: markdown`, line 1).
 import type { Problem } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type { EvidenceRecordFile } from "../generated/types.js";
@@ -25,7 +25,7 @@ import type { EvidenceRecord } from "./record.js";
 import type { EvidenceFileRead, EvidenceReader } from "./state.js";
 
 /** The key that makes a Markdown file a record (ADR-0012). */
-export const RECORD_KEY = "logreq-record";
+export const RECORD_KEY = "reqseq-record";
 
 /** The file format schema of a Markdown record. */
 const SCHEMA = "evidence-record.schema.json";

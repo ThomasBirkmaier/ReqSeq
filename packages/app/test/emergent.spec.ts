@@ -10,7 +10,7 @@ import { DEFAULT_SORT, launchApp, listAll } from "./support/app.js";
 /** fixtures/SR-035/emergent with a saved filter `emergent` = `{emergent: true}`. */
 const FIXTURE = {
   fixture: "SR-035/emergent",
-  files: { "filters/emergent.yaml": "logreq-filter: 1\nname: emergent\nwhere:\n  emergent: true\n" },
+  files: { "filters/emergent.yaml": "reqseq-filter: 1\nname: emergent\nwhere:\n  emergent: true\n" },
 };
 
 interface Listed {

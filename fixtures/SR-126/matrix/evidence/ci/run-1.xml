@@ -3,43 +3,43 @@
   <testsuite name="station" tests="5" failures="1" errors="0" skipped="0" timestamp="2026-10-21T09:00:00">
     <testcase classname="tests.test_wind" name="test_speed[SR-126b01]" time="0.010">
       <properties>
-        <property name="logreq:element" value="5c0e1d2a-0126-4126-8126-000000126b01"/>
-        <property name="logreq:version" value="n1:f3f86f771ff1e825"/>
-        <property name="logreq:item" value="build-601"/>
-        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b01"/>
+        <property name="reqseq:version" value="n1:4b6860725d822fd9"/>
+        <property name="reqseq:item" value="build-601"/>
+        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>
       </properties>
       <failure message="expected 12 to be 13">AssertionError: expected 12 to be 13</failure>
     </testcase>
     <testcase classname="tests.test_wind" name="test_trend[SR-126b03]" time="0.010">
       <properties>
-        <property name="logreq:element" value="5c0e1d2a-0126-4126-8126-000000126b03"/>
-        <property name="logreq:version" value="n1:0000000000000000"/>
-        <property name="logreq:item" value="build-601"/>
-        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b03"/>
+        <property name="reqseq:version" value="n1:0000000000000000"/>
+        <property name="reqseq:item" value="build-601"/>
+        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>
       </properties>
     </testcase>
     <testcase classname="tests.test_wind" name="test_mean[SR-126b08]" time="0.010">
       <properties>
-        <property name="logreq:element" value="5c0e1d2a-0126-4126-8126-000000126b08"/>
-        <property name="logreq:version" value="n1:2354041ae88fca1d"/>
-        <property name="logreq:item" value="build-601"/>
-        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b08"/>
+        <property name="reqseq:version" value="n1:10fc8568b3649160"/>
+        <property name="reqseq:item" value="build-601"/>
+        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>
       </properties>
     </testcase>
     <testcase classname="tests.test_wind" name="test_range[SR-126b09]" time="0.010">
       <properties>
-        <property name="logreq:element" value="5c0e1d2a-0126-4126-8126-000000126b09"/>
-        <property name="logreq:version" value="n1:330ca56502fb4477"/>
-        <property name="logreq:item" value="build-601"/>
-        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b09"/>
+        <property name="reqseq:version" value="n1:5a40284970049c73"/>
+        <property name="reqseq:item" value="build-601"/>
+        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>
       </properties>
     </testcase>
     <testcase classname="tests.test_wind" name="test_old[SR-126b10]" time="0.010">
       <properties>
-        <property name="logreq:element" value="5c0e1d2a-0126-4126-8126-000000126b10"/>
-        <property name="logreq:version" value="n1:4b1b6f1456961dd5"/>
-        <property name="logreq:item" value="build-601"/>
-        <property name="logreq:date" value="2026-10-21T09:00:00Z"/>
+        <property name="reqseq:element" value="5c0e1d2a-0126-4126-8126-000000126b10"/>
+        <property name="reqseq:version" value="n1:dd0d111ae96bdc7d"/>
+        <property name="reqseq:item" value="build-601"/>
+        <property name="reqseq:date" value="2026-10-21T09:00:00Z"/>
       </properties>
     </testcase>
   </testsuite>

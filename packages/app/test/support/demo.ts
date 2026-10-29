@@ -52,7 +52,7 @@ export const REFERENCE_TARGET_TITLE = "Messung jede Sekunde";
 export const REFERENCE_SOURCE_ID = "69069069-0000-4000-8000-00000000e0a2";
 export const REFERENCE_SOURCE_TITLE = "Windverweis";
 export const REFERENCE_LABEL = "Messung";
-export const REFERENCE_SOURCE_TEXT = `Siehe [${REFERENCE_LABEL}](logreq:${REFERENCE_TARGET_ID}?version=n1:1111111111111111) hier.
+export const REFERENCE_SOURCE_TEXT = `Siehe [${REFERENCE_LABEL}](reqseq:${REFERENCE_TARGET_ID}?version=n1:1111111111111111) hier.
 `;
 
 const needFile = (id: string, title: string, text: string): string =>

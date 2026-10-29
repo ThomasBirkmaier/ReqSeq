@@ -11,7 +11,7 @@ import { evidenceFiles } from "./folders.js";
 
 /** A workspace in `system/` with the repositories `system` and `ci` (both in the fixture) and `gone` (not). */
 const WORKSPACE = (evidence: string, ignore = ""): string =>
-  "logreq-workspace: 1\nname: Station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Station\nrepositories:\n" +
   "  - { name: system, url: u, main: true }\n  - { name: ci, url: u }\n  - { name: gone, url: u }\n" +
   `metamodel: { repository: system, path: metamodel }\nevidence:\n${evidence}${ignore}`;
 
@@ -30,7 +30,7 @@ const listed = async (ws: FixtureWorkspace): Promise<string[]> =>
 describe("evidenceFiles", () => {
   it("evidenceFiles lists *.md and *.xml files of every evidence location, nested folders included", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE(
+      "system/reqseq-workspace.yaml": WORKSPACE(
         "  - { repository: system, path: evidence }\n  - { repository: system, path: ./manual/ }\n",
       ),
       "system/evidence/b.md": "",
@@ -54,7 +54,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles gives nothing for a workspace without evidence locations", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE("").replace("evidence:\n", ""),
+      "system/reqseq-workspace.yaml": WORKSPACE("").replace("evidence:\n", ""),
       "system/evidence/a.md": "",
     });
     expect(await evidenceFiles(await layoutOf(ws))).toEqual({ files: [], incomplete: false, problems: [] });
@@ -62,7 +62,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles reads an evidence location in another repository of the workspace", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE(
+      "system/reqseq-workspace.yaml": WORKSPACE(
         "  - { repository: ci, path: results }\n  - { repository: system, path: . }\n",
         "ignore: ['requirements/**']\n",
       ),
@@ -75,7 +75,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles marks the result incomplete when the repository of a location is not available", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE(
+      "system/reqseq-workspace.yaml": WORKSPACE(
         "  - { repository: gone, path: results }\n  - { repository: unknown, path: x }\n  - { repository: system, path: evidence }\n",
       ),
       "system/evidence/a.md": "",
@@ -89,7 +89,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles reports evidence.folder-missing for a location that does not exist", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE(
+      "system/reqseq-workspace.yaml": WORKSPACE(
         "  - { repository: system, path: evidence/missing }\n  - { repository: system, path: plain.md }\n",
       ),
       "system/plain.md": "",
@@ -119,7 +119,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles skips linked files and folders and applies the ignore globs", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE(
+      "system/reqseq-workspace.yaml": WORKSPACE(
         "  - { repository: system, path: evidence }\n  - { repository: system, path: linked/inner }\n" +
           "  - { repository: system, path: evidence/sub }\n",
         "ignore: ['**/*.draft.md', 'evidence/old/**']\n",
@@ -165,8 +165,8 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles applies the walk rules to the evidence folder itself", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: Station\nrepositories:\n" +
+      "system/reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: Station\nrepositories:\n" +
         "  - { name: system, url: u, main: true }\n  - { name: ci, url: u, path: inner }\n" +
         "metamodel: { repository: system, path: metamodel }\nevidence:\n" +
         "  - { repository: system, path: node_modules/results }\n" +
@@ -213,7 +213,7 @@ describe("evidenceFiles", () => {
 
   it("evidenceFiles reports an evidence folder it cannot look at as unreadable, not as missing", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml": WORKSPACE("  - { repository: system, path: locked/results }\n"),
+      "system/reqseq-workspace.yaml": WORKSPACE("  - { repository: system, path: locked/results }\n"),
       "system/locked/results/a.md": "",
     });
     const layout = await layoutOf(ws);

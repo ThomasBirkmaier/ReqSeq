@@ -56,7 +56,7 @@ const decode = (s: string): string =>
     .replaceAll("&amp;", "&");
 
 /**
- * The `logreq:*` properties of each test case of a JUnit file, read with a small regex (the JUnit model
+ * The `reqseq:*` properties of each test case of a JUnit file, read with a small regex (the JUnit model
  * is no public export of `@reqseq/core`): enough for the files enrich writes.
  */
 const properties = (xml: string): Record<string, Record<string, string[]>> => {
@@ -67,7 +67,7 @@ const properties = (xml: string): Record<string, Record<string, string[]>> => {
     const name = decode(/\bname="([^"]*)"/.exec(attributes)?.[1] ?? "");
     const found: Record<string, string[]> = {};
     for (const [, key = "", value = ""] of body.matchAll(
-      /<property name="(logreq:[a-z]+)" value="([^"]*)"/g,
+      /<property name="(reqseq:[a-z]+)" value="([^"]*)"/g,
     )) {
       (found[key] ??= []).push(decode(value));
     }
@@ -89,7 +89,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     });
     const props = properties(await fs.readFile(ws.path("results/pytest.xml"), "utf8"));
     const enriched = Object.entries(props).filter(([, p]) =>
-      ["logreq:element", "logreq:version", "logreq:item", "logreq:date"].every(
+      ["reqseq:element", "reqseq:version", "reqseq:item", "reqseq:date"].every(
         (key) => (p[key]?.length ?? 0) > 0,
       ),
     );
@@ -100,10 +100,10 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
       "test_named[SR-036]",
     ]);
     for (const [, p] of enriched) {
-      expect(p["logreq:version"]?.[0]).toMatch(/^n1:[0-9a-f]{16}$/);
-      expect([p["logreq:item"], p["logreq:date"]]).toEqual([["build-512"], [DATE]]);
+      expect(p["reqseq:version"]?.[0]).toMatch(/^n1:[0-9a-f]{16}$/);
+      expect([p["reqseq:item"], p["reqseq:date"]]).toEqual([["build-512"], [DATE]]);
     }
-    expect(enriched.map(([, p]) => p["logreq:element"])).toEqual([[LOGIN], [LOGIN], [SPEC]]);
+    expect(enriched.map(([, p]) => p["reqseq:element"])).toEqual([[LOGIN], [LOGIN], [SPEC]]);
     expect(props["test_add[1-2]"]).toEqual({});
   });
 
@@ -188,7 +188,7 @@ describe("reqseq evidence enrich-junit (SR-029)", () => {
     expect([run.code, run.stderr]).toEqual([0, ""]);
     expect((JSON.parse(run.stdout) as Output).files).toEqual([target]);
     expect(
-      Object.values(properties(await fs.readFile(target, "utf8"))).filter((p) => p["logreq:version"]),
+      Object.values(properties(await fs.readFile(target, "utf8"))).filter((p) => p["reqseq:version"]),
     ).toHaveLength(3);
     expect(await fs.readFile(ws.path("results/pytest.xml"))).toEqual(before);
   });

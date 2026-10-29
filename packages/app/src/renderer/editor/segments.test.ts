@@ -36,7 +36,7 @@ describe("inlineSegments", () => {
       { text: "a ", classes: ["cm-lr-strong"] },
       { text: "b", classes: ["cm-lr-strong", "cm-lr-em"] },
     ]);
-    expect(segments('[text](logreq:x "t") end')).toEqual([
+    expect(segments('[text](reqseq:x "t") end')).toEqual([
       { text: "text", classes: ["cm-lr-link"] },
       { text: " end", classes: [] },
     ]);

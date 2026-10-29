@@ -16,12 +16,12 @@ const N = `${P}a0000000001`;
 const A = `${P}b0000000001`;
 const N_FILE = "needs/N-0a0000000001.md";
 const A_FILE = "requirements/SR-0b0000000001.md";
-const N_VERSION = "n1:4a120bac998acdc8";
+const N_VERSION = "n1:323df2732ed684b0";
 const AT_A = `system/${encodeURIComponent(A_FILE)}/${A}`;
 const AC = `relation.outdated/${AT_A}/@text:acceptance-criteria/${N}?version=${N_VERSION}`;
 const MODEL = path.resolve(import.meta.dirname, "../../../../schemas/examples/metamodel/standard-model.yaml");
 
-const link = (label: string, version = N_VERSION): string => `[${label}](logreq:${N}?version=${version})`;
+const link = (label: string, version = N_VERSION): string => `[${label}](reqseq:${N}?version=${version})`;
 
 /** A with four criteria, one in each YAML style, all linking N at the version N has in the fixture. */
 const requirement = (criteria: string): string =>
@@ -118,10 +118,10 @@ describe("references in properties marked markdown (SR-127)", () => {
     const ws = await fixture(
       requirementWith(
         A,
-        `acceptance-criteria:\n  - Plain.\ntopic: See ${link("the wind")} and [gone](logreq:${MISSING}?version=${N_VERSION})\n`,
+        `acceptance-criteria:\n  - Plain.\ntopic: See ${link("the wind")} and [gone](reqseq:${MISSING}?version=${N_VERSION})\n`,
       ).replace(
         "title: Other",
-        `title: See ${link("the wind")} and [gone](logreq:${MISSING}?version=${N_VERSION})`,
+        `title: See ${link("the wind")} and [gone](reqseq:${MISSING}?version=${N_VERSION})`,
       ),
     );
     await changeN(ws);
@@ -156,7 +156,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     const ws = await fixture(
       requirementWith(
         A,
-        `acceptance-criteria:\n  - Fine.\n  - "See [gone](logreq:${MISSING}?version=${N_VERSION})"\n`,
+        `acceptance-criteria:\n  - Fine.\n  - "See [gone](reqseq:${MISSING}?version=${N_VERSION})"\n`,
       ),
     );
     const workspace = open(ws.root);
@@ -244,7 +244,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     });
 
     it("quotes an escaped link anew, leaves a value that is no text alone, and does not change a link held by an alias (#444)", async () => {
-      const escaped = `acceptance-criteria:\n  - "Then [a](logreq:${N}?version=${N_VERSION}&repository=sys\\x74em)"\n  - 5\n`;
+      const escaped = `acceptance-criteria:\n  - "Then [a](reqseq:${N}?version=${N_VERSION}&repository=sys\\x74em)"\n  - 5\n`;
       const ws = await fixture(requirement(escaped));
       await changeN(ws);
       const workspace = open(ws.root);
@@ -252,7 +252,7 @@ describe("references in properties marked markdown (SR-127)", () => {
       expect(found?.hintId).toContain("&repository=system");
       expect((await confirm(workspace, [found?.hintId ?? ""])).problems ?? []).toEqual([]);
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
-        `Then [a](logreq:${N}?version=${found?.currentVersion ?? ""}&repository=system)`,
+        `Then [a](reqseq:${N}?version=${found?.currentVersion ?? ""}&repository=system)`,
         5,
       ]);
       // A link held by an alias cannot be changed in place; the file is left as it is.
@@ -322,7 +322,7 @@ describe("references in properties marked markdown (SR-127)", () => {
         set: {
           "acceptance-criteria": [
             `Then ${link("kept")}.`,
-            `**Then** [new](logreq:${N}).`,
+            `**Then** [new](reqseq:${N}).`,
             "No link here.",
             "With a label only: [x](https://example.com)",
           ],
@@ -340,14 +340,14 @@ describe("references in properties marked markdown (SR-127)", () => {
       const ws = await fixture();
       const workspace = open(ws.root);
       const criteria = [
-        `**Gegeben** ein *Wind*, wenn \`gemessen\`, **dann** zeigt [die Station](logreq:${N}) ihn: schnell`,
+        `**Gegeben** ein *Wind*, wenn \`gemessen\`, **dann** zeigt [die Station](reqseq:${N}) ihn: schnell`,
         "Plain without marks",
         "_Wenn_ ein Wert: **fett**",
       ];
       await update(workspace, { set: { "acceptance-criteria": criteria } });
       const text = read(ws, A_FILE);
       const stored = [
-        criteria[0]?.replace(`logreq:${N})`, `logreq:${N}?version=${N_VERSION})`),
+        criteria[0]?.replace(`reqseq:${N})`, `reqseq:${N}?version=${N_VERSION})`),
         criteria[1],
         criteria[2],
       ];
@@ -359,7 +359,7 @@ describe("references in properties marked markdown (SR-127)", () => {
     });
 
     it("an update that does not set a Markdown property leaves the links in it as they are written (#444)", async () => {
-      const unversioned = requirement(`acceptance-criteria:\n  - Then [wind](logreq:${N}).\n`);
+      const unversioned = requirement(`acceptance-criteria:\n  - Then [wind](reqseq:${N}).\n`);
       const ws = await fixture(unversioned);
       const workspace = open(ws.root);
       await update(workspace, { title: "Show gusts" });
@@ -376,7 +376,7 @@ describe("references in properties marked markdown (SR-127)", () => {
           title: "New one",
           properties: {
             "requirement-type": "functional",
-            "acceptance-criteria": [`Then [wind](logreq:${N}).`],
+            "acceptance-criteria": [`Then [wind](reqseq:${N}).`],
           },
         },
         { workspace },
@@ -394,7 +394,7 @@ describe("references in properties marked markdown (SR-127)", () => {
         [N, "ref.ambiguous"],
       ] as const) {
         const error = await update(workspace, {
-          set: { "acceptance-criteria": [`Then [x](logreq:${id})`] },
+          set: { "acceptance-criteria": [`Then [x](reqseq:${id})`] },
         }).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(CommandError);
         expect(error).toMatchObject({ code, details: { key: "acceptance-criteria", ref: id } });
@@ -411,9 +411,9 @@ describe("references in properties marked markdown (SR-127)", () => {
           { selection: { ids: [A] }, property: "acceptance-criteria", operation, value, confirm: true },
           { workspace },
         );
-      await bulk("set", [`Then [a](logreq:${N}).`]);
+      await bulk("set", [`Then [a](reqseq:${N}).`]);
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([`Then ${link("a")}.`]);
-      await bulk("add", [`And [b](logreq:${N}).`, "Plain."]);
+      await bulk("add", [`And [b](reqseq:${N}).`, "Plain."]);
       expect(frontmatterOf(read(ws, A_FILE))["acceptance-criteria"]).toEqual([
         `Then ${link("a")}.`,
         `And ${link("b")}.`,

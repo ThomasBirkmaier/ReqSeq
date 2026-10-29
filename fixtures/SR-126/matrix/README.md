@@ -19,4 +19,4 @@ Expected degree of all system requirements (core view, SR-037): `total: 9`, `cou
 
 SR-120 (`evidence.withoutPassedTest`, core view) lists SR-126b02 (failed only), b04 (skipped: no execution), b05 (inspection only, status `verified`), b06 (none) and b07 (indirect, no test of its own); not b01 (failed, then passed), b03 (passed, of an older version: any version counts, spec question #532), b08, b09 (passed), b10 (obsolete, D-044) and N-126a01 (a need).
 
-The JUnit files are written as `logreq evidence enrich-junit` (SR-029) writes them: one `logreq:version` per `logreq:element`. The versions are the current versions of the element files; regenerate the records when an element file changes (`node packages/cli/dist/bin.js element list --json --workspace fixtures/SR-126/matrix` gives the versions).
+The JUnit files are written as `reqseq evidence enrich-junit` (SR-029) writes them: one `reqseq:version` per `reqseq:element`. The versions are the current versions of the element files; regenerate the records when an element file changes (`node packages/cli/dist/bin.js element list --json --workspace fixtures/SR-126/matrix` gives the versions).

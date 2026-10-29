@@ -1,6 +1,6 @@
 // The `[[` search of the editor (SR-066): two `[` typed one after the other ask the app for an element in the
 // prompt "Insert reference", the same prompt and search as the slash menu's "Reference to element" (ADR-0010,
-// `element.search` over title and IDs). The pick replaces the `[[` with `[title](logreq:<uuid>)`
+// `element.search` over title and IDs). The pick replaces the `[[` with `[title](reqseq:<uuid>)`
 // (`reference-pick.ts`); Escape leaves the `[[` as typed. `[[` is only the typing trigger: the file holds
 // the Markdown link (ADR-0004 rejects wiki links in files). Only typed brackets ask: not pasted, not brought
 // back by undo, not composed by an input method, not escaped (`\[[`), not after `!` (an image), not a third

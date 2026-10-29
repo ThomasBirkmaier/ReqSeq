@@ -69,7 +69,7 @@ afterEach(async () => {
 
 const workspace = async (files: Record<string, string> = {}): Promise<FixtureWorkspace> => {
   const ws = await createFixtureWorkspace({
-    files: { "logreq-workspace.yaml": "logreq-workspace: 1\nname: E2E\n", ...files },
+    files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\nname: E2E\n", ...files },
     git: true,
   });
   fixtures.push(ws);
@@ -496,7 +496,7 @@ describe("reqseq with test commands", () => {
   it("finds the workspace from a subfolder, or takes --workspace", async () => {
     const ws = await workspace({
       "product/deep/x.md": "x",
-      "other/logreq-workspace.yaml": "logreq-workspace: 1\n",
+      "other/reqseq-workspace.yaml": "reqseq-workspace: 1\n",
     });
     const nested = await reqseq(["workspace", "status", "--json"], {
       cwd: ws.path("product/deep"),

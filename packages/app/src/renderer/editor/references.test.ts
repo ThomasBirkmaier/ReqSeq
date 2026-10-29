@@ -21,7 +21,7 @@ import type { GlyphWidget, LabelWidget } from "./widgets.js";
 const mark = (message: string): OutdatedMark => ({ message, word: "outdated" });
 
 const ID = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
-const THOMAS = `[D-017](logreq:${ID}?version=n1:1aac78aad3b5e6a8)`;
+const THOMAS = `[D-017](reqseq:${ID}?version=n1:1aac78aad3b5e6a8)`;
 
 const stateOf = (doc: string, cursor?: number, titles?: ReadonlyMap<string, string>): EditorState => {
   const state = EditorState.create({
@@ -41,14 +41,14 @@ const stateOf = (doc: string, cursor?: number, titles?: ReadonlyMap<string, stri
 
 describe("parseReference", () => {
   it("reads the UUID and the version of an inline reference", () => {
-    expect(parseReference(`logreq:${ID}?version=n1:1aac78aad3b5e6a8`)).toEqual({
+    expect(parseReference(`reqseq:${ID}?version=n1:1aac78aad3b5e6a8`)).toEqual({
       id: ID,
       version: "n1:1aac78aad3b5e6a8",
     });
   });
 
   it("reads the repository, the first of each parameter, and skips empty parameters", () => {
-    expect(parseReference(`logreq:${ID}?version=n1:aa&&repository=other&repository=x&version=n1:bb`)).toEqual(
+    expect(parseReference(`reqseq:${ID}?version=n1:aa&&repository=other&repository=x&version=n1:bb`)).toEqual(
       {
         id: ID,
         version: "n1:aa",
@@ -58,15 +58,15 @@ describe("parseReference", () => {
   });
 
   it("knows a reference without a query, and takes an empty value for none", () => {
-    expect(parseReference(`logreq:${ID}`)).toEqual({ id: ID });
-    expect(parseReference(`logreq:${ID}?`)).toEqual({ id: ID });
-    expect(parseReference(`logreq:${ID}?version=&repository=`)).toEqual({ id: ID });
+    expect(parseReference(`reqseq:${ID}`)).toEqual({ id: ID });
+    expect(parseReference(`reqseq:${ID}?`)).toEqual({ id: ID });
+    expect(parseReference(`reqseq:${ID}?version=&repository=`)).toEqual({ id: ID });
   });
 
   it("is undefined for what is no reference", () => {
-    expect(parseReference("logreq:not-a-uuid")).toBeUndefined();
+    expect(parseReference("reqseq:not-a-uuid")).toBeUndefined();
     expect(parseReference("https://example.com")).toBeUndefined();
-    expect(parseReference(`xlogreq:${ID}`)).toBeUndefined();
+    expect(parseReference(`xreqseq:${ID}`)).toBeUndefined();
   });
 });
 
@@ -96,10 +96,10 @@ describe("referenceAt", () => {
   });
 
   it("finds nothing on an image or on a link that is no reference", () => {
-    const image = `![x](logreq:${ID}?version=n1:aa)`;
+    const image = `![x](reqseq:${ID}?version=n1:aa)`;
     expect(referenceAt(stateOf(image), 3)).toBeUndefined();
     expect(referenceAt(stateOf("[a](https://example.com)"), 2)).toBeUndefined();
-    expect(referenceAt(stateOf("[a](logreq:nope)"), 2)).toBeUndefined();
+    expect(referenceAt(stateOf("[a](reqseq:nope)"), 2)).toBeUndefined();
     expect(referenceAt(stateOf("no link"), 2)).toBeUndefined();
   });
 });
@@ -190,10 +190,10 @@ describe("the preview of references", () => {
   });
 
   it("takes the repository of the link into account, and a reference without a version is never outdated", () => {
-    const withRepository = `[x](logreq:${ID}?version=n1:aa&repository=other repo)`;
+    const withRepository = `[x](reqseq:${ID}?version=n1:aa&repository=other repo)`;
     const outdated = new Map([[outdatedKey(ID, "n1:aa", "other%20repo"), mark("old")]]);
     // A space ends a Markdown destination, so the repository is written with %20.
-    const encoded = `[x](logreq:${ID}?version=n1:aa&repository=other%20repo)`;
+    const encoded = `[x](reqseq:${ID}?version=n1:aa&repository=other%20repo)`;
     expect(decorate(withRepository, outdated).some((entry) => entry.title === "old")).toBe(false);
     expect(
       decorate(encoded, new Map([[outdatedKey(ID, "n1:aa", "other%2520repo"), mark("old")]])).length,
@@ -204,14 +204,14 @@ describe("the preview of references", () => {
       ),
     ).toBe(false);
     expect(
-      decorate(`[x](logreq:${ID})`, new Map([[outdatedKey(ID, "n1:aa"), mark("old")]])).some(
+      decorate(`[x](reqseq:${ID})`, new Map([[outdatedKey(ID, "n1:aa"), mark("old")]])).some(
         (entry) => entry.title === "old",
       ),
     ).toBe(false);
   });
 
   describe("a reference to another repository whose target is here (D-058)", () => {
-    const ACROSS = `[N-0e9d](logreq:${ID}?version=n1:aa&repository=sensor)`;
+    const ACROSS = `[N-0e9d](reqseq:${ID}?version=n1:aa&repository=sensor)`;
     const TITLES = new Map([[titleKey(ID, "sensor"), "Measure gusts"]]);
     const across = { from: 1, to: 7 };
 
@@ -232,7 +232,7 @@ describe("the preview of references", () => {
       expect(decorate(ACROSS, new Map()).some((entry) => entry.text !== undefined)).toBe(false);
       expect(
         decorate(
-          `[N-0e9d](logreq:${ID}?version=n1:aa)`,
+          `[N-0e9d](reqseq:${ID}?version=n1:aa)`,
           new Map(),
           undefined,
           new Map([[titleKey(ID, ""), "x"]]),
@@ -257,15 +257,15 @@ describe("the preview of references", () => {
   });
 
   it("marks nothing for a link that is no reference or has no label", () => {
-    const found = decorate(`[a](https://example.com) [](logreq:${ID}?version=n1:aa)`, new Map());
+    const found = decorate(`[a](https://example.com) [](reqseq:${ID}?version=n1:aa)`, new Map());
     expect(found.some((entry) => entry.class === "cm-lr-ref")).toBe(false);
   });
 });
 
 describe("referencesIn", () => {
   it("[SR-127/AK3] gives the inline references of the document in order, and none for other links or images", () => {
-    const other = "[x](https://example.com) ![i](logreq:" + ID + ")";
-    const doc = `${other} ${THOMAS} and [w](logreq:${ID}?repository=r)`;
+    const other = "[x](https://example.com) ![i](reqseq:" + ID + ")";
+    const doc = `${other} ${THOMAS} and [w](reqseq:${ID}?repository=r)`;
     const found = referencesIn(stateOf(doc));
     expect(found.map((reference) => [reference.id, reference.version, reference.repository])).toEqual([
       [ID, "n1:1aac78aad3b5e6a8", undefined],
@@ -276,7 +276,7 @@ describe("referencesIn", () => {
 });
 
 describe("boxReference", () => {
-  const doc = `see ${THOMAS} and [B](logreq:${ID}?version=n1:2)`;
+  const doc = `see ${THOMAS} and [B](reqseq:${ID}?version=n1:2)`;
   const box = (cursor: number, focused: boolean) => {
     const state = stateOf(doc, cursor);
     return { state: () => state, hasFocus: () => focused };

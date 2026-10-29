@@ -207,7 +207,7 @@ describe("element.create", () => {
     ]) {
       const opened = await open({
         fixture: "SR-013/own-meanings",
-        files: { "model/statuses.yaml": `logreq-metamodel: 1\nstatuses:\n${statuses}` },
+        files: { "model/statuses.yaml": `reqseq-metamodel: 1\nstatuses:\n${statuses}` },
       });
       const before = await filesBelow(opened.root);
       // Such a metamodel is invalid, so the command refuses before element.create runs.
@@ -338,7 +338,7 @@ describe("element.create", () => {
       properties: { "acceptance-criteria": [], due: null, "parent-item": target, weight: 2 },
     });
     // The target is new, so it is stored with its current version and title (SR-021).
-    const stored = { id: target.id, version: "n1:a5c9ba86e4be25d9", title: "Wind speed visible at a glance" };
+    const stored = { id: target.id, version: "n1:845647775ebfe803", title: "Wind speed visible at a glance" };
     expect(await read(opened, out.files[0] ?? "")).toBe(
       [
         "---",
@@ -465,7 +465,7 @@ describe("element.create", () => {
   it("refuses a choice name that fits two values; the exact key always wins (#309)", async () => {
     const opened = await standard({
       "metamodel/extra.yaml":
-        "logreq-metamodel: 1\nproperties:\n  - key: urgency\n    name: Urgency\n    kind: choice\n    choices:\n      - { key: low, name: Soon }\n      - { key: soon, name: Later }\n  - { key: mood, name: Mood, kind: choice }\ntypes:\n  - { key: note, name: Note, prefix: NOTE, properties: [title, urgency, mood] }\n",
+        "reqseq-metamodel: 1\nproperties:\n  - key: urgency\n    name: Urgency\n    kind: choice\n    choices:\n      - { key: low, name: Soon }\n      - { key: soon, name: Later }\n  - { key: mood, name: Mood, kind: choice }\ntypes:\n  - { key: note, name: Note, prefix: NOTE, properties: [title, urgency, mood] }\n",
     });
     const note = async (urgency: string): Promise<unknown> =>
       (await create(opened, { type: "note", title: "A note", properties: { urgency } })).element.properties[
@@ -525,7 +525,7 @@ describe("element.create", () => {
       fixture: "SR-013/own-meanings",
       files: {
         "model/abstract.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: base, name: Base, prefix: B, abstract: true, properties: [label] }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: base, name: Base, prefix: B, abstract: true, properties: [label] }\n",
       },
     });
     expect((await createError(opened, { type: "nope", title: "x" })).details).toMatchObject({
@@ -541,7 +541,7 @@ describe("element.create", () => {
       fixture: "SR-013/own-meanings",
       files: {
         "model/properties.yaml":
-          "logreq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text }\n  - { key: applies-to, name: Applies to, kind: relation, many: true }\n  - { key: validity, name: Validity note, kind: text }\n",
+          "reqseq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text }\n  - { key: applies-to, name: Applies to, kind: relation, many: true }\n  - { key: validity, name: Validity note, kind: text }\n",
       },
     });
     expect((await createError(opened, { type: "wish", title: "x" })).code).toBe(
@@ -551,7 +551,7 @@ describe("element.create", () => {
       fixture: "SR-013/own-meanings",
       files: {
         "model/types.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: wish, name: Wish, prefix: W, properties: [validity] }\n  - { key: spec-item, name: Spec, prefix: SPI, properties: [label, applies-to] }\n  - { key: edition, name: Edition, prefix: ED, meaning: variant, properties: [label] }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: wish, name: Wish, prefix: W, properties: [validity] }\n  - { key: spec-item, name: Spec, prefix: SPI, properties: [label, applies-to] }\n  - { key: edition, name: Edition, prefix: ED, meaning: variant, properties: [label] }\n",
       },
     });
     const error = await createError(other, { type: "wish", title: "x" });
@@ -865,8 +865,8 @@ describe("element.create", () => {
 
     it("refuses a folder or a file name matched by an ignore glob of the workspace file", async () => {
       const opened = await standard({
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\nignore: [drafts/**, decision/*.md]\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\nignore: [drafts/**, decision/*.md]\n",
         "drafts/old/README.md": "# Old\n",
       });
       await refused(opened, [
@@ -885,8 +885,8 @@ describe("element.create", () => {
 
     it("refuses the folder of a nested repository of the workspace; the caller names the repository instead", async () => {
       const opened = await standard({
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
         "vendor/sub/README.md": "# Sub\n",
       });
       await refused(opened, [
@@ -964,7 +964,7 @@ describe("element.create", () => {
   });
 
   it("is refused on a read-only workspace before anything is written", async () => {
-    const opened = await standard({ "metamodel/broken.yaml": "logreq-metamodel: 2\n" });
+    const opened = await standard({ "metamodel/broken.yaml": "reqseq-metamodel: 2\n" });
     const before = await filesBelow(opened.root);
     expect((await createError(opened, { type: "need", title: "x" })).code).toBe("workspace.read-only");
     expect(await filesBelow(opened.root)).toEqual(before);

@@ -20,8 +20,8 @@ const BUOY = {
   fixture: "SR-004/one-repository",
   name: "quokka",
   files: {
-    "logreq-workspace.yaml": [
-      "logreq-workspace: 1",
+    "reqseq-workspace.yaml": [
+      "reqseq-workspace: 1",
       "name: Ocean buoy",
       "repositories:",
       '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',

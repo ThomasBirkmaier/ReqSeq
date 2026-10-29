@@ -39,7 +39,7 @@ const bytesOf = (
 const splice = (bytes: Uint8Array, start: number, end: number, text: string): string =>
   slice(Uint8Array.from([...bytes.subarray(0, start), ...utf8(text), ...bytes.subarray(end)]), 0, Infinity);
 
-const PROPERTY = '<property name="logreq:version" value="v1"/>';
+const PROPERTY = '<property name="reqseq:version" value="v1"/>';
 
 describe("junitTestCases", () => {
   it("junitTestCases reads pytest and Vitest JUnit files", () => {
@@ -59,7 +59,7 @@ describe("junitTestCases", () => {
       ["test_sample", "test_error", "error"],
     ]);
     expect(pytest.testCases[0]?.properties.map(({ name, value }) => ({ name, value }))).toEqual([
-      { name: "logreq:element", value: "SR-46fb54" },
+      { name: "reqseq:element", value: "SR-46fb54" },
     ]);
     expect(pytest.testCases.every((testCase) => testCase.timestamp === pytest.suites[0]?.timestamp)).toBe(
       true,
@@ -79,7 +79,7 @@ describe("junitTestCases", () => {
       ["login > is skipped", "skipped", 31],
     ]);
     const property = vitest.testCases[0]?.properties[0];
-    expect(property).toMatchObject({ name: "logreq:element", value: "SR-46fb54", line: 6 });
+    expect(property).toMatchObject({ name: "reqseq:element", value: "SR-46fb54", line: 6 });
     expect(slice(vitestBytes, property?.valueAt?.start ?? 0, property?.valueAt?.end ?? 0)).toBe("SR-46fb54");
     expect(vitest.testCases.map((testCase) => elementRefsOf(testCase))).toEqual([
       [
@@ -195,8 +195,8 @@ describe("junitTestCases", () => {
     '\uFEFF<testsuite name="Prüfung">',
     '<testcase name="n">',
     "<properties>",
-    '  <property name="logreq:element" value="SR-46fb54"/>',
-    '  <property name="logreq:version" value="old &amp; stale"/>',
+    '  <property name="reqseq:element" value="SR-46fb54"/>',
+    '  <property name="reqseq:version" value="old &amp; stale"/>',
     '  <property name="note">text &amp; value</property>',
     "  <property name='single' value='a&apos;b'/>",
     '  <property name="empty"/>',
@@ -205,19 +205,19 @@ describe("junitTestCases", () => {
     "</testsuite>",
   ].join("\r\n");
 
-  it("appends to an existing <properties> block and replaces a logreq:* value in place", () => {
+  it("appends to an existing <properties> block and replaces a reqseq:* value in place", () => {
     const bytes = utf8(ENRICHED);
     expect(junitTestCases(bytes)).toMatchObject({ kind: "junit", file: { bom: true } });
     const testCase = only(ENRICHED);
     expect(testCase.properties.map(({ name, value, line }) => [name, value, line])).toEqual([
-      ["logreq:element", "SR-46fb54", 4],
-      ["logreq:version", "old & stale", 5],
+      ["reqseq:element", "SR-46fb54", 4],
+      ["reqseq:version", "old & stale", 5],
       ["note", "text & value", 6],
       ["single", "a'b", 7],
       ["empty", "", 8],
     ]);
 
-    // Replacing an existing logreq:* property keeps every other byte (BOM, CRLF, non-ASCII text).
+    // Replacing an existing reqseq:* property keeps every other byte (BOM, CRLF, non-ASCII text).
     const version = testCase.properties[1]?.valueAt;
     expect(splice(bytes, version?.start ?? 0, version?.end ?? 0, "v2")).toBe(
       ENRICHED.replace("old &amp; stale", "v2"),
@@ -300,13 +300,13 @@ describe("elementRefsOf", () => {
     })),
   });
 
-  it("elementRefsOf takes the logreq:element property and the tokens of the name", () => {
+  it("elementRefsOf takes the reqseq:element property and the tokens of the name", () => {
     expect(
       elementRefsOf(
         testCase("[SR-a1b2c3/AK2] logs in [SR-036] as [" + UUID + "]", [
-          ["logreq:element", UUID],
-          ["logreq:version", "v1"],
-          ["logreq:element", " REQ-0123456789ab "],
+          ["reqseq:element", UUID],
+          ["reqseq:version", "v1"],
+          ["reqseq:element", " REQ-0123456789ab "],
         ]),
       ),
     ).toEqual([
@@ -323,8 +323,8 @@ describe("elementRefsOf", () => {
     expect(
       elementRefsOf(
         testCase("t", [
-          ["logreq:element", "SR-0366"],
-          ["logreq:element", "SR-1, SR-2"],
+          ["reqseq:element", "SR-0366"],
+          ["reqseq:element", "SR-1, SR-2"],
         ]),
       ),
     ).toEqual([
@@ -341,7 +341,7 @@ describe("elementRefsOf", () => {
 
   it("elementRefsOf names each reference once per source", () => {
     expect(
-      elementRefsOf(testCase("[SR-a1b2c3] and [SR-a1b2c3/AK1]", [["logreq:element", "SR-a1b2c3"]])),
+      elementRefsOf(testCase("[SR-a1b2c3] and [SR-a1b2c3/AK1]", [["reqseq:element", "SR-a1b2c3"]])),
     ).toEqual([
       { text: "SR-a1b2c3", kind: "shortId", source: "property" },
       { text: "SR-a1b2c3", kind: "shortId", source: "name" },

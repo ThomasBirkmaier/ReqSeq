@@ -57,7 +57,7 @@ describe("valueLines", () => {
   });
 
   it("keeps the inline syntax: emphasis, code, links and strikethrough", () => {
-    expect(names("**b** `c` ~~d~~ [e](logreq:x)")).toEqual(
+    expect(names("**b** `c` ~~d~~ [e](reqseq:x)")).toEqual(
       expect.arrayContaining(["StrongEmphasis", "InlineCode", "Strikethrough", "Link"]),
     );
   });

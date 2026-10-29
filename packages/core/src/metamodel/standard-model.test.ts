@@ -29,8 +29,8 @@ const FIXTURE_COPIES = [
 const standardModel = async (): Promise<Metamodel> => {
   const ws = await createFixtureWorkspace({
     files: {
-      "logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: Standard\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
+      "reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: Standard\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
       [`metamodel/${STANDARD_MODEL_FILE}`]: STANDARD_MODEL_TEXT,
     },
   });

@@ -32,7 +32,7 @@ const NEIGHBOURHOOD: FixtureOptions = { fixture: "SR-107/neighbourhood" };
 
 /** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
 const WITH_VAULT =
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
@@ -88,7 +88,7 @@ const edges = (output: Output): unknown[] =>
 /** The pairs of source and target of the edges. */
 const pairs = (output: Output): unknown[] => output.edges.map((e) => [nameOf(e.source), nameOf(e.target)]);
 
-const version = (id: string): string => (id === ID.C1 ? "n1:1630d7f37a923b54" : "n1:0000000000000000");
+const version = (id: string): string => (id === ID.C1 ? "n1:6aafbfe9e33ccbc5" : "n1:0000000000000000");
 
 /** Changes the text of D1 and D2, so that S1's `based-on` D1 and E's reference to D2 are outdated (SR-025). */
 const changeTargets = async (ws: FixtureWorkspace): Promise<void> => {
@@ -259,7 +259,7 @@ describe("trace.neighbourhood (SR-107)", () => {
     const { workspace } = await open(NEIGHBOURHOOD, async (ws) => {
       await ws.write(
         "metamodel/weight.yaml",
-        "logreq-metamodel: 1\nproperties:\n  - { key: weight, name: Weight, kind: number, content: true }\n" +
+        "reqseq-metamodel: 1\nproperties:\n  - { key: weight, name: Weight, kind: number, content: true }\n" +
           "types:\n  - { key: weighted, name: Weighted, prefix: W, extends: decision, properties: [weight] }\n",
       );
       await ws.write(
@@ -384,8 +384,8 @@ describe("trace.neighbourhood (SR-107)", () => {
         "components/CR-0c0000000001.md",
         `---\nid: ${ID.C1}\ntype: component-requirement\nstatus: draft\ntitle: Count anemometer turns\n` +
           `requirement-type: functional\nacceptance-criteria:\n  - Given the cups turn, when a second has passed, then the turns are counted.\n` +
-          `derives-from:\n  - { id: ${ID.S1}, version: n1:c92ab9f5f961379d, title: Show wind speed }\n` +
-          `validity:\n  - { id: ${ID.V1}, version: n1:cf5ca70979ec6efc }\n---\n\nThe anemometer counts its turns.\n`,
+          `derives-from:\n  - { id: ${ID.S1}, version: n1:9bb10523fac3b72b, title: Show wind speed }\n` +
+          `validity:\n  - { id: ${ID.V1}, version: n1:bea85cc711f2365c }\n---\n\nThe anemometer counts its turns.\n`,
       );
     });
     const output = await neighbourhood(workspace, { ref: ID.S1, direction: "down", view: "core" });
@@ -400,11 +400,11 @@ describe("trace.neighbourhood (SR-107)", () => {
     const { workspace } = await open({
       ...NEIGHBOURHOOD,
       files: {
-        "logreq-workspace.yaml": WITH_VAULT,
+        "reqseq-workspace.yaml": WITH_VAULT,
         "requirements/SR-0b0000000002.md":
           `---\nid: ${ID.S2}\ntype: system-requirement\nstatus: draft\ntitle: Show wind direction\nrequirement-type: functional\n` +
           `acceptance-criteria:\n  - Given wind, when it is measured, then the station shows its direction.\n` +
-          `derives-from:\n  - { id: ${ID.N1}, version: n1:4a120bac998acdc8 }\n  - { id: ${ID.N2}, version: n1:b3792e30fdb8413d }\n` +
+          `derives-from:\n  - { id: ${ID.N1}, version: n1:323df2732ed684b0 }\n  - { id: ${ID.N2}, version: n1:de3240337a4f49a7 }\n` +
           `  - { id: ${P}0f00000000ff, version: n1:0000000000000000, repository: vault }\n---\n\nThe station shows the wind direction.\n`,
       },
     });

@@ -26,7 +26,7 @@ def all_issues():
 # so this script sees exactly what every other access sees.
 REQSEQ = [os.environ.get("NODE", "node"), os.path.join(os.path.dirname(__file__), "..", "..", "packages", "cli", "dist", "bin.js")]
 METHOD = {"test": "Test", "inspection": "Inspektion", "demonstration": "Demonstration", "analysis": "Analyse"}
-LINK = re.compile(r"\[([^\]\n]*)\]\(logreq:[^)\n]*\)")
+LINK = re.compile(r"\[([^\]\n]*)\]\(reqseq:[^)\n]*\)")
 
 def reqseq(*args):
     r = subprocess.run(REQSEQ + list(args) + ["--workspace", SPEC, "--json"], capture_output=True, text=True, encoding="utf8")

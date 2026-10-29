@@ -190,7 +190,7 @@ test.describe("the command prompt", () => {
         ...FIXTURE,
         files: {
           "metamodel/software.yaml": [
-            "logreq-metamodel: 1",
+            "reqseq-metamodel: 1",
             "types:",
             "  - key: software-requirement",
             "    name: Software Requirement",

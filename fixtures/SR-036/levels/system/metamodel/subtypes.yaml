@@ -1,5 +1,5 @@
 # SR-036 fixture (copied from SR-069): a subtype of system-requirement (SR-012) and a number property.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: software-requirement

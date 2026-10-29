@@ -12,11 +12,11 @@ acceptance-criteria:
 verification-method: test
 topic: "Bearbeiten und Finden"
 packages:
-  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:3ec49c0d5a7866d3, title: "Stufe 3: Oberfläche" }
+  - { id: cf800f25-d03d-4092-8783-334263089f89, version: n1:06520a1e692d8288, title: "Stufe 3: Oberfläche" }
 derives-from:
-  - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:c043acc544173102, title: Filtern }
+  - { id: 6adc50a5-05d9-4e59-adfc-ae0179b6e5bf, version: n1:7b0a5a4bd2ba1739, title: Filtern }
 based-on:
-  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n1:006719939ca0de8d, title: Keine feste Reihenfolge }
+  - { id: 6adc615b-8a00-4ce4-9526-56bd3b72bfc9, version: n1:f2e6b92128858d5d, title: Keine feste Reihenfolge }
 ---
 
 Das Tool muss Listen nach Properties oder nach der Hierarchie der Ableitungen ordnen, ohne eine feste Reihenfolge zu speichern.

@@ -1265,7 +1265,7 @@ describe("write commands in the command prompt (SR-073 AK2, #85)", () => {
 
   it("offers only Initialise workspace while a folder without a workspace is open, and asks its path and name", async () => {
     const { context, asked, call, dispatched } = setup([], {
-      "workspace.init": () => ({ root: "/station", files: ["logreq-workspace.yaml"] }),
+      "workspace.init": () => ({ root: "/station", files: ["reqseq-workspace.yaml"] }),
     });
     const bare = { ...context, workspace: false };
     expect(titles(bare)).toEqual(["Initialise workspace"]);

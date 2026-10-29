@@ -25,8 +25,8 @@ export const standardModel = async (): Promise<Metamodel> => {
   try {
     await fs.mkdir(path.join(root, "metamodel"));
     await fs.writeFile(
-      path.join(root, "logreq-workspace.yaml"),
-      'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
+      path.join(root, "reqseq-workspace.yaml"),
+      'reqseq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
     );
     await fs.writeFile(path.join(root, "metamodel", "standard-model.yaml"), STANDARD_MODEL_TEXT);
     const workspace = new Workspace(root);

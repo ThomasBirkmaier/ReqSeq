@@ -54,7 +54,7 @@ const text = (value: unknown): string | undefined => (typeof value === "string" 
 
 const WORKSPACE_OPTION = [
   "--workspace <path>",
-  "workspace root (default: nearest folder upwards with logreq-workspace.yaml)",
+  "workspace root (default: nearest folder upwards with reqseq-workspace.yaml)",
 ] as const;
 
 /** `reqseq serve api` and `reqseq mcp` (ADR-0009). There is no option for the address (SR-079 AK3). */

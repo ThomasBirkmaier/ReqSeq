@@ -14,8 +14,8 @@ const UNKNOWN = "9f9f9f9f-9999-4999-8999-0d00000000ff";
 
 /** A record of `element` in `ci-results/evidence/<name>`. */
 const recordFile = (element: string): string =>
-  "---\nlogreq-record: 1\nkind: verification\n" +
-  `element: ${element}\nversion: n1:e62ed39c555648e2\nmethod: test\nitem: build-513\n` +
+  "---\nreqseq-record: 1\nkind: verification\n" +
+  `element: ${element}\nversion: n1:de6d3ed288b0f3de\nmethod: test\nitem: build-513\n` +
   "result: failed\ndate: 2026-10-23T10:00:00Z\n---\n";
 
 /** `workspace.check` with `input`. */
@@ -64,7 +64,7 @@ describe("SR-028 findings of the evidence records", () => {
   it("names the repositories that are not on this machine in evidence.unknown-element", () => {
     const record: EvidenceRecord = {
       element: UNKNOWN,
-      version: "n1:e62ed39c555648e2",
+      version: "n1:de6d3ed288b0f3de",
       kind: "validation",
       result: "passed",
       date: "2026-10-23T10:00:00Z",
@@ -110,12 +110,12 @@ describe("SR-028 findings of the evidence records", () => {
 
   it("shows the problems of reading the evidence folders, once when the element store has them too", async () => {
     const workspace = await open({
-      "system/logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+      "system/reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
         "  - { name: system, url: u, main: true }\n  - { name: ci-results, url: u }\n" +
         "metamodel: { repository: system, path: metamodel }\nevidence:\n" +
         "  - { repository: ci-results, path: evidence }\n  - { repository: system, path: missing }\n",
-      "ci-results/evidence/broken.md": "---\nlogreq-record: [1\n---\n",
+      "ci-results/evidence/broken.md": "---\nreqseq-record: [1\n---\n",
       "ci-results/evidence/faulty.md": recordFile(A).replace("result: failed", "result: unknown"),
     });
     const problems = await workspace.get(evidenceProblemsState);
@@ -135,7 +135,7 @@ describe("SR-028 findings of the evidence records", () => {
     const workspace = await open();
     const injected: EvidenceRecord = {
       element: UNKNOWN,
-      version: "n1:e62ed39c555648e2",
+      version: "n1:de6d3ed288b0f3de",
       kind: "verification",
       method: "test",
       item: "b",

@@ -590,8 +590,8 @@ describe("trace chain in a view and with missing repositories", () => {
     const fixture = await open({
       ...CHAIN,
       files: {
-        "logreq-workspace.yaml": [
-          "logreq-workspace: 1",
+        "reqseq-workspace.yaml": [
+          "reqseq-workspace: 1",
           "name: Weather station",
           "repositories:",
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
@@ -643,7 +643,7 @@ describe("trace chain in a view and with missing repositories", () => {
 describe("trace chain output", () => {
   it("names the repository of every end, also across repositories (D-058)", async () => {
     const workspaceFile = [
-      "logreq-workspace: 1",
+      "reqseq-workspace: 1",
       "name: Two",
       "repositories:",
       '  - { name: system, url: "ssh://example.com/system.git", main: true }',
@@ -654,7 +654,7 @@ describe("trace chain output", () => {
     const opened = await open(
       {
         files: {
-          "system/logreq-workspace.yaml": workspaceFile,
+          "system/reqseq-workspace.yaml": workspaceFile,
           "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
           "system/needs/N-00000000a001.md": `---\nid: ${SEE_WIND}\ntype: need\nstatus: draft\ntitle: See the wind\n---\n`,
           "platform/requirements/SR-00000000b001.md": `---\nid: ${SPEED}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed\nderives-from:\n  - { id: ${SEE_WIND}, version: ${V}, repository: system }\n---\n`,

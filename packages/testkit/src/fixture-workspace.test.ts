@@ -36,12 +36,12 @@ describe("createFixtureWorkspace", () => {
   it("writes text and binary files in nested folders", async () => {
     const ws = await make({
       files: {
-        "logreq-workspace.yaml": "logreq-workspace: 1\n",
+        "reqseq-workspace.yaml": "reqseq-workspace: 1\n",
         "a/b/c.md": "text",
         "img.png": Uint8Array.of(0, 255),
       },
     });
-    expect(read(ws.path("logreq-workspace.yaml"))).toBe("logreq-workspace: 1\n");
+    expect(read(ws.path("reqseq-workspace.yaml"))).toBe("reqseq-workspace: 1\n");
     expect(read(ws.path("a/b/c.md"))).toBe("text");
     expect([...fs.readFileSync(ws.path("img.png"))]).toEqual([0, 255]);
     await ws.write("a/new/d.md", "more");
@@ -108,7 +108,7 @@ describe("createFixtureWorkspace", () => {
 
   it("creates several repositories, also empty ones", async () => {
     const ws = await make({
-      files: { "logreq-workspace.yaml": "x", "product/p.md": "p" },
+      files: { "reqseq-workspace.yaml": "x", "product/p.md": "p" },
       git: ["product", "system"],
     });
     expect(await ws.head("product")).toMatch(COMMIT);

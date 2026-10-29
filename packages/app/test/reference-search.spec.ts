@@ -21,8 +21,8 @@ import {
 const GUSTS_ID = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
 const GUSTS_TITLE = "Böen messen";
 const ACROSS_FILES = {
-  "logreq-workspace.yaml": [
-    "logreq-workspace: 1",
+  "reqseq-workspace.yaml": [
+    "reqseq-workspace: 1",
     "name: Weather station",
     "repositories:",
     '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',
@@ -101,14 +101,14 @@ test.describe("the [[ search in the element buffer", () => {
     await expect(lastLine(window)).toHaveText("[[");
   });
 
-  test("[SR-066/AK2] the saved file holds [Title](logreq:<uuid>?version=n1:…) where [[ was typed, and the editor shows the title", async () => {
+  test("[SR-066/AK2] the saved file holds [Title](reqseq:<uuid>?version=n1:…) where [[ was typed, and the editor shows the title", async () => {
     const { window } = running;
     await window.keyboard.type("Siehe ");
     await insertAndSave(window, REFERENCE_TARGET_TITLE, REFERENCE_TARGET_TITLE);
     const file = await demoFile(running);
     expect(file).toMatch(
       new RegExp(
-        `\\nSiehe \\[${REFERENCE_TARGET_TITLE}\\]\\(logreq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)\\n`,
+        `\\nSiehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)\\n`,
         "u",
       ),
     );
@@ -137,7 +137,7 @@ test.describe("the [[ search with a second repository", () => {
     const file = await demoFile(running);
     expect(file).toMatch(
       new RegExp(
-        `\\n\\[N-[0-9a-f]+\\]\\(logreq:${GUSTS_ID}\\?version=n1:[0-9a-f]+&repository=sensor\\)\\n`,
+        `\\n\\[N-[0-9a-f]+\\]\\(reqseq:${GUSTS_ID}\\?version=n1:[0-9a-f]+&repository=sensor\\)\\n`,
         "u",
       ),
     );

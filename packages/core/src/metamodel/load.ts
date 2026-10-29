@@ -509,7 +509,7 @@ const readMetamodel = async (layout: WorkspaceLayout): Promise<Metamodel> => {
  * Reads the metamodel files of the working tree from the folder that `layout.metamodel` names.
  * Never throws for faulty files: they become problems and `valid: false`. Only the files directly
  * in the folder are read, not those in subfolders; hidden files (starting with `.`) are skipped.
- * When the folder is the root of the main repository, `logreq-workspace.yaml` is not a metamodel
+ * When the folder is the root of the main repository, `reqseq-workspace.yaml` is not a metamodel
  * file; every other `.yaml` file there is. Every problem names the metamodel repository, since the
  * metamodel may lie in its own repository (SR-018) and `file` is relative to it.
  */

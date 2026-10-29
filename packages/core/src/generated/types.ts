@@ -55,7 +55,7 @@ export interface ApiEndpointFile {
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
-  readonly "logreq-baseline": 1;
+  readonly "reqseq-baseline": 1;
   readonly name: string;
   readonly date: IsoDateTime;
   /** How the elements were selected, for information. The element list is authoritative. */
@@ -358,12 +358,12 @@ export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
 
 /**
- * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `logreq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
+ * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
   /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). */
-  readonly "logreq-data": 2;
+  readonly "reqseq-data": 2;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -429,7 +429,7 @@ export interface DataExportElement {
 }
 
 /**
- * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `logreq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
+ * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
  * Schema: `schemas/data-export.schema.json#/$defs/line`.
  */
 export interface DataExportLine {
@@ -467,7 +467,7 @@ export interface DataExportLine {
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
   readonly problems?: readonly Problem[];
-  readonly "logreq-data": 2;
+  readonly "reqseq-data": 2;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
@@ -544,7 +544,7 @@ export interface DataExportRelation {
 }
 
 /**
- * An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `logreq-record`; `test-case` is `testCase`.
+ * An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.
  * Schema: `schemas/data-export.schema.json#/$defs/evidenceRecord`.
  */
 export interface DataExportEvidenceRecord {
@@ -672,7 +672,7 @@ export type ElementValue =
  * Schema: `schemas/evidence-record.schema.json#`.
  */
 export interface EvidenceRecordFile {
-  readonly "logreq-record": 1;
+  readonly "reqseq-record": 1;
   /** Nachweis or Validierung (D-007). Validation counts only for the validation status (SR-030 AK3). */
   readonly kind: "verification" | "validation";
   /** Verification: a requirement. Validation: a need or a requirement (D-012). */
@@ -697,7 +697,7 @@ export interface EvidenceRecordFile {
  * Schema: `schemas/filter.schema.json#`.
  */
 export interface FilterFile {
-  readonly "logreq-filter": 1;
+  readonly "reqseq-filter": 1;
   readonly name: FilterName;
   readonly description?: string;
   /** Elements that apply in this view; also the view of its `verification` conditions without `variant`. */
@@ -841,7 +841,7 @@ export interface FilterSortKeyWithDefaults {
  */
 export interface MetamodelFile {
   /** Format version of this file. */
-  readonly "logreq-metamodel": 1;
+  readonly "reqseq-metamodel": 1;
   readonly types?: readonly MetamodelType[];
   readonly properties?: readonly MetamodelProperty[];
   readonly relations?: readonly MetamodelRelationKind[];
@@ -933,7 +933,7 @@ export interface MetamodelProperty {
   readonly "target-types"?: readonly MetamodelKey[];
   /** Part of the content and therefore of the version (D-013). Title and status are never content. */
   readonly content?: boolean;
-  /** Values are Markdown like the text: emphasis, code and inline references `[label](logreq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images. */
+  /** Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images. */
   readonly markdown?: boolean;
   readonly meaning?: MetamodelPropertyMeaning;
 }
@@ -1009,7 +1009,7 @@ export interface RecentWorkspacesFile {
  * Schema: `schemas/recent-workspaces.schema.json#/$defs/workspace`.
  */
 export interface RecentWorkspacesWorkspace {
-  /** The absolute path of the workspace root as it was opened last (the folder that holds `logreq-workspace.yaml`); shown, and opened as it is. */
+  /** The absolute path of the workspace root as it was opened last (the folder that holds `reqseq-workspace.yaml`); shown, and opened as it is. */
   readonly root: string;
   /** The canonical root (absolute, symbolic links resolved, lower case on Windows), computed when the workspace was opened: two names of one folder are one entry. Never resolved again on reading. */
   readonly key: string;
@@ -1021,7 +1021,7 @@ export interface RecentWorkspacesWorkspace {
  * Schema: `schemas/reqif-mapping.schema.json#`.
  */
 export interface ReqifMappingFile {
-  readonly "logreq-reqif-mapping": 1;
+  readonly "reqseq-reqif-mapping": 1;
   readonly source: {
     /** Name of the source as written to the property with meaning `source` (SR-057, D-059). */
     readonly name: string;
@@ -1086,24 +1086,24 @@ export interface ReqifMappingFile {
 }
 
 /**
- * `.logreq/local.yaml` next to `logreq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.logreq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.
+ * `.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.
  * Schema: `schemas/workspace-local.schema.json#`.
  */
 export interface WorkspaceLocalFile {
-  readonly "logreq-local": 1;
+  readonly "reqseq-local": 1;
   /** Per repository name of the workspace file: where it lies on this machine. */
   readonly repositories?: Readonly<Record<string, {
-    /** Absolute path, or relative to the main repository (the folder with `logreq-workspace.yaml`). No `~` expansion. */
+    /** Absolute path, or relative to the main repository (the folder with `reqseq-workspace.yaml`). No `~` expansion. */
     readonly path: string;
   }>>;
 }
 
 /**
- * `logreq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).
+ * `reqseq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).
  * Schema: `schemas/workspace.schema.json#`.
  */
 export interface WorkspaceFile {
-  readonly "logreq-workspace": 1;
+  readonly "reqseq-workspace": 1;
   readonly name: string;
   /** The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by ReqSeq; JSON Schema cannot express it). */
   readonly repositories: readonly WorkspaceRepository[];
@@ -1126,7 +1126,7 @@ export interface WorkspaceRepository {
   readonly name: string;
   /** Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036). */
   readonly url: string;
-  /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.logreq/local.yaml`. */
+  /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`. */
   readonly path?: string;
   readonly main?: boolean;
 }
@@ -1214,7 +1214,7 @@ export interface CommandCatalog {
  * Schema: `schemas/commands/catalog.json workspace.init input`.
  */
 export interface WorkspaceInitInput {
-  /** Existing folder; must not contain logreq-workspace.yaml or the metamodel file. */
+  /** Existing folder; must not contain reqseq-workspace.yaml or the metamodel file. */
   readonly path: LocalPath;
   readonly name: string;
   readonly metamodel?: {
@@ -1313,23 +1313,23 @@ export interface WorkspaceActivityOutput {
 }
 
 /**
- * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Input of `workspace.recent` as `run` gets it: validated, properties with a `default` filled in. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
  * Schema: `schemas/commands/catalog.json workspace.recent input`.
  */
 export type WorkspaceRecentInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `workspace.recent`. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
+ * Output of `workspace.recent`. The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.
  * Schema: `schemas/commands/catalog.json workspace.recent output`.
  */
 export interface WorkspaceRecentOutput {
   /** The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
   readonly workspaces: readonly {
-    /** The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml). */
+    /** The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml). */
     readonly root: string;
     /** When the app opened it last. */
     readonly opened: IsoDateTime;
-    /** Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
+    /** Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false. */
     readonly exists: boolean;
   }[];
 }
@@ -2366,11 +2366,11 @@ export interface EvidenceRecordOutput {
  * Schema: `schemas/commands/catalog.json evidence.enrichJunit input`.
  */
 export interface EvidenceEnrichJunitInput {
-  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026). */
+  /** The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026). */
   readonly file: LocalPath;
   /** The item under test (Prüfling), for example the build. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item: Item;
-  /** The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
+  /** The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call. */
   readonly date?: IsoDateTime;
   /** Default: overwrite the input file. An existing file is replaced only when it is a JUnit XML file the scanner accepts; its folder must exist. */
   readonly output?: LocalPath;

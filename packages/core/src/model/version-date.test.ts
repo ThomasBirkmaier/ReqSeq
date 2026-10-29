@@ -671,8 +671,8 @@ describe("version date", () => {
     const fixture = await createFixtureWorkspace({
       fixture: "SR-001/two-elements",
       files: {
-        "logreq-workspace.yaml": [
-          "logreq-workspace: 1",
+        "reqseq-workspace.yaml": [
+          "reqseq-workspace: 1",
           "name: Weather station",
           "repositories:",
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',

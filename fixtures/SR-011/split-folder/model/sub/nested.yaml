@@ -1,4 +1,4 @@
 # Not read: only the files directly in the metamodel folder belong to it.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - { key: nested-type, name: Nested, prefix: NEST }

@@ -1,4 +1,4 @@
 # Not read: metamodel files end in .yaml.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - { key: yml-type, name: Yml, prefix: YML }

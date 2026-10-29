@@ -366,13 +366,13 @@ const yamlProblem = (r: YamlReadResult): Problem => {
 
 describe("readYamlFile", () => {
   it("returns document, data and snapshot of a YAML file", async () => {
-    await put("logreq-workspace.yaml", "# workspace\nname: demo\nrepositories: [a, b]\n");
-    const r = await readYamlFile(root, "logreq-workspace.yaml");
+    await put("reqseq-workspace.yaml", "# workspace\nname: demo\nrepositories: [a, b]\n");
+    const r = await readYamlFile(root, "reqseq-workspace.yaml");
     expect(r.kind).toBe("parsed");
     if (r.kind !== "parsed") {
       return;
     }
-    expect(r.file.path).toBe("logreq-workspace.yaml");
+    expect(r.file.path).toBe("reqseq-workspace.yaml");
     expect(r.file.data).toEqual({ name: "demo", repositories: ["a", "b"] });
     expect(r.file.document.get("name")).toBe("demo");
     expect(r.file.bom).toBe(false);
@@ -450,7 +450,7 @@ describe("readFileSnapshot (a file ReqSeq rewrites as a whole, SR-029)", () => {
 
 describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
   it("tells a ReqSeq data file by its first line, with the snapshot of the whole file", async () => {
-    const text = '{"logreq-data":2,"dirty":false,"id":"a"}\n{"x":"Größe"}\n';
+    const text = '{"reqseq-data":2,"dirty":false,"id":"a"}\n{"x":"Größe"}\n';
     await put("out/a.jsonl", text);
     await put("out/b.jsonl", '{"a":1}\n');
     const content = Buffer.from(text, "utf8");
@@ -467,7 +467,7 @@ describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
   });
 
   it("tells a missing file from a link, a folder and a folder linked out of the root", async () => {
-    await put("out/a.jsonl", '{"logreq-data":2}\n');
+    await put("out/a.jsonl", '{"reqseq-data":2}\n');
     await fs.symlink(path.join(root, "out", "a.jsonl"), path.join(root, "out", "link.jsonl"));
     expect(await readJsonlSnapshot(root, "out/gone.jsonl")).toMatchObject({
       kind: "problem",
@@ -483,7 +483,7 @@ describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
     expect(await readJsonlSnapshot(root, "out")).toMatchObject({ kind: "problem", missing: false });
     const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
-      await fs.writeFile(path.join(outside, "c.jsonl"), '{"logreq-data":2}\n');
+      await fs.writeFile(path.join(outside, "c.jsonl"), '{"reqseq-data":2}\n');
       await fs.symlink(outside, path.join(root, "linked"), "junction");
       expect(await readJsonlSnapshot(root, "linked/c.jsonl")).toMatchObject({
         kind: "problem",

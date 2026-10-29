@@ -1,4 +1,4 @@
-logreq-filter: 1
+reqseq-filter: 1
 name: Unverified requirements of Pro
 description: Valid requirements of the Pro variant without passed evidence.
 view: ca0dd4a9-1365-45ce-8110-d62071160b58

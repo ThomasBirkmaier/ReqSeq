@@ -1,5 +1,5 @@
 # Own keys with built-in meanings (SR-013): none of them is a key of the standard model.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - key: wish
     name: Stakeholder Wish

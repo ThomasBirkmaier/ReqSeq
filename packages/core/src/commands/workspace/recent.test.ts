@@ -14,7 +14,7 @@ let top = "";
 
 // The OS cache folder of this process (Linux, macOS, Windows) lies in the test folder.
 beforeEach(async () => {
-  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-workspace-recent-")));
+  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-workspace-recent-")));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, path.join(top, "home"));
   }
@@ -25,12 +25,12 @@ afterEach(async () => {
   await fs.rm(top, { recursive: true, force: true, maxRetries: 3 });
 });
 
-/** A folder `name` in the test folder, with `logreq-workspace.yaml` unless `workspace` is false. */
+/** A folder `name` in the test folder, with `reqseq-workspace.yaml` unless `workspace` is false. */
 const folder = async (name: string, workspace = true): Promise<string> => {
   const root = path.join(top, name);
   await fs.mkdir(root, { recursive: true });
   if (workspace) {
-    await fs.writeFile(path.join(root, WORKSPACE_FILE), "logreq-workspace: 1\n");
+    await fs.writeFile(path.join(root, WORKSPACE_FILE), "reqseq-workspace: 1\n");
   }
   return root;
 };

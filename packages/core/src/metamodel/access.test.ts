@@ -71,7 +71,7 @@ const open = (root: string): Workspace => {
 };
 
 const FAULTY_STATUSES = {
-  "model/statuses.yaml": "logreq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
+  "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
 };
 
 const exists = async (file: string): Promise<boolean> =>
@@ -121,7 +121,7 @@ describe("read-only workspace", () => {
     });
     await ws.write(
       "model/statuses.yaml",
-      "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n",
+      "reqseq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n",
     );
     // Still read-only until the metamodel is read again (watcher or reopening).
     await expect(runtime.invoke("test.write", {}, { workspace })).rejects.toMatchObject({
@@ -141,7 +141,7 @@ describe("read-only workspace", () => {
         {
           code: "metamodel.invalid",
           severity: "error",
-          file: "logreq-workspace.yaml",
+          file: "reqseq-workspace.yaml",
           message: "Metamodel folder model is missing in repository system",
         },
       ],

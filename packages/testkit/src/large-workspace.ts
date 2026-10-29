@@ -93,7 +93,7 @@ export interface GeneratedElement {
 
 export interface GeneratedWorkspace {
   readonly seed: number;
-  /** Folder of the main repository (with `logreq-workspace.yaml`), relative to the root of the tree. */
+  /** Folder of the main repository (with `reqseq-workspace.yaml`), relative to the root of the tree. */
   readonly main: string;
   readonly repositories: readonly GeneratedRepository[];
   /** In generation order: needs, use cases, decisions, variants, packages, system requirements. */
@@ -460,7 +460,7 @@ const addRelations = (drafts: readonly Draft[], pools: Pools, count: number, ran
 /**
  * Adds 0 to 4 inline references (about 2 on average) to the text of `draft`, which is
  * `drafts[index]`, each to an earlier element, whose version is already known (ADR-0004, D-058):
- * `[<title>](logreq:<uuid>?version=<version>)` within the source's repository,
+ * `[<title>](reqseq:<uuid>?version=<version>)` within the source's repository,
  * `[<prefix>-<6 digits>](…&repository=<name>)` across. Returns how many were added. So the cold
  * load and the cache measure reading references too (#240).
  */
@@ -468,7 +468,7 @@ const withReferences = (draft: Draft, drafts: readonly Draft[], index: number, r
   const count = index === 0 ? 0 : random.below(5);
   const links = Array.from({ length: count }, () => {
     const target = random.pickBefore(drafts, index);
-    const destination = `logreq:${target.id}?version=${target.version}`;
+    const destination = `reqseq:${target.id}?version=${target.version}`;
     return target.repository === draft.repository
       ? `[${target.title}](${destination})`
       : `[${target.spec.prefix}-${target.id.slice(-6)}](${destination}&repository=${target.repository})`;
@@ -502,7 +502,7 @@ const withCriterionReference = (draft: Draft, drafts: readonly Draft[], index: n
   const hashed = Math.floor((((index * 2_654_435_761) % 4_294_967_296) / 4_294_967_296) * index);
   const at = draft.position % (3 * CRITERION_EVERY) === 0 ? hashed - (hashed % CHANGED_EVERY) : hashed;
   const target = itemAt(drafts, at);
-  const destination = `logreq:${target.id}?version=${target.version}`;
+  const destination = `reqseq:${target.id}?version=${target.version}`;
   const link =
     target.repository === draft.repository
       ? `[${target.title}](${destination})`
@@ -555,7 +555,7 @@ const workspaceFile = (seed: number): string => {
       : `  - { name: ${r.name}, url: "git@git.example.com:generated/${r.name}.git", path: ../${r.folder} }`,
   );
   return [
-    "logreq-workspace: 1",
+    "reqseq-workspace: 1",
     `name: Generated workspace (seed ${String(seed)})`,
     "repositories:",
     ...lines,
@@ -634,7 +634,7 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
   // Relation kinds may point at later elements (a variant excludes requirements), so the files are
   // written once every version is known.
   const files = new Map<string, string>([
-    ["system/logreq-workspace.yaml", workspaceFile(seed)],
+    ["system/reqseq-workspace.yaml", workspaceFile(seed)],
     ["system/metamodel/standard-model.yaml", metamodel],
     ...drafts.map((draft) => [`${draft.repository}/${draft.file}`, elementFile(draft)] as const),
   ]);

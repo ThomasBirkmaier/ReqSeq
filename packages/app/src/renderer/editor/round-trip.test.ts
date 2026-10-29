@@ -56,7 +56,7 @@ const write = (): { readonly state: EditorState; readonly doc: string } => {
     "Plain *em*, **strong**, ~~strike~~ and `code`, a [link](https://example.org/a) ",
     1,
   );
-  state = typeInto(state, `and a reference [SR-001](logreq:${TARGET}).\n\n`, 7);
+  state = typeInto(state, `and a reference [SR-001](reqseq:${TARGET}).\n\n`, 7);
   // A list: the second item comes from Enter, which continues the list.
   state = typeInto(state, "- bullet a", 1);
   state = enter(state);
@@ -85,11 +85,11 @@ describe("SR-065 AK2, the file of a text written in the editor", () => {
       expect(file.startsWith(FRONT_MATTER)).toBe(true);
       const body = file.slice(FRONT_MATTER.length);
       // Core adds the version of the target to an inline reference (ADR-0004); nothing else changes.
-      const reference = new RegExp(`\\[SR-001\\]\\(logreq:${TARGET}\\?version=(n1:[0-9a-f]+)\\)`);
+      const reference = new RegExp(`\\[SR-001\\]\\(reqseq:${TARGET}\\?version=(n1:[0-9a-f]+)\\)`);
       const version = reference.exec(body)?.[1];
       expect(version).toBeDefined();
       expect(body).toBe(
-        `${doc.replace(`(logreq:${TARGET})`, `(logreq:${TARGET}?version=${String(version)})`)}${doc.endsWith("\n") ? "" : "\n"}`,
+        `${doc.replace(`(reqseq:${TARGET})`, `(reqseq:${TARGET}?version=${String(version)})`)}${doc.endsWith("\n") ? "" : "\n"}`,
       );
 
       // (3) CommonMark with GitHub extensions, by an independent reference parser.
@@ -105,7 +105,7 @@ describe("SR-065 AK2, the file of a text written in the editor", () => {
       expect(html).toContain("<del>strike</del>");
       expect(html).toContain("<code>code</code>");
       expect(html).toContain('<a href="https://example.org/a">link</a>');
-      expect(html).toContain(`<a href="logreq:${TARGET}?version=${String(version)}">SR-001</a>`);
+      expect(html).toContain(`<a href="reqseq:${TARGET}?version=${String(version)}">SR-001</a>`);
       expect(html).toMatch(/<ul>\s*<li>bullet a<\/li>\s*<li>bullet b<\/li>\s*<\/ul>/);
       expect(html).toMatch(/<ol>\s*<li>one<\/li>\s*<li>two<\/li>\s*<\/ol>/);
       expect(html).toContain('<input type="checkbox" disabled="" /> open task');

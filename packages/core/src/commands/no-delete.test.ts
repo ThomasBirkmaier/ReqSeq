@@ -158,8 +158,8 @@ describe("no delete of an element (SR-099, D-045)", () => {
       const fixture = await createFixtureWorkspace({
         fixture: "SR-001/two-elements",
         files: {
-          "logreq-workspace.yaml":
-            'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+          "reqseq-workspace.yaml":
+            'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
             "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: records }\n",
           "new/.keep": "",
           "new/layout.png": "an image",

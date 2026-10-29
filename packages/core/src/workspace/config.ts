@@ -1,4 +1,4 @@
-// Reading `logreq-workspace.yaml` (D-041, SR-004) and the untracked `.logreq/local.yaml` of one
+// Reading `reqseq-workspace.yaml` (D-041, SR-004) and the untracked `.reqseq/local.yaml` of one
 // person. Both are checked against their schema in schemas/ (ADR-0003).
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -12,10 +12,10 @@ import { WORKSPACE_FILE } from "./workspace-file.js";
 export { WORKSPACE_FILE };
 
 /** Local overrides of one person, next to the workspace file; never committed. */
-export const LOCAL_FILE = ".logreq/local.yaml";
+export const LOCAL_FILE = ".reqseq/local.yaml";
 
 /**
- * `logreq-workspace.yaml` after the schema check. `minItems: 1` is not part of the generated
+ * `reqseq-workspace.yaml` after the schema check. `minItems: 1` is not part of the generated
  * `WorkspaceFile`; a file that passed the check has a first repository, so it is typed here.
  */
 export type CheckedWorkspaceFile = WorkspaceFile & {
@@ -68,7 +68,7 @@ const workspaceFileProblems = (data: unknown): readonly Problem[] => {
 };
 
 /**
- * Reads and checks `logreq-workspace.yaml` in `root`. Throws `workspace.not-found` when there is
+ * Reads and checks `reqseq-workspace.yaml` in `root`. Throws `workspace.not-found` when there is
  * none and `file.faulty` (with `details.problems`) when it is not valid YAML, does not match
  * `workspace.schema.json` or names a repository twice: a faulty workspace file is never used in part.
  */
@@ -98,7 +98,7 @@ const localProblem = (problem: Problem): Problem => ({
 });
 
 /**
- * Reads `.logreq/local.yaml` in `root` if there is one. A faulty file is reported as warnings and
+ * Reads `.reqseq/local.yaml` in `root` if there is one. A faulty file is reported as warnings and
  * ignored (`data` is undefined), so the workspace opens with the paths of the workspace file.
  */
 export const readLocalFile = async (root: string): Promise<Read<WorkspaceLocalFile | undefined>> => {

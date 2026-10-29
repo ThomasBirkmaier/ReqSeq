@@ -83,7 +83,7 @@ describe("built-in meanings", () => {
     const metamodel = await load({
       files: {
         "model/relations.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "relations:",
           "  - { key: satisfies, name: Satisfies, meaning: derivation }",
           "  - { key: traces-to, name: Traces to }",
@@ -123,7 +123,7 @@ describe("built-in meanings", () => {
   it("[SR-013/AK3] names the missing assignment when a function needs a meaning that no key has", async () => {
     const metamodel = await load({
       files: {
-        "model/relations.yaml": "logreq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
+        "model/relations.yaml": "reqseq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
       },
     });
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
@@ -144,9 +144,9 @@ describe("built-in meanings", () => {
     const metamodel = await load({
       files: {
         "model/types.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: wish, name: Stakeholder Wish, prefix: W, properties: [label] }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: wish, name: Stakeholder Wish, prefix: W, properties: [label] }\n",
         "model/properties.yaml":
-          "logreq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text, meaning: title }\n",
+          "reqseq-metamodel: 1\nproperties:\n  - { key: label, name: Label, kind: text, meaning: title }\n",
       },
     });
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
@@ -237,7 +237,7 @@ describe("built-in meanings", () => {
     const metamodel = await load({
       files: {
         "model/types.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - { key: spec-item, name: Specification Item, prefix: SPI, meaning: requirement }",
           "  - { key: sub-item, name: Sub Item, prefix: SUB, extends: spec-item }",
@@ -257,7 +257,7 @@ describe("built-in meanings", () => {
       files: {
         // After types.yaml and properties.yaml in file order, so these are the second definitions.
         "model/variants.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - key: release",
           "    name: Release",
@@ -299,7 +299,7 @@ describe("built-in meanings", () => {
     const metamodel = await load({
       files: {
         "model/types.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - { key: base, name: Base, prefix: BAS, abstract: true, meaning: requirement }",
           "  - { key: spec-item, name: Specification Item, prefix: SPI, extends: base }",
@@ -325,7 +325,7 @@ describe("built-in meanings", () => {
     const metamodel = await load({
       files: {
         "model/types.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - { key: base, name: Base, prefix: BAS, meaning: requirement }",
           "  - { key: spec-item, name: Specification Item, prefix: SPI, extends: base, meaning: need }",
@@ -503,8 +503,8 @@ describe("built-in meanings", () => {
   it("has no meanings when the metamodel folder is missing", async () => {
     const ws = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Empty\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: model }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Empty\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: model }\n",
       },
     });
     onTestFinished(() => ws.cleanup());

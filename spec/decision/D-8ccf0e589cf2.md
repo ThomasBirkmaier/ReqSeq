@@ -5,7 +5,7 @@ status: accepted
 title: "Automatisch erzeugte, zufällige IDs"
 spec-id: "D-017"
 supersedes:
-  - { id: 6ad4f79f-3859-4d3d-9d4b-b6b9d3fd8f46, version: n1:7f5f7d3d39e725df, title: "Automatisch erzeugte, eindeutige IDs" }
+  - { id: 6ad4f79f-3859-4d3d-9d4b-b6b9d3fd8f46, version: n1:77e8e886ae99f281, title: "Automatisch erzeugte, eindeutige IDs" }
 ---
 
 Jedes Element bekommt beim Anlegen automatisch eine UUID (Version 4), die nie geändert wird. Alle Beziehungen und Verweise speichern sie vollständig.

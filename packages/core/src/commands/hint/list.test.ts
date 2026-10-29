@@ -115,7 +115,7 @@ describe("hint.list (SR-026)", () => {
       elementShortId: "SR-0000b1",
       targetId: N1,
       storedVersion: "n1:0000000000000000",
-      currentVersion: "n1:45606c311f685d68",
+      currentVersion: "n1:d809de2e934d94f3",
       storedDate: null,
       currentDate: date,
       hintId: `relation.outdated/system/${encodeURIComponent(R1_FILE)}/${R1}/derives-from/${N1}?version=n1:0000000000000000`,
@@ -281,8 +281,8 @@ describe("hint.list (SR-026)", () => {
     const workspace = await opened({
       ...HINTS,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           '  - { name: away, url: "git@git.example.com:ws/away.git", path: ../away }\n' +
           "metamodel: { repository: system, path: metamodel }\n",
@@ -296,7 +296,7 @@ describe("hint.list (SR-026)", () => {
   it("lists no hints while the metamodel is not valid (#208, #220 option 1)", async () => {
     const workspace = await opened({
       ...HINTS,
-      files: { "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: 5\n" },
+      files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: 5\n" },
     });
     expect((await workspace.get(metamodelState)).valid).toBe(false);
     expect(await list(workspace)).toEqual({ hints: [], incomplete: false });
@@ -432,7 +432,7 @@ describe("hints at the element (SR-026 AK3)", () => {
           type: "need",
           title: "Feel the wind",
           folder: "needs",
-          text: `Like [See the wind](logreq:${N1}?version=n1:0000000000000000).`,
+          text: `Like [See the wind](reqseq:${N1}?version=n1:0000000000000000).`,
         },
         { workspace },
       )) as CommandOutput<"element.create">

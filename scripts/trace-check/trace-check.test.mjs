@@ -11,7 +11,7 @@ afterEach(() => {
   }
 });
 
-const METAMODEL = `logreq-metamodel: 1
+const METAMODEL = `reqseq-metamodel: 1
 properties:
   - { key: title, name: Title, kind: text, meaning: title }
   - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
@@ -21,7 +21,7 @@ statuses:
 `;
 // Built at run time, so that trace-check does not read this file as tests of real SRs.
 const tag = (id, ak) => `[${id}/AK${ak}]`;
-const WORKSPACE = `logreq-workspace: 1
+const WORKSPACE = `reqseq-workspace: 1
 name: Spec
 repositories:
   - { name: spec, url: "", main: true }
@@ -35,7 +35,7 @@ function repo(extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-trace-check-"));
   roots.push(root);
   const files = {
-    "spec/logreq-workspace.yaml": WORKSPACE,
+    "spec/reqseq-workspace.yaml": WORKSPACE,
     "spec/metamodel/spec-model.yaml": METAMODEL,
     "spec/package/PKG-334263089f89.md": `---\nid: ${STAGE_3}\ntype: package\nstatus: draft\ntitle: "Stufe 3"\nspec-id: "Stufe-3"\n---\n`,
     "spec/package/PKG-0ac2b6d5157d.md": `---\nid: ${QS}\ntype: package\ntitle: Querschnitt\nspec-id: Querschnitt\n---\n`,
@@ -52,7 +52,7 @@ function repo(extra = {}) {
       "  - 'Gegeben c: dann d.'",
       "verification-method: test",
       "packages:",
-      `  - { id: ${STAGE_3}, version: n1:89fcc971400d045e, title: "Stufe 3" }`,
+      `  - { id: ${STAGE_3}, version: n1:3b91c1fbe49a06cc, title: "Stufe 3" }`,
       "---",
       "",
       "Text.",
@@ -152,8 +152,8 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
 
   it("reads the metamodel from the folder the workspace file names", () => {
     const root = repo({
-      "spec/logreq-workspace.yaml": [
-        "logreq-workspace: 1",
+      "spec/reqseq-workspace.yaml": [
+        "reqseq-workspace: 1",
         "repositories:",
         '  - { name: spec, url: "", main: true }',
         '  - { name: model, url: "", path: ../model }',
@@ -161,15 +161,15 @@ describe("trace-check on the ReqSeq workspace in spec/", () => {
         "",
       ].join("\n"),
       "model/mm/m.yaml":
-        "logreq-metamodel: 1\nproperties:\n  - { key: ref-id, name: Ref, kind: text, meaning: identifier }\n",
+        "reqseq-metamodel: 1\nproperties:\n  - { key: ref-id, name: Ref, kind: text, meaning: identifier }\n",
     });
     expect(readMetamodel(path.join(root, "spec")).identifier).toBe("ref-id");
-    fs.writeFileSync(path.join(root, "spec/logreq-workspace.yaml"), "logreq-workspace: 1\n");
+    fs.writeFileSync(path.join(root, "spec/reqseq-workspace.yaml"), "reqseq-workspace: 1\n");
     expect(() => readMetamodel(path.join(root, "spec"))).toThrow(/names no metamodel folder/);
   });
 
   it("needs a property with the meaning identifier in the metamodel", () => {
-    const root = repo({ "spec/metamodel/spec-model.yaml": "logreq-metamodel: 1\n" });
+    const root = repo({ "spec/metamodel/spec-model.yaml": "reqseq-metamodel: 1\n" });
     expect(() => traceCheck(root, [])).toThrow(/no property with the meaning identifier/);
   });
 

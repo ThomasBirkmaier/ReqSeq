@@ -69,8 +69,8 @@ type Metamodel = CommandOutput<"metamodel.get">;
 const standardModel = async (): Promise<Metamodel> => {
   const model = await createFixtureWorkspace({
     files: {
-      "logreq-workspace.yaml":
-        'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
       "metamodel/standard-model.yaml": await fs.readFile(defaultStandardModelFile, "utf8"),
     },
   });

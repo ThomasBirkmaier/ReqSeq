@@ -196,7 +196,7 @@ describe("successors of a superseded element (SR-072 AK3)", () => {
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
     // Then the workspace file breaks and the layout and every state on it are reset.
-    await fixture.write("logreq-workspace.yaml", "repositories: [\n");
+    await fixture.write("reqseq-workspace.yaml", "repositories: [\n");
     await workspace.reset(workspaceLayoutState);
     await expect(workspace.get(elementStoreState)).rejects.toThrow();
     expect(successionsFor(workspace, store, metamodel, record).map((s) => s.source.id)).toEqual([N_NEW]);

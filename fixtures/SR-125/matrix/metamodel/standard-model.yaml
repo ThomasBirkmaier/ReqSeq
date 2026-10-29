@@ -1,9 +1,9 @@
-# Standard model (D-037, extended by D-059 and D-060), shipped with LogReq and written by workspace.init (SR-014).
+# Standard model (D-037, extended by D-059 and D-060), shipped with ReqSeq and written by workspace.init (SR-014).
 # Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
 # each type and property meaning exactly one, derivation and replacement two relation kinds each
 # (open question #150).
 # Marked "assumption": not yet covered by a decision.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: need

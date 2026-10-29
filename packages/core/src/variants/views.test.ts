@@ -166,7 +166,7 @@ describe("validity as a list of variants (SR-040)", () => {
 
   it("[SR-040/AK2] counts subtypes of the variant type as variants and ignores other elements", async () => {
     const model = [
-      "logreq-metamodel: 1",
+      "reqseq-metamodel: 1",
       "types:",
       "  - { key: island, name: Island, prefix: ISL, extends: variant }",
       "",

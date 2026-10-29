@@ -3,10 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { jsonLines } from "./json-lines.js";
 
-const SPEC = { items: "elements", fields: ["logreq-data", "commit", "dirty"] } as const;
+const SPEC = { items: "elements", fields: ["reqseq-data", "commit", "dirty"] } as const;
 
 const output = {
-  "logreq-data": 2,
+  "reqseq-data": 2,
   commit: "0123456789abcdef0123456789abcdef01234567",
   dirty: false,
   workspace: "Weather station",
@@ -27,19 +27,19 @@ describe("jsonLines (#319)", () => {
   it("[SR-061/AK4] gives one line per element: the state fields in catalog order, then the element", () => {
     const text = lines(output);
     expect(text.at(-1)).toBe("");
-    const picked = { "logreq-data": 2, commit: output.commit, dirty: false };
+    const picked = { "reqseq-data": 2, commit: output.commit, dirty: false };
     expect(text.slice(0, -1)).toEqual(output.elements.map((e) => JSON.stringify({ ...picked, ...e })));
     expect(text.slice(0, -1).map((line) => Object.keys(JSON.parse(line) as object).slice(0, 3))).toEqual([
-      ["logreq-data", "commit", "dirty"],
-      ["logreq-data", "commit", "dirty"],
-      ["logreq-data", "commit", "dirty"],
+      ["reqseq-data", "commit", "dirty"],
+      ["reqseq-data", "commit", "dirty"],
+      ["reqseq-data", "commit", "dirty"],
     ]);
   });
 
   it("leaves out a field the output leaves out, and gives nothing for no items", () => {
     const { commit: _commit, ...withoutCommit } = output;
     expect(lines(withoutCommit)[0]).toBe(
-      '{"logreq-data":2,"dirty":false,"id":"a","title":"Wind","relations":[]}',
+      '{"reqseq-data":2,"dirty":false,"id":"a","title":"Wind","relations":[]}',
     );
     expect([...jsonLines({ ...output, elements: [] }, SPEC)]).toEqual([]);
     expect([...jsonLines(output, { items: "elements", fields: [] })].join("").split("\n")[0]).toBe(

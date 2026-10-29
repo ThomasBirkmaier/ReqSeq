@@ -12,9 +12,9 @@ describe("login", () => {
     expect(login("correct horse")).toBe(true);
   });
 
-  // Names SR-b2c0de by a property: the JUnit reporter writes it as <property name="logreq:element">.
+  // Names SR-b2c0de by a property: the JUnit reporter writes it as <property name="reqseq:element">.
   it("locks the account after three wrong passwords", async ({ annotate }) => {
-    await annotate("SR-b2c0de", "logreq:element");
+    await annotate("SR-b2c0de", "reqseq:element");
     const attempts = ["a", "b", "c"].map(login);
     expect(attempts).toEqual([false, false, false]);
   });

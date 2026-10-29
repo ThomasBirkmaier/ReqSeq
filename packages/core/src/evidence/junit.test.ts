@@ -62,7 +62,7 @@ const insertion = (at: JunitPropertiesAt, added: string): Edit => {
 
 /**
  * `bytes` enriched as `reqseq evidence enrich-junit` would: per test case (by name) an existing
- * `logreq:element` property gets the UUID of the first element, the other properties are added at
+ * `reqseq:element` property gets the UUID of the first element, the other properties are added at
  * `propertiesAt`. Test cases not named stay as they are.
  */
 const enrich = (bytes: Uint8Array, byName: Readonly<Record<string, Enrich>>): Uint8Array => {
@@ -76,7 +76,7 @@ const enrich = (bytes: Uint8Array, byName: Readonly<Record<string, Enrich>>): Ui
     if (wanted === undefined) {
       continue;
     }
-    const existing = testCase.properties.find((p) => p.name === "logreq:element");
+    const existing = testCase.properties.find((p) => p.name === "reqseq:element");
     const [first] = wanted.elements;
     if (existing?.valueAt !== undefined && first !== undefined) {
       edits.push({ start: existing.valueAt.start, end: existing.valueAt.end, text: first[0] });
@@ -84,11 +84,11 @@ const enrich = (bytes: Uint8Array, byName: Readonly<Record<string, Enrich>>): Ui
     const added = [
       ...wanted.elements
         .slice(existing === undefined ? 0 : 1)
-        .map(([element]) => property("logreq:element", element)),
-      ...wanted.elements.map(([, version]) => property("logreq:version", version)),
-      property("logreq:item", wanted.item ?? "build-512"),
-      property("logreq:date", wanted.date ?? DATE),
-      ...(wanted.variant === undefined ? [] : [property("logreq:variant", wanted.variant)]),
+        .map(([element]) => property("reqseq:element", element)),
+      ...wanted.elements.map(([, version]) => property("reqseq:version", version)),
+      property("reqseq:item", wanted.item ?? "build-512"),
+      property("reqseq:date", wanted.date ?? DATE),
+      ...(wanted.variant === undefined ? [] : [property("reqseq:variant", wanted.variant)]),
     ].join("");
     edits.push(insertion(testCase.propertiesAt, added));
   }
@@ -116,10 +116,10 @@ const testCase = (name: string, props: readonly (readonly [string, string])[], b
 
 /** The properties of a test case enriched for `element` with version V1. */
 const enriched = (element = LOGIN): (readonly [string, string])[] => [
-  ["logreq:element", element],
-  ["logreq:version", V1],
-  ["logreq:item", "build-512"],
-  ["logreq:date", DATE],
+  ["reqseq:element", element],
+  ["reqseq:version", V1],
+  ["reqseq:item", "build-512"],
+  ["reqseq:date", DATE],
 ];
 
 describe("JUnit reader (SR-093)", () => {
@@ -245,7 +245,7 @@ describe("JUnit reader (SR-093)", () => {
     // The fixture's Markdown record is read too (SR-028); the JUnit file gives one record.
     const junit = read.records.filter((r) => r.source === "junit");
     expect(brief(junit)).toEqual([
-      [SR, "n1:2eb0feee31fc1d89", "passed", "test_shows_wind_speed[SR-e88fb3]", "4"],
+      [SR, "n1:11335f109ffb1a19", "passed", "test_shows_wind_speed[SR-e88fb3]", "4"],
     ]);
     expect(junit[0]).toMatchObject({ file: "evidence/ci/results.xml", className: "tests.test_wind" });
     expect(read.skipped).toEqual([
@@ -351,7 +351,7 @@ describe("JUnit reader (SR-093)", () => {
   });
 
   it("reports a file that names requirements but is not enriched once, with the number of test cases", () => {
-    // The samples as the tools wrote them: a logreq:element property and short IDs in the names.
+    // The samples as the tools wrote them: a reqseq:element property and short IDs in the names.
     expect(readJunitRecords(AT, sample("pytest.xml"))).toEqual({
       records: [],
       problems: [
@@ -362,7 +362,7 @@ describe("JUnit reader (SR-093)", () => {
           file: "ci/results.xml",
           line: 1,
           message:
-            "2 test case(s) name a requirement but have no logreq:version, so they give no record; enrich the file with reqseq evidence enrich-junit",
+            "2 test case(s) name a requirement but have no reqseq:version, so they give no record; enrich the file with reqseq evidence enrich-junit",
         },
       ],
     });
@@ -380,26 +380,26 @@ describe("JUnit reader (SR-093)", () => {
       AT,
       suite(
         [
-          at("short id", [["logreq:element", "SR-46fb54"], ...without("logreq:element")]),
-          at("no element", without("logreq:element")),
-          at("two versions", [...enriched(), ["logreq:version", V2]]),
+          at("short id", [["reqseq:element", "SR-46fb54"], ...without("reqseq:element")]),
+          at("no element", without("reqseq:element")),
+          at("two versions", [...enriched(), ["reqseq:version", V2]]),
           at("bad version", [
-            ["logreq:element", LOGIN],
-            ["logreq:version", "1.0"],
-            ...without("logreq:version").slice(1),
+            ["reqseq:element", LOGIN],
+            ["reqseq:version", "1.0"],
+            ...without("reqseq:version").slice(1),
           ]),
-          at("no item", without("logreq:item")),
-          at("empty item", [...without("logreq:item"), ["logreq:item", " "]]),
-          at("two items", [...enriched(), ["logreq:item", "build-513"]]),
-          at("no date", without("logreq:date")),
-          at("bad date", [...without("logreq:date"), ["logreq:date", "2026-10-27"]]),
-          at("bad variant", [...enriched(), ["logreq:variant", "core"]]),
+          at("no item", without("reqseq:item")),
+          at("empty item", [...without("reqseq:item"), ["reqseq:item", " "]]),
+          at("two items", [...enriched(), ["reqseq:item", "build-513"]]),
+          at("no date", without("reqseq:date")),
+          at("bad date", [...without("reqseq:date"), ["reqseq:date", "2026-10-27"]]),
+          at("bad variant", [...enriched(), ["reqseq:variant", "core"]]),
           at("good", enriched()),
-          at("same item twice", [...enriched(), ["logreq:item", "build-512"]]),
+          at("same item twice", [...enriched(), ["reqseq:item", "build-512"]]),
           at("element twice, two versions", [
             ...enriched(),
-            ["logreq:element", LOGIN],
-            ["logreq:version", V2],
+            ["reqseq:element", LOGIN],
+            ["reqseq:version", V2],
           ]),
         ].join("\n"),
       ),
@@ -410,52 +410,52 @@ describe("JUnit reader (SR-093)", () => {
         "evidence.invalid-record",
         "error",
         3,
-        'Test case "short id" is not read: logreq:element "SR-46fb54" is not a UUID (reqseq evidence enrich-junit writes the UUID)',
+        'Test case "short id" is not read: reqseq:element "SR-46fb54" is not a UUID (reqseq evidence enrich-junit writes the UUID)',
       ],
       [
         "evidence.invalid-record",
         "error",
         4,
-        'Test case "no element" is not read: 0 logreq:element and 1 logreq:version properties: each element needs its version',
+        'Test case "no element" is not read: 0 reqseq:element and 1 reqseq:version properties: each element needs its version',
       ],
       [
         "evidence.invalid-record",
         "error",
         5,
-        'Test case "two versions" is not read: 1 logreq:element and 2 logreq:version properties: each element needs its version',
+        'Test case "two versions" is not read: 1 reqseq:element and 2 reqseq:version properties: each element needs its version',
       ],
       [
         "evidence.invalid-record",
         "error",
         6,
-        'Test case "bad version" is not read: logreq:version "1.0" is not a version',
+        'Test case "bad version" is not read: reqseq:version "1.0" is not a version',
       ],
-      ["evidence.invalid-record", "error", 7, 'Test case "no item" is not read: logreq:item is missing'],
-      ["evidence.invalid-record", "error", 8, 'Test case "empty item" is not read: logreq:item is missing'],
+      ["evidence.invalid-record", "error", 7, 'Test case "no item" is not read: reqseq:item is missing'],
+      ["evidence.invalid-record", "error", 8, 'Test case "empty item" is not read: reqseq:item is missing'],
       [
         "evidence.invalid-record",
         "error",
         9,
-        'Test case "two items" is not read: logreq:item is given with different values',
+        'Test case "two items" is not read: reqseq:item is given with different values',
       ],
-      ["evidence.invalid-record", "error", 10, 'Test case "no date" is not read: logreq:date is missing'],
+      ["evidence.invalid-record", "error", 10, 'Test case "no date" is not read: reqseq:date is missing'],
       [
         "evidence.invalid-record",
         "error",
         11,
-        'Test case "bad date" is not read: logreq:date "2026-10-27" is not a date and time with time zone',
+        'Test case "bad date" is not read: reqseq:date "2026-10-27" is not a date and time with time zone',
       ],
       [
         "evidence.invalid-record",
         "error",
         12,
-        'Test case "bad variant" is not read: logreq:variant "core" is not a UUID',
+        'Test case "bad variant" is not read: reqseq:variant "core" is not a UUID',
       ],
       [
         "evidence.invalid-record",
         "error",
         15,
-        `Test case "element twice, two versions" is not read: logreq:element "${LOGIN}" is given with different versions`,
+        `Test case "element twice, two versions" is not read: reqseq:element "${LOGIN}" is given with different versions`,
       ],
     ]);
   });
@@ -464,10 +464,10 @@ describe("JUnit reader (SR-093)", () => {
     const name = `evil\u001b[2J${"x".repeat(60)}`;
     const read = readJunitRecords(
       AT,
-      suite(testCase(name, [["logreq:element", "\u001b[31m"], ...enriched().slice(1)])),
+      suite(testCase(name, [["reqseq:element", "\u001b[31m"], ...enriched().slice(1)])),
     );
     expect(read.problems?.map((p) => p.message)).toEqual([
-      `Test case "evil\\u{1b}[2J${"x".repeat(32)}…" is not read: logreq:element "\\u{1b}[31m" is not a UUID (reqseq evidence enrich-junit writes the UUID)`,
+      `Test case "evil\\u{1b}[2J${"x".repeat(32)}…" is not read: reqseq:element "\\u{1b}[31m" is not a UUID (reqseq evidence enrich-junit writes the UUID)`,
     ]);
   });
 
@@ -479,7 +479,7 @@ describe("JUnit reader (SR-093)", () => {
           testCase("bad", [...enriched().slice(0, 3)]),
           testCase("plain [SR-46fb54]", []),
           testCase("also bad", [...enriched().slice(0, 3)]),
-          testCase("by property", [["logreq:element", "SR-46fb54"]]),
+          testCase("by property", [["reqseq:element", "SR-46fb54"]]),
         ].join("\n"),
       ),
     );

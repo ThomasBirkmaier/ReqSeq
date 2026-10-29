@@ -16,7 +16,7 @@ const isFile = async (file: string): Promise<boolean> => {
 };
 
 /**
- * The nearest folder, from `start` upwards, that holds `logreq-workspace.yaml` as a file, or `undefined`
+ * The nearest folder, from `start` upwards, that holds `reqseq-workspace.yaml` as a file, or `undefined`
  * when no folder up to the file system root has one. `start` is resolved against the current folder.
  */
 export async function findWorkspaceRoot(start: string): Promise<string | undefined> {

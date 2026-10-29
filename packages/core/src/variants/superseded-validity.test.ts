@@ -158,7 +158,7 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
   it("[SR-040/AK3] names the variant by the name of its type, also a subtype", async () => {
     const out = await hints({
       "metamodel/island.yaml":
-        "logreq-metamodel: 1\ntypes:\n  - { key: island, name: Island, prefix: ISL, extends: variant }\n",
+        "reqseq-metamodel: 1\ntypes:\n  - { key: island, name: Island, prefix: ISL, extends: variant }\n",
       "variants/VAR-b2b2b2b2b2b2.md": `---\nid: ${MOUNTAIN}\ntype: island\nstatus: obsolete\ntitle: Mountain\n---\n`,
     });
     expect(out.map((p) => (p as { message: string }).message)).toEqual([

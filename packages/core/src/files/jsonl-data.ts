@@ -1,5 +1,5 @@
 // Whether a file is a ReqSeq data file (`data.store`, SR-062 AK1; #319): JSON Lines whose first line
-// starts with `{"logreq-data":` and an integer of at least 2 (the signature), within the first MiB;
+// starts with `{"reqseq-data":` and an integer of at least 2 (the signature), within the first MiB;
 // and valid UTF-8 (a sequence cut at the very end is allowed, see below). Only the start of the first
 // line is read, so a first element larger than one MiB does not block the next run. No later line is scanned:
 // the first line is the signature, and a file of ReqSeq that a crash cut in the middle (the in-place
@@ -21,8 +21,8 @@ const PIECE_BYTES = 1024 * 1024;
 
 const LF = 0x0a;
 
-/** `"logreq-data"` first, then the version and the end of that value: the start of every line ReqSeq writes (`jsonLines`). */
-const SIGNATURE = /^\{[\t\r ]*"logreq-data"[\t\r ]*:[\t\r ]*([1-9][0-9]*)[\t\r ]*[,}]/;
+/** `"reqseq-data"` first, then the version and the end of that value: the start of every line ReqSeq writes (`jsonLines`). */
+const SIGNATURE = /^\{[\t\r ]*"reqseq-data"[\t\r ]*:[\t\r ]*([1-9][0-9]*)[\t\r ]*[,}]/;
 
 /** What a check over all pieces of a file gives. */
 export interface JsonlDataResult {

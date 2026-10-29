@@ -42,7 +42,7 @@ describe("metamodel.get", () => {
   it("[SR-013/AK3] shows a meaning without key as an empty assignment", async () => {
     const out = await get("SR-013/own-meanings", {
       files: {
-        "model/relations.yaml": "logreq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
+        "model/relations.yaml": "reqseq-metamodel: 1\nrelations:\n  - { key: traces-to, name: Traces to }\n",
       },
     });
     expect(out.meanings["derivation"]).toEqual([]);
@@ -92,7 +92,7 @@ describe("metamodel.get", () => {
 
   it("reads a faulty metamodel of a read-only workspace and gives its problems", async () => {
     const out = await get("SR-013/own-meanings", {
-      files: { "model/statuses.yaml": "logreq-metamodel: 1\nstatuses: [\n" },
+      files: { "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses: [\n" },
     });
     expect(out.statuses).toEqual([]);
     expect(out.meanings["derivation"]).toEqual(["satisfies"]);
@@ -104,8 +104,8 @@ describe("metamodel.get", () => {
   it("names a missing metamodel folder", async () => {
     const out = await get("SR-013/own-meanings", {
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: missing }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: missing }\n",
       },
     });
     expect(out.types).toEqual([]);

@@ -555,8 +555,8 @@ describe("relation.add shows a hint when a derivation closes a cycle (SR-067 AK3
     const opened = await open(
       {
         files: {
-          "system/logreq-workspace.yaml": [
-            "logreq-workspace: 1",
+          "system/reqseq-workspace.yaml": [
+            "reqseq-workspace: 1",
             "name: Across",
             "repositories:",
             "  - { name: system, url: git@example.com:system.git, main: true }",

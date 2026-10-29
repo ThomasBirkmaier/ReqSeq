@@ -345,7 +345,7 @@ test.describe("the Markdown editor in the element buffer", () => {
     const { window } = running;
     await opened(window, REFERENCE_SOURCE_TITLE);
     expect(await shown(window)).toContain(`Siehe ${REFERENCE_LABEL}`);
-    expect(await shown(window)).not.toContain("logreq:");
+    expect(await shown(window)).not.toContain("reqseq:");
     expect(await shown(window)).not.toContain("n1:");
     await expect(window.locator(".cm-lr-outdated")).toBeVisible();
     await expect(window.locator(".cm-lr-outdated-word")).toHaveText(/^ outdated/);

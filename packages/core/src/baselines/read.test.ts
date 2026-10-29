@@ -26,13 +26,13 @@ const V2 = "n1:2222222222222222";
 const COMMIT = "9abcdef09abcdef09abcdef09abcdef09abcdef0";
 
 const WORKSPACE = (more = ""): string =>
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
   `metamodel: { repository: system, path: metamodel }\n${more}`;
 
 /** A baseline file named `name` that lists `elements` (`- { ... }` lines). */
 const baseline = (name: string, ...elements: readonly string[]): string =>
-  `logreq-baseline: 1\nname: ${name}\ndate: 2026-10-01T09:00:00Z\nrepositories:\n  - { name: system, commit: ${COMMIT} }\n` +
+  `reqseq-baseline: 1\nname: ${name}\ndate: 2026-10-01T09:00:00Z\nrepositories:\n  - { name: system, commit: ${COMMIT} }\n` +
   (elements.length === 0 ? "elements: []\n" : `elements:\n${elements.map((e) => `  - ${e}\n`).join("")}`);
 
 const open = async (files: Readonly<Record<string, string>> = {}, options: Partial<FixtureOptions> = {}) => {
@@ -73,7 +73,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
 
   it("[SR-032/AK2] reads the baselines folder the workspace file names, also at the root of a repository, never the workspace file", async () => {
     const { layout } = await open({
-      "logreq-workspace.yaml": WORKSPACE("baselines: { repository: system, path: . }\n"),
+      "reqseq-workspace.yaml": WORKSPACE("baselines: { repository: system, path: . }\n"),
       "root-baseline.yaml": baseline("Root", `{ id: ${A1}, version: ${V1}, repository: system }`),
     });
     const read = await readBaselines(layout);
@@ -94,8 +94,8 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
 
   it("reports faulty files, a .yml file and YAML warnings, and reads no baseline from a faulty file", async () => {
     const { layout } = await open({
-      "baselines/broken-yaml.yaml": "logreq-baseline: 1\nname: [unclosed\n",
-      "baselines/no-name.yaml": `logreq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements: []\n`,
+      "baselines/broken-yaml.yaml": "reqseq-baseline: 1\nname: [unclosed\n",
+      "baselines/no-name.yaml": `reqseq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements: []\n`,
       "baselines/old.yml": baseline("Old"),
       "baselines/tagged.yaml": baseline(`!odd Tagged`, `{ id: ${A1}, version: ${V2} }`),
       "baselines/notes.txt": "no baseline",
@@ -146,14 +146,14 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
 
   it("has no baseline and no problem without a baselines folder", async () => {
     const { layout } = await open({
-      "logreq-workspace.yaml": WORKSPACE("baselines: { repository: system, path: releases }\n"),
+      "reqseq-workspace.yaml": WORKSPACE("baselines: { repository: system, path: releases }\n"),
     });
     expect(shown(await readBaselines(layout))).toEqual({ baselines: [], problems: [], incomplete: false });
   });
 
   it("reports a baselines path that is no folder", async () => {
     const { layout } = await open({
-      "logreq-workspace.yaml": WORKSPACE(
+      "reqseq-workspace.yaml": WORKSPACE(
         "baselines: { repository: system, path: requirements/SR-0000000032a1.md }\n",
       ),
     });
@@ -171,7 +171,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
   it("is incomplete while the repository of the folder is not on this machine, and empty for a repository the workspace file does not list", async () => {
     const vault = '  - { name: vault, url: "git@git.example.com:ws/vault.git", path: ../vault }\n';
     const away = await open({
-      "logreq-workspace.yaml": WORKSPACE("baselines: { repository: vault, path: baselines }\n").replace(
+      "reqseq-workspace.yaml": WORKSPACE("baselines: { repository: vault, path: baselines }\n").replace(
         "metamodel:",
         `${vault.trimEnd()}\nmetamodel:`,
       ),
@@ -182,7 +182,7 @@ describe("baseline files, read-only (SR-032 AK2)", () => {
       incomplete: true,
     });
     const unknown = await open({
-      "logreq-workspace.yaml": WORKSPACE("baselines: { repository: elsewhere, path: baselines }\n"),
+      "reqseq-workspace.yaml": WORKSPACE("baselines: { repository: elsewhere, path: baselines }\n"),
     });
     expect(shown(await readBaselines(unknown.layout))).toEqual({
       baselines: [],
@@ -357,7 +357,7 @@ describe("selection by baseline (data.export, SR-061 AK2)", () => {
   it("tells a name two files share, and a file name of a faulty file", async () => {
     const { layout } = await open({
       "baselines/twin.yaml": baseline("Beta"),
-      "baselines/broken.yaml": "logreq-baseline: 1\nname: Broken\n",
+      "baselines/broken.yaml": "reqseq-baseline: 1\nname: Broken\n",
     });
     const read = await readBaselines(layout);
     expect(read.faulty).toEqual(["baselines/broken.yaml"]);

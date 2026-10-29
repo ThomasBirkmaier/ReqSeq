@@ -29,10 +29,10 @@ const withoutPassedTest = async (
 /** A failed run of SR-126b08 after its passed one: its parent b07 is then open, missing b08. */
 const B08_FAILED = [
   "---",
-  "logreq-record: 1",
+  "reqseq-record: 1",
   "kind: verification",
   "element: 5c0e1d2a-0126-4126-8126-000000126b08",
-  "version: n1:2354041ae88fca1d",
+  "version: n1:10fc8568b3649160",
   "method: test",
   "item: build-700",
   "result: failed",

@@ -387,12 +387,12 @@ describe("writeFileAtomic: review findings", () => {
   });
 
   it("replaces a ReqSeq data file in JSON Lines, also a cut one, and refuses any other (SR-062, #319)", async () => {
-    const line = '{"logreq-data":2,"dirty":false,"id":"a"}\n';
-    await put("d.jsonl", `${line}{"logreq-data":2,"id":"b","t":"Grö`);
+    const line = '{"reqseq-data":2,"dirty":false,"id":"a"}\n';
+    await put("d.jsonl", `${line}{"reqseq-data":2,"id":"b","t":"Grö`);
     await writeFileAtomic(root, "d.jsonl", () => [line, line], await forge("d.jsonl"), { kind: "jsonl" });
     expect(await text("d.jsonl")).toBe(line + line);
     for (const [name, content] of [
-      ["old.jsonl", '{"logreq-data":1}\n'],
+      ["old.jsonl", '{"reqseq-data":1}\n'],
       ["other.jsonl", '{"a":1}\n'],
     ] as const) {
       await put(name, content);

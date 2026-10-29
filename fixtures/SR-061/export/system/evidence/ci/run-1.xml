@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuites name="vitest tests" tests="1" failures="1" errors="0" time="0.02">
     <testsuite name="gusts.test.ts" timestamp="2026-10-22T10:00:00.000Z" hostname="ci" tests="1" failures="1" errors="0" skipped="0" time="0.02">
-        <testcase classname="gusts.test.ts" name="[SR-0000b2] shows a gust within a second" time="0.02"><properties><property name="logreq:element" value="61061061-0000-4000-8000-0000000000b2"/><property name="logreq:version" value="n1:46f520a356e92a87"/><property name="logreq:item" value="build-61"/><property name="logreq:date" value="2026-10-22T10:00:00Z"/></properties>
+        <testcase classname="gusts.test.ts" name="[SR-0000b2] shows a gust within a second" time="0.02"><properties><property name="reqseq:element" value="61061061-0000-4000-8000-0000000000b2"/><property name="reqseq:version" value="n1:077d46fbf1a6a93d"/><property name="reqseq:item" value="build-61"/><property name="reqseq:date" value="2026-10-22T10:00:00Z"/></properties>
             <failure message="expected 1.4 to be below 1" type="AssertionError">AssertionError: expected 1.4 to be below 1</failure>
         </testcase>
     </testsuite>

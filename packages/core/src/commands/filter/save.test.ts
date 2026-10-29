@@ -61,7 +61,7 @@ describe("filter.save (SR-070)", () => {
     const text = await read(fixture, "filters/draft-requirements.yaml");
     expect(text).toBe(
       [
-        "logreq-filter: 1",
+        "reqseq-filter: 1",
         "name: Draft requirements",
         "description: What is still open",
         "where:",
@@ -115,7 +115,7 @@ describe("filter.save (SR-070)", () => {
       },
     });
     expect(parse(await read(fixture, "filters/coastal-sensors.yaml"))).toEqual({
-      "logreq-filter": 1,
+      "reqseq-filter": 1,
       name: "Coastal sensors",
       view: `${P}c1`,
       where: {
@@ -142,7 +142,7 @@ describe("filter.save (SR-070)", () => {
   it("[SR-070/AK1] saves under an existing name, in any case, into its file and changes only what changed (#363)", async () => {
     const hand = [
       "# Kept by the team",
-      "logreq-filter: 1",
+      "reqseq-filter: 1",
       "name: Drafts   # as the app shows it",
       "",
       "where:",
@@ -184,7 +184,7 @@ describe("filter.save (SR-070)", () => {
     expect(await read(fixture, "filters/mine.yaml")).toBe(
       [
         "# Kept by the team",
-        "logreq-filter: 1",
+        "reqseq-filter: 1",
         "name: Drafts",
         "",
         "where:",
@@ -202,7 +202,7 @@ describe("filter.save (SR-070)", () => {
       problems: [],
     });
     expect(await read(fixture, "filters/mine.yaml")).toBe(
-      "# Kept by the team\nlogreq-filter: 1\nname: DRAFTS\n\nwhere:\n  status: [draft, obsolete]\n# Order of the list\n",
+      "# Kept by the team\nreqseq-filter: 1\nname: DRAFTS\n\nwhere:\n  status: [draft, obsolete]\n# Order of the list\n",
     );
     expect(await fs.readdir(fixture.path("filters"))).toEqual(["mine.yaml"]);
   });
@@ -237,8 +237,8 @@ describe("filter.save (SR-070)", () => {
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           "metamodel: { repository: system, path: metamodel }\n" +
           "filters: { repository: system, path: config/team/filters }\n",
@@ -306,8 +306,8 @@ describe("filter.save (SR-070)", () => {
     const { fixture, workspace } = await open({
       fixture: "SR-069/filter",
       files: {
-        "filters/broken.yaml": "logreq-filter: 1\nname: Broken\nwhere: { nope: 1 }\n",
-        "filters/flow.yaml": "{ logreq-filter: 1, name: Flow, where: { all: [] } }\n",
+        "filters/broken.yaml": "reqseq-filter: 1\nname: Broken\nwhere: { nope: 1 }\n",
+        "filters/flow.yaml": "{ reqseq-filter: 1, name: Flow, where: { all: [] } }\n",
       },
     });
     const broken = await failure(workspace, { name: "broken", where: { all: [] } });
@@ -322,8 +322,8 @@ describe("filter.save (SR-070)", () => {
     const { workspace } = await open({
       fixture: "SR-069/filter",
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n" +
@@ -338,7 +338,7 @@ describe("filter.save (SR-070)", () => {
   it("is refused on a read-only workspace (SR-011 AK3)", async () => {
     const { workspace } = await open({
       fixture: "SR-069/filter",
-      files: { "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: [ { key: x } ]\n" },
+      files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n" },
     });
     expect((await failure(workspace, { name: "All", where: { all: [] } })).code).toBe("workspace.read-only");
   });

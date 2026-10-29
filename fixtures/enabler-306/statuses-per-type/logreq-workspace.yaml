@@ -1,5 +1,0 @@
-logreq-workspace: 1
-name: Statuses per type
-repositories:
-  - { name: system, url: "git@git.example.com:ws/system.git", main: true }
-metamodel: { repository: system, path: metamodel }

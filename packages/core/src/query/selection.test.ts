@@ -53,8 +53,8 @@ describe("selection by baseline", () => {
 
   it("names none while the baselines folder is in a repository that is not on this machine", async () => {
     const ws = await fixture({
-      "system/logreq-workspace.yaml":
-        "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+      "system/reqseq-workspace.yaml":
+        "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
         '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
         '  - { name: sensor, url: "git@git.example.com:ws/sensor.git" }\n' +
         "metamodel: { repository: system, path: metamodel }\nbaselines: { repository: sensor, path: baselines }\n",

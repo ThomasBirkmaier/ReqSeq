@@ -1,6 +1,6 @@
-# IDs from another source (#305): the spec IDs of the LogReq spec in the property spec-id, which has
+# IDs from another source (#305): the spec IDs of the ReqSeq spec in the property spec-id, which has
 # the meaning identifier, so SR-036, D-047 and N-001 name their elements.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id], required: [title] }
   - key: system-requirement

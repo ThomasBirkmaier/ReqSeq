@@ -117,7 +117,7 @@ export interface WorkspaceOptions {
 }
 
 export class Workspace {
-  /** Absolute path of the folder with `logreq-workspace.yaml` (or the folder a command creates it in). */
+  /** Absolute path of the folder with `reqseq-workspace.yaml` (or the folder a command creates it in). */
   readonly root: string;
   /** The cache folder of the model cache, if this workspace uses one (`WorkspaceOptions`). */
   readonly cacheFolder: string | undefined;
