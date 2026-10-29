@@ -1,7 +1,7 @@
 ---
 id: 6ad47f0d-aa5b-4c0f-84e7-cd2d076a5fce
 type: need
-status: draft
+status: approved
 title: "Metamodell getrennt schützbar"
 spec-id: "N-025"
 topic: "Metamodell und Typen"

@@ -1,7 +1,7 @@
 ---
 id: 8c5dfcbf-7ed7-4bc0-9302-fed5ce1b49de
 type: decision
-status: draft
+status: accepted
 title: Eigenes Repository für Testdaten
 spec-id: D-070
 supersedes:
