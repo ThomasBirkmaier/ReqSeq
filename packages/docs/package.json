@@ -13,7 +13,8 @@
     "@reqseq/app": "workspace:*",
     "@reqseq/cli": "workspace:*",
     "@reqseq/core": "workspace:*",
-    "@reqseq/mcp": "workspace:*"
+    "@reqseq/mcp": "workspace:*",
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "micromark": "4.0.3",

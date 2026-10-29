@@ -2,20 +2,27 @@ import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type * as Assemble from "./assemble.js";
+import type * as Codes from "./codes.js";
 import type * as Reference from "./reference.js";
 
 const assembleContent = vi.fn(() => Promise.resolve(["index.md"]));
-const commandReference = vi.fn(() => Promise.resolve([{ path: "reference/commands/index.md", text: "" }]));
+const referencePages = vi.fn(() => Promise.resolve([{ path: "reference/commands/index.md", text: "" }]));
 const generated = { openapi: { paths: {} }, mcpTools: { tools: [] } };
 const readGeneratedContracts = vi.fn(() => Promise.resolve(generated));
+const codes = { problems: {}, errors: {} };
+const readProblemCodes = vi.fn(() => Promise.resolve(codes));
 vi.mock("./assemble.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Assemble>()),
   assembleContent,
 }));
 vi.mock("./reference.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Reference>()),
-  commandReference,
+  referencePages,
   readGeneratedContracts,
+}));
+vi.mock("./codes.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Codes>()),
+  readProblemCodes,
 }));
 
 describe("bin", () => {
@@ -26,13 +33,14 @@ describe("bin", () => {
     const { contentPaths } = await import("./assemble.js");
     const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
-    expect(commandReference).toHaveBeenCalledWith(getCommandRuntime(), generated, "/base");
+    expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
+    expect(referencePages).toHaveBeenCalledWith({ runtime: getCommandRuntime(), generated, codes }, "/base");
     expect(assembleContent).toHaveBeenCalledWith(paths, [{ path: "reference/commands/index.md", text: "" }]);
     expect(write).toHaveBeenCalledWith("docs: 1 files in the content folder\n");
     vi.unstubAllEnvs();
     vi.resetModules();
     await import("./bin.js");
-    expect(commandReference).toHaveBeenLastCalledWith(expect.anything(), generated, "/ReqSeq");
+    expect(referencePages).toHaveBeenLastCalledWith(expect.anything(), "/ReqSeq");
     write.mockRestore();
   });
 });

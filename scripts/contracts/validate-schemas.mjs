@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import YAML from "yaml";
 import { loadContracts, commandSchema, schemasDir, BASE } from "./load.mjs";
 import { checkCatalog } from "./catalog-checks.mjs";
+import { PROBLEM_CODES_FILE, checkProblemCodes } from "./problem-codes.mjs";
 
 const errors = [];
 const { ajv, schemas, catalog } = loadContracts();
@@ -186,6 +187,14 @@ for (const dir of fs.readdirSync(examplesDir, { withFileTypes: true }).filter((d
     }
   }
 }
+
+// Cause and remedy of every problem and error code (SR-139 AK2).
+errors.push(
+  ...checkProblemCodes(
+    fs.readFileSync(path.join(schemasDir, PROBLEM_CODES_FILE), "utf8"),
+    schemas["common.schema.json"],
+  ),
+);
 
 if (errors.length) {
   for (const e of errors) {
