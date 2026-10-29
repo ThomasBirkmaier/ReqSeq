@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled, closed]
   # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
   # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
-  # manual run check main; a red nightly run is fixed on main the next morning.
+  # manual run check main; a red nightly run is fixed the next morning, through a pull request to main (#340).
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
