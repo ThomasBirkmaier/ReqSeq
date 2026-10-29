@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import {
   NOTHING,

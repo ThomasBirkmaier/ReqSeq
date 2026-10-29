@@ -29,7 +29,7 @@ describe("contracts", () => {
       input: { type: "object" },
       output: { type: "object" },
     };
-    const catalog = (...commands) => ({ "logreq-catalog": 1, commands });
+    const catalog = (...commands) => ({ "reqseq-catalog": 1, commands });
     const meta = "commands/catalog.meta.schema.json";
     const { whileReadOnly, whileReadOnlyReason, ...write } = entry;
     expect(validate(meta, catalog(entry))).toBe(true);

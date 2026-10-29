@@ -2,8 +2,8 @@
 // YAML; the default is the compact form of `present.ts`. No colors, ever: output stays plain text in
 // pipes and logs. `--json` and `--yaml` come in pieces (`jsonOutput`, `yamlOutput`), never as one
 // string, since an output such as `data.export` at N-036 is larger than V8 holds in one (#277).
-import type { CatalogEntry, CommandError } from "@logreq/core";
-import { jsonChunks } from "@logreq/core";
+import type { CatalogEntry, CommandError } from "@reqseq/core";
+import { jsonChunks } from "@reqseq/core";
 import { stringify } from "yaml";
 import { inputFields } from "./fields.js";
 

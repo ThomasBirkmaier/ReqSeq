@@ -6,7 +6,7 @@ import * as core from "../../packages/core/src/index.ts";
 import {
   buildWorkspace,
   elementPath,
-  fillWithLogReq,
+  fillWithReqSeq,
   linkMentions,
   parseExportFile,
   readExport,
@@ -25,7 +25,7 @@ afterEach(() => {
   }
 });
 const temp = () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-spec-migrate-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-spec-migrate-"));
   folders.push(dir);
   return dir;
 };
@@ -92,14 +92,14 @@ function exportDir() {
 
 const read = (dir, type, uuid) => fs.readFileSync(path.join(dir, elementPath(type, uuid)), "utf8");
 
-describe("spec migration (Logseq export -> LogReq workspace, #326)", () => {
-  it("converts an export into a workspace that LogReq checks without findings beyond the known ones", async () => {
+describe("spec migration (Logseq export -> ReqSeq workspace, #326)", () => {
+  it("converts an export into a workspace that ReqSeq checks without findings beyond the known ones", async () => {
     const exp = readExport(exportDir());
     const plan = buildWorkspace(exp);
     expect(plan.problems).toEqual([]);
     const ws = path.join(temp(), "spec");
     writeFiles(ws, plan.files);
-    const result = await fillWithLogReq(ws, plan, core);
+    const result = await fillWithReqSeq(ws, plan, core);
     expect(verifyVerbatim(ws, exp)).toEqual([]);
 
     // Spec IDs are identifiers, statuses follow the types, packages come from stages.json.
@@ -170,7 +170,7 @@ describe("spec migration (Logseq export -> LogReq workspace, #326)", () => {
       inProperties: 1,
     });
 
-    // Every relation got its version from LogReq and nothing is outdated. The warnings are the relations
+    // Every relation got its version from ReqSeq and nothing is outdated. The warnings are the relations
     // to the superseded D-001: SR-001 is based on it, and D-002's own supersedes relation (#304).
     expect(result.confirmed).toBe(0);
     expect(result.versionsAdded).toBe(plan.relations.length);

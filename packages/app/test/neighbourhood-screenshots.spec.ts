@@ -1,7 +1,7 @@
 // Screenshots of the neighbourhood (SR-107) on a copy of the repository's own specification (`spec/`):
 // the neighbourhood buffer of a need with its requirements at level 1, and a system requirement with
 // the parents line above its title. The window is 1280×800. The PNGs go to
-// `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS); keeping them is a
+// `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS); keeping them is a
 // deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -12,7 +12,7 @@ import { launchApp } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** Opens an element by Ctrl+P and its ID, once the hit is there. */

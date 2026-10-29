@@ -1,6 +1,6 @@
 // Screenshots of the Markdown editor for the verification record of SR-065 (verification/SR-065.md).
 // The window is 1280×800. The PNGs go to `test-results/electron/screenshots/` (or the folder in
-// LOGREQ_SCREENSHOTS); copying them to `verification/SR-065/` is a deliberate step, not part of a test run.
+// REQSEQ_SCREENSHOTS); copying them to `verification/SR-065/` is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ import { DEMO_FILES, DEMO_TITLE } from "./support/demo.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** Finds the element with `query` in Ctrl+P and opens it; `title` is its full title. */

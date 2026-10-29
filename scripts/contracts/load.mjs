@@ -6,7 +6,7 @@ import addFormats from "ajv-formats";
 
 export const root = path.resolve(import.meta.dirname, "../..");
 export const schemasDir = path.join(root, "schemas");
-export const BASE = "https://logreq.dev/schemas/";
+export const BASE = "https://reqseq.dev/schemas/";
 
 const readJson = (f) => JSON.parse(fs.readFileSync(f, "utf8"));
 

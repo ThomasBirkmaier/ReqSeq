@@ -10,7 +10,7 @@ import bundle from "../generated/contracts.json" with { type: "json" };
 import type { CommandCatalog } from "../generated/types.js";
 
 /** `$id` prefix of every schema; an identifier only, never fetched (no network, N-047). */
-export const SCHEMA_BASE = "https://logreq.dev/schemas/";
+export const SCHEMA_BASE = "https://reqseq.dev/schemas/";
 
 /** One entry of `schemas/commands/catalog.json` (shape checked by `catalog.meta.schema.json`). */
 export type CatalogEntry = CommandCatalog["commands"][number];
@@ -51,7 +51,7 @@ export interface ContractsBundle {
   readonly catalog: unknown;
 }
 
-/** The schemas and the catalog of this version of LogReq. */
+/** The schemas and the catalog of this version of ReqSeq. */
 export const contractsBundle = bundle as unknown as ContractsBundle;
 
 // `verbose` (input only) gives each error its schema, which `inputViolations` reads for readable messages.

@@ -4,7 +4,7 @@
 // the same element with one more level whenever a row below the fetched levels is opened. A row of an
 // element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { TraceNeighbourhoodOutput } from "@logreq/core";
+import type { TraceNeighbourhoodOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, NeighbourhoodBuffer } from "./buffers.js";
 import type { Call } from "./call.js";

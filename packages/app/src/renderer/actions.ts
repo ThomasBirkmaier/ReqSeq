@@ -6,7 +6,7 @@
 //
 // The prompt finds the app's actions and the catalog's read commands (`catalog-commands.ts`, #85); an
 // action that does what a command does covers it, so the prompt lists it once.
-import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@logreq/core";
+import type { DataExportElement, ElementSelection, FilterSortKeyWithDefaults } from "@reqseq/core";
 import type {
   Buffer,
   BufferAction,

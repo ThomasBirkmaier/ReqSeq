@@ -1,5 +1,5 @@
 // The text of an element and the body of its file (ADR-0004, #308). The body is everything after
-// the closing `---` line, as `splitFrontmatter` keeps it; the files LogReq writes and most files
+// the closing `---` line, as `splitFrontmatter` keeps it; the files ReqSeq writes and most files
 // written by hand have one blank line there, which separates the frontmatter from the text and is
 // not part of it. Reading and the version (ADR-0005) keep using the body, so the separator never
 // changes a version; only the text the commands show and take goes through these functions.

@@ -2,7 +2,7 @@
 // give. The parents line, the tree of the children (derivations only, opened level by level) and the
 // incoming relations and references grouped by kind. Pure display of the command's output (ADR-0002),
 // no React: the order of the rows is the walk's order, the app sorts nothing.
-import type { TraceNeighbourhoodInput, TraceNeighbourhoodOutput } from "@logreq/core";
+import type { TraceNeighbourhoodInput, TraceNeighbourhoodOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
 import { rowOf } from "./rows.js";

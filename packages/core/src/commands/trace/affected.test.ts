@@ -1,7 +1,7 @@
 // trace.affected through `invoke` (SR-024, SR-006 AK2, SR-013 AK3) on fixtures/SR-024/affected:
 // input, errors and the output the catalog checks. The walk itself: trace/affected.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { writeFile } from "node:fs/promises";
 import type { CommandOutput } from "../../catalog.js";

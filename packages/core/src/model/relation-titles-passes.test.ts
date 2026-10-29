@@ -2,7 +2,7 @@
 // lossless writer per written file, however many titles are stale (N-036), and a refused pass
 // never blocks the write it is part of. The writer is wrapped so a test can count and fail calls.
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import type * as files from "../files/index.js";

@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandContext } from "../catalog.js";
 import { CommandError, defineTestCommand } from "../catalog.js";
@@ -11,7 +11,7 @@ import { Workspace } from "./workspace.js";
 
 // A test-only catalog entry; its schemas use refs into common.schema.json like the real catalog.
 const testCatalog = {
-  "logreq-catalog": 1,
+  "reqseq-catalog": 1,
   commands: [
     {
       name: "test.echo",
@@ -269,13 +269,13 @@ describe("invoke", () => {
     });
   });
 
-  it("validates output by default when LOGREQ_VALIDATE_OUTPUT=1", async () => {
+  it("validates output by default when REQSEQ_VALIDATE_OUTPUT=1", async () => {
     const input = { ref: "SR-825b7146fb54", output: {} };
-    vi.stubEnv("LOGREQ_VALIDATE_OUTPUT", "1");
+    vi.stubEnv("REQSEQ_VALIDATE_OUTPUT", "1");
     try {
       const on = createCommandRuntime({ contracts, commands: [echo] });
       expect((await rejection(on.invoke("test.echo", input, ctx))).code).toBe("internal");
-      vi.stubEnv("LOGREQ_VALIDATE_OUTPUT", "");
+      vi.stubEnv("REQSEQ_VALIDATE_OUTPUT", "");
       const off = createCommandRuntime({ contracts, commands: [echo] });
       await expect(off.invoke("test.echo", input, ctx)).resolves.toEqual({});
     } finally {
@@ -286,7 +286,7 @@ describe("invoke", () => {
 
 describe("invoke (product runtime)", () => {
   it("is set up for output validation in tests", () => {
-    expect(process.env["LOGREQ_VALIDATE_OUTPUT"]).toBe("1");
+    expect(process.env["REQSEQ_VALIDATE_OUTPUT"]).toBe("1");
   });
 
   it("shares one runtime per process that adapters can configure", async () => {

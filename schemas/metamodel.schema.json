@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/metamodel.schema.json",
+  "$id": "https://reqseq.dev/schemas/metamodel.schema.json",
   "title": "Metamodel file",
   "description": "One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.",
   "type": "object",

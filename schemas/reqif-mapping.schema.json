@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/reqif-mapping.schema.json",
+  "$id": "https://reqseq.dev/schemas/reqif-mapping.schema.json",
   "title": "ReqIF mapping file",
   "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
   "type": "object",

@@ -13,14 +13,14 @@
 // Assumption (as in #388 for SR-098): what is measured is core, the time from the call to the answer.
 // IPC between the app's windows and rendering the hits are not measured; neither is the fuzzy ranking
 // of the app, which works on at most 20 hits.
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measureMedian,
   recordValue,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import type { Metamodel } from "../../src/metamodel/index.js";

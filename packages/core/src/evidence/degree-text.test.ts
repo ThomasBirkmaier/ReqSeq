@@ -61,7 +61,7 @@ describe("degreeShareOf (SR-037)", () => {
 });
 
 describe("degree-text.ts (SR-037)", () => {
-  it("imports nothing: the app's renderer loads it as @logreq/core/verification-degree, without the rest of core", async () => {
+  it("imports nothing: the app's renderer loads it as @reqseq/core/verification-degree, without the rest of core", async () => {
     const source = await readFile(new URL("degree-text.ts", import.meta.url), "utf8");
     expect(source.split("\n").filter((line) => /^\s*(import|export .* from)\b/.test(line))).toEqual([]);
   });

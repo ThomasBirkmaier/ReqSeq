@@ -2,7 +2,7 @@
 // names its target by UUID and, across repositories, by the workspace name of the target's
 // repository; so does an inline reference in the text (decision on spec question #177 (c)). When
 // that repository is on this machine and has no element with the UUID (the target file was removed
-// or the UUID is wrong), the relation or reference is a finding with source and target ID; LogReq
+// or the UUID is wrong), the relation or reference is a finding with source and target ID; ReqSeq
 // changes no file. Severity `error`: SR-089 asks for a "Befund", not a "Hinweis", and SR-019 AK2
 // ends the check with exit code 1 for it (ADR-0009). Where the target is comes from `targetState`,
 // which the element view also uses (SR-080):
@@ -122,7 +122,7 @@ const sourceName = (element: ElementRecord, context: MissingTargetContext): stri
 /** The note on a file of `repository` that cannot be read and may hold `id`, or "" (SR-008). */
 const unreadableNote = (store: ElementStore, repository: string, id: string): string => {
   const file = unreadableFile(store, repository, id);
-  return file === undefined ? "" : `; its file may be ${file}, which LogReq cannot read`;
+  return file === undefined ? "" : `; its file may be ${file}, which ReqSeq cannot read`;
 };
 
 const collect = (

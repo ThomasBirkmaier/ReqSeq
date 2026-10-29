@@ -9,7 +9,7 @@ const rootPackage = JSON.parse(
 
 describe("product", () => {
   it("carries the version of the root package.json", () => {
-    expect(PRODUCT_NAME).toBe("LogReq");
+    expect(PRODUCT_NAME).toBe("ReqSeq");
     expect(PRODUCT_VERSION).toBe(rootPackage.version);
   });
 });

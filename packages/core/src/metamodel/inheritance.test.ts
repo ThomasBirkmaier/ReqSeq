@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
@@ -221,7 +221,7 @@ describe("type inheritance", () => {
         severity: "warning",
         file: "requirements/HAZ-0b1c2d3e4f5a.md",
         line: 6,
-        message: "Property severty is not in the metamodel; LogReq keeps it and its value unchanged",
+        message: "Property severty is not in the metamodel; ReqSeq keeps it and its value unchanged",
       }),
     ]);
     expect(await workspace.get(requiredProblemsState)).toEqual([]);

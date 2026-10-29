@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TraceGraphOutput } from "@logreq/core";
+import type { TraceGraphOutput } from "@reqseq/core";
 import type { GraphEdge } from "./graph.js";
 import type { EdgePath, GraphLayout, PlacedNode } from "./graph-layout.js";
 import {

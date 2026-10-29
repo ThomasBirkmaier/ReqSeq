@@ -1,4 +1,4 @@
-# Element files in spec/ are written by LogReq (D-064); its YAML files are checked like any other.
+# Element files in spec/ are written by ReqSeq (D-064); its YAML files are checked like any other.
 spec/**
 !spec/metamodel/
 !spec/metamodel/*.yaml

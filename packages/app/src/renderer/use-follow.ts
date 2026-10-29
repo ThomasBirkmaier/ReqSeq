@@ -4,7 +4,7 @@
 // dispatches what `follow.ts` gives. The state lives in a ref; the window renders again only when the mark
 // of the modeline changes.
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import type { AgentActivity, LogReqBridge } from "../shared/protocol.js";
+import type { AgentActivity, ReqSeqBridge } from "../shared/protocol.js";
 import type { FollowControls } from "./actions.js";
 import type { BufferAction, Buffers, ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
@@ -32,7 +32,7 @@ import {
 export const NO_ACCESS = "Following agent: no agent access to show";
 
 export interface FollowOptions {
-  readonly bridge: LogReqBridge;
+  readonly bridge: ReqSeqBridge;
   readonly call: Call;
   /** The open buffers, the shown one first. */
   readonly buffers: Buffers;

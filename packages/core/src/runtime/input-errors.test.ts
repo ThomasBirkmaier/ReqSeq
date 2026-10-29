@@ -12,7 +12,7 @@ const commonDefs = contractsBundle.schemas.find((schema) =>
 
 /** One test command whose input has a field for each keyword the messages know. */
 const keywordCatalog = {
-  "logreq-catalog": 1,
+  "reqseq-catalog": 1,
   commands: [
     {
       name: "test.fields",

@@ -8,7 +8,7 @@
 // changed outside since it was typed on is not saved over that change: the rule of SR-106
 // (`outside-change.ts`) finds a conflict, and it stops the switch as well.
 // Every write carries the bytes it was made on (`expectedFileSha256`).
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { BoxEdit } from "./property-edit.js";
 import { fieldBoxes, storedDocs, updateInput } from "./property-edit.js";
 import type { Buffers, ElementBuffer } from "./buffers.js";
@@ -60,7 +60,7 @@ export const CLOSE_NOT_IN_TIME =
   "Saving before the window closes took longer than 2 s; the window stays open, and closing it again within 10 s closes it without waiting";
 
 /** The key of the question "close the window again to discard" in the place of a buffer's key. */
-export const CLOSE_WINDOW = "logreq:close-window";
+export const CLOSE_WINDOW = "reqseq:close-window";
 
 /** Why a draft is not saved over its file. */
 export const CHANGED_ON_DISK = "its file changed on disk since it was typed on";

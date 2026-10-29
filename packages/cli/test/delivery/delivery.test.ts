@@ -1,6 +1,6 @@
 // Delivery tests of the command line and the MCP server (ADR-0014, ADR-0011, #324): they install the built
 // artifacts (unpack them) and inspect and run them. Only the release workflow runs them (`pnpm test:delivery`,
-// LOGREQ_DELIVERY_DIR = the folder with the artifacts); on Linux inside a network namespace with loopback only,
+// REQSEQ_DELIVERY_DIR = the folder with the artifacts); on Linux inside a network namespace with loopback only,
 // as a non-root user. A test that cannot run here is skipped with its reason, never left out.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { execFile, spawn, spawnSync } from "node:child_process";
@@ -10,8 +10,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { LineTransport } from "@logreq/mcp";
-import type { DeliveryNames, DeliverySystem, FixtureWorkspace } from "@logreq/testkit";
+import { LineTransport } from "@reqseq/mcp";
+import type { DeliveryNames, DeliverySystem, FixtureWorkspace } from "@reqseq/testkit";
 import {
   DELIVERY_SYSTEMS,
   DELIVERY_TARGET,
@@ -23,7 +23,7 @@ import {
   inspectDelivery,
   installDelivery,
   offlineProblems,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -32,20 +32,20 @@ const names = JSON.parse(
   readFileSync(path.join(repo, "toolchain", "packaging", "names.json"), "utf8"),
 ) as DeliveryNames;
 const { version } = JSON.parse(readFileSync(path.join(repo, "package.json"), "utf8")) as { version: string };
-const deliveryDir = process.env["LOGREQ_DELIVERY_DIR"] ?? path.join(repo, "delivery");
+const deliveryDir = process.env["REQSEQ_DELIVERY_DIR"] ?? path.join(repo, "delivery");
 /** ADR-0015 (SR-111): the renderer bundles them, so the notices must name them. */
 const REQUIRED_NOTICES = ["@dagrejs/dagre", "@dagrejs/graphlib"];
 
 /**
  * The tests without network (SR-078 AK2) run on Linux, in the network namespace with loopback only that
- * scripts/package/delivery-tests.sh makes and marks with LOGREQ_DELIVERY_OFFLINE=1. Without it they fail
+ * scripts/package/delivery-tests.sh makes and marks with REQSEQ_DELIVERY_OFFLINE=1. Without it they fail
  * instead of being skipped, and with it the namespace is checked first. macOS and Windows have no namespace.
  */
 const NO_NAMESPACE = "no network namespace on this system (installation without network is tested on Linux)";
 const assertOffline = async (): Promise<void> => {
   expect(
-    process.env["LOGREQ_DELIVERY_OFFLINE"],
-    "LOGREQ_DELIVERY_OFFLINE is not set: run the suite with scripts/package/delivery-tests.sh",
+    process.env["REQSEQ_DELIVERY_OFFLINE"],
+    "REQSEQ_DELIVERY_OFFLINE is not set: run the suite with scripts/package/delivery-tests.sh",
   ).toBe("1");
   expect(offlineProblems(Object.keys(os.networkInterfaces()), await connectProbe("1.1.1.1", 443))).toEqual(
     [],

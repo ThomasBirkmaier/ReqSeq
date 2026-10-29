@@ -8,7 +8,7 @@ import { isTempFile } from "./write.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-private-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-private-"));
 });
 
 afterEach(async () => {

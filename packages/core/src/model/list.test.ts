@@ -1,7 +1,7 @@
 // The text of a listed element (`textNow`, element.list `withText`): read only while the file still
 // has the bytes of the element listed, so text and version agree.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { elementStoreState } from "./store.js";

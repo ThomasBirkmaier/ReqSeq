@@ -1,7 +1,7 @@
 // Saved filter files (saved.ts, SR-070): reading the filters folder, file names of new filters.
 // The commands filter.save, filter.list and the selection are tested in commands/filter/.
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";

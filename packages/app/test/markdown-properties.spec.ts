@@ -13,7 +13,7 @@ import { launchApp } from "./support/app.js";
 import { markdownMetamodel, quoted } from "./support/boxes.js";
 
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const SR_ID = "69069069-0000-4000-8000-0000000000b9";

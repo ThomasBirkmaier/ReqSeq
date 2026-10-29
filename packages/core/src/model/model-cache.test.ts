@@ -5,8 +5,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { canonicalRoot, workspaceLayoutState } from "../workspace/index.js";
@@ -66,7 +66,7 @@ const fixture = async (files: Readonly<Record<string, string>> = FILES): Promise
 };
 
 const tempFolder = async (): Promise<string> => {
-  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-model-cache-")));
+  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-model-cache-")));
   onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
   return folder;
 };

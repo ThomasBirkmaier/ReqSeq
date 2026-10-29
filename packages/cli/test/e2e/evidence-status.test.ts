@@ -1,13 +1,13 @@
-// `logreq evidence status` end to end (SR-031): the built binary on fixtures/SR-031/status (the need
+// `reqseq evidence status` end to end (SR-031): the built binary on fixtures/SR-031/status (the need
 // N1, the requirements b1 and b3 in the core and both variants, b2 valid for the variant Pro only, the
 // variants Pro and Basic), as lines and as JSON. The fixture has no record files: the readers come
 // with SR-028 and SR-093, which add the end-to-end tests with records. Run after `pnpm build` with
 // `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -24,8 +24,8 @@ const status = async (args: readonly string[]): Promise<Run> => {
   return run(["evidence", "status", ...args], { cwd: ws.root });
 };
 
-describe("logreq evidence status (SR-031)", () => {
-  it("[SR-031/AK1] logreq evidence status prints open for every requirement without records, apart from its own status", async () => {
+describe("reqseq evidence status (SR-031)", () => {
+  it("[SR-031/AK1] reqseq evidence status prints open for every requirement without records, apart from its own status", async () => {
     const result = await status([]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
@@ -43,7 +43,7 @@ describe("logreq evidence status (SR-031)", () => {
     );
   });
 
-  it("[SR-031/AK1] logreq evidence status --json gives the status per view of one page", async () => {
+  it("[SR-031/AK1] reqseq evidence status --json gives the status per view of one page", async () => {
     const result = await status(["--limit", "1", "--offset", "2", "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as {

@@ -3,8 +3,8 @@
 // D-0000e1; variants VAR-0000c1, c2; packages PKG-0000d1, d2. Metamodel files merge in name order, so
 // the types are software-requirement (software.yaml), need, use-case, system-requirement, decision,
 // variant, package (standard-model.yaml).
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

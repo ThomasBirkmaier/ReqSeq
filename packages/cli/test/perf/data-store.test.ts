@@ -1,4 +1,4 @@
-// SR-062 and #277 in the performance suite (ADR-0011): `logreq data store` as a pipeline runs it, a
+// SR-062 and #277 in the performance suite (ADR-0011): `reqseq data store` as a pipeline runs it, a
 // new process of the built CLI on the generated workspace of N-036 (50,000 elements, 200,000
 // relations) with the evidence records a project of that size keeps (`withEvidenceRecords`), every
 // repository a Git repository. The data of that state is larger than one string can hold (about
@@ -13,9 +13,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { CommandOutput, VersionValue } from "@logreq/core";
-import { Workspace, computeVersion, invoke, jsonLines, loadContracts } from "@logreq/core";
-import type { VersionFunction } from "@logreq/testkit";
+import type { CommandOutput, VersionValue } from "@reqseq/core";
+import { Workspace, computeVersion, invoke, jsonLines, loadContracts } from "@reqseq/core";
+import type { VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
@@ -24,9 +24,9 @@ import {
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { logreq, requireBuiltCli } from "../support/logreq.js";
+import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -97,7 +97,7 @@ const edges = async (file: string, length: number): Promise<{ head: string; tail
   }
 };
 
-describe("logreq data store with 50,000 elements and their records (SR-062, N-036, #277)", () => {
+describe("reqseq data store with 50,000 elements and their records (SR-062, N-036, #277)", () => {
   let root = "";
   let cleanup: (() => Promise<void>) | undefined;
   let out = "";
@@ -111,8 +111,8 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
     const fixture = await writeLargeWorkspace(withEvidenceRecords(generated).workspace, { git: true });
     root = fixture.workspaceRoot;
     cleanup = fixture.cleanup;
-    out = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-062-out-"));
-    scratch = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-062-memory-"));
+    out = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-062-out-"));
+    scratch = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-062-memory-"));
   }, 1_800_000);
 
   afterAll(async () => {
@@ -124,16 +124,16 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
     }
   });
 
-  /** `logreq data store --folder <out> --json` in a new process; returns its run and memory peaks. */
+  /** `reqseq data store --folder <out> --json` in a new process; returns its run and memory peaks. */
   const store = async (name: string) => {
     const memoryFile = path.join(scratch, `${String(Date.now())}.json`);
     const env = {
-      LOGREQ_PEAK_MEMORY: memoryFile,
+      REQSEQ_PEAK_MEMORY: memoryFile,
       NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
     };
     const { result: run, measurement } = await measure(
       name,
-      () => logreq(["data", "store", "--folder", out, "--json"], { cwd: root, env }),
+      () => reqseq(["data", "store", "--folder", out, "--json"], { cwd: root, env }),
       {
         basis: "SR-062 AK1, #277 (command line, from process start to exit; recorded, no limit in the spec)",
       },
@@ -143,7 +143,7 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
   };
 
   it("[SR-062/AK1] stores the data of the state at N-036 as a file named after the commit, and replaces it on the same commit", async () => {
-    const first = await store("logreq data store --json at N-036 (new CLI process, file written in chunks)");
+    const first = await store("reqseq data store --json at N-036 (new CLI process, file written in chunks)");
     expect(first.run.stderr).toBe("");
     expect(first.run.code).toBe(0);
     const output = JSON.parse(first.run.stdout) as CommandOutput<"data.store">;
@@ -157,20 +157,20 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
     expect(tail.endsWith("}\n")).toBe(true);
     const basis = "SR-062 AK1, #277 (recorded)";
     await recordValue(
-      `logreq data store at N-036: file of ${(size / MB).toFixed(0)} MB; CLI process peak heap in use ${(first.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(first.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(first.peak.maxRss / MB).toFixed(0)} MB`,
+      `reqseq data store at N-036: file of ${(size / MB).toFixed(0)} MB; CLI process peak heap in use ${(first.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(first.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(first.peak.maxRss / MB).toFixed(0)} MB`,
       0,
       { basis },
     );
     // The same commit again: the file of that commit is replaced; the guard and the refusal read it in
     // pieces and check its first line and UTF-8 (review PS3 of #319).
-    const second = await store("logreq data store --json at N-036 again, replacing the file of the commit");
+    const second = await store("reqseq data store --json at N-036 again, replacing the file of the commit");
     expect(second.run.stderr).toBe("");
     expect(second.run.code).toBe(0);
     expect((JSON.parse(second.run.stdout) as CommandOutput<"data.store">).files).toEqual([file]);
     // Only the data file: no temporary file is left behind.
     expect(await fs.readdir(out)).toEqual([path.basename(file)]);
     await recordValue(
-      `logreq data store at N-036, replacing: CLI process peak heap in use ${(second.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(second.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(second.peak.maxRss / MB).toFixed(0)} MB`,
+      `reqseq data store at N-036, replacing: CLI process peak heap in use ${(second.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(second.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(second.peak.maxRss / MB).toFixed(0)} MB`,
       0,
       { basis },
     );

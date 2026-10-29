@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";

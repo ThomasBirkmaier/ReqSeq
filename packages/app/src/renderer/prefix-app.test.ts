@@ -6,7 +6,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CommandListing, InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { CommandListing, InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,7 +84,7 @@ const CATALOG = [
 /** The rows of the write commands, first in the list of next keys. */
 const WRITE_ROWS = ["E Create element", "R Create relation", "T Set status", "H Confirm hints"];
 
-const bridge = (workspace = true): LogReqBridge => ({
+const bridge = (workspace = true): ReqSeqBridge => ({
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve({
       ok: true,
@@ -418,7 +418,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
 
   it("ends when another buffer is shown while it waits (Follow agent)", async () => {
     const listeners = new Set<(data: unknown) => void>();
-    const following: LogReqBridge = {
+    const following: ReqSeqBridge = {
       ...bridge(),
       on: (event, listener) => {
         if (event !== "agent-activity") {
@@ -463,8 +463,8 @@ describe("the prefix key Ctrl/Cmd+K", () => {
   });
 
   it("ends when another workspace opens, and keeps what the minibuffer says about it", async () => {
-    let save: Parameters<LogReqBridge["onSave"]>[0] | undefined;
-    const switching: LogReqBridge = {
+    let save: Parameters<ReqSeqBridge["onSave"]>[0] | undefined;
+    const switching: ReqSeqBridge = {
       ...bridge(),
       onSave: (handler) => {
         save = handler;
@@ -490,7 +490,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
   });
 
   it("names a bound key without its command when the catalog could not be read", async () => {
-    const without: LogReqBridge = { ...bridge(), commands: () => Promise.reject(new Error("no catalog")) };
+    const without: ReqSeqBridge = { ...bridge(), commands: () => Promise.reject(new Error("no catalog")) };
     await act(async () => {
       root.render(createElement(App, { bridge: without }));
       await Promise.resolve();

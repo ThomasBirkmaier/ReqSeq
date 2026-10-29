@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mirrors the repository's issues into the GitHub project "LogReq" (Projects v2).
+// Mirrors the repository's issues into the GitHub project "ReqSeq" (Projects v2).
 // Labels are the source of truth; this script only derives project fields from them.
 // Runs in GitHub Actions with PROJECT_TOKEN (classic PAT, scopes repo + project).
 // Usage: node scripts/project-sync/sync.mjs [issue-number]   (no number: all issues)
@@ -7,7 +7,7 @@ import process from "node:process";
 
 const token = process.env.PROJECT_TOKEN;
 const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "ThomasBirkmaier/ReqSeq").split("/");
-const PROJECT_TITLE = process.env.PROJECT_TITLE ?? "LogReq";
+const PROJECT_TITLE = process.env.PROJECT_TITLE ?? "ReqSeq";
 if (!token) {
   console.log("::notice::PROJECT_TOKEN is not set, skipping project sync.");
   process.exit(0);
@@ -58,23 +58,15 @@ async function rest(path) {
 
 async function ensureProject() {
   const d = await gql(
-    `query($o:String!,$r:String!){ user(login:$o){ id projectsV2(first:50){ nodes{ id number title } } }
-       repository(owner:$o,name:$r){ id } }`,
-    { o: owner, r: repo },
+    `query($o:String!){ user(login:$o){ projectsV2(first:50){ nodes{ id number title } } } }`,
+    { o: owner },
   );
-  let p = d.user.projectsV2.nodes.find((n) => n.title === PROJECT_TITLE);
+  // Never creates a project: a missing title means the project is being renamed, and a new one would
+  // split the board. The run is skipped until the title matches again.
+  const p = d.user.projectsV2.nodes.find((n) => n.title === PROJECT_TITLE);
   if (!p) {
-    p = (
-      await gql(
-        `mutation($o:ID!,$t:String!){ createProjectV2(input:{ownerId:$o,title:$t}){ projectV2{ id number title } } }`,
-        { o: d.user.id, t: PROJECT_TITLE },
-      )
-    ).createProjectV2.projectV2;
-    await gql(
-      `mutation($p:ID!,$r:ID!){ linkProjectV2ToRepository(input:{projectId:$p,repositoryId:$r}){ clientMutationId } }`,
-      { p: p.id, r: d.repository.id },
-    );
-    console.log(`created project #${p.number}`);
+    console.log(`::notice::No project titled "${PROJECT_TITLE}", skipping project sync.`);
+    process.exit(0);
   }
   return p;
 }

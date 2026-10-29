@@ -10,7 +10,7 @@ import type { RepositoryLocation } from "../workspace/index.js";
 /** Never read: Git's own folder (or the `.git` file of a submodule) and installed packages (workspace.schema.json). */
 export const SKIPPED_NAMES: ReadonlySet<string> = new Set([".git", "node_modules"]);
 
-/** Element files end in `.md` (ADR-0004). LogReq's temporary files end in `.logreq-tmp`, so they never match. */
+/** Element files end in `.md` (ADR-0004). ReqSeq's temporary files end in `.reqseq-tmp`, so they never match. */
 export const ELEMENT_FILE_EXTENSION = ".md";
 
 export interface DiscoveredFiles {
@@ -58,7 +58,7 @@ const extensionIn = (name: string, kind: ListedKind): string | undefined =>
 /** Why a folder entry (not a folder) that looks like a file of `kind` is not read, or undefined to read it. */
 const skipReason = (entry: Dirent, kind: ListedKind): string | undefined => {
   if (entry.isSymbolicLink()) {
-    return "it is a symbolic link; LogReq does not follow links";
+    return "it is a symbolic link; ReqSeq does not follow links";
   }
   if (!entry.isFile()) {
     return "it is not a regular file";
@@ -191,7 +191,7 @@ export interface NewFileProblem {
 }
 
 /**
- * What `newFileTarget` says about a file LogReq is to create: refused with the problem, or listed
+ * What `newFileTarget` says about a file ReqSeq is to create: refused with the problem, or listed
  * once created under `file` (the path as given, or with its existing folders spelled as on disk).
  */
 export type NewFileTarget =
@@ -242,7 +242,7 @@ const spelledOnDisk = async (repository: RepositoryLocation, relative: string): 
 /**
  * Whether `listMarkdownFiles` lists `file` (relative to the repository, `/` as separator, a name
  * ending in `.md`), checked along its path only: a few `lstat` and `opendir` calls and no walk, for
- * a file LogReq has just created (#166). The rules are those of the walk: no folder or file named
+ * a file ReqSeq has just created (#166). The rules are those of the walk: no folder or file named
  * `.git` or `node_modules` or matched by `ignored`; every folder above the file a real folder (not
  * a link) without a `.git` entry and not the folder of a nested repository (`repository.excludes`),
  * and the repository folder and every folder above the file one the walk can open (an unreadable
@@ -356,7 +356,7 @@ const judgeNewFile = async (
     if (rule !== undefined) {
       return refused({ rule, path: relative });
     }
-    // The file name is LogReq's own (`fileNameFor`); only the folders above it are looked at.
+    // The file name is ReqSeq's own (`fileNameFor`); only the folders above it are looked at.
     if (index === names.length - 1) {
       continue;
     }
@@ -373,7 +373,7 @@ const judgeNewFile = async (
       }
       existing = false;
     }
-    // A folder LogReq is to create; one that exists may keep such a name.
+    // A folder ReqSeq is to create; one that exists may keep such a name.
     const character = invisibleIn(name);
     if (character !== undefined) {
       return refused({ rule: "invisible", path: relative, character });
@@ -394,7 +394,7 @@ const judgeNewFile = async (
 
 /**
  * Whether `listMarkdownFiles` would list `file` (relative to the repository, `/` as separator,
- * inside it, its last name one LogReq gives) once LogReq has created it and the folders above it
+ * inside it, its last name one ReqSeq gives) once ReqSeq has created it and the folders above it
  * that are missing (#183), and under which path. Every name of the path must be portable
  * (`portableRule`) and pass the name rules of the walk (`.git`, `node_modules`, `ignore` globs,
  * nested repositories); every folder above the file that exists must be one the walk goes into (a
@@ -407,7 +407,7 @@ const judgeNewFile = async (
  * the normal form (macOS): the path is then judged again as spelled on disk, and `file` of the
  * result is that spelling (#194). `ignored` gets each path as given and then as spelled on disk;
  * `ignoreMatcher` compares both in NFC, so a glob names a folder in either normal form (#218).
- * LogReq checks this before it writes anything, so it never writes below `.git` (D-036) and never
+ * ReqSeq checks this before it writes anything, so it never writes below `.git` (D-036) and never
  * creates an element that the walk cannot see. The order is the walk's, name by name: the name
  * rules first, then the folder on disk. Errors other than "not there" reject.
  */

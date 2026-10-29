@@ -1,6 +1,6 @@
 # Trace block (`src/trace/`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 The derivation graph and the walk that the chain (SR-022), related elements (SR-023), affected elements (SR-024) and cycles (SR-090) share (#258). No command of its own; it imports the model, metamodel and workspace blocks, never `commands`.
 

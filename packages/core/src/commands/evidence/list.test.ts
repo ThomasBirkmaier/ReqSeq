@@ -7,8 +7,8 @@
 // The baseline reader itself: baselines/read.test.ts. The test cases of the element (SR-033) come
 // from the same index; skipped test cases are injected through `evidenceReadState`.
 import { rm } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

@@ -7,11 +7,11 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import { startApiServer } from "@logreq/api";
-import { Workspace, cacheFolder, createCommandRuntime } from "@logreq/core";
-import { LineTransport, serveMcp } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { startApiServer } from "@reqseq/api";
+import { Workspace, cacheFolder, createCommandRuntime } from "@reqseq/core";
+import { LineTransport, serveMcp } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
@@ -24,7 +24,7 @@ const ELEMENT_ID = "e8df96ea-a168-4d90-8d65-6328cee88fb3";
 let cacheHome = "";
 let fixture: FixtureWorkspace;
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -57,7 +57,7 @@ const cli = async (argv: readonly string[]): Promise<{ code: number; stdout: str
   return { code, stdout: stdout.text };
 };
 
-/** An MCP session on a workspace of the fixture, as `logreq mcp` opens it (with the cache folder of the copy). */
+/** An MCP session on a workspace of the fixture, as `reqseq mcp` opens it (with the cache folder of the copy). */
 const mcpSession = async (): Promise<{ client: Client; close(): Promise<void> }> => {
   const workspace = new Workspace(fixture.root, { cacheFolder: cacheFolder(fixture.root) });
   const toServer = new PassThrough();
@@ -134,7 +134,7 @@ describe("no access but the app switches the mode „Agent folgen“ (SR-117 AK4
       { type: "object", properties: {}, additionalProperties: false },
     ]);
     const schema = runtime.contracts.schemas.find(
-      (s) => s["$id"] === "https://logreq.dev/schemas/activity.schema.json",
+      (s) => s["$id"] === "https://reqseq.dev/schemas/activity.schema.json",
     );
     expect(schema).toBeDefined();
     expect(keysOf(schema).filter((key) => /follow|mode/i.test(key))).toEqual([]);

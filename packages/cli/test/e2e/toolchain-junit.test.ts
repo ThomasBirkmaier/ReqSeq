@@ -1,6 +1,6 @@
 // SR-063 end to end: the guide `toolchain/junit/README.md` and its examples (D-054). The tests read the
 // guide and run its marked command blocks (`<!-- tested: <name> -->` before a fenced block): every line
-// that starts with `logreq ` runs as written through the built binary, `export` lines set variables, and
+// that starts with `reqseq ` runs as written through the built binary, `export` lines set variables, and
 // every other line must be one of the few lines this file knows (`STEPS`), done here with Node's own
 // means, so a changed line of the guide fails the test. Vitest runs for real, from a copy of the example
 // in a temporary folder (nothing is written into the repository), offline like the CLI (SR-077).
@@ -12,12 +12,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import YAML from "yaml";
-import type { Run } from "../support/logreq.js";
-import { blockNetwork, logreq, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { blockNetwork, reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 const exampleDir = path.join(repoRoot, "toolchain", "junit");
@@ -42,7 +42,7 @@ beforeAll(() => {
 });
 
 const tempDir = async (): Promise<string> => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr063-"));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr063-"));
   temps.push(dir);
   return dir;
 };
@@ -154,7 +154,7 @@ const runVitest = async (outputFile: string): Promise<Run> => {
 interface Shell {
   vars: Record<string, string>;
   cwd: string;
-  /** Every `logreq` line run, with its result. */
+  /** Every `reqseq` line run, with its result. */
   readonly runs: { readonly line: string; readonly run: Run }[];
 }
 
@@ -167,13 +167,13 @@ const v = (shell: Shell, name: string): string => {
   return value;
 };
 
-/** The lines of the try blocks that are not `logreq` or `export`, each done here by its own means. */
+/** The lines of the try blocks that are not `reqseq` or `export`, each done here by its own means. */
 const STEPS: Readonly<Record<string, (shell: Shell) => Promise<void>>> = {
   'mkdir -p "$EXAMPLE"': async (shell) => {
     await fs.mkdir(v(shell, "EXAMPLE"), { recursive: true });
   },
-  'cp -R toolchain/junit/workspace "$LOGREQ_WORKSPACE"': async (shell) => {
-    await fs.cp(path.join(shell.cwd, "toolchain", "junit", "workspace"), v(shell, "LOGREQ_WORKSPACE"), {
+  'cp -R toolchain/junit/workspace "$REQSEQ_WORKSPACE"': async (shell) => {
+    await fs.cp(path.join(shell.cwd, "toolchain", "junit", "workspace"), v(shell, "REQSEQ_WORKSPACE"), {
       recursive: true,
     });
   },
@@ -195,7 +195,7 @@ const STEPS: Readonly<Record<string, (shell: Shell) => Promise<void>>> = {
   },
 };
 
-/** Runs the lines of a marked block in `shell`; every `logreq` line must exit with 0. */
+/** Runs the lines of a marked block in `shell`; every `reqseq` line must exit with 0. */
 const runBlock = async (name: string, shell: Shell): Promise<void> => {
   for (const line of commandLines(await guideBlock(name))) {
     const assignment = /^export ([A-Z_][A-Z0-9_]*)=(.+)$/.exec(line);
@@ -205,8 +205,8 @@ const runBlock = async (name: string, shell: Shell): Promise<void> => {
         throw new Error(`export of one value expected: ${line}`);
       }
       shell.vars = { ...shell.vars, [assignment[1] ?? ""]: value[0] ?? "" };
-    } else if (line.startsWith("logreq ")) {
-      const run = await logreq(argsOf(line, shell.vars).slice(1), { cwd: shell.cwd });
+    } else if (line.startsWith("reqseq ")) {
+      const run = await reqseq(argsOf(line, shell.vars).slice(1), { cwd: shell.cwd });
       expect(run.code, `${line}\n${run.stdout}${run.stderr}`).toBe(0);
       shell.runs.push({ line, run });
     } else {
@@ -228,7 +228,7 @@ const pipelineStep = async (): Promise<string> => {
 
 /** The pipeline step of the guide, with `--json`, in `cwd`. */
 const runPipelineStep = async (vars: Vars, cwd: string): Promise<Run> =>
-  logreq([...argsOf(await pipelineStep(), vars).slice(1), "--json"], { cwd });
+  reqseq([...argsOf(await pipelineStep(), vars).slice(1), "--json"], { cwd });
 
 interface EnrichOutput {
   readonly testCases: number;
@@ -250,7 +250,7 @@ interface CheckOutput {
 
 /** The core verification status of each element of the workspace, by short ID. */
 const statusOf = async (workspace: string): Promise<Record<string, string | undefined>> => {
-  const run = await logreq(["evidence", "status", "--workspace", workspace, "--json"], { cwd: workspace });
+  const run = await reqseq(["evidence", "status", "--workspace", workspace, "--json"], { cwd: workspace });
   expect(run.code, run.stderr).toBe(0);
   return Object.fromEntries(
     (JSON.parse(run.stdout) as StatusOutput).elements.map((e) => [
@@ -261,7 +261,7 @@ const statusOf = async (workspace: string): Promise<Record<string, string | unde
 };
 
 const check = async (workspace: string): Promise<{ run: Run; output: CheckOutput }> => {
-  const run = await logreq(["workspace", "check", "--workspace", workspace, "--json"], { cwd: workspace });
+  const run = await reqseq(["workspace", "check", "--workspace", workspace, "--json"], { cwd: workspace });
   return { run, output: JSON.parse(run.stdout) as CheckOutput };
 };
 
@@ -283,7 +283,7 @@ const valuesOf = (node: unknown, key: string): unknown[] => {
 
 describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)", () => {
   it(
-    "[SR-063/AK1] a real Vitest run is connected by the one logreq call of the guide, and its requirements get a status",
+    "[SR-063/AK1] a real Vitest run is connected by the one reqseq call of the guide, and its requirements get a status",
     async () => {
       const before = await git(["status", "--porcelain", "--ignored", "--", "toolchain/junit"]);
       const ws = await exampleWorkspace();
@@ -291,7 +291,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       const vitest = await runVitest(path.join(checkout, "results.xml"));
       expect(vitest.code, vitest.stdout + vitest.stderr).toBe(0);
 
-      const step = await runPipelineStep({ BUILD: "build-1", LOGREQ_WORKSPACE: ws.root }, checkout);
+      const step = await runPipelineStep({ BUILD: "build-1", REQSEQ_WORKSPACE: ws.root }, checkout);
       expect(step.code, step.stdout + step.stderr).toBe(0);
       const out = JSON.parse(step.stdout) as EnrichOutput;
       expect(out.files).toEqual(["evidence/ci/results-build-1.xml"]);
@@ -321,7 +321,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       const checkout = await tempDir();
       await fs.copyFile(path.join(exampleDir, "pytest", "results.xml"), path.join(checkout, "results.xml"));
 
-      const step = await runPipelineStep({ BUILD: "build-2", LOGREQ_WORKSPACE: ws.root }, checkout);
+      const step = await runPipelineStep({ BUILD: "build-2", REQSEQ_WORKSPACE: ws.root }, checkout);
       expect(step.code, step.stdout + step.stderr).toBe(0);
       const out = JSON.parse(step.stdout) as EnrichOutput;
       expect(out.files).toEqual(["evidence/ci/results-build-2.xml"]);
@@ -337,9 +337,9 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
     TIMEOUT,
   );
 
-  it("[SR-063/AK1] the pipeline step of the guide is one logreq call and the CI examples run exactly it", async () => {
+  it("[SR-063/AK1] the pipeline step of the guide is one reqseq call and the CI examples run exactly it", async () => {
     const step = await pipelineStep();
-    expect(step).toMatch(/^logreq evidence enrich-junit /);
+    expect(step).toMatch(/^reqseq evidence enrich-junit /);
 
     // GitHub Actions: the step line is the `run` of a step; GitLab CI: an entry of a `script`.
     for (const [name, key] of [
@@ -349,7 +349,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       const block = await guideBlock(name);
       expect(
         block
-          .filter((line) => line.includes("logreq "))
+          .filter((line) => line.includes("reqseq "))
           .map((line) => line.trim().replace(/^(- |run: )/, "")),
       ).toEqual([step]);
       const values = valuesOf(YAML.parse(block.join("\n")) as unknown, key).flat();
@@ -385,7 +385,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       expect(xml).toContain("[SR-a1c0de]");
       await fs.writeFile(results, xml.replace("[SR-a1c0de]", "[SR-a1c0df]"));
 
-      const step = await runPipelineStep({ BUILD: "build-3", LOGREQ_WORKSPACE: ws.root }, checkout);
+      const step = await runPipelineStep({ BUILD: "build-3", REQSEQ_WORKSPACE: ws.root }, checkout);
       expect(step.code).toBe(1);
       const out = JSON.parse(step.stdout) as EnrichOutput;
       expect(out.unknown.map((u) => [u.testCase, u.ref])).toEqual([
@@ -396,16 +396,16 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
   );
 
   it(
-    "[SR-063/AK2] every logreq command of the guide runs as written on the example workspace",
+    "[SR-063/AK2] every reqseq command of the guide runs as written on the example workspace",
     async () => {
       const home = await tempDir();
       const shell: Shell = { vars: { PWD: repoRoot, HOME: home }, cwd: repoRoot, runs: [] };
       const step = await pipelineStep();
 
       await runBlock("try-vitest", shell);
-      expect(v(shell, "LOGREQ_WORKSPACE").startsWith(home)).toBe(true);
+      expect(v(shell, "REQSEQ_WORKSPACE").startsWith(home)).toBe(true);
       const status = (): string => shell.runs.at(-1)?.run.stdout ?? "";
-      expect(shell.runs.at(-1)?.line).toMatch(/^logreq evidence status /);
+      expect(shell.runs.at(-1)?.line).toMatch(/^reqseq evidence status /);
       for (const [id, value] of [
         ["SR-a1c0de", "verified"],
         ["SR-b2c0de", "verified"],
@@ -416,14 +416,14 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       }
 
       await runBlock("try-pytest", shell);
-      expect(shell.runs.at(-1)?.line).toMatch(/^logreq evidence status /);
+      expect(shell.runs.at(-1)?.line).toMatch(/^reqseq evidence status /);
       expect(status()).toMatch(/SR-a1c0de\b.*\[verification: core verified\]/);
       expect(status()).toMatch(/SR-b2c0de\b.*\[verification: core verified\]/);
 
       // The try blocks connect the examples with the very line of the pipeline step.
-      const enriches = shell.runs.filter((r) => r.line.startsWith("logreq evidence enrich-junit "));
+      const enriches = shell.runs.filter((r) => r.line.startsWith("reqseq evidence enrich-junit "));
       expect(enriches.map((r) => r.line)).toEqual([step, step]);
-      const evidence = await fs.readdir(path.join(v(shell, "LOGREQ_WORKSPACE"), "evidence", "ci"));
+      const evidence = await fs.readdir(path.join(v(shell, "REQSEQ_WORKSPACE"), "evidence", "ci"));
       expect(evidence.sort()).toEqual([".gitkeep", "results-build-1.xml", "results-build-2.xml"]);
     },
     TIMEOUT,
@@ -435,7 +435,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
       const guide = await fs.readFile(guidePath, "utf8");
       const ws = await exampleWorkspace();
       const step = await pipelineStep();
-      const vars = { BUILD: "build-4", LOGREQ_WORKSPACE: ws.root };
+      const vars = { BUILD: "build-4", REQSEQ_WORKSPACE: ws.root };
       const unit = await tempDir();
       const vitest = await runVitest(path.join(unit, "results.xml"));
       expect(vitest.code, vitest.stdout + vitest.stderr).toBe(0);
@@ -451,7 +451,7 @@ describe("connecting a test tool by the guide toolchain/junit/README.md (SR-063)
         expect(guide).toContain(`results-$BUILD-${name}.xml`);
         const line = step.replace("results-$BUILD.xml", `results-$BUILD-${name}.xml`);
         expect(line).not.toBe(step);
-        const run = await logreq([...argsOf(line, vars).slice(1), "--json"], { cwd });
+        const run = await reqseq([...argsOf(line, vars).slice(1), "--json"], { cwd });
         expect(run.code, run.stdout + run.stderr).toBe(0);
         outputs.push(...(JSON.parse(run.stdout) as EnrichOutput).files);
       }

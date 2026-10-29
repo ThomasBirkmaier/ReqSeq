@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import type { MetamodelLink } from "./metamodel-graph.js";
 import { ANY_KEY, linkLabel, metamodelGraph } from "./metamodel-graph.js";
 import { FIXTURE_METAMODEL, effectiveType, metamodelOutput } from "./metamodel-test-data.js";

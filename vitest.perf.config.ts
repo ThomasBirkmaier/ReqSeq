@@ -4,11 +4,11 @@ import { defineConfig } from "vitest/config";
 // ADR-0011: the performance suite on the generated 50,000-element workspace (packages/testkit,
 // D-055), `pnpm test:perf`. It runs nightly and on pull requests labelled `perf`
 // (.github/workflows/perf.yml), never in the required test run. Each measurement is appended to
-// LOGREQ_PERF_RESULTS; `scripts/perf/report.mjs` writes verification/performance.md from it.
+// REQSEQ_PERF_RESULTS; `scripts/perf/report.mjs` writes verification/performance.md from it.
 // No coverage: the unit tests carry the coverage thresholds (ADR-0016).
 export default defineConfig({
   resolve: {
-    alias: { "@logreq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
+    alias: { "@reqseq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
   },
   test: {
     include: ["packages/*/test/perf/**/*.test.ts"],
@@ -23,7 +23,7 @@ export default defineConfig({
       "--import",
       new URL("./scripts/test-support/worker-preload.mjs", import.meta.url).href,
     ],
-    env: { LOGREQ_PERF_RESULTS: "test-results/perf.jsonl" },
+    env: { REQSEQ_PERF_RESULTS: "test-results/perf.jsonl" },
     // One file at a time, so that measurements do not compete for the cores.
     fileParallelism: false,
     // Generating and loading 50,000 files takes minutes on a slow runner; tests set their own bounds.

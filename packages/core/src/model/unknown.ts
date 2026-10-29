@@ -47,7 +47,7 @@ const finding = (
   },
 });
 
-const KEPT = "LogReq keeps it and its value unchanged";
+const KEPT = "ReqSeq keeps it and its value unchanged";
 
 /** Why the type does not know the property `key`; undefined when it does, or for a relation kind. */
 const unknownKeyMessage = (
@@ -73,7 +73,7 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: UnknownFindi
         element,
         "type",
         "element.unknown-type",
-        `Type ${element.type} is not in the metamodel; LogReq shows the element and only reads it`,
+        `Type ${element.type} is not in the metamodel; ReqSeq shows the element and only reads it`,
       ),
     );
   }

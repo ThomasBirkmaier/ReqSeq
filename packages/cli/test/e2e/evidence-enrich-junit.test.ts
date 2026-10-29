@@ -1,14 +1,14 @@
-// `logreq evidence enrich-junit` end to end (SR-029, ADR-0009): the built binary on fixtures/SR-029/enrich
+// `reqseq evidence enrich-junit` end to end (SR-029, ADR-0009): the built binary on fixtures/SR-029/enrich
 // (see its README), from the root of the workspace, with relative paths (the CLI makes them absolute
 // from its current folder). Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const LOGIN = "0b9e7a3c-1d2f-4a5b-8c6d-825b7146fb54";
 const SPEC = "29000000-0000-4000-8000-0000000d0038";
@@ -43,9 +43,9 @@ const open = async (): Promise<FixtureWorkspace> => {
   return ws;
 };
 
-/** `logreq evidence enrich-junit <file> <item> …` in the root of `ws`. */
+/** `reqseq evidence enrich-junit <file> <item> …` in the root of `ws`. */
 const enrich = (ws: FixtureWorkspace, args: readonly string[]): Promise<Run> =>
-  logreq(["evidence", "enrich-junit", ...args], { cwd: ws.root });
+  reqseq(["evidence", "enrich-junit", ...args], { cwd: ws.root });
 
 const decode = (s: string): string =>
   s
@@ -57,7 +57,7 @@ const decode = (s: string): string =>
 
 /**
  * The `logreq:*` properties of each test case of a JUnit file, read with a small regex (the JUnit model
- * is no public export of `@logreq/core`): enough for the files enrich writes.
+ * is no public export of `@reqseq/core`): enough for the files enrich writes.
  */
 const properties = (xml: string): Record<string, Record<string, string[]>> => {
   const out: Record<string, Record<string, string[]>> = {};
@@ -76,8 +76,8 @@ const properties = (xml: string): Record<string, Record<string, string[]>> => {
   return out;
 };
 
-describe("logreq evidence enrich-junit (SR-029)", () => {
-  it("[SR-029/AK1] logreq evidence enrich-junit writes UUID, version, item and date into each test case of a pytest file", async () => {
+describe("reqseq evidence enrich-junit (SR-029)", () => {
+  it("[SR-029/AK1] reqseq evidence enrich-junit writes UUID, version, item and date into each test case of a pytest file", async () => {
     const ws = await open();
     const run = await enrich(ws, ["results/pytest.xml", "build-512", "--date", DATE, "--json"]);
     expect([run.code, run.stderr]).toEqual([0, ""]);
@@ -107,7 +107,7 @@ describe("logreq evidence enrich-junit (SR-029)", () => {
     expect(props["test_add[1-2]"]).toEqual({});
   });
 
-  it("[SR-029/AK2] logreq evidence enrich-junit names the test case with an unknown short ID and exits with code 1", async () => {
+  it("[SR-029/AK2] reqseq evidence enrich-junit names the test case with an unknown short ID and exits with code 1", async () => {
     const ws = await open();
     const json = await enrich(ws, ["results/unknown.xml", "build-512", "--date", DATE, "--json"]);
     expect(json.code).toBe(1);
@@ -127,10 +127,10 @@ describe("logreq evidence enrich-junit (SR-029)", () => {
     expect(readable.stdout + readable.stderr).toContain("[SR-ffffff] names no element");
   });
 
-  it("[SR-029/AK3] logreq workspace check and evidence coverage read the enriched file without further input", async () => {
+  it("[SR-029/AK3] reqseq workspace check and evidence coverage read the enriched file without further input", async () => {
     const ws = await open();
     const coverage = async (): Promise<readonly string[] | undefined> => {
-      const run = await logreq(["evidence", "coverage", "--json"], { cwd: ws.root });
+      const run = await reqseq(["evidence", "coverage", "--json"], { cwd: ws.root });
       expect(run.code).toBe(0);
       const out = JSON.parse(run.stdout) as {
         levels: readonly { type: string; elements: Readonly<Record<string, readonly string[]>> }[];
@@ -140,7 +140,7 @@ describe("logreq evidence enrich-junit (SR-029)", () => {
     expect(await coverage()).toEqual([]);
     const run = await enrich(ws, ["results/vitest.xml", "build-512", "--output", "evidence/ci/vitest.xml"]);
     expect(run.code).toBe(0);
-    const check = await logreq(["workspace", "check", "--json"], { cwd: ws.root });
+    const check = await reqseq(["workspace", "check", "--json"], { cwd: ws.root });
     const problems = (JSON.parse(check.stdout) as { problems: readonly Problem[] }).problems;
     expect(problems.filter((p) => p.code.startsWith("evidence."))).toEqual([]);
     expect([...((await coverage()) ?? [])].sort()).toEqual([LOGIN, SPEC].sort());
@@ -172,7 +172,7 @@ describe("logreq evidence enrich-junit (SR-029)", () => {
 
   it("writes to an --output outside the workspace and leaves the input unchanged", async () => {
     const ws = await open();
-    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-enrich-e2e-")));
+    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-enrich-e2e-")));
     onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
     const target = path.join(outside, "pytest.xml");
     const before = await fs.readFile(ws.path("results/pytest.xml"));

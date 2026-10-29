@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { createCommandRuntime, defineTestCommand, getCommandRuntime, loadContracts } from "@logreq/core";
+import { createCommandRuntime, defineTestCommand, getCommandRuntime, loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { catalogTools, serverTools, toolName } from "./tools.js";
 
@@ -58,7 +58,7 @@ describe("catalogTools", () => {
 
   it("refuses a $ref it cannot rewrite", () => {
     const catalog = {
-      "logreq-catalog": 1,
+      "reqseq-catalog": 1,
       commands: [
         {
           name: "test.ref",
@@ -81,7 +81,7 @@ describe("catalogTools", () => {
 
 describe("serverTools", () => {
   const catalog = {
-    "logreq-catalog": 1,
+    "reqseq-catalog": 1,
     commands: [
       {
         name: "test.read",

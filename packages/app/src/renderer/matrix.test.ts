@@ -1,5 +1,5 @@
 // The model of the traceability matrix (SR-125): the input for a list, the rows, the targets of the cursor.
-import type { DataExportRelation, TraceMatrixOutput } from "@logreq/core";
+import type { DataExportRelation, TraceMatrixOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SORT, filteredList, listBuffer } from "./buffers.js";
 import { columnCount, columnName, matrixInput, matrixRows, opening, targetsOf } from "./matrix.js";

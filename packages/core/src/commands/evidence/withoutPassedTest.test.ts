@@ -5,8 +5,8 @@
 // same output on every access: cross-access.test.ts. The key path in the app (AK1): app/test/without-passed-test.spec.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FixtureOptions } from "@logreq/testkit";
-import { createFixtureWorkspace, defaultFixturesDir } from "@logreq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
+import { createFixtureWorkspace, defaultFixturesDir } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";

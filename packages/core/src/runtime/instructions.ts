@@ -1,4 +1,4 @@
-// Short instructions for an AI agent (#303): what LogReq is, which commands to start with, how elements and
+// Short instructions for an AI agent (#303): what ReqSeq is, which commands to start with, how elements and
 // hints are named. The MCP server sends them in its `initialize` result; they are built here, from the catalog
 // and the schema descriptions, so the adapter adds no text or logic of its own (ADR-0002).
 import type { JsonSchema } from "../catalog.js";
@@ -63,7 +63,7 @@ export function agentInstructions(
         `- \`hintId\`: ${nameOf("hint.list")} gives each confirmable hint a stable ID. ${nameOf(entry.name)}: ${withoutSpecRefs(entry.summary)}`,
     );
   return [
-    "LogReq keeps requirements, their relations and evidence as Markdown files in Git working copies. Each tool runs one LogReq command on the workspace this server was started for; the CLI and the local API offer the same commands with the same results.",
+    "ReqSeq keeps requirements, their relations and evidence as Markdown files in Git working copies. Each tool runs one ReqSeq command on the workspace this server was started for; the CLI and the local API offer the same commands with the same results.",
     ...(first.length === 0 ? [] : ["", "Start with:", ...first]),
     "",
     "IDs:",
@@ -72,7 +72,7 @@ export function agentInstructions(
     `- \`id\`: ${common("$defs", "uuid")}`,
     ...hints,
     "",
-    "Read-only tools carry readOnlyHint. Write tools change only LogReq files in the working tree, never Git; no tool deletes an element.",
+    "Read-only tools carry readOnlyHint. Write tools change only ReqSeq files in the working tree, never Git; no tool deletes an element.",
     `Only ${nameOf("element.setStatus")} and ${nameOf("element.supersede")} change a status, and only on explicit request; no other tool changes one.`,
     "A failed call is a tool error whose text is a JSON object with `code` and `message`; findings are not errors but `problems` in the result.",
   ].join("\n");

@@ -2,7 +2,7 @@
 // (which `elements.ts` imports) and the model cache share it.
 import { fileSchemaValidator } from "../runtime/contracts.js";
 
-/** A UUID as LogReq writes it: version 4, lower case (`common.schema.json#/$defs/uuid`, D-017). */
+/** A UUID as ReqSeq writes it: version 4, lower case (`common.schema.json#/$defs/uuid`, D-017). */
 export const isUuid = (value: unknown): value is string =>
   fileSchemaValidator("common.schema.json#/$defs/uuid")(value);
 
@@ -16,7 +16,7 @@ const ANY_CASE_SHORT_ID = /^[a-z][a-z0-9]*-[0-9a-f]{6,32}$/i;
 export const isShortIdForm = (ref: string): boolean => ANY_CASE_SHORT_ID.test(ref);
 
 /**
- * A reference as LogReq writes it (#309, spec question #316): a UUID in lower case, a short ID with
+ * A reference as ReqSeq writes it (#309, spec question #316): a UUID in lower case, a short ID with
  * its prefix in upper case and its digits in lower case (`sr-5A8B25` -> `SR-5a8b25`). Prefixes are
  * upper case by schema and hex digits have no case, so no two elements differ only in case. Any other
  * text is returned as it is.

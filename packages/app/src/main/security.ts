@@ -1,10 +1,10 @@
-// Security settings of every window and of the session (ADR-0010). LogReq never opens a network
+// Security settings of every window and of the session (ADR-0010). ReqSeq never opens a network
 // connection (SR-078): the renderer is sandboxed, cannot reach Node, and every request that is not to
 // the app's own protocols is cancelled before it leaves.
 import type { Session, WebContents, WebPreferences } from "electron";
 
-/** The bundled renderer (`app://logreq/...`), the files of the workspace and the developer tools. */
-export const LOCAL_PROTOCOLS: ReadonlySet<string> = new Set(["app:", "logreq-file:", "devtools:"]);
+/** The bundled renderer (`app://reqseq/...`), the files of the workspace and the developer tools. */
+export const LOCAL_PROTOCOLS: ReadonlySet<string> = new Set(["app:", "reqseq-file:", "devtools:"]);
 
 /**
  * ADR-0010's policy, plus `object-src`, `base-uri`, `form-action`, `frame-ancestors` and `frame-src`,
@@ -12,7 +12,7 @@ export const LOCAL_PROTOCOLS: ReadonlySet<string> = new Set(["app:", "logreq-fil
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "img-src 'self' data: logreq-file:",
+  "img-src 'self' data: reqseq-file:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self'",
   "connect-src 'none'",
@@ -53,7 +53,7 @@ const originOf = (url: string): string => {
 };
 
 /** Where Chromium would download spell checker dictionaries: a local URL that serves nothing. */
-export const NO_DICTIONARIES = "app://logreq/no-dictionaries/";
+export const NO_DICTIONARIES = "app://reqseq/no-dictionaries/";
 
 /** The session's device choosers (WebHID, Web Serial, WebUSB): each is refused with no device. */
 const DEVICE_CHOOSERS = ["select-hid-device", "select-serial-port", "select-usb-device"] as const;

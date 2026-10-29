@@ -1,7 +1,7 @@
 // The traceability matrix (SR-125) on a copy of the repository's own specification (`spec/`): the way to
 // "all system requirements of the package Stufe-3 as a matrix" by keyboard, with the keys counted, and a
 // screenshot of the matrix in light mode (1280×800). The PNG goes to `test-results/electron/screenshots/`
-// (or the folder in LOGREQ_SCREENSHOTS); keeping it is a deliberate step, not part of a test run.
+// (or the folder in REQSEQ_SCREENSHOTS); keeping it is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ import { DEFAULT_SORT, launchApp } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** Presses keys and counts them: a shortcut is one key, each typed character is one. */

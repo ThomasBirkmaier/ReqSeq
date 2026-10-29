@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/common.schema.json",
+  "$id": "https://reqseq.dev/schemas/common.schema.json",
   "title": "Shared definitions",
-  "description": "Building blocks used by all LogReq file formats and commands. See docs/adr/0004 and 0005.",
+  "description": "Building blocks used by all ReqSeq file formats and commands. See docs/adr/0004 and 0005.",
   "$defs": {
     "uuid": {
       "description": "Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).",

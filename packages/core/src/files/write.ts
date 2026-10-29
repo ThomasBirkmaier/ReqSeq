@@ -3,7 +3,7 @@
 // Replace: write and fsync a temp file next to the target, then check the target's bytes on disk
 // against the snapshot and that they still parse, and rename at once; a rename that fails
 // transiently is retried together with the check. The window between check and rename is a few
-// system calls long; a change made by another program inside it is lost. Two LogReq processes on
+// system calls long; a change made by another program inside it is lost. Two ReqSeq processes on
 // one working copy are not locked against each other.
 //
 // Create: write and fsync a temp file, then hard-link it to the target, which never replaces an
@@ -27,8 +27,8 @@ import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
 import { scanXml } from "./xml-scan.js";
 
-/** Temp files are `.<file name>.<8 hex>.logreq-tmp` in the target's folder (watchers ignore them). */
-export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.logreq-tmp$/;
+/** Temp files are `.<file name>.<8 hex>.reqseq-tmp` in the target's folder (watchers ignore them). */
+export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.reqseq-tmp$/;
 
 export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(fileName);
 
@@ -36,7 +36,7 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
  * Which "still parses" check guards a replace: `element` (default) for Markdown element files,
  * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping), `xml` for
  * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029) and `jsonl`
- * for LogReq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces.
+ * for ReqSeq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces.
  */
 export type FileKind = "element" | "yaml" | "xml" | "jsonl";
 
@@ -64,7 +64,7 @@ interface Written {
 const tempPathFor = (absolute: string): string =>
   path.join(
     path.dirname(absolute),
-    `.${path.basename(absolute)}.${randomBytes(4).toString("hex")}.logreq-tmp`,
+    `.${path.basename(absolute)}.${randomBytes(4).toString("hex")}.reqseq-tmp`,
   );
 
 const NO_HARD_LINKS: readonly string[] = ["EPERM", "ENOTSUP", "ENOSYS"];
@@ -83,7 +83,7 @@ const REFUSAL: Readonly<
     return current.kind === "problem"
       ? `is faulty (${current.problem.code}); fix it by hand`
       : current.kind === "no-frontmatter"
-        ? "has no frontmatter; LogReq never changes such files"
+        ? "has no frontmatter; ReqSeq never changes such files"
         : undefined;
   },
   yaml: (file, bytes) => {
@@ -232,7 +232,7 @@ const checkUnchanged = async (
       if (read.sha256 !== expected.sha256) {
         throw changedOnDisk(file, "changed on disk since it was read");
       }
-      refusal = read.dataFile ? undefined : "is not a LogReq data file; LogReq replaces only its own";
+      refusal = read.dataFile ? undefined : "is not a ReqSeq data file; ReqSeq replaces only its own";
     } else {
       const bytes = await fs.readFile(absolute);
       if (sha256(bytes) !== expected.sha256) {

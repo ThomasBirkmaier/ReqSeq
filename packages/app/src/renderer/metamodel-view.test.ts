@@ -3,7 +3,7 @@ import { act, createElement, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import type { Buffer, BufferAction, MetamodelBuffer } from "./buffers.js";
 import { metamodelBuffer, reduceBuffers } from "./buffers.js";
 import type { Call } from "./call.js";

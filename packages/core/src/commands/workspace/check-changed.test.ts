@@ -6,8 +6,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace, generateLargeWorkspace, writeLargeWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, generateLargeWorkspace, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import * as reader from "../../git/reader.js";

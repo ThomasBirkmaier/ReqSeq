@@ -6,8 +6,8 @@
 import fs from "node:fs/promises";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
-import { Workspace, invoke } from "@logreq/core";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { Workspace, invoke } from "@reqseq/core";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { micromark } from "micromark";
 import { gfm, gfmHtml } from "micromark-extension-gfm";
 import { describe, expect, it } from "vitest";

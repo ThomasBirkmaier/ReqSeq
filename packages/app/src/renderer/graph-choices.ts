@@ -5,7 +5,7 @@
 // meanings of `trace.graph`'s input and every relation kind and property of kind `relation` (ADR-0002).
 // The app decides nothing about them: core follows a link whose key is in `kinds` or whose meaning is in
 // `meanings`. No React here.
-import type { MetamodelGetOutput, TraceGraphInput } from "@logreq/core";
+import type { MetamodelGetOutput, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import { MAX_DEPTH } from "./graph.js";

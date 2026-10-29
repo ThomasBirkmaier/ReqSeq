@@ -7,7 +7,7 @@
 // only write is `element.update { ref, title?, text?, set?, unset? }` (ADR-0002); the app never writes a
 // file. The title is a field like a single text box (#621): keyed `TITLE_FIELD`, compared with the file and
 // kept in the draft as a box, and saved as `title` (core refuses it in `set` and `unset`).
-import type { DataExportElement, DataExportRelation, ElementInputValue } from "@logreq/core";
+import type { DataExportElement, DataExportRelation, ElementInputValue } from "@reqseq/core";
 import type { PropertyBox, PropertyInfo, PropertyModel, RelationRow } from "./element-view.js";
 import {
   TITLE_FIELD,

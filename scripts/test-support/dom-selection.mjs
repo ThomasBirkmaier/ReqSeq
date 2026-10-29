@@ -6,7 +6,7 @@
 // event would set the selection again and fire the event again without end.
 // A test file may import this module itself, so that it also passes when vitest starts without the root config
 // (`pnpm vitest run <file>` in packages/app); the guard keeps the wrapper from being installed twice (#460).
-const INSTALLED = Symbol.for("logreq.dom-selection");
+const INSTALLED = Symbol.for("reqseq.dom-selection");
 if (typeof document !== "undefined" && !(INSTALLED in document)) {
   Object.defineProperty(document, INSTALLED, { value: true });
   const dispatch = document.dispatchEvent.bind(document);

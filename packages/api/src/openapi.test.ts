@@ -2,7 +2,7 @@
 // and every status the server answers with, JSON Lines where the catalog offers them (#319).
 import fs from "node:fs/promises";
 import path from "node:path";
-import { loadContracts } from "@logreq/core";
+import { loadContracts } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { COMMANDS_PATH, HTTP_STATUS_BY_CLASS } from "./handler.js";
 

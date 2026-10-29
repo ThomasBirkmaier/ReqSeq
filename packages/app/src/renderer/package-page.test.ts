@@ -1,4 +1,4 @@
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SORT, elementBuffer } from "./buffers.js";
 import type { BufferData } from "./modeline.js";

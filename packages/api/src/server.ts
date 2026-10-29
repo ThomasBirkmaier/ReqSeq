@@ -1,10 +1,10 @@
-// `logreq serve api` (ADR-0009): the local API over `node:http`, on loopback only (SR-079). The bind
+// `reqseq serve api` (ADR-0009): the local API over `node:http`, on loopback only (SR-079). The bind
 // addresses are the constant LOOPBACK_HOSTS; there is no option or setting to listen anywhere else.
 import { randomBytes } from "node:crypto";
 import type { Server } from "node:http";
 import { createServer, get } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { ApiEndpointFile, CommandRuntime, Workspace } from "@logreq/core";
+import type { ApiEndpointFile, CommandRuntime, Workspace } from "@reqseq/core";
 import {
   CommandError,
   cacheFolder,
@@ -14,7 +14,7 @@ import {
   readCacheFile,
   removeCacheFile,
   writeCacheFile,
-} from "@logreq/core";
+} from "@reqseq/core";
 import type { RequestHandler } from "./handler.js";
 import { COMMANDS_PATH, createRequestHandler } from "./handler.js";
 
@@ -267,7 +267,7 @@ const refuseWhileRunning = async (folder: string): Promise<void> => {
   if (url !== undefined) {
     throw new CommandError(
       "input.invalid",
-      `A LogReq API for this working copy runs already at ${url}. Stop it first. ` +
+      `A ReqSeq API for this working copy runs already at ${url}. Stop it first. ` +
         `If it does not answer, remove ${ENDPOINT_FILE} in ${folder}.`,
       { url, folder },
     );
@@ -281,7 +281,7 @@ const endpointFolder = (options: Pick<ApiServerOptions, "workspace" | "cacheFold
 /**
  * Rejects as `startApiServer` would when an API for this working copy runs or is starting: with the
  * lock of `api.json` taken by another process, or an `api.json` that names a running API. Nothing is
- * written. `logreq serve api` asks before it loads the workspace (SR-082), so a second start does not
+ * written. `reqseq serve api` asks before it loads the workspace (SR-082), so a second start does not
  * load 50,000 elements only to be refused; `startApiServer` checks again under the lock.
  */
 export async function refuseRunningApi(
@@ -303,7 +303,7 @@ export async function refuseRunningApi(
 const starting = (folder: string): CommandError =>
   new CommandError(
     "input.invalid",
-    `A LogReq API for this working copy runs already or is starting. Stop it first. ` +
+    `A ReqSeq API for this working copy runs already or is starting. Stop it first. ` +
       `If none runs, remove ${ENDPOINT_FILE}.lock in ${folder}.`,
     { folder },
   );
@@ -353,7 +353,7 @@ const startLocked = async (
     closing.abort();
     await Promise.all(servers.map(closeServer));
   };
-  const endpoint: ApiEndpointFile = { "logreq-api": 1, port, token, urls, pid: process.pid };
+  const endpoint: ApiEndpointFile = { "reqseq-api": 1, port, token, urls, pid: process.pid };
   let endpointFile: string;
   try {
     endpointFile = await writeCacheFile(folder, ENDPOINT_FILE, `${JSON.stringify(endpoint, null, 2)}\n`);

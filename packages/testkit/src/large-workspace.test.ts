@@ -49,7 +49,7 @@ const relationsOf = (generated: GeneratedWorkspace): Relation[] => {
 
 /** A temporary parent folder, removed when the test finishes (after the workspaces in it). */
 const tempFolder = (): string => {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-large-"));
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-large-"));
   onTestFinished(() => {
     fs.rmSync(folder, { recursive: true, force: true });
   });
@@ -379,7 +379,7 @@ describe("writeLargeWorkspace", () => {
   it("makes each repository a Git repository with one commit when asked, below the folder given", async () => {
     const tempDir = tempFolder();
     const ws = await write(small(7, 40, 80), { git: true, tempDir });
-    // `<tempDir>/logreq-fixture-*/workspace`. The root is a native realpath; so must the folder be:
+    // `<tempDir>/reqseq-fixture-*/workspace`. The root is a native realpath; so must the folder be:
     // on Windows `fs.realpathSync` keeps 8.3 short names (RUNNER~1) that the native one expands.
     expect(path.dirname(path.dirname(ws.root))).toBe(fs.realpathSync.native(tempDir));
     for (const repository of ws.generated.repositories) {

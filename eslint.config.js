@@ -3,17 +3,17 @@ import tseslint from "typescript-eslint";
 
 // ADR-0002: only core holds program logic; access packages must not reach into core internals.
 const coreInternals = {
-  group: ["@logreq/core/src/*", "**/core/src/**", "../../core/*"],
-  message: "Import from @logreq/core only.",
+  group: ["@reqseq/core/src/*", "**/core/src/**", "../../core/*"],
+  message: "Import from @reqseq/core only.",
 };
 // Test tooling (git, temp folders) never ends up in product code (ADR-0001, ADR-0011).
 const testkitInProduct = {
-  group: ["@logreq/testkit", "@logreq/testkit/*", "**/testkit/src/**"],
-  message: "@logreq/testkit is for tests only.",
+  group: ["@reqseq/testkit", "@reqseq/testkit/*", "**/testkit/src/**"],
+  message: "@reqseq/testkit is for tests only.",
 };
 // `defineTestCommand` builds commands for test-only catalogs; product commands use `defineCommand`.
 const testCommandInProduct = {
-  group: ["@logreq/core", "**/catalog", "**/catalog.js"],
+  group: ["@reqseq/core", "**/catalog", "**/catalog.js"],
   importNames: ["defineTestCommand"],
   message: "defineTestCommand is for tests only; use defineCommand.",
 };
@@ -106,7 +106,7 @@ export default tseslint.config(
   },
   {
     // The public entry point re-exports everything of the catalog module, including defineTestCommand,
-    // which the tests of the access packages import from @logreq/core.
+    // which the tests of the access packages import from @reqseq/core.
     files: ["packages/core/src/index.ts"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [testkitInProduct] }],

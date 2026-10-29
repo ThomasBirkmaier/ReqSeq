@@ -2,7 +2,7 @@
 // found by its frontmatter in whatever folder it lies (SR-003, SR-004 AK1, D-056). Relations name
 // their target by UUID only, so moving a file to another folder changes nothing for them (SR-003 AK3).
 // The watcher keeps it current file by file (`updateElements`, SR-007), and so does a write of
-// LogReq itself (`withWrittenFiles`, `recordWrites`, #166).
+// ReqSeq itself (`withWrittenFiles`, `recordWrites`, #166).
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Problem } from "../catalog.js";
@@ -53,7 +53,7 @@ export interface ElementStore {
    */
   readonly byId: ReadonlyMap<string, readonly ElementRecord[]>;
   /**
-   * Markdown files that are not elements (SR-003 AK2). LogReq never changes them; the only ones it
+   * Markdown files that are not elements (SR-003 AK2). ReqSeq never changes them; the only ones it
    * writes are new evidence records (`evidence.record`, SR-030), which it creates and never replaces.
    */
   readonly nonElements: readonly RepositoryFile[];
@@ -399,7 +399,7 @@ export const updateElements = async (
   return repositories.every((r, i) => r === before[i]) ? undefined : assemble(repositories);
 };
 
-/** A file LogReq has just written (`element.create`, `element.update`, ...), for `withWrittenFiles`. */
+/** A file ReqSeq has just written (`element.create`, `element.update`, ...), for `withWrittenFiles`. */
 export interface WrittenFile {
   /** Workspace name of the repository. */
   readonly repository: string;
@@ -439,7 +439,7 @@ const listedNew = async (
 };
 
 /**
- * The store with files as LogReq has just written them (#166, ADR-0008), without reading any
+ * The store with files as ReqSeq has just written them (#166, ADR-0008), without reading any
  * file: each file's contribution is built from the bytes written and the snapshot of the write,
  * the same way a full read builds it, and swapped in (a new file in path order); the store is
  * assembled once for all of them and every other record stays the same object. Undefined when the
@@ -500,7 +500,7 @@ export const withWrittenFiles = async (
  * The element store of a workspace, read on first use and kept until reset; through the model
  * cache when the workspace has a cache folder (`WorkspaceOptions.cacheFolder`, SR-082). Reading it again
  * (`workspace.reset(elementStoreState)` or a new `Workspace`) finds every element where it lies
- * now; the watcher and LogReq's own writes update it file by file instead (`applyStoreChange`;
+ * now; the watcher and ReqSeq's own writes update it file by file instead (`applyStoreChange`;
  * `updateElements`, SR-007; `recordWrites`, #166). Resetting the workspace layout resets it
  * too.
  *
@@ -638,7 +638,7 @@ const applyNow = async (
 };
 
 /**
- * Changes the element store of `workspace` without reading it again (the watcher, SR-007; LogReq's
+ * Changes the element store of `workspace` without reading it again (the watcher, SR-007; ReqSeq's
  * own writes, #166): `change` gets the current store and returns the new one, or undefined for no
  * change. Calls run one after the other per workspace. When the store was replaced while `change`
  * ran, `change` runs again on the newer store; when it was reset (or never read), nothing happens,
@@ -657,7 +657,7 @@ export const applyStoreChange = (
 };
 
 /**
- * Puts files LogReq has just written into the element store of `workspace` without reading any
+ * Puts files ReqSeq has just written into the element store of `workspace` without reading any
  * file again (#166, ADR-0008): `element.create`, `element.update` and every later command that
  * writes element files call it once with all files of the command. It goes through the queue of
  * `applyStoreChange`, so a save waits behind a watcher batch that is running. The states built on

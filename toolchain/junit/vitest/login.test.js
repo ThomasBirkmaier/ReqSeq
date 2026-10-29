@@ -1,7 +1,7 @@
 // Example tests of the guide (../README.md): each test names the requirement it verifies, and the
-// one `logreq evidence enrich-junit` call of the pipeline does the rest. The requirements are in
-// ../workspace. LogReq's own trace-check reads every test file of this repository: never write
-// `[SR-` + three digits + `/AK` + a number + `]` here, it would be read as a test of LogReq.
+// one `reqseq evidence enrich-junit` call of the pipeline does the rest. The requirements are in
+// ../workspace. ReqSeq's own trace-check reads every test file of this repository: never write
+// `[SR-` + three digits + `/AK` + a number + `]` here, it would be read as a test of ReqSeq.
 import { describe, expect, it } from "vitest";
 
 const login = (password) => password === "correct horse";
@@ -30,7 +30,7 @@ describe("login", () => {
     expect(true).toBe(true);
   });
 
-  // Names no requirement: LogReq passes over it.
+  // Names no requirement: ReqSeq passes over it.
   it("shows the login form", () => {
     expect(login("")).toBe(false);
   });

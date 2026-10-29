@@ -4,8 +4,8 @@
 // default call (the direct neighbours over every kind) and the derivation chain to depth 3 assert
 // SR-082 AK4's 500 ms (tagged, ADR-0011); the whole chain of the largest need and the unbounded
 // walk over every kind are recorded only.
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState } from "../../src/model/index.js";

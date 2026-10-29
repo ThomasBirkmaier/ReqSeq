@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { LogReqBridge } from "../shared/protocol.js";
+import type { ReqSeqBridge } from "../shared/protocol.js";
 import { callOn } from "./call.js";
 
 describe("callOn", () => {
@@ -12,7 +12,7 @@ describe("callOn", () => {
         error: { code: "ref.unknown", message: "No such element", details: {} },
       })
       .mockResolvedValueOnce({ ok: false, error: { code: "workspace.not-found", message: "No workspace" } });
-    const call = callOn({ invoke } as unknown as LogReqBridge);
+    const call = callOn({ invoke } as unknown as ReqSeqBridge);
     expect(await call("element.list", { limit: 1 })).toEqual({ ok: true, output: { total: 1 } });
     expect(invoke).toHaveBeenCalledWith("element.list", { limit: 1 });
     expect(await call("element.get", { ref: "x" })).toEqual({

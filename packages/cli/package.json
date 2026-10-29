@@ -1,12 +1,12 @@
 {
-  "name": "@logreq/cli",
+  "name": "@reqseq/cli",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "The logreq command line: every command of the catalog (ADR-0009).",
+  "description": "The reqseq command line: every command of the catalog (ADR-0009).",
   "type": "module",
   "bin": {
-    "logreq": "./dist/bin.js"
+    "reqseq": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -23,15 +23,15 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@logreq/api": "workspace:*",
-    "@logreq/core": "workspace:*",
-    "@logreq/mcp": "workspace:*",
+    "@reqseq/api": "workspace:*",
+    "@reqseq/core": "workspace:*",
+    "@reqseq/mcp": "workspace:*",
     "commander": "15.0.0",
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@logreq/app": "workspace:*",
-    "@logreq/testkit": "workspace:*",
+    "@reqseq/app": "workspace:*",
+    "@reqseq/testkit": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1"
   }
 }

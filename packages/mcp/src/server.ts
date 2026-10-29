@@ -1,7 +1,7 @@
-// `logreq mcp` (ADR-0009): the MCP server over stdio, one tool per implemented catalog command. It has no
+// `reqseq mcp` (ADR-0009): the MCP server over stdio, one tool per implemented catalog command. It has no
 // network listener at all (SR-079). Every call is one `invoke`; the result is the command output as structured
 // content and as JSON text, a CommandError is a tool error with the error object as JSON text (SR-080 AK2).
-import type { CommandRuntime, Workspace } from "@logreq/core";
+import type { CommandRuntime, Workspace } from "@reqseq/core";
 import {
   CommandError,
   PRODUCT_NAME,
@@ -9,7 +9,7 @@ import {
   agentInstructions,
   getCommandRuntime,
   jsonByteLength,
-} from "@logreq/core";
+} from "@reqseq/core";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/server";
 import { McpServer, ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";

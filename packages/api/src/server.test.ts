@@ -3,7 +3,7 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import type { CommandRuntime } from "@logreq/core";
+import type { CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
   Workspace,
@@ -14,7 +14,7 @@ import {
   isTempFile,
   loadContracts,
   lockCacheFile,
-} from "@logreq/core";
+} from "@reqseq/core";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { DRAIN_BYTES, HTTP_STATUS_BY_CLASS, MAX_BODY_BYTES } from "./handler.js";
 import type { ApiServer } from "./server.js";
@@ -47,7 +47,7 @@ const entry = (name: string, input: Record<string, unknown> = {}) => ({
 });
 
 const catalog = {
-  "logreq-catalog": 1,
+  "reqseq-catalog": 1,
   commands: [
     entry("test.echo"),
     entry("test.fail", { properties: { code: { type: "string" } }, required: ["code"] }),
@@ -163,7 +163,7 @@ const closeAll = (servers: readonly http.Server[]): Promise<unknown[]> =>
 
 /** An api.json with the process ID of this process, which runs. */
 const endpointText = (fields: Record<string, unknown>): string =>
-  JSON.stringify({ "logreq-api": 1, port: 1, token: "t", urls: [], pid: process.pid, ...fields });
+  JSON.stringify({ "reqseq-api": 1, port: 1, token: "t", urls: [], pid: process.pid, ...fields });
 
 /** A TCP server on 127.0.0.1 that is no API: its URL, and close. */
 const loopbackServer = async (
@@ -230,7 +230,7 @@ const start = async (port = 0, rt: CommandRuntime = runtime): Promise<ApiServer>
 };
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-api-"));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-api-"));
   aborted = undefined;
   started = undefined;
 });
@@ -380,7 +380,7 @@ describe("listening", () => {
     expect(api.endpointFile).toBe(path.join(dir, "api.json"));
     const endpoint = JSON.parse(await fs.readFile(api.endpointFile, "utf8")) as Record<string, unknown>;
     expect(fileSchemaValidator("api-endpoint.schema.json")(endpoint)).toBe(true);
-    expect(endpoint).toMatchObject({ "logreq-api": 1, port: api.port, urls: api.urls, pid: process.pid });
+    expect(endpoint).toMatchObject({ "reqseq-api": 1, port: api.port, urls: api.urls, pid: process.pid });
     if (process.platform !== "win32") {
       expect((await fs.stat(api.endpointFile)).mode & 0o777).toBe(0o600);
     }
@@ -443,7 +443,7 @@ describe("listening", () => {
     ).rejects.toMatchObject({
       code: "input.invalid",
       message:
-        `A LogReq API for this working copy runs already at ${String(first.urls[0])}. Stop it first. ` +
+        `A ReqSeq API for this working copy runs already at ${String(first.urls[0])}. Stop it first. ` +
         `If it does not answer, remove api.json in ${dir}.`,
       details: { url: first.urls[0], folder: dir },
     });
@@ -467,7 +467,7 @@ describe("listening", () => {
       expect(refused[0]).toBeInstanceOf(CommandError);
       expect(refused[0]).toMatchObject({
         code: "input.invalid",
-        message: expect.stringContaining("A LogReq API for this working copy runs already") as unknown,
+        message: expect.stringContaining("A ReqSeq API for this working copy runs already") as unknown,
       });
       // The one that started owns api.json, and no lock is left.
       const [winner] = started;
@@ -487,7 +487,7 @@ describe("listening", () => {
     ).rejects.toMatchObject({
       code: "input.invalid",
       message:
-        "A LogReq API for this working copy runs already or is starting. Stop it first. " +
+        "A ReqSeq API for this working copy runs already or is starting. Stop it first. " +
         `If none runs, remove api.json.lock in ${dir}.`,
       details: { folder: dir },
     });

@@ -21,7 +21,7 @@ interface VersionSubject {
 
 /** The standard model as a workspace reads it. */
 export const standardModel = async (): Promise<Metamodel> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-standard-model-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-standard-model-"));
   try {
     await fs.mkdir(path.join(root, "metamodel"));
     await fs.writeFile(

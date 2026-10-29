@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation } from "../workspace/index.js";
@@ -114,7 +114,7 @@ describe("listMarkdownFiles", () => {
     await fs.symlink(ws.path("outside/b.md"), ws.path("real/link.txt"), "file");
     expect(await listMarkdownFiles(repository(ws.path("real")), nothing)).toEqual({
       files: ["a.md"],
-      problems: [skippedWarning("link.md", "it is a symbolic link; LogReq does not follow links")],
+      problems: [skippedWarning("link.md", "it is a symbolic link; ReqSeq does not follow links")],
     });
   });
 

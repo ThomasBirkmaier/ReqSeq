@@ -24,7 +24,7 @@
 // later change of the target gives a new ID.
 //
 // Items of one list with the same target, repository and stored version (written twice by hand;
-// LogReq writes a target once, ADR-0004) share one ID: confirming it confirms every such item.
+// ReqSeq writes a target once, ADR-0004) share one ID: confirming it confirms every such item.
 
 import { isVersion } from "../model/is-version.js";
 

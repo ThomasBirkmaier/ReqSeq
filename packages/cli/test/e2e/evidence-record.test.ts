@@ -1,11 +1,11 @@
-// `logreq evidence record` end to end (SR-030): the built binary on fixtures/SR-030/record (see its
+// `reqseq evidence record` end to end (SR-030): the built binary on fixtures/SR-030/record (see its
 // README), from the root of a fresh Git copy per test. Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const S2 = "30303030-3030-4030-8030-00000000c002";
 const DATE = "2026-10-27T10:00:00Z";
@@ -32,7 +32,7 @@ const open = async (): Promise<FixtureWorkspace> => {
   return ws;
 };
 
-const run = (ws: FixtureWorkspace, args: readonly string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+const run = (ws: FixtureWorkspace, args: readonly string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
 
 const json = async (ws: FixtureWorkspace, args: readonly string[]): Promise<unknown> => {
   const result = await run(ws, [...args, "--json"]);
@@ -40,12 +40,12 @@ const json = async (ws: FixtureWorkspace, args: readonly string[]): Promise<unkn
   return JSON.parse(result.stdout) as unknown;
 };
 
-/** The first line `logreq element get <ref>` prints. */
+/** The first line `reqseq element get <ref>` prints. */
 const firstLine = async (ws: FixtureWorkspace, ref: string): Promise<string> =>
   (await run(ws, ["element", "get", ref])).stdout.split("\n")[0] ?? "";
 
-describe("logreq evidence record (SR-030)", () => {
-  it("[SR-030/AK1] logreq evidence record writes the UUID and current version of the requirement", async () => {
+describe("reqseq evidence record (SR-030)", () => {
+  it("[SR-030/AK1] reqseq evidence record writes the UUID and current version of the requirement", async () => {
     const ws = await open();
     const { element } = (await json(ws, ["element", "get", "SR-00c002"])) as {
       element: { version: string };
@@ -56,7 +56,7 @@ describe("logreq evidence record (SR-030)", () => {
     expect(text).toContain(`\nelement: ${S2}\nversion: ${element.version}\n`);
   });
 
-  it("[SR-030/AK2] logreq evidence record --folder reviews writes an open-format file there, and a new process reads it", async () => {
+  it("[SR-030/AK2] reqseq evidence record --folder reviews writes an open-format file there, and a new process reads it", async () => {
     const ws = await open();
     const output = (await json(ws, [
       "evidence",
@@ -76,11 +76,11 @@ describe("logreq evidence record (SR-030)", () => {
     );
     const listed = (await json(ws, ["evidence", "list", "SR-00c002"])) as { records: { file: string }[] };
     expect(listed.records.map((r) => r.file)).toEqual([file]);
-    // LogReq never writes to Git (D-036): the file is new and not committed.
+    // ReqSeq never writes to Git (D-036): the file is new and not committed.
     expect(await ws.git(["status", "--porcelain"])).toBe(`?? ${file}\n`);
   });
 
-  it("[SR-030/AK3] logreq element get shows a recorded validation in the validation status only", async () => {
+  it("[SR-030/AK3] reqseq element get shows a recorded validation in the validation status only", async () => {
     const ws = await open();
     expect(await firstLine(ws, "SR-00c001")).toBe(
       "SR-00c001  approved  Show wind speed  [verification: core verified]",

@@ -1,11 +1,11 @@
 // The MCP stdio framing (one JSON-RPC message per line, UTF-8) over any input stream and text sink, so the
-// server runs on the streams of the CLI (`logreq mcp`) and on in-memory streams in tests. Reading is the
+// server runs on the streams of the CLI (`reqseq mcp`) and on in-memory streams in tests. Reading is the
 // SDK's (ReadBuffer). Writing gives the bytes of the SDK's `serializeMessage` (`JSON.stringify` and a line
 // break), but in chunks of core's `jsonChunks`, since a result such as `data_export` at N-036 is larger
 // than V8 holds in one string (#277). Sends go through a queue, each after the one before, so the line of
 // one message is never broken by another (a ping answer, a notification); a send waits for the sink to
 // drain when it pushes back, and stops when the transport is closed.
-import { jsonChunks } from "@logreq/core";
+import { jsonChunks } from "@reqseq/core";
 import type { JSONRPCMessage, Transport } from "@modelcontextprotocol/server";
 import { ReadBuffer } from "@modelcontextprotocol/server";
 

@@ -740,7 +740,7 @@ const outputSnapshot = async (
   if (junitTestCases(read.bytes).kind !== "junit") {
     throw new CommandError(
       "file.faulty",
-      `Not written: ${name} is not a JUnit XML file; LogReq replaces only JUnit files`,
+      `Not written: ${name} is not a JUnit XML file; ReqSeq replaces only JUnit files`,
       { file: name },
     );
   }

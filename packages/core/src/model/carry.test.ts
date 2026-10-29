@@ -3,8 +3,8 @@
 // changed files only. Whatever happened, each must equal what a fresh workspace builds from the
 // files, and the hooks must actually run (the state is still there right after the change).
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Problem } from "../catalog.js";
 import type { WorkspaceState } from "../runtime/workspace.js";
@@ -343,7 +343,7 @@ describe("derived states carried while the metamodel is not valid (#208, #220 op
     for (const state of AGAINST_METAMODEL) {
       expect(await workspace.get(state), state.name).toEqual([]);
     }
-    // A second batch of the watcher: a save through LogReq is refused while the metamodel is not valid.
+    // A second batch of the watcher: a save through ReqSeq is refused while the metamodel is not valid.
     const sr2 = await fs.readFile(fixture.path("requirements/SR-b00000000002.md"), "utf8");
     await external(fixture, workspace, {
       "requirements/SR-b00000000002.md": sr2.replace(

@@ -1,6 +1,6 @@
 // SR-028 AK3: the findings of the evidence records (`match.ts`) for `workspace.check`, on
 // fixtures/SR-028/records (requirements in `system`, records in `ci-results/evidence`).
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";

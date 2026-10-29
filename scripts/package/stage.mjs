@@ -123,12 +123,12 @@ async function stage() {
 
   const appManifest = await readJson(path.join(root, "packages", "app", "package.json"));
   const env = {
-    LOGREQ_ELECTRON_VERSION: appManifest.devDependencies.electron,
-    LOGREQ_STAGED_CLI: cli,
-    LOGREQ_STAGED_LAUNCHERS: launchers,
-    LOGREQ_NOTICES: notices,
-    LOGREQ_JUNIT_GUIDE: path.join(root, "toolchain", "junit"),
-    LOGREQ_DELIVERY_DIR: delivery,
+    REQSEQ_ELECTRON_VERSION: appManifest.devDependencies.electron,
+    REQSEQ_STAGED_CLI: cli,
+    REQSEQ_STAGED_LAUNCHERS: launchers,
+    REQSEQ_NOTICES: notices,
+    REQSEQ_JUNIT_GUIDE: path.join(root, "toolchain", "junit"),
+    REQSEQ_DELIVERY_DIR: delivery,
   };
   const lines = Object.entries(env).map(([key, value]) => `${key}=${value}`);
   if (process.env.GITHUB_ENV) {

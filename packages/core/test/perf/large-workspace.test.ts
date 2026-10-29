@@ -6,8 +6,8 @@
 // opens an issue) and does not fail a test. Correctness is asserted as usual. The SRs named in a basis
 // have their own tagged tests at their access level, which assert the threshold: SR-020 AK1 spawns
 // the CLI (packages/cli/test/perf/workspace-check.test.ts), SR-082 follows with #94.
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, measureMedian, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, measureMedian, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { STANDARD_MODEL_TEXT, metamodelState } from "../../src/metamodel/index.js";

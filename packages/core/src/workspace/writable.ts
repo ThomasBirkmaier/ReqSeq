@@ -1,6 +1,6 @@
 // Whether a repository folder can be written (SR-018 AK2). Rights to change the metamodel are
 // enforced by the Git server per repository (D-016, D-024): the usual read-only metamodel
-// repository is a writable local clone whose pushes are refused, and LogReq never pushes (D-036).
+// repository is a writable local clone whose pushes are refused, and ReqSeq never pushes (D-036).
 // Beyond that, the local folder itself may be read-only: a read-only file system or a checkout
 // without write permission. That is normal: it never makes the workspace read-only, and every write
 // into such a folder is refused by the files block with `file.read-only`. This only asks the

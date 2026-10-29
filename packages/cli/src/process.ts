@@ -36,7 +36,7 @@ export interface ProcessIo {
 const READER_GONE: ReadonlySet<string | undefined> = new Set(["EPIPE", "ECONNRESET"]);
 
 /**
- * Connect the binary to the process. A closed pipe (e.g. `logreq ... | head`) drops the rest of that output
+ * Connect the binary to the process. A closed pipe (e.g. `reqseq ... | head`) drops the rest of that output
  * quietly and keeps the command's exit code; any other write error makes the exit code 3, and a failed
  * stdout says so on stderr.
  * A write that the stream buffers beyond its limit returns false, and `drained` waits for the stream's

@@ -1,11 +1,11 @@
 // The confirmation of a copy in the modeline (SR-128 AK2) and the copy itself: the main process writes the
 // clipboard, the modeline says what was copied for a few seconds.
 import { useCallback, useEffect, useState } from "react";
-import type { LogReqBridge } from "../shared/protocol.js";
+import type { ReqSeqBridge } from "../shared/protocol.js";
 import { NOTICE_MS, copyNotice } from "./copy.js";
 
 export const useCopyNotice = (
-  bridge: LogReqBridge,
+  bridge: ReqSeqBridge,
 ): { readonly notice: string; readonly copy: (label: string, text: string) => void } => {
   // The serial restarts the time of a copy that follows another.
   const [notice, setNotice] = useState({ serial: 0, text: "" });

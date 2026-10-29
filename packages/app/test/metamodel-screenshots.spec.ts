@@ -8,7 +8,7 @@
 //   subtype curve Delegates to, and the graph with a type selected (its curves lit);
 // - the text of both (Ctrl/Cmd+T), and on the fixture the text after the switch with Decision selected
 //   in the graph: it opens on Decision.
-// The PNGs go to `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS); keeping them
+// The PNGs go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS); keeping them
 // is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +20,7 @@ import { launchApp } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** "Show metamodel" from the command prompt; waits until `boxes` boxes are laid out. */
@@ -39,7 +39,7 @@ const showText = async (window: Page): Promise<void> => {
   await expect(window.locator(".metamodel-text")).toHaveAttribute("data-rows", /^[1-9]/);
 };
 
-/** The number of types `logreq metamodel get` gives, plus "Any type". */
+/** The number of types `reqseq metamodel get` gives, plus "Any type". */
 const boxCount = async (running: RunningApp): Promise<number> =>
   (JSON.parse((await running.cli(["metamodel", "get"])).stdout) as { types: unknown[] }).types.length + 1;
 

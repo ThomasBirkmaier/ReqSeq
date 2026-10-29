@@ -8,7 +8,7 @@
 //   `error` lets warnings and info pass (#304, product owner decision, 2026-10-26, option 1): a correct
 //   workspace keeps hints that cannot be confirmed (the superseded targets of SR-072 AK2), so warnings
 //   failing the check meant it never passed. `failOn: warning` gives the exit code 1 that SR-019 AK2
-//   and SR-025 AK2 ask for warnings (they get a new version after the spec moves into LogReq). The
+//   and SR-025 AK2 ask for warnings (they get a new version after the spec moves into ReqSeq). The
 //   choice is an input of the command, so `ok` is the same on every access (SR-080).
 // - `severity` is the lowest severity shown. It only filters `problems`; `ok` is about all findings,
 //   so the exit code never depends on it. The findings it leaves out are counted in `hidden`, so that

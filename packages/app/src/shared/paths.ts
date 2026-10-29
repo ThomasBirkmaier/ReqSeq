@@ -1,4 +1,4 @@
-// Path checks of the protocols that serve files (`app:` and `logreq-file:`, ADR-0010).
+// Path checks of the protocols that serve files (`app:` and `reqseq-file:`, ADR-0010).
 import path from "node:path";
 
 /** Whether `child` lies inside `parent` (both absolute) and is not `parent` itself; `paths` for tests. */

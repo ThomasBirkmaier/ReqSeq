@@ -12,7 +12,7 @@ import { isTempFile, writeFileAtomic } from "./write.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-write-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-write-"));
 });
 
 afterEach(async () => {
@@ -191,7 +191,7 @@ describe("writeFileAtomic: replace", () => {
   });
 
   it("refuses a folder linked outside the root", async () => {
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.symlink(outside, abs("linked"), "junction");
       await expect(writeFileAtomic(root, "linked/n.md", A, null)).rejects.toMatchObject({
@@ -223,7 +223,7 @@ describe("writeFileAtomic: replace", () => {
     });
     await writeFileAtomic(root, "a.md", A, file.snapshot);
     expect(isTempFile(seen)).toBe(true);
-    expect(seen).toMatch(/^\.a\.md\.[0-9a-f]{8}\.logreq-tmp$/);
+    expect(seen).toMatch(/^\.a\.md\.[0-9a-f]{8}\.reqseq-tmp$/);
     expect(isTempFile("a.md")).toBe(false);
   });
 });
@@ -386,7 +386,7 @@ describe("writeFileAtomic: review findings", () => {
     expect(await text("bad.xml")).toBe("<testsuites>");
   });
 
-  it("replaces a LogReq data file in JSON Lines, also a cut one, and refuses any other (SR-062, #319)", async () => {
+  it("replaces a ReqSeq data file in JSON Lines, also a cut one, and refuses any other (SR-062, #319)", async () => {
     const line = '{"logreq-data":2,"dirty":false,"id":"a"}\n';
     await put("d.jsonl", `${line}{"logreq-data":2,"id":"b","t":"Grö`);
     await writeFileAtomic(root, "d.jsonl", () => [line, line], await forge("d.jsonl"), { kind: "jsonl" });
@@ -400,7 +400,7 @@ describe("writeFileAtomic: review findings", () => {
         writeFileAtomic(root, name, line, await forge(name), { kind: "jsonl" }),
       ).rejects.toMatchObject({
         code: "file.faulty",
-        message: expect.stringContaining("is not a LogReq data file") as string,
+        message: expect.stringContaining("is not a ReqSeq data file") as string,
       });
       expect(await text(name)).toBe(content);
     }
@@ -528,7 +528,7 @@ describe("retry", () => {
   });
 });
 
-describe("SR-008 AK3: a faulty file is never written by LogReq", () => {
+describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
   it("[SR-008/AK3] refuses a snapshot of a faulty file and leaves it unchanged", async () => {
     const content = "---\nid: a\n  bad: [\n---\n";
     await put("a.md", content);

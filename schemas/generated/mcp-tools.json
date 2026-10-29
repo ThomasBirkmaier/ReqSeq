@@ -97,17 +97,17 @@
     },
     "api-endpoint": {
       "title": "API endpoint file",
-      "description": "`api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
+      "description": "`api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `reqseq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
       "type": "object",
       "required": [
-        "logreq-api",
+        "reqseq-api",
         "port",
         "token",
         "urls",
         "pid"
       ],
       "properties": {
-        "logreq-api": {
+        "reqseq-api": {
           "const": 1
         },
         "port": {
@@ -139,7 +139,7 @@
     },
     "baseline": {
       "title": "Baseline file",
-      "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
+      "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
       "type": "object",
       "required": [
         "logreq-baseline",
@@ -211,7 +211,7 @@
     },
     "common": {
       "title": "Shared definitions",
-      "description": "Building blocks used by all LogReq file formats and commands. See docs/adr/0004 and 0005.",
+      "description": "Building blocks used by all ReqSeq file formats and commands. See docs/adr/0004 and 0005.",
       "$defs": {
         "uuid": {
           "description": "Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).",
@@ -1199,7 +1199,7 @@
     },
     "element": {
       "title": "Element file frontmatter",
-      "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.",
+      "description": "YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values ReqSeq writes.",
       "type": "object",
       "required": [
         "id",
@@ -1290,7 +1290,7 @@
     },
     "evidence-record": {
       "title": "Evidence record (Datensatz), Markdown frontmatter",
-      "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by LogReq (SR-030) and by anyone else count the same.",
+      "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
       "type": "object",
       "required": [
         "logreq-record",
@@ -1346,7 +1346,7 @@
         },
         "evidence": {
           "type": "string",
-          "description": "Where the Beleg is: relative path, file URL or any URI. LogReq does not open or manage it."
+          "description": "Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it."
         },
         "test-case": {
           "type": "string",
@@ -2070,7 +2070,7 @@
     },
     "recent-workspaces": {
       "title": "Recent workspaces file",
-      "description": "`recent-workspaces.json` in `<OS cache>/logreq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
+      "description": "`recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
       "type": "object",
       "required": [
         "format",
@@ -2397,7 +2397,7 @@
             },
             "minContains": 1
           },
-          "description": "The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by LogReq; JSON Schema cannot express it)."
+          "description": "The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by ReqSeq; JSON Schema cannot express it)."
         },
         "metamodel": {
           "description": "Where the metamodel lies: a folder in one of the repositories, the main one or its own (D-021, SR-011, SR-018).",
@@ -2447,7 +2447,7 @@
             },
             "url": {
               "type": "string",
-              "description": "Address of the repository on the Git server. Informational: LogReq never clones or fetches (D-036)."
+              "description": "Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036)."
             },
             "path": {
               "type": "string",
@@ -2591,7 +2591,7 @@
                 },
                 "readOnly": {
                   "type": "boolean",
-                  "description": "LogReq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
+                  "description": "ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows)."
                 }
               },
               "additionalProperties": false,
@@ -2823,7 +2823,7 @@
                 "exists"
               ]
             },
-            "description": "The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/logreq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
+            "description": "The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list."
           }
         },
         "additionalProperties": false,
@@ -5845,7 +5845,7 @@
           },
           "evidence": {
             "type": "string",
-            "description": "Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; LogReq never opens it (D-007)."
+            "description": "Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007)."
           },
           "testCase": {
             "type": "string",
@@ -6299,7 +6299,7 @@
     {
       "name": "data_store",
       "title": "Store data",
-      "description": "Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
+      "description": "Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,

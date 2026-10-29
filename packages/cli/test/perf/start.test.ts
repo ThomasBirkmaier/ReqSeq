@@ -1,8 +1,8 @@
-// SR-082 AK1 and AK2 in the performance suite (ADR-0011): the start of LogReq on the generated
+// SR-082 AK1 and AK2 in the performance suite (ADR-0011): the start of ReqSeq on the generated
 // workspace of N-036 with 50,000 elements and 200,000 relations. Until the app comes (stage 3), the
-// start is measured over the local API (#127, option 1): a new process of the built `logreq serve api`
+// start is measured over the local API (#127, option 1): a new process of the built `reqseq serve api`
 // loads the workspace before it listens (`warmWorkspace`), so the time from spawn until it answers
-// `workspace.status` is the time until LogReq is usable. AK2 starts with an empty cache folder; AK1
+// `workspace.status` is the time until ReqSeq is usable. AK2 starts with an empty cache folder; AK1
 // starts again with the model cache the first start wrote (ADR-0008). Runs with `pnpm test:perf` after
 // `pnpm build`, nightly and on pull requests labelled `perf`, never in the required test run. The tests
 // are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
@@ -13,9 +13,9 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import type { CommandOutput, VersionValue } from "@logreq/core";
-import { MODEL_CACHE_FILE, Workspace, computeVersion, invoke } from "@logreq/core";
-import type { LargeFixtureWorkspace, PerfMeasurement, VersionFunction } from "@logreq/testkit";
+import type { CommandOutput, VersionValue } from "@reqseq/core";
+import { MODEL_CACHE_FILE, Workspace, computeVersion, invoke } from "@reqseq/core";
+import type { LargeFixtureWorkspace, PerfMeasurement, VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
@@ -23,9 +23,9 @@ import {
   measure,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/logreq.js";
+import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/reqseq.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -113,7 +113,7 @@ interface Started {
   readonly status: { status: number; body: unknown };
 }
 
-/** Spawns `logreq serve api` and resolves once it answered `workspace.status`. */
+/** Spawns `reqseq serve api` and resolves once it answered `workspace.status`. */
 const startApi = (cwd: string, home: string): Promise<Started> =>
   new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, "serve", "api"], {
@@ -125,7 +125,7 @@ const startApi = (cwd: string, home: string): Promise<Started> =>
     let err = "";
     child.stderr.on("data", (chunk: Buffer) => (err += chunk.toString("utf8")));
     child.on("exit", (code) => {
-      reject(new Error(`logreq serve api ended with ${String(code)}: ${out}${err}`));
+      reject(new Error(`reqseq serve api ended with ${String(code)}: ${out}${err}`));
     });
     child.stdout.on("data", (chunk: Buffer) => {
       out += chunk.toString("utf8");
@@ -174,7 +174,7 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     fixture = await writeLargeWorkspace(
       generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS }),
     );
-    home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-082-home-"));
+    home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-082-home-"));
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
   }, 600_000);
 
@@ -212,7 +212,7 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     let measured: PerfMeasurement | undefined;
     await coldStart(async () => {
       const { result, measurement } = await measure(
-        "logreq serve api until workspace.status answers (new process, no cache)",
+        "reqseq serve api until workspace.status answers (new process, no cache)",
         () => startApi(root, home),
         {
           basis: "SR-082 AK2 (start without cache; over the API until the app comes, #127)",
@@ -237,7 +237,7 @@ describe("start with 50,000 elements and 200,000 relations (SR-082, N-036)", () 
     expect(existsSync(modelCache), `no model cache at ${modelCache}`).toBe(true);
     const written = (await fs.stat(modelCache)).mtimeMs;
     const { result: started, measurement } = await measure(
-      "logreq serve api until workspace.status answers (new process, with cache)",
+      "reqseq serve api until workspace.status answers (new process, with cache)",
       () => startApi(root, home),
       {
         basis: "SR-082 AK1 (start with cache; over the API until the app comes, #127)",

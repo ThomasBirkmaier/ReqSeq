@@ -2,7 +2,7 @@
 // evidence records (SR-028, #40); here they are given through `evidenceRecordsState`, and
 // `workspace.check` reports the evidence of an element whose newest record is for an older version.
 // The CLI test follows with the records in stage 4.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";

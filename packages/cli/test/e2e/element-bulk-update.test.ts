@@ -1,13 +1,13 @@
-// `logreq element bulk-update` end to end (SR-071): the built binary on fixtures/SR-069/filter. The
+// `reqseq element bulk-update` end to end (SR-071): the built binary on fixtures/SR-069/filter. The
 // property and the operation are positional, the selection and the value come with `--input`, the
 // confirmation is `--confirm` with the count of the preview as `--expected` (ADR-0009). Requirements
 // and needs have `topic` (b1 has Wind), the decision, packages and variants do not. Run after
 // `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Output {
   readonly applied: boolean;
@@ -39,7 +39,7 @@ const INPUT = JSON.stringify({
 
 const B1 = "requirements/SR-0000000000b1.md";
 
-describe("logreq element bulk-update (SR-071)", () => {
+describe("reqseq element bulk-update (SR-071)", () => {
   it("[SR-071/AK2] previews the number of affected elements, then writes on --confirm with that number", async () => {
     const ws = await workspace();
     const before = await fs.readFile(ws.path(B1), "utf8");

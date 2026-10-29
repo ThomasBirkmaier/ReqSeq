@@ -2,4 +2,4 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { createBridge } from "./bridge.js";
 
-contextBridge.exposeInMainWorld("logreq", createBridge(ipcRenderer));
+contextBridge.exposeInMainWorld("reqseq", createBridge(ipcRenderer));

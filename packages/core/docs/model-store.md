@@ -1,6 +1,6 @@
 # Model block: store, watcher, short IDs, current versions (`src/model/`)
 
-Part of the [`@logreq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
+Part of the [`@reqseq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
 
 `elementStoreState` (async Workspace state, depends on `workspaceLayoutState`) holds every element of the workspace, found by its frontmatter in whatever folder it lies (SR-003, D-056), with `loadElements(layout)`:
 

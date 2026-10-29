@@ -5,7 +5,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -174,7 +174,7 @@ const bridge = () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       onSave: () => () => undefined,
       on: () => () => undefined,
-    } satisfies LogReqBridge,
+    } satisfies ReqSeqBridge,
   };
 };
 

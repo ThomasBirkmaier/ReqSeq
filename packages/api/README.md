@@ -1,6 +1,6 @@
-# @logreq/api
+# @reqseq/api
 
-The local API of LogReq (ADR-0009): HTTP on loopback only, generic over the command catalog of `@logreq/core` (ADR-0002). It has no logic of its own; every request is one `invoke` call. Started by `logreq serve api`.
+The local API of LogReq (ADR-0009): HTTP on loopback only, generic over the command catalog of `@reqseq/core` (ADR-0002). It has no logic of its own; every request is one `invoke` call. Started by `logreq serve api`.
 
 ```sh
 logreq serve api                 # any free port; prints the URLs and where api.json is

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import type { CommandRuntime } from "@logreq/core";
+import type { CommandRuntime } from "@reqseq/core";
 import {
   PRODUCT_VERSION,
   CommandError,
@@ -10,9 +10,9 @@ import {
   defineTestCommand,
   defineWorkspaceState,
   loadContracts,
-} from "@logreq/core";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+} from "@reqseq/core";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
 import { argvFor } from "./argv.js";
@@ -34,7 +34,7 @@ const entry = (name: string, input: Record<string, unknown>, summary = `Test com
 });
 
 const catalog = {
-  "logreq-catalog": 1,
+  "reqseq-catalog": 1,
   commands: [
     entry("test.echo", {
       properties: {
@@ -163,7 +163,7 @@ interface Result {
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -199,7 +199,7 @@ const run = async (
 
 const ref = "SR-46fb54";
 
-describe("logreq help and version", () => {
+describe("reqseq help and version", () => {
   it("prints the product version", async () => {
     const result = await run(["--version"]);
     expect(result).toEqual({ code: EXIT.ok, stdout: `${PRODUCT_VERSION}\n`, stderr: "" });
@@ -208,7 +208,7 @@ describe("logreq help and version", () => {
   it("lists the groups of the catalog", async () => {
     const result = await run(["--help"]);
     expect(result.code).toBe(EXIT.ok);
-    expect(result.stdout).toContain("Usage: logreq [options] [command]");
+    expect(result.stdout).toContain("Usage: reqseq [options] [command]");
     expect(result.stdout).toMatch(/test <action> \[options\]\s+test commands/);
     expect(result.stdout).toMatch(/other <action> \[options\]\s+other commands/);
   });
@@ -225,7 +225,7 @@ describe("logreq help and version", () => {
   it("shows the arguments and options of a command", async () => {
     const result = await run(["test", "echo", "--help"]);
     expect(result.code).toBe(EXIT.ok);
-    expect(result.stdout).toContain("Usage: logreq test echo <ref> <name> [options]");
+    expect(result.stdout).toContain("Usage: reqseq test echo <ref> <name> [options]");
     expect(result.stdout).toMatch(/ref\s+Element to echo\./);
     expect(result.stdout).toMatch(/--count <number>/);
     expect(result.stdout).toMatch(/--verbose\s/);
@@ -262,7 +262,7 @@ describe("logreq help and version", () => {
   });
 });
 
-describe("logreq <group> <action>", () => {
+describe("reqseq <group> <action>", () => {
   it("passes positional arguments and flags as command input", async () => {
     const result = await run([
       "test",

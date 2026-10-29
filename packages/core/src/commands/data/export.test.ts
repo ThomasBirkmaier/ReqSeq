@@ -4,8 +4,8 @@
 // selections). The same output on every access: cross-access.test.ts; the CLI end to end:
 // packages/cli/test/e2e/data-export.test.ts.
 import { readFile, rm } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";

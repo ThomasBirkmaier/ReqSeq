@@ -1,8 +1,8 @@
 // Statuses per type (#306): element.create, element.setStatus and element.supersede offer and take
 // only the statuses of the element's type; a type without status gets none.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

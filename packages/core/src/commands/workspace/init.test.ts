@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { STANDARD_MODEL_TEXT } from "../../metamodel/index.js";
@@ -119,7 +119,7 @@ describe("workspace.init", () => {
       `new/${WORKSPACE_FILE}`,
       "new/metamodel/standard-model.yaml",
     ]);
-    // LogReq never writes Git (D-036): no repository is created.
+    // ReqSeq never writes Git (D-036): no repository is created.
     await expect(fs.lstat(ws.path("new/.git"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 

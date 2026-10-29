@@ -1,6 +1,6 @@
 // Screenshots of the light and the dark sheet for the verification record of SR-113
 // (verification/SR-113.md). The window is 1280×800. The PNGs go to `test-results/electron/screenshots/`
-// (or the folder in LOGREQ_SCREENSHOTS); copying them to `verification/SR-113/` is a deliberate step,
+// (or the folder in REQSEQ_SCREENSHOTS); copying them to `verification/SR-113/` is a deliberate step,
 // not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -13,7 +13,7 @@ import { DEMO_FILES, DEMO_TITLE, REFERENCE_FILES, REFERENCE_SOURCE_TITLE } from 
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const prepare = async (running: RunningApp): Promise<(name: string) => Promise<Buffer>> => {

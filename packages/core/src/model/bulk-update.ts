@@ -344,7 +344,7 @@ export const bulkUpdateElements = async (
       skipped.push({
         ...named(record),
         reason: "unknown-type",
-        message: `The metamodel has no type ${record.type}, so LogReq only reads ${record.file}`,
+        message: `The metamodel has no type ${record.type}, so ReqSeq only reads ${record.file}`,
       });
     } else if (type.properties.includes(property.key)) {
       candidates.push({ record, type });

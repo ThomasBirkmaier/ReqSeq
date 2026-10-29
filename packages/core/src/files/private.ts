@@ -1,5 +1,5 @@
-// Private files of LogReq outside the working tree, e.g. the token file of the local API in the cache
-// folder (ADR-0008, ADR-0009). They belong to LogReq alone: a write replaces the file without the
+// Private files of ReqSeq outside the working tree, e.g. the token file of the local API in the cache
+// folder (ADR-0008, ADR-0009). They belong to ReqSeq alone: a write replaces the file without the
 // changed-on-disk check of element and YAML files. Only the owner may read them (folder 0700, file 0600 on
 // POSIX; on Windows the cache folder in the user profile is private to the user already).
 import { randomBytes } from "node:crypto";
@@ -23,7 +23,7 @@ const removeQuietly = async (file: string): Promise<void> => {
 export async function writePrivateFile(file: string, text: string): Promise<void> {
   const folder = path.dirname(file);
   await createPrivateFolder(folder);
-  const temp = path.join(folder, `.${path.basename(file)}.${randomBytes(4).toString("hex")}.logreq-tmp`);
+  const temp = path.join(folder, `.${path.basename(file)}.${randomBytes(4).toString("hex")}.reqseq-tmp`);
   try {
     const handle = await fs.open(temp, "wx", 0o600);
     try {
@@ -42,7 +42,7 @@ export async function writePrivateFile(file: string, text: string): Promise<void
 /**
  * Create the private folder `folder` (absolute path) and the missing folders above it, each with mode 0700;
  * an existing folder is left as it is. Rejects with the Node error when it cannot be created. Only for
- * LogReq's own folders outside the working tree (the cache), never for a folder in a repository.
+ * ReqSeq's own folders outside the working tree (the cache), never for a folder in a repository.
  */
 export async function createPrivateFolder(folder: string): Promise<void> {
   await fs.mkdir(folder, { recursive: true, mode: 0o700 });
@@ -50,7 +50,7 @@ export async function createPrivateFolder(folder: string): Promise<void> {
 
 /**
  * Remove the private file `file` (absolute path) if it is there; a missing file is fine. Rejects with the Node
- * error when it cannot be removed. Only for LogReq's own files outside the working tree, never for elements
+ * error when it cannot be removed. Only for ReqSeq's own files outside the working tree, never for elements
  * (D-045).
  */
 export async function removePrivateFile(file: string): Promise<void> {

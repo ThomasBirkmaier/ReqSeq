@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import type { AnyCommand, CommandContext } from "../catalog.js";
 import { CommandError, defineTestCommand } from "../catalog.js";
@@ -33,7 +33,7 @@ const entry = (name: string, whileReadOnly?: "refuse" | "allow"): Record<string,
 
 const contracts = loadContracts({
   catalog: {
-    "logreq-catalog": 1,
+    "reqseq-catalog": 1,
     commands: [entry("test.read"), entry("test.write", "refuse"), entry("test.create", "allow")],
   },
 });

@@ -1,4 +1,4 @@
-// Writing whole-file YAML documents that LogReq owns besides elements (ADR-0007): saved filters
+// Writing whole-file YAML documents that ReqSeq owns besides elements (ADR-0007): saved filters
 // (SR-070) now, baselines and mappings later. A pure module: it returns the new text, and
 // `writeFileAtomic` with the check kind `yaml` writes it.
 //
@@ -88,7 +88,7 @@ const keyLinesOf = (text: string): { readonly data: unknown; readonly keys: Map<
     return { data: null, keys };
   }
   if (!isMap(contents) || contents.flow === true) {
-    throw faulty("LogReq changes only YAML files that are a block mapping of `key: value` lines");
+    throw faulty("ReqSeq changes only YAML files that are a block mapping of `key: value` lines");
   }
   const lineStart = (line: number): number => lines.lineStarts[line - 1] ?? text.length;
   for (const pair of contents.items) {

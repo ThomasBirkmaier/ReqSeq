@@ -16,11 +16,11 @@ describe("isInside", () => {
 
 describe("decodedPath", () => {
   it("decodes the path and drops its leading slashes", () => {
-    expect(decodedPath(new URL("app://logreq/assets/a%20b.js"))).toBe("assets/a b.js");
-    expect(decodedPath(new URL("logreq-file://system//images/x.png"))).toBe("images/x.png");
+    expect(decodedPath(new URL("app://reqseq/assets/a%20b.js"))).toBe("assets/a b.js");
+    expect(decodedPath(new URL("reqseq-file://system//images/x.png"))).toBe("images/x.png");
   });
 
   it("is undefined for a path that does not decode", () => {
-    expect(decodedPath(new URL("app://logreq/%E0%A4%A"))).toBeUndefined();
+    expect(decodedPath(new URL("app://reqseq/%E0%A4%A"))).toBeUndefined();
   });
 });

@@ -7,17 +7,17 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { CommandOutput, VersionValue } from "@logreq/core";
-import { Workspace, computeVersion, invoke } from "@logreq/core";
-import type { LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
+import type { CommandOutput, VersionValue } from "@reqseq/core";
+import { Workspace, computeVersion, invoke } from "@reqseq/core";
+import type { LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
   generateLargeWorkspace,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { cliEnv } from "../support/logreq.js";
+import { cliEnv } from "../support/reqseq.js";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -36,7 +36,7 @@ interface Run {
   readonly stderr: string;
 }
 
-const logreq = (args: readonly string[], cwd: string): Promise<Run> =>
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> =>
   new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
       cwd,
@@ -45,7 +45,7 @@ const logreq = (args: readonly string[], cwd: string): Promise<Run> =>
     });
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error(`logreq ${args.join(" ")} did not exit within ${String(EXIT_WITHIN_MS)} ms`));
+      reject(new Error(`reqseq ${args.join(" ")} did not exit within ${String(EXIT_WITHIN_MS)} ms`));
     }, EXIT_WITHIN_MS);
     const out: Buffer[] = [];
     const err: Buffer[] = [];
@@ -123,7 +123,7 @@ afterAll(async () => {
 
 describe("cold load in worker threads (ADR-0008, #148)", () => {
   it("checks a workspace of 1,200 element files and exits", async () => {
-    const run = await logreq(["workspace", "check", "--json"], fixture.workspaceRoot);
+    const run = await reqseq(["workspace", "check", "--json"], fixture.workspaceRoot);
     expect(run.stderr).toBe("");
     expect(run.code).toBe(0);
     const output = JSON.parse(run.stdout) as { ok: boolean; problems: unknown[]; checkedElements: number };

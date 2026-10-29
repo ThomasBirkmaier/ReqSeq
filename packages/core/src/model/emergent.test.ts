@@ -1,7 +1,7 @@
 // The mark "emergent behaviour" (SR-035, #591 Q1): which value marks an element, and which property
 // holds it. The output, the filter and the status that use it are tested in
 // commands/evidence/emergent.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import { EMERGENT_CHOICE, metamodelState } from "../metamodel/index.js";

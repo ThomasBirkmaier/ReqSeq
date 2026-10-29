@@ -11,7 +11,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 import { FRESH_MS } from "./outside-marks.js";
@@ -170,7 +170,7 @@ const fake = () => {
         : { ok: true, output: handlers[name]?.(input) },
     ),
   );
-  const bridge: LogReqBridge = {
+  const bridge: ReqSeqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
     on: (event: string, listener: (data: never) => void) => {

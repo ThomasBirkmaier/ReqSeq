@@ -53,7 +53,7 @@ type RawFile =
 /** Why a file that `lstat` found is not read, or undefined when it is a regular file. */
 const statProblem = (file: string, stat: Stats): ReturnType<typeof unreadable> | undefined => {
   if (stat.isSymbolicLink()) {
-    return unreadable(file, "it is a symbolic link; LogReq does not follow links to its files");
+    return unreadable(file, "it is a symbolic link; ReqSeq does not follow links to its files");
   }
   if (!stat.isFile()) {
     return unreadable(file, "it is not a regular file");
@@ -302,7 +302,7 @@ export type SnapshotReadResult =
 
 /**
  * The bytes of any regular file below `root`, read once, with the snapshot to pass to
- * `writeFileAtomic` (for a file LogReq rewrites as a whole, such as a JUnit file, SR-029). The same
+ * `writeFileAtomic` (for a file ReqSeq rewrites as a whole, such as a JUnit file, SR-029). The same
  * checks as `readElementFile`: no symbolic links, no folder linked out of the root. Never throws for
  * the file itself; throws only `input.invalid` for a path outside `root`.
  */
@@ -322,7 +322,7 @@ export type JsonlSnapshotReadResult =
 
 /**
  * A JSON Lines file below `root` (`data.store`, #319) with the checks of `readFileSnapshot`, but read in
- * pieces and never held whole (it may be larger than one string): whether it is a LogReq data file
+ * pieces and never held whole (it may be larger than one string): whether it is a ReqSeq data file
  * (`jsonl-data.ts`) and the snapshot to pass to `writeFileAtomic` with `{ kind: "jsonl" }`.
  */
 export const readJsonlSnapshot = async (

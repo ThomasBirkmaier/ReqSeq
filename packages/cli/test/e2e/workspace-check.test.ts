@@ -1,15 +1,15 @@
-// `logreq workspace check` end to end (SR-019, ADR-0009): the built binary with the product commands on
+// `reqseq workspace check` end to end (SR-019, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its lines and its JSON. Also the CLI tests that SR-025, SR-085,
 // SR-086, SR-088, SR-089 and SR-090 handed over to this command (#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
-const logreq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
 interface Problem {
   readonly code: string;
@@ -48,15 +48,15 @@ const checkBoth = async (
   cwd: string,
   args: readonly string[] = [],
 ): Promise<{ human: Run; json: Run; output: Output }> => {
-  const human = await logreq(["workspace", "check", ...args], cwd);
-  const json = await logreq(["workspace", "check", ...args, "--json"], cwd);
+  const human = await reqseq(["workspace", "check", ...args], cwd);
+  const json = await reqseq(["workspace", "check", ...args, "--json"], cwd);
   return { human, json, output: JSON.parse(json.stdout) as Output };
 };
 
 /**
  * Warnings end the check with exit code 1 only with `--fail-on warning` (#304, product owner
  * decision, 2026-10-26, option 1). The tests below that ask SR-019 AK2 or SR-025 AK2 for exit code 1 on
- * warnings pass it; both AKs get a new version after the spec moves into LogReq.
+ * warnings pass it; both AKs get a new version after the spec moves into ReqSeq.
  */
 const FAIL_ON_WARNING = ["--fail-on", "warning"] as const;
 
@@ -73,7 +73,7 @@ const SR = "2b2b2b2b-2222-4222-8222-b0000000000";
 /** The elements of fixtures/SR-090/cycle: A (1), B (2) and C (3) form the cycle, D (4) derives from A. */
 const CYCLE = "5e9c0a7d-2b4f-4c61-9d08-0b000000000";
 
-describe("logreq workspace check (SR-019)", () => {
+describe("reqseq workspace check (SR-019)", () => {
   it("[SR-019/AK1] ends with exit code 0 for a workspace without findings", async () => {
     const ws = await fixture("SR-072/supersede");
     const { human, json, output } = await checkBoth(ws.root);
@@ -159,7 +159,7 @@ describe("logreq workspace check (SR-019)", () => {
   it("[SR-019/AK2] shows only errors with --severity error, and still ends with exit code 1 for warnings with --fail-on warning", async () => {
     const ws = await fixture("SR-085/value-kinds");
     const args = ["workspace", "check", "--severity", "error", ...FAIL_ON_WARNING];
-    const result = await logreq([...args, "--json"], ws.path("system"));
+    const result = await reqseq([...args, "--json"], ws.path("system"));
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: false,
@@ -167,7 +167,7 @@ describe("logreq workspace check (SR-019)", () => {
       hidden: { below: "error", warning: 5, info: 0 },
       checkedElements: 4,
     });
-    const human = await logreq(args, ws.path("system"));
+    const human = await reqseq(args, ws.path("system"));
     expect(human).toEqual({
       code: 1,
       stdout: "ok: false\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
@@ -262,7 +262,7 @@ describe("findings handed over to workspace check", () => {
   it("[SR-090/AK2] ends the check from the command line with exit code 1 for a cycle with --fail-on warning", async () => {
     const ws = await fixture("SR-090/cycle");
     // A cycle is a warning: exit code 0 by default (#304), 1 with --fail-on warning.
-    expect((await logreq(["workspace", "check"], ws.root)).code).toBe(0);
+    expect((await reqseq(["workspace", "check"], ws.root)).code).toBe(0);
     const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code]).toEqual([1, 1]);
     expect(output.ok).toBe(false);
@@ -277,7 +277,7 @@ describe("findings handed over to workspace check", () => {
         "{ id: 5e9c0a7d-2b4f-4c61-9d08-0a0000000001, version: n1:3e5f74ee1859b526 }",
       ),
     );
-    const fixed = await logreq(["workspace", "check", ...FAIL_ON_WARNING], ws.root);
+    const fixed = await reqseq(["workspace", "check", ...FAIL_ON_WARNING], ws.root);
     expect(fixed.code).toBe(0);
   });
 });
@@ -313,7 +313,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
     await ws.commit();
     const current = await headDate(ws);
     // "der Exit-Code ist ungleich 0": the outdated relations are warnings, so with --fail-on warning.
-    expect((await logreq(["workspace", "check"], ws.root)).code).toBe(0);
+    expect((await reqseq(["workspace", "check"], ws.root)).code).toBe(0);
     const { human, json, output } = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([human.code, json.code, human.stderr, json.stderr]).toEqual([1, 1, "", ""]);
     expect(output.ok).toBe(false);
@@ -365,7 +365,7 @@ describe("outdated relations in workspace check (SR-025)", () => {
     const [derives, link] = first.output.problems;
     expect([derives?.line, link?.line]).toEqual([12, 15]);
     // Confirm the derivation: the check reports only the reference.
-    const confirmed = await logreq(
+    const confirmed = await reqseq(
       ["hint", "confirm", "--hint-ids", derives?.hintId ?? "", "--json"],
       ws.root,
     );
@@ -376,13 +376,13 @@ describe("outdated relations in workspace check (SR-025)", () => {
     expect(second.human.stdout).not.toContain("SR-0b0000000001.md:12");
     expect(second.human.stdout).toContain("SR-0b0000000001.md:15");
     // Confirm the reference too: A's text changes, so B's refinement of A is outdated now (ADR-0004).
-    await logreq(["hint", "confirm", "--hint-ids", link?.hintId ?? ""], ws.root);
+    await reqseq(["hint", "confirm", "--hint-ids", link?.hintId ?? ""], ws.root);
     const third = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect(third.output.problems.map((p) => [p.elementId, p.targetId])).toEqual([
       ["5e025a7d-2b4f-4c61-9d08-0b0000000002", A_ID],
     ]);
     // Confirm that one as well: nothing is left, and the check ends with exit code 0.
-    await logreq(["hint", "confirm", "--hint-ids", third.output.problems[0]?.hintId ?? ""], ws.root);
+    await reqseq(["hint", "confirm", "--hint-ids", third.output.problems[0]?.hintId ?? ""], ws.root);
     const last = await checkBoth(ws.root, FAIL_ON_WARNING);
     expect([last.human.code, last.json.code, last.output]).toEqual([
       0,
@@ -401,16 +401,16 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
     expect([warnings.human.code, warnings.json.code, warnings.output.ok]).toEqual([0, 0, true]);
     expect(warnings.human.stdout.split("\n").slice(0, 2)).toEqual(["ok: true", "checkedElements: 4"]);
     expect(warnings.output.problems.map((p) => p.severity)).toEqual(Array(5).fill("warning"));
-    expect((await logreq(["workspace", "check", "--fail-on", "error"], cwd)).code).toBe(0);
-    expect((await logreq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(1);
-    expect((await logreq(["workspace", "check", "--fail-on", "info"], cwd)).code).toBe(1);
+    expect((await reqseq(["workspace", "check", "--fail-on", "error"], cwd)).code).toBe(0);
+    expect((await reqseq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(1);
+    expect((await reqseq(["workspace", "check", "--fail-on", "info"], cwd)).code).toBe(1);
   });
 
   it("ends with exit code 1 for info only from --fail-on info on", async () => {
     const ws = await fixture("SR-089/missing-targets");
     const cwd = ws.path("system");
-    expect((await logreq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(0);
-    const info = await logreq(["workspace", "check", "--fail-on", "info", "--severity", "warning"], cwd);
+    expect((await reqseq(["workspace", "check", "--fail-on", "warning"], cwd)).code).toBe(0);
+    const info = await reqseq(["workspace", "check", "--fail-on", "info", "--severity", "warning"], cwd);
     expect(info).toEqual({
       code: 1,
       stdout: "ok: false\ncheckedElements: 4\nNo problems at or above warning; 2 info not shown.\n",
@@ -420,17 +420,17 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
 
   it("does not say No problems. with --severity error while warnings are left out", async () => {
     const ws = await fixture("SR-085/value-kinds");
-    const human = await logreq(["workspace", "check", "--severity", "error"], ws.path("system"));
+    const human = await reqseq(["workspace", "check", "--severity", "error"], ws.path("system"));
     expect(human).toEqual({
       code: 0,
       stdout: "ok: true\ncheckedElements: 4\nNo problems at or above error; 5 warnings not shown.\n",
       stderr: "",
     });
-    const yaml = await logreq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
+    const yaml = await reqseq(["workspace", "check", "--severity", "error", "--yaml"], ws.path("system"));
     expect(yaml.stdout.endsWith("No problems at or above error; 5 warnings not shown.\n")).toBe(true);
     // After shown errors, the warnings left out are counted as well.
     const findings = await fixture("SR-019/findings");
-    const errors = await logreq(["workspace", "check", "--severity", "error"], findings.root);
+    const errors = await reqseq(["workspace", "check", "--severity", "error"], findings.root);
     expect(errors.code).toBe(1);
     expect(errors.stdout.endsWith("\n6 warnings below error not shown.\n")).toBe(true);
   });
@@ -439,7 +439,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
     // The issue's steps 2 and 3: the successor's replacement relation points at a superseded element,
     // a hint that cannot be confirmed (SR-072 AK2); it must not fail a correct workspace.
     const ws = await fixture("SR-072/supersede");
-    const supersede = await logreq(
+    const supersede = await reqseq(
       [
         "element",
         "supersede",
@@ -455,12 +455,12 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
     expect([human.code, json.code, output.ok]).toEqual([0, 0, true]);
     expect(output.problems.map((p) => p.code)).toContain("relation.target-superseded");
     expect(new Set(output.problems.map((p) => p.severity))).toEqual(new Set(["warning"]));
-    expect((await logreq(["workspace", "check", ...FAIL_ON_WARNING], ws.root)).code).toBe(1);
+    expect((await reqseq(["workspace", "check", ...FAIL_ON_WARNING], ws.root)).code).toBe(1);
   });
 
   it("refuses an unknown --fail-on value with exit code 2", async () => {
     const ws = await fixture("SR-072/supersede");
-    const result = await logreq(["workspace", "check", "--fail-on", "hint"], ws.root);
+    const result = await reqseq(["workspace", "check", "--fail-on", "hint"], ws.root);
     expect(result.code).toBe(2);
     expect(result.stderr).toMatch(/^error input\.invalid: .*--fail-on/);
   });
@@ -482,15 +482,15 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
       `${await fs.readFile(ws.path("needs/N-0a0000000001.md"), "utf8")}Changed in the merge request.\n`,
     );
     await ws.commit();
-    const full = await logreq(["workspace", "check", "--json"], ws.root);
+    const full = await reqseq(["workspace", "check", "--json"], ws.root);
     expect(kinds(JSON.parse(full.stdout) as Output)).toEqual([
       ["element.unknown-property", B_FILE, `${OUTDATED}b0000000002`],
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
       ["relation.outdated", "requirements/SR-0b0000000001.md", A_ID],
     ]);
     // The outdated relations are warnings: exit code 0 by default (#304), 1 with --fail-on warning.
-    expect((await logreq(["workspace", "check", "--changed-since", "target"], ws.root)).code).toBe(0);
-    const json = await logreq(
+    expect((await reqseq(["workspace", "check", "--changed-since", "target"], ws.root)).code).toBe(0);
+    const json = await reqseq(
       ["workspace", "check", "--changed-since", "target", ...FAIL_ON_WARNING, "--json"],
       ws.root,
     );
@@ -502,13 +502,13 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     ]);
     expect(output.checkedElements).toBe(1);
     // With a file named directly: the same restriction.
-    const named = await logreq(
+    const named = await reqseq(
       ["workspace", "check", "--changed-files", "needs/N-0a0000000001.md", "--json"],
       ws.root,
     );
     expect((JSON.parse(named.stdout) as Output).problems).toEqual(output.problems);
     // Nothing changed since HEAD: exit code 0.
-    const none = await logreq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
+    const none = await reqseq(["workspace", "check", "--changed-since", "HEAD"], ws.root);
     expect(none).toEqual({ code: 0, stdout: "ok: true\ncheckedElements: 0\nNo problems.\n", stderr: "" });
   });
 
@@ -516,9 +516,9 @@ describe("workspace check restricted to a merge request (SR-092)", () => {
     const ws = await fixture("SR-025/outdated", true);
     const missing = "0123456789abcdef0123456789abcdef01234567";
     const message = `Commit ${missing} is not available locally in any repository of the workspace: fetch it, or deepen a shallow clone`;
-    const human = await logreq(["workspace", "check", "--changed-since", missing], ws.root);
+    const human = await reqseq(["workspace", "check", "--changed-since", missing], ws.root);
     expect(human).toEqual({ code: 4, stdout: "", stderr: `error git.commit-not-found: ${message}\n` });
-    const json = await logreq(["workspace", "check", "--changed-since", "no-such-branch", "--json"], ws.root);
+    const json = await reqseq(["workspace", "check", "--changed-since", "no-such-branch", "--json"], ws.root);
     expect(json.code).toBe(4);
     expect(JSON.parse(json.stderr)).toMatchObject({ code: "git.commit-not-found" });
   });

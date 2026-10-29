@@ -5,8 +5,8 @@
 // then again from the walks kept per workspace; and `element.get` of a changed target is opened.
 // No SR threshold applies to the dates (SR-025 has the 60 s of a whole check; SR-082 AK3 opens without
 // the date, which `element.get` gives only on request), so the times are recorded only (ADR-0011).
-import type { GeneratedElement, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedElement, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { parseFileBytes } from "../../src/files/index.js";

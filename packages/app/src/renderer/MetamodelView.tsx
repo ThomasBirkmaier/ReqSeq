@@ -8,7 +8,7 @@
 // Ctrl/Cmd+T shows the same answer as text (`MetamodelTextView.tsx`, AK4, AK5); the selected type stays,
 // and the graph opens on it again.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, MetamodelBuffer } from "./buffers.js";
 import type { Call } from "./call.js";

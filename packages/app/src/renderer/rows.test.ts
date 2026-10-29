@@ -1,4 +1,4 @@
-import type { ElementListOutput, ElementSearchOutput } from "@logreq/core";
+import type { ElementListOutput, ElementSearchOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { NO_ROW } from "./buffers.js";
 import { LIST_MAX, LIST_PAGE, SEARCH_MAX, SEARCH_PAGE, firstLimit, listRows, searchRows } from "./rows.js";

@@ -1,9 +1,9 @@
-// Whether a file is a LogReq data file (`data.store`, SR-062 AK1; #319): JSON Lines whose first line
+// Whether a file is a ReqSeq data file (`data.store`, SR-062 AK1; #319): JSON Lines whose first line
 // starts with `{"logreq-data":` and an integer of at least 2 (the signature), within the first MiB;
 // and valid UTF-8 (a sequence cut at the very end is allowed, see below). Only the start of the first
 // line is read, so a first element larger than one MiB does not block the next run. No later line is scanned:
-// the first line is the signature, and a file of LogReq that a crash cut in the middle (the in-place
-// write where the file system has no hard links) is still LogReq's and is replaced on the next run,
+// the first line is the signature, and a file of ReqSeq that a crash cut in the middle (the in-place
+// write where the file system has no hard links) is still ReqSeq's and is replaced on the next run,
 // instead of blocking the pipeline for that commit until someone removes it (review PS3). An empty
 // file holds nothing to lose and counts too (a selection without elements gives one). One check
 // serves the guard before a data file is replaced (`isJsonlDataFile`, `readJsonlFile`) and the
@@ -21,18 +21,18 @@ const PIECE_BYTES = 1024 * 1024;
 
 const LF = 0x0a;
 
-/** `"logreq-data"` first, then the version and the end of that value: the start of every line LogReq writes (`jsonLines`). */
+/** `"logreq-data"` first, then the version and the end of that value: the start of every line ReqSeq writes (`jsonLines`). */
 const SIGNATURE = /^\{[\t\r ]*"logreq-data"[\t\r ]*:[\t\r ]*([1-9][0-9]*)[\t\r ]*[,}]/;
 
 /** What a check over all pieces of a file gives. */
 export interface JsonlDataResult {
   readonly size: number;
   readonly sha256: string;
-  /** A LogReq data file (see the file comment). */
+  /** A ReqSeq data file (see the file comment). */
   readonly dataFile: boolean;
 }
 
-/** Whether `head` (the start of the first line, without its LF) holds the signature of a LogReq data file. */
+/** Whether `head` (the start of the first line, without its LF) holds the signature of a ReqSeq data file. */
 const isFirstLine = (head: Buffer): boolean => {
   // The signature is ASCII; a byte outside it fails the pattern, and UTF-8 is checked on its own.
   const match = SIGNATURE.exec(head.toString("latin1"));
@@ -76,7 +76,7 @@ export class JsonlDataCheck {
     }
   }
 
-  /** The result; a UTF-8 sequence cut at the end of the file is not checked (a cut file stays LogReq's). */
+  /** The result; a UTF-8 sequence cut at the end of the file is not checked (a cut file stays ReqSeq's). */
   finish(): JsonlDataResult {
     // A first line without LF: the whole file is that line (a file cut inside the signature is not recognised).
     const first = this.#first ?? (this.#size === 0 || isFirstLine(Buffer.concat(this.#head)));
@@ -88,7 +88,7 @@ export class JsonlDataCheck {
   }
 }
 
-/** Whether `bytes` are a LogReq data file (see the file comment). */
+/** Whether `bytes` are a ReqSeq data file (see the file comment). */
 export const isJsonlDataFile = (bytes: Uint8Array): boolean => {
   const check = new JsonlDataCheck();
   check.update(bytes);

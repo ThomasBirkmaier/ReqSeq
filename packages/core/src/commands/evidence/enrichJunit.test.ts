@@ -6,8 +6,8 @@ import { writeFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -230,7 +230,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       const error = await failure(workspace, { file: "results/vitest.xml", output });
       expect([error.code, error.message]).toEqual([
         "file.faulty",
-        `Not written: ${output} is not a JUnit XML file; LogReq replaces only JUnit files`,
+        `Not written: ${output} is not a JUnit XML file; ReqSeq replaces only JUnit files`,
       ]);
       expect(await bytesOf(fixture, output)).toEqual(before);
     }
@@ -238,7 +238,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
     const linked = await failure(workspace, { file: "results/vitest.xml", output: "evidence/ci/link.xml" });
     expect([linked.code, linked.message]).toEqual([
       "file.faulty",
-      "Not written: link.xml cannot be replaced: Cannot read file: it is a symbolic link; LogReq does not follow links to its files",
+      "Not written: link.xml cannot be replaced: Cannot read file: it is a symbolic link; ReqSeq does not follow links to its files",
     ]);
   });
 
@@ -253,7 +253,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
       [
         "results/link.xml",
         "input.invalid",
-        "Cannot enrich link.xml: Cannot read file: it is a symbolic link; LogReq does not follow links to its files",
+        "Cannot enrich link.xml: Cannot read file: it is a symbolic link; ReqSeq does not follow links to its files",
       ],
       [
         "results/pom.xml",
@@ -274,7 +274,7 @@ describe("evidence.enrichJunit (SR-029)", () => {
 
   it("writes a file outside the workspace and gives its absolute path, leaving the input unchanged", async () => {
     const { fixture, workspace } = await open();
-    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-enrich-")));
+    const outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-enrich-")));
     onTestFinished(() => fs.rm(outside, { recursive: true, force: true }));
     const target = path.join(outside, "enriched.xml");
     const before = await bytesOf(fixture, "results/pytest.xml");

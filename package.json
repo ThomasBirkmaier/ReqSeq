@@ -1,5 +1,5 @@
 {
-  "name": "logreq",
+  "name": "reqseq",
   "version": "0.4.0",
   "private": true,
   "license": "UNLICENSED",
@@ -26,7 +26,7 @@
     "test:delivery": "vitest run --config vitest.delivery.config.ts",
     "test:perf": "node -e \"const fs = require('node:fs'); for (const f of ['test-results/perf.jsonl', 'test-results/junit-perf.xml']) fs.rmSync(f, { force: true })\" && vitest run --config vitest.perf.config.ts",
     "perf:report": "node scripts/perf/report.mjs",
-    "logreq": "node packages/cli/dist/bin.js",
+    "reqseq": "node packages/cli/dist/bin.js",
     "spec:check": "node packages/cli/dist/bin.js workspace check --workspace spec"
   },
   "devDependencies": {

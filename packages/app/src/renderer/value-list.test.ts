@@ -1,4 +1,4 @@
-import type { DataExportElement, DataExportRelation, ElementFacetsOutput } from "@logreq/core";
+import type { DataExportElement, DataExportRelation, ElementFacetsOutput } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import { exactTypeStep, propertyStep, statusStep } from "./list-filters.js";
 import type { ListableValue, Pointer } from "./value-list.js";

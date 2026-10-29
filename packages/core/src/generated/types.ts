@@ -36,11 +36,11 @@ export interface ActivityAccess {
 }
 
 /**
- * `api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.
+ * `api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `reqseq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.
  * Schema: `schemas/api-endpoint.schema.json#`.
  */
 export interface ApiEndpointFile {
-  readonly "logreq-api": 1;
+  readonly "reqseq-api": 1;
   readonly port: number;
   /** 256 random bits, base64url without padding; new at every start. */
   readonly token: string;
@@ -51,7 +51,7 @@ export interface ApiEndpointFile {
 }
 
 /**
- * A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). LogReq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).
+ * A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
@@ -628,7 +628,7 @@ export interface DataExportVerificationDegree {
 }
 
 /**
- * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values LogReq writes.
+ * YAML frontmatter of an element file (D-015, D-056). The Markdown text follows the closing `---`. Only `id`, `type` and `status` are structural (`status` only for a type with statuses, #306); every other key is a property or relation kind key from the metamodel (D-043). Keys the metamodel does not know are kept unchanged and reported as hints (D-012, SR-016). See docs/adr/0004-element-file-format.md. File name: type prefix, dash, last 12 hex characters of the UUID, never changed (D-056). Value kinds are checked against the metamodel, not by this schema, so any value of an unknown key is kept (SR-016); `$defs/value` describes the values ReqSeq writes.
  * Schema: `schemas/element.schema.json#`.
  */
 export interface ElementFile {
@@ -668,7 +668,7 @@ export type ElementValue =
   | readonly RelationTarget[];
 
 /**
- * Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by LogReq (SR-030) and by anyone else count the same.
+ * Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.
  * Schema: `schemas/evidence-record.schema.json#`.
  */
 export interface EvidenceRecordFile {
@@ -686,7 +686,7 @@ export interface EvidenceRecordFile {
   readonly item?: string;
   readonly result: "passed" | "failed";
   readonly date: IsoDateTime;
-  /** Where the Beleg is: relative path, file URL or any URI. LogReq does not open or manage it. */
+  /** Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it. */
   readonly evidence?: string;
   /** Optional test case name or ID (D-026, SR-033). */
   readonly "test-case"?: string;
@@ -995,7 +995,7 @@ export interface MetamodelStatus {
 }
 
 /**
- * `recent-workspaces.json` in `<OS cache>/logreq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
+ * `recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for "Open workspace". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.
  * Schema: `schemas/recent-workspaces.schema.json#`.
  */
 export interface RecentWorkspacesFile {
@@ -1105,7 +1105,7 @@ export interface WorkspaceLocalFile {
 export interface WorkspaceFile {
   readonly "logreq-workspace": 1;
   readonly name: string;
-  /** The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by LogReq; JSON Schema cannot express it). */
+  /** The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by ReqSeq; JSON Schema cannot express it). */
   readonly repositories: readonly WorkspaceRepository[];
   /** Where the metamodel lies: a folder in one of the repositories, the main one or its own (D-021, SR-011, SR-018). */
   readonly metamodel: WorkspaceLocation;
@@ -1124,7 +1124,7 @@ export interface WorkspaceFile {
 /** Schema: `schemas/workspace.schema.json#/$defs/repository`. */
 export interface WorkspaceRepository {
   readonly name: string;
-  /** Address of the repository on the Git server. Informational: LogReq never clones or fetches (D-036). */
+  /** Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036). */
   readonly url: string;
   /** Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.logreq/local.yaml`. */
   readonly path?: string;
@@ -1149,10 +1149,10 @@ export interface WorkspaceLocation {
  */
 export interface CommandCatalog {
   readonly $schema?: string;
-  readonly "logreq-catalog": 1;
+  readonly "reqseq-catalog": 1;
   readonly description?: string;
   readonly commands: readonly {
-    /** group.action; CLI `logreq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
+    /** group.action; CLI `reqseq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`. */
     readonly name: string;
     /** The name of the command for people, English, sentence case, unique in the catalog: what the app's command prompt offers (SR-108, SR-073 AK2) and the MCP tool `title`. When an app action does the same, the title is the action's name, so the prompt lists it once. Free of delete words except for relations (D-045). */
     readonly title: string;
@@ -1249,7 +1249,7 @@ export interface WorkspaceStatusOutput {
     readonly available: boolean;
     readonly path?: string;
     readonly commit?: Commit;
-    /** LogReq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
+    /** ReqSeq cannot write the repository folder itself (read-only file system or no write permission). Reading works as usual and the workspace stays writable; writes into this repository are refused with file.read-only (SR-018 AK2). Rights on the Git server are not visible here (D-016, D-024). Only for available repositories; left out where the operating system cannot tell (Windows). */
     readonly readOnly?: boolean;
   }[];
   readonly metamodel: {
@@ -1323,7 +1323,7 @@ export type WorkspaceRecentInput = Readonly<Record<string, never>>;
  * Schema: `schemas/commands/catalog.json workspace.recent output`.
  */
 export interface WorkspaceRecentOutput {
-  /** The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/logreq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
+  /** The workspaces the app opened last, the most recent first, as the app's core process recorded them in `<OS cache>/reqseq/recent-workspaces.json` (ADR-0008). Empty when none is recorded or the list cannot be read. Only the app records; the command line, the API and the MCP server only read the list. */
   readonly workspaces: readonly {
     /** The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml). */
     readonly root: string;
@@ -2342,7 +2342,7 @@ export interface EvidenceRecordInput {
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
-  /** Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; LogReq never opens it (D-007). */
+  /** Where the Beleg is: a path relative to the record file, a file URL or any URI. Written as given; ReqSeq never opens it (D-007). */
   readonly evidence?: string;
   /** Optional test case name or ID (`test-case` in the file, SR-033). */
   readonly testCase?: string;
@@ -2522,7 +2522,7 @@ export interface DataExportInput {
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
- * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store input`.
  */
 export interface DataStoreInput {
@@ -2532,7 +2532,7 @@ export interface DataStoreInput {
 }
 
 /**
- * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted LogReq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store output`.
  */
 export interface DataStoreOutput {

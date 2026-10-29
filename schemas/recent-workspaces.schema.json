@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/recent-workspaces.schema.json",
+  "$id": "https://reqseq.dev/schemas/recent-workspaces.schema.json",
   "title": "Recent workspaces file",
-  "description": "`recent-workspaces.json` in `<OS cache>/logreq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
+  "description": "`recent-workspaces.json` in `<OS cache>/reqseq/` (ADR-0008): the workspaces the app opened last (SR-131), the most recent first, at most 20, one per folder. The app's core process records the root of every workspace it opens; the app's main process reads the list for \"Open workspace\". It is internal and private (mode 0600, like `api.json`), holds absolute paths of the user's workspaces and nothing else, and lies outside every working tree. Removing it only forgets the list.",
   "type": "object",
   "required": ["format", "workspaces"],
   "properties": {

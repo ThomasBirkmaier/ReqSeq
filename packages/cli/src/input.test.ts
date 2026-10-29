@@ -1,8 +1,8 @@
 import path from "node:path";
 import { Readable } from "node:stream";
-import { CommandError } from "@logreq/core";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { CommandError } from "@reqseq/core";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InputField } from "./fields.js";
 import { buildInput, readInputOption } from "./input.js";

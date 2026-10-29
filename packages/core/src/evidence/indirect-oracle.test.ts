@@ -5,7 +5,7 @@
 // workspace of the performance suite, the result is the same, in any order of first evaluation. Plus
 // the work the shared views save, counted, never timed (ADR-0011).
 import type { CurrentVersion } from "../model/index.js";
-import { generateLargeWorkspace, withEvidenceRecords, writeLargeWorkspace } from "@logreq/testkit";
+import { generateLargeWorkspace, withEvidenceRecords, writeLargeWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord } from "../model/index.js";

@@ -1,6 +1,6 @@
 # Model block: value kinds, required properties, statuses, metamodel changes (`src/model/`)
 
-Part of the [`@logreq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
+Part of the [`@reqseq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
 
 Value kinds (SR-085, `src/model/values.ts`): every top-level key of an element that the metamodel defines as a property (by key, whatever the element's type, D-043) or as a relation kind is checked against its kind. A mismatch is the problem `element.wrong-value-kind` with severity `warning` (a hint: it blocks nothing and changes no status), `repository`, `file`, `line` and `elementId`, and an English message with the property's name and key; for a choice it lists the allowed keys with their names (SR-085 AK2). A mapping where a relation target belongs names the first thing wrong with it: no or no UUID `id`, no or no valid `version`, a key a target does not have, a `title` or `repository` that is no text, or both of them (#302).
 

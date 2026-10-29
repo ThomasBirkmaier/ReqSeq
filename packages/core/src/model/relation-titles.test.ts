@@ -3,8 +3,8 @@
 // from the need N, is valid in the variant V and references N in its text; requirement B refines A.
 // Cross-repository targets on fixtures/SR-005/cross-repository.
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, CommandOutput } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";

@@ -15,7 +15,7 @@
 // With `own`, `prepare` also reads the versions of the elements themselves that have validation
 // records; the walk below them stays on verification. The element shown is measured against the
 // version it is shown with (`Shown`), which is never kept. Children are measured against the versions
-// of the store as read: a change made outside LogReq shows once the watcher's batch carries the state
+// of the store as read: a change made outside ReqSeq shows once the watcher's batch carries the state
 // over (the changed elements, those that embed images or had no version, and their ancestors are
 // read and computed again; `carriedStatus`) or resets it.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).

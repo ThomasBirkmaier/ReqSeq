@@ -7,11 +7,11 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import { startApiServer } from "@logreq/api";
-import { Workspace, createCommandRuntime } from "@logreq/core";
-import { LineTransport, serveMcp } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { startApiServer } from "@reqseq/api";
+import { Workspace, createCommandRuntime } from "@reqseq/core";
+import { LineTransport, serveMcp } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
@@ -40,7 +40,7 @@ let home = "";
 beforeAll(async () => {
   fixture = await createFixtureWorkspace({ fixture: "SR-001/two-elements" });
   // The CLI writes its model cache to the OS cache folder (SR-082): keep it in a temporary folder.
-  home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-resolve-home-"));
+  home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-resolve-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, home);
   }
@@ -104,7 +104,7 @@ describe("element.resolve from another tool", () => {
   });
 
   it("[SR-060/AK1] gives title, text, status and current version through the local API", async () => {
-    const cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-resolve-api-"));
+    const cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-resolve-api-"));
     onTestFinished(() => fs.rm(cache, { recursive: true, force: true }));
     const server = await startApiServer({ workspace: open(), runtime, cacheFolder: cache });
     onTestFinished(() => server.close());

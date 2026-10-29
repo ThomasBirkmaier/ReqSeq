@@ -15,7 +15,7 @@ export interface FileNameParts {
 
 /**
  * `SR-825b7146fb54.md`: the prefix of the type, a dash, the last 12 hex digits of the UUID and
- * `.md`. Given once, when the element is created; LogReq never renames the file afterwards, also not
+ * `.md`. Given once, when the element is created; ReqSeq never renames the file afterwards, also not
  * when the title or the type changes (SR-001 AK2) or the displayed short ID grows (SR-084 AK3).
  */
 export const fileNameFor = (element: FileNameParts): string =>

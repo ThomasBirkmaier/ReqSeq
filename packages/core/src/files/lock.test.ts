@@ -8,7 +8,7 @@ let root: string;
 let file: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-lock-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-lock-"));
   file = path.join(root, "cache", "api.json.lock");
 });
 

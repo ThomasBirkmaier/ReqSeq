@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -230,7 +230,7 @@ describe("searchElements (ADR-0008, SR-068)", () => {
     // The label of a link is text; its destination is not.
     expect(ids(index, "gusts")).toEqual([N1]);
     expect(ids(index, "chart")).toEqual([N1]);
-    expect(ids(index, "logreq")).toEqual([]);
+    expect(ids(index, "reqseq")).toEqual([]);
     expect(ids(index, "png")).toEqual([]);
     // NFD in the file, NFC and upper case in the query (SR-068 AK2 at index level).
     expect(ids(index, "GRÖSSE")).toEqual([]);

@@ -17,7 +17,7 @@
 // for the cores), and its evidence files read (a row of its own), so the cold rows hold the status
 // state (`verificationState`: the walk and one batch of current versions) and nothing else. At most
 // one workspace is open at a time, so the heap holds one store.
-import type { GeneratedEvidence, LargeFixtureWorkspace } from "@logreq/testkit";
+import type { GeneratedEvidence, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measure,
@@ -27,7 +27,7 @@ import {
   thresholdMessage,
   withEvidenceRecords,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -126,7 +126,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     const generated = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     evidence = withEvidenceRecords(generated);
     fixture = await writeLargeWorkspace(evidence.workspace);
-    cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-e4-cache-"));
+    cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-e4-cache-"));
     getCommandRuntime();
     // Files settled before the start, so the model cache takes every one (`RACY_MS`).
     await new Promise((resolve) => setTimeout(resolve, 2 * RACY_MS));
@@ -344,7 +344,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     );
     expect(rebuilt).toEqual(warm);
 
-    // One element file changed outside LogReq (review of #581, N3): the watcher's batch replaces the
+    // One element file changed outside ReqSeq (review of #581, N3): the watcher's batch replaces the
     // store and carries the status state over (#698): the next open of the top computes again only
     // the changed element and its ancestors.
     const store = await ws().get(elementStoreState);
@@ -355,7 +355,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
     }
     const folder = layout.repositories.find((r) => r.name === changed.repository)?.folder ?? "";
     const file = path.join(folder, changed.file);
-    await fs.writeFile(file, `${await fs.readFile(file, "utf8")}\nChanged outside LogReq.\n`);
+    await fs.writeFile(file, `${await fs.readFile(file, "utf8")}\nChanged outside ReqSeq.\n`);
     await measure(
       "store update of one changed element file (watcher batch; #558)",
       () =>
@@ -423,7 +423,7 @@ describe("evidence commands with 50,000 elements and their records (N-036, E4 #5
       layout.repositories.find((r) => r.name === deep.repository)?.folder ?? "",
       deep.file,
     );
-    await fs.writeFile(deepFile, `${await fs.readFile(deepFile, "utf8")}\nChanged outside LogReq.\n`);
+    await fs.writeFile(deepFile, `${await fs.readFile(deepFile, "utf8")}\nChanged outside ReqSeq.\n`);
     await measure(
       `store update of one changed element file deep below the top (${String(most)} ancestors; watcher batch; #558)`,
       () =>

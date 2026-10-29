@@ -10,8 +10,8 @@
 // with SR-028 and SR-093, whose end-to-end tests read record files. The same output on every access:
 // cross-access.test.ts.
 import { readFile, rm } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRead, EvidenceRecord } from "../../evidence/index.js";

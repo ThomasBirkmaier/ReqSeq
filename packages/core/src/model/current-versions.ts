@@ -11,7 +11,7 @@
 //   4 cores, local runs of the performance suite): 4 to 5 s; reading through the libuv thread pool (`fs.promises`)
 //   took about 11 s.
 // - Not kept in the model cache (ADR-0008): the cached start (SR-082) needs no version.
-// - A store change of the watcher or of LogReq's own writes (`applyStoreChange`, `recordWrites`) is
+// - A store change of the watcher or of ReqSeq's own writes (`applyStoreChange`, `recordWrites`) is
 //   carried: the records it changed get their version again, every other entry is kept. A change of
 //   the metamodel (which properties count) or of the layout (the `ignore` globs) resets it.
 // - Images are no Markdown files, and the watcher drops their events (ADR-0008). Each version keeps

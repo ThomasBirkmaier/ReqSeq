@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Migration of the spec from the Logseq export into a LogReq workspace (enabler #326).
+// Migration of the spec from the Logseq export into a ReqSeq workspace (enabler #326).
 //
 // Usage: pnpm build && node scripts/spec-migrate/convert.mjs <export-dir> <workspace-dir>
 //
@@ -20,7 +20,7 @@
 // element.create gives a new package, the initial status draft (D-030). Texts, titles and acceptance
 // criteria are copied byte for byte. Relation targets are written as { id, title } without version.
 //
-// Step 2 lets LogReq itself (packages/core, built) fill in what only LogReq can compute (ADR-0005):
+// Step 2 lets ReqSeq itself (packages/core, built) fill in what only ReqSeq can compute (ADR-0005):
 // it turns the inline mentions in the texts (`(SR-101)`) into `logreq:` links with element.update, the
 // linked elements before the elements that link to them, so every link gets the final version of its
 // target (hint.confirm then finds nothing to confirm); then it gives every relation target its current
@@ -337,7 +337,7 @@ function choiceLine(key, map, value, owner, problems) {
     problems.push(`${owner}: ${key} ${value} has no choice key`);
     return [`${key}: ${q(value)}`];
   }
-  // `yes` and `no` are quoted, as LogReq writes them (YAML 1.1 reads them as booleans).
+  // `yes` and `no` are quoted, as ReqSeq writes them (YAML 1.1 reads them as booleans).
   return [`${key}: ${/^(yes|no)$/.test(choice) ? q(choice) : choice}`];
 }
 
@@ -527,14 +527,14 @@ export function writeFiles(dir, files) {
   }
 }
 
-// ---------- step 2: LogReq fills in versions and links ----------
+// ---------- step 2: ReqSeq fills in versions and links ----------
 
 /**
- * Runs the plan of step 2 with LogReq's core (`core` is the module `@logreq/core`): links, then the
+ * Runs the plan of step 2 with ReqSeq's core (`core` is the module `@reqseq/core`): links, then the
  * versions of the inline references, then the versions of the relation targets, so that every stored
  * version is the one of the final content (a later text change would make an earlier one outdated).
  */
-export async function fillWithLogReq(dir, plan, core) {
+export async function fillWithReqSeq(dir, plan, core) {
   const workspace = new core.Workspace(path.resolve(dir));
   const run = (name, input) => core.invoke(name, input, { workspace });
   try {
@@ -583,7 +583,7 @@ export function verifyVerbatim(dir, exp) {
 }
 
 const WORKSPACE_FILE = `logreq-workspace: 1
-name: LogReq specification
+name: ReqSeq specification
 repositories:
   - name: spec
     url: ""
@@ -593,14 +593,14 @@ metamodel:
   path: metamodel
 `;
 
-const METAMODEL = `# Metamodel of the LogReq specification (enabler #326). It is the standard model (D-037,
+const METAMODEL = `# Metamodel of the ReqSeq specification (enabler #326). It is the standard model (D-037,
 # schemas/examples/metamodel/standard-model.yaml) with the spec's own additions (D-060: the glossary
 # term and the decision statuses are not part of the standard model):
 # - property spec-id with the meaning identifier (#305): SR-036, D-047, N-001, Stufe-3;
 # - statuses per type (#306): decisions draft, accepted, superseded; glossary terms only obsolete, so a
 #   term without status is current and element.supersede retires it (#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq).
-# LogReq has no command that changes a metamodel: this file is changed by hand in a pull request.
+# ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
 logreq-metamodel: 1
 
 types:
@@ -777,7 +777,7 @@ relations:
     source-types: [variant]
     target-types: [system-requirement]
     meaning: exclusion
-  # Glossary relations (Logseq: Oberbegriff, Abgrenzung, Siehe auch). LogReq has no symmetric relation
+  # Glossary relations (Logseq: Oberbegriff, Abgrenzung, Siehe auch). ReqSeq has no symmetric relation
   # kinds; each is stored in the direction the graph had it.
   - key: broader-term
     name: Broader term
@@ -818,7 +818,7 @@ async function main([exportDir, workspaceDir]) {
   }
   writeFiles(workspaceDir, plan.files);
   const coreEntry = new URL("../../packages/core/dist/index.js", import.meta.url);
-  const result = await fillWithLogReq(workspaceDir, plan, await import(coreEntry.href));
+  const result = await fillWithReqSeq(workspaceDir, plan, await import(coreEntry.href));
   const differences = verifyVerbatim(workspaceDir, exp);
   const { stats } = plan;
   console.log(

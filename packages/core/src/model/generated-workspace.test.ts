@@ -1,8 +1,8 @@
 // The generated large workspace of the testkit (#126, ADR-0011, D-055) as core reads it: a valid
 // workspace of the standard model, and every relation stores the version core computes for its
 // target. The perf suite (`pnpm test:perf`) uses the same generator at 50,000 elements.
-import type { GeneratedWorkspace, VersionFunction } from "@logreq/testkit";
-import { createFixtureWorkspace, generateLargeWorkspace, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, VersionFunction } from "@reqseq/testkit";
+import { createFixtureWorkspace, generateLargeWorkspace, writeLargeWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { invoke } from "../runtime/invoke.js";
 import type { Metamodel } from "../metamodel/index.js";

@@ -16,7 +16,7 @@ import {
   saveAnswer,
   saveRequest,
 } from "./protocol.js";
-import { MAX_ROOT_LENGTH as CORE_MAX_ROOT_LENGTH } from "@logreq/core/recent-workspaces";
+import { MAX_ROOT_LENGTH as CORE_MAX_ROOT_LENGTH } from "@reqseq/core/recent-workspaces";
 
 /** An access as `workspace.activity` gives it. */
 const ACTIVITY: AgentActivity = {
@@ -73,10 +73,10 @@ describe("coreRequest: what the main process sends the core process", () => {
     });
     expect(coreRequest({ type: "open", folder: "/w", exact: "yes" })).toEqual({ type: "open", folder: "/w" });
     expect(coreRequest({ type: "connect", extra: 1 })).toEqual({ type: "connect" });
-    expect(coreRequest({ type: "file", id: 4, url: "logreq-file://a/b.png" })).toEqual({
+    expect(coreRequest({ type: "file", id: 4, url: "reqseq-file://a/b.png" })).toEqual({
       type: "file",
       id: 4,
-      url: "logreq-file://a/b.png",
+      url: "reqseq-file://a/b.png",
     });
     expect(coreRequest({ type: "stop" })).toEqual({ type: "stop" });
   });

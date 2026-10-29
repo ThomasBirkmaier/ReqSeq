@@ -67,7 +67,7 @@ const collect = (element: ElementRecord, metamodel: Metamodel, out: RequiredFind
       problem: {
         code: "element.missing-required",
         severity: "warning",
-        message: `Required property ${name} (${key}) of type ${type.name} (${type.key}) has no value; LogReq changes no file`,
+        message: `Required property ${name} (${key}) of type ${type.name} (${type.key}) has no value; ReqSeq changes no file`,
         repository: element.repository,
         file: element.file,
         elementId: element.id,

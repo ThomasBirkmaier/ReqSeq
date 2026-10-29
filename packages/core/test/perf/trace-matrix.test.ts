@@ -6,14 +6,14 @@
 // AK4's 500 ms (tagged, ADR-0011) after a warm-up call (the incoming index is built on the first
 // call); the derivation tree of all elements and a page of hubs (decisions, whose cells hold many
 // relations) are recorded only.
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measure,
   measureMedian,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState } from "../../src/model/index.js";

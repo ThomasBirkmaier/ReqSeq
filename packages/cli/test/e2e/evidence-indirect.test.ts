@@ -1,11 +1,11 @@
-// `logreq evidence status` and `logreq element get` end to end with the indirect verification
+// `reqseq evidence status` and `reqseq element get` end to end with the indirect verification
 // (SR-034): the built binary on fixtures/SR-034/indirect, whose README lists every element, its
 // parent and its Markdown record. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -18,15 +18,15 @@ beforeAll(() => {
 
 const U = (tail: string): string => `34343434-3434-4434-8434-00000000${tail}`;
 
-const logreq = async (args: readonly string[]): Promise<Run> => {
+const reqseq = async (args: readonly string[]): Promise<Run> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-034/indirect" });
   fixtures.push(ws);
   return run(args, { cwd: ws.root });
 };
 
-describe("logreq evidence status and element get with indirect verification (SR-034)", () => {
-  it("[SR-034/AK1] logreq evidence status prints indirect for a parent whose children are verified by record files", async () => {
-    const result = await logreq(["evidence", "status"]);
+describe("reqseq evidence status and element get with indirect verification (SR-034)", () => {
+  it("[SR-034/AK1] reqseq evidence status prints indirect for a parent whose children are verified by record files", async () => {
+    const result = await reqseq(["evidence", "status"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
@@ -56,8 +56,8 @@ describe("logreq evidence status and element get with indirect verification (SR-
     );
   });
 
-  it("[SR-034/AK2] logreq evidence status names the missing children by short ID though they are not on the page (#588)", async () => {
-    const result = await logreq([
+  it("[SR-034/AK2] reqseq evidence status names the missing children by short ID though they are not on the page (#588)", async () => {
+    const result = await reqseq([
       "evidence",
       "status",
       "--input",
@@ -74,9 +74,9 @@ describe("logreq evidence status and element get with indirect verification (SR-
     );
   });
 
-  it("[SR-034/AK2] logreq evidence status --json names the children that are missing", async () => {
+  it("[SR-034/AK2] reqseq evidence status --json names the children that are missing", async () => {
     const input = JSON.stringify({ selection: { ids: [U("b120"), U("b150"), U("b160")] } });
-    const result = await logreq(["evidence", "status", "--input", input, "--json"]);
+    const result = await reqseq(["evidence", "status", "--input", input, "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as {
       readonly elements: readonly { readonly shortId: string; readonly verification?: unknown }[];
@@ -88,13 +88,13 @@ describe("logreq evidence status and element get with indirect verification (SR-
     ]);
   });
 
-  it("[SR-034/AK3] logreq element get shows a parent with an obsolete child as indirect", async () => {
-    const result = await logreq(["element", "get", "SR-00b130"]);
+  it("[SR-034/AK3] reqseq element get shows a parent with an obsolete child as indirect", async () => {
+    const result = await reqseq(["element", "get", "SR-00b130"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout.split("\n")[0]).toBe(
       "SR-00b130  approved  Show the rain  [verification: core indirect]",
     );
-    const json = await logreq(["element", "get", "SR-00b130", "--json"]);
+    const json = await reqseq(["element", "get", "SR-00b130", "--json"]);
     const out = JSON.parse(json.stdout) as {
       readonly element: { readonly status: string; readonly verification: unknown };
     };

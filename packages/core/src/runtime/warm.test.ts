@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";
 import { elementStoreState, incomingState, shortIdState } from "../model/index.js";
@@ -48,10 +48,10 @@ describe("warmWorkspace (SR-082)", () => {
       },
     });
     onTestFinished(() => fixture.cleanup());
-    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-warm-cache-"));
+    const cacheFolder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-warm-cache-"));
     onTestFinished(() => fs.rm(cacheFolder, { recursive: true, force: true }));
     const workspace = new Workspace(fixture.root, { cacheFolder });
-    // As `logreq mcp` and the app do it: the warm-up is not awaited before the first command.
+    // As `reqseq mcp` and the app do it: the warm-up is not awaited before the first command.
     const warming = warmWorkspace(workspace, 60_000);
     const index = await searchIndex(workspace);
     expect(searchElements(index, "wind").total).toBe(1);

@@ -1,4 +1,4 @@
-// The workspaces the app opened last (SR-131): `<OS cache>/logreq/recent-workspaces.json`
+// The workspaces the app opened last (SR-131): `<OS cache>/reqseq/recent-workspaces.json`
 // (`schemas/recent-workspaces.schema.json`, ADR-0008 cache part), the most recent first, at most 20,
 // one per folder. The app's core process records the root it opened (`model/recent-record.ts`); the
 // app's main process reads the list and checks which roots still hold a workspace.
@@ -6,7 +6,7 @@
 // "Open workspace" also takes a typed folder path (AK5): `typedWorkspaceFolder` checks it by its text
 // alone, before any file-system call, and `findTypedWorkspace` finds the workspace from it upwards.
 //
-// Main loads this module on its own (`@logreq/core/recent-workspaces`), so it imports only `node:*`,
+// Main loads this module on its own (`@reqseq/core/recent-workspaces`), so it imports only `node:*`,
 // `cache.ts` (with the private-file part of the files block) and `workspace-file.ts`: no schema
 // validator, no command. Main makes no synchronous file-system call through it: reading the list never
 // resolves a root again (the canonical `key` is stored), and the existence check is asynchronous and
@@ -19,13 +19,13 @@ import type { CacheEnvironment } from "./cache.js";
 import { canonicalRoot, lockCacheFile, osCacheFolder, readCacheFile, writeCacheFile } from "./cache.js";
 import { WORKSPACE_FILE } from "./workspace-file.js";
 
-/** The file in `<OS cache>/logreq/`. */
+/** The file in `<OS cache>/reqseq/`. */
 export const RECENT_WORKSPACES_FILE = "recent-workspaces.json";
 
 /** How many workspaces the list keeps (a product choice of SR-131, named in its PR). */
 export const RECENT_WORKSPACES_KEEP = 20;
 
-/** A larger file is not LogReq's: it reads as an empty list, and the next open overwrites it. */
+/** A larger file is not ReqSeq's: it reads as an empty list, and the next open overwrites it. */
 export const RECENT_WORKSPACES_MAX_BYTES = 64 * 1024;
 
 /** The longest root the list holds, in characters (as the app's main process accepts one). */
@@ -82,9 +82,9 @@ const pathsOf = (platform: NodeJS.Platform): path.PlatformPath =>
 const platformOf = (environment: CacheEnvironment | undefined): NodeJS.Platform =>
   environment?.platform ?? process.platform;
 
-/** `<OS cache>/logreq`, the folder of the list (next to the cache folders of the copies). */
+/** `<OS cache>/reqseq`, the folder of the list (next to the cache folders of the copies). */
 export function recentWorkspacesFolder(environment?: CacheEnvironment): string {
-  return pathsOf(platformOf(environment)).join(osCacheFolder(environment), "logreq");
+  return pathsOf(platformOf(environment)).join(osCacheFolder(environment), "reqseq");
 }
 
 /** The key of a root: its canonical name (absolute, links resolved, lower case on Windows). */

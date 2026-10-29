@@ -5,7 +5,7 @@ import type {
   DataExportRelation,
   MetamodelGetOutput,
   MetamodelProperty,
-} from "@logreq/core";
+} from "@reqseq/core";
 import { outdatedKey } from "./editor/references.js";
 import type { OutdatedMark } from "./editor/references.js";
 

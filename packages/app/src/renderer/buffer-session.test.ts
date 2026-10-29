@@ -2,7 +2,7 @@
 // back, and what is left out.
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
-import type { CommandErrorObject, FilterCondition } from "@logreq/core";
+import type { CommandErrorObject, FilterCondition } from "@reqseq/core";
 import type { Buffer, FilterStep } from "./buffers.js";
 import {
   MAX_BUFFERS,
@@ -275,10 +275,10 @@ describe("buffer session (SR-115 AK4)", () => {
       output: { name, readOnly: false, ...(repositories === undefined ? {} : { repositories }) },
     });
     const one = sessionKey(status("Weather", [{ name: "spec", available: true, path: "." }]));
-    expect(one?.split("\n")).toEqual(["logreq.buffers.v1", "Weather", "spec=."]);
+    expect(one?.split("\n")).toEqual(["reqseq.buffers.v1", "Weather", "spec=."]);
     expect(sessionKey(status("Weather", [{ name: "spec", available: true, path: "x" }]))).not.toBe(one);
     expect(sessionKey(status("Other", [{ name: "spec", available: true, path: "." }]))).not.toBe(one);
-    expect(sessionKey(status("Weather"))?.split("\n")).toEqual(["logreq.buffers.v1", "Weather"]);
+    expect(sessionKey(status("Weather"))?.split("\n")).toEqual(["reqseq.buffers.v1", "Weather"]);
     expect(sessionKey(status("Weather", [{ name: "spec", available: false }]))).toContain("spec=");
     expect(
       sessionKey({ ok: false, error: { code: "workspace.not-found", message: "No workspace" } }),

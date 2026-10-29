@@ -64,7 +64,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Install the root's dependencies only
-        run: pnpm install --frozen-lockfile --filter logreq --ignore-scripts
+        run: pnpm install --frozen-lockfile --filter reqseq --ignore-scripts
       - name: Write PR body
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,7 +157,7 @@ jobs:
       - name: Audit
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm audit --prod --audit-level high
-      # trace-check reads the LogReq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
+      # trace-check reads the ReqSeq workspace in spec/ with the `yaml` package (#326), and the PR text (D-050).
       - name: Write PR body
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
@@ -242,12 +242,12 @@ jobs:
       - name: Unit tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: ${{ runner.os != 'Windows' && 'pnpm test:coverage' || 'pnpm test' }}
-      # The spec is a LogReq workspace (D-064, #326): LogReq checks it like any other (exit 1 on errors).
-      - name: Check the spec with LogReq
+      # The spec is a ReqSeq workspace (D-064, #326): ReqSeq checks it like any other (exit 1 on errors).
+      - name: Check the spec with ReqSeq
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: pnpm spec:check
 
-      # ADR-0011: CLI end-to-end tests spawn the built `logreq` on fixture workspaces (packages/cli/test/e2e/),
+      # ADR-0011: CLI end-to-end tests spawn the built `reqseq` on fixture workspaces (packages/cli/test/e2e/),
       # including the local API and the MCP server.
       - name: CLI e2e
         if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os != 'Linux' }}
@@ -342,7 +342,7 @@ jobs:
       # Saved right after the download, so that a red test run still fills the cache.
       - name: Electron binary
         if: steps.changes.outputs.tests != 'false'
-        run: pnpm --filter @logreq/app electron:install
+        run: pnpm --filter @reqseq/app electron:install
       - uses: actions/cache/save@v4
         # One shard saves; both would try the same key.
         if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true' && matrix.shard != 2
@@ -373,10 +373,10 @@ jobs:
         # Each shard runs every second file (test/playwright.config.ts); without a shard, all of them.
         env:
           ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
-        run: xvfb-run -a pnpm --filter @logreq/app test:electron
+        run: xvfb-run -a pnpm --filter @reqseq/app test:electron
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
-        run: pnpm --filter @logreq/app test:electron
+        run: pnpm --filter @reqseq/app test:electron
       - name: Upload JUnit results (evidence, D-050)
         if: always()
         uses: actions/upload-artifact@v4
@@ -453,5 +453,5 @@ jobs:
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs
-  # `logreq serve api` and `logreq mcp` as processes (servers.test.ts).
+  # `reqseq serve api` and `reqseq mcp` as processes (servers.test.ts).
   # The performance suite with 50,000 elements runs apart, nightly and on PRs labelled `perf`: perf.yml.

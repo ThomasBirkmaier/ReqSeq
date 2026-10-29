@@ -38,7 +38,7 @@ export const workspaceParts = (status: InvokeResult): readonly string[] | undefi
 /** The storage key of the recent elements of a workspace (`workspaceParts`). */
 export const recentKey = (status: InvokeResult): string | undefined => {
   const parts = workspaceParts(status);
-  return parts === undefined ? undefined : ["logreq.recent.v1", ...parts].join("\n");
+  return parts === undefined ? undefined : ["reqseq.recent.v1", ...parts].join("\n");
 };
 
 /** `entry` first, once, and at most `max` entries. */

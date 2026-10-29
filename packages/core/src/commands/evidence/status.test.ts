@@ -7,8 +7,8 @@
 // The records are given through `evidenceRecordsState` (decision on #127, option 1): the readers of
 // record files come with SR-028 (#40) and SR-093 (#105), which add the end-to-end tests with files.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";

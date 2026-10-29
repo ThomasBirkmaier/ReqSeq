@@ -144,7 +144,7 @@ const parseFrontmatter = (text: string): Frontmatter => {
   if (!isMap(contents) || contents.srcToken?.type !== "block-map") {
     throw new CommandError(
       "file.faulty",
-      "Not written: LogReq writes only frontmatter that is a block mapping of `key: value` lines",
+      "Not written: ReqSeq writes only frontmatter that is a block mapping of `key: value` lines",
     );
   }
   const token = contents.srcToken;
@@ -521,7 +521,7 @@ const checkKeys = (
   for (const { key } of edits) {
     if (!originals.has(key) && Object.hasOwn(data ?? {}, key)) {
       throw invalid(
-        `Cannot change ${key}: the file writes this key in a form LogReq does not edit (for example an alias or a number)`,
+        `Cannot change ${key}: the file writes this key in a form ReqSeq does not edit (for example an alias or a number)`,
       );
     }
   }

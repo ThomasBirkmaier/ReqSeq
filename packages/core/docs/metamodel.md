@@ -1,6 +1,6 @@
 # Metamodel block (`src/metamodel/`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 `metamodelState` (async Workspace state, depends on `workspaceLayoutState`) reads the metamodel of the checked-out state (SR-011, D-021) with `loadMetamodel(layout)`:
 

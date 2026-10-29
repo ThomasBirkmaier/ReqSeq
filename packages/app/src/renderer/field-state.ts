@@ -11,7 +11,7 @@
 // - After a save, input typed while it ran stays for the next save (SR-105 AK1).
 // The title is a field like a text box: its editor is one of the box editors and its stored document comes
 // with the others (`fieldBoxes`, `property-edit.ts`).
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { BoxDraft, Draft } from "./drafts.js";
 import { boxDrafts, makeDraft, sameDraft } from "./drafts.js";
 import type { PropertyModel } from "./element-view.js";

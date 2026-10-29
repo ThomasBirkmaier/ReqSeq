@@ -1,4 +1,4 @@
-// Build of the app (ADR-0010): main process and core process (ES modules, @logreq/core stays an
+// Build of the app (ADR-0010): main process and core process (ES modules, @reqseq/core stays an
 // external package), the sandboxed preload (CommonJS, everything bundled) and the renderer (React).
 // Output in out/, loaded by Electron from package.json "main".
 import { resolve } from "node:path";

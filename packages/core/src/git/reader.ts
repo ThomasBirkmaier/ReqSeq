@@ -1,4 +1,4 @@
-// The git reader (ADR-0006): the only module of LogReq that spawns processes. It runs the installed
+// The git reader (ADR-0006): the only module of ReqSeq that spawns processes. It runs the installed
 // `git` program with a fixed set of read-only commands, so nothing here can change a repository
 // (D-036, SR-083). When git is missing or a folder is not a repository, Git-based information is
 // unknown; everything else keeps working.
@@ -20,7 +20,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 
-/** Every command line LogReq runs, after the fixed options of `run`. Read-only, no network. */
+/** Every command line ReqSeq runs, after the fixed options of `run`. Read-only, no network. */
 const COMMANDS = {
   /**
    * Top level of the work tree (git fails outside one, for example inside a Git folder), whether

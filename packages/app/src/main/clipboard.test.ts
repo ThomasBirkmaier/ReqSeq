@@ -66,7 +66,7 @@ describe("the copy channel", () => {
   it("[SR-128/AK2] writes nothing when the main frame shows another page than the bundled renderer", async () => {
     for (const url of [
       "https://example.org/",
-      "logreq-file://logreq/x.png",
+      "reqseq-file://reqseq/x.png",
       "app://other/index.html",
       "not a url",
     ]) {

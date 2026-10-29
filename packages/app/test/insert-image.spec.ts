@@ -50,7 +50,7 @@ test.describe("inserting an image in the element buffer", () => {
   let outside: string;
   test.beforeEach(async () => {
     // The image lies outside the workspace, as a screenshot in a download folder does.
-    outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-image-")));
+    outside = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-image-")));
     source = path.join(outside, "Wind Skizze.png");
     await fs.writeFile(source, PNG);
     await fs.writeFile(path.join(outside, "notes.txt"), "no image");
@@ -131,12 +131,12 @@ test.describe("inserting an image in a workspace opened through a link", () => {
   let running: RunningApp;
   let top: string;
   test.beforeEach(async () => {
-    top = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-image-link-"));
+    top = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-image-link-"));
     const workspace = await copyFixture(FIXTURE);
     const link = path.join(top, "linked");
     await fs.symlink(path.dirname(workspace.root), link, "junction");
     await fs.writeFile(path.join(top, "Wind Skizze.png"), PNG);
-    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")));
+    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-app-home-")));
     running = await launchApp(undefined, {
       kept: {
         home,

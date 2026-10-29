@@ -1,6 +1,6 @@
 // The action "Show metamodel" (SR-130 AK1): it opens the metamodel buffer as a graph from any buffer and
 // covers `metamodel.get`, so the command prompt lists the command once, as this action.
-import { getCommandRuntime } from "@logreq/core";
+import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
 import { ACTIONS, commandPrompt, runAction } from "./actions.js";

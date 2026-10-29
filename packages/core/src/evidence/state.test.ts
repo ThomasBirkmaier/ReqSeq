@@ -2,7 +2,7 @@
 // and the records as an array, the seam tests and consumers inject records through (#127 option 1).
 // Enabler tests of the evidence block (#535); the SR tests come with the readers (SR-028, SR-093).
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { loadWorkspaceLayout } from "../workspace/index.js";

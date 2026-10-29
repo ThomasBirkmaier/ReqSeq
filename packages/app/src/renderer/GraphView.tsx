@@ -6,7 +6,7 @@
 // The graph is one tab stop; the selection moves inside it (`graph-nav.ts`), Enter or a click opens a
 // node as the current element (AK5), `+` and `-` show one level more or less.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { TraceGraphOutput } from "@logreq/core";
+import type { TraceGraphOutput } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, GraphBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
@@ -50,9 +50,9 @@ interface Shown {
 
 /** Marks for the timing record of SR-111 AK6 (the performance timeline of the window); nothing reads them in the app. */
 export const GRAPH_MARKS = {
-  request: "logreq.graph.request",
-  answer: "logreq.graph.answer",
-  layout: "logreq.graph.layout",
+  request: "reqseq.graph.request",
+  answer: "reqseq.graph.answer",
+  layout: "reqseq.graph.layout",
 } as const;
 
 const MARK_CLASS: Readonly<Record<keyof typeof MARK_WORDS, string>> = {

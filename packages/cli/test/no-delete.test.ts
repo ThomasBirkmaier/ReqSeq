@@ -10,13 +10,13 @@ import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
 import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
-import { startApiServer } from "@logreq/api";
-import type { IpcRendererLike } from "@logreq/app";
-import { createBridge, createCoreHost } from "@logreq/app";
-import { Workspace, createCommandRuntime } from "@logreq/core";
-import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { startApiServer } from "@reqseq/api";
+import type { IpcRendererLike } from "@reqseq/app";
+import { createBridge, createCoreHost } from "@reqseq/app";
+import { Workspace, createCommandRuntime } from "@reqseq/core";
+import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
@@ -42,7 +42,7 @@ const elementFile = (): Promise<string> => fs.readFile(path.join(fixture.root, E
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -54,7 +54,7 @@ afterAll(async () => {
 
 beforeAll(async () => {
   fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
-  cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-no-delete-"));
+  cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-no-delete-"));
   original = await elementFile();
 });
 

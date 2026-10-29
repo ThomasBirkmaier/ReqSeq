@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Converts raw Logseq MCP dumps (see SKILL.md of spec-export) into the preliminary export format.
-// Obsolete since #326 (spec/ is a LogReq workspace now): kept only to redo the migration from a fresh
+// Obsolete since #326 (spec/ is a ReqSeq workspace now): kept only to redo the migration from a fresh
 // export, into an empty folder, never into spec/; scripts/spec-migrate/convert.mjs converts the result.
 // Usage: node scripts/spec-export/convert.mjs <raw-dir> <export-dir>
 import fs from "node:fs";

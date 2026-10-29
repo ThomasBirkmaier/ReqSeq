@@ -6,8 +6,8 @@
 // values of the wrong kind, relations the metamodel does not allow, and cycles of derivations; and
 // outdated evidence through its seam (SR-025 AK4, #127 option 1).
 import { readFile } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { STANDARD_MODEL_TEXT as STANDARD } from "../metamodel/standard-model.js";

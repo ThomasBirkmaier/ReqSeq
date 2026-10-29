@@ -19,7 +19,7 @@
 //     path is in a repository is refused; one that leads out of every repository is judged as outside;
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
-//   - an existing file of the name is replaced only when it is a LogReq data file (its first line starts
+//   - an existing file of the name is replaced only when it is a ReqSeq data file (its first line starts
 //     with `"logreq-data"` 2 or later, and valid UTF-8; `jsonl-data.ts` of the files block, #319),
 //     read in pieces under its snapshot and the `jsonl` guard, which checks the same way; anything else
 //     is `input.invalid` and stays as it is. Old `<commit>.json` files are neither read nor replaced.
@@ -155,7 +155,7 @@ const placeOf = async (
   if (!folder) {
     throw new CommandError(
       "file.folder-missing",
-      `Not stored: the folder ${shown} does not exist; outside the repositories of the workspace LogReq creates no folders`,
+      `Not stored: the folder ${shown} does not exist; outside the repositories of the workspace ReqSeq creates no folders`,
       { folder: shown },
     );
   }
@@ -190,7 +190,7 @@ const existingSnapshot = async (folder: string, name: string): Promise<FileSnaps
   if (!read.dataFile) {
     throw new CommandError(
       "input.invalid",
-      `Not stored: ${name} is not a LogReq data file; LogReq replaces only its own data files`,
+      `Not stored: ${name} is not a ReqSeq data file; ReqSeq replaces only its own data files`,
       { file: name, reason: "not-a-data-file" },
     );
   }

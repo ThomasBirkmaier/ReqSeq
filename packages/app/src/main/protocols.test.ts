@@ -9,7 +9,7 @@ let top: string;
 let folder: string;
 
 beforeAll(async () => {
-  top = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-renderer-"));
+  top = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-renderer-"));
   folder = path.join(top, "renderer");
   await fs.mkdir(path.join(folder, "assets"), { recursive: true });
   await fs.writeFile(path.join(folder, "index.html"), "<!doctype html>");
@@ -23,12 +23,12 @@ afterAll(async () => {
 });
 
 describe("APP_SCHEMES", () => {
-  it("registers app: and logreq-file: as standard, secure schemes", () => {
+  it("registers app: and reqseq-file: as standard, secure schemes", () => {
     expect(APP_SCHEMES).toEqual([
       { scheme: "app", privileges: { standard: true, secure: true } },
-      { scheme: "logreq-file", privileges: { standard: true, secure: true } },
+      { scheme: "reqseq-file", privileges: { standard: true, secure: true } },
     ]);
-    expect(RENDERER_URL).toBe("app://logreq/index.html");
+    expect(RENDERER_URL).toBe("app://reqseq/index.html");
   });
 });
 
@@ -36,24 +36,24 @@ describe("rendererFiles (app:)", () => {
   const serve = (url: string): Promise<Response> => rendererFiles(folder)({ url });
 
   it("serves the bundled files with their type and the content security policy", async () => {
-    const page = await serve("app://logreq/index.html");
+    const page = await serve("app://reqseq/index.html");
     expect(page.status).toBe(200);
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(page.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
     expect(page.headers.get("x-content-type-options")).toBe("nosniff");
     expect(await page.text()).toBe("<!doctype html>");
-    const script = await serve("app://logreq/assets/index.js");
+    const script = await serve("app://reqseq/assets/index.js");
     expect(script.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
   });
 
   it("serves nothing outside the folder, of another host, of another type, or missing", async () => {
     for (const url of [
-      "app://logreq/..%2Fsecret.js",
+      "app://reqseq/..%2Fsecret.js",
       "app://other/index.html",
-      "app://logreq/assets/notes.txt",
-      "app://logreq/missing.js",
-      "app://logreq/",
-      "app://logreq/%E0%A4%A.js",
+      "app://reqseq/assets/notes.txt",
+      "app://reqseq/missing.js",
+      "app://reqseq/",
+      "app://reqseq/%E0%A4%A.js",
       "::",
     ]) {
       expect([url, (await serve(url)).status]).toEqual([url, 404]);
@@ -61,7 +61,7 @@ describe("rendererFiles (app:)", () => {
   });
 });
 
-describe("workspaceFiles (logreq-file:)", () => {
+describe("workspaceFiles (reqseq-file:)", () => {
   it("answers with what the core process read, or 404", async () => {
     const read = vi.fn((url: string) =>
       Promise.resolve(
@@ -71,17 +71,17 @@ describe("workspaceFiles (logreq-file:)", () => {
       ),
     );
     const serve = workspaceFiles(read);
-    const image = await serve({ url: "logreq-file://workspace/system/a.png" });
+    const image = await serve({ url: "reqseq-file://workspace/system/a.png" });
     expect(image.status).toBe(200);
     expect(image.headers.get("content-type")).toBe("image/png");
     expect(image.headers.get("content-security-policy")).toBe(
       "default-src 'none'; style-src 'unsafe-inline'; sandbox",
     );
     expect(new Uint8Array(await image.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
-    expect((await serve({ url: "logreq-file://workspace/system/b.png" })).status).toBe(404);
+    expect((await serve({ url: "reqseq-file://workspace/system/b.png" })).status).toBe(404);
     expect(read.mock.calls).toEqual([
-      ["logreq-file://workspace/system/a.png"],
-      ["logreq-file://workspace/system/b.png"],
+      ["reqseq-file://workspace/system/a.png"],
+      ["reqseq-file://workspace/system/b.png"],
     ]);
   });
 });

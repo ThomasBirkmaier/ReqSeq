@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
-import type { CommandRuntime } from "@logreq/core";
+import type { CommandRuntime } from "@reqseq/core";
 import {
   CommandError,
   PRODUCT_VERSION,
@@ -12,7 +12,7 @@ import {
   defineTestCommand,
   loadContracts,
   rememberWorkspace,
-} from "@logreq/core";
+} from "@reqseq/core";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { MAX_TEXT_BYTES, callTool, largeOutputNote, serveMcp } from "./server.js";
@@ -36,7 +36,7 @@ const entry = (name: string, effect = "read", input: Record<string, unknown> = {
 });
 
 const catalog = {
-  "logreq-catalog": 1,
+  "reqseq-catalog": 1,
   commands: [
     entry("test.echo", "read", { properties: { text: { type: "string" } }, required: ["text"] }),
     entry("test.fail"),
@@ -209,7 +209,7 @@ let dir: string;
 let workspace: Workspace;
 const sessions: Session[] = [];
 
-/** A client and `serveMcp` connected by two pipes with the stdio framing, as `logreq mcp` runs. */
+/** A client and `serveMcp` connected by two pipes with the stdio framing, as `reqseq mcp` runs. */
 const open = async (
   signal?: AbortSignal,
   rt: CommandRuntime = runtime,
@@ -233,7 +233,7 @@ const open = async (
 };
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-mcp-"));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-mcp-"));
   workspace = new Workspace(dir);
   waitAborted = undefined;
   waitStarted = undefined;
@@ -252,7 +252,7 @@ afterEach(async () => {
 describe("serveMcp", () => {
   it("lists one tool per implemented catalog command with the catalog's schemas", async () => {
     const { client } = await open();
-    expect(client.getServerVersion()).toMatchObject({ name: "logreq", version: PRODUCT_VERSION });
+    expect(client.getServerVersion()).toMatchObject({ name: "reqseq", version: PRODUCT_VERSION });
     const { tools } = await client.listTools();
     expect(tools.map((t) => [t.name, t.title, t.annotations?.readOnlyHint, t.description])).toEqual([
       ["test_echo", "Title of test echo", true, "Test command test.echo."],

@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
-import type { CommandRuntime } from "@logreq/core";
-import { CommandError, Workspace, createCommandRuntime, defineWorkspaceState } from "@logreq/core";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { CommandRuntime } from "@reqseq/core";
+import { CommandError, Workspace, createCommandRuntime, defineWorkspaceState } from "@reqseq/core";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentActivity, PortMessage } from "../shared/protocol.js";
 import type { Channel, CoreHostOptions, WatchedChange } from "./host.js";
@@ -264,7 +264,7 @@ describe("createCoreHost: access and agent activity (SR-117)", () => {
     window.send({ id: 2, kind: "invoke", name: "element.create", input: {} });
     await window.answer(1);
     await window.answer(2);
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toMatchObject({ status: 200 });
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toMatchObject({ status: 200 });
     expect(accesses.sort()).toEqual([
       ["element.create", "app"],
       ["element.get", "app"],
@@ -310,15 +310,15 @@ describe("createCoreHost: access and agent activity (SR-117)", () => {
   });
 });
 
-describe("createCoreHost: files for logreq-file:", () => {
+describe("createCoreHost: files for reqseq-file:", () => {
   it("serves images inside an available repository", async () => {
     const { host } = await setup();
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toEqual({
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toEqual({
       status: 200,
       mimeType: "image/png",
       data: PNG,
     });
-    expect(await host.file("logreq-file://workspace/system/images/dot%2Epng")).toEqual({
+    expect(await host.file("reqseq-file://workspace/system/images/dot%2Epng")).toEqual({
       status: 200,
       mimeType: "image/png",
       data: PNG,
@@ -329,18 +329,18 @@ describe("createCoreHost: files for logreq-file:", () => {
     const { host, fixture } = await setup();
     await fs.mkdir(path.join(fixture.root, "images", "folder.png"));
     for (const url of [
-      "app://logreq/images/dot.png",
+      "app://reqseq/images/dot.png",
       "not a url",
-      "logreq-file://workspace/system/images/notes.txt",
-      "logreq-file://workspace/system/images/%E0%A4%A.png",
-      "logreq-file://workspace/vault/images/dot.png",
-      "logreq-file://workspace/system/images/missing.png",
-      "logreq-file://workspace/system/images/folder.png",
-      "logreq-file://workspace/system/..%2F..%2Fdot.png",
+      "reqseq-file://workspace/system/images/notes.txt",
+      "reqseq-file://workspace/system/images/%E0%A4%A.png",
+      "reqseq-file://workspace/vault/images/dot.png",
+      "reqseq-file://workspace/system/images/missing.png",
+      "reqseq-file://workspace/system/images/folder.png",
+      "reqseq-file://workspace/system/..%2F..%2Fdot.png",
       // The repository is the first name of the path; the host is always `workspace`.
-      "logreq-file://system/images/dot.png",
-      "logreq-file://workspace/dot.png",
-      "logreq-file://workspace//images/dot.png",
+      "reqseq-file://system/images/dot.png",
+      "reqseq-file://workspace/dot.png",
+      "reqseq-file://workspace//images/dot.png",
     ]) {
       expect([url, await host.file(url)]).toEqual([url, { status: 404 }]);
     }
@@ -349,19 +349,19 @@ describe("createCoreHost: files for logreq-file:", () => {
   it("asks the file system nothing for a path that is not plainly inside the repository", async () => {
     const { host } = await setup();
     // Warm the repository folders (workspace.status may resolve paths itself).
-    await host.file("logreq-file://workspace/system/images/dot.png");
+    await host.file("reqseq-file://workspace/system/images/dot.png");
     const realpath = vi.spyOn(fs, "realpath");
     const stat = vi.spyOn(fs, "stat");
     try {
       for (const url of [
         // A UNC path (Windows opens the SMB share), a drive, a stream name, NUL.
-        "logreq-file://workspace/system/%5C%5Cattacker%5Cshare%5Cx.png",
-        "logreq-file://workspace/system/C:%2Fx.png",
-        "logreq-file://workspace/system/images/dot.png:stream.png",
-        "logreq-file://workspace/system/images/dot%00.png",
+        "reqseq-file://workspace/system/%5C%5Cattacker%5Cshare%5Cx.png",
+        "reqseq-file://workspace/system/C:%2Fx.png",
+        "reqseq-file://workspace/system/images/dot.png:stream.png",
+        "reqseq-file://workspace/system/images/dot%00.png",
         // Out of the repository (on macOS, /net/<host> mounts NFS).
-        "logreq-file://workspace/system/..%2F..%2F..%2F..%2F..%2Fnet%2Fhost%2Fx.png",
-        "logreq-file://workspace/system/%2Fnet%2Fhost%2Fx.png",
+        "reqseq-file://workspace/system/..%2F..%2F..%2F..%2F..%2Fnet%2Fhost%2Fx.png",
+        "reqseq-file://workspace/system/%2Fnet%2Fhost%2Fx.png",
       ]) {
         expect([url, await host.file(url)]).toEqual([url, { status: 404 }]);
       }
@@ -379,7 +379,7 @@ describe("createCoreHost: files for logreq-file:", () => {
     await fs.writeFile(outside, PNG);
     try {
       await fs.symlink(outside, path.join(fixture.root, "images", "link.png"), "file");
-      expect(await host.file("logreq-file://workspace/system/images/link.png")).toEqual({ status: 404 });
+      expect(await host.file("reqseq-file://workspace/system/images/link.png")).toEqual({ status: 404 });
     } finally {
       await fs.rm(outside, { force: true });
     }
@@ -409,18 +409,18 @@ describe("createCoreHost: files for logreq-file:", () => {
       },
     };
     const { host, connect } = await setup({ runtime: switching });
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
     status = "fake";
     // A repository without a path, and one that is not here, serve nothing.
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
-    expect(await host.file("logreq-file://workspace/vault/images/dot.png")).toEqual({ status: 404 });
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
+    expect(await host.file("reqseq-file://workspace/vault/images/dot.png")).toEqual({ status: 404 });
     status = "real";
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
     const window = connect();
     window.send({ id: 1, kind: "invoke", name: "element.create", input: { type: "nope", title: "x" } });
     await window.answer(1);
     // A failed write keeps what was found.
-    expect(await host.file("logreq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
+    expect(await host.file("reqseq-file://workspace/system/images/dot.png")).toEqual({ status: 404 });
     window.send({
       id: 2,
       kind: "invoke",
@@ -432,7 +432,7 @@ describe("createCoreHost: files for logreq-file:", () => {
       },
     });
     await window.answer(2);
-    expect((await host.file("logreq-file://workspace/system/images/dot.png")).status).toBe(200);
+    expect((await host.file("reqseq-file://workspace/system/images/dot.png")).status).toBe(200);
     expect(calls.filter((name) => name === "workspace.status")).toHaveLength(3);
     window.close();
   });
@@ -510,7 +510,7 @@ describe("createCoreHost: changes from outside (SR-116, SR-106)", () => {
     };
     const { host } = await setup({ runtime: counting, changes: watcher.changes });
     const status = (): number => calls.filter((name) => name === "workspace.status").length;
-    const image = "logreq-file://workspace/system/images/dot.png";
+    const image = "reqseq-file://workspace/system/images/dot.png";
     expect((await host.file(image)).status).toBe(200);
     watcher.emit({ scope: "elements", elements: lists(["a"]) });
     expect((await host.file(image)).status).toBe(200);

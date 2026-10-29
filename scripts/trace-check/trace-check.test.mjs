@@ -32,7 +32,7 @@ const QS = "7a12a8c7-43e7-4349-9453-0ac2b6d5157d";
 
 /** A repository with the spec workspace (two SRs, two packages) and the given extra files. */
 function repo(extra = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-trace-check-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-trace-check-"));
   roots.push(root);
   const files = {
     "spec/logreq-workspace.yaml": WORKSPACE,
@@ -58,7 +58,7 @@ function repo(extra = {}) {
       "Text.",
       "",
     ].join("\n"),
-    // Written by hand or by LogReq: plain scalars, CRLF, another folder.
+    // Written by hand or by ReqSeq: plain scalars, CRLF, another folder.
     "spec/elsewhere/SR-000000000002.md":
       "---\r\nid: 00000000-0000-4000-8000-000000000002\r\ntype: system-requirement\r\nstatus: obsolete\r\ntitle: Zwei\r\nspec-id: SR-002\r\nacceptance-criteria:\r\n  - >-\r\n    Gegeben e,\r\n    dann f.\r\nverification-method: inspection\r\npackages:\r\n  - { id: " +
       QS +
@@ -73,7 +73,7 @@ function repo(extra = {}) {
   return root;
 }
 
-describe("trace-check on the LogReq workspace in spec/", () => {
+describe("trace-check on the ReqSeq workspace in spec/", () => {
   it("reads system requirements by their identifier, in any folder and any YAML style", () => {
     const spec = readSpec(path.join(repo(), "spec"));
     expect([...spec.srs.keys()].sort()).toEqual(["SR-001", "SR-002"]);

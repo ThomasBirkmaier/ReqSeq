@@ -22,21 +22,21 @@ def all_issues():
         if len(b) < 100: return out
         page += 1
 
-# The spec is the LogReq workspace in spec/ (D-064, #326). It is read with LogReq itself (`pnpm build` first),
+# The spec is the ReqSeq workspace in spec/ (D-064, #326). It is read with ReqSeq itself (`pnpm build` first),
 # so this script sees exactly what every other access sees.
-LOGREQ = [os.environ.get("NODE", "node"), os.path.join(os.path.dirname(__file__), "..", "..", "packages", "cli", "dist", "bin.js")]
+REQSEQ = [os.environ.get("NODE", "node"), os.path.join(os.path.dirname(__file__), "..", "..", "packages", "cli", "dist", "bin.js")]
 METHOD = {"test": "Test", "inspection": "Inspektion", "demonstration": "Demonstration", "analysis": "Analyse"}
 LINK = re.compile(r"\[([^\]\n]*)\]\(logreq:[^)\n]*\)")
 
-def logreq(*args):
-    r = subprocess.run(LOGREQ + list(args) + ["--workspace", SPEC, "--json"], capture_output=True, text=True, encoding="utf8")
+def reqseq(*args):
+    r = subprocess.run(REQSEQ + list(args) + ["--workspace", SPEC, "--json"], capture_output=True, text=True, encoding="utf8")
     if r.returncode:
-        raise SystemExit(f"logreq {' '.join(args)}: {r.stdout} {r.stderr}")
+        raise SystemExit(f"reqseq {' '.join(args)}: {r.stdout} {r.stderr}")
     return json.loads(r.stdout)
 
 def system_requirements():
     query = {"selection": {"where": {"type": ["system-requirement"]}}, "sort": [{"by": "spec-id"}], "withText": True, "limit": 5000}
-    out = logreq("element", "list", "--input", json.dumps(query))
+    out = reqseq("element", "list", "--input", json.dumps(query))
     if out.get("incomplete"):
         raise SystemExit("the spec workspace is incomplete")
     return out["elements"]
@@ -54,7 +54,7 @@ PARKED = "später"
 
 def invalid_statuses():
     """Status keys the metamodel of the spec marks invalid (D-044), e.g. obsolete."""
-    return {st["key"] for st in logreq("metamodel", "get")["statuses"] if st.get("invalid")}
+    return {st["key"] for st in reqseq("metamodel", "get")["statuses"] if st.get("invalid")}
 
 def validate(srs, stages):
     """Every problem that would stop the run, found before the first write: identifier, stage, topic."""
@@ -172,7 +172,7 @@ def main():
         if targets("based-on"): rel.append("Based on: " + targets("based-on"))
         head = (f"<!-- sr:{sr} -->\n**{sr}** · UUID `{e['id']}` · {stage_txt} · Thema {thema} · Nachweismethode {METHOD.get(p.get('verification-method'), p.get('verification-method', ''))}\n"
                 + (" · ".join(rel) + "\n" if rel else "")
-                + f"\n{text}\n\n**Akzeptanzkriterien**\n{aks}\n\nSpec: `spec/{e['file']}` (`logreq element get {sr} --workspace spec`)\n\n<!-- spec-content:{h} -->\n")
+                + f"\n{text}\n\n**Akzeptanzkriterien**\n{aks}\n\nSpec: `spec/{e['file']}` (`reqseq element get {sr} --workspace spec`)\n\n<!-- spec-content:{h} -->\n")
         labels = ["sr", f"thema:{slug}"] + (["querschnitt"] if st == "querschnitt" else [f"stage:{st}"])
         title = f"{sr} {e['title']}"
         i = find(f"<!-- sr:{sr} -->")

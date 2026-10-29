@@ -4,8 +4,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import type { StateReader, StateRules } from "./uncommitted.js";
@@ -99,7 +99,7 @@ describe("stateRules and isStateFile (K2)", () => {
     expect(isStateFile(model, "any.md")).toBe(false);
   });
 
-  it("lists the state files LogReq knows of, each once", () => {
+  it("lists the state files ReqSeq knows of, each once", () => {
     expect(stateFiles(system, ["a/b.md", "a/b.md"], ["saved/a.yaml", "saved/notes.txt"])).toEqual([
       "logreq-workspace.yaml",
       "saved/a.yaml",

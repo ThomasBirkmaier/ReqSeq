@@ -1,13 +1,13 @@
-// `logreq element list` end to end (SR-069, SR-101): the built binary on fixtures/SR-069/filter, as
+// `reqseq element list` end to end (SR-069, SR-101): the built binary on fixtures/SR-069/filter, as
 // JSON and as lines. The selection is complex input, so it comes with `--input` (ADR-0009). The
 // fixture: needs N1 and N2; SR b1 (approved) and b2 (draft, valid for V1) derive from N1, b3 (draft,
 // valid for V2) from b1, b5 (approved) from N2; b4 is obsolete and has no parent; SWR f1 (draft) and
 // f2 (approved), a subtype, derive from b1 and b2. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Output {
   readonly elements: readonly { readonly shortId: string; readonly text?: string }[];
@@ -41,7 +41,7 @@ const shortIds = async (input: unknown): Promise<string[]> => {
 
 const requirement = { type: ["system-requirement"] };
 
-describe("logreq element list (SR-069)", () => {
+describe("reqseq element list (SR-069)", () => {
   it("[SR-069/AK1] shows only the elements of a type, a status, a package, a validity or a property", async () => {
     expect(await shortIds({ selection: { where: { type: ["software-requirement"] } } })).toEqual([
       "SWR-0000f1",

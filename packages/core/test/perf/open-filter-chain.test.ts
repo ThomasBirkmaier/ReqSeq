@@ -8,8 +8,8 @@
 // over, #267). The whole chain is recorded without a threshold. The filter is a saved filter
 // (SR-070) applied by name through the catalog (`element.list` with `selection.filter`, #228). The
 // tests are tagged, so they assert their thresholds (ADR-0011, #215) after `measure` recorded the times.
-import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, HistoryCommitSpec, LargeFixtureWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -141,7 +141,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
   });
 
   it("records the time and size of writing the model cache (ADR-0008, no threshold)", async () => {
-    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-082-cache-"));
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-082-cache-"));
     try {
       const root = canonicalRoot(fixture?.workspaceRoot ?? "");
       // A load that started once the generated files settled: every file gets its entry.
@@ -340,7 +340,7 @@ describe("open, filter and chain with 50,000 elements and 200,000 relations (SR-
       () => valid(chain),
       {
         basis:
-          "SR-082 AK4 (output check of LOGREQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227)",
+          "SR-082 AK4 (output check of REQSEQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227)",
       },
     );
     expect(matches).toBe(true);

@@ -32,7 +32,7 @@ describe("CONTENT_SECURITY_POLICY", () => {
   it("is ADR-0010's policy: own scripts, no connections, images from the workspace", () => {
     expect(CONTENT_SECURITY_POLICY.split("; ")).toEqual([
       "default-src 'self'",
-      "img-src 'self' data: logreq-file:",
+      "img-src 'self' data: reqseq-file:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self'",
       "connect-src 'none'",
@@ -46,9 +46,9 @@ describe("CONTENT_SECURITY_POLICY", () => {
 });
 
 describe("isLocalRequest (SR-078)", () => {
-  it("lets only app:, logreq-file: and devtools: through", () => {
-    expect(isLocalRequest("app://logreq/index.html")).toBe(true);
-    expect(isLocalRequest("logreq-file://workspace/system/a.png")).toBe(true);
+  it("lets only app:, reqseq-file: and devtools: through", () => {
+    expect(isLocalRequest("app://reqseq/index.html")).toBe(true);
+    expect(isLocalRequest("reqseq-file://workspace/system/a.png")).toBe(true);
     expect(isLocalRequest("devtools://devtools/bundled/inspector.html")).toBe(true);
     for (const url of [
       "https://example.com/",
@@ -97,7 +97,7 @@ describe("secureSession", () => {
     const answer = (response: { cancel: boolean }): void => {
       answers.push(response.cancel);
     };
-    listener?.({ url: "app://logreq/assets/index.js" }, answer);
+    listener?.({ url: "app://reqseq/assets/index.js" }, answer);
     listener?.({ url: "https://example.com/secret/path?q=element-text" }, answer);
     listener?.({ url: "::" }, answer);
     expect(answers).toEqual([false, true, true]);

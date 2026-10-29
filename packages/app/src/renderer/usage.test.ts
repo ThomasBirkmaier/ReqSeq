@@ -280,7 +280,7 @@ describe("the usage record", () => {
       () => storage,
       () => NOW,
     ).record("fl", "status");
-    expect([...storage.data.keys()]).toEqual(["logreq.usage.v1"]);
+    expect([...storage.data.keys()]).toEqual(["reqseq.usage.v1"]);
     expect(JSON.parse(storage.data.get(USAGE_KEY) ?? "null")).toEqual({
       commands: [["status", 1, NOW]],
       queries: [["fl", "status"]],

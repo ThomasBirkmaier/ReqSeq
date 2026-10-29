@@ -94,7 +94,7 @@ const readSource = async (root: string, sourcePath: string): Promise<Source> => 
   const name = path.basename(absolute);
   const extension = path.extname(name).toLowerCase();
   if (!IMAGE_EXTENSIONS.includes(extension)) {
-    throw invalid(`${name} is no image LogReq embeds; the name must end in ${IMAGE_EXTENSIONS.join(", ")}`, {
+    throw invalid(`${name} is no image ReqSeq embeds; the name must end in ${IMAGE_EXTENSIONS.join(", ")}`, {
       reason: "not-an-image",
       extension,
     });

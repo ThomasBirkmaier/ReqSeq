@@ -2,8 +2,8 @@
 // tests of "bis zu den Nachweisen" (AK1) and "ohne Nachweis" (AK3) give the evidence through the
 // walk's leaves, `hasEvidence` and `evidenceOf` themselves. The command's own tests, with evidence
 // records (SR-033), are in commands/trace/chain.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";

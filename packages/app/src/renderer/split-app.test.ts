@@ -7,7 +7,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EditorView } from "@codemirror/view";
-import type { CommandListing, InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import type { CommandListing, InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { graphEdge, graphNode, graphOutput } from "./graph-test-data.js";
 
@@ -138,7 +138,7 @@ const FILTER_LIST = {
 
 const listeners = new Set<(change: WorkspaceChange) => void>();
 
-const bridge: LogReqBridge = {
+const bridge: ReqSeqBridge = {
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve(HANDLERS[name]?.(input)).then((output) => ({ ok: true, output })),
   commands: () => Promise.resolve([FILTER_LIST]),

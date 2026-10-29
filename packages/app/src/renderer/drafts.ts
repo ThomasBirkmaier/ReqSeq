@@ -3,7 +3,7 @@
 // buffer gets its first unsaved change or loses its last one.
 import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 
 /** The unsaved document of a property box, and the stored document it was typed on. */
 export interface BoxDraft {

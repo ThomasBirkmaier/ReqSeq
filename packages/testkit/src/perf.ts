@@ -1,4 +1,4 @@
-// Measurements of the performance suite (ADR-0011): `pnpm test:perf` sets LOGREQ_PERF_RESULTS, each
+// Measurements of the performance suite (ADR-0011): `pnpm test:perf` sets REQSEQ_PERF_RESULTS, each
 // measurement appends one JSON line there, and `scripts/perf/report.mjs` turns them into the analysis
 // record `verification/performance.md`. `measure` itself never fails: a test tagged `[SR-xxx/AKn]`
 // asserts its threshold (see `thresholdMessage`), an untagged measurement only records its time.
@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /** Environment variable with the file that measurements are appended to (JSON lines). */
-export const PERF_RESULTS_ENV = "LOGREQ_PERF_RESULTS";
+export const PERF_RESULTS_ENV = "REQSEQ_PERF_RESULTS";
 
 export interface MeasureOptions {
   /** What the threshold comes from, e.g. `N-036, SR-082 AK2`. */

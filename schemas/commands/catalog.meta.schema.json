@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/commands/catalog.meta.schema.json",
+  "$id": "https://reqseq.dev/schemas/commands/catalog.meta.schema.json",
   "title": "Command catalog",
   "type": "object",
-  "required": ["logreq-catalog", "commands"],
+  "required": ["reqseq-catalog", "commands"],
   "properties": {
     "$schema": { "type": "string" },
-    "logreq-catalog": { "const": 1 },
+    "reqseq-catalog": { "const": 1 },
     "description": { "type": "string" },
     "commands": {
       "type": "array",
@@ -27,7 +27,7 @@
           "name": {
             "type": "string",
             "pattern": "^[a-z]+\\.[a-z][A-Za-z]*$",
-            "description": "group.action; CLI `logreq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`."
+            "description": "group.action; CLI `reqseq group action`, API `POST /v1/commands/group.action`, MCP tool `group_action`."
           },
           "title": {
             "type": "string",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { Draft } from "./drafts.js";
 import { boxDrafts, makeDraft, rebased, sameDraft, typedText, withShown } from "./drafts.js";
 

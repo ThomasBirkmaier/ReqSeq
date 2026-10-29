@@ -10,9 +10,9 @@ import {
   createCommandRuntime,
   readRecentWorkspaces,
   workspaceKey,
-} from "@logreq/core";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+} from "@reqseq/core";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CoreMessage, PortMessage } from "../shared/protocol.js";
 import type { MainPort, ParentPort } from "./process.js";
@@ -84,7 +84,7 @@ const waitUntil = async (condition: () => boolean): Promise<void> => {
 
 let cacheHome = "";
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -142,7 +142,7 @@ describe("serveCoreProcess", () => {
     expect(core.started).toBe(true);
     expect(received[0]).toMatchObject({ id: 1, result: { ok: true, output: { name: "Weather station" } } });
     expect(parent.sent).toEqual([{ type: "ready", root: fixture.root, key: workspaceKey(fixture.root) }]);
-    parent.send({ type: "file", id: 5, url: "logreq-file://workspace/system/images/dot.png" });
+    parent.send({ type: "file", id: 5, url: "reqseq-file://workspace/system/images/dot.png" });
     await waitUntil(() => parent.sent.length === 2);
     expect(parent.sent[1]).toEqual({
       type: "file",
@@ -172,7 +172,7 @@ describe("serveCoreProcess", () => {
   });
 
   it("opens the folder itself when no workspace lies above it", async () => {
-    const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-no-workspace-")));
+    const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-no-workspace-")));
     try {
       const opened: string[] = [];
       const record = vi.fn(() => Promise.resolve());
@@ -305,7 +305,7 @@ describe("serveCoreProcess", () => {
       closed = true;
     });
     parent.send({ type: "connect" }, [core]);
-    parent.send({ type: "file", id: 1, url: "logreq-file://workspace/system/a.png" });
+    parent.send({ type: "file", id: 1, url: "reqseq-file://workspace/system/a.png" });
     parent.send({ type: "nonsense" });
     parent.send({ type: "stop" });
     await waitUntil(() => closed && exit.mock.calls.length === 1 && parent.sent.length === 1);
@@ -313,7 +313,7 @@ describe("serveCoreProcess", () => {
   });
 
   it("ends on stop even when the workspace fails to close", async () => {
-    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-failing-close-"));
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-failing-close-"));
     try {
       const { parent, exit } = start((root) => {
         const workspace = new Workspace(root);
@@ -400,7 +400,7 @@ describe("serveCoreProcess: a workspace that cannot be opened", () => {
       closed = true;
     });
     parent.send({ type: "connect" }, [core]);
-    parent.send({ type: "file", id: 3, url: "logreq-file://workspace/system/a.png" });
+    parent.send({ type: "file", id: 3, url: "reqseq-file://workspace/system/a.png" });
     parent.send({ type: "stop" });
     await waitUntil(() => closed && parent.sent.length === 1 && exit.mock.calls.length === 2);
     expect(parent.sent).toEqual([{ type: "file", id: 3, status: 404 }]);

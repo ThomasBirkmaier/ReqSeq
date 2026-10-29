@@ -1,4 +1,4 @@
-import type { TraceNeighbourhoodOutput } from "@logreq/core";
+import type { TraceNeighbourhoodOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { NO_ROW, elementBuffer, neighbourhoodBuffer } from "./buffers.js";
 import {

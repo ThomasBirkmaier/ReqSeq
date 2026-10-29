@@ -1,7 +1,7 @@
 # Example tests of the guide (../README.md): each test names the requirement it verifies, and the
-# one `logreq evidence enrich-junit` call of the pipeline does the rest. The requirements are in
-# ../workspace. LogReq's own trace-check reads every test file of this repository: never write
-# `[SR-` + three digits + `/AK` + a number + `]` here, it would be read as a test of LogReq.
+# one `reqseq evidence enrich-junit` call of the pipeline does the rest. The requirements are in
+# ../workspace. ReqSeq's own trace-check reads every test file of this repository: never write
+# `[SR-` + three digits + `/AK` + a number + `]` here, it would be read as a test of ReqSeq.
 import pytest
 
 
@@ -21,6 +21,6 @@ def test_locks_the_account(passwords):
     assert [login(p) for p in passwords] == [False, False, False]
 
 
-# Names no requirement: LogReq passes over it.
+# Names no requirement: ReqSeq passes over it.
 def test_shows_the_login_form():
     assert not login("")

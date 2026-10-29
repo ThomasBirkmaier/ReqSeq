@@ -1,8 +1,8 @@
 // trace.neighbourhood through `invoke` (SR-107, D-031, D-062): the data of the four acceptance
 // criteria on fixtures/SR-107/neighbourhood. The walks themselves: trace/neighbourhood.test.ts.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

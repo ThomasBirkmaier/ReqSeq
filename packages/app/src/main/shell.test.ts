@@ -211,14 +211,14 @@ describe("startShell", () => {
     const { electron, windows, protocolHandlers } = await start();
     expect(windows).toHaveLength(1);
     expect(windows[0]?.options).toMatchObject({
-      title: "LogReq",
+      title: "ReqSeq",
       backgroundColor: "#ffffff",
       autoHideMenuBar: true,
       webPreferences: { preload: "/out/preload/index.cjs", sandbox: true, contextIsolation: true },
     });
     expect(windows[0]?.loadURL).toHaveBeenCalledWith(RENDERER_URL);
     expect(electron.session.defaultSession.webRequest.onBeforeRequest).toHaveBeenCalledOnce();
-    expect([...protocolHandlers.keys()]).toEqual(["app", "logreq-file"]);
+    expect([...protocolHandlers.keys()]).toEqual(["app", "reqseq-file"]);
     // An unpackaged build has the Developer menu (reload on F5, developer tools on F12).
     const [menu] = electron.Menu.buildFromTemplate.mock.calls[0] as [{ label?: string }[]];
     expect(menu.at(-1)?.label).toBe("Developer");
@@ -226,8 +226,8 @@ describe("startShell", () => {
       template: electron.Menu.buildFromTemplate.mock.calls[0]?.[0],
     });
     // No workspace: no core process, nothing to serve.
-    const image = await protocolHandlers.get("logreq-file")?.({
-      url: "logreq-file://workspace/system/a.png",
+    const image = await protocolHandlers.get("reqseq-file")?.({
+      url: "reqseq-file://workspace/system/a.png",
     });
     expect(image?.status).toBe(404);
     expect(electron.utilityProcess.fork).not.toHaveBeenCalled();
@@ -259,7 +259,7 @@ describe("startShell", () => {
   it("opens the workspace of --workspace in the core process and connects the page once it has loaded", async () => {
     const { electron, windows, children } = await start(["electron", ".", "--workspace", "ws"]);
     expect(electron.utilityProcess.fork).toHaveBeenCalledWith("/out/main/core.js", [], {
-      serviceName: "LogReq core",
+      serviceName: "ReqSeq core",
     });
     expect(children[0]?.sent).toEqual([{ type: "open", folder: path.join(CWD, "ws") }]);
     windows[0]?.webContents.emit("did-finish-load");

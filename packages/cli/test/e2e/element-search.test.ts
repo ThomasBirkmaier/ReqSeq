@@ -1,12 +1,12 @@
-// `logreq element search` end to end (SR-068): the built binary on fixtures/SR-069/filter (see
+// `reqseq element search` end to end (SR-068): the built binary on fixtures/SR-069/filter (see
 // element-list.test.ts), as lines and as JSON. The query is the positional argument, the fields
 // repeat a flag, the selection comes with `--input` (ADR-0009). A second run loads the search index
 // from the cache folder that the first one wrote (ADR-0008) and gives the same hits. Run after
 // `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Output {
   readonly hits: readonly { readonly shortId: string; readonly fields: readonly string[] }[];
@@ -29,7 +29,7 @@ const workspace = async (): Promise<FixtureWorkspace> => {
   return ws;
 };
 
-describe("logreq element search (SR-068)", () => {
+describe("reqseq element search (SR-068)", () => {
   it("[SR-068/AK2] shows one line per hit, best first, for a query with a typo in another case", async () => {
     const ws = await workspace();
     const result = await run(["element", "search", "MESURE"], { cwd: ws.root });

@@ -4,8 +4,8 @@
 // what SR-025 will ask for after a long-lived project; `log` is asked for the folder of the files,
 // not for every file (a literal pathspec per file costs time per commit, folder entry and path).
 // No SR sets a limit for the date, so the time is recorded only (ADR-0011).
-import type { FixtureWorkspace, HistoryCommitSpec } from "@logreq/testkit";
-import { createFixtureWorkspace, measure } from "@logreq/testkit";
+import type { FixtureWorkspace, HistoryCommitSpec } from "@reqseq/testkit";
+import { createFixtureWorkspace, measure } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { parseFileBytes } from "../../src/files/index.js";
 import type { Metamodel } from "../../src/metamodel/index.js";

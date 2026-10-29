@@ -1,4 +1,4 @@
-// What counts as a LogReq data file (#319, SR-062 AK1, review PS3): the signature at the start of the
+// What counts as a ReqSeq data file (#319, SR-062 AK1, review PS3): the signature at the start of the
 // first line, valid UTF-8, and nothing else; read in pieces with the hash of the whole file.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
@@ -18,7 +18,7 @@ describe("isJsonlDataFile (#319)", () => {
       `${LINE}{"x": "Größe"}\n`,
       '{ "logreq-data" : 3 }\r\n',
       '{"logreq-data":2}',
-      // Later lines are not scanned: a file cut in the middle stays LogReq's.
+      // Later lines are not scanned: a file cut in the middle stays ReqSeq's.
       `${LINE}{"logreq-data":2,"id":"b","title":"Grö`,
       `${LINE}not json at all\n`,
       "",
@@ -89,7 +89,7 @@ describe("isJsonlDataFile (#319)", () => {
   });
 
   it("reads a file in pieces with its size and hash, and finds the first line across pieces", async () => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-jsonl-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-jsonl-"));
     onTestFinished(() => fs.rm(dir, { recursive: true, force: true }));
     const file = path.join(dir, "a.jsonl");
     // More than one piece of the reader, with a character across a piece edge.

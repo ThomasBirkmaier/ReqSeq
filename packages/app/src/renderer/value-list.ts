@@ -8,7 +8,7 @@
 // offered (AK4). Every value is one that `{ property, op: "eq", value }` selects exactly (core's facets),
 // so the list holds what the CLI, the API and the MCP server give for that condition (AK2). Pure: the app
 // builds the step, core filters (ADR-0002).
-import type { DataExportElement, DataExportRelation, ElementFacetsOutput } from "@logreq/core";
+import type { DataExportElement, DataExportRelation, ElementFacetsOutput } from "@reqseq/core";
 import type { Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 import { exactTypeStep, facetValueStep, statusStep, valueName } from "./list-filters.js";

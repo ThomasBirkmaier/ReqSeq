@@ -1,6 +1,6 @@
 # Hints block (`src/hints/`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 Hints that someone settles by confirming them (D-042), and the list of all open hints (SR-026). Stage 2: outdated relations and inline references (SR-025), outdated evidence (SR-025 AK4), the list (`hint.list`), the hints at the element and confirming them (`hint.confirm`, SR-027). It imports the model, metamodel, workspace, variants and trace blocks, never `commands`.
 

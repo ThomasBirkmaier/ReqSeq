@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/workspace-local.schema.json",
+  "$id": "https://reqseq.dev/schemas/workspace-local.schema.json",
   "title": "Local workspace overrides",
   "description": "`.logreq/local.yaml` next to `logreq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.logreq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
   "type": "object",

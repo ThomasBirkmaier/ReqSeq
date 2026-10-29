@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -86,7 +86,7 @@ describe("requiredFindings", () => {
           code: "element.missing-required",
           severity: "warning",
           message:
-            "Required property Weight (weight) of type Derived (derived) has no value; LogReq changes no file",
+            "Required property Weight (weight) of type Derived (derived) has no value; ReqSeq changes no file",
           repository: "system",
           file: "x.md",
           elementId: "0b7c6e1a-1111-4222-8333-444455556666",
@@ -104,7 +104,7 @@ describe("requiredFindings", () => {
       properties: metamodel.properties.filter((p) => p.key !== "weight"),
     };
     expect(requiredFindings(record("derived", { title: "x", tags: ["a"] }), faulty)[0]?.problem.message).toBe(
-      "Required property weight (weight) of type Derived (derived) has no value; LogReq changes no file",
+      "Required property weight (weight) of type Derived (derived) has no value; ReqSeq changes no file",
     );
   });
 

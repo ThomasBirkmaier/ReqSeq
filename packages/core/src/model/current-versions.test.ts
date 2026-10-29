@@ -3,8 +3,8 @@
 // one target), also after the state was carried over a save or a watcher batch, and after images
 // changed on disk, which the watcher does not report.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { readElementFile } from "../files/index.js";
 import { metamodelState } from "../metamodel/index.js";

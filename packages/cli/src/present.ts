@@ -27,7 +27,7 @@
 //   the verification status of an element line. A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
-import { degreePercent, degreeShareOf } from "@logreq/core";
+import { degreePercent, degreeShareOf } from "@reqseq/core";
 import { stringify } from "yaml";
 import { hiddenOf, problemsEnd, renderProblem } from "./render.js";
 

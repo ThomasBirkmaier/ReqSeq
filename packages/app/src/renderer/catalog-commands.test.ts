@@ -1,4 +1,4 @@
-import { getCommandRuntime } from "@logreq/core";
+import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, Prompt } from "./actions.js";

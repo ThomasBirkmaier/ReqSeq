@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FRESH_MS,

@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RecentWorkspace, RecentWorkspaceState } from "@logreq/core";
-import { findTypedWorkspace, typedWorkspaceFolder } from "@logreq/core/recent-workspaces";
+import type { RecentWorkspace, RecentWorkspaceState } from "@reqseq/core";
+import { findTypedWorkspace, typedWorkspaceFolder } from "@reqseq/core/recent-workspaces";
 import type { SaveRequest } from "../shared/protocol.js";
 import {
   MAX_ROOT_LENGTH,
@@ -121,7 +121,7 @@ afterEach(async () => {
 
 /** A folder in a new test folder, with `logreq-workspace.yaml`, and a folder inside it without one. */
 const workspaceOnDisk = async (): Promise<{ readonly root: string; readonly inside: string }> => {
-  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-typed-")));
+  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-typed-")));
   const root = path.join(top, "station");
   const inside = path.join(root, "requirements", "system");
   await fs.mkdir(inside, { recursive: true });
@@ -165,7 +165,7 @@ describe("the recent workspaces channels (SR-131)", () => {
     expect(window.sent).toEqual([]);
   });
 
-  it("refuses a request that is not from the main frame of the LogReq window, not a string, not a root of the list, longer than 4096 or holding NUL", async () => {
+  it("refuses a request that is not from the main frame of the ReqSeq window, not a string, not a root of the list, longer than 4096 or holding NUL", async () => {
     const { open, list, core, module } = setup();
     const other = { mainFrame: { url: RENDERER_URL } };
     const elsewhere = { sender: other, senderFrame: other.mainFrame };
@@ -411,7 +411,7 @@ describe("the recent workspaces channels (SR-131)", () => {
   });
 
   it("reads the list with core's module when no loader is given", async () => {
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-recent-main-"));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-main-"));
     for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
       vi.stubEnv(name, home);
     }

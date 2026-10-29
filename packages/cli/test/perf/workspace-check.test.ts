@@ -1,4 +1,4 @@
-// SR-020 in the performance suite (ADR-0011, #126): `logreq workspace check` as a pipeline runs it,
+// SR-020 in the performance suite (ADR-0011, #126): `reqseq workspace check` as a pipeline runs it,
 // a new process of the built CLI on the generated workspace of N-036 with 50,000 elements and 200,000
 // relations. The time is the whole process, from spawn to exit: Node start, reading every file, all
 // finding states of stage 1 and the JSON output. Runs with `pnpm test:perf` after `pnpm build`, nightly
@@ -15,9 +15,9 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { CommandOutput, Problem, VersionValue } from "@logreq/core";
-import { Workspace, computeVersion, invoke } from "@logreq/core";
-import type { LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
+import type { CommandOutput, Problem, VersionValue } from "@reqseq/core";
+import { Workspace, computeVersion, invoke } from "@reqseq/core";
+import type { LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
@@ -25,9 +25,9 @@ import {
   measure,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { logreq, requireBuiltCli } from "../support/logreq.js";
+import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -85,7 +85,7 @@ const versionOf =
     });
   };
 
-describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-020, N-036)", () => {
+describe("reqseq workspace check with 50,000 elements and 200,000 relations (SR-020, N-036)", () => {
   let fixture: LargeFixtureWorkspace | undefined;
   let cache: string | undefined;
 
@@ -94,7 +94,7 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
     const version = versionOf(await standardModel());
     const tree = generateLargeWorkspace({ version, elements: ELEMENTS, relations: RELATIONS });
     fixture = await writeLargeWorkspace(tree);
-    cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-020-cache-"));
+    cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-020-cache-"));
   }, 600_000);
 
   afterAll(async () => {
@@ -106,13 +106,13 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
 
   it("[SR-020/AK1] checks the workspace from the command line in at most 60 s", async () => {
     const root = fixture?.workspaceRoot ?? "";
-    // An empty cache folder of its own, so that the LogReq cache is cold once the model cache exists
+    // An empty cache folder of its own, so that the ReqSeq cache is cold once the model cache exists
     // (SR-082). The page cache of the operating system is warm: the fixture was just written.
     // The variables cover Linux, where the suite runs, and Windows.
     const env = { XDG_CACHE_HOME: cache ?? "", LOCALAPPDATA: cache ?? "" };
     const { result: run, measurement } = await measure(
-      "logreq workspace check --json (new CLI process, no cache)",
-      () => logreq(["workspace", "check", "--json"], { cwd: root, env }),
+      "reqseq workspace check --json (new CLI process, no cache)",
+      () => reqseq(["workspace", "check", "--json"], { cwd: root, env }),
       {
         basis: "SR-020 AK1 (command line, from process start to exit)",
         thresholdMs: THRESHOLD_MS,
@@ -127,12 +127,12 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
   it("[SR-020/AK1] checks a workspace in which every relation is outdated in at most 60 s", async () => {
     const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
     const outdated = await writeLargeWorkspace(tree);
-    const own = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-020-cache-"));
+    const own = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-020-cache-"));
     try {
       const env = { XDG_CACHE_HOME: own, LOCALAPPDATA: own };
       const { result: run, measurement } = await measure(
-        "logreq workspace check --json, every relation outdated, no Git (new CLI process, no cache)",
-        () => logreq(["workspace", "check", "--json"], { cwd: outdated.workspaceRoot, env }),
+        "reqseq workspace check --json, every relation outdated, no Git (new CLI process, no cache)",
+        () => reqseq(["workspace", "check", "--json"], { cwd: outdated.workspaceRoot, env }),
         {
           basis: "SR-020 AK1, worst case of SR-025 (command line, from process start to exit)",
           thresholdMs: THRESHOLD_MS,
@@ -159,7 +159,7 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
   it("records a check restricted to a merge request of 3 changed elements, with Git (SR-092)", async () => {
     const tree = generateLargeWorkspace({ version: OLD_VERSION, elements: ELEMENTS, relations: RELATIONS });
     const merged = await writeLargeWorkspace(tree, { git: true });
-    const own = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-092-cache-"));
+    const own = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-092-cache-"));
     try {
       const folders = new Map(tree.repositories.map((r) => [r.name, r.folder]));
       for (const repository of tree.repositories) {
@@ -176,9 +176,9 @@ describe("logreq workspace check with 50,000 elements and 200,000 relations (SR-
       }
       const env = { XDG_CACHE_HOME: own, LOCALAPPDATA: own };
       const { result: run } = await measure(
-        "logreq workspace check --changed-since base --json, 3 changed elements, every relation outdated, Git (new CLI process, no cache)",
+        "reqseq workspace check --changed-since base --json, 3 changed elements, every relation outdated, Git (new CLI process, no cache)",
         () =>
-          logreq(["workspace", "check", "--changed-since", "base", "--json"], {
+          reqseq(["workspace", "check", "--changed-since", "base", "--json"], {
             cwd: merged.workspaceRoot,
             env,
           }),

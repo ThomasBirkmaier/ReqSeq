@@ -1,6 +1,6 @@
 # Variants block (`src/variants/`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 Validity and views of the core and the variants (SR-040, D-020). Stage 1 has the validity; the view commands follow in stage 5 (#127 option 1).
 

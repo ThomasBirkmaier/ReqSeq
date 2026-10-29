@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 /**
- * What LogReq saw of a file when it read or wrote it: plain, frozen data that can be cached or
+ * What ReqSeq saw of a file when it read or wrote it: plain, frozen data that can be cached or
  * sent to a worker thread (ADR-0008). A write replaces a file only while its bytes on disk still
  * have `sha256` (ADR-0007, SR-008 AK3).
  */

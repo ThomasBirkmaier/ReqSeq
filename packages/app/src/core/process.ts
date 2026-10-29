@@ -1,13 +1,13 @@
-// The core process (ADR-0010): `@logreq/core` in an Electron utility process, plain Node, so a long
+// The core process (ADR-0010): `@reqseq/core` in an Electron utility process, plain Node, so a long
 // command never blocks a window. The main process sends `open` with the folder the person chose, then
-// one `connect` with a port per window load. The workspace opens as `logreq serve api` opens it: the
+// one `connect` with a port per window load. The workspace opens as `reqseq serve api` opens it: the
 // root found upwards from the folder (else the folder itself, so `workspace.init` works there), the
 // model cache in the cache folder of the copy, the watcher first and then the load (SR-007, SR-082).
 // It also watches the accesses that agents make through the API or MCP on the copy (SR-117), and the
 // host sends each to the windows, as it sends each batch of the watcher (SR-116, SR-106). Once
 // open, it records the root in the list of recent workspaces (SR-131), which "Open workspace"
 // shows; `stop` waits for that write.
-import type { CommandRuntime, Workspace } from "@logreq/core";
+import type { CommandRuntime, Workspace } from "@reqseq/core";
 import {
   Workspace as CoreWorkspace,
   WORKSPACE_FILE,
@@ -19,7 +19,7 @@ import {
   watchWorkspace,
   workspaceExists,
   workspaceKey,
-} from "@logreq/core";
+} from "@reqseq/core";
 import type { CoreMessage } from "../shared/protocol.js";
 import { coreRequest } from "../shared/protocol.js";
 import type { Channel, CoreHost } from "./host.js";

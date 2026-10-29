@@ -1,5 +1,5 @@
 // End-to-end test of SR-081 AK1 with the built binary: five agents on five clones of one repository on
-// one machine, each with its own `logreq serve api` and `logreq mcp` process and one-shot CLI commands,
+// one machine, each with its own `reqseq serve api` and `reqseq mcp` process and one-shot CLI commands,
 // all at the same time and all with the same OS user profile (one OS cache folder).
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { execFile, spawn } from "node:child_process";
@@ -10,9 +10,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { LineTransport } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
+import { LineTransport } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { cloneFixtureWorkspace, createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -68,7 +68,7 @@ const profile = (home: string): NodeJS.ProcessEnv => ({
   LOCALAPPDATA: home,
 });
 
-const spawnLogreq = (root: string, home: string, args: readonly string[]): ChildProcessWithoutNullStreams => {
+const spawnReqseq = (root: string, home: string, args: readonly string[]): ChildProcessWithoutNullStreams => {
   const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
     cwd: root,
     stdio: "pipe",
@@ -80,7 +80,7 @@ const spawnLogreq = (root: string, home: string, args: readonly string[]): Child
   return child;
 };
 
-/** `logreq <args> --json` as a one-shot process in the copy. */
+/** `reqseq <args> --json` as a one-shot process in the copy. */
 const oneShot = async (root: string, home: string, args: readonly string[]): Promise<unknown> => {
   const { stdout } = await execFileAsync(
     process.execPath,
@@ -104,7 +104,7 @@ const endpointOf = (child: ChildProcessWithoutNullStreams): Promise<string> =>
       }
     });
     child.on("exit", () => {
-      reject(new Error(`logreq serve api ended early: ${text}`));
+      reject(new Error(`reqseq serve api ended early: ${text}`));
     });
   });
 
@@ -144,8 +144,8 @@ const need = (agent: number, access: string, n: number): string =>
   `Need ${String(n)} of agent ${String(agent)} via ${access}`;
 
 describe("separate working copies (SR-081)", () => {
-  it("[SR-081/AK1] five agents on five copies run logreq serve api, logreq mcp and CLI commands side by side", async () => {
-    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-081-home-")));
+  it("[SR-081/AK1] five agents on five copies run reqseq serve api, reqseq mcp and CLI commands side by side", async () => {
+    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-081-home-")));
     cleanups.push(() => fs.rm(home, { recursive: true, force: true, maxRetries: 3 }));
     const origin = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
     cleanups.push(() => origin.cleanup());
@@ -159,13 +159,13 @@ describe("separate working copies (SR-081)", () => {
     // Every agent starts its API and its MCP server at the same time.
     const agents = await Promise.all(
       copies.map(async (copy) => {
-        const apiChild = spawnLogreq(copy.root, home, ["serve", "api"]);
+        const apiChild = spawnReqseq(copy.root, home, ["serve", "api"]);
         const endpointFile = await endpointOf(apiChild);
         const endpoint = JSON.parse(await fs.readFile(endpointFile, "utf8")) as {
           urls: string[];
           token: string;
         };
-        const mcpChild = spawnLogreq(copy.root, home, ["mcp"]);
+        const mcpChild = spawnReqseq(copy.root, home, ["mcp"]);
         const client = new Client({ name: "sr-081", version: "1" });
         await client.connect(
           new LineTransport(mcpChild.stdout, { write: (text) => mcpChild.stdin.write(text) }),

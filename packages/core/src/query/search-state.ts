@@ -1,6 +1,6 @@
 // The search index of a workspace (ADR-0008): built on first use of a store, or taken from the
 // cache folder of the copy when it was built from the same file entries (`search-cache.ts`), and
-// carried over every change of the store that the watcher or LogReq's own writes make (SR-007 AK2:
+// carried over every change of the store that the watcher or ReqSeq's own writes make (SR-007 AK2:
 // "Suche ... nach höchstens 10 Sekunden aktuell").
 //
 // Two ways to get it, measured at N-036 (50,000 elements, ADR-0008): building it takes about 7 s in

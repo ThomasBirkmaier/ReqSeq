@@ -1,15 +1,15 @@
-// `logreq hint list` and the hints of `logreq element get` end to end (SR-026, ADR-0009): the built
+// `reqseq hint list` and the hints of `reqseq element get` end to end (SR-026, ADR-0009): the built
 // binary with the product commands on fixtures/SR-026/hints, its exit code, its JSON and its
 // readable output. The list in the app (AK1) and the hint at the element in the app (AK3) come with
 // the app in stage 3 (#127 option 1); core and this test cover the function now.
 // Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
-const logreq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
 interface Hint {
   readonly code: string;
@@ -45,10 +45,10 @@ const P = "26a0b000-0000-4000-8000-0000000000";
 
 const rows = (output: Output): unknown[] => output.hints.map((h) => [h.code, h.elementId, h.targetId]);
 
-describe("logreq hint list (SR-026)", () => {
+describe("reqseq hint list (SR-026)", () => {
   it("[SR-026/AK1] prints every open hint with kind, element, target and reason, as JSON and readable, with exit code 0", async () => {
     const ws = await fixture();
-    const json = await logreq(["hint", "list", "--json"], ws.root);
+    const json = await reqseq(["hint", "list", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     const output = JSON.parse(json.stdout) as Output;
     expect(output.incomplete).toBe(false);
@@ -66,7 +66,7 @@ describe("logreq hint list (SR-026)", () => {
       /^Relation Derives from \(derives-from\) of System Requirement SR-0000b1 points to an older version of Need N-0000a1: stored version from no date .*, current version from \d{4}-/,
     );
     expect(outdated?.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    const human = await logreq(["hint", "list"], ws.root);
+    const human = await reqseq(["hint", "list"], ws.root);
     expect([human.code, human.stderr]).toEqual([0, ""]);
     // One line per hint: element, kind, reason, and the hint ID of a hint that can be confirmed (#310).
     const lines = human.stdout.split("\n");
@@ -83,7 +83,7 @@ describe("logreq hint list (SR-026)", () => {
 
   it("[SR-026/AK2] prints only the hints that pass the filters", async () => {
     const ws = await fixture();
-    const filtered = await logreq(
+    const filtered = await reqseq(
       [
         "hint",
         "list",
@@ -101,18 +101,18 @@ describe("logreq hint list (SR-026)", () => {
     expect(rows(JSON.parse(filtered.stdout) as Output)).toEqual([
       ["element.unknown-property", `${P}b4`, undefined],
     ]);
-    const packaged = await logreq(["hint", "list", "--package", "PKG-0000d2", "--json"], ws.root);
+    const packaged = await reqseq(["hint", "list", "--package", "PKG-0000d2", "--json"], ws.root);
     expect(rows(JSON.parse(packaged.stdout) as Output)).toEqual([
       ["element.missing-required", `${P}b2`, undefined],
     ]);
-    const unknown = await logreq(["hint", "list", "--ref", "SR-ffffff", "--json"], ws.root);
+    const unknown = await reqseq(["hint", "list", "--ref", "SR-ffffff", "--json"], ws.root);
     expect(unknown.code).toBe(2);
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
   });
 
   it("[SR-026/AK3] element get shows the outdated relation of the element", async () => {
     const ws = await fixture();
-    const json = await logreq(["element", "get", "SR-0000b1", "--json"], ws.root);
+    const json = await reqseq(["element", "get", "SR-0000b1", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     const { element } = JSON.parse(json.stdout) as { element: { problems: readonly Hint[] } };
     expect(element.problems.map((p) => [p.code, p.targetId, p.line])).toEqual([

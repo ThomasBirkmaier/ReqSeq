@@ -16,7 +16,7 @@ Product owner decision, 2026-10-28, confirmed on a decision card the same day: t
 - macOS: a zip with `LogReq.app`, arm64 (the machines that build and test it are Apple silicon; Intel or universal is one configuration line later).
 - Linux: a tar.gz with one folder (`LogReq`, `bin/logreq`, `chrome-sandbox`, `resources/`), x64 (the Ubuntu 24.04 reference of SR-076).
 
-Additionally the CLI is published as a tarball (`npm pack` of `@logreq/cli` with bundled dependencies) for pipelines that already have Node 22.
+Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with bundled dependencies) for pipelines that already have Node 22.
 
 **Names.** Every artifact and launcher name is defined here and, in the build, in one configuration entry of `toolchain/packaging/` that all build scripts, tests and the release workflow read: in the build, a rename of the product changes only that entry. The delivery docs (`docs/delivery/`) follow this table and are changed with it. The names also decide where user data lives (last two rows); a rename moves those folders, so the renamed version must take the old data over once. `<version>` is the version of the root `package.json`, which `logreq --version` also reports.
 
@@ -61,9 +61,9 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 
 **Model and core files in the delivery.**
 
-- `@logreq/core` carries all schemas and the catalog as the generated module `src/generated/contracts.json` (`pnpm contracts:generate`, checked by `contracts:check`), so no `schemas/` folder is needed next to the app, CLI or MCP server.
-- The read worker of the cold load (`@logreq/core` `dist/model/read-worker.js`, ADR-0008) is started from its own file and imports `yaml`, `ajv` and the generated contracts. The CLI and the MCP server start it from the real files of `resources/cli`; the packaged app (asar, `asarUnpack` if needed) and its utility process must be able to start it too (#216).
-- Packaging ships `code-fingerprint.json`, written by core's build into `packages/core/dist` (ADR-0008), where the model cache looks for it: in the parent folder of the folder that holds the model-cache module (`new URL("../", import.meta.url)` of `model/model-cache.js`). Both copies of `@logreq/core`, in the asar and in `resources/cli`, ship unbundled and include `dist/code-fingerprint.json` through `files: ["dist"]`; a single-file bundle would need it in the parent folder of the bundle's folder. Without it the model cache falls back to walking core's own files for its fingerprint, which in an asar or single-file bundle gives a different fingerprint or none (#232).
+- `@reqseq/core` carries all schemas and the catalog as the generated module `src/generated/contracts.json` (`pnpm contracts:generate`, checked by `contracts:check`), so no `schemas/` folder is needed next to the app, CLI or MCP server.
+- The read worker of the cold load (`@reqseq/core` `dist/model/read-worker.js`, ADR-0008) is started from its own file and imports `yaml`, `ajv` and the generated contracts. The CLI and the MCP server start it from the real files of `resources/cli`; the packaged app (asar, `asarUnpack` if needed) and its utility process must be able to start it too (#216).
+- Packaging ships `code-fingerprint.json`, written by core's build into `packages/core/dist` (ADR-0008), where the model cache looks for it: in the parent folder of the folder that holds the model-cache module (`new URL("../", import.meta.url)` of `model/model-cache.js`). Both copies of `@reqseq/core`, in the asar and in `resources/cli`, ship unbundled and include `dist/code-fingerprint.json` through `files: ["dist"]`; a single-file bundle would need it in the parent folder of the bundle's folder. Without it the model cache falls back to walking core's own files for its fingerprint, which in an asar or single-file bundle gives a different fingerprint or none (#232).
 
 ## Rejected
 

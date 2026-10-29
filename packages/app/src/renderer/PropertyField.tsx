@@ -2,7 +2,7 @@
 // AK2): a property of a text kind in its editor (`TextBox.tsx`), a relation as the links to its targets, a
 // choice as its keys, and a property the type does not know as its lines, read-only (D-012). Layout only:
 // `ElementView` makes the props of the editor and the block.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import type { PropertyBox } from "./element-view.js";
 import { rowOfRelation } from "./element-view.js";

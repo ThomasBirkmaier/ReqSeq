@@ -3,13 +3,13 @@
 // "Filter list by property" asks for them. One pass over the selection plus one over the store for
 // the free-text rule. It is a result like a filter, so it is held to the 500 ms of SR-082 AK4 without
 // carrying that tag (it is no acceptance criterion of it, enabler #425).
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measureMedian,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState } from "../../src/model/index.js";

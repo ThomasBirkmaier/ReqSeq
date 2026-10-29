@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { LogReqBridge } from "../shared/protocol.js";
+import type { ReqSeqBridge } from "../shared/protocol.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("renderer entry", () => {
   it("renders the app into #root on the preload bridge", async () => {
-    const bridge: LogReqBridge = {
+    const bridge: ReqSeqBridge = {
       invoke: (name) =>
         Promise.resolve({
           ok: true,
@@ -27,7 +27,7 @@ describe("renderer entry", () => {
       openWorkspace: () => Promise.resolve({ ok: true }),
       onSave: () => () => undefined,
     };
-    Object.defineProperty(window, "logreq", { value: bridge, configurable: true });
+    Object.defineProperty(window, "reqseq", { value: bridge, configurable: true });
     document.body.innerHTML = '<div id="root"></div>';
     await act(async () => {
       await import("./main.js");

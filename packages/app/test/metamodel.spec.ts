@@ -1,6 +1,6 @@
 // The metamodel as a graph and as text (SR-130) on the built app, on fixtures/SR-130/metamodel: "Show
 // metamodel" in the command prompt opens it (AK1); every type is a box with its name, prefix and
-// properties, every inheritance and relation kind a labelled curve, as `logreq metamodel get` gives them
+// properties, every inheritance and relation kind a labelled curve, as `reqseq metamodel get` gives them
 // (AK2); a relation kind open on a side appears once per type of the other side, at "Any type", with the
 // open side in its label (AK3); the arrows move between the boxes, and Ctrl/Cmd+T switches between graph
 // and text (AK4); the text names every type's key, name, prefix, parent, properties with value kind and
@@ -292,7 +292,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await window.keyboard.press("Escape");
   });
 
-  test("[SR-130/AK2] every type is a box with name, prefix and properties and every inheritance and relation kind a labelled curve, as logreq metamodel get gives them", async () => {
+  test("[SR-130/AK2] every type is a box with name, prefix and properties and every inheritance and relation kind a labelled curve, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);
@@ -408,7 +408,7 @@ test.describe("the metamodel on a fixture workspace", () => {
     await expectSelected(window, "requirement");
   });
 
-  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind and required and statuses, and every relation kind's source and target types, as logreq metamodel get gives them", async () => {
+  test("[SR-130/AK5] the text names every type's key, name, prefix, parent, properties with value kind and required and statuses, and every relation kind's source and target types, as reqseq metamodel get gives them", async () => {
     const { window } = await launch();
     const model = await metamodel(running);
     await showMetamodel(window, model.types.length + 1);

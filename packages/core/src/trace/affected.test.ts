@@ -1,7 +1,7 @@
 // The affected elements of the trace block (SR-024): the walk over the incoming index with its edge
 // cases (relations to itself, cycles, repositories, shared UUIDs) and the evidence seam (AK4, #127
 // option 1). The command on the SR-024 fixture: commands/trace/affected.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";
 import type { ElementRecord } from "../model/index.js";

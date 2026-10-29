@@ -6,11 +6,11 @@ const on = vi.fn();
 vi.mock("electron", () => ({ contextBridge: { exposeInMainWorld }, ipcRenderer: { on } }));
 
 describe("preload entry", () => {
-  it("exposes the bridge as window.logreq, and nothing else", async () => {
+  it("exposes the bridge as window.reqseq, and nothing else", async () => {
     await import("./index.js");
     expect(exposeInMainWorld).toHaveBeenCalledOnce();
     const [name, bridge] = exposeInMainWorld.mock.calls[0] as [string, object];
-    expect(name).toBe("logreq");
+    expect(name).toBe("reqseq");
     expect(Object.keys(bridge).sort()).toEqual([
       "commands",
       "copyText",

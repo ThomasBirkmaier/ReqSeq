@@ -3,7 +3,7 @@
 // the app gives what CLI, API and MCP give (ADR-0002, SR-080). The renderer reaches the core process
 // over a MessagePort that the main process hands over; the main process talks to the core process over
 // the utility process's parent port.
-import type { ActivityAccess, CatalogEntry, CommandErrorObject } from "@logreq/core";
+import type { ActivityAccess, CatalogEntry, CommandErrorObject } from "@reqseq/core";
 
 /** Main to preload: the workspace of the window, with the port to its core process when one is open. */
 export const WORKSPACE_CHANNEL = "logreq:workspace";
@@ -13,32 +13,32 @@ export const WORKSPACE_CHANNEL = "logreq:workspace";
  * when the text was copied, else `false`. One of the four channels from the renderer to the main
  * process, each with the sender check of `main/sender.ts`.
  */
-export const COPY_CHANNEL = "logreq:copy";
+export const COPY_CHANNEL = "reqseq:copy";
 
 /**
  * Renderer to main: the workspaces opened last (SR-131), answered with `RecentWorkspaceEntry[]`. Main
  * reads them, because without an open workspace there is no core process and no port.
  */
-export const RECENT_WORKSPACES_CHANNEL = "logreq:recent-workspaces";
+export const RECENT_WORKSPACES_CHANNEL = "reqseq:recent-workspaces";
 
 /**
  * Renderer to main: open this root of the list of recent workspaces in the window, or (`typed`) the
  * workspace of a typed folder path (SR-131 AK5), answered with `OpenWorkspaceResult`. Switching the
  * workspace of the window is main's job (ADR-0010).
  */
-export const OPEN_WORKSPACE_CHANNEL = "logreq:open-workspace";
+export const OPEN_WORKSPACE_CHANNEL = "reqseq:open-workspace";
 
 /**
  * Main to renderer: save the unsaved input of the window now (`SaveRequest`), before another workspace
  * opens in it (SR-131 AK3) or before the window closes (SR-105 AK1); the window answers on SAVED_CHANNEL.
  */
-export const SAVE_CHANNEL = "logreq:save";
+export const SAVE_CHANNEL = "reqseq:save";
 
 /**
  * Renderer to main: the answer to a SAVE_CHANNEL request (`SaveAnswer`), with the sender check of
  * `main/sender.ts`. Main opens the other workspace only when it is `saved`.
  */
-export const SAVED_CHANNEL = "logreq:saved";
+export const SAVED_CHANNEL = "reqseq:saved";
 
 /**
  * Main's request to save, by its number; with `expired`, main gave up waiting for the answer to it (a
@@ -101,7 +101,7 @@ export type OpenWorkspaceResult =
 /** The longest text the main process copies, in characters (16 Mi). */
 export const MAX_COPY_LENGTH = 16 * 1024 * 1024;
 
-/** Why the workspace of the window changed (`window.logreq.on("workspace-changed", ...)`). */
+/** Why the workspace of the window changed (`window.reqseq.on("workspace-changed", ...)`). */
 export type WorkspaceChangeReason =
   /** Another workspace was opened (File > Open Workspace, "Open workspace"). */
   | "opened"
@@ -161,7 +161,7 @@ export type AgentActivity = ActivityAccess;
 
 /**
  * The events the core process and the main process send a window, by name, with what the listeners of
- * `window.logreq.on(name, ...)` get. One channel for every event: a new one is one entry here and either
+ * `window.reqseq.on(name, ...)` get. One channel for every event: a new one is one entry here and either
  * one check in `EVENT_DATA` (from the port) or one name in `WINDOW_EVENTS` (from the main process only),
  * and the bridge keeps its seven functions (ADR-0010).
  */
@@ -199,17 +199,17 @@ export interface WorkspaceMessage {
 /** A catalog entry as the bridge lists it, as `GET /v1/commands` of the API does (ADR-0009). */
 export type CommandListing = CatalogEntry & { readonly implemented: boolean };
 
-/** What `window.logreq.invoke` resolves to: the command output, or the error object of every access. */
+/** What `window.reqseq.invoke` resolves to: the command output, or the error object of every access. */
 export type InvokeResult =
   | { readonly ok: true; readonly output: unknown }
   | { readonly ok: false; readonly error: CommandErrorObject };
 
 /**
- * `window.logreq` (preload, `contextBridge`). Generic over the catalog like the CLI, API and MCP
+ * `window.reqseq` (preload, `contextBridge`). Generic over the catalog like the CLI, API and MCP
  * adapters: no command has a function of its own, and nothing else reaches the core (SR-099: the
  * catalog offers no delete).
  */
-export interface LogReqBridge {
+export interface ReqSeqBridge {
   /** Runs a catalog command in the core process; never rejects. */
   invoke(name: string, input?: unknown): Promise<InvokeResult>;
   /** Every catalog command, for the command palette (SR-073 AK2). */
@@ -271,7 +271,7 @@ export type CoreRequest =
   | { readonly type: "file"; readonly id: number; readonly url: string }
   | { readonly type: "stop" };
 
-/** A file of the workspace for the `logreq-file:` protocol, or why there is none. */
+/** A file of the workspace for the `reqseq-file:` protocol, or why there is none. */
 export type FileAnswer =
   | { readonly status: 200; readonly mimeType: string; readonly data: Uint8Array<ArrayBuffer> }
   | { readonly status: 404 };

@@ -23,7 +23,7 @@ import type { FileReadResult, YamlReadResult } from "./read.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-files-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-files-"));
 });
 
 afterEach(async () => {
@@ -312,7 +312,7 @@ describe("YAML warnings, links and aborting", () => {
   });
 
   it("does not read through a folder linked outside the root", async () => {
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.writeFile(path.join(outside, "a.md"), good("a"));
       await fs.symlink(outside, path.join(root, "linked"), "junction");
@@ -411,7 +411,7 @@ describe("readYamlFile", () => {
   });
 });
 
-describe("readFileSnapshot (a file LogReq rewrites as a whole, SR-029)", () => {
+describe("readFileSnapshot (a file ReqSeq rewrites as a whole, SR-029)", () => {
   it("gives the bytes as read and their snapshot", async () => {
     await put("ci/results.xml", "\uFEFF<testsuites/>\r\n");
     const r = await readFileSnapshot(path.join(root, "ci"), "results.xml");
@@ -449,7 +449,7 @@ describe("readFileSnapshot (a file LogReq rewrites as a whole, SR-029)", () => {
 });
 
 describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
-  it("tells a LogReq data file by its first line, with the snapshot of the whole file", async () => {
+  it("tells a ReqSeq data file by its first line, with the snapshot of the whole file", async () => {
     const text = '{"logreq-data":2,"dirty":false,"id":"a"}\n{"x":"Größe"}\n';
     await put("out/a.jsonl", text);
     await put("out/b.jsonl", '{"a":1}\n');
@@ -481,7 +481,7 @@ describe("readJsonlSnapshot (a data file of data.store, #319)", () => {
       problem: { message: expect.stringContaining("symbolic link") as string },
     });
     expect(await readJsonlSnapshot(root, "out")).toMatchObject({ kind: "problem", missing: false });
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.writeFile(path.join(outside, "c.jsonl"), '{"logreq-data":2}\n');
       await fs.symlink(outside, path.join(root, "linked"), "junction");
@@ -510,7 +510,7 @@ describe("readElementFileSync (worker threads of a cold load, ADR-0008)", () => 
     await fs.symlink(path.join(root, "req/a.md"), path.join(root, "link.md"), "file");
     await put("real/b.md", good("b"));
     await fs.symlink(path.join(root, "real"), path.join(root, "alias"), "junction");
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.writeFile(path.join(outside, "c.md"), good("c"));
       await fs.symlink(outside, path.join(root, "linked"), "junction");

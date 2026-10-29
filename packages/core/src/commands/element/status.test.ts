@@ -1,7 +1,7 @@
 // ADR-0002 rule 6 (D-030, SR-087): only element.setStatus and element.supersede change a status.
 // element.create and element.update run on a workspace with existing elements of several statuses;
 // afterwards every existing element has the status it had.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { elementStoreState } from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";

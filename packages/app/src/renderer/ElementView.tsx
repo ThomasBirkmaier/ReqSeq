@@ -33,7 +33,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";

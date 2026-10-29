@@ -80,7 +80,7 @@ const missing = (values: readonly string[], name: string): string | undefined =>
 /** The checks of an enriched test case in the order they are reported; each gives why it does not fit. */
 const CHECKS: readonly ((fields: Fields) => string | undefined)[] = [
   ({ elements }) =>
-    invalid(elements, ELEMENT, isUuid, "a UUID (logreq evidence enrich-junit writes the UUID)"),
+    invalid(elements, ELEMENT, isUuid, "a UUID (reqseq evidence enrich-junit writes the UUID)"),
   ({ elements, versions }) =>
     elements.length === versions.length
       ? undefined
@@ -233,7 +233,7 @@ export const readJunitRecords = (location: JunitLocation, bytes: Uint8Array): Ev
       repository,
       file,
       line: first.line,
-      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record; enrich the file with logreq evidence enrich-junit`,
+      message: `${String(notEnriched.length)} test case(s) name a requirement but have no ${VERSION}, so they give no record; enrich the file with reqseq evidence enrich-junit`,
     });
   }
   // By line; stable, so problems on one line stay in file order.

@@ -4,8 +4,8 @@
 // and the files block that every write goes through.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { AnyCommand, CommandContext, CommandOutput } from "../catalog.js";
 import { defineTestCommand } from "../catalog.js";
@@ -215,7 +215,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     const runtime = createCommandRuntime({
       contracts: loadContracts({
         catalog: {
-          "logreq-catalog": 1,
+          "reqseq-catalog": 1,
           commands: [entry("test.read", "read"), entry("test.write", "write-files")],
         },
       }),

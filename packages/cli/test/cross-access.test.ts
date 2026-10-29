@@ -14,10 +14,10 @@ import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
 import type { MessagePort } from "node:worker_threads";
 import { MessageChannel } from "node:worker_threads";
-import { startApiServer } from "@logreq/api";
-import type { Channel, IpcRendererLike } from "@logreq/app";
-import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
-import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@logreq/core";
+import { startApiServer } from "@reqseq/api";
+import type { Channel, IpcRendererLike } from "@reqseq/app";
+import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
+import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@reqseq/core";
 import {
   CommandError,
   Workspace,
@@ -25,10 +25,10 @@ import {
   jsonChunks,
   jsonLines,
   rememberWorkspace,
-} from "@logreq/core";
-import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+} from "@reqseq/core";
+import { LineTransport, serveMcp, toolName } from "@reqseq/mcp";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
@@ -235,7 +235,7 @@ const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 /** Requirements marked emergent, with and without own records, and their children (SR-035). */
 const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
 
-/** SR-004/one-repository with an image to attach, whose name LogReq makes portable (SR-097). */
+/** SR-004/one-repository with an image to attach, whose name ReqSeq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
   fixture: "SR-004/one-repository",
   files: { "incoming/Wind Läyout (v2).png": "an image", "incoming/notes.txt": "no image" },
@@ -1739,7 +1739,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
-  // The list belongs to the user (`<OS cache>/logreq/recent-workspaces.json`), not to the workspace: the
+  // The list belongs to the user (`<OS cache>/reqseq/recent-workspaces.json`), not to the workspace: the
   // app records it, every access reads the same list (SR-131, SR-080 AK4).
   "workspace.recent": [
     {
@@ -2073,7 +2073,7 @@ let cache: string;
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -2084,7 +2084,7 @@ afterAll(async () => {
 });
 
 beforeAll(async () => {
-  cache = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cross-access-"));
+  cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-"));
   for (const options of FIXTURES) {
     const template = await createFixtureWorkspace(options);
     await TEMPLATE_SETUP.get(options)?.(template);
@@ -2104,7 +2104,7 @@ afterAll(async () => {
   );
 }, 120_000);
 
-/** The sample hooks of `git init`: half the files of a fixture, and no Git command of LogReq runs hooks. */
+/** The sample hooks of `git init`: half the files of a fixture, and no Git command of ReqSeq runs hooks. */
 const isSampleHooks = (source: string): boolean =>
   path.basename(source) === "hooks" && path.basename(path.dirname(source)) === ".git";
 
@@ -2124,7 +2124,7 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   if (template === undefined) {
     throw new Error(`No template for scenario ${scenario.name}`);
   }
-  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cross-access-copy-")));
+  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-copy-")));
   copies.push(base);
   const top = path.join(base, "workspace");
   await fs.cp(template.root, top, { recursive: true, filter: (source) => !isSampleHooks(source) });
@@ -2272,7 +2272,7 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
       expect([entry.name, code, stdout.text]).toEqual([
         entry.name,
         EXIT.ok,
-        expect.stringContaining(`Usage: logreq ${group} ${action} `),
+        expect.stringContaining(`Usage: reqseq ${group} ${action} `),
       ]);
     }
     const workspace = new Workspace(root);

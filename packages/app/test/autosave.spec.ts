@@ -3,7 +3,7 @@
 // the element was opened, also after it was saved and after another buffer was shown (AK2), and there is no
 // button and no dialog to save (AK3). Every result is checked in the file of the workspace. Keys use
 // ControlOrMeta (Linux and macOS). The screenshots of a save that failed (`not saved`) go to
-// `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS).
+// `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,7 +42,7 @@ const workspace = async () => ({
 });
 
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 const field = (window: Page, label: string): Locator => window.locator(`[data-field="${label}"]`);

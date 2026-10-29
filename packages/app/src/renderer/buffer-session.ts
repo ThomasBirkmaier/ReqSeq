@@ -11,7 +11,7 @@
 // the workspace opens, with one `element.list`; an element that is gone is left out, as the overview
 // leaves it out of its recent list. A result is run again when it is shown, and only when the catalog
 // lists its command as an implemented read command, so a restore never writes.
-import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@logreq/core";
+import type { CommandTypes, FilterSortKeyWithDefaults, TraceGraphInput } from "@reqseq/core";
 import type { CommandListing, InvokeResult } from "../shared/protocol.js";
 import type { Buffer, Buffers, FilterStep, GraphDepth } from "./buffers.js";
 import {
@@ -94,12 +94,12 @@ export const NO_SESSION: StoredSession = { buffers: [], opened: [] };
 export const RESTORED_REVISION = -1;
 
 /**
- * The storage key of a workspace's buffers: `logreq.buffers.v1` (literal, like the other keys of the app;
+ * The storage key of a workspace's buffers: `reqseq.buffers.v1` (literal, like the other keys of the app;
  * a rename renames them together), then the name and repositories of the workspace (`workspaceParts`, as the recent elements). Undefined without a workspace.
  */
 export const sessionKey = (status: InvokeResult): string | undefined => {
   const parts = workspaceParts(status);
-  return parts === undefined ? undefined : ["logreq.buffers.v1", ...parts].join("\n");
+  return parts === undefined ? undefined : ["reqseq.buffers.v1", ...parts].join("\n");
 };
 
 const ofElement = (buffer: Named): Named => ({ id: buffer.id, repository: buffer.repository });

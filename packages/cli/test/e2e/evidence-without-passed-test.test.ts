@@ -1,12 +1,12 @@
-// `logreq evidence without-passed-test` end to end (SR-120, ADR-0009): the built binary on
+// `reqseq evidence without-passed-test` end to end (SR-120, ADR-0009): the built binary on
 // fixtures/SR-126/matrix (its README lists every element, its records and its status), with the records
 // read from the JUnit and Markdown files of the fixture, as readable output and as JSON. It needs no
 // argument. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -43,7 +43,7 @@ const B08_FAILED = [
 
 const U = (tail: string): string => `5c0e1d2a-0126-4126-8126-000000126${tail}`;
 
-describe("logreq evidence without-passed-test (SR-120)", () => {
+describe("reqseq evidence without-passed-test (SR-120)", () => {
   it("prints the requirements without passed test, without arguments", async () => {
     const result = await withoutPassedTest();
     expect([result.code, result.stderr, result.stdout]).toEqual([
@@ -63,7 +63,7 @@ describe("logreq evidence without-passed-test (SR-120)", () => {
     ]);
   });
 
-  it("[SR-120/AK2] logreq evidence without-passed-test --json leaves out every requirement with a passed test execution", async () => {
+  it("[SR-120/AK2] reqseq evidence without-passed-test --json leaves out every requirement with a passed test execution", async () => {
     const result = await withoutPassedTest(["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as { elements: { id: string }[]; total: number; view: string };

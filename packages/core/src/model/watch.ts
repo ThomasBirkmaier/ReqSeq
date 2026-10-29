@@ -72,7 +72,7 @@ export interface WorkspaceWatcher {
   readonly ready: Promise<void>;
   /**
    * Folders that cannot be watched (`workspace.not-watched`, e.g. the OS limit of watches):
-   * changes there are not seen until LogReq restarts or the layout changes. `workspace.status`
+   * changes there are not seen until ReqSeq restarts or the layout changes. `workspace.status`
    * shows them.
    */
   readonly problems: readonly Problem[];
@@ -205,8 +205,8 @@ const notWatched = (repository: string, folder: string, code: string): Problem =
   file: folder === "" ? "." : folder,
   message:
     code === "ENOSPC"
-      ? "Changes in this folder are not seen until LogReq restarts or the layout changes: the operating system's limit of watched folders is reached (ENOSPC; on Linux raise fs.inotify.max_user_watches)"
-      : `Changes in this folder are not seen until LogReq restarts or the layout changes: it cannot be watched (${code})`,
+      ? "Changes in this folder are not seen until ReqSeq restarts or the layout changes: the operating system's limit of watched folders is reached (ENOSPC; on Linux raise fs.inotify.max_user_watches)"
+      : `Changes in this folder are not seen until ReqSeq restarts or the layout changes: it cannot be watched (${code})`,
 });
 
 const errorCode = (error: unknown): string => String((error as NodeJS.ErrnoException).code);

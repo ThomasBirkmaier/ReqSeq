@@ -5,8 +5,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -63,7 +63,7 @@ const fixture = async (options: FixtureOptions = STORE): Promise<FixtureWorkspac
 
 /** A temporary folder outside every fixture. */
 const tempFolder = (): string => {
-  const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "logreq-store-out-")));
+  const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-store-out-")));
   onTestFinished(() => {
     fs.rmSync(folder, { recursive: true, force: true });
   });
@@ -199,7 +199,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const file = ws.path(`out/${commit}.jsonl`);
     await storeIn(ws.root, { folder: "out" });
     const first = fs.readFileSync(file, "utf8");
-    // An older file of LogReq: its first line is enough (review PS3), also when a crash cut it.
+    // An older file of ReqSeq: its first line is enough (review PS3), also when a crash cut it.
     const old = `{"logreq-data":2,"commit":"${commit}","dirty":false,"id":"older"}\n{"logreq-data":2,"ti`;
     fs.writeFileSync(file, old);
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
@@ -208,7 +208,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     });
     expect(namesIn(ws.path("out"))).toEqual([`${commit}.jsonl`]);
     expect(fs.readFileSync(file, "utf8")).toBe(first);
-    // An empty file (a selection without elements) is LogReq's too.
+    // An empty file (a selection without elements) is ReqSeq's too.
     fs.writeFileSync(file, "");
     expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
     expect(fs.readFileSync(file, "utf8")).toBe(first);
@@ -708,10 +708,10 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     expect(exportModule.exportDataWithProblems).toHaveBeenCalledTimes(1);
   });
 
-  it("replaces only a LogReq data file: another file of the name stays as it is", async () => {
+  it("replaces only a ReqSeq data file: another file of the name stays as it is", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    // Not LogReq's: the old JSON form of version 1, another first line, a byte order mark, a first key
+    // Not ReqSeq's: the old JSON form of version 1, another first line, a byte order mark, a first key
     // other than logreq-data, a first line cut inside the signature.
     for (const text of [
       '{"logreq-data":1}\n',
@@ -731,7 +731,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       ]);
       expect(fs.readFileSync(ws.path(`out/${commit}.jsonl`), "utf8")).toBe(text);
     }
-    // Broken UTF-8 after a first line of LogReq: anything but a cut at the end.
+    // Broken UTF-8 after a first line of ReqSeq: anything but a cut at the end.
     await ws.write(
       `out/${commit}.jsonl`,
       Buffer.concat([

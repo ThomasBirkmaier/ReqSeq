@@ -1,6 +1,6 @@
 // Creating and changing element files (SR-001, SR-002, SR-102; ADR-0004, ADR-0007). One Markdown
 // file per element, named once from the type prefix and the UUID (D-056) and never renamed. The
-// bytes come from the lossless writer (`editElementFile`), so a new file has LogReq's one fixed
+// bytes come from the lossless writer (`editElementFile`), so a new file has ReqSeq's one fixed
 // style and a change rewrites only the lines of the keys it changes; writing is atomic and refused
 // when the file changed on disk. Statuses: a new element gets the initial status of the metamodel,
 // or of its type when the type restricts the statuses (#306; none for a type without status or with
@@ -156,7 +156,7 @@ const checkPropertyKeys = (
 ): void => {
   for (const key of keys) {
     if (STRUCTURAL_KEYS.includes(key)) {
-      throw invalid(`${field} cannot hold ${key}: LogReq sets it`, { key, reason: "structural" });
+      throw invalid(`${field} cannot hold ${key}: ReqSeq sets it`, { key, reason: "structural" });
     }
     if (key === titleKey) {
       throw invalid(`${field} cannot hold the title key ${key}; give the title as title`, {
@@ -298,7 +298,7 @@ const asElement = (repository: string, file: ParsedFile): ReadElement | undefine
 };
 
 /**
- * The element of bytes LogReq has just written, with the snapshot of the write, so the result shows
+ * The element of bytes ReqSeq has just written, with the snapshot of the write, so the result shows
  * what was written without reading the file again. The writer checked the bytes, so anything but an
  * element is a bug (`internal`).
  */
@@ -498,18 +498,18 @@ const EMPTY_FILE: EditableFile = { frontmatter: "", body: "", eol: "\n", closing
 /** What `refuseUnlisted` tells the caller to change, per rule; `{path}` is the path the rule names. */
 const NOT_LISTED: Readonly<Record<NewFileRule, string>> = {
   "skipped-name":
-    "is named .git or node_modules (or a spelling Windows or macOS take for it), which LogReq never reads or writes",
+    "is named .git or node_modules (or a spelling Windows or macOS take for it), which ReqSeq never reads or writes",
   ignored: "matches an ignore glob of the workspace file",
   "nested-repository": "is the folder of another repository of the workspace; give that repository instead",
   "git-entry": "holds a .git entry, so it is a repository of its own",
-  link: "is a link, which LogReq does not follow",
+  link: "is a link, which ReqSeq does not follow",
   unreadable: "cannot be opened",
   "not-a-folder": "is not a folder",
   spelling: "is spelled differently on disk",
   "not-portable":
     'is a name Windows changes or refuses (a trailing dot or space, <>:"|?*, a control character, a device name such as CON or NUL, or a short name such as GIT~1)',
   invisible:
-    "holds an invisible format character (such as a zero-width or direction mark), which LogReq does not put into the name of a new folder",
+    "holds an invisible format character (such as a zero-width or direction mark), which ReqSeq does not put into the name of a new folder",
 };
 
 /** Rules for a name that is refused wherever the repository is checked out (`reason: "not-portable"`). */
@@ -518,7 +518,7 @@ const NOT_PORTABLE: ReadonlySet<NewFileRule> = new Set(["not-portable", "invisib
 /**
  * Refuses `file` (relative to `repository`) with `input.invalid` when the element walk would not
  * list it once created (`reason: "not-listed"`) or a name is not portable (`"not-portable"`), so
- * LogReq never writes below `.git` (D-036, #183) and never creates an element nobody sees.
+ * ReqSeq never writes below `.git` (D-036, #183) and never creates an element nobody sees.
  * `details.rule` says which rule, `details.path` which part of the path, and with `rule: "spelling"`
  * `details.existing` the folder as it is spelled on disk. Returns the path to write: `file`, or
  * `file` with its existing folders spelled as on disk where only the Unicode normal form differs
@@ -680,7 +680,7 @@ export const assertElementWritable = (
   if (type === undefined) {
     throw new CommandError(
       "element.read-only",
-      `The metamodel has no type ${record.type}, so LogReq only reads ${record.file}`,
+      `The metamodel has no type ${record.type}, so ReqSeq only reads ${record.file}`,
       { id: record.id, type: record.type, reason: "unknown-type" },
     );
   }

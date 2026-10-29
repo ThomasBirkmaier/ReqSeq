@@ -3,7 +3,7 @@
 // hints are one line each with their element, everything else is a quiet indented outline. The share of a
 // verification degree (`share` next to `counts`, SR-037) is a percentage by core's rule of every access
 // (`degreePercent`, one decimal rounded down, #592 Q3). Layout only: nothing here knows a command (ADR-0002).
-import { degreePercent, degreeShareOf } from "@logreq/core/verification-degree";
+import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer, elementBufferOf } from "./buffers.js";
 

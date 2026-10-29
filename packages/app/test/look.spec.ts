@@ -73,8 +73,8 @@ test("on macOS a strip of the sheet moves the window and names it, in the colour
     });
     await window.reload();
     const strip = window.locator(".titlebar");
-    await expect(strip).toHaveText("Weather station - LogReq");
-    expect(await window.title()).toBe("Weather station - LogReq");
+    await expect(strip).toHaveText("Weather station - ReqSeq");
+    expect(await window.title()).toBe("Weather station - ReqSeq");
     expect(await style(window, ".titlebar", "-webkit-app-region")).toBe("drag");
     expect(await style(window, ".titlebar", "background-color")).toBe(SHEET.light);
     await expect(strip.locator("button, input, a, [tabindex]")).toHaveCount(0);

@@ -1,9 +1,9 @@
 {
-  "name": "@logreq/testkit",
+  "name": "@reqseq/testkit",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Test helpers for LogReq (ADR-0001, ADR-0011). Never shipped with the product.",
+  "description": "Test helpers for ReqSeq (ADR-0001, ADR-0011). Never shipped with the product.",
   "type": "module",
   "exports": {
     ".": {

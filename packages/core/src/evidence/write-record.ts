@@ -13,7 +13,7 @@
 //    `item` for a verification) give `input.invalid` naming the input field.
 // 4. Folder (AK2, "in der gewählten Ablage"): an evidence location of the workspace file or a folder
 //    below one, relative to the workspace root; default the first location whose repository is on this
-//    machine. The full target passes the rules of every new LogReq file (`refuseUnlisted`) before and
+//    machine. The full target passes the rules of every new ReqSeq file (`refuseUnlisted`) before and
 //    after a missing folder is created, so a refused folder leaves nothing behind (D-036, D-045).
 // 5. Name (ADR-0012): `<day>-<short id>-<method>.md` (`validation` for a validation record), `<day>` the
 //    first ten characters of `date`; a taken name (any case, NFC) gets `-2`, `-3`, ...; the file is only
@@ -59,7 +59,7 @@ const COMMAND = "evidence.record";
 /** Names a create is tried under before `file.changed-on-disk` stands (rule 5). */
 const TRIES = 3;
 
-/** The frontmatter of a record file as LogReq writes it, in schema order (rule 3). */
+/** The frontmatter of a record file as ReqSeq writes it, in schema order (rule 3). */
 export type RecordFields = Omit<EvidenceRecordFile, "logreq-record">;
 
 /** What `recordEvidence` uses to render, write and tell the time; tests inject other ones (seams). */
@@ -325,7 +325,7 @@ const positionOf = (
       record.file !== undefined && l.repository.name === record.repository && atOrBelow(record.file, l.start),
   );
 
-/** A record of a file that LogReq wrote: with its place. */
+/** A record of a file that ReqSeq wrote: with its place. */
 export type PlacedRecord = EvidenceRecord & { readonly repository: string; readonly file: string };
 
 /**

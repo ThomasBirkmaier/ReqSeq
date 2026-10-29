@@ -1,12 +1,12 @@
-// Evidence records end to end (SR-028, ADR-0012): `logreq workspace check` on fixtures/SR-028/records,
+// Evidence records end to end (SR-028, ADR-0012): `reqseq workspace check` on fixtures/SR-028/records,
 // whose records lie in the evidence folder of `ci-results`, the repository of another tool. Also the
 // CLI test of SR-025 AK4 (outdated evidence), which waited for real record files (#127 option 1).
 // Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Problem {
   readonly code: string;
@@ -47,7 +47,7 @@ const fixture = async (files: Readonly<Record<string, string>> = {}): Promise<st
   return ws.path("system");
 };
 
-/** `logreq workspace check --json` with `args`. */
+/** `reqseq workspace check --json` with `args`. */
 const checkJson = async (cwd: string, args: readonly string[] = []): Promise<Output> => {
   const json = await run(["workspace", "check", ...args, "--json"], { cwd });
   expect(json.stderr).toBe("");
@@ -64,8 +64,8 @@ beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
 });
 
-describe("logreq workspace check with evidence records (SR-028)", () => {
-  it("[SR-028/AK1] logreq workspace check reads a record from a repository of another tool", async () => {
+describe("reqseq workspace check with evidence records (SR-028)", () => {
+  it("[SR-028/AK1] reqseq workspace check reads a record from a repository of another tool", async () => {
     const output = await checkJson(await fixture());
     // The record of B in ci-results (nested folder) is read: its version is compared with B's.
     expect(output.problems.map((p) => [p.code, p.repository, p.file, p.elementId])).toEqual([
@@ -74,7 +74,7 @@ describe("logreq workspace check with evidence records (SR-028)", () => {
     expect(output.checkedElements).toBe(2);
   });
 
-  it("[SR-028/AK3] logreq workspace check lists a record that names an unknown UUID", async () => {
+  it("[SR-028/AK3] reqseq workspace check lists a record that names an unknown UUID", async () => {
     const record =
       "---\nlogreq-record: 1\nkind: verification\n" +
       `element: ${UNKNOWN}\nversion: n1:e62ed39c555648e2\nmethod: test\nitem: build-513\n` +
@@ -101,7 +101,7 @@ describe("logreq workspace check with evidence records (SR-028)", () => {
 });
 
 describe("outdated evidence in workspace check (SR-025)", () => {
-  it("[SR-025/AK4] logreq workspace check reports evidence.outdated for a record file of an older version", async () => {
+  it("[SR-025/AK4] reqseq workspace check reports evidence.outdated for a record file of an older version", async () => {
     const { human, output } = await check(await fixture(), ["--fail-on", "warning"]);
     expect(human.code).toBe(1);
     expect(output.ok).toBe(false);

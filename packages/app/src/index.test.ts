@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as app from "./index.js";
 
-describe("@logreq/app", () => {
+describe("@reqseq/app", () => {
   it("exports the parts of the IPC that run without Electron", () => {
     expect(Object.keys(app).sort()).toEqual([
       "SAVE_CHANNEL",

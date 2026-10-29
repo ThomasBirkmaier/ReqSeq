@@ -1,8 +1,8 @@
 // The JUnit reader (SR-093, ADR-0012 "JUnit XML"): the records of an enriched JUnit XML file. The
 // samples are the files pytest and Vitest wrote (fixtures/junit-samples/, D-054), enriched here the
-// way `logreq evidence enrich-junit` (SR-029) does: at the offsets the JUnit model gives.
+// way `reqseq evidence enrich-junit` (SR-029) does: at the offsets the JUnit model gives.
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { evidenceIndex } from "./by-element.js";
@@ -61,7 +61,7 @@ const insertion = (at: JunitPropertiesAt, added: string): Edit => {
 };
 
 /**
- * `bytes` enriched as `logreq evidence enrich-junit` would: per test case (by name) an existing
+ * `bytes` enriched as `reqseq evidence enrich-junit` would: per test case (by name) an existing
  * `logreq:element` property gets the UUID of the first element, the other properties are added at
  * `propertiesAt`. Test cases not named stay as they are.
  */
@@ -362,7 +362,7 @@ describe("JUnit reader (SR-093)", () => {
           file: "ci/results.xml",
           line: 1,
           message:
-            "2 test case(s) name a requirement but have no logreq:version, so they give no record; enrich the file with logreq evidence enrich-junit",
+            "2 test case(s) name a requirement but have no logreq:version, so they give no record; enrich the file with reqseq evidence enrich-junit",
         },
       ],
     });
@@ -410,7 +410,7 @@ describe("JUnit reader (SR-093)", () => {
         "evidence.invalid-record",
         "error",
         3,
-        'Test case "short id" is not read: logreq:element "SR-46fb54" is not a UUID (logreq evidence enrich-junit writes the UUID)',
+        'Test case "short id" is not read: logreq:element "SR-46fb54" is not a UUID (reqseq evidence enrich-junit writes the UUID)',
       ],
       [
         "evidence.invalid-record",
@@ -467,7 +467,7 @@ describe("JUnit reader (SR-093)", () => {
       suite(testCase(name, [["logreq:element", "\u001b[31m"], ...enriched().slice(1)])),
     );
     expect(read.problems?.map((p) => p.message)).toEqual([
-      `Test case "evil\\u{1b}[2J${"x".repeat(32)}…" is not read: logreq:element "\\u{1b}[31m" is not a UUID (logreq evidence enrich-junit writes the UUID)`,
+      `Test case "evil\\u{1b}[2J${"x".repeat(32)}…" is not read: logreq:element "\\u{1b}[31m" is not a UUID (reqseq evidence enrich-junit writes the UUID)`,
     ]);
   });
 

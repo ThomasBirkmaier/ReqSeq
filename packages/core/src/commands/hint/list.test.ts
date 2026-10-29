@@ -6,8 +6,8 @@
 // requirement) valid in VB, in P1, with an unknown property. Every other stored version is current.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

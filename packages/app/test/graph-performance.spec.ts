@@ -98,9 +98,9 @@ const timeOpen = async (window: Page, opener: Opener, root: string, nodes: numbe
               requestAnimationFrame(() => {
                 const end = performance.now();
                 const [request, answer, layout] = [
-                  last("logreq.graph.request"),
-                  last("logreq.graph.answer"),
-                  last("logreq.graph.layout"),
+                  last("reqseq.graph.request"),
+                  last("reqseq.graph.answer"),
+                  last("reqseq.graph.layout"),
                 ];
                 resolve({
                   total: end - from,

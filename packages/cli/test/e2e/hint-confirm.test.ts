@@ -1,15 +1,15 @@
-// `logreq hint confirm` end to end (SR-027, ADR-0009): the built binary with the product commands on
+// `reqseq hint confirm` end to end (SR-027, ADR-0009): the built binary with the product commands on
 // fixtures/SR-025/outdated, its exit code, its JSON and the files it writes. Confirming in the app
 // comes with the app in stage 3 (#127 option 1); core and this test cover the function now.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
-const logreq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
 interface Hint {
   readonly code: string;
@@ -48,11 +48,11 @@ const changed = async (): Promise<FixtureWorkspace> => {
 };
 
 const hints = async (ws: FixtureWorkspace): Promise<Hint[]> => {
-  const out = await logreq(["hint", "list", "--kind", "relation.outdated", "--json"], ws.root);
+  const out = await reqseq(["hint", "list", "--kind", "relation.outdated", "--json"], ws.root);
   return (JSON.parse(out.stdout) as { readonly hints: Hint[] }).hints;
 };
 
-describe("logreq hint confirm (SR-027)", () => {
+describe("reqseq hint confirm (SR-027)", () => {
   it("[SR-027/AK1] [SR-027/AK2] confirms several hints, each on its own, and reports an ID that confirms nothing with exit code 1", async () => {
     const ws = await changed();
     const [validity, derives, link] = await hints(ws);
@@ -65,7 +65,7 @@ describe("logreq hint confirm (SR-027)", () => {
       "--hint-ids",
       derives?.hintId ?? "",
     ];
-    const out = await logreq([...args, "--hint-ids", "element.unknown-property", "--json"], ws.root);
+    const out = await reqseq([...args, "--hint-ids", "element.unknown-property", "--json"], ws.root);
     expect([out.code, out.stderr]).toEqual([1, ""]);
     expect(JSON.parse(out.stdout) as Confirmed).toEqual({
       confirmed: [validity?.hintId, derives?.hintId],
@@ -79,7 +79,7 @@ describe("logreq hint confirm (SR-027)", () => {
     expect(await fs.readFile(ws.path(A_FILE), "utf8")).toBe(expected);
     expect((await hints(ws)).map((h) => h.hintId)).toEqual([link?.hintId]);
     // A stale ID is a warning: nothing to write, exit code 0.
-    const again = await logreq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
+    const again = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
     expect([again.code, again.stderr]).toEqual([0, ""]);
     expect(again.stdout).toContain("hint.not-found");
   });
@@ -89,7 +89,7 @@ describe("logreq hint confirm (SR-027)", () => {
     const [validity, derives, link] = await hints(ws);
     const N = "5e025a7d-2b4f-4c61-9d08-0a0000000001";
     const A = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
-    const target = await logreq(["hint", "confirm", "--target", N, "--kind", "relation.outdated"], ws.root);
+    const target = await reqseq(["hint", "confirm", "--target", N, "--kind", "relation.outdated"], ws.root);
     expect(target).toEqual({
       code: 0,
       stdout: [
@@ -103,7 +103,7 @@ describe("logreq hint confirm (SR-027)", () => {
       ].join("\n"),
       stderr: "",
     });
-    const ref = await logreq(["hint", "confirm", "--ref", A, "--json"], ws.root);
+    const ref = await reqseq(["hint", "confirm", "--ref", A, "--json"], ws.root);
     expect(JSON.parse(ref.stdout) as Confirmed).toEqual({
       confirmed: [validity?.hintId],
       files: [A_FILE],
@@ -111,12 +111,12 @@ describe("logreq hint confirm (SR-027)", () => {
     });
     // A changed, so the relation of B to A is outdated now: a hint about B, which stays open.
     expect((await hints(ws)).map((h) => h.hintId)).toEqual([expect.stringContaining("/refines/")]);
-    const none = await logreq(["hint", "confirm", "--ref", A], ws.root);
+    const none = await reqseq(["hint", "confirm", "--ref", A], ws.root);
     expect([none.code, none.stdout]).toEqual([
       0,
       `confirmed: none\nfiles: none\nwarning  hint.not-found  No open hint about ${A} can be confirmed, so nothing was written for it (a warning, exit code 0); hint.list gives the open hints\n`,
     ]);
-    const empty = await logreq(["hint", "confirm"], ws.root);
+    const empty = await reqseq(["hint", "confirm"], ws.root);
     expect([empty.code, empty.stderr]).toEqual([
       2,
       "error input.invalid: Give hintIds, ref or target: which hints to confirm (hint.list gives the open ones)\n",
@@ -126,7 +126,7 @@ describe("logreq hint confirm (SR-027)", () => {
   it("[SR-027/AK3] shows the new version as a normal change in Git, only on the line of the relation", async () => {
     const ws = await changed();
     const derives = (await hints(ws))[1];
-    const out = await logreq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
+    const out = await reqseq(["hint", "confirm", "--hint-ids", derives?.hintId ?? ""], ws.root);
     expect([out.code, out.stderr]).toEqual([0, ""]);
     expect(await ws.git(["status", "--porcelain"])).toBe(` M ${A_FILE}\n`);
     const diff = await ws.git(["diff", "--unified=0", "--no-color"]);

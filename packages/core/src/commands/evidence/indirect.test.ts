@@ -5,8 +5,8 @@
 // element files; one test gives them through `evidenceRecordsState` instead (decision on #127).
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FixtureOptions } from "@logreq/testkit";
-import { createFixtureWorkspace, defaultFixturesDir } from "@logreq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
+import { createFixtureWorkspace, defaultFixturesDir } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";

@@ -5,7 +5,7 @@
 // through the row element and its relations, Enter or a click opens the element. The row element of an
 // element that changed outside the app is highlighted briefly (SR-116).
 import { useEffect, useRef, useState } from "react";
-import type { DataExportRelation } from "@logreq/core";
+import type { DataExportRelation } from "@reqseq/core";
 import { useIdScope } from "./area-scope.js";
 import type { BufferAction, ListBuffer } from "./buffers.js";
 import { bufferName, listSort } from "./buffers.js";

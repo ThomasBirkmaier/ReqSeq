@@ -165,7 +165,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 | `variants`, `baselines` | Views, replace, exclude, diff, baselines (SR-039..SR-051); validity and its hints first (SR-040, stage 1); the read-only reader of baseline files first (SR-032 AK2, stage 4) | 1, 4, 5 |
 | `reqif` | ReqIF 1.2 import and export with mapping (SR-052..SR-059); not in the code yet, no folder | 6 |
 
-Rules: adapters depend only on `@logreq/core`'s public exports (`index.ts` and the subpaths `recent-workspaces` and `verification-degree` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
+Rules: adapters depend only on `@reqseq/core`'s public exports (`index.ts` and the subpaths `recent-workspaces` and `verification-degree` in `package.json`; the lint rule `no-restricted-imports` in `eslint.config.js` rejects imports of core's source folders). Inside `core`, `commands` may use every block; no block imports `commands`, except `runtime/invoke.ts`, which runs them. `git` is the only module that spawns processes (the cold load of `model` uses worker threads, not processes); `files` is the only module that writes to disk.
 
 ## 6. Runtime scenarios
 

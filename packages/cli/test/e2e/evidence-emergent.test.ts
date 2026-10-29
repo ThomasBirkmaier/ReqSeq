@@ -1,11 +1,11 @@
-// `logreq evidence status`, `logreq element list` and `logreq element get` end to end with emergent
+// `reqseq evidence status`, `reqseq element list` and `reqseq element get` end to end with emergent
 // requirements (SR-035): the built binary on fixtures/SR-035/emergent, whose README lists every element,
 // its mark, its parent and its Markdown record. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -18,15 +18,15 @@ beforeAll(() => {
 
 const U = (tail: string): string => `35353535-3535-4535-8535-00000000${tail}`;
 
-const logreq = async (args: readonly string[]): Promise<Run> => {
+const reqseq = async (args: readonly string[]): Promise<Run> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-035/emergent" });
   fixtures.push(ws);
   return run(args, { cwd: ws.root });
 };
 
-describe("logreq with emergent requirements (SR-035)", () => {
-  it("[SR-035/AK1] logreq evidence status prints open for an emergent requirement whose children are verified, and its parent names it missing", async () => {
-    const result = await logreq(["evidence", "status"]);
+describe("reqseq with emergent requirements (SR-035)", () => {
+  it("[SR-035/AK1] reqseq evidence status prints open for an emergent requirement whose children are verified, and its parent names it missing", async () => {
+    const result = await reqseq(["evidence", "status"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
@@ -49,9 +49,9 @@ describe("logreq with emergent requirements (SR-035)", () => {
     );
   });
 
-  it("[SR-035/AK2] logreq element list with the condition emergent lists exactly the marked requirements, each with [emergent]", async () => {
+  it("[SR-035/AK2] reqseq element list with the condition emergent lists exactly the marked requirements, each with [emergent]", async () => {
     const input = JSON.stringify({ selection: { where: { emergent: true } } });
-    const result = await logreq(["element", "list", "--input", input]);
+    const result = await reqseq(["element", "list", "--input", input]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toBe(
       [
@@ -64,7 +64,7 @@ describe("logreq with emergent requirements (SR-035)", () => {
         "",
       ].join("\n"),
     );
-    const json = await logreq(["element", "list", "--input", input, "--json"]);
+    const json = await reqseq(["element", "list", "--input", input, "--json"]);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     const out = JSON.parse(json.stdout) as {
       readonly elements: readonly { readonly id: string; readonly emergent?: boolean }[];
@@ -77,8 +77,8 @@ describe("logreq with emergent requirements (SR-035)", () => {
     ]);
   });
 
-  it("[SR-035/AK2] logreq element get --json shows emergent true", async () => {
-    const result = await logreq(["element", "get", "SR-00b110", "--json"]);
+  it("[SR-035/AK2] reqseq element get --json shows emergent true", async () => {
+    const result = await reqseq(["element", "get", "SR-00b110", "--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const out = JSON.parse(result.stdout) as {
       readonly element: {
@@ -92,7 +92,7 @@ describe("logreq with emergent requirements (SR-035)", () => {
       "yes",
       [{ view: "core", status: "open" }],
     ]);
-    const other = JSON.parse((await logreq(["element", "get", "SR-00b120", "--json"])).stdout) as {
+    const other = JSON.parse((await reqseq(["element", "get", "SR-00b120", "--json"])).stdout) as {
       readonly element: Readonly<Record<string, unknown>>;
     };
     expect("emergent" in other.element).toBe(false);

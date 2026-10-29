@@ -2,7 +2,7 @@
 // SR-116 AK3), on the built app: the CLI, an agent through MCP or the file system changes the file. Nothing
 // is saved over the file, the input stays, a block "On disk" shows the file's version, and "Resolve change
 // on disk" lets the user choose; a deleted file leaves the content read-only with a hint. The screenshots
-// of the block go to `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS).
+// of the block go to `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS).
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,7 @@ const THEIRS = "Theirs.";
 const CHANGED = `${NAME} changed on disk. Resolve with "Resolve change on disk"`;
 
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** The editor of the text (the property boxes have editors of their own). */

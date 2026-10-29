@@ -1,6 +1,6 @@
 # Model block: writing, reading, status, bulk update, supersede, relations (`src/model/`)
 
-Part of the [`@logreq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
+Part of the [`@reqseq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
 
 Writing elements (SR-001, SR-002, `src/model/write.ts`, used by `element.create` and `element.update`):
 

@@ -4,9 +4,9 @@
 // buffer of the active area. Nothing else is permanently visible (SR-100). Every datum comes from a
 // catalog command through the bridge (ADR-0002); the app only builds inputs and shows outputs.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import type { CommandListing, WorkspaceChangeReason } from "../shared/protocol.js";
-import type { LogReqBridge } from "../shared/protocol.js";
+import type { ReqSeqBridge } from "../shared/protocol.js";
 import type { ActionContext, ElementControls, Prompt } from "./actions.js";
 import {
   ACTIONS,
@@ -140,7 +140,7 @@ const shownOnly = (loaded: Loaded, keys: readonly string[]): Loaded =>
     ? loaded
     : new Map([...loaded].filter(([key]) => keys.includes(key)));
 
-export const App = ({ bridge }: { readonly bridge: LogReqBridge }): React.JSX.Element => {
+export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.Element => {
   const [view, setView] = useState<WorkspaceView | undefined>(undefined);
   const [echo, setEcho] = useState("");
   const [stopped, setStopped] = useState(false);

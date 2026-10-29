@@ -1,7 +1,7 @@
 // The graph buffer's data (SR-111, D-063): the input of `trace.graph` the buffer asks with, and the words
 // a node and the modeline show. Everything shown is a value of the output (ADR-0002, SR-080 AK4); the app
 // only adds the size limit and the words for the marks. No React here.
-import type { TraceGraphInput, TraceGraphOutput } from "@logreq/core";
+import type { TraceGraphInput, TraceGraphOutput } from "@reqseq/core";
 import type { GraphBuffer, GraphDepth } from "./buffers.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
 

@@ -3,8 +3,8 @@
 // one repository `system` with the standard model and Markdown records in `evidence`, no variants.
 // The records come from the record files of the fixture; one test gives them through
 // `evidenceRecordsState` instead (decision on #127).
-import type { FixtureOptions } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type { EvidenceRecord } from "../../evidence/index.js";
