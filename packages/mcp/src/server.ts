@@ -8,6 +8,7 @@ import {
   PRODUCT_VERSION,
   agentInstructions,
   getCommandRuntime,
+  jsonByteLength,
 } from "@logreq/core";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/server";
 import { McpServer, ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
@@ -15,14 +16,27 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import type { ServerTool } from "./tools.js";
 import { serverTools, toolName } from "./tools.js";
 import type { InputStream, TextSink } from "./transport.js";
-import { LineTransport } from "./transport.js";
+import { LineTransport, MAX_MESSAGE_BYTES } from "./transport.js";
 
 export interface McpServerOptions {
   /** The workspace every call runs on; the caller closes it after the session. */
   readonly workspace: Workspace;
   /** Default: the runtime of this process (`getCommandRuntime()`). */
   readonly runtime?: CommandRuntime;
+  /** Largest output also sent as JSON text; default `MAX_TEXT_BYTES` (tests take small ones). */
+  readonly maxTextBytes?: number;
 }
+
+/**
+ * Largest output whose JSON is also sent as text content: 32 MiB, the bound of an incoming message
+ * (`MAX_MESSAGE_BYTES`). Above it the text is a note (`largeOutputNote`); `structuredContent` is the
+ * output on every size (#277).
+ */
+export const MAX_TEXT_BYTES = MAX_MESSAGE_BYTES;
+
+/** The text content of an output over `maxTextBytes` bytes of JSON. */
+export const largeOutputNote = (maxTextBytes: number): string =>
+  `The output is larger than ${String(maxTextBytes)} bytes of JSON, so it is only in structuredContent, not repeated as text. To get it as a file, call ${toolName("data.store")} with a folder.`;
 
 /** A tool as `tools/list` sends it. */
 const listed = (tool: ServerTool): Tool => ({
@@ -41,12 +55,18 @@ export async function callTool(
   command: string,
   args: unknown,
   signal: AbortSignal,
+  maxTextBytes: number = MAX_TEXT_BYTES,
 ): Promise<CallToolResult> {
   try {
     const output = await runtime.invoke(command, args, { workspace, signal, access: "mcp" });
     // Catalog outputs are objects (catalog.meta.schema.json), checked in tests and debug builds.
     const structured = output as Record<string, unknown>;
-    return { content: [{ type: "text", text: JSON.stringify(output) }], structuredContent: structured };
+    // Counted with an early stop, so a large output is never built as one string (#277).
+    const text =
+      jsonByteLength(output, maxTextBytes) <= maxTextBytes
+        ? JSON.stringify(output)
+        : largeOutputNote(maxTextBytes);
+    return { content: [{ type: "text", text }], structuredContent: structured };
   } catch (error) {
     const object = (
       error instanceof CommandError ? error : new CommandError("internal", "Internal error in the MCP server")
@@ -82,7 +102,14 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     if (command === undefined) {
       throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Tool ${name} not found`);
     }
-    const result = await callTool(runtime, options.workspace, command, args ?? {}, ctx.mcpReq.signal);
+    const result = await callTool(
+      runtime,
+      options.workspace,
+      command,
+      args ?? {},
+      ctx.mcpReq.signal,
+      options.maxTextBytes,
+    );
     // The era projection of the SDK, as McpServer does it. No output schema is advertised, and catalog outputs
     // are objects (catalog.meta.schema.json), so nothing is wrapped as `{ result }` (SR-080 AK2).
     return server.projectCallToolResult(result, undefined);

@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
 import type { JSONRPCMessage } from "@modelcontextprotocol/server";
+import { serializeMessage } from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import { LineTransport, MAX_MESSAGE_BYTES } from "./transport.js";
 
@@ -142,5 +143,95 @@ describe("LineTransport", () => {
     await transport.start();
     await expect(transport.start()).rejects.toThrow("already started");
     await transport.closed;
+  });
+});
+
+describe("LineTransport: large messages and the send queue (#277)", () => {
+  /** A result of about 3 MB of JSON: more than one chunk. */
+  const large = (id: number): JSONRPCMessage => ({
+    jsonrpc: "2.0",
+    id,
+    result: {
+      content: [{ type: "text", text: "note" }],
+      structuredContent: {
+        elements: Array.from({ length: 30_000 }, (_, n) => ({ n, title: `Größe 😀 ${"x".repeat(60)}` })),
+      },
+    },
+  });
+
+  /** A sink that pushes back on every write until `drained` (after a tick) says it takes more. */
+  class SlowSink {
+    readonly pieces: string[] = [];
+    open = true;
+    write(text: string): boolean {
+      this.pieces.push(text);
+      return false;
+    }
+    drained(): Promise<boolean> {
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          resolve(this.open);
+        }, 1),
+      );
+    }
+  }
+
+  it("writes the bytes of the SDK's serialisation in chunks, one write for a small message", async () => {
+    const written: string[] = [];
+    const transport = new LineTransport(new PassThrough(), { write: (text) => written.push(text) });
+    await transport.start();
+    await transport.send(large(1));
+    expect(written.length).toBeGreaterThan(2);
+    expect(written.join("")).toBe(serializeMessage(large(1)));
+    written.length = 0;
+    await transport.send(ping(2));
+    expect(written).toEqual([serializeMessage(ping(2))]);
+    await transport.close();
+  });
+
+  it("writes two sends started together as two whole lines in order, waiting for the sink (review B4)", async () => {
+    const sink = new SlowSink();
+    const transport = new LineTransport(new PassThrough(), sink);
+    await transport.start();
+    await Promise.all([transport.send(large(3)), transport.send(ping(4))]);
+    expect(sink.pieces.join("")).toBe(serializeMessage(large(3)) + serializeMessage(ping(4)));
+    expect(sink.pieces.at(-1)).toBe(serializeMessage(ping(4)));
+    await transport.close();
+  });
+
+  it("stops a send when the transport closes, and closes when the reader has gone away (review B4)", async () => {
+    const sink = new SlowSink();
+    const transport = new LineTransport(new PassThrough(), sink);
+    const received = connect(transport);
+    await transport.start();
+    const sending = transport.send(large(5));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await transport.close();
+    await sending;
+    const count = sink.pieces.length;
+    await transport.send(ping(6));
+    expect(sink.pieces).toHaveLength(count);
+    expect(sink.pieces.join("").includes("\n")).toBe(false);
+
+    const gone = new SlowSink();
+    gone.open = false;
+    const other = new LineTransport(new PassThrough(), gone);
+    const closes = connect(other);
+    await other.start();
+    await other.send(large(7));
+    expect(gone.pieces).toHaveLength(1);
+    expect(closes.closes).toBe(1);
+    expect(received.closes).toBe(1);
+  });
+
+  it("rejects a send that cannot be serialised and goes on with the next", async () => {
+    const written: string[] = [];
+    const transport = new LineTransport(new PassThrough(), { write: (text) => written.push(text) });
+    await transport.start();
+    const bad = { jsonrpc: "2.0", id: 8, result: { n: 1n } } as unknown as JSONRPCMessage;
+    await expect(transport.send(bad)).rejects.toThrow(TypeError);
+    await transport.send(ping(9));
+    expect(written).toEqual([serializeMessage(ping(9))]);
+    await transport.close();
   });
 });
