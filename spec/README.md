@@ -1,8 +1,8 @@
 # spec/
 
-The ReqSeq specification, a ReqSeq workspace (D-064, enabler #326). Until stage 3 it was exported from the Logseq graph ReqSeq (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
+The ReqSeq specification, a ReqSeq workspace (D-064, enabler #326). Until stage 3 it was exported from the former Logseq graph (also named ReqSeq) (D-047, superseded); the migration kept every German text, title and acceptance criterion byte for byte and every Logseq UUID as element ID.
 
-**Change it only with ReqSeq** (CLI or MCP), in a pull request, German texts carrying exactly the decided content as requirement text, never as a chat quote (CLAUDE.md, "Repository content"). Status is set only by a person. See CLAUDE.md, "Sources of truth".
+**Change it only with ReqSeq** (CLI or MCP), in a pull request, German texts carrying exactly the decided content as requirement text, never as a chat quote (CLAUDE.md, "Repository text"). Status is set only by a person. See CLAUDE.md, "Sources of truth".
 
 ## Layout
 
