@@ -232,6 +232,24 @@ const throttle = async (window: Page): Promise<void> => {
   await session.send("Emulation.setCPUThrottlingRate", { rate });
 };
 
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/** The state of an app that did not end after its window was closed, for the error of the test. */
+const hangState = async (app: ElectronApplication, window: Page, stderr: string): Promise<string> => {
+  const windows = await app
+    .evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+    .catch((error: unknown) => `unknown (${String(error)})`);
+  const minibuffer = await window
+    .getByLabel("Minibuffer")
+    .innerText({ timeout: 1000 })
+    .catch(() => "(not readable)");
+  const log = stderr.trim().split(/\r?\n/).slice(-10).join(" | ");
+  return `Open windows: ${String(windows)}. Minibuffer: ${JSON.stringify(minibuffer)}. Last log lines: ${log}`;
+};
+
 /** Starts the app on a new fixture workspace (`undefined`: without a workspace), or on `options.kept`. */
 export const launchApp = async (
   fixture: Fixture | undefined,
@@ -354,6 +372,9 @@ export const launchApp = async (
         hung = !(await Promise.race([end, late]));
         clearTimeout(timer);
       }
+      // What a hang leaves, for its error: whether the window is still open (it kept itself open, and its
+      // minibuffer says why) or closed while the app did not end, and the app's last log lines.
+      const left = hung ? await hangState(app, window, stderr) : "";
       // A window that keeps itself open (input it cannot save asks once, SR-105 AK1) is destroyed:
       // `destroy()` closes it without a `close` event, so without a save.
       await app
@@ -363,6 +384,14 @@ export const launchApp = async (
           }
         })
         .catch(() => undefined);
+      // How long a hung app still took to end by itself after its windows were destroyed, for the error.
+      const started = Date.now();
+      const endedLate = hung
+        ? await Promise.race([
+            end.then(() => `${String(Date.now() - started)} ms`),
+            delay(10_000).then(() => "no"),
+          ])
+        : "";
       await app.close();
       if (options?.keep !== true) {
         await workspace?.cleanup();
@@ -370,7 +399,7 @@ export const launchApp = async (
       }
       if (hung) {
         throw new Error(
-          `The app did not end within ${String(CLOSE_WAIT_MS)} ms after its window was closed; it was destroyed. A test that ends with input that cannot be saved closes with \`discard\`.`,
+          `The app did not end within ${String(CLOSE_WAIT_MS)} ms after its window was closed; it was destroyed. A test that ends with input that cannot be saved closes with \`discard\`. ${left}. Ended by itself after the destroy: ${endedLate}.`,
         );
       }
     },

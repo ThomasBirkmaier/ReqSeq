@@ -621,7 +621,22 @@ test.describe("property boxes of an element with many values", () => {
       new MutationObserver(check).observe(document.body, { childList: true, subtree: true });
     }, 10);
     await window.keyboard.press("Enter");
-    await window.waitForFunction(() => (globalThis as unknown as { __open?: number }).__open !== undefined);
+    // Polled as a whole, so that a timeout says which part is missing: the key, the lines or the paint.
+    await expect
+      .poll(
+        () =>
+          window.evaluate(() => {
+            const w = globalThis as unknown as { __t0?: number; __open?: number };
+            return {
+              key: w.__t0 !== undefined,
+              title: document.querySelector("article h1")?.textContent ?? null,
+              lines: document.querySelectorAll('[data-field="acceptance-criteria"] .cm-line').length,
+              open: w.__open !== undefined,
+            };
+          }),
+        { timeout: 30_000 },
+      )
+      .toMatchObject({ open: true });
     const open = await window.evaluate(() => (globalThis as unknown as { __open: number }).__open);
     const lines = field(window, "acceptance-criteria").locator(".cm-line");
     expect(await lines.count()).toBeGreaterThanOrEqual(10);
