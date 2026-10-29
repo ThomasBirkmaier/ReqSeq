@@ -1,6 +1,6 @@
 # Query block (`src/query/`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 The filter conditions (SR-069), saved filters (SR-070), the selection of a command (SR-101), the evidence provider the filter asks (#81) and the full-text search index (#323, SR-068). It imports the model, metamodel, variants, evidence, files and workspace blocks; `element.list`, `element.bulkUpdate`, `element.search`, `filter.save` and `filter.list` use it now. Semantics and measurements: ADR-0008 "Filter and selection" and "Search".
 

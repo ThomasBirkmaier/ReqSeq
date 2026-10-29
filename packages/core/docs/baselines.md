@@ -1,6 +1,6 @@
 # Baselines block (`src/baselines/`)
 
-Part of the [`@logreq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): stage 4 has the read-only reader (`read.ts`) so that `evidence.list` can name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question #530 Q1). `data.export` selects by baseline (SR-061 AK2, `selects` and `findBaseline` below); creating and comparing baselines, and selecting by baseline in other commands, is stage 5 (SR-050, SR-051, SR-094; the other commands refuse `selection.baseline` until then). The block never writes and never runs Git.
+Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `baseline.schema.json`): stage 4 has the read-only reader (`read.ts`) so that `evidence.list` can name the baselines that contain the version of a record (SR-032 AK2, assumption of spec question #530 Q1). `data.export` selects by baseline (SR-061 AK2, `selects` and `findBaseline` below); creating and comparing baselines, and selecting by baseline in other commands, is stage 5 (SR-050, SR-051, SR-094; the other commands refuse `selection.baseline` until then). The block never writes and never runs Git.
 
 ## Reading
 

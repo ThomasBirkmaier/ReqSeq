@@ -1,6 +1,6 @@
 # Evidence block: records (`src/evidence/`)
 
-Part of the [`@logreq/core` README](../README.md). Lane A of stage 4 fills this file (readers, `evidence.record`, `evidence.enrichJunit`); the status rules are in [evidence-status.md](evidence-status.md), the views in [evidence-views.md](evidence-views.md).
+Part of the [`@reqseq/core` README](../README.md). Lane A of stage 4 fills this file (readers, `evidence.record`, `evidence.enrichJunit`); the status rules are in [evidence-status.md](evidence-status.md), the views in [evidence-views.md](evidence-views.md).
 
 The evidence records (Datensätze) of a workspace as an in-memory list, indexed by element, with the test cases they form (ADR-0012 "Block and state"). Producers (the Markdown and JUnit readers, `evidence.record`, `evidence.enrichJunit`) write or read records; consumers (status, coverage, degree, list, chain, matrix, export) only read them. The block imports the model, workspace and variants blocks, never `commands`; it never computes or writes the `status` of an element (D-030).
 

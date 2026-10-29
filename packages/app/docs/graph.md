@@ -1,6 +1,6 @@
 # Graph (SR-111)
 
-Part of the [`@logreq/app` README](../README.md).
+Part of the [`@reqseq/app` README](../README.md).
 
 - **Graph (SR-111, D-063):** one topic per line.
   - *Open and keys:* Ctrl/Cmd+Shift+G on an element or its neighbourhood (action "Show graph", the title of `trace.graph`, which it `covers`: the command prompt lists it once and its output opens this buffer, not a result buffer) shows the element and what hangs on it, in layers, as a buffer of its own ("Graph: <ID> <title>", reachable by Ctrl+P like any buffer); Ctrl/Cmd+Shift+G on the graph ("Show element") shows the element again. Not Ctrl/Cmd+G: Ctrl+G is the Emacs keyboard-quit (SR-121). Keys, while the graph has the focus (one tab stop, the selection moves inside it): Up and Down follow a link to the box above or below that is nearest, Left and Right go through a layer, Page Up and Page Down from layer to layer, Home to the element, Enter or a click opens the box as the current element (its element buffer; its graph is then Ctrl/Cmd+Shift+G). Keys with Ctrl, Cmd or Alt held are not the graph's.

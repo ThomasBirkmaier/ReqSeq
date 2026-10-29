@@ -1,6 +1,6 @@
 # Model block: superseded targets, duplicate IDs, relation targets and types (`src/model/`)
 
-Part of the [`@logreq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
+Part of the [`@reqseq/core` README](../README.md); the model block is split into [store](model-store.md), [checks](model-checks.md), [writing](model-write.md) and [findings](model-findings.md).
 
 Hints on relations to superseded elements (SR-072 AK2, `src/model/superseded.ts`):
 

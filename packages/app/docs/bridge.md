@@ -1,6 +1,6 @@
 # `window.logreq` (preload, `src/preload/bridge.ts`)
 
-Part of the [`@logreq/app` README](../README.md).
+Part of the [`@reqseq/app` README](../README.md).
 
 - `invoke(name, input = {})` resolves to `{ ok: true, output }` or `{ ok: false, error }`, where `error` is the error object of every access. It never rejects, because the context bridge would keep only an error's message. Without a workspace it gives `workspace.not-found`.
 - `commands()` returns the catalog entries, each with `implemented`, as `GET /v1/commands` of the API does (for the command palette, SR-073 AK2).

@@ -27,7 +27,7 @@ Also run `pnpm schemas:check && pnpm contracts:check` when schemas or the catalo
 
 ## Heavy runs in a cloud session
 
-Run coverage, build, e2e and Electron only under `flock /home/user/wt/.gates.lock <command>`, with at most two agents running Electron at the same time, because the container restarted under more. Electron does not start as root, and the CA warning on stderr breaks the SR-080/AK2 JSON compare. From `packages/app`, after `pnpm --filter @logreq/app build:electron` and `chmod 777 test-results/`:
+Run coverage, build, e2e and Electron only under `flock /home/user/wt/.gates.lock <command>`, with at most two agents running Electron at the same time, because the container restarted under more. Electron does not start as root, and the CA warning on stderr breaks the SR-080/AK2 JSON compare. From `packages/app`, after `pnpm --filter @reqseq/app build:electron` and `chmod 777 test-results/`:
 
 ```sh
 sudo -u ubuntu env -u NODE_EXTRA_CA_CERTS -u NODE_OPTIONS xvfb-run -a ./node_modules/.bin/playwright test --config test/playwright.config.ts <specs>

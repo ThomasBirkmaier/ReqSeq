@@ -1,14 +1,14 @@
-# @logreq/app
+# @reqseq/app
 
-The LogReq desktop app (ADR-0010). It is an Electron shell over the command catalog of `@logreq/core` (ADR-0002) and has no logic of its own. Every call of the renderer is one `invoke` in the core process, so the app gives the same results as CLI, API and MCP (SR-080).
+The LogReq desktop app (ADR-0010). It is an Electron shell over the command catalog of `@reqseq/core` (ADR-0002) and has no logic of its own. Every call of the renderer is one `invoke` in the core process, so the app gives the same results as CLI, API and MCP (SR-080).
 
 ```sh
 pnpm build                                   # core and the other packages (tsc)
-pnpm --filter @logreq/app electron:install   # downloads the Electron binary (pnpm runs no install scripts)
-pnpm --filter @logreq/app build:electron     # electron-vite: out/main, out/preload, out/renderer
-pnpm --filter @logreq/app start -- --workspace ../../fixtures/SR-004/one-repository
-pnpm --filter @logreq/app start -- --workspace ../../spec   # the specification of LogReq itself
-pnpm --filter @logreq/app test:electron      # install, build and the Playwright tests (Linux: under xvfb-run)
+pnpm --filter @reqseq/app electron:install   # downloads the Electron binary (pnpm runs no install scripts)
+pnpm --filter @reqseq/app build:electron     # electron-vite: out/main, out/preload, out/renderer
+pnpm --filter @reqseq/app start -- --workspace ../../fixtures/SR-004/one-repository
+pnpm --filter @reqseq/app start -- --workspace ../../spec   # the specification of LogReq itself
+pnpm --filter @reqseq/app test:electron      # install, build and the Playwright tests (Linux: under xvfb-run)
 ```
 
 The details are in the parts under [`docs/`](docs/), one file per topic. Read only the part you work on.
@@ -33,7 +33,7 @@ The app follows the system's light or dark setting at start and while it runs (`
 
 ## Processes
 
-- **Main** (`src/main/`, `out/main/index.js`) opens one window, the menu and the folder dialog. The menu is minimal: File > Open Workspace (Ctrl/Cmd+O), Quit (Close on macOS) and Edit. An unpackaged build adds Developer > Reload (F5) and Developer Tools (F12). Other keys stay free for the minibuffer and buffers. The menu bar hides until Alt on Windows and Linux. It also handles the protocols and the security settings. `--workspace <folder>` opens that folder at start. It answers the renderer's requests for the workspaces opened last and opens one of them, or the workspace of a typed folder, in the window (SR-131, `src/main/workspaces.ts`), with core's list module `@logreq/core/recent-workspaces`, loaded on the first request. Before every switch, also from the folder dialog, it asks the window to save its unsaved input (`logreq:save`) and goes on only when the window answers that it is saved (`logreq:saved`; no answer within 30 s keeps the open workspace).
+- **Main** (`src/main/`, `out/main/index.js`) opens one window, the menu and the folder dialog. The menu is minimal: File > Open Workspace (Ctrl/Cmd+O), Quit (Close on macOS) and Edit. An unpackaged build adds Developer > Reload (F5) and Developer Tools (F12). Other keys stay free for the minibuffer and buffers. The menu bar hides until Alt on Windows and Linux. It also handles the protocols and the security settings. `--workspace <folder>` opens that folder at start. It answers the renderer's requests for the workspaces opened last and opens one of them, or the workspace of a typed folder, in the window (SR-131, `src/main/workspaces.ts`), with core's list module `@reqseq/core/recent-workspaces`, loaded on the first request. Before every switch, also from the folder dialog, it asks the window to save its unsaved input (`logreq:save`) and goes on only when the window answers that it is saved (`logreq:saved`; no answer within 30 s keeps the open workspace).
 - **Core process** (`src/core/`, `out/main/core.js`) is an Electron utility process (plain Node) with one workspace. It passes each batch of the watcher to the windows as `workspace-changed` with the reason `external` (below). That workspace is the root found upwards from the chosen folder, or else the folder itself. Its model cache lies in the cache folder of the copy, and the watcher and the load run as in `logreq serve api`. Opening another workspace stops the core process and starts a new one. Before it stops, it aborts running reads, lets running writes finish and closes its workspace; after 5 s it is killed. The app stops it the same way before it quits. A write command also runs to its end when its window goes away. It also watches the accesses agents make through the API or MCP on the copy (SR-117, `agent-activity`); why it cannot (no cache folder outside the repositories, no watch) is a line on standard error. Every call of the app passes the access `app` (ADR-0002 rule 4). Once its workspace is open, it records the root in the list of recent workspaces (`<OS cache>/logreq/recent-workspaces.json`, core's `recordOpenedWorkspace`; not for a folder without a workspace, and not when that folder lies inside a repository of the workspace), and `stop` waits for that write. If the workspace cannot be opened, the core process logs it and ends with exit code 1. A core process that stops by itself is started again; after more than 3 stops within 60 s it is not started again.
 - **Renderer** (`src/renderer/`, React) is sandboxed and loaded from `app://logreq/index.html`. It reaches only `window.logreq`.
 

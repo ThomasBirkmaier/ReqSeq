@@ -1,6 +1,6 @@
-# @logreq/cli
+# @reqseq/cli
 
-The `logreq` command line (ADR-0009). It is a generic adapter over the command catalog of `@logreq/core`: every catalog command is a subcommand, and the CLI has no logic of its own (ADR-0002).
+The `logreq` command line (ADR-0009). It is a generic adapter over the command catalog of `@reqseq/core`: every catalog command is a subcommand, and the CLI has no logic of its own (ADR-0002).
 
 ```sh
 logreq --help                        # groups of the catalog
@@ -40,8 +40,8 @@ logreq data export --jsonl --input '{"selection":{"package":"PKG-0000d1"}}' > st
 
 ### Servers
 
-- `logreq serve api [--port <n>] [--workspace <path>]`: the local API on `127.0.0.1` and `::1` (`@logreq/api`); prints the URLs and the path of `api.json` (port and token) in the cache folder of the workspace. It refuses at once a wrong `--port` and another API for the copy that runs or starts, then prints `Loading the workspace...` to stderr and loads the workspace (`warmWorkspace`: metamodel, element store, short IDs, incoming relations; the search index then builds in the background) before it listens, so an answer means the workspace is usable (SR-082); stopped meanwhile, it never listens and exits 0 once the running load has finished. Runs until Ctrl-C or SIGTERM, then exits 0.
-- `logreq mcp [--workspace <path>]`: the MCP server on standard input and output (`@logreq/mcp`). It starts loading the workspace at once but does not wait for it, so a cold load does not hold up the handshake; the first tool call waits. Runs until standard input ends or Ctrl-C, then exits 0.
+- `logreq serve api [--port <n>] [--workspace <path>]`: the local API on `127.0.0.1` and `::1` (`@reqseq/api`); prints the URLs and the path of `api.json` (port and token) in the cache folder of the workspace. It refuses at once a wrong `--port` and another API for the copy that runs or starts, then prints `Loading the workspace...` to stderr and loads the workspace (`warmWorkspace`: metamodel, element store, short IDs, incoming relations; the search index then builds in the background) before it listens, so an answer means the workspace is usable (SR-082); stopped meanwhile, it never listens and exits 0 once the running load has finished. Runs until Ctrl-C or SIGTERM, then exits 0.
+- `logreq mcp [--workspace <path>]`: the MCP server on standard input and output (`@reqseq/mcp`). It starts loading the workspace at once but does not wait for it, so a cold load does not hold up the handshake; the first tool call waits. Runs until standard input ends or Ctrl-C, then exits 0.
 - Model cache (ADR-0008, SR-082): every command and server opens its workspace with the cache folder of the copy (`new Workspace(root, { cacheFolder: cacheFolder(root) })`), so the element store is loaded through `model.json` there and the cache is written again after a load with many changed files; a one-shot command waits for that write before it exits. The cache takes about 75 MB per copy at 50,000 elements and holds a copy of every element's frontmatter (not its text), readable only by the user. Caches of moved or deleted copies are not removed (stage 1); deleting `<cache>/logreq/` is always safe.
 - These are the only commands outside the catalog; no catalog group may be named `serve` or `mcp`. There is no option for the address (SR-079 AK3).
 

@@ -3,11 +3,11 @@
 Small test data per system requirement (D-055), used by unit and CLI end-to-end tests.
 
 - One folder per SR: `fixtures/SR-xxx/<case>/` with the files of a tiny workspace (`logreq-workspace.yaml`, metamodel, elements).
-- Tests copy a case into a temporary folder and, when Git is needed, turn it into a repository with `createFixtureWorkspace` from `@logreq/testkit`. Fixtures are never used in place, so tests can write.
+- Tests copy a case into a temporary folder and, when Git is needed, turn it into a repository with `createFixtureWorkspace` from `@reqseq/testkit`. Fixtures are never used in place, so tests can write.
 
   ```ts
-  import { createFixtureWorkspace } from "@logreq/testkit";
-  import { Workspace, invoke } from "@logreq/core"; // inside core: relative imports
+  import { createFixtureWorkspace } from "@reqseq/testkit";
+  import { Workspace, invoke } from "@reqseq/core"; // inside core: relative imports
 
   const fixture = await createFixtureWorkspace({
     fixture: "SR-004/one-repository", // copied from fixtures/SR-004/one-repository/ (optional)

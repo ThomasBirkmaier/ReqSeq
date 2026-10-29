@@ -21,7 +21,7 @@ The reference machine of the performance SRs has 4 cores, 16 GB and an SSD; comp
 | trace.chain of the first need, first page: first chain after the start (incoming index built at the start) | SR-082 AK4 (trace.chain through the catalog, first page; the index from warmWorkspace; #227, #290) | 0.3 s | 0.5 s | within |
 | trace.chain of the first need, first page: up and down, of every element derived from it | SR-082 AK4 (trace.chain through the catalog, first page; SR-022, #227, #290) | 0.2 s | 0.5 s | within |
 | trace.chain of the first need, first page: the output as JSON (what an adapter sends) | SR-082 AK4 (serialisation by the adapter; recorded, #227) | 0.0 s |  | no threshold |
-| trace.chain of the first need, first page: the output checked against the catalog schema | SR-082 AK4 (output check of LOGREQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227) | 0.0 s |  | no threshold |
+| trace.chain of the first need, first page: the output checked against the catalog schema | SR-082 AK4 (output check of REQSEQ_VALIDATE_OUTPUT=1, tests and debug builds; recorded, #227) | 0.0 s |  | no threshold |
 | trace.chain of the first need: every page of 5,000 (the whole chain) | SR-082 AK4 (the whole chain page by page; recorded, #227, #290) | 2.6 s |  | no threshold |
 | trace.chain of the first need in core: the walks and the output of every node | SR-082 AK4 (the whole chain as one result; recorded, #227, #290) | 0.4 s |  | no threshold |
 | trace.chain of the first need: the whole chain as JSON | SR-082 AK4 (serialisation of the whole chain; recorded, #227) | 0.2 s |  | no threshold |

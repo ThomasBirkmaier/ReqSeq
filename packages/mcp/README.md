@@ -1,6 +1,6 @@
-# @logreq/mcp
+# @reqseq/mcp
 
-The MCP server of LogReq (ADR-0009) for AI agents: stdio only, one tool per command of the catalog of `@logreq/core` (ADR-0002). It has no logic of its own; every tool call is one `invoke` call. Started by `logreq mcp`.
+The MCP server of LogReq (ADR-0009) for AI agents: stdio only, one tool per command of the catalog of `@reqseq/core` (ADR-0002). It has no logic of its own; every tool call is one `invoke` call. Started by `logreq mcp`.
 
 ```json
 { "mcpServers": { "logreq": { "command": "logreq", "args": ["mcp", "--workspace", "/path/to/copy"] } } }

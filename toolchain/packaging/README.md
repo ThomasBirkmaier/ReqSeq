@@ -13,7 +13,7 @@ Builds the portable delivery of ADR-0014 with electron-builder. Only the workflo
 ## Build a delivery by hand
 
 ```sh
-pnpm install --frozen-lockfile && pnpm build && pnpm --filter @logreq/app build:electron
+pnpm install --frozen-lockfile && pnpm build && pnpm --filter @reqseq/app build:electron
 pnpm install --dir toolchain/packaging --ignore-workspace --frozen-lockfile --ignore-scripts
 eval "$(node scripts/package/stage.mjs)"          # stages build/package/, prints the environment
 toolchain/packaging/node_modules/.bin/electron-builder --projectDir build/package/app \

@@ -1,6 +1,6 @@
 # Git reader (`src/git/reader.ts`)
 
-Part of the [`@logreq/core` README](../README.md).
+Part of the [`@reqseq/core` README](../README.md).
 
 The only module that spawns processes (ADR-0006). It exports only typed functions (and the check `isGitPath` for callers); each runs one fixed command line, at most followed by a checked commit ID, with paths and object names on standard input, so no other subcommand or argument can be passed. Every call runs with `--no-pager -c core.fsmonitor=false -c protocol.allow=never`, `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `GIT_LITERAL_PATHSPECS=1`, `GIT_NO_LAZY_FETCH=1`, without inherited repository variables (`GIT_DIR`, ...) and with a time limit (10 s for `rev-parse`, 60 s for reads of history and objects); a caller may pass an `AbortSignal` that stops the process. An unknown result is `{ known: false, reason, detail }` with `no-git`, `refused` (`safe.directory`), `timeout` (also stopped by the caller) or `not-a-repository` (also for output the reader cannot parse).
 

@@ -1,6 +1,6 @@
 # Keys
 
-Part of the [`@logreq/app` README](../README.md).
+Part of the [`@reqseq/app` README](../README.md).
 
 | Keys (Ctrl, or Cmd on macOS; on macOS the physical Ctrl key with a letter is never one of these shortcuts: it stays the editor's and the lists' key, so Ctrl+P there moves the caret or the selection and never jumps) | |
 | --- | --- |

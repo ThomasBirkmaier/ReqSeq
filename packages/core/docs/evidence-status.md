@@ -1,6 +1,6 @@
 # Evidence block: status and degree (`src/evidence/`)
 
-Part of the [`@logreq/core` README](../README.md). Lane B of stage 4 fills this file; the records, folders and index are in [evidence-records.md](evidence-records.md).
+Part of the [`@reqseq/core` README](../README.md). Lane B of stage 4 fills this file; the records, folders and index are in [evidence-records.md](evidence-records.md).
 
 The verification status (Nachweisstatus) and validation status (Validierungsstatus) are derived views of the records; they never change the `status` of an element (D-030, ADR-0012 "Status rules").
 
@@ -59,6 +59,6 @@ SR-037 (#49), `degree.ts` and `degree-text.ts`; the rules are ADR-0012 "Status r
 - `degreeOf(status, elements, view)`: pure and synchronous over `{ source, evaluate }` of a `WorkspaceStatus`; one pass. An element counts when its type is in `source.requirements`, its status is not in `source.invalid` (the status keys the metamodel marks invalid, `invalidStatuses`) and `evaluate(element, view)` gives a status. Returns `{ share?, total, counts }` (`$defs/verificationDegree`): the five counts in enum order, `share = (verified + indirect) / total`, left out when `total` is 0. The caller has run `prepare(elements, { own: true })` first; SR-126 calls it so after its own `prepare`.
 - `countedIn(source, elements)`: the elements that pass the type and invalid test, in their order (what to prepare). `viewIdOf(view)`: `core` or the variant's UUID, as outputs name a view.
 - `selectionDegree(workspace, elements, view)`: `verificationState`, `prepare(countedIn(...), { own: true })`, `degreeOf`. No second state and no evaluator of its own: the one of `evidence.status`, `element.get`, `element.resolve` and the filter. `evidence.degree` passes the selection's view (`Selected.views[0]`), else the core, and names a variant view in `names` (#588).
-- `degreePercent(share)` and `degreeShareOf(value)` (`degree-text.ts`, no imports): the display rule of every access, one decimal rounded down (`64.2 %` for 9/14), and the shape a layout recognises a degree by (a number `share` next to an object `counts`). Public as `@logreq/core` and, for the app's renderer, `@logreq/core/verification-degree`.
+- `degreePercent(share)` and `degreeShareOf(value)` (`degree-text.ts`, no imports): the display rule of every access, one decimal rounded down (`64.2 %` for 9/14), and the shape a layout recognises a degree by (a number `share` next to an object `counts`). Public as `@reqseq/core` and, for the app's renderer, `@reqseq/core/verification-degree`.
 
 Cost at N-036: one pass over the selection and one evaluation per counted requirement (memoised per view); at most one version batch per state, none after the filter (`prepare` over the whole store) or an earlier degree; the output is O(1). E4 (#583) measures it cold and warm.
