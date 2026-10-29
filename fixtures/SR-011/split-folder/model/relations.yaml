@@ -1,4 +1,4 @@
-logreq-metamodel: 1
+reqseq-metamodel: 1
 relations:
   - key: derives-from
     name: Derives from

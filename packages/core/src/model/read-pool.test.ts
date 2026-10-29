@@ -36,8 +36,8 @@ const MANY = READ_CHUNK * 2 + 17;
 /** A workspace of two repositories with every kind of file the store tells apart. */
 const everyKindOfFile = async (): Promise<FixtureWorkspace> => {
   const files: Record<string, string | Uint8Array> = {
-    "logreq-workspace.yaml":
-      "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+    "reqseq-workspace.yaml":
+      "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
     "vendor/sub/SR-a.md": element(uuid(1)),
     "vendor/sub/copy/SR-a.md": element(uuid(1)),
     "bad/yaml.md": "---\nid: a\n  title: x\n---\n",

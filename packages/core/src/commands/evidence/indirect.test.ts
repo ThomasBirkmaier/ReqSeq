@@ -294,13 +294,13 @@ describe("indirect verification in evidence.status, element.get and the filter (
   });
 
   it("computes from the children that are visible while a repository is not on this machine (SR-006)", async () => {
-    const file = await edited("logreq-workspace.yaml", (text) =>
+    const file = await edited("reqseq-workspace.yaml", (text) =>
       text.replace(
         "main: true }",
         'main: true }\n  - { name: other, url: "git@git.example.com:ws/other.git" }',
       ),
     );
-    const ws = await open({ ...INDIRECT, files: { "logreq-workspace.yaml": file } });
+    const ws = await open({ ...INDIRECT, files: { "reqseq-workspace.yaml": file } });
     const out = await status(ws, { selection: { ids: [P1] } });
     expect(out.incomplete).toBe(true);
     expect(byId(out)).toEqual({ [P1]: core("indirect") });

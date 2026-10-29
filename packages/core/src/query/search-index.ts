@@ -10,7 +10,7 @@
 // - `title`: the value of the property with the meaning `title` (D-059, `titleKeyOf`);
 // - `text`: the Markdown text below the frontmatter, read from the file (the store keeps no text,
 //   ADR-0008), without the destinations of its links and images (`markdownLinks`): what the reader
-//   sees is the label, and the destinations of inline references (`logreq:<UUID>?version=...`) would
+//   sees is the label, and the destinations of inline references (`reqseq:<UUID>?version=...`) would
 //   add four times the words of the texts at N-036, none of them a word of the text;
 // - `properties`: the values of every other frontmatter key except `id` and the keys that hold
 //   relations (relation kinds and properties of kind `relation`, `relationKey`: their values are

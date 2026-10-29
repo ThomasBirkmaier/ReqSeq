@@ -3,7 +3,7 @@
 JUnit XML files written by the real tools (D-054), unchanged, for the tests of the JUnit XML model (`packages/core/src/evidence/junit-model.test.ts`). Not a workspace.
 
 - `pytest.xml`: pytest 9.1.1 (Python 3), `pytest --junitxml=pytest.xml -o junit_family=xunit1 -o junit_logging=all test_sample.py`. `xunit1` because pytest writes `record_property` only there.
-- `vitest.xml`: Vitest 5.0.5, `vitest run --reporter=junit --outputFile=vitest.xml`. The property comes from `annotate("SR-46fb54", "logreq:element")`.
+- `vitest.xml`: Vitest 5.0.5, `vitest run --reporter=junit --outputFile=vitest.xml`. The property comes from `annotate("SR-46fb54", "reqseq:element")`.
 
 `test_sample.py`:
 
@@ -12,7 +12,7 @@ import pytest
 
 
 def test_login_by_property(record_property):
-    record_property("logreq:element", "SR-46fb54")
+    record_property("reqseq:element", "SR-46fb54")
     assert True
 
 
@@ -52,7 +52,7 @@ import { describe, expect, it } from "vitest";
 
 describe("login", () => {
   it("[SR-46fb54/AK1] accepts a valid password", async ({ annotate }) => {
-    await annotate("SR-46fb54", "logreq:element");
+    await annotate("SR-46fb54", "reqseq:element");
     expect(1 + 1).toBe(2);
   });
 

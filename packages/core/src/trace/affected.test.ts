@@ -28,8 +28,8 @@ const element = (id: string, type: string, frontmatter: readonly string[] = [], 
   ["---", `id: ${id}`, `type: ${type}`, "status: draft", "title: T", ...frontmatter, "---", text].join("\n");
 
 const FILES = {
-  "system/logreq-workspace.yaml": [
-    "logreq-workspace: 1",
+  "system/reqseq-workspace.yaml": [
+    "reqseq-workspace: 1",
     "name: Trace",
     "repositories:",
     "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -46,14 +46,14 @@ const FILES = {
     [
       `derives-from:\n  - { id: ${N1}, version: ${V} }\n  - { id: ${S1}, version: ${V} }\n  - { id: ${S2}, version: ${V} }`,
     ],
-    `See [myself](logreq:${S1}?version=${V}).\n`,
+    `See [myself](reqseq:${S1}?version=${V}).\n`,
   ),
   // Points at S1 twice (a relation and a reference): one affected element.
   "system/requirements/SR-000000000003.md": element(
     S2,
     "system-requirement",
     [`derives-from:\n  - { id: ${S1}, version: ${V} }`],
-    `Follows [S1](logreq:${S1}?version=${V}).\n`,
+    `Follows [S1](reqseq:${S1}?version=${V}).\n`,
   ),
   // Refines (another relation kind with the meaning derivation) S2.
   "system/requirements/SR-000000000004.md": element(S3, "system-requirement", [

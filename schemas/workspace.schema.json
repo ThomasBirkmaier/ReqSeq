@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/workspace.schema.json",
   "title": "Workspace file",
-  "description": "`logreq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
+  "description": "`reqseq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
   "type": "object",
-  "required": ["logreq-workspace", "name", "repositories", "metamodel"],
+  "required": ["reqseq-workspace", "name", "repositories", "metamodel"],
   "properties": {
-    "logreq-workspace": { "const": 1 },
+    "reqseq-workspace": { "const": 1 },
     "name": { "type": "string", "minLength": 1 },
     "repositories": {
       "type": "array",
@@ -59,7 +59,7 @@
         },
         "path": {
           "type": "string",
-          "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.logreq/local.yaml`."
+          "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
         },
         "main": { "type": "boolean", "default": false }
       },

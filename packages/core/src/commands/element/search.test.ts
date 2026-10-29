@@ -199,9 +199,9 @@ describe("element.search (SR-068)", () => {
     const ws = await open({
       ...FILTER,
       files: {
-        "filters/drafts.yaml": "logreq-filter: 1\nname: Drafts\nwhere: { status: [draft] }\n",
-        "filters/mountain.yaml": "logreq-filter: 1\nname: Mountain\nview: VAR-0000c2\nwhere: { all: [] }\n",
-        "filters/windy.yaml": "logreq-filter: 1\nname: Windy\nwhere: { text: wind }\n",
+        "filters/drafts.yaml": "reqseq-filter: 1\nname: Drafts\nwhere: { status: [draft] }\n",
+        "filters/mountain.yaml": "reqseq-filter: 1\nname: Mountain\nview: VAR-0000c2\nwhere: { all: [] }\n",
+        "filters/windy.yaml": "reqseq-filter: 1\nname: Windy\nwhere: { text: wind }\n",
       },
     });
     expect(await hits(ws, "measure", { selection: { filter: "drafts" } })).toEqual([B2]);
@@ -288,8 +288,8 @@ describe("element.search (SR-068)", () => {
     const ws = await open({
       ...FILTER,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
           '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n",

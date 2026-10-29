@@ -19,18 +19,18 @@ const fixture = async (
 
 describe("findWorkspaceRoot", () => {
   it("names the workspace file", () => {
-    expect(WORKSPACE_FILE).toBe("logreq-workspace.yaml");
+    expect(WORKSPACE_FILE).toBe("reqseq-workspace.yaml");
   });
 
   it("finds the workspace file in the start folder", async () => {
-    const ws = await fixture({ [WORKSPACE_FILE]: "logreq-workspace: 1\n" });
+    const ws = await fixture({ [WORKSPACE_FILE]: "reqseq-workspace: 1\n" });
     expect(await findWorkspaceRoot(ws.root)).toBe(ws.root);
   });
 
   it("finds the nearest workspace file upwards", async () => {
     const ws = await fixture({
-      [WORKSPACE_FILE]: "logreq-workspace: 1\n",
-      "inner/logreq-workspace.yaml": "logreq-workspace: 1\n",
+      [WORKSPACE_FILE]: "reqseq-workspace: 1\n",
+      "inner/reqseq-workspace.yaml": "reqseq-workspace: 1\n",
       "inner/deep/folder/file.md": "x",
       "other/file.md": "x",
     });
@@ -39,13 +39,13 @@ describe("findWorkspaceRoot", () => {
   });
 
   it("resolves a relative start against the current folder", async () => {
-    const ws = await fixture({ [WORKSPACE_FILE]: "logreq-workspace: 1\n", "a/b.md": "x" });
+    const ws = await fixture({ [WORKSPACE_FILE]: "reqseq-workspace: 1\n", "a/b.md": "x" });
     const relative = path.relative(process.cwd(), ws.path("a"));
     expect(await findWorkspaceRoot(relative)).toBe(ws.root);
   });
 
   it("ignores a folder with the workspace file name", async () => {
-    const ws = await fixture({ "sub/logreq-workspace.yaml/keep": "x" });
+    const ws = await fixture({ "sub/reqseq-workspace.yaml/keep": "x" });
     await fs.mkdir(ws.path("sub/start"));
     // The temporary folder has no workspace file above it, so nothing is found.
     expect(await findWorkspaceRoot(ws.path("sub/start"))).toBeUndefined();

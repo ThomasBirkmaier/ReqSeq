@@ -1,5 +1,5 @@
 # The metamodel of the weather station, kept in its own repository (D-021, N-025).
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - key: need
     name: Need

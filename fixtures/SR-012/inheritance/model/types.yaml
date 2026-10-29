@@ -1,5 +1,5 @@
 # Inheritance (SR-012 AK2): interface-requirement -> software-requirement -> requirement -> item.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - key: item
     name: Item

@@ -287,7 +287,7 @@ describe("element.list sorted by identifier (#418)", () => {
       ...NATURAL,
       files: {
         "metamodel/model.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id], required: [title] }",
           "  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id], required: [title] }",
@@ -316,7 +316,7 @@ describe("element.list sorted by identifier (#418)", () => {
       ...NATURAL,
       files: {
         "metamodel/model.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - { key: need, name: Need, prefix: N, meaning: need, properties: [title, spec-id, identifier], required: [title] }",
           "  - { key: system-requirement, name: System Requirement, prefix: SR, meaning: requirement, properties: [title, spec-id, identifier], required: [title] }",
@@ -359,7 +359,7 @@ describe("element.list sorted by identifier (#418)", () => {
       ...NATURAL,
       files: {
         "filters/requirements.yaml": [
-          "logreq-filter: 1",
+          "reqseq-filter: 1",
           "name: Requirements",
           "where: { type: [system-requirement] }",
           "sort: [{ by: identifier, order: desc }]",
@@ -582,12 +582,12 @@ describe("element.list refuses sort keys it cannot apply", () => {
 
   it("refuses title and hierarchy when no key of the metamodel has their meaning (SR-013 AK3)", async () => {
     const bare =
-      "logreq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
+      "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: Need, prefix: N, properties: [title] }\nproperties:\n" +
       "  - { key: title, name: Title, kind: text }\nrelations:\n" +
       "  - { key: derives-from, name: Derives from, inverse-name: Derived by }\nstatuses:\n  - { key: draft, name: Draft, initial: true }\n";
     const { workspace } = await open({
       ...SORT,
-      files: { "metamodel/standard-model.yaml": bare, "metamodel/software.yaml": "logreq-metamodel: 1\n" },
+      files: { "metamodel/standard-model.yaml": bare, "metamodel/software.yaml": "reqseq-metamodel: 1\n" },
     });
     for (const by of ["title", "hierarchy"]) {
       const error = await failure(workspace, { sort: [{ by }] });

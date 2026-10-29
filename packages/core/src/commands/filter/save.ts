@@ -36,7 +36,7 @@ import { resolveView } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The keys of a filter file, in the order a new file has them. */
-const KEYS = ["logreq-filter", "name", "description", "view", "where", "sort"] as const;
+const KEYS = ["reqseq-filter", "name", "description", "view", "where", "sort"] as const;
 
 /** A sort as compared: `order` absent is `asc`. */
 const sortOf = (sort: readonly FilterSortKey[] | undefined): unknown =>
@@ -70,7 +70,7 @@ export default defineCommand({
     await compileWhere(context, input.where, "where");
     sortElements(context, [], input.sort ?? []);
     const data: FilterFile = {
-      "logreq-filter": 1,
+      "reqseq-filter": 1,
       name: input.name,
       ...(input.description === undefined ? {} : { description: input.description }),
       ...(input.view === undefined ? {} : { view: canonicalView(context, input.view, "view") }),

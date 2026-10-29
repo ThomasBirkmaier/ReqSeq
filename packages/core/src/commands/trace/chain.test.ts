@@ -146,8 +146,8 @@ describe("trace.chain (SR-022)", () => {
     const workspace = await open({
       ...CHAIN,
       files: {
-        "logreq-workspace.yaml": [
-          "logreq-workspace: 1",
+        "reqseq-workspace.yaml": [
+          "reqseq-workspace: 1",
           "name: Weather station",
           "repositories:",
           '  - { name: system, url: "ssh://example.com/system.git", main: true }',
@@ -299,7 +299,7 @@ describe("trace.chain follows the meaning derivation (SR-013)", () => {
       files: {
         ...OWN.files,
         "model/relations.yaml":
-          "logreq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, inverse-name: Satisfied by }\n",
+          "reqseq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, inverse-name: Satisfied by }\n",
       },
     });
     const error = await chainError(workspace, { ref: "W-0000f1" });
@@ -327,7 +327,7 @@ const COAST_FILE = {
 const junit = (more: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
   kind: "verification",
   element: SHOW,
-  version: "n1:7eb1cc5815e307fa",
+  version: "n1:477785ae73c91542",
   method: "test",
   item: "build-512",
   result: "passed",
@@ -345,7 +345,7 @@ const junit = (more: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
 const markdown = (more: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
   kind: "verification",
   element: SHOW,
-  version: "n1:7eb1cc5815e307fa",
+  version: "n1:477785ae73c91542",
   method: "inspection",
   item: "Display sample B1",
   result: "passed",
@@ -401,7 +401,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
       file: "evidence/ci/run-2.xml",
     });
     // Another element's execution of the same test case: never below SHOW.
-    const ofLog = junit({ element: LOG, version: "n1:9e8d521db5ae313a", item: "build-512-log" });
+    const ofLog = junit({ element: LOG, version: "n1:c2c9e3127b7c60aa", item: "build-512-log" });
     const tunnel = markdown({
       method: "test",
       item: "Prototype P2",
@@ -463,7 +463,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
 
   it("[SR-033/AK2] shows a test case that names two requirements at each, with that requirement's executions and both in elements", async () => {
     const ofShow = junit();
-    const ofLog = junit({ element: LOG, version: "n1:9e8d521db5ae313a" });
+    const ofLog = junit({ element: LOG, version: "n1:c2c9e3127b7c60aa" });
     const workspace = await withEvidence([ofShow, ofLog]);
     const output = await chain(workspace, { ref: WIND });
     expect(output.evidence.map((e) => [e.id, e.depth, e.testCases])).toEqual([
@@ -507,7 +507,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
       [GUSTS, "no-evidence"],
       [DISPLAY, "no-evidence"],
     ]);
-    const workspace = await withEvidence([junit(), junit({ element: LOG, version: "n1:9e8d521db5ae313a" })]);
+    const workspace = await withEvidence([junit(), junit({ element: LOG, version: "n1:c2c9e3127b7c60aa" })]);
     expect(gapsOf(await chain(workspace, { ref: WIND }))).toEqual([
       [GUSTS, "no-evidence"],
       [DISPLAY, "no-evidence"],
@@ -569,7 +569,7 @@ describe("trace.chain: test cases and executions in the chain (SR-033)", () => {
   });
 
   it("a test case skipped in one run and executed in another is executed", async () => {
-    const ran = junit({ element: GUSTS, testCase: "test_gusts[SR-33b003]", version: "n1:c784b000c0bc96b5" });
+    const ran = junit({ element: GUSTS, testCase: "test_gusts[SR-33b003]", version: "n1:8ce84dd60190bb66" });
     const output = await chain(await withEvidence([ran], [skippedGusts]), { ref: GUSTS });
     expect(output.evidence[0]?.testCases).toEqual([
       {

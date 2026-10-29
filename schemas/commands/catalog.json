@@ -22,7 +22,7 @@
         "properties": {
           "path": {
             "$ref": "../common.schema.json#/$defs/localPath",
-            "description": "Existing folder; must not contain logreq-workspace.yaml or the metamodel file."
+            "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
           },
           "name": {
             "type": "string"
@@ -270,7 +270,7 @@
     {
       "name": "workspace.recent",
       "title": "List recent workspaces",
-      "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+      "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
       "effect": "read",
       "stage": 3,
       "implements": ["SR-131"],
@@ -293,7 +293,7 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 4096,
-                  "description": "The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml)."
+                  "description": "The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml)."
                 },
                 "opened": {
                   "$ref": "../common.schema.json#/$defs/dateTime",
@@ -301,7 +301,7 @@
                 },
                 "exists": {
                   "type": "boolean",
-                  "description": "Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false."
+                  "description": "Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false."
                 }
               },
               "additionalProperties": false,
@@ -3112,7 +3112,7 @@
         "properties": {
           "file": {
             "$ref": "../common.schema.json#/$defs/localPath",
-            "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026)."
+            "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026)."
           },
           "item": {
             "$ref": "../common.schema.json#/$defs/item",
@@ -3120,7 +3120,7 @@
           },
           "date": {
             "$ref": "../common.schema.json#/$defs/dateTime",
-            "description": "The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
+            "description": "The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
           },
           "output": {
             "$ref": "../common.schema.json#/$defs/localPath",
@@ -3461,7 +3461,7 @@
         },
         "additionalProperties": false
       },
-      "jsonLines": { "items": "elements", "fields": ["logreq-data", "commit", "dirty"] },
+      "jsonLines": { "items": "elements", "fields": ["reqseq-data", "commit", "dirty"] },
       "output": {
         "type": "object",
         "$ref": "../data-export.schema.json"

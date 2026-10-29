@@ -32,7 +32,7 @@ const errorOf = (fn: () => unknown): CommandError => {
 
 const FILE = [
   "# Drafts of the team",
-  "logreq-filter: 1",
+  "reqseq-filter: 1",
   "name: Drafts   # shown in the app",
   "",
   "where:",
@@ -48,7 +48,7 @@ describe("renderYamlDocument", () => {
   it("writes block mappings, plain values as flow lists and quoted texts only where needed", () => {
     expect(
       renderYamlDocument({
-        "logreq-filter": 1,
+        "reqseq-filter": 1,
         name: "Open: drafts #1",
         description: "two\nlines",
         where: {
@@ -62,7 +62,7 @@ describe("renderYamlDocument", () => {
       }),
     ).toBe(
       [
-        "logreq-filter: 1",
+        "reqseq-filter: 1",
         'name: "Open: drafts #1"',
         'description: "two\\nlines"',
         "where:",

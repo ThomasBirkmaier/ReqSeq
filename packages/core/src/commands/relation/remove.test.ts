@@ -259,10 +259,10 @@ describe("relation.remove removes a relation from the source file only (D-045, S
     const SR = "requirements/SR-3d8b2c6e1f05.md";
     const source = "6e2f8a4c-1b3d-4c5e-9f7a-3d8b2c6e1f05";
     const opened = await open({ fixture: "SR-021/targets" }, "system");
-    const layout = await fs.readFile(opened.fixture.path("system/logreq-workspace.yaml"), "utf8");
+    const layout = await fs.readFile(opened.fixture.path("system/reqseq-workspace.yaml"), "utf8");
     // `away` is listed but not on this machine; it may hold the element.
     await opened.fixture.write(
-      "system/logreq-workspace.yaml",
+      "system/reqseq-workspace.yaml",
       layout.replace(
         '  - { name: sensor, url: "git@git.example.com:ws/sensor.git" }\n',
         '  - { name: sensor, url: "git@git.example.com:ws/sensor.git" }\n  - { name: away, url: "git@git.example.com:ws/away.git" }\n',

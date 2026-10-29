@@ -1,6 +1,6 @@
 # Relation types (SR-086): derives-from only from System Requirement to Need, a relation kind
 # restricted by target only, one without restriction, and relation-valued properties.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - { key: need, name: Need, prefix: N, meaning: need, properties: [title], required: [title] }

@@ -16,7 +16,7 @@ export interface RepositoryLocation {
   /** The repository that holds the workspace file; it is always `Workspace.root`. */
   readonly main: boolean;
   /**
-   * Where it is looked for, as configured: from `.logreq/local.yaml`, else `path` of the workspace
+   * Where it is looked for, as configured: from `.reqseq/local.yaml`, else `path` of the workspace
    * file (with `/`), else `.` for the main repository and `../<name>` for the others. Relative
    * paths are relative to the main repository. No `~` expansion.
    */
@@ -46,7 +46,7 @@ export interface MetamodelLocation {
   readonly exists: boolean;
 }
 
-/** What `logreq-workspace.yaml` and `.logreq/local.yaml` say, located on this machine. */
+/** What `reqseq-workspace.yaml` and `.reqseq/local.yaml` say, located on this machine. */
 export interface WorkspaceLayout {
   /** Absolute folder of the main repository (`Workspace.root`). */
   readonly root: string;
@@ -328,7 +328,7 @@ export const availableRepositories = (layout: WorkspaceLayout): readonly Reposit
 
 /**
  * The layout of a workspace, read on first use and kept until reset (e.g. by the watcher when
- * `logreq-workspace.yaml` or `.logreq/local.yaml` changes, SR-007). A failed read is not kept.
+ * `reqseq-workspace.yaml` or `.reqseq/local.yaml` changes, SR-007). A failed read is not kept.
  */
 export const workspaceLayoutState = defineWorkspaceState("workspace", async (workspace) =>
   loadWorkspaceLayout(workspace.root),

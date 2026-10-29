@@ -31,7 +31,7 @@ const IDS = { N1, N2, S1, S2, P1, PKG1, DUP, MISSING, A1, U1, X1 };
 const nameOf = (id: string): string => Object.entries(IDS).find(([, value]) => value === id)?.[0] ?? id;
 
 const WORKSPACE = [
-  "logreq-workspace: 1",
+  "reqseq-workspace: 1",
   "name: Neighbourhood",
   "repositories:",
   "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -44,7 +44,7 @@ const WORKSPACE = [
 
 /** A relation-valued property with one target (not `many`), next to the standard model. */
 const EXTRA_MODEL = [
-  "logreq-metamodel: 1",
+  "reqseq-metamodel: 1",
   "properties:",
   "  - { key: predecessor, name: Predecessor, kind: relation }",
   "",
@@ -78,15 +78,15 @@ const S1_FILE = element(
   ],
   [
     "",
-    `See [the need](logreq:${N1}?version=${V}).`,
-    `And [P](logreq:${P1}?version=${V}&repository=platform), [old P](logreq:${P1}),`,
-    `[gone](logreq:${MISSING}?version=${V}), [twice](logreq:${DUP}?version=${V}) and [A](logreq:${A1}?repository=away).`,
+    `See [the need](reqseq:${N1}?version=${V}).`,
+    `And [P](reqseq:${P1}?version=${V}&repository=platform), [old P](reqseq:${P1}),`,
+    `[gone](reqseq:${MISSING}?version=${V}), [twice](reqseq:${DUP}?version=${V}) and [A](reqseq:${A1}?repository=away).`,
     "",
   ].join("\n"),
 );
 
 const FILES = {
-  "system/logreq-workspace.yaml": WORKSPACE,
+  "system/reqseq-workspace.yaml": WORKSPACE,
   "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   "system/metamodel/extra.yaml": EXTRA_MODEL,
   "system/needs/N-000000000001.md": element(N1, "need"),
@@ -201,9 +201,9 @@ describe("neighbourhood (SR-107)", () => {
   it("[SR-127/AK3] follows the references in the acceptance criteria and in the rationale like those in the text, up and down", async () => {
     const opened = await open({
       "system/requirements/SR-000000000004.md": element(S2, "system-requirement", [
-        `acceptance-criteria:\n  - Plain.\n  - "Then [the need](logreq:${N1}?version=${V})."`,
-        `rationale: "Because [P](logreq:${P1}?version=${V}&repository=platform)"`,
-        'topic: "Not [followed](logreq:' + N2 + ')"',
+        `acceptance-criteria:\n  - Plain.\n  - "Then [the need](reqseq:${N1}?version=${V})."`,
+        `rationale: "Because [P](reqseq:${P1}?version=${V}&repository=platform)"`,
+        'topic: "Not [followed](reqseq:' + N2 + ')"',
       ]),
     });
     const up = await walkOf(opened, S2, {}, { direction: "up" });

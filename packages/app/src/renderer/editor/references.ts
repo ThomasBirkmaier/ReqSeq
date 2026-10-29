@@ -1,4 +1,4 @@
-// Inline references in the text (ADR-0004, #424): `[label](logreq:<uuid>?version=<v>&repository=<name>)`.
+// Inline references in the text (ADR-0004, #424): `[label](reqseq:<uuid>?version=<v>&repository=<name>)`.
 // The preview shows the label (`markup.ts` hides the rest); this file makes a reference something to
 // follow: a click opens its element, and an outdated reference is marked. A reference to another repository
 // has the short ID as its label (ADR-0004); off the lines that show their source the preview shows the title
@@ -28,18 +28,18 @@ export interface Reference {
   readonly to: number;
 }
 
-// This mirrors the rule of core (`packages/core/src/model/references.ts`: `logreq:<uuid>` and the
+// This mirrors the rule of core (`packages/core/src/model/references.ts`: `reqseq:<uuid>` and the
 // parameters `version` and `repository`, an empty value names none). It is not imported: the renderer
 // bundles no code of core, only its types.
 const DESTINATION =
-  /^logreq:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\?(.*))?$/;
+  /^reqseq:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\?(.*))?$/;
 
 const parameter = (parameters: readonly string[], name: string): string | undefined => {
   const value = parameters.find((entry) => entry.startsWith(`${name}=`))?.slice(name.length + 1);
   return value === "" ? undefined : value;
 };
 
-/** The reference a link destination names, or undefined when it is no `logreq:<uuid>` link. */
+/** The reference a link destination names, or undefined when it is no `reqseq:<uuid>` link. */
 export const parseReference = (destination: string): Omit<Reference, "from" | "to"> | undefined => {
   const match = DESTINATION.exec(destination);
   const id = match?.[1];

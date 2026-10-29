@@ -9,9 +9,9 @@ def login(password):
     return password == "correct horse"
 
 
-# Names SR-a1c0de by a property: pytest writes it as <property name="logreq:element">.
+# Names SR-a1c0de by a property: pytest writes it as <property name="reqseq:element">.
 def test_accepts_a_valid_password(record_property):
-    record_property("logreq:element", "SR-a1c0de")
+    record_property("reqseq:element", "SR-a1c0de")
     assert login("correct horse")
 
 

@@ -280,8 +280,8 @@ describe("workspace.check", () => {
     const ws = await fixture({
       fixture: "SR-019/findings",
       files: {
-        "logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: no-metamodel }\n',
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: no-metamodel }\n',
       },
     });
     const out = await check(open(ws.root));
@@ -297,7 +297,7 @@ describe("workspace.check", () => {
     });
     const workspace = open(ws.root);
     expect(kinds(await check(workspace)).slice(1)).toEqual(WITHOUT_METAMODEL);
-    await ws.write("metamodel/broken.yaml", "logreq-metamodel: 1\n");
+    await ws.write("metamodel/broken.yaml", "reqseq-metamodel: 1\n");
     await workspace.reset(metamodelState);
     expect(kinds(await check(workspace))).toEqual(FINDINGS);
   });

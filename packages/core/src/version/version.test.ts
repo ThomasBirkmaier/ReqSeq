@@ -74,14 +74,14 @@ describe("version (ADR-0005, normal form n1)", () => {
       ],
     };
     expect(canonicalContent(input)).toBe(
-      'logreq-version n1\ntext\n"Text"\nprop a\n1\nprop b\n"two"\nprop c\ntrue\n' +
+      'reqseq-version n1\ntext\n"Text"\nprop a\n1\nprop b\n"two"\nprop c\ntrue\n' +
         `file E/a.png\n${"a".repeat(64)}\nfile E/z.png\n${"b".repeat(64)}\n`,
     );
   });
 
   it("writes an empty text section for an element without text", () => {
     expect(canonicalContent({ text: "\n\n", properties: {}, definitions: [], files: [] })).toBe(
-      'logreq-version n1\ntext\n""\n',
+      'reqseq-version n1\ntext\n""\n',
     );
   });
 
@@ -108,7 +108,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       files: [],
     };
     expect(canonicalContent(input)).toBe(
-      'logreq-version n1\ntext\n""\nprop x\n[{"w":[1,false],"y":null,"z":"a\\n\\nb"}]\n',
+      'reqseq-version n1\ntext\n""\nprop x\n[{"w":[1,false],"y":null,"z":"a\\n\\nb"}]\n',
     );
   });
 
@@ -129,7 +129,7 @@ describe("version (ADR-0005, normal form n1)", () => {
     const real = { text: "A", properties: { "requirement-type": "functional" }, definitions: [definition] };
     expect(computeVersion({ ...forged, files: [] })).not.toBe(computeVersion({ ...real, files: [] }));
     expect(canonicalContent({ ...forged, files: [] })).toBe(
-      'logreq-version n1\ntext\n"A\\nprop requirement-type\\n\\"functional\\""\n',
+      'reqseq-version n1\ntext\n"A\\nprop requirement-type\\n\\"functional\\""\n',
     );
     const file = { path: "x.png", sha256: "a".repeat(64) };
     expect(computeVersion({ ...real, text: `A\nfile x.png\n${file.sha256}`, files: [] })).not.toBe(
@@ -145,7 +145,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       files: [{ path: "a.png", sha256: null }],
     };
     expect(MISSING_FILE).toBe("missing");
-    expect(canonicalContent(input)).toBe('logreq-version n1\ntext\n""\nfile a.png\nmissing\n');
+    expect(canonicalContent(input)).toBe('reqseq-version n1\ntext\n""\nfile a.png\nmissing\n');
     expect(computeVersion({ ...input, files: [{ path: "a.png", sha256: image }] })).not.toBe(
       computeVersion(input),
     );
@@ -182,7 +182,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       files: [],
     });
     expect(comparableContent(input(Number.NEGATIVE_INFINITY))).toBe(
-      'logreq-version n1\ntext\n""\nprop n\n{"at":[-Infinity]}\n',
+      'reqseq-version n1\ntext\n""\nprop n\n{"at":[-Infinity]}\n',
     );
     expect(comparableContent(input(Number.NaN))).toContain("[NaN]");
     expect(comparableContent(input(Number.NaN, "a"))).not.toBe(comparableContent(input(Number.NaN, "b")));
@@ -193,14 +193,14 @@ describe("version (ADR-0005, normal form n1)", () => {
   it("reads only own property keys, also for keys like constructor", () => {
     const def: VersionPropertyDefinition = { key: "constructor", kind: "text", content: true };
     const empty = canonicalContent({ text: "", properties: {}, definitions: [def], files: [] });
-    expect(empty).toBe('logreq-version n1\ntext\n""\n');
+    expect(empty).toBe('reqseq-version n1\ntext\n""\n');
     const set = canonicalContent({
       text: "",
       properties: { constructor: "x" },
       definitions: [def],
       files: [],
     });
-    expect(set).toBe('logreq-version n1\ntext\n""\nprop constructor\n"x"\n');
+    expect(set).toBe('reqseq-version n1\ntext\n""\nprop constructor\n"x"\n');
   });
 
   it("uses only the id of a single relation target and keeps other values unchanged", () => {
@@ -214,7 +214,7 @@ describe("version (ADR-0005, normal form n1)", () => {
       files: [],
     };
     expect(canonicalContent(input)).toBe(
-      `logreq-version n1\ntext\n""\nprop odd\n["plain",{"title":"x"}]\nprop one\n"${pro}"\n`,
+      `reqseq-version n1\ntext\n""\nprop odd\n["plain",{"title":"x"}]\nprop one\n"${pro}"\n`,
     );
   });
 

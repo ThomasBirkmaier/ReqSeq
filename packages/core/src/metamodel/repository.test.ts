@@ -133,7 +133,7 @@ describe("metamodel in its own repository (SR-018)", () => {
     const ws = await ownRepository();
     await ws.write(
       "models/model/statuses.yaml",
-      "logreq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
+      "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n",
     );
     const out = await status(open(ws.path("system")));
     expect(out).toMatchObject({ metamodel: { repository: "models", valid: false }, readOnly: true });
@@ -261,7 +261,7 @@ describe("metamodel in its own repository (SR-018)", () => {
       message: "Not written: the folder of model/types.yaml is not writable (EROFS)",
     });
     await expect(
-      writeFileAtomic(ws.path("models"), "model/variants.yaml", "logreq-metamodel: 1\n", null, {
+      writeFileAtomic(ws.path("models"), "model/variants.yaml", "reqseq-metamodel: 1\n", null, {
         kind: "yaml",
       }),
     ).rejects.toMatchObject({ code: "file.read-only" });
@@ -281,8 +281,8 @@ describe("metamodel in its own repository (SR-018)", () => {
     await fs.cp(folder.path("models/model"), folder.path("system/model"), { recursive: true });
     await fs.rm(folder.path("models"), { recursive: true });
     await folder.write(
-      "system/logreq-workspace.yaml",
-      'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: model }\n',
+      "system/reqseq-workspace.yaml",
+      'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\nmetamodel: { repository: system, path: model }\n',
     );
     const inOwn = open(own.path("system"));
     const inMain = open(folder.path("system"));

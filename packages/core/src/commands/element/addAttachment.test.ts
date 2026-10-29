@@ -247,7 +247,7 @@ describe("element.addAttachment", () => {
     const opened = await open({ files: { "incoming/notes.txt": "x", "incoming/folder.png/.keep": "" } });
     const cases: [string, string][] = [
       ["incoming/notes.txt", "not-an-image"],
-      ["logreq-workspace.yaml", "not-an-image"],
+      ["reqseq-workspace.yaml", "not-an-image"],
       ["incoming/.png", "not-an-image"],
       ["incoming/gone.png", "source-missing"],
       ["incoming/notes.txt/x.png", "source-missing"],
@@ -314,8 +314,8 @@ describe("element.addAttachment", () => {
         // A file where the image folder of GUSTS would go.
         "requirements/SR-1d2e3f4a5b6c": "not a folder",
         "other/.md": unknown.replace("000000000003", "000000000004").replace("type: nope", "type: need"),
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           "metamodel: { repository: system, path: metamodel }\nignore: ['**/*.svg']\n",
         "incoming/layout.svg": "<svg/>",

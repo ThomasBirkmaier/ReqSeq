@@ -133,7 +133,7 @@ export interface RunCliOptions {
   readonly signal?: AbortSignal;
 }
 
-/** `--workspace`, else the nearest folder with logreq-workspace.yaml, else the current folder (workspace init). */
+/** `--workspace`, else the nearest folder with reqseq-workspace.yaml, else the current folder (workspace init). */
 const workspaceRoot = async (option: string | undefined, cwd: string): Promise<string> =>
   option === undefined ? ((await findWorkspaceRoot(cwd)) ?? cwd) : path.resolve(cwd, option);
 

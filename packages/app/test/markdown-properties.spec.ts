@@ -18,7 +18,7 @@ const OUT =
 
 const SR_ID = "69069069-0000-4000-8000-0000000000b9";
 const SR_TITLE = "Veraltete Messung anzeigen";
-const FIRST = `**Gegeben** ein Messwert, **wenn** er älter als eine Sekunde ist, **dann** zeigt das Tool [Messung](logreq:${REFERENCE_TARGET_ID}?version=n1:1111111111111111) als veraltet.`;
+const FIRST = `**Gegeben** ein Messwert, **wenn** er älter als eine Sekunde ist, **dann** zeigt das Tool [Messung](reqseq:${REFERENCE_TARGET_ID}?version=n1:1111111111111111) als veraltet.`;
 const SECOND = "Die Anzeige bleibt *lesbar*, und `n/a` erscheint ohne Messung.";
 const IMAGE = "![Skizze](skizze.png) steht im Quelltext, nicht als Bild.";
 
@@ -78,7 +78,7 @@ test.describe("Markdown properties in the element buffer", () => {
     const shown = await criteria.locator(".cm-line").allInnerTexts();
     expect(shown[0]).toContain("Gegeben ein Messwert, wenn er älter");
     for (const line of shown.slice(0, 2)) {
-      expect(line).not.toMatch(/\*|`|logreq:|\]\(/);
+      expect(line).not.toMatch(/\*|`|reqseq:|\]\(/);
     }
     // Bold really is bold.
     const weight = await criteria
@@ -113,7 +113,7 @@ test.describe("Markdown properties in the element buffer", () => {
     // A click in the first value shows its source, the others stay formatted.
     await lines.nth(0).click();
     await expect(lines.nth(0)).toContainText("**Gegeben**");
-    await expect(lines.nth(0)).toContainText(`logreq:${REFERENCE_TARGET_ID}`);
+    await expect(lines.nth(0)).toContainText(`reqseq:${REFERENCE_TARGET_ID}`);
     await expect(lines.nth(1)).not.toContainText("*lesbar*");
     await expect(lines.nth(1)).toContainText("Die Anzeige bleibt lesbar");
     // The cursor in the second value: its source shows, the first is formatted again.
@@ -171,7 +171,7 @@ test.describe("Markdown properties in the element buffer", () => {
     // The last criterion holds the reference with ID and version, as one YAML value; the rest stays.
     expect(file).toMatch(
       new RegExp(
-        `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(logreq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)["']?\\ntopic:`,
+        `\\n  - ["']?!\\[Skizze\\]\\(skizze\\.png\\) steht im Quelltext, nicht als Bild\\. Siehe \\[${REFERENCE_TARGET_TITLE}\\]\\(reqseq:${REFERENCE_TARGET_ID}\\?version=n1:[0-9a-f]+\\)["']?\\ntopic:`,
         "u",
       ),
     );
@@ -180,7 +180,7 @@ test.describe("Markdown properties in the element buffer", () => {
     // Off the caret line the value shows the title of the target, and a click opens it.
     await window.keyboard.press("Escape");
     await expect(lines.nth(2)).toContainText(`nicht als Bild. Siehe ${REFERENCE_TARGET_TITLE}`);
-    await expect(lines.nth(2)).not.toContainText("logreq:");
+    await expect(lines.nth(2)).not.toContainText("reqseq:");
     await expect(lines.nth(1)).toHaveText("Die Anzeige bleibt lesbar, und n/a erscheint ohne Messung.");
     await lines.nth(2).locator(".cm-lr-ref").click();
     await expect(window.locator("article h1")).toHaveText(REFERENCE_TARGET_TITLE);

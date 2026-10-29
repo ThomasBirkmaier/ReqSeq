@@ -205,7 +205,7 @@ const fileOf = (root: number, element: Element, links: readonly Link[]): string 
   });
   const references = own
     .filter(([, kind]) => kind === "reference")
-    .map(([, , target]) => `See [${titleOf(root, target)}](logreq:${uuid(root, target)}?version=${OLD}).`);
+    .map(([, , target]) => `See [${titleOf(root, target)}](reqseq:${uuid(root, target)}?version=${OLD}).`);
   return [
     "---",
     `id: ${uuid(root, element)}`,
@@ -229,7 +229,7 @@ export const writeGraphDeepFixture = async (): Promise<GraphDeepFixture> => {
   const folder = path.join(base, "workspace");
   await fs.mkdir(folder);
   await fs.cp(path.join(FIXTURE, "metamodel"), path.join(folder, "metamodel"), { recursive: true });
-  await fs.copyFile(path.join(FIXTURE, "logreq-workspace.yaml"), path.join(folder, "logreq-workspace.yaml"));
+  await fs.copyFile(path.join(FIXTURE, "reqseq-workspace.yaml"), path.join(folder, "reqseq-workspace.yaml"));
   const links = linksOf();
   const elements = [
     NEED,

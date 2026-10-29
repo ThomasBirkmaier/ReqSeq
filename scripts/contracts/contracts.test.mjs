@@ -62,7 +62,7 @@ describe("contracts", () => {
 
   it("evidence record: verification needs method and item (D-026)", () => {
     const rec = {
-      "logreq-record": 1,
+      "reqseq-record": 1,
       kind: "verification",
       element: id,
       version: "n1:0123456789abcdef",

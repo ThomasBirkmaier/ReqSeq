@@ -98,7 +98,7 @@ export const SLASH_ENTRIES: readonly SlashEntry[] = [
     text: "[]()",
     caret: { line: 0, column: 1, length: 0 },
   },
-  { kind: "reference", id: "reference", name: "Reference to element", detail: "[Title](logreq:…)" },
+  { kind: "reference", id: "reference", name: "Reference to element", detail: "[Title](reqseq:…)" },
   { kind: "image", id: "image", name: "Image", detail: "![](file)" },
   fenced("math-block", "Math block", "$$", "$$"),
   fenced("diagram", "Diagram", "```mermaid", "```"),
@@ -376,7 +376,7 @@ export interface ReferenceTarget {
 const escapeLabel = (label: string): string => label.replace(/[\\[\]`]/g, (char) => `\\${char}`);
 
 /**
- * `[label](logreq:<uuid>)` (ADR-0004): the title within the repository of the source, else the short ID
+ * `[label](reqseq:<uuid>)` (ADR-0004): the title within the repository of the source, else the short ID
  * with `?version=&repository=<name>` (D-058). Core fills `version` when the text is saved. An empty title falls back
  * to the identifier, so the label is never empty.
  */
@@ -387,5 +387,5 @@ export const referenceMarkdown = (target: ReferenceTarget, sourceRepository: str
   // The empty `version=` is set by core on save and keeps its place, so the saved link has the order of
   // ADR-0004, `?version=<version>&repository=<name>`; without it core would append the version last.
   const parameters = same ? "" : `?version=&repository=${encodeURIComponent(target.repository)}`;
-  return `[${escapeLabel(label)}](logreq:${target.id}${parameters})`;
+  return `[${escapeLabel(label)}](reqseq:${target.id}${parameters})`;
 };

@@ -64,7 +64,7 @@ const withD2ReferencingE1 = async (fixture: FixtureWorkspace): Promise<void> => 
   const { readFile } = await import("node:fs/promises");
   const file = "decisions/D-0d0000000002.md";
   const text = await readFile(fixture.path(file), "utf8");
-  await fixture.write(file, `${text}See also [the display](logreq:${ID.E1}).\n`);
+  await fixture.write(file, `${text}See also [the display](reqseq:${ID.E1}).\n`);
 };
 
 type Level = [string, number];
@@ -371,7 +371,7 @@ describe("trace.graph (SR-111)", () => {
 
   it("gives no hint while the metamodel is not valid", async () => {
     const workspace = await open(async (fixture) => {
-      await fixture.write("metamodel/broken.yaml", "logreq-metamodel: 1\ntypes: 5\n");
+      await fixture.write("metamodel/broken.yaml", "reqseq-metamodel: 1\ntypes: 5\n");
     });
     const output = await graph(workspace, { ref: ID.S1 });
     expect(output.problems).toEqual([]);

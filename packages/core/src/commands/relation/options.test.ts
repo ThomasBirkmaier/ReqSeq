@@ -137,7 +137,7 @@ describe("relation.options offers only the relation kinds the metamodel allows f
       ...FILTER,
       files: {
         "metamodel/more.yaml":
-          "logreq-metamodel: 1\nrelations:\n" +
+          "reqseq-metamodel: 1\nrelations:\n" +
           "  - { key: blocks, name: Blocks, target-types: [] }\n" +
           "  - { key: refines-software, name: Refines software, source-types: [need], target-types: [software-requirement] }\n",
       },

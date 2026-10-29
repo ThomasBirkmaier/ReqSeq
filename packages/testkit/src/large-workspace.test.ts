@@ -149,7 +149,7 @@ describe("generateLargeWorkspace", () => {
     for (const source of generated.elements) {
       const content = generated.files.get(`${source.repository}/${source.file}`) ?? "";
       for (const [, label, id, version, repository] of content.matchAll(
-        /\[([^\]]+)\]\(logreq:([0-9a-f-]{36})\?version=([^&)]+)(?:&repository=([a-z]+))?\)/g,
+        /\[([^\]]+)\]\(reqseq:([0-9a-f-]{36})\?version=([^&)]+)(?:&repository=([a-z]+))?\)/g,
       )) {
         count++;
         const target = byId.get(id ?? "");
@@ -180,11 +180,11 @@ describe("generateLargeWorkspace", () => {
     for (const source of generated.elements) {
       const content = generated.files.get(`${source.repository}/${source.file}`) ?? "";
       const frontmatter = content.split("\n---\n")[0] ?? "";
-      const links = [...frontmatter.matchAll(/\(logreq:([0-9a-f-]{36})\?version=([^&)]+)/g)];
+      const links = [...frontmatter.matchAll(/\(reqseq:([0-9a-f-]{36})\?version=([^&)]+)/g)];
       if (source.type === "system-requirement") {
         requirements++;
       }
-      // Relation items are flow mappings, so a `(logreq:` in the frontmatter is in a criterion.
+      // Relation items are flow mappings, so a `(reqseq:` in the frontmatter is in a criterion.
       expect(links.length).toBeLessThanOrEqual(1);
       for (const [, id, version] of links) {
         found++;
@@ -192,7 +192,7 @@ describe("generateLargeWorkspace", () => {
         expect(target?.order).toBeLessThan(byId.get(source.id)?.order ?? 0);
         expect(version).toBe(target?.version);
         changed += (target?.order ?? 1) % 100 === 0 ? 1 : 0;
-        expect(frontmatter).toMatch(/\n {2}- Given the station runs, [^\n]*, see \[[^\]]+\]\(logreq:/u);
+        expect(frontmatter).toMatch(/\n {2}- Given the station runs, [^\n]*, see \[[^\]]+\]\(reqseq:/u);
       }
     }
     expect(found).toBe(generated.criterionReferences);
@@ -284,7 +284,7 @@ describe("generateLargeWorkspace", () => {
     expect(generated.files.get("system/metamodel/standard-model.yaml")).toBe(
       withSpecIdProperty(fs.readFileSync(defaultStandardModelFile, "utf8")),
     );
-    const workspace = generated.files.get("system/logreq-workspace.yaml") ?? "";
+    const workspace = generated.files.get("system/reqseq-workspace.yaml") ?? "";
     expect(workspace).toContain("main: true");
     for (const name of ["product", "sensor", "display"]) {
       expect(workspace).toContain(`path: ../${name} }`);
@@ -367,8 +367,8 @@ describe("writeLargeWorkspace", () => {
     const ws = await write(generated);
     expect(ws.generated).toBe(generated);
     expect(ws.workspaceRoot).toBe(path.join(ws.root, "system"));
-    expect(fs.readFileSync(path.join(ws.workspaceRoot, "logreq-workspace.yaml"), "utf8")).toBe(
-      generated.files.get("system/logreq-workspace.yaml"),
+    expect(fs.readFileSync(path.join(ws.workspaceRoot, "reqseq-workspace.yaml"), "utf8")).toBe(
+      generated.files.get("system/reqseq-workspace.yaml"),
     );
     for (const [file, content] of generated.files) {
       expect(fs.readFileSync(ws.path(file), "utf8")).toBe(content);

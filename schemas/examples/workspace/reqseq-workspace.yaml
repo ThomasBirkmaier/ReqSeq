@@ -1,0 +1,15 @@
+reqseq-workspace: 1
+name: Weather station
+repositories:
+  - { name: system, url: "git@git.example.com:ws/system.git", path: ".", main: true }
+  - { name: metamodel, url: "git@git.example.com:ws/metamodel.git" }
+  - { name: subsystem-sensor, url: "git@git.example.com:ws/subsystem-sensor.git" }
+  - { name: confidential, url: "git@git.example.com:ws/confidential.git" }
+metamodel: { repository: metamodel, path: model }
+evidence:
+  - { repository: system, path: evidence }
+  - { repository: subsystem-sensor, path: test-results }
+baselines: { repository: system, path: baselines }
+filters: { repository: system, path: filters }
+mappings: { repository: system, path: reqif }
+ignore: ["docs/**"]

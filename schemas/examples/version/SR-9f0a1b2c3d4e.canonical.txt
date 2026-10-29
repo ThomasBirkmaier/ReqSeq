@@ -1,4 +1,4 @@
-logreq-version n1
+reqseq-version n1
 text
 "The arrow points where the wind comes from. \nPage break stays:\f\nNorth East in one line.\n\n![Rose](shared/compass.png)\n![Rose again](./SR-9f0a1b2c3d4e/../shared/compass.png)\n![Arrow](SR-9f0a1b2c3d4e/arrow%20head.png)\n![Sketch][sketch]\n![Logo](https://example.com/logo.png)\n![Outside](../../../../outside.png)\n[Not an image](SR-9f0a1b2c3d4e/notes.txt)\n\n[sketch]: SR-9f0a1b2c3d4e/sketch.png"
 prop acceptance-criteria

@@ -4,7 +4,7 @@
 # one requirement have a validation status (SR-038). The emergent requirement (SR-035) has no own record,
 # so it is open in each view, never indirect. Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
-logreq-data: 2
+reqseq-data: 2
 commit: 0123456789abcdef0123456789abcdef01234567
 dirty: false
 workspace: Weather station
@@ -18,7 +18,7 @@ elements:
     type: system-requirement
     status: draft
     title: Show wind speed
-    version: n1:2eb0feee31fc1d89
+    version: n1:11335f109ffb1a19
     versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: requirements/SR-6328cee88fb3.md
@@ -57,7 +57,7 @@ elements:
     type: system-requirement
     status: approved
     title: Show the forecast
-    version: n1:3f8fc8003c630a63
+    version: n1:4509014875524d1c
     versionDate: 2026-10-20T12:00:00Z
     repository: system
     file: requirements/SR-6328cee88fe0.md

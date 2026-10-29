@@ -14,7 +14,7 @@ const OTHER = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 
 const junit: EvidenceRecord = {
   element: SR,
-  version: "n1:2eb0feee31fc1d89",
+  version: "n1:11335f109ffb1a19",
   kind: "verification",
   method: "test",
   item: "build-512",
@@ -31,7 +31,7 @@ const junit: EvidenceRecord = {
 
 const markdown: EvidenceRecord = {
   element: SR,
-  version: "n1:2eb0feee31fc1d89",
+  version: "n1:11335f109ffb1a19",
   kind: "validation",
   result: "failed",
   date: "2026-10-20T14:00:00Z",

@@ -281,13 +281,13 @@ describe("the pick", () => {
     return { view, request: lastRequest() };
   };
 
-  it("[SR-066/AK2] writes [title](logreq:<uuid>) in place of the [[, the caret after it, the editor focused", async () => {
+  it("[SR-066/AK2] writes [title](reqseq:<uuid>) in place of the [[, the caret after it, the editor focused", async () => {
     const { view, request } = await asked("see ");
     const focus = vi.spyOn(view, "focus");
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see [The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`see [The title](reqseq:${target.id})`);
     expect(view.state.selection.main.head).toBe(doc(view).length);
     expect(focus).toHaveBeenCalled();
     expect(awaitingReference(view.state)).toBe(false);
@@ -298,7 +298,7 @@ describe("the pick", () => {
     act(() => {
       request.insert({ ...target, repository: "other" });
     });
-    expect(doc(view)).toBe(`[SR-5555](logreq:${target.id}?version=&repository=other)`);
+    expect(doc(view)).toBe(`[SR-5555](reqseq:${target.id}?version=&repository=other)`);
   });
 
   it("[SR-066/AK2] keeps what was typed after the [[ before the pick after the reference", async () => {
@@ -307,7 +307,7 @@ describe("the pick", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see [The title](logreq:${target.id})ab`);
+    expect(doc(view)).toBe(`see [The title](reqseq:${target.id})ab`);
   });
 
   it("[SR-066/AK2] follows the [[ when the text before it changed while the question was open", async () => {
@@ -318,7 +318,7 @@ describe("the pick", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`>> see [The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`>> see [The title](reqseq:${target.id})`);
   });
 
   it("[SR-066/AK2] one undo brings back the [[ and asks nothing", async () => {
@@ -343,7 +343,7 @@ describe("the pick", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see [[The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`see [[The title](reqseq:${target.id})`);
     const again = await asked("x ");
     const text = doc(again.view);
     act(() => {
@@ -400,6 +400,6 @@ describe("the pick", () => {
     act(() => {
       lastRequest().insert(target);
     });
-    expect(doc(view)).toBe(`[The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`[The title](reqseq:${target.id})`);
   });
 });

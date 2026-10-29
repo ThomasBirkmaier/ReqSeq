@@ -139,7 +139,7 @@ describe("inline formatting", () => {
   });
 
   it("hides the text of a link's markup and underlines the text; an empty link text is not styled", () => {
-    const off = decorate('[text](logreq:abc?version=1 "t") and [](x)');
+    const off = decorate('[text](reqseq:abc?version=1 "t") and [](x)');
     expect(named(off, "cm-lr-link").map((d) => [d.from, d.to])).toEqual([[1, 5]]);
     expect(hidden(off)).toEqual([
       [0, 1],

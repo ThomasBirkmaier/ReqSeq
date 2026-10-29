@@ -25,7 +25,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096,
-          "description": "The absolute path of the workspace root as it was opened last (the folder that holds `logreq-workspace.yaml`); shown, and opened as it is."
+          "description": "The absolute path of the workspace root as it was opened last (the folder that holds `reqseq-workspace.yaml`); shown, and opened as it is."
         },
         "key": {
           "type": "string",

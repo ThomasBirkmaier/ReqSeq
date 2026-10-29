@@ -3,12 +3,12 @@
 // `repositories[].dirty`, `data.store` names the file `<commit>-dirty.json` by it; stage 5 reuses
 // the functions for SR-050 AK2 (`baseline.uncommitted-changes`). Read only (ADR-0006, D-036).
 //
-// - The state files of a repository: `logreq-workspace.yaml` of the main repository; the `*.yaml` and
+// - The state files of a repository: `reqseq-workspace.yaml` of the main repository; the `*.yaml` and
 //   `*.yml` files directly in the metamodel, saved-filter and baselines folders where they lie in it;
 //   every `*.md` the element walk sees (not below `.git` or `node_modules`, not matched by an
 //   `ignore` glob, not in a nested repository of the workspace) outside the evidence locations; and
 //   every file an element of the store embeds, of any extension. Not counted: evidence records (the
-//   pipeline writes new ones in the same run, and each names its version, D-026), `.logreq/local.yaml`,
+//   pipeline writes new ones in the same run, and each names its version, D-026), `.reqseq/local.yaml`,
 //   code, every other file, and the stored `*.json` files. Paths compare in NFC (ADR-0006).
 // - How a repository is found dirty, read only and with no new git command:
 //   1. `changedPaths` against the commit (diff without index refresh, untracked files); the listed

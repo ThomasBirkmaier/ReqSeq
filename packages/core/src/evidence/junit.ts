@@ -2,13 +2,13 @@
 // evidence folder. It reads the file's bytes only (no element store: whether a UUID names an element
 // of the workspace is up to the consumers, `evidence.unknown-element` of SR-028).
 //
-// - A test case is enriched when it has a `logreq:version` property (D-026: "Die Fassung ergänzt die
-//   Kommandozeile (D-025) nach der Durchführung"). Its `logreq:element` properties (UUIDs) name the
-//   requirements; the n-th `logreq:version` is the version of the n-th `logreq:element`, so a test
+// - A test case is enriched when it has a `reqseq:version` property (D-026: "Die Fassung ergänzt die
+//   Kommandozeile (D-025) nach der Durchführung"). Its `reqseq:element` properties (UUIDs) name the
+//   requirements; the n-th `reqseq:version` is the version of the n-th `reqseq:element`, so a test
 //   case that names several requirements gives one record for each, with its own version (SR-033
-//   AK2); an element repeated with the same version counts once. `logreq:item` and `logreq:date` are required, `logreq:variant` is optional (absent: the core).
+//   AK2); an element repeated with the same version counts once. `reqseq:item` and `reqseq:date` are required, `reqseq:variant` is optional (absent: the core).
 //   Kind `verification`, method `test`, result `failed` with `<failure>` or `<error>`, else `passed`.
-// - A test case that names no requirement (no `logreq:element` property, no short ID or UUID token in
+// - A test case that names no requirement (no `reqseq:element` property, no short ID or UUID token in
 //   its name) is passed over silently (SR-093 AK2): a pytest parameter list such as `test_add[1-2]`
 //   or any other identifier in brackets is not a reference the reader can tell without the store.
 // - A test case that names a requirement but is not enriched gives no record; the file gets one
@@ -16,7 +16,7 @@
 //   (spec question #529 Q3).
 // - An enriched test case marked `<skipped>` gives no record (ADR-0012), so it never counts as passed
 //   (SR-093 AK3); it is kept as a skipped test case, a test case without execution (SR-033 AK3).
-// - An enriched test case whose properties do not fit (a `logreq:element` that is no UUID, versions
+// - An enriched test case whose properties do not fit (a `reqseq:element` that is no UUID, versions
 //   that do not pair with the elements, a missing or malformed item, date, version or variant) gives no
 //   record and an `evidence.invalid-record` error with its line, as does a file the XML scanner
 //   refuses. XML whose root is not a JUnit root is no JUnit file and gives nothing.
@@ -33,11 +33,11 @@ import type { EvidenceFileRead, EvidenceReader } from "./state.js";
 /** Where a JUnit file lies: the workspace name of its repository and the path in it. */
 export type JunitLocation = Pick<EvidenceFile, "repository" | "file">;
 
-const ELEMENT = "logreq:element";
-const VERSION = "logreq:version";
-const ITEM = "logreq:item";
-const DATE = "logreq:date";
-const VARIANT = "logreq:variant";
+const ELEMENT = "reqseq:element";
+const VERSION = "reqseq:version";
+const ITEM = "reqseq:item";
+const DATE = "reqseq:date";
+const VARIANT = "reqseq:variant";
 
 const isDateTime = (value: string): boolean =>
   fileSchemaValidator("common.schema.json#/$defs/dateTime")(value);
@@ -46,7 +46,7 @@ const isDateTime = (value: string): boolean =>
 const valuesOf = (testCase: JunitTestCase, name: string): string[] =>
   testCase.properties.filter((p) => p.name === name).map((p) => p.value.trim());
 
-/** The `logreq:*` properties of a test case, trimmed, in file order; UUIDs in lower case. */
+/** The `reqseq:*` properties of a test case, trimmed, in file order; UUIDs in lower case. */
 interface Fields {
   readonly elements: readonly string[];
   readonly versions: readonly string[];
@@ -105,7 +105,7 @@ export type Enrichment =
   | { readonly error: string };
 
 /**
- * What an enriched test case (one with a `logreq:version`) says, by the checks of the reader; enrich
+ * What an enriched test case (one with a `reqseq:version`) says, by the checks of the reader; enrich
  * (SR-029) uses it to check a test case it keeps and the file it wrote.
  */
 export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
@@ -137,7 +137,7 @@ export const enrichmentOf = (testCase: JunitTestCase): Enrichment => {
   return { pairs, item, date, ...(variant === undefined ? {} : { variant }) };
 };
 
-/** Whether a test case that is not enriched names a requirement: a `logreq:element` property or a short ID or UUID in its name. */
+/** Whether a test case that is not enriched names a requirement: a `reqseq:element` property or a short ID or UUID in its name. */
 const namesElement = (testCase: JunitTestCase): boolean =>
   elementRefsOf(testCase).some((ref) => ref.source === "property" || ref.kind !== "other");
 

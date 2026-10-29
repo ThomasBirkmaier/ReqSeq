@@ -1,5 +1,5 @@
 # A requirement type by inheritance, for the type filter of hint.list (SR-026 AK2, SR-012).
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - key: safety-requirement
     name: Safety Requirement

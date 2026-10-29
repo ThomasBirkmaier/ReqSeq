@@ -671,14 +671,14 @@ describe("reqseq <group> <action>", () => {
 });
 
 describe("workspace discovery", () => {
-  it("finds the nearest folder upwards with logreq-workspace.yaml", async () => {
-    const ws = await fixture({ "logreq-workspace.yaml": "logreq-workspace: 1\n", "product/deep/x.md": "x" });
+  it("finds the nearest folder upwards with reqseq-workspace.yaml", async () => {
+    const ws = await fixture({ "reqseq-workspace.yaml": "reqseq-workspace: 1\n", "product/deep/x.md": "x" });
     const result = await run(["test", "root", "--json"], { cwd: ws.path("product/deep") });
     expect(JSON.parse(result.stdout)).toEqual({ root: ws.root });
   });
 
   it("takes --workspace relative to the current folder", async () => {
-    const ws = await fixture({ "logreq-workspace.yaml": "logreq-workspace: 1\n", "other/x.md": "x" });
+    const ws = await fixture({ "reqseq-workspace.yaml": "reqseq-workspace: 1\n", "other/x.md": "x" });
     const result = await run(["test", "root", "--workspace", "other", "--json"], { cwd: ws.root });
     expect(JSON.parse(result.stdout)).toEqual({ root: ws.path("other") });
     const absolute = await run(["test", "root", "--workspace", ws.root, "--json"], {

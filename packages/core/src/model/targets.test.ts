@@ -99,7 +99,7 @@ const context = async (opened: Opened): Promise<TargetContext> => ({
 });
 
 const ref = (id: string, version?: string): string =>
-  `logreq:${id}${version === undefined ? "" : `?version=${version}`}`;
+  `reqseq:${id}${version === undefined ? "" : `?version=${version}`}`;
 
 const UNKNOWN = "11111111-2222-4333-8444-555555555555";
 
@@ -332,14 +332,14 @@ describe("relation targets with ID and version (SR-021)", () => {
     const opened = await open();
     const text = [
       `[Release [1.0]](${ref(PKG.id)}) and [a \\] b](<${ref(NEED.id)}> "title")`,
-      `[x](logreq:${PKG.id}?view=pro&version=${OTHER}&y=1) [y](logreq:${NEED.id}?view=pro)`,
+      `[x](reqseq:${PKG.id}?view=pro&version=${OTHER}&y=1) [y](reqseq:${NEED.id}?view=pro)`,
       "",
     ].join("\n");
     const out = await run(opened, "element.update", { ref: SOURCE.id, text });
     expect(out.element.text).toBe(
       [
         `[Release [1.0]](${ref(PKG.id, versionOf(PKG))}) and [a \\] b](<${ref(NEED.id, versionOf(NEED))}> "title")`,
-        `[x](logreq:${PKG.id}?view=pro&version=${versionOf(PKG)}&y=1) [y](logreq:${NEED.id}?view=pro&version=${versionOf(NEED)})`,
+        `[x](reqseq:${PKG.id}?view=pro&version=${versionOf(PKG)}&y=1) [y](reqseq:${NEED.id}?view=pro&version=${versionOf(NEED)})`,
         "",
       ].join("\n"),
     );
@@ -361,7 +361,7 @@ describe("relation targets with ID and version (SR-021)", () => {
       "",
       `    [indented code](${ref(PKG.id)})`,
       "",
-      "[no UUID](logreq:SR-3d8b2c) and [upper case](logreq:0C8A3E5F-2D1B-4F6E-8A9C-7B3D5E1F2A4C)",
+      "[no UUID](reqseq:SR-3d8b2c) and [upper case](reqseq:0C8A3E5F-2D1B-4F6E-8A9C-7B3D5E1F2A4C)",
       `> [in a quote](${ref(PKG.id)})`,
       "",
     ].join("\n");
@@ -512,11 +512,11 @@ describe("relation targets with ID and version (SR-021)", () => {
     expect(
       await setInlineReferences(
         ctx,
-        `[a](logreq:${NEED.id}?) [b](logreq:${NEED.id}?x=1&&version=old&)`,
+        `[a](reqseq:${NEED.id}?) [b](reqseq:${NEED.id}?x=1&&version=old&)`,
         "",
         "system",
       ),
-    ).toBe(`[a](logreq:${NEED.id}?version=${v}) [b](logreq:${NEED.id}?x=1&version=${v})`);
+    ).toBe(`[a](reqseq:${NEED.id}?version=${v}) [b](reqseq:${NEED.id}?x=1&version=${v})`);
   });
 
   it("gives every reference to the same target the same version", async () => {
@@ -530,13 +530,13 @@ describe("relation targets with ID and version (SR-021)", () => {
 });
 
 describe("a reference written by the [[ search (SR-066)", () => {
-  it("[SR-066/AK2] (save part) element.update saves [Title](logreq:<uuid>) with the current version of its target, the label as written", async () => {
+  it("[SR-066/AK2] (save part) element.update saves [Title](reqseq:<uuid>) with the current version of its target, the label as written", async () => {
     const opened = await open();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
-      text: `Shown with [${NEED.title}](logreq:${NEED.id}) here.\n`,
+      text: `Shown with [${NEED.title}](reqseq:${NEED.id}) here.\n`,
     });
-    const saved = `Shown with [${NEED.title}](logreq:${NEED.id}?version=${versionOf(NEED)}) here.\n`;
+    const saved = `Shown with [${NEED.title}](reqseq:${NEED.id}?version=${versionOf(NEED)}) here.\n`;
     expect(out.element.text).toBe(saved);
     expect((await read(opened, SOURCE.file)).endsWith(`---\n\n${saved}`)).toBe(true);
   });
@@ -545,17 +545,17 @@ describe("a reference written by the [[ search (SR-066)", () => {
     const opened = await open();
     const out = await run(opened, "element.update", {
       ref: SOURCE.id,
-      text: `Across [N-0e9d7c](logreq:${SENSOR_NEED.id}?version=&repository=sensor).\n`,
+      text: `Across [N-0e9d7c](reqseq:${SENSOR_NEED.id}?version=&repository=sensor).\n`,
     });
     expect(out.element.text).toBe(
-      `Across [N-0e9d7c](logreq:${SENSOR_NEED.id}?version=${versionOf(SENSOR_NEED)}&repository=sensor).\n`,
+      `Across [N-0e9d7c](reqseq:${SENSOR_NEED.id}?version=${versionOf(SENSOR_NEED)}&repository=sensor).\n`,
     );
   });
 });
 
 /** An inline reference that names the repository of its target (D-058, #240). */
 const across = (id: string, repository: string, version?: string): string =>
-  `logreq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;
+  `reqseq:${id}?${version === undefined ? "" : `version=${version}&`}repository=${repository}`;
 
 describe("inline references across repositories (D-058, decision on #177 (c))", () => {
   it("[SR-005/AK1] names the repository of a target in another repository, and none within the source's own", async () => {
@@ -586,12 +586,12 @@ describe("inline references across repositories (D-058, decision on #177 (c))", 
     expect(
       await setInlineReferences(
         ctx,
-        `[a](logreq:${SENSOR_NEED.id}?repository=sensor) [b](logreq:${SENSOR_NEED.id}?repository=sensor&version=${OTHER}&x=1) [c](logreq:${NEED.id}?repository=system)`,
+        `[a](reqseq:${SENSOR_NEED.id}?repository=sensor) [b](reqseq:${SENSOR_NEED.id}?repository=sensor&version=${OTHER}&x=1) [c](reqseq:${NEED.id}?repository=system)`,
         "",
         "system",
       ),
     ).toBe(
-      `[a](logreq:${SENSOR_NEED.id}?repository=sensor&version=${v}) [b](logreq:${SENSOR_NEED.id}?repository=sensor&version=${v}&x=1) [c](logreq:${NEED.id}?version=${versionOf(NEED)})`,
+      `[a](reqseq:${SENSOR_NEED.id}?repository=sensor&version=${v}) [b](reqseq:${SENSOR_NEED.id}?repository=sensor&version=${v}&x=1) [c](reqseq:${NEED.id}?version=${versionOf(NEED)})`,
     );
     const error = await runError(opened, "element.update", {
       ref: SOURCE.id,
@@ -618,11 +618,11 @@ describe("inline references across repositories (D-058, decision on #177 (c))", 
     expect(
       await setInlineReferences(
         ctx,
-        `[N-0e9d7c](logreq:${SENSOR_NEED.id}?version=&repository=sensor)`,
+        `[N-0e9d7c](reqseq:${SENSOR_NEED.id}?version=&repository=sensor)`,
         "",
         "system",
       ),
-    ).toBe(`[N-0e9d7c](logreq:${SENSOR_NEED.id}?version=${v}&repository=sensor)`);
+    ).toBe(`[N-0e9d7c](reqseq:${SENSOR_NEED.id}?version=${v}&repository=sensor)`);
   });
 
   it("keeps stored references as written, also old ones without repository, and sets a hand-changed repository anew", async () => {
@@ -674,8 +674,8 @@ describe("inline references without repository (D-058, decision on #177 (c))", (
     const opened = await open();
     const ctx = await context(opened);
     expect(
-      await setInlineReferences(ctx, `[a](logreq:${SENSOR_NEED.id}?x=1&version=${OTHER}&y=2)`, "", "system"),
-    ).toBe(`[a](logreq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor&y=2)`);
+      await setInlineReferences(ctx, `[a](reqseq:${SENSOR_NEED.id}?x=1&version=${OTHER}&y=2)`, "", "system"),
+    ).toBe(`[a](reqseq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor&y=2)`);
   });
 
   it("looks a target up in the source's own repository first, then in the one other repository that has it", async () => {
@@ -718,12 +718,12 @@ describe("inline references without repository (D-058, decision on #177 (c))", (
     expect(
       await setInlineReferences(
         ctx,
-        `[a](logreq:${SENSOR_NEED.id}?repository=&x=1) [b](logreq:${NEED.id}?repository=)`,
+        `[a](reqseq:${SENSOR_NEED.id}?repository=&x=1) [b](reqseq:${NEED.id}?repository=)`,
         "",
         "system",
       ),
     ).toBe(
-      `[a](logreq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor) [b](logreq:${NEED.id}?version=${versionOf(NEED)})`,
+      `[a](reqseq:${SENSOR_NEED.id}?x=1&version=${versionOf(SENSOR_NEED)}&repository=sensor) [b](reqseq:${NEED.id}?version=${versionOf(NEED)})`,
     );
   });
 

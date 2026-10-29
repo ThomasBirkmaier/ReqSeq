@@ -130,7 +130,7 @@ const render = (spec: Spec): string => {
 const record = (id: string, version: string, more: { variant?: string; failed?: boolean } = {}): string =>
   [
     "---",
-    "logreq-record: 1",
+    "reqseq-record: 1",
     "kind: verification",
     `element: ${id}`,
     `version: ${version}`,
@@ -980,8 +980,8 @@ describe("verificationState carried over changes across two repositories (#698, 
       "utf8",
     );
     const files: Record<string, string> = {
-      "system/logreq-workspace.yaml": [
-        "logreq-workspace: 1",
+      "system/reqseq-workspace.yaml": [
+        "reqseq-workspace: 1",
         "name: Two repositories",
         "repositories:",
         '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }',

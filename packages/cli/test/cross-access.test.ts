@@ -100,11 +100,11 @@ const SAVED: FixtureOptions = {
   fixture: "SR-069/filter",
   files: {
     "filters/sensor-drafts.yaml":
-      "# Drafts of the sensor package\nlogreq-filter: 1\nname: Sensor drafts\nwhere:\n  all:\n" +
+      "# Drafts of the sensor package\nreqseq-filter: 1\nname: Sensor drafts\nwhere:\n  all:\n" +
       "    - { package: PKG-0000d1 }   # Sensors\n    - { status: [draft] }\nsort: [{ by: title, order: desc }]\n",
     "filters/mountain.yaml":
-      "logreq-filter: 1\nname: Mountain\nview: VAR-0000c2\nwhere: { type: [system-requirement] }\n",
-    "filters/broken.yaml": "logreq-filter: 1\nname: Broken\nwhere: { nope: 1 }\n",
+      "reqseq-filter: 1\nname: Mountain\nview: VAR-0000c2\nwhere: { type: [system-requirement] }\n",
+    "filters/broken.yaml": "reqseq-filter: 1\nname: Broken\nwhere: { nope: 1 }\n",
   },
   git: true,
 };
@@ -153,11 +153,11 @@ const IN_CRITERIA: FixtureOptions = {
       "utf8",
     ).replace(
       "then the station shows it.",
-      "then [the need](logreq:26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000) shows it.",
+      "then [the need](reqseq:26a0b000-0000-4000-8000-0000000000a1?version=n1:0000000000000000) shows it.",
     ),
     "requirements/SR-0000000000b8.md":
       "---\nid: 26a0b000-0000-4000-8000-0000000000b8\ntype: system-requirement\nstatus: draft\ntitle: Show gusts\nrequirement-type: functional\n" +
-      "acceptance-criteria:\n  - Given a gust, then [the other need](logreq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n",
+      "acceptance-criteria:\n  - Given a gust, then [the other need](reqseq:26a0b000-0000-4000-8000-0000000000a2?version=n1:1111111111111111) is shown.\n---\n\nGusts.\n",
   },
 };
 /** Where SR-0000b1 stores the link in its first acceptance criterion, as hint IDs name it (SR-127). */
@@ -197,7 +197,7 @@ const STATUSES_PER_TYPE: FixtureOptions = { fixture: "enabler-306/statuses-per-t
 const MISSING_TARGETS: FixtureOptions = { fixture: "SR-089/missing-targets", git: ["system", "sensor"] };
 /** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
 const WITH_VAULT =
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
@@ -1008,10 +1008,10 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         ...EVIDENCE,
         files: {
           "baselines/release-1.0.yaml":
-            "logreq-baseline: 1\nname: Release 1.0\ndate: 2026-10-24T09:30:00Z\nrepositories:\n" +
+            "reqseq-baseline: 1\nname: Release 1.0\ndate: 2026-10-24T09:30:00Z\nrepositories:\n" +
             "  - { name: system, commit: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad }\nelements:\n" +
-            "  - { id: e8df96ea-a168-4d90-8d65-6328cee88fb3, version: n1:2eb0feee31fc1d89 }\n",
-          "baselines/broken.yaml": "logreq-baseline: 1\nname: Broken\n",
+            "  - { id: e8df96ea-a168-4d90-8d65-6328cee88fb3, version: n1:11335f109ffb1a19 }\n",
+          "baselines/broken.yaml": "reqseq-baseline: 1\nname: Broken\n",
         },
       },
       input: { ref: "SR-e88fb3" },
@@ -1261,7 +1261,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: {
         ...AFFECTED,
         files: {
-          "logreq-workspace.yaml": WITH_VAULT,
+          "reqseq-workspace.yaml": WITH_VAULT,
         },
       },
       input: { ref: "D-00d001" },
@@ -1313,7 +1313,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         fixture: "SR-022/chain",
         git: true,
         files: {
-          "logreq-workspace.yaml": WITH_VAULT,
+          "reqseq-workspace.yaml": WITH_VAULT,
           "components/CR-00000000c001.md":
             "---\nid: 5c0e1d2a-0022-4022-8022-00000000c001\ntype: component-requirement\nstatus: draft\ntitle: Count anemometer turns\n" +
             "derives-from:\n" +
@@ -1530,8 +1530,8 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
         fixture: "SR-023/related",
         git: true,
         files: {
-          "logreq-workspace.yaml":
-            "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+          "reqseq-workspace.yaml":
+            "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
             '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
             '  - { name: away, url: "git@git.example.com:ws/away.git", path: ../away }\n' +
             "metamodel: { repository: system, path: metamodel }\n",
@@ -1769,8 +1769,8 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "metamodel missing (read-only)",
       fixture: {
         files: {
-          "logreq-workspace.yaml":
-            "logreq-workspace: 1\nname: No model\nrepositories:\n" +
+          "reqseq-workspace.yaml":
+            "reqseq-workspace: 1\nname: No model\nrepositories:\n" +
             '  - { name: main, url: "git@example.com:main.git", main: true }\n' +
             "metamodel: { repository: main, path: model }\n",
         },
@@ -1828,7 +1828,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       name: "a faulty metamodel file: the types of the valid files and the problem (SR-130)",
       fixture: {
         ...METAMODEL,
-        files: { "model/broken.yaml": "logreq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
+        files: { "model/broken.yaml": "reqseq-metamodel: 1\ntypes:\n  - { key: broken, name: Broken }\n" },
       },
       input: {},
       tag: "[SR-130/AK6]",
@@ -2156,7 +2156,7 @@ const filesWithoutGenerated = (
 ): Record<string, string> =>
   Object.fromEntries(
     Object.entries(files).map(([name, text]) => {
-      if (!name.endsWith(".json") || !text.startsWith('{"logreq-data":2,')) {
+      if (!name.endsWith(".json") || !text.startsWith('{"reqseq-data":2,')) {
         return [name, text];
       }
       const { generated } = JSON.parse(text) as { generated?: unknown };

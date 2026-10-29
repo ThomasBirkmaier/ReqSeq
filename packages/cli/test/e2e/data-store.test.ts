@@ -64,7 +64,7 @@ const schemaValidator = async (schema: string): Promise<Validate | undefined> =>
 
 /** What the evaluation reads of a stored file: only fields of data-export.schema.json. */
 interface StoredState {
-  readonly "logreq-data": number;
+  readonly "reqseq-data": number;
   readonly generated: string;
   readonly repositories: readonly {
     readonly name: string;
@@ -92,7 +92,7 @@ interface StoredState {
 const RAW_JUNIT =
   '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="direction.test.ts">\n' +
   '    <testcase classname="direction.test.ts" name="[SR-0000b3] shows the wind direction"><properties>' +
-  '<property name="logreq:variant" value="61061061-0000-4000-8000-0000000000c2"/></properties></testcase>\n' +
+  '<property name="reqseq:variant" value="61061061-0000-4000-8000-0000000000c2"/></properties></testcase>\n' +
   "  </testsuite>\n</testsuites>\n";
 
 describe("reqseq data store (SR-062)", () => {

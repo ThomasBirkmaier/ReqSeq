@@ -31,7 +31,7 @@ const B = `${P}b0000000002`;
 const N = `${P}a0000000001`;
 const V = `${P}c0000000001`;
 /** The current versions of A and B in fixtures/SR-025/outdated. */
-const A_VERSION = "n1:c432bd0d8bcd0958";
+const A_VERSION = "n1:e73a2cb229cfa29d";
 const OLD = "n1:0000000000000000";
 
 /** A workspace on fixtures/SR-025/outdated whose evidence records are `records`. */
@@ -168,8 +168,8 @@ describe("outdated evidence (SR-025 AK4)", () => {
     const fixture = await createFixtureWorkspace({
       fixture: "SR-025/outdated",
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
         "evidence/results.xml": "<testsuite/>\n",

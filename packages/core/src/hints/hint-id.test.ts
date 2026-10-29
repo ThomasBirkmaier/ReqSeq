@@ -6,7 +6,7 @@ import { hintIdOf, parseHintId } from "./hint-id.js";
 
 const S = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
 const T = "5e025a7d-2b4f-4c61-9d08-0a0000000001";
-const VERSION = "n1:4a120bac998acdc8";
+const VERSION = "n1:323df2732ed684b0";
 const AT = { sourceRepository: "system", file: "requirements/SR-0b0000000001.md", source: S };
 /** The place as an ID writes it. */
 const PLACE = `system/requirements%2FSR-0b0000000001.md/${S}`;

@@ -3523,7 +3523,7 @@ describe("ElementView", () => {
           repository: "spec",
         });
       });
-      expect(editorView().state.doc.toString()).toBe("[Wind](logreq:uuid-2)");
+      expect(editorView().state.doc.toString()).toBe("[Wind](reqseq:uuid-2)");
       act(() => {
         picks[0]?.insert({
           id: "uuid-3",
@@ -3534,14 +3534,14 @@ describe("ElementView", () => {
         });
       });
       expect(editorView().state.doc.toString()).toBe(
-        "[Wind](logreq:uuid-2)[SR-0003](logreq:uuid-3?version=&repository=other)",
+        "[Wind](reqseq:uuid-2)[SR-0003](reqseq:uuid-3?version=&repository=other)",
       );
     });
   });
 
   describe("inline references (#424)", () => {
     const TARGET = "6adc4fbb-fe6a-4dfa-b9b6-8ccf0e589cf2";
-    const SENTENCE = `Nach [D-017](logreq:${TARGET}?version=n1:1aac78aad3b5e6a8) gilt das.`;
+    const SENTENCE = `Nach [D-017](reqseq:${TARGET}?version=n1:1aac78aad3b5e6a8) gilt das.`;
     const outdatedHint = (message = "points to an older version") => ({
       code: "relation.outdated",
       severity: "warning",
@@ -3561,7 +3561,7 @@ describe("ElementView", () => {
       const { opened } = await mount(asCall(withReference()));
       const content = query(".cm-content").textContent;
       expect(content).toBe("Nach D-017 outdated gilt das.");
-      expect(content).not.toContain("](logreq:");
+      expect(content).not.toContain("](reqseq:");
       expect(content).not.toContain("n1:");
       expect(query(".cm-lr-outdated").title).toBe("points to an older version");
       await act(async () => {
@@ -3576,7 +3576,7 @@ describe("ElementView", () => {
     it("opens a reference that names a repository with it", async () => {
       const call = fakeCall({
         "element.get": () => ({
-          element: read({ text: `[x](logreq:${TARGET}?repository=other)` }),
+          element: read({ text: `[x](reqseq:${TARGET}?repository=other)` }),
         }),
       });
       const { controls, opened } = await mount(asCall(call));
@@ -3649,7 +3649,7 @@ describe("ElementView", () => {
       topic: { kind: "text", many: false, markdown: false },
     });
     const FIRST = "**Gegeben** ein *Satz*, `wenn` er gilt.";
-    const SECOND = `**Dann** gilt [D-017](logreq:${TARGET}?version=${VERSION}).`;
+    const SECOND = `**Dann** gilt [D-017](reqseq:${TARGET}?version=${VERSION}).`;
     const hint = (place: string, message = "points to an older version") => ({
       code: "relation.outdated",
       severity: "warning",
@@ -3736,7 +3736,7 @@ describe("ElementView", () => {
       const { mounted } = mountCriteria([FIRST, SECOND]);
       const { opened } = await mounted;
       expect(box().querySelector(".cm-lr-ref")?.textContent).toBe("D-017");
-      expect(box().textContent).not.toContain("logreq:");
+      expect(box().textContent).not.toContain("reqseq:");
       await act(async () => {
         query(`[data-field="${KEY}"] .cm-lr-ref`).dispatchEvent(
           new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
@@ -3769,7 +3769,7 @@ describe("ElementView", () => {
     });
 
     it("[SR-127/AK3] Follow reference with the focus on the box opens the first reference of the box, or says there is none", async () => {
-      const { mounted } = mountCriteria([FIRST, SECOND, `[x](logreq:uuid-2)`]);
+      const { mounted } = mountCriteria([FIRST, SECOND, `[x](reqseq:uuid-2)`]);
       const { controls, opened, echoed } = await mounted;
       act(() => {
         box().focus();
@@ -3882,7 +3882,7 @@ describe("ElementView", () => {
       act(() => {
         picks[0]?.insert(wind);
       });
-      expect(first.state.doc.toString()).toBe(`${FIRST}[Wind sehen](logreq:${TARGET})\n${SECOND}`);
+      expect(first.state.doc.toString()).toBe(`${FIRST}[Wind sehen](reqseq:${TARGET})\n${SECOND}`);
       await act(async () => {
         controls().save();
         await Promise.resolve();
@@ -3891,7 +3891,7 @@ describe("ElementView", () => {
       expect(call.mock.calls.filter(([name]) => name === "element.update")).toEqual([
         [
           "element.update",
-          { ref: "uuid-1", set: { [KEY]: [`${FIRST}[Wind sehen](logreq:${TARGET})`, SECOND] } },
+          { ref: "uuid-1", set: { [KEY]: [`${FIRST}[Wind sehen](reqseq:${TARGET})`, SECOND] } },
         ],
       ]);
       // Off the line with the caret the value shows the title of the target, which opens on a click.
@@ -3919,7 +3919,7 @@ describe("ElementView", () => {
     });
 
     it("[SR-127/AK2] a reference to another repository in a value shows the title of its target when it is here (D-058)", async () => {
-      const across = `Siehe [N-0e9d7c](logreq:${TARGET}?version=${VERSION}&repository=sensor).`;
+      const across = `Siehe [N-0e9d7c](reqseq:${TARGET}?version=${VERSION}&repository=sensor).`;
       const call = fakeCall({
         "element.get": (input) =>
           input["ref"] === TARGET
@@ -4419,7 +4419,7 @@ describe("ElementView", () => {
     it("Follow reference in a box that is not Markdown says there is none in it, and does not take the text's", async () => {
       const { controls, opened, echoed } = await mountBoxes(
         { topic: "Wind" },
-        { text: "[x](logreq:uuid-2)" },
+        { text: "[x](reqseq:uuid-2)" },
       );
       await caretAt(viewOf("topic"), 1);
       act(() => {
@@ -5563,7 +5563,7 @@ describe("ElementView", () => {
 
   it("[SR-132/AK3] Follow reference on a focused link of a relation group opens that link, not the reference at the caret of the text", async () => {
     const { controls, targets, opened } = await mount(
-      asCall(fakeCall({ "element.get": () => ({ element: read({ text: "[x](logreq:uuid-2)" }) }) })),
+      asCall(fakeCall({ "element.get": () => ({ element: read({ text: "[x](reqseq:uuid-2)" }) }) })),
     );
     // The caret of the text sits on an inline reference.
     act(() => {

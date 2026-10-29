@@ -17,8 +17,8 @@ describe("warmWorkspace (SR-082)", () => {
   it("loads the model before it resolves and starts the search index later in the background", async () => {
     const fixture = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
         "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
         "needs/N-545b7b379da2.md": `---\nid: ${N1}\ntype: need\nstatus: draft\ntitle: Wind\n---\n`,
       },
@@ -41,8 +41,8 @@ describe("warmWorkspace (SR-082)", () => {
   it("makes a search during the warm-up build the index without the cache, as a server does", async () => {
     const fixture = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n",
         "metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
         "needs/N-545b7b379da2.md": `---\nid: ${N1}\ntype: need\nstatus: draft\ntitle: Wind\n---\n`,
       },

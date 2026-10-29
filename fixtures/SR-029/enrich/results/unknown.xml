@@ -4,7 +4,7 @@
     <testcase classname="station" name="[SR-ffffff] names no element"/>
     <testcase classname="station" name="a typo in the property">
       <properties>
-        <property name="logreq:element" value="SR-0366"/>
+        <property name="reqseq:element" value="SR-0366"/>
       </properties>
     </testcase>
     <testcase classname="station" name="[SR-46fb54] logs in"/>

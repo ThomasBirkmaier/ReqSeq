@@ -275,7 +275,7 @@
                 "properties": {
                   "path": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "Existing folder; must not contain logreq-workspace.yaml or the metamodel file."
+                    "description": "Existing folder; must not contain reqseq-workspace.yaml or the metamodel file."
                   },
                   "name": {
                     "type": "string"
@@ -1039,7 +1039,7 @@
     "/v1/commands/workspace.recent": {
       "post": {
         "operationId": "workspace_recent",
-        "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds logreq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
+        "summary": "The workspaces the app opened last, the most recent first (at most 20): the root of each, when it was opened, and whether the root still holds reqseq-workspace.yaml. The list belongs to the user, not to a workspace, so every access gives the same list from any folder.",
         "tags": [
           "workspace"
         ],
@@ -1078,7 +1078,7 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 4096,
-                            "description": "The absolute path of the workspace root as the app opened it last (the folder that holds logreq-workspace.yaml)."
+                            "description": "The absolute path of the workspace root as the app opened it last (the folder that holds reqseq-workspace.yaml)."
                           },
                           "opened": {
                             "$ref": "#/components/schemas/common/$defs/dateTime",
@@ -1086,7 +1086,7 @@
                           },
                           "exists": {
                             "type": "boolean",
-                            "description": "Whether `<root>/logreq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false."
+                            "description": "Whether `<root>/reqseq-workspace.yaml` is a file now: the root itself, never a folder above it. A root without an answer within 1 s (a share that does not answer) counts as false; while earlier checks of this process still hang (a long-running API or MCP server), every root may count as false."
                           }
                         },
                         "additionalProperties": false,
@@ -7594,7 +7594,7 @@
                 "properties": {
                   "file": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
-                    "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `logreq:version` is never changed (D-026)."
+                    "description": "The JUnit XML file to enrich. It is rewritten in place unless `output` is given. A test case that already has a `reqseq:version` is never changed (D-026)."
                   },
                   "item": {
                     "$ref": "#/components/schemas/common/$defs/item",
@@ -7602,7 +7602,7 @@
                   },
                   "date": {
                     "$ref": "#/components/schemas/common/$defs/dateTime",
-                    "description": "The date of the test run. Default: an existing `logreq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
+                    "description": "The date of the test run. Default: an existing `reqseq:date` of the test case, else the `timestamp` of its test suite when that has a time zone, else the time of the call."
                   },
                   "output": {
                     "$ref": "#/components/schemas/common/$defs/localPath",
@@ -8606,7 +8606,7 @@
               "application/x-ndjson": {
                 "schema": {
                   "type": "string",
-                  "description": "One compact JSON object and LF per item of `elements` of the JSON result: the fields `logreq-data`, `commit`, `dirty` of the result first (those it gives), then the keys of the item. UTF-8, no other field of the result."
+                  "description": "One compact JSON object and LF per item of `elements` of the JSON result: the fields `reqseq-data`, `commit`, `dirty` of the result first (those it gives), then the keys of the item. UTF-8, no other field of the result."
                 }
               }
             }
@@ -10848,14 +10848,14 @@
         "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
         "type": "object",
         "required": [
-          "logreq-baseline",
+          "reqseq-baseline",
           "name",
           "date",
           "repositories",
           "elements"
         ],
         "properties": {
-          "logreq-baseline": {
+          "reqseq-baseline": {
             "const": 1
           },
           "name": {
@@ -11338,10 +11338,10 @@
       },
       "data-export": {
         "title": "Data of a state (Stand) as JSON",
-        "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `logreq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
+        "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
         "type": "object",
         "required": [
-          "logreq-data",
+          "reqseq-data",
           "dirty",
           "workspace",
           "generated",
@@ -11349,7 +11349,7 @@
           "elements"
         ],
         "properties": {
-          "logreq-data": {
+          "reqseq-data": {
             "const": 2,
             "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`)."
           },
@@ -11425,13 +11425,13 @@
           },
           "line": {
             "type": "object",
-            "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`): `logreq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4).",
+            "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`): `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4).",
             "required": [
-              "logreq-data",
+              "reqseq-data",
               "dirty"
             ],
             "properties": {
-              "logreq-data": {
+              "reqseq-data": {
                 "const": 2
               },
               "commit": {
@@ -11641,7 +11641,7 @@
           },
           "evidenceRecord": {
             "type": "object",
-            "description": "An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `logreq-record`; `test-case` is `testCase`.",
+            "description": "An evidence record (Datensatz) as commands return it (SR-024 AK4, SR-028): the fields of `evidence-record.schema.json` with the same rules, from a Markdown record or a JUnit test case alike, without the format marker `reqseq-record`; `test-case` is `testCase`.",
             "required": [
               "element",
               "version",
@@ -11999,7 +11999,7 @@
         "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
         "type": "object",
         "required": [
-          "logreq-record",
+          "reqseq-record",
           "kind",
           "element",
           "version",
@@ -12007,7 +12007,7 @@
           "date"
         ],
         "properties": {
-          "logreq-record": {
+          "reqseq-record": {
             "const": 1
           },
           "kind": {
@@ -12083,12 +12083,12 @@
         "description": "A named filter saved as YAML in the repository (D-056, SR-070): a `*.yaml` file directly in the `filters` folder of the workspace file. The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3). Element references may take any form (`resolveRef`); `filter.save` writes UUIDs.",
         "type": "object",
         "required": [
-          "logreq-filter",
+          "reqseq-filter",
           "name",
           "where"
         ],
         "properties": {
-          "logreq-filter": {
+          "reqseq-filter": {
             "const": 1
           },
           "name": {
@@ -12439,10 +12439,10 @@
         "description": "One YAML file of the metamodel (D-021, D-056, SR-011). A metamodel is all *.yaml files in the metamodel folder named in the workspace file; their lists are merged, and every key must be unique across all files. Keys never change; names may (D-043, SR-015). Built-in meanings (D-012) are attached with `meaning`. A type or property meaning is assigned to at most one key, counting only the `meaning` a definition sets itself and would not inherit anyway; a second key is a metamodel error (SR-013, SR-014 AK3); several relation kinds may share a relation meaning, e.g. Refines and Derives from are both `derivation` (D-012). A type inherits the meaning of the type it extends unless it sets its own.",
         "type": "object",
         "required": [
-          "logreq-metamodel"
+          "reqseq-metamodel"
         ],
         "properties": {
-          "logreq-metamodel": {
+          "reqseq-metamodel": {
             "const": 1,
             "description": "Format version of this file."
           },
@@ -12681,7 +12681,7 @@
               "markdown": {
                 "type": "boolean",
                 "default": false,
-                "description": "Values are Markdown like the text: emphasis, code and inline references `[label](logreq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images."
+                "description": "Values are Markdown like the text: emphasis, code and inline references `[label](reqseq:<uuid>?version=...)`, which are followed, checked and confirmed like those in the text (SR-127). Only for kind `text`, and never with the meaning `title` or `identifier`. It does not change the version of an element (ADR-0005); images in such a value are no embedded images."
               },
               "meaning": {
                 "$ref": "#/components/schemas/metamodel/$defs/propertyMeaning"
@@ -12810,7 +12810,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 4096,
-                "description": "The absolute path of the workspace root as it was opened last (the folder that holds `logreq-workspace.yaml`); shown, and opened as it is."
+                "description": "The absolute path of the workspace root as it was opened last (the folder that holds `reqseq-workspace.yaml`); shown, and opened as it is."
               },
               "key": {
                 "type": "string",
@@ -12831,11 +12831,11 @@
         "description": "Mapping of the types and attributes of one ReqIF source to the own metamodel, saved as YAML in the repository and reused for every later import from and export to that source (N-045, D-022, SR-054). The own metamodel is never changed by it (SR-054 AK3). Also holds saved export profiles (SR-059 AK3).",
         "type": "object",
         "required": [
-          "logreq-reqif-mapping",
+          "reqseq-reqif-mapping",
           "source"
         ],
         "properties": {
-          "logreq-reqif-mapping": {
+          "reqseq-reqif-mapping": {
             "const": 1
           },
           "source": {
@@ -13032,13 +13032,13 @@
       },
       "workspace-local": {
         "title": "Local workspace overrides",
-        "description": "`.logreq/local.yaml` next to `logreq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.logreq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
+        "description": "`.reqseq/local.yaml` next to `reqseq-workspace.yaml`: settings of one person on one machine. The file is not committed (add `.reqseq/` to `.gitignore`). It overrides where a repository of the workspace lies locally (SR-004). Faulty content is reported as a warning and ignored.",
         "type": "object",
         "required": [
-          "logreq-local"
+          "reqseq-local"
         ],
         "properties": {
-          "logreq-local": {
+          "reqseq-local": {
             "const": 1
           },
           "repositories": {
@@ -13056,7 +13056,7 @@
                 "path": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Absolute path, or relative to the main repository (the folder with `logreq-workspace.yaml`). No `~` expansion."
+                  "description": "Absolute path, or relative to the main repository (the folder with `reqseq-workspace.yaml`). No `~` expansion."
                 }
               },
               "additionalProperties": false
@@ -13067,16 +13067,16 @@
       },
       "workspace": {
         "title": "Workspace file",
-        "description": "`logreq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
+        "description": "`reqseq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
         "type": "object",
         "required": [
-          "logreq-workspace",
+          "reqseq-workspace",
           "name",
           "repositories",
           "metamodel"
         ],
         "properties": {
-          "logreq-workspace": {
+          "reqseq-workspace": {
             "const": 1
           },
           "name": {
@@ -13157,7 +13157,7 @@
               },
               "path": {
                 "type": "string",
-                "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.logreq/local.yaml`."
+                "description": "Expected local location relative to the main repository, with `/` as separator. Default `../<name>`; always `.` for the main repository. Absolute paths and `\\` are warned about (an absolute path is ignored); there is no `~` expansion. A person can override it in the untracked file `.reqseq/local.yaml`."
               },
               "main": {
                 "type": "boolean",

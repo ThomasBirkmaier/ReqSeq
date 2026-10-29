@@ -90,7 +90,7 @@ describe("evidence.record (SR-030)", () => {
     const output = await record(workspace, { ref: "SR-00c002", ...INSPECTION });
     expect(output.files).toEqual(["evidence/2026-10-27-SR-00c002-inspection.md"]);
     expect(await frontmatterOf(fixture, "evidence/2026-10-27-SR-00c002-inspection.md")).toMatchObject({
-      "logreq-record": 1,
+      "reqseq-record": 1,
       element: S2,
       version,
     });
@@ -196,7 +196,7 @@ describe("evidence.record (SR-030)", () => {
 
   it("is refused with workspace.read-only while the metamodel is faulty, and writes nothing (#142 point b)", async () => {
     const { fixture, workspace } = await open({
-      "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: [ { key: x } ]\n",
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [ { key: x } ]\n",
     });
     const before = await filesOf(fixture);
     expect((await failure(workspace, { ref: "SR-00c002", ...INSPECTION })).code).toBe("workspace.read-only");

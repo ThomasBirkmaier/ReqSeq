@@ -21,7 +21,7 @@
 //     narrowed export tells outdated links too.
 //   Not in it: the text, other incoming relations (each relation is at its source), the version
 //   date (D-013 is about display; Git history per element is too slow at N-036), the records.
-// - Header (A5): `logreq-data` 2; `commit`, HEAD of the main repository, and `dirty`, false only when
+// - Header (A5): `reqseq-data` 2; `commit`, HEAD of the main repository, and `dirty`, false only when
 //   every available repository has a known commit and is known clean (the state data.store names
 //   its file after; both also on every line of the JSON Lines form, `$defs/line`, #319);
 //   `generated` = the time of the call (UTC, seconds); `selection` as given;
@@ -200,7 +200,7 @@ export const exportHeader = (input: {
 }): Omit<DataExportFile, "elements"> => {
   const commit = input.repositories.find((r) => r.name === input.main)?.commit;
   return {
-    "logreq-data": 2,
+    "reqseq-data": 2,
     ...(commit === undefined ? {} : { commit }),
     dirty: !input.repositories.every((r) => !r.available || r.dirty === false),
     workspace: input.name,

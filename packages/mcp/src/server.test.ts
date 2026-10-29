@@ -412,7 +412,7 @@ describe("serveMcp without a workspace", () => {
     }
     const root = path.join(dir, "station");
     await fs.mkdir(root);
-    await fs.writeFile(path.join(root, "logreq-workspace.yaml"), "logreq-workspace: 1\n");
+    await fs.writeFile(path.join(root, "reqseq-workspace.yaml"), "reqseq-workspace: 1\n");
     const opened = new Date(Date.UTC(2026, 9, 27, 10, 0));
     await rememberWorkspace(root, { now: opened });
     // `workspace` is the empty test folder: the product runtime serves the list all the same (ADR-0002 rule 7).

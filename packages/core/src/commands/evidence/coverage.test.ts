@@ -243,7 +243,7 @@ describe("evidence.coverage (SR-036)", () => {
   });
 
   it("[SR-036/AK3] marks the coverage incomplete when a repository of the workspace is not available", async () => {
-    const workspace = await open(await fixture({ "system/logreq-workspace.yaml": workspaceFile() }));
+    const workspace = await open(await fixture({ "system/reqseq-workspace.yaml": workspaceFile() }));
     const out = await coverage(workspace);
     expect(out.incomplete).toBe(true);
     // What is on this machine is still counted.
@@ -274,7 +274,7 @@ describe("evidence.coverage (SR-036)", () => {
 
   it("marks the coverage incomplete when an evidence location lies in a repository that is not available", async () => {
     const evidence = "evidence:\n  - { repository: vault, path: results }\n";
-    const workspace = await open(await fixture({ "system/logreq-workspace.yaml": workspaceFile(evidence) }));
+    const workspace = await open(await fixture({ "system/reqseq-workspace.yaml": workspaceFile(evidence) }));
     expect((await coverage(workspace)).incomplete).toBe(true);
   });
 
@@ -366,7 +366,7 @@ describe("evidence.coverage (SR-036)", () => {
     const workspace = await open(
       await fixture({
         "system/filters/core.yaml":
-          "logreq-filter: 1\nname: Core requirements\nview: core\nwhere: { type: [system-requirement], subtypes: false }\n",
+          "reqseq-filter: 1\nname: Core requirements\nview: core\nwhere: { type: [system-requirement], subtypes: false }\n",
       }),
     );
     const [level] = await levels(workspace, { selection: { filter: "Core requirements" } });
@@ -403,7 +403,7 @@ describe("evidence.coverage (SR-036)", () => {
 
 /** The workspace file of the fixture with a third repository, `vault`, that is not on this machine (SR-006). */
 const workspaceFile = (more = ""): string =>
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
   '  - { name: sensor, url: "git@git.example.com:ws/sensor.git" }\n' +
   '  - { name: vault, url: "git@git.example.com:ws/vault.git" }\n' +

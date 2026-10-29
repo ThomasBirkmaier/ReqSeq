@@ -131,7 +131,7 @@ describe("status hints of elements against the statuses of their type (#306)", (
         "---\nid: 6f6f6f6f-6666-4666-8666-f00000000001\ntype: gadget\nstatus: frozen\ntitle: x\n---\n",
     });
     expect(await statusHints(opened)).toEqual([UNKNOWN, OTHER_TYPE, MISSING, NO_STATUS]);
-    await opened.fixture.write("metamodel/broken.yaml", "logreq-metamodel: 2\n");
+    await opened.fixture.write("metamodel/broken.yaml", "reqseq-metamodel: 2\n");
     const broken = new Workspace(opened.fixture.root);
     onTestFinished(() => broken.close());
     expect(await broken.get(statusProblemsState)).toEqual([]);

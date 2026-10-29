@@ -134,7 +134,7 @@ describe("hints at the element equal the hints hint.list lists for it (SR-026 AK
     // The relation to B is gone from the file: the hint stays at the line the kept state located.
     await fixture.write(
       FILE,
-      text.replace("  - { id: 5e9c0a7d-2b4f-4c61-9d08-0b0000000002, version: n1:9b457d6707b099a3 }\n", ""),
+      text.replace("  - { id: 5e9c0a7d-2b4f-4c61-9d08-0b0000000002, version: n1:271d0e4683aa4263 }\n", ""),
     );
     expect(await lineOfCycle()).toBe(11);
   });

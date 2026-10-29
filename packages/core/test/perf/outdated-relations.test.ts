@@ -34,7 +34,7 @@ const OLD_VERSION: VersionFunction = () => "n1:0000000000000000";
 /** How often the files of `tree` store a version of one of `ids`: relation items and inline references. */
 const storedTargets = (tree: GeneratedWorkspace, ids: ReadonlySet<string>): number => {
   let count = 0;
-  const target = /\{ id: ([0-9a-f-]{36}), version: |\(logreq:([0-9a-f-]{36})\?version=/g;
+  const target = /\{ id: ([0-9a-f-]{36}), version: |\(reqseq:([0-9a-f-]{36})\?version=/g;
   for (const content of tree.files.values()) {
     for (const match of content.matchAll(target)) {
       if (ids.has(match[1] ?? match[2] ?? "")) {

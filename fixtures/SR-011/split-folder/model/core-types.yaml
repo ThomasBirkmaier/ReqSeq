@@ -1,5 +1,5 @@
 # Types of the weather station; the other lists are in their own files.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 types:
   - key: need
     name: Need

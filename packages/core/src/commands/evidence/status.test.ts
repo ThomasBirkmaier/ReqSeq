@@ -245,8 +245,8 @@ describe("evidence.status (SR-031)", () => {
     const b3 = await versionOf(ws, B3);
     const testCase = (name: string, element: string, version: string, date: string, body = ""): string =>
       `    <testcase classname="tests.Wind" name="${name}"><properties>` +
-      `<property name="logreq:element" value="${element}"/><property name="logreq:version" value="${version}"/>` +
-      `<property name="logreq:item" value="build-7"/><property name="logreq:date" value="${date}"/>` +
+      `<property name="reqseq:element" value="${element}"/><property name="reqseq:version" value="${version}"/>` +
+      `<property name="reqseq:item" value="build-7"/><property name="reqseq:date" value="${date}"/>` +
       `</properties>${body}</testcase>\n`;
     // B1: a skipped test case of its current version, newer than a passed one of an older version.
     // B3: only a skipped test case of its current version.
@@ -284,8 +284,8 @@ describe("evidence.status (SR-031)", () => {
     const ws = await open({
       ...STATUS,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           '  - { name: results, url: "git@git.example.com:ws/results.git" }\n' +
           "metamodel: { repository: system, path: metamodel }\n" +

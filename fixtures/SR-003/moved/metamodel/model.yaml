@@ -1,5 +1,5 @@
 # Minimal metamodel for the SR-003 fixtures.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - { key: need, name: Need, prefix: N, meaning: need, properties: [title], required: [title] }

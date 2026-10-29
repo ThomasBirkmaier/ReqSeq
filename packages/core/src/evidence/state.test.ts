@@ -27,7 +27,7 @@ const open = async (): Promise<{ root: string; workspace: Workspace }> => {
 
 const recordOf = (file: EvidenceFile, date: string): EvidenceRecord => ({
   element: SR,
-  version: "n1:2eb0feee31fc1d89",
+  version: "n1:11335f109ffb1a19",
   kind: "verification",
   method: "test",
   item: "build-512",

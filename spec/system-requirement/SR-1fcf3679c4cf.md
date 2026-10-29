@@ -12,12 +12,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Betrieb und Leistung"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:f5900659a91cb0df, title: "Stufe 1: Fundament" }
+  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:7315eea66e551d94, title: "Stufe 1: Fundament" }
 derives-from:
-  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n1:d0725e2f35cb20de, title: Mehrere Agenten parallel }
+  - { id: 6adc676b-fe66-4306-a6f2-3689d63c8400, version: n1:3600eec6a5b21089, title: Mehrere Agenten parallel }
 based-on:
-  - { id: 6ad39064-0c17-44eb-b1b3-069ebda57ac6, version: n1:ad1ea38cedbd2481, title: Jeder arbeitet auf einer lokalen Kopie }
-  - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n1:8f7cfedac1f63c16, title: Zusammenarbeit liegt außerhalb des Tools }
+  - { id: 6ad39064-0c17-44eb-b1b3-069ebda57ac6, version: n1:9c540adec22e0e1f, title: Jeder arbeitet auf einer lokalen Kopie }
+  - { id: 6adc4eb0-23e6-4e81-9ae8-e964fba47a8d, version: n1:ccbefd504788a8ce, title: Zusammenarbeit liegt außerhalb des Tools }
 ---
 
 Das Tool muss mehrere Instanzen auf getrennten lokalen Kopien gleichzeitig laufen lassen, ohne dass sie sich gegenseitig beeinflussen.

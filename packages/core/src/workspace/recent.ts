@@ -55,18 +55,18 @@ export interface RecentWorkspace {
   readonly opened: string;
 }
 
-/** An entry with whether its root still holds `logreq-workspace.yaml`. */
+/** An entry with whether its root still holds `reqseq-workspace.yaml`. */
 export interface RecentWorkspaceState extends RecentWorkspace {
   readonly exists: boolean;
 }
 
 /**
- * Whether `<root>/logreq-workspace.yaml` is a file, or `"timeout"` when its check had no answer in time
+ * Whether `<root>/reqseq-workspace.yaml` is a file, or `"timeout"` when its check had no answer in time
  * (a share that does not answer). A timeout counts as missing wherever only existence matters.
  */
 export type ExistenceAnswer = boolean | "timeout";
 
-/** Answers, for each root, whether `<root>/logreq-workspace.yaml` is a file (in the order of the roots). */
+/** Answers, for each root, whether `<root>/reqseq-workspace.yaml` is a file (in the order of the roots). */
 export type ExistenceChecker = (roots: readonly string[]) => Promise<readonly ExistenceAnswer[]>;
 
 export interface ExistenceOptions {
@@ -226,7 +226,7 @@ export async function rememberWorkspace(root: string, options: RememberOptions =
   }
 }
 
-/** Whether `<root>/logreq-workspace.yaml` is a file; never rejects. The root itself, never a folder above. */
+/** Whether `<root>/reqseq-workspace.yaml` is a file; never rejects. The root itself, never a folder above. */
 const holdsWorkspace = async (
   stat: NonNullable<ExistenceOptions["stat"]>,
   root: string,
@@ -340,7 +340,7 @@ export function createWorkspaceChecks(
 const checks: WorkspaceChecks = createWorkspaceChecks();
 
 /**
- * Whether `<root>/logreq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default
+ * Whether `<root>/reqseq-workspace.yaml` is a file, within EXISTS_TIMEOUT_MS; never rejects. By default
  * with the checker for a chosen root (`WorkspaceChecks.chosen`).
  */
 export async function workspaceExists(
@@ -401,7 +401,7 @@ export function typedWorkspaceFolder(text: string, options: TypedPathOptions): s
 
 /**
  * The nearest folder, from `folder` (absolute, from `typedWorkspaceFolder`) upwards, whose
- * `logreq-workspace.yaml` is a file, as `--workspace` of the CLI finds it; undefined when none up to the
+ * `reqseq-workspace.yaml` is a file, as `--workspace` of the CLI finds it; undefined when none up to the
  * root of the file system has one. Each folder is checked with the bounded checker for typed paths
  * (`WorkspaceChecks.typed`). A folder whose check timed out ends the walk with undefined: a slow level
  * never opens a workspace above the folder that was meant. Never rejects.

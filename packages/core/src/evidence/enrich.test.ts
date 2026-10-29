@@ -86,12 +86,12 @@ const prop = (name: string, value: string): string => `<property name="${name}" 
 
 /** The four properties enrich writes for one element, as one string. */
 const four = (id: string, version: string, item = "build-1", date = DATE): string =>
-  prop("logreq:element", id) +
-  prop("logreq:version", version) +
-  prop("logreq:item", item) +
-  prop("logreq:date", date);
+  prop("reqseq:element", id) +
+  prop("reqseq:version", version) +
+  prop("reqseq:item", item) +
+  prop("reqseq:date", date);
 
-/** Each test case with its `logreq:*` properties as `name=value`, in file order. */
+/** Each test case with its `reqseq:*` properties as `name=value`, in file order. */
 const properties = (bytes: Uint8Array): Record<string, string[]> => {
   const read = junitTestCases(bytes);
   if (read.kind !== "junit") {
@@ -100,7 +100,7 @@ const properties = (bytes: Uint8Array): Record<string, string[]> => {
   return Object.fromEntries(
     read.file.testCases.map((t) => [
       t.name,
-      t.properties.filter((p) => p.name.startsWith("logreq:")).map((p) => `${p.name}=${p.value}`),
+      t.properties.filter((p) => p.name.startsWith("reqseq:")).map((p) => `${p.name}=${p.value}`),
     ]),
   );
 };
@@ -109,7 +109,7 @@ const properties = (bytes: Uint8Array): Record<string, string[]> => {
 const enrichedNames = (bytes: Uint8Array): string[] =>
   Object.entries(properties(bytes))
     .filter(([, list]) =>
-      ["logreq:element=", "logreq:version=", "logreq:item=", "logreq:date="].every((start) =>
+      ["reqseq:element=", "reqseq:version=", "reqseq:item=", "reqseq:date="].every((start) =>
         list.some((p) => p.startsWith(start) && p.length > start.length),
       ),
     )
@@ -119,7 +119,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("[SR-029/AK1] adds UUID, version, item and date to a test case that names only a short ID", async () => {
     const xml = suite(
       '<testcase classname="c" name="[SR-46fb54] logs in"/>' +
-        '<testcase classname="c" name="by property"><properties><property name="logreq:element" value="SR-0b0036"/></properties></testcase>' +
+        '<testcase classname="c" name="by property"><properties><property name="reqseq:element" value="SR-0b0036"/></properties></testcase>' +
         '<testcase classname="c" name="names nothing"/>',
     );
     const result = await enrich(xml, { item: "build-512" });
@@ -128,16 +128,16 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(enrichedNames(result.bytes)).toEqual(["[SR-46fb54] logs in", "by property"]);
     expect(properties(result.bytes)).toEqual({
       "[SR-46fb54] logs in": [
-        `logreq:element=${LOGIN}`,
-        `logreq:version=${V[LOGIN]}`,
-        "logreq:item=build-512",
-        `logreq:date=${DATE}`,
+        `reqseq:element=${LOGIN}`,
+        `reqseq:version=${V[LOGIN]}`,
+        "reqseq:item=build-512",
+        `reqseq:date=${DATE}`,
       ],
       "by property": [
-        `logreq:element=${REPORT}`,
-        `logreq:version=${V[REPORT]}`,
-        "logreq:item=build-512",
-        `logreq:date=${DATE}`,
+        `reqseq:element=${REPORT}`,
+        `reqseq:version=${V[REPORT]}`,
+        "reqseq:item=build-512",
+        `reqseq:date=${DATE}`,
       ],
       "names nothing": [],
     });
@@ -169,7 +169,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     // The round trip of the #41 comment: a test case named by a name token and a property, and one
     // that names two requirements.
     const xml = suite(
-      '<testcase classname="c" name="[SR-46fb54] logs in"><properties><property name="logreq:element" value="SR-46fb54"/></properties></testcase>' +
+      '<testcase classname="c" name="[SR-46fb54] logs in"><properties><property name="reqseq:element" value="SR-46fb54"/></properties></testcase>' +
         '<testcase classname="c" name="[SR-0b0036] [SR-0c0037] reports a failure"><failure/></testcase>',
     );
     const result = await enrich(xml);
@@ -211,10 +211,10 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const w = four(LOGIN, V[LOGIN]);
     const lines = (eol: string, indent: string): string =>
       [
-        prop("logreq:element", LOGIN),
-        prop("logreq:version", V[LOGIN]),
-        prop("logreq:item", "build-1"),
-        prop("logreq:date", DATE),
+        prop("reqseq:element", LOGIN),
+        prop("reqseq:version", V[LOGIN]),
+        prop("reqseq:item", "build-1"),
+        prop("reqseq:date", DATE),
       ]
         .map((p) => eol + indent + p)
         .join("");
@@ -232,67 +232,67 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     expect(result.testCases).toBe(7);
   });
 
-  it("puts a new element right after the last existing logreq:element, on its own line in a block on lines", async () => {
+  it("puts a new element right after the last existing reqseq:element, on its own line in a block on lines", async () => {
     const xml = suite(
-      '\n<testcase name="[SR-0b0036] two">\n  <properties>\n    <property name="logreq:element" value="SR-46fb54"/>\n    <property name="other" value="x"/>\n  </properties>\n</testcase>',
+      '\n<testcase name="[SR-0b0036] two">\n  <properties>\n    <property name="reqseq:element" value="SR-46fb54"/>\n    <property name="other" value="x"/>\n  </properties>\n</testcase>',
     );
     const result = await enrich(xml);
     expect(text(result)).toBe(
       suite(
-        `\n<testcase name="[SR-0b0036] two">\n  <properties>\n    ${prop("logreq:element", LOGIN)}\n    ${prop("logreq:element", REPORT)}\n    <property name="other" value="x"/>` +
-          `\n    ${prop("logreq:version", V[LOGIN])}\n    ${prop("logreq:version", V[REPORT])}\n    ${prop("logreq:item", "build-1")}\n    ${prop("logreq:date", DATE)}\n  </properties>\n</testcase>`,
+        `\n<testcase name="[SR-0b0036] two">\n  <properties>\n    ${prop("reqseq:element", LOGIN)}\n    ${prop("reqseq:element", REPORT)}\n    <property name="other" value="x"/>` +
+          `\n    ${prop("reqseq:version", V[LOGIN])}\n    ${prop("reqseq:version", V[REPORT])}\n    ${prop("reqseq:item", "build-1")}\n    ${prop("reqseq:date", DATE)}\n  </properties>\n</testcase>`,
       ),
     );
     // When the last element is the last property, the new element still comes before the versions.
     const last = await enrich(
       suite(
-        `<testcase name="[SR-0b0036] two"><properties>${prop("logreq:element", "SR-46fb54")}</properties></testcase>`,
+        `<testcase name="[SR-0b0036] two"><properties>${prop("reqseq:element", "SR-46fb54")}</properties></testcase>`,
       ),
     );
     expect(text(last)).toBe(
       suite(
-        `<testcase name="[SR-0b0036] two"><properties>${prop("logreq:element", LOGIN)}${prop("logreq:element", REPORT)}` +
-          `${prop("logreq:version", V[LOGIN])}${prop("logreq:version", V[REPORT])}${prop("logreq:item", "build-1")}${prop("logreq:date", DATE)}</properties></testcase>`,
+        `<testcase name="[SR-0b0036] two"><properties>${prop("reqseq:element", LOGIN)}${prop("reqseq:element", REPORT)}` +
+          `${prop("reqseq:version", V[LOGIN])}${prop("reqseq:version", V[REPORT])}${prop("reqseq:item", "build-1")}${prop("reqseq:date", DATE)}</properties></testcase>`,
       ),
     );
   });
 
-  it("replaces existing logreq:element, logreq:item and logreq:date in place, in their quoting, never twice", async () => {
+  it("replaces existing reqseq:element, reqseq:item and reqseq:date in place, in their quoting, never twice", async () => {
     const xml = suite(
       `<testcase name="t"><properties>` +
-        `<property name='logreq:element' value='${LOGIN.toUpperCase()}'/>` +
-        `<property name="logreq:item">old &amp; gone</property>` +
-        `<property name="logreq:date"/>` +
+        `<property name='reqseq:element' value='${LOGIN.toUpperCase()}'/>` +
+        `<property name="reqseq:item">old &amp; gone</property>` +
+        `<property name="reqseq:date"/>` +
         `</properties></testcase>`,
     );
     const result = await enrich(xml, { item: `it's "new"` });
     expect(text(result)).toBe(
       suite(
         `<testcase name="t"><properties>` +
-          `<property name='logreq:element' value='${LOGIN}'/>` +
-          `<property name="logreq:item">it's "new"</property>` +
-          prop("logreq:date", DATE) +
-          prop("logreq:version", V[LOGIN]) +
+          `<property name='reqseq:element' value='${LOGIN}'/>` +
+          `<property name="reqseq:item">it's "new"</property>` +
+          prop("reqseq:date", DATE) +
+          prop("reqseq:version", V[LOGIN]) +
           `</properties></testcase>`,
       ),
     );
     // In single quotes, a single quote is escaped.
     const quoted = await enrich(
       suite(
-        `<testcase name="[SR-46fb54]"><properties><property name='logreq:item' value='x'/></properties></testcase>`,
+        `<testcase name="[SR-46fb54]"><properties><property name='reqseq:item' value='x'/></properties></testcase>`,
       ),
       { item: `it's` },
     );
-    expect(text(quoted)).toContain(`<property name='logreq:item' value='it&apos;s'/>`);
+    expect(text(quoted)).toContain(`<property name='reqseq:item' value='it&apos;s'/>`);
     // A value that is already right is left as it is.
     const same = await enrich(
       suite(
-        `<testcase name="t"><properties>${prop("logreq:element", LOGIN)}${prop("logreq:item", "build-1")}</properties></testcase>`,
+        `<testcase name="t"><properties>${prop("reqseq:element", LOGIN)}${prop("reqseq:item", "build-1")}</properties></testcase>`,
       ),
     );
     expect(text(same)).toBe(
       suite(
-        `<testcase name="t"><properties>${prop("logreq:element", LOGIN)}${prop("logreq:item", "build-1")}${prop("logreq:version", V[LOGIN])}${prop("logreq:date", DATE)}</properties></testcase>`,
+        `<testcase name="t"><properties>${prop("reqseq:element", LOGIN)}${prop("reqseq:item", "build-1")}${prop("reqseq:version", V[LOGIN])}${prop("reqseq:date", DATE)}</properties></testcase>`,
       ),
     );
   });
@@ -300,18 +300,18 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("replaces existing properties in place whatever order they stand in", async () => {
     const xml = suite(
       `<testcase name="t"><properties>` +
-        prop("logreq:date", "2020-01-01T00:00:00Z") +
-        prop("logreq:item", "old") +
-        prop("logreq:element", "SR-46fb54") +
+        prop("reqseq:date", "2020-01-01T00:00:00Z") +
+        prop("reqseq:item", "old") +
+        prop("reqseq:element", "SR-46fb54") +
         `</properties></testcase>`,
     );
     expect(text(await enrich(xml))).toBe(
       suite(
         `<testcase name="t"><properties>` +
-          prop("logreq:date", DATE) +
-          prop("logreq:item", "build-1") +
-          prop("logreq:element", LOGIN) +
-          prop("logreq:version", V[LOGIN]) +
+          prop("reqseq:date", DATE) +
+          prop("reqseq:item", "build-1") +
+          prop("reqseq:element", LOGIN) +
+          prop("reqseq:version", V[LOGIN]) +
           `</properties></testcase>`,
       ),
     );
@@ -354,7 +354,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
   it("reports an enriched test case the reader rejects, and one whose UUID names no element or several, and changes neither", async () => {
     const other = "29000000-0000-4000-8000-0000000f0040";
     const xml = suite(
-      `<testcase name="no item"><properties>${prop("logreq:element", LOGIN)}${prop("logreq:version", V[LOGIN])}${prop("logreq:date", DATE)}</properties></testcase>` +
+      `<testcase name="no item"><properties>${prop("reqseq:element", LOGIN)}${prop("reqseq:version", V[LOGIN])}${prop("reqseq:date", DATE)}</properties></testcase>` +
         `<testcase name="gone"><properties>${four(other, V[LOGIN])}</properties></testcase>` +
         `<testcase name="current"><properties>${four(BROKEN, V[LOGIN])}</properties></testcase>`,
     );
@@ -369,26 +369,26 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ["evidence.ambiguous-element", "warning", BROKEN],
     ]);
     expect(result.problems[0]?.message).toBe(
-      'Test case "no item" (line 1) is not enriched: logreq:item is missing',
+      'Test case "no item" (line 1) is not enriched: reqseq:item is missing',
     );
     expect(result.problems[1]?.message).toContain("which the workspace does not have; it is kept as it is");
     expect(result.problems[2]?.message).toContain("which several files share");
   });
 
-  it("gives a repeated logreq:element its own version, and counts a name token and a property that name one element once", async () => {
+  it("gives a repeated reqseq:element its own version, and counts a name token and a property that name one element once", async () => {
     const result = await enrich(
       suite(
-        `<testcase name="[SR-46fb54] [${LOGIN.toUpperCase()}] twice"><properties>${prop("logreq:element", "SR-46fb54")}${prop("logreq:element", LOGIN)}</properties></testcase>`,
+        `<testcase name="[SR-46fb54] [${LOGIN.toUpperCase()}] twice"><properties>${prop("reqseq:element", "SR-46fb54")}${prop("reqseq:element", LOGIN)}</properties></testcase>`,
       ),
     );
     expect(properties(result.bytes)).toEqual({
       [`[SR-46fb54] [${LOGIN.toUpperCase()}] twice`]: [
-        `logreq:element=${LOGIN}`,
-        `logreq:element=${LOGIN}`,
-        `logreq:version=${V[LOGIN]}`,
-        `logreq:version=${V[LOGIN]}`,
-        "logreq:item=build-1",
-        `logreq:date=${DATE}`,
+        `reqseq:element=${LOGIN}`,
+        `reqseq:element=${LOGIN}`,
+        `reqseq:version=${V[LOGIN]}`,
+        `reqseq:version=${V[LOGIN]}`,
+        "reqseq:item=build-1",
+        `reqseq:date=${DATE}`,
       ],
     });
   });
@@ -404,16 +404,16 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       "[SR-036] by identifier",
       "[SR-036/AK2] by identifier and criterion",
     ]);
-    expect(properties(result.bytes)["[SR-036] by identifier"]).toContain(`logreq:element=${SPEC}`);
+    expect(properties(result.bytes)["[SR-036] by identifier"]).toContain(`reqseq:element=${SPEC}`);
   });
 
   it("reports a property that names no element or several, an empty one, and an ambiguous short ID in the name", async () => {
     const xml = suite(
-      `<testcase classname="k" name="typo"><properties>${prop("logreq:element", "SR-0366")}</properties></testcase>` +
-        `<testcase name="identifier of two"><properties>${prop("logreq:element", "dup")}</properties></testcase>` +
-        `<testcase name="empty"><properties>${prop("logreq:element", " ")}</properties></testcase>` +
+      `<testcase classname="k" name="typo"><properties>${prop("reqseq:element", "SR-0366")}</properties></testcase>` +
+        `<testcase name="identifier of two"><properties>${prop("reqseq:element", "dup")}</properties></testcase>` +
+        `<testcase name="empty"><properties>${prop("reqseq:element", " ")}</properties></testcase>` +
         `<testcase name="[SR-aaaaaa] [SR-46fb54] short"/>` +
-        `<testcase name="[SR-ffffff] twice"><properties>${prop("logreq:element", "SR-ffffff")}</properties></testcase>`,
+        `<testcase name="[SR-ffffff] twice"><properties>${prop("reqseq:element", "SR-ffffff")}</properties></testcase>`,
     );
     const result = await enrich(xml);
     expect(result.changed).toBe(false);
@@ -433,7 +433,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       ],
       [
         "evidence.unknown-element",
-        'Test case "empty" (line 1): no element has the reference an empty logreq:element property',
+        'Test case "empty" (line 1): no element has the reference an empty reqseq:element property',
       ],
       ["evidence.ambiguous-element", expect.stringContaining('"SR-aaaaaa" names more than one element')],
       [
@@ -463,38 +463,38 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     ]);
   });
 
-  it("reports an existing logreq:variant that is no UUID, or two different ones, and keeps a valid one", async () => {
+  it("reports an existing reqseq:variant that is no UUID, or two different ones, and keeps a valid one", async () => {
     const variant = "29000000-0000-4000-8000-0000000aaaaa";
     const xml = suite(
-      `<testcase name="[SR-46fb54] a"><properties>${prop("logreq:variant", "VAR-1")}</properties></testcase>` +
-        `<testcase name="[SR-46fb54] b"><properties>${prop("logreq:variant", variant)}${prop("logreq:variant", LOGIN)}</properties></testcase>` +
-        `<testcase name="[SR-46fb54] c"><properties>${prop("logreq:variant", variant.toUpperCase())}</properties></testcase>`,
+      `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", "VAR-1")}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", variant)}${prop("reqseq:variant", LOGIN)}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] c"><properties>${prop("reqseq:variant", variant.toUpperCase())}</properties></testcase>`,
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => [p.code, p.message])).toEqual([
       [
         "evidence.invalid-record",
-        'Test case "[SR-46fb54] a" (line 1) is not enriched: logreq:variant "VAR-1" is not a UUID',
+        'Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "VAR-1" is not a UUID',
       ],
       [
         "evidence.invalid-record",
-        'Test case "[SR-46fb54] b" (line 1) is not enriched: logreq:variant is given with different values',
+        'Test case "[SR-46fb54] b" (line 1) is not enriched: reqseq:variant is given with different values',
       ],
     ]);
     const read = readJunitRecords({ repository: "system", file: "results.xml" }, result.bytes);
     expect(read.records.map((r) => [r.testCase, r.variant])).toEqual([["[SR-46fb54] c", variant]]);
   });
 
-  it("reports a logreq:variant that holds more than a UUID", async () => {
+  it("reports a reqseq:variant that holds more than a UUID", async () => {
     const variant = "29000000-0000-4000-8000-0000000aaaaa";
     const xml = suite(
-      `<testcase name="[SR-46fb54] a"><properties>${prop("logreq:variant", `x${variant}`)}</properties></testcase>` +
-        `<testcase name="[SR-46fb54] b"><properties>${prop("logreq:variant", `${variant}x`)}</properties></testcase>`,
+      `<testcase name="[SR-46fb54] a"><properties>${prop("reqseq:variant", `x${variant}`)}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] b"><properties>${prop("reqseq:variant", `${variant}x`)}</properties></testcase>`,
     );
     const result = await enrich(xml);
     expect(result.problems.map((p) => p.message)).toEqual([
-      `Test case "[SR-46fb54] a" (line 1) is not enriched: logreq:variant "x${variant}" is not a UUID`,
-      `Test case "[SR-46fb54] b" (line 1) is not enriched: logreq:variant "${variant}x" is not a UUID`,
+      `Test case "[SR-46fb54] a" (line 1) is not enriched: reqseq:variant "x${variant}" is not a UUID`,
+      `Test case "[SR-46fb54] b" (line 1) is not enriched: reqseq:variant "${variant}x" is not a UUID`,
     ]);
     expect(result.changed).toBe(false);
   });
@@ -504,8 +504,8 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const result = await enrich(
       suite(
         '<testcase name="[SR-46fb54] a"/>' +
-          `<testcase name="[SR-46fb54] b"><properties><property name='logreq:item' value='old'/></properties></testcase>` +
-          `<testcase name="[SR-46fb54] c"><properties><property name="logreq:item">old</property></properties></testcase>`,
+          `<testcase name="[SR-46fb54] b"><properties><property name='reqseq:item' value='old'/></properties></testcase>` +
+          `<testcase name="[SR-46fb54] c"><properties><property name="reqseq:item">old</property></properties></testcase>`,
       ),
       { item },
     );
@@ -524,8 +524,8 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       const xml =
         `<testsuites>` +
         `<testsuite name="zone" timestamp="2026-10-27T12:22:13.306Z">` +
-        `<testcase name="[SR-46fb54] own"><properties>${prop("logreq:date", "2026-10-02T08:00:00+02:00")}</properties></testcase>` +
-        `<testcase name="[SR-46fb54] own invalid"><properties>${prop("logreq:date", "2026-10-02")}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] own"><properties>${prop("reqseq:date", "2026-10-02T08:00:00+02:00")}</properties></testcase>` +
+        `<testcase name="[SR-46fb54] own invalid"><properties>${prop("reqseq:date", "2026-10-02")}</properties></testcase>` +
         `<testcase name="[SR-46fb54] suite"/>` +
         `</testsuite>` +
         `<testsuite name="no zone" timestamp="2026-10-27T10:00:00"><testcase name="[SR-46fb54] now"/></testsuite>` +
@@ -535,7 +535,7 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
         Object.fromEntries(
           Object.entries(properties(result.bytes)).map(([name, list]) => [
             name,
-            list.find((p) => p.startsWith("logreq:date="))?.slice("logreq:date=".length),
+            list.find((p) => p.startsWith("reqseq:date="))?.slice("reqseq:date=".length),
           ]),
         );
       expect(dates(await enrich(xml, { date: undefined, now: () => new Date() }))).toEqual({
@@ -555,13 +555,13 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const xml =
       `<testsuites><testsuite name="zone" timestamp="2026-10-27T12:22:13.306Z">` +
       `<testcase name="[SR-46fb54] two"><properties>` +
-      prop("logreq:date", "2026-10-02T08:00:00+02:00") +
-      prop("logreq:date", "2026-10-03T08:00:00+02:00") +
+      prop("reqseq:date", "2026-10-02T08:00:00+02:00") +
+      prop("reqseq:date", "2026-10-03T08:00:00+02:00") +
       `</properties></testcase></testsuite></testsuites>`;
     const result = await enrich(xml, { date: undefined });
-    expect(properties(result.bytes)["[SR-46fb54] two"]?.filter((p) => p.startsWith("logreq:date="))).toEqual([
-      "logreq:date=2026-10-27T12:22:13.306Z",
-      "logreq:date=2026-10-27T12:22:13.306Z",
+    expect(properties(result.bytes)["[SR-46fb54] two"]?.filter((p) => p.startsWith("reqseq:date="))).toEqual([
+      "reqseq:date=2026-10-27T12:22:13.306Z",
+      "reqseq:date=2026-10-27T12:22:13.306Z",
     ]);
   });
 
@@ -618,8 +618,8 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
       testCase(four(LOGIN, V[LOGIN], "build-2")),
       testCase(four(LOGIN, V[LOGIN], "build-1", "2026-10-28T10:00:00Z")),
       testCase(four(LOGIN, V[REPORT])),
-      testCase(four(LOGIN, V[LOGIN]) + prop("logreq:element", REPORT) + prop("logreq:version", V[REPORT])),
-      testCase(prop("logreq:element", LOGIN) + prop("logreq:item", "build-1") + prop("logreq:date", DATE)),
+      testCase(four(LOGIN, V[LOGIN]) + prop("reqseq:element", REPORT) + prop("reqseq:version", V[REPORT])),
+      testCase(prop("reqseq:element", LOGIN) + prop("reqseq:item", "build-1") + prop("reqseq:date", DATE)),
     ];
     for (const bytes of refused) {
       expect(readsBackAs(bytes, wanted)).toBe(false);
@@ -643,11 +643,11 @@ describe("SR-029: enriching JUnit XML (pure)", () => {
     const testCase = (versions: readonly string[]): Buffer =>
       Buffer.from(
         `<testcase name="[SR-46fb54] a"><properties>` +
-          prop("logreq:element", LOGIN) +
-          prop("logreq:element", REPORT) +
-          versions.map((v) => prop("logreq:version", v)).join("") +
-          prop("logreq:item", "build-1") +
-          prop("logreq:date", DATE) +
+          prop("reqseq:element", LOGIN) +
+          prop("reqseq:element", REPORT) +
+          versions.map((v) => prop("reqseq:version", v)).join("") +
+          prop("reqseq:item", "build-1") +
+          prop("reqseq:date", DATE) +
           `</properties></testcase>`,
       );
     expect(readsBackAs(testCase([V[LOGIN], V[REPORT]]), wanted)).toBe(true);

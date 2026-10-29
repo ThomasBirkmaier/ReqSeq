@@ -34,7 +34,7 @@ afterEach(() => {
 
 const GUSTS = "a7f3c1e9-5b2d-4e8f-b6a4-0e9d7c5b3a21";
 const OTHER = "11111111-2222-4333-8444-555555555555";
-const ACROSS = `[N-0e9d7c](logreq:${GUSTS}?version=n1:aa&repository=sensor)`;
+const ACROSS = `[N-0e9d7c](reqseq:${GUSTS}?version=n1:aa&repository=sensor)`;
 const TEXT = `See ${ACROSS} here.\n\nsecond line`;
 
 type Title = NonNullable<ReferenceOptions["title"]>;
@@ -109,7 +109,7 @@ describe("the title of a target in another repository (D-058)", () => {
 
   it("asks once per target, also for one written later, and never for a reference within the repository", async () => {
     const title = vi.fn<Title>((id) => Promise.resolve(id === GUSTS ? "Measure gusts" : "Other"));
-    const view = await show(`${TEXT}\n\n[Within](logreq:${OTHER}?version=n1:bb)`, title);
+    const view = await show(`${TEXT}\n\n[Within](reqseq:${OTHER}?version=n1:bb)`, title);
     act(() => {
       view.dispatch({ changes: { from: view.state.doc.length, insert: ` ${ACROSS}` } });
     });
@@ -117,7 +117,7 @@ describe("the title of a target in another repository (D-058)", () => {
     expect(title).toHaveBeenCalledTimes(1);
     act(() => {
       view.dispatch({
-        changes: { from: view.state.doc.length, insert: ` [x](logreq:${OTHER}?repository=sensor)` },
+        changes: { from: view.state.doc.length, insert: ` [x](reqseq:${OTHER}?repository=sensor)` },
       });
     });
     await settle();

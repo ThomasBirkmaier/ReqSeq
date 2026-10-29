@@ -4,7 +4,7 @@ type: glossary-term
 title: "Rolle"
 area: fachlich
 distinct-from:
-  - { id: 6ad4f96f-bef9-4e1e-9879-29de26b37a6a, version: n1:f1c11f27c2bf04c4, title: Stakeholder }
+  - { id: 6ad4f96f-bef9-4e1e-9879-29de26b37a6a, version: n1:4895518897f75681, title: Stakeholder }
 ---
 
 Bündel von Rechten, zum Beispiel das Recht, Änderungen am Metamodell in den Arbeitsstand zu übernehmen. Rechte greifen beim Zusammenführen per Merge Request, nicht auf der lokalen Kopie.

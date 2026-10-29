@@ -7,7 +7,7 @@
 // `recursive` there with one watch per file and loses a file once it was replaced by a rename.
 // Events are collected in batches, 100 ms after the last one and at most 1 s after the first, so a
 // pull with 1,000 changed files is one or a few updates (SR-007 AK2). Per batch:
-// - the workspace file or `.logreq/local.yaml` changed: the layout is reset (and with it the
+// - the workspace file or `.reqseq/local.yaml` changed: the layout is reset (and with it the
 //   metamodel, the store and all state built on them) and the new repositories are watched;
 // - a path in the metamodel folder changed: the metamodel is reset (SR-015); a change of the folder
 //   itself or a folder above it, or a path that may be the appearance of a missing one, makes the
@@ -259,7 +259,7 @@ const elementChanges = (batch: Batch, layout: WorkspaceLayout): Map<string, Set<
   return batch.elements.repositories;
 };
 
-/** Whether a path relative to the main repository is the workspace file or in `.logreq` (the local file). */
+/** Whether a path relative to the main repository is the workspace file or in `.reqseq` (the local file). */
 const isWorkspaceFile = (relative: string | undefined): boolean =>
   relative !== undefined &&
   (relative === WORKSPACE_FILE || atOrBelow(relative, path.posix.dirname(LOCAL_FILE)));

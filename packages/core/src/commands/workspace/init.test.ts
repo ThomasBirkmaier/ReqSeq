@@ -40,13 +40,13 @@ describe("workspace.init", () => {
     const ws = await emptyFolder();
     const out = await init(open(ws.root), { path: ws.root, name: "Weather station" });
     expect(out).toEqual({ files: ["metamodel/standard-model.yaml", WORKSPACE_FILE], problems: [] });
-    expect(await listFiles(ws.root)).toEqual([WORKSPACE_FILE, "metamodel/standard-model.yaml"]);
+    expect(await listFiles(ws.root)).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE]);
     // The metamodel file is the shipped standard model, byte for byte.
     expect(await fs.readFile(ws.path("metamodel/standard-model.yaml"), "utf8")).toBe(STANDARD_MODEL_TEXT);
     const name = path.basename(ws.root);
     expect(await fs.readFile(ws.path(WORKSPACE_FILE), "utf8")).toBe(
       [
-        "logreq-workspace: 1",
+        "reqseq-workspace: 1",
         "name: Weather station",
         "repositories:",
         `  - name: ${name}`,
@@ -89,7 +89,7 @@ describe("workspace.init", () => {
     const ws = await createFixtureWorkspace({
       files: {
         [`real/${WORKSPACE_FILE}`]:
-          "logreq-workspace: 1\nname: Old\nrepositories:\n  - { name: real, url: x }\nmetamodel: { repository: real, path: metamodel }\n",
+          "reqseq-workspace: 1\nname: Old\nrepositories:\n  - { name: real, url: x }\nmetamodel: { repository: real, path: metamodel }\n",
       },
     });
     onTestFinished(() => ws.cleanup());
@@ -116,8 +116,8 @@ describe("workspace.init", () => {
     expect(out.files).toEqual(["metamodel/standard-model.yaml", WORKSPACE_FILE]);
     expect(await listFiles(ws.root)).toEqual([
       "new/.keep",
-      `new/${WORKSPACE_FILE}`,
       "new/metamodel/standard-model.yaml",
+      `new/${WORKSPACE_FILE}`,
     ]);
     // ReqSeq never writes Git (D-036): no repository is created.
     await expect(fs.lstat(ws.path("new/.git"))).rejects.toMatchObject({ code: "ENOENT" });

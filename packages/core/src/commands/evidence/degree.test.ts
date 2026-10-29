@@ -171,7 +171,7 @@ describe("evidence.degree (SR-037)", () => {
         "variants/VAR-00000000c001.md": variant.join("\n"),
         "requirements/SR-00000000b301.md": rv.join("\n"),
         "filters/pro.yaml":
-          "logreq-filter: 1\nname: Pro\nview: VAR-00c001\nwhere: { type: [system-requirement] }\n",
+          "reqseq-filter: 1\nname: Pro\nview: VAR-00c001\nwhere: { type: [system-requirement] }\n",
       },
     });
     await addRecords(workspace, [passed(RV, await versionOf(workspace, RV), { variant: V })]);
@@ -202,13 +202,13 @@ describe("evidence.degree (SR-037)", () => {
   });
 
   it("[SR-006/AK2] marks the degree incomplete when a repository of the workspace is not available", async () => {
-    const file = await edited("logreq-workspace.yaml", (text) =>
+    const file = await edited("reqseq-workspace.yaml", (text) =>
       text.replace(
         "main: true }",
         'main: true }\n  - { name: other, url: "git@git.example.com:ws/other.git" }',
       ),
     );
-    const out = await degree(await open({ ...DEGREE, files: { "logreq-workspace.yaml": file } }), {
+    const out = await degree(await open({ ...DEGREE, files: { "reqseq-workspace.yaml": file } }), {
       selection: { package: "PKG-00d001" },
     });
     expect(out).toEqual({ ...P1_DEGREE, incomplete: true });
@@ -216,14 +216,14 @@ describe("evidence.degree (SR-037)", () => {
 
   it("marks the degree incomplete when an evidence location lies in a repository that is not available", async () => {
     const file = await edited(
-      "logreq-workspace.yaml",
+      "reqseq-workspace.yaml",
       (text) => `${text}  - { repository: vault, path: results }\n`,
     );
     const vault = file.replace(
       "main: true }",
       'main: true }\n  - { name: vault, url: "git@git.example.com:ws/vault.git" }',
     );
-    const out = await degree(await open({ ...DEGREE, files: { "logreq-workspace.yaml": vault } }));
+    const out = await degree(await open({ ...DEGREE, files: { "reqseq-workspace.yaml": vault } }));
     expect(out).toEqual({ degree: WHOLE, view: "core", incomplete: true });
   });
 

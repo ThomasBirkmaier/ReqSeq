@@ -44,7 +44,7 @@ const MATRIX: FixtureOptions = { fixture: "SR-125/matrix" };
 
 /** A workspace file that lists a second repository, `vault`, which is not on this machine (SR-006). */
 const WITH_VAULT =
-  "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+  "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
   '  - { name: system, url: "ssh://example.com/system.git", main: true }\n' +
   '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
   "metamodel: { repository: system, path: metamodel }\n";
@@ -453,7 +453,7 @@ describe("trace.matrix gaps and counts", () => {
       );
       await fixture.write(
         "filters/core.yaml",
-        "logreq-filter: 1\nname: Core stage\nview: core\nwhere: { package: PKG-000001 }\n",
+        "reqseq-filter: 1\nname: Core stage\nview: core\nwhere: { package: PKG-000001 }\n",
       );
     });
     const output = await matrix(workspace, { selection: { filter: "Core stage" } });
@@ -475,7 +475,7 @@ describe("trace.matrix gaps and counts", () => {
       );
       await fixture.write(
         "filters/core.yaml",
-        "logreq-filter: 1\nname: Core stage\nview: core\nwhere: { package: PKG-000001 }\n",
+        "reqseq-filter: 1\nname: Core stage\nview: core\nwhere: { package: PKG-000001 }\n",
       );
     });
     // S1 applies in the variant but not in the core: a row must apply in both, and so must the other end of a link.
@@ -543,7 +543,7 @@ describe("trace.matrix outdated and missing relations", () => {
     const workspace = await open({
       ...MATRIX,
       files: {
-        "logreq-workspace.yaml": WITH_VAULT,
+        "reqseq-workspace.yaml": WITH_VAULT,
         "requirements/SR-0b0000000003.md": (
           await fs.readFile(
             path.join(
@@ -632,7 +632,7 @@ describe("trace.matrix selections", () => {
   });
 
   it("is incomplete while the workspace file lists a repository that is not on this machine", async () => {
-    const workspace = await open({ ...MATRIX, files: { "logreq-workspace.yaml": WITH_VAULT } });
+    const workspace = await open({ ...MATRIX, files: { "reqseq-workspace.yaml": WITH_VAULT } });
     expect((await matrix(workspace, { selection: STAGE_3 })).incomplete).toBe(true);
     expect((await matrix(workspace, { selection: { ids: [ID.D1] } })).incomplete).toBe(true);
   });

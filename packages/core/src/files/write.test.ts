@@ -491,17 +491,17 @@ describe("writeFileAtomic: chunk content (#277)", () => {
 
   it("replaces a JSON file over the bound that has the frame of a data file, and refuses one without (review B1)", async () => {
     // Not JSON between the frame: above the bound it is not parsed.
-    const large = `{"logreq-data":2,"x":"${"a".repeat(200)}"{}\n`;
+    const large = `{"reqseq-data":2,"x":"${"a".repeat(200)}"{}\n`;
     await put("d.json", large);
     const options = { kind: "json", fullParseUpTo: 100 } as const;
     await writeFileAtomic(
       root,
       "d.json",
-      () => ['{"logreq-data":2,', '"y":2}', "\n"],
+      () => ['{"reqseq-data":2,', '"y":2}', "\n"],
       await forge("d.json"),
       options,
     );
-    expect(await text("d.json")).toBe('{"logreq-data":2,"y":2}\n');
+    expect(await text("d.json")).toBe('{"reqseq-data":2,"y":2}\n');
     await put("d.json", large);
     await expect(
       writeFileAtomic(root, "d.json", "{}", await forge("d.json"), { kind: "json" }),

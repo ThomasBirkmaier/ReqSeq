@@ -162,8 +162,8 @@ describe("trace.affected (SR-024)", () => {
     const workspace = await open({
       ...AFFECTED,
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           '  - { name: vault, url: "git@git.example.com:ws/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n",

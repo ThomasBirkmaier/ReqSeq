@@ -21,7 +21,7 @@
 // criteria are copied byte for byte. Relation targets are written as { id, title } without version.
 //
 // Step 2 lets ReqSeq itself (packages/core, built) fill in what only ReqSeq can compute (ADR-0005):
-// it turns the inline mentions in the texts (`(SR-101)`) into `logreq:` links with element.update, the
+// it turns the inline mentions in the texts (`(SR-101)`) into `reqseq:` links with element.update, the
 // linked elements before the elements that link to them, so every link gets the final version of its
 // target (hint.confirm then finds nothing to confirm); then it gives every relation target its current
 // version with relation.add (#302) and the packages with element.update. Mentions stay plain text where
@@ -180,7 +180,7 @@ const MENTION = /\b(?:SR|D|N)-\d{3}\b/g;
 const KEEP = /(`+)[\s\S]*?\1|\[[^\]\n]*\]\([^)\n]*\)/g;
 
 /**
- * The text with each mention of a spec ID turned into `[SR-101](logreq:<uuid>)`; counts go to `stats`.
+ * The text with each mention of a spec ID turned into `[SR-101](reqseq:<uuid>)`; counts go to `stats`.
  * The label stays the mention, so the text read without link markup is unchanged. `skip(id)` keeps a
  * mention as text (a ring, see `ringPartners`).
  */
@@ -205,7 +205,7 @@ export function linkMentions(text, selfId, uuidOf, stats, skip = () => false) {
         return id;
       }
       stats.linked += 1;
-      return `[${id}](logreq:${uuid})`;
+      return `[${id}](reqseq:${uuid})`;
     });
   let out = "";
   let inFence = false;
@@ -231,7 +231,7 @@ export function linkMentions(text, selfId, uuidOf, stats, skip = () => false) {
 export function mentionedIds(text, selfId, uuidOf) {
   const stats = { linked: 0, self: 0, example: 0, unknown: [], ring: [] };
   const linked = linkMentions(text, selfId, uuidOf, stats);
-  return new Set([...linked.matchAll(/\[([^\]\n]*)\]\(logreq:/g)].map((m) => m[1]));
+  return new Set([...linked.matchAll(/\[([^\]\n]*)\]\(reqseq:/g)].map((m) => m[1]));
 }
 
 /**
@@ -310,8 +310,8 @@ export function targetsFirst(graph) {
   return order;
 }
 
-/** Undo `linkMentions`: every `[label](logreq:...)` becomes its label. */
-export const unlink = (text) => text.replace(/\[([^\]\n]*)\]\(logreq:[^)\n]*\)/g, "$1");
+/** Undo `linkMentions`: every `[label](reqseq:...)` becomes its label. */
+export const unlink = (text) => text.replace(/\[([^\]\n]*)\]\(reqseq:[^)\n]*\)/g, "$1");
 
 function statusLine(e, problems) {
   const p = e.props;
@@ -511,7 +511,7 @@ export function buildWorkspace({ elements, stages }) {
     sources.push({ id: s.id, specId: stageIdentifier(s.key), text });
   }
   const texts = planLinks(sources, ctx.uuidOf, ctx.stats);
-  files.set("logreq-workspace.yaml", WORKSPACE_FILE);
+  files.set("reqseq-workspace.yaml", WORKSPACE_FILE);
   files.set("metamodel/spec-model.yaml", METAMODEL);
   return { files, relations: ctx.relations, texts, stats: ctx.stats, problems };
 }
@@ -582,7 +582,7 @@ export function verifyVerbatim(dir, exp) {
   return differences;
 }
 
-const WORKSPACE_FILE = `logreq-workspace: 1
+const WORKSPACE_FILE = `reqseq-workspace: 1
 name: ReqSeq specification
 repositories:
   - name: spec
@@ -601,7 +601,7 @@ const METAMODEL = `# Metamodel of the ReqSeq specification (enabler #326). It is
 #   term without status is current and element.supersede retires it (#344);
 # - type glossary-term with its properties and relation kinds (from the Logseq graph ReqSeq).
 # ReqSeq has no command that changes a metamodel: this file is changed by hand in a pull request.
-logreq-metamodel: 1
+reqseq-metamodel: 1
 
 types:
   - key: need

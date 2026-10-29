@@ -43,10 +43,10 @@ const nameOf = (id: string): string => NAME.get(id) ?? id;
 
 /** The current versions of the fixture's element files (README). */
 const VERSION = {
-  B01: "n1:f3f86f771ff1e825",
-  B02: "n1:79f49551086ace54",
-  B03: "n1:3155226bafecafee",
-  B06: "n1:aea9ffdcc588fbcb",
+  B01: "n1:4b6860725d822fd9",
+  B02: "n1:c75fc271a802ecfc",
+  B03: "n1:3a3425b29b6a2ab3",
+  B06: "n1:2e6c576ee02603e7",
 } as const;
 
 const SR = { where: { type: ["system-requirement"] } };
@@ -60,7 +60,7 @@ const requirement = (key: string, title: string, status: string, more = "", pare
 
 /** A Markdown verification record of `element` that passed, for `version`. */
 const passedRecord = (element: string, version: string, more = ""): string =>
-  `---\nlogreq-record: 1\nkind: verification\nelement: ${element}\nversion: ${version}\nmethod: test\n` +
+  `---\nreqseq-record: 1\nkind: verification\nelement: ${element}\nversion: ${version}\nmethod: test\n` +
   `item: build-7\nresult: passed\ndate: 2026-10-23T10:00:00Z\n${more}---\n`;
 
 /** The variant VAR-126c01 "Coast edition", and a record of b06 for it with the test case "coast check". */
@@ -179,8 +179,8 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
       {
         ...MATRIX,
         files: {
-          "logreq-workspace.yaml":
-            'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "ssh://example.com/system.git", main: true }\nmetamodel: { repository: system, path: metamodel }\n',
+          "reqseq-workspace.yaml":
+            'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "ssh://example.com/system.git", main: true }\nmetamodel: { repository: system, path: metamodel }\n',
         },
       },
     ]) {
@@ -205,7 +205,7 @@ describe("trace.matrix test cases and verification status (SR-126 AK1)", () => {
   it("gives no evidence while the metamodel is not valid", async () => {
     const workspace = await open({
       ...MATRIX,
-      files: { "metamodel/broken.yaml": "logreq-metamodel: 1\ntypes: [\n" },
+      files: { "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: [\n" },
     });
     const output = await matrix(workspace, { selection: SR });
     expect(output.evidence).toBeUndefined();
@@ -366,7 +366,7 @@ describe("trace.matrix indirect verification (SR-126 AK3)", () => {
 
   it("an obsolete parent without own record and with verified children shows indirect on the page and is not counted in the degree", async () => {
     // b12 and b13 have the same content properties, so the same version.
-    const child = "n1:744395a93994454c";
+    const child = "n1:f89fa0b690586df8";
     const records = await open({
       ...MATRIX,
       files: {

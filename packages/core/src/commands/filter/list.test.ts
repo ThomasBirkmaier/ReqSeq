@@ -44,7 +44,7 @@ const [N2, P2, B1, B2, B3, B4, B5, F1, F2, V2] = [
 /** A filter as a person writes it by hand: short IDs, a comment, a view by short ID. */
 const HAND_WRITTEN = [
   "# Drafts of the sensor package",
-  "logreq-filter: 1",
+  "reqseq-filter: 1",
   "name: Sensor drafts",
   "description: Drafts in the package Sensors",
   "where:",
@@ -117,16 +117,16 @@ describe("filter.list (SR-070)", () => {
       fixture: "SR-069/filter",
       files: {
         "filters/sensor-drafts.yaml": HAND_WRITTEN,
-        "filters/a-broken.yaml": "logreq-filter: 1\nname: Broken\nwhere:\n  nope: 1\n",
+        "filters/a-broken.yaml": "reqseq-filter: 1\nname: Broken\nwhere:\n  nope: 1\n",
         "filters/b-not-yaml.yaml": "name: [unclosed\n",
-        "filters/z-same-name.yaml": "logreq-filter: 1\nname: SENSOR DRAFTS\nwhere: { all: [] }\n",
-        "filters/d-old.yml": "logreq-filter: 1\nname: Old\nwhere: { all: [] }\n",
-        "filters/e-warning.yaml": "logreq-filter: 1\nname: !odd Odd\nwhere: { all: [] }\n",
+        "filters/z-same-name.yaml": "reqseq-filter: 1\nname: SENSOR DRAFTS\nwhere: { all: [] }\n",
+        "filters/d-old.yml": "reqseq-filter: 1\nname: Old\nwhere: { all: [] }\n",
+        "filters/e-warning.yaml": "reqseq-filter: 1\nname: !odd Odd\nwhere: { all: [] }\n",
         "filters/f-list.yaml": "- a\n",
-        "filters/g-core.yaml": "logreq-filter: 1\nname: Core\nview: core\nwhere: { all: [] }\n",
+        "filters/g-core.yaml": "reqseq-filter: 1\nname: Core\nview: core\nwhere: { all: [] }\n",
         "filters/notes.md": "# Not a filter\n",
-        "filters/.hidden.yaml": "logreq-filter: 1\nname: Hidden\nwhere: { all: [] }\n",
-        "filters/sub/deeper.yaml": "logreq-filter: 1\nname: Deeper\nwhere: { all: [] }\n",
+        "filters/.hidden.yaml": "reqseq-filter: 1\nname: Hidden\nwhere: { all: [] }\n",
+        "filters/sub/deeper.yaml": "reqseq-filter: 1\nname: Deeper\nwhere: { all: [] }\n",
       },
     });
     const out = await listed(workspace);
@@ -190,8 +190,8 @@ describe("filter.list (SR-070)", () => {
   });
 });
 
-/** A filter file with `lines` after `logreq-filter: 1`. */
-const filterFile = (...lines: readonly string[]): string => ["logreq-filter: 1", ...lines, ""].join("\n");
+/** A filter file with `lines` after `reqseq-filter: 1`. */
+const filterFile = (...lines: readonly string[]): string => ["reqseq-filter: 1", ...lines, ""].join("\n");
 
 /** Replaces the evidence provider of `workspace` (decision on #127, option 1). */
 const withEvidence = async (workspace: Workspace, statuses: EvidenceStatuses): Promise<void> => {
@@ -334,8 +334,8 @@ describe("a saved filter called by name in a selection (SR-070 AK3)", () => {
     const { workspace } = await open({
       fixture: "SR-069/filter",
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
           '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
           '  - { name: vault, url: "ssh://example.com/vault.git", path: ../vault }\n' +
           "metamodel: { repository: system, path: metamodel }\n" +

@@ -36,7 +36,7 @@ export interface EvidenceFileRead {
 
 /**
  * A reader of one kind of evidence file. It gets the file and its bytes and never reads or writes
- * anything else; a file that is no record of its kind (a Markdown file without `logreq-record`, XML
+ * anything else; a file that is no record of its kind (a Markdown file without `reqseq-record`, XML
  * without a JUnit root) gives nothing.
  */
 export interface EvidenceReader {

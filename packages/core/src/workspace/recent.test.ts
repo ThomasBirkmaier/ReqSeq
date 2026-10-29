@@ -44,12 +44,12 @@ afterEach(async () => {
   await fs.rm(top, { recursive: true, force: true, maxRetries: 3 });
 });
 
-/** A folder `name` in the test folder, with `logreq-workspace.yaml` unless `workspace` is false. */
+/** A folder `name` in the test folder, with `reqseq-workspace.yaml` unless `workspace` is false. */
 const folder = async (name: string, workspace = true): Promise<string> => {
   const root = path.join(top, name);
   await fs.mkdir(root, { recursive: true });
   if (workspace) {
-    await fs.writeFile(path.join(root, WORKSPACE_FILE), "logreq-workspace: 1\n");
+    await fs.writeFile(path.join(root, WORKSPACE_FILE), "reqseq-workspace: 1\n");
   }
   return root;
 };
@@ -242,7 +242,7 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
 });
 
 describe("existence of the recent workspaces", () => {
-  it("[SR-131/AK4] recentWorkspaceStates marks a root without logreq-workspace.yaml as missing and does not look upwards", async () => {
+  it("[SR-131/AK4] recentWorkspaceStates marks a root without reqseq-workspace.yaml as missing and does not look upwards", async () => {
     const present = await folder("present");
     // A folder inside a workspace, whose own workspace file is gone: the workspace above does not count.
     const inside = await folder("present/requirements", false);

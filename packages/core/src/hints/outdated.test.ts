@@ -38,9 +38,9 @@ const V_FILE = "variants/V-0c0000000001.md";
 const A_FILE = "requirements/SR-0b0000000001.md";
 const B_FILE = "requirements/SR-0b0000000002.md";
 /** The versions the fixture stores: the current ones. */
-const N_VERSION = "n1:4a120bac998acdc8";
-const V_VERSION = "n1:b3f17e3d2a46ea1e";
-const A_VERSION = "n1:c432bd0d8bcd0958";
+const N_VERSION = "n1:323df2732ed684b0";
+const V_VERSION = "n1:b72330c9018ce26f";
+const A_VERSION = "n1:e73a2cb229cfa29d";
 /** Where A is stored, as hint IDs name it: repository, file (percent-encoded) and UUID. */
 const AT_A = `system/${encodeURIComponent(A_FILE)}/${A}`;
 const A_PLACE = { sourceRepository: "system", file: A_FILE, source: A };
@@ -51,7 +51,7 @@ const FIXTURE_FOLDER = path.resolve(import.meta.dirname, "../../../../fixtures/S
 const fixtureFiles = async (prefix: string): Promise<Record<string, string>> =>
   Object.fromEntries(
     await Promise.all(
-      ["logreq-workspace.yaml", "metamodel/standard-model.yaml", N_FILE, V_FILE, A_FILE, B_FILE].map(
+      ["reqseq-workspace.yaml", "metamodel/standard-model.yaml", N_FILE, V_FILE, A_FILE, B_FILE].map(
         async (file) =>
           [`${prefix}${file}`, await readFile(path.join(FIXTURE_FOLDER, file), "utf8")] as const,
       ),
@@ -109,7 +109,7 @@ const requirementA = (
     item(N, versions.derives, "See the wind"),
     "---",
     "",
-    `So that the operator can [See the wind](logreq:${N}${link}).${extra}`,
+    `So that the operator can [See the wind](reqseq:${N}${link}).${extra}`,
     "",
   ].join("\n");
 };
@@ -307,8 +307,8 @@ describe("outdated relations and references (SR-025)", () => {
     const GONE = `${P}a0000000009`;
     const ws = await fixture({
       files: {
-        "logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "x", main: true }\n  - { name: away, url: "y", path: ../away }\nmetamodel: { repository: system, path: metamodel }\n',
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "x", main: true }\n  - { name: away, url: "y", path: ../away }\nmetamodel: { repository: system, path: metamodel }\n',
         [B_FILE]: [
           "---",
           `id: ${B}`,
@@ -325,7 +325,7 @@ describe("outdated relations and references (SR-025)", () => {
           `  - { id: ${N}, version: ${OLD} }`,
           "---",
           "",
-          `[Gone](logreq:${GONE}?version=${OLD}) [Away](logreq:${A}?version=${OLD}&repository=away) [N](logreq:${N}?version=${OLD})`,
+          `[Gone](reqseq:${GONE}?version=${OLD}) [Away](reqseq:${A}?version=${OLD}&repository=away) [N](reqseq:${N}?version=${OLD})`,
           "",
         ].join("\n"),
         // N twice: a relation to it is ambiguous (SR-088).
@@ -504,7 +504,7 @@ describe("outdated relations and references (SR-025)", () => {
       A_FILE,
       requirementA(
         { validity: V_VERSION, derives: N_VERSION, link: N_VERSION },
-        `\nAgain [See the wind](logreq:${N}?version=${N_VERSION}&repository=system) and [See the wind](logreq:${N}?version=${N_VERSION}).`,
+        `\nAgain [See the wind](reqseq:${N}?version=${N_VERSION}&repository=system) and [See the wind](reqseq:${N}?version=${N_VERSION}).`,
       ),
     );
     // B's refinement of A is outdated too, since A's text changed; only A's relations are looked at.
@@ -529,8 +529,8 @@ describe("outdated relations and references (SR-025)", () => {
     const ws = await createFixtureWorkspace({
       files: {
         ...(await fixtureFiles("system/")),
-        "system/logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "x", main: true }\n  - { name: sensor, url: "y", path: ../sensor }\nmetamodel: { repository: system, path: metamodel }\n',
+        "system/reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "x", main: true }\n  - { name: sensor, url: "y", path: ../sensor }\nmetamodel: { repository: system, path: metamodel }\n',
         "sensor/SSR-0d0000000001.md": [
           "---",
           `id: ${P}d0000000001`,

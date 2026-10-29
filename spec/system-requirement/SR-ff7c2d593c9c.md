@@ -12,12 +12,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Varianten"
 packages:
-  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n1:54e1ce86e105e590, title: "Stufe 5: Pakete, Baselines und Varianten" }
+  - { id: c44d8f37-ca09-4e36-8bcb-772f426a3e1a, version: n1:6b74dcb250ac00c8, title: "Stufe 5: Pakete, Baselines und Varianten" }
 derives-from:
-  - { id: 6ad3a420-474e-4443-82d6-56a362271467, version: n1:682777e0e23acb72, title: Variante ersetzt Kern-Requirement }
+  - { id: 6ad3a420-474e-4443-82d6-56a362271467, version: n1:01158fe8c5032e68, title: Variante ersetzt Kern-Requirement }
 based-on:
-  - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:d69cab9f2920b732, title: Fassung als Prüfwert über den Inhalt }
-  - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n1:e6a6aa661b7f9aa7, title: Varianten über eine Gültigkeitsliste }
+  - { id: 6adc4946-b44c-4ae1-8dbf-fb9e88b8c607, version: n1:0c3f2da31ca1ae9a, title: Fassung als Prüfwert über den Inhalt }
+  - { id: 6adc5316-641d-4817-964e-8803a78ac710, version: n1:98453db7e5f7bec6, title: Varianten über eine Gültigkeitsliste }
 ---
 
 Das Tool muss ein Kern-Requirement für eine Variante durch ein eigenes Requirement ersetzen lassen und dabei die Fassung des ersetzten Requirements speichern.

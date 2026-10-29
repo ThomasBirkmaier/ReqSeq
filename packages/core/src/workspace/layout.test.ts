@@ -29,7 +29,7 @@ const setup = async (
 };
 
 const yaml = (repositories: string, rest = "metamodel: { repository: main, path: metamodel }\n"): string =>
-  `logreq-workspace: 1\nname: W\nrepositories:\n${repositories}${rest}`;
+  `reqseq-workspace: 1\nname: W\nrepositories:\n${repositories}${rest}`;
 
 const MAIN = "  - { name: main, url: u, main: true }\n";
 
@@ -85,7 +85,7 @@ describe("loadWorkspaceLayout", () => {
     expect(layout.problems).toEqual([]);
   });
 
-  it("applies relative and absolute paths of .logreq/local.yaml", async () => {
+  it("applies relative and absolute paths of .reqseq/local.yaml", async () => {
     const ws = await setup(
       yaml(`${MAIN}  - { name: a, url: u }\n  - { name: b, url: u, path: ../b }\n  - { name: c, url: u }\n`),
       {
@@ -96,7 +96,7 @@ describe("loadWorkspaceLayout", () => {
     await ws.write("checkouts/b-abs/README.md", "x\n");
     await ws.write(
       `main/${LOCAL_FILE}`,
-      `logreq-local: 1\nrepositories:\n  a: { path: ../checkouts/a }\n  b: { path: ${JSON.stringify(absolute)} }\n`,
+      `reqseq-local: 1\nrepositories:\n  a: { path: ../checkouts/a }\n  b: { path: ${JSON.stringify(absolute)} }\n`,
     );
     const layout = await loadWorkspaceLayout(ws.path("main"));
     expect(layout.repositories.map((r) => [r.name, r.path, r.folder, r.available])).toEqual([
@@ -109,13 +109,13 @@ describe("loadWorkspaceLayout", () => {
   });
 
   it("accepts a local file without repositories", async () => {
-    const ws = await setup(yaml(MAIN), { local: "logreq-local: 1\n" });
+    const ws = await setup(yaml(MAIN), { local: "reqseq-local: 1\n" });
     expect((await loadWorkspaceLayout(ws.path("main"))).problems).toEqual([]);
   });
 
   it("warns about a local override for a repository the workspace file does not name", async () => {
     const ws = await setup(yaml(MAIN), {
-      local: "logreq-local: 1\nrepositories:\n  ghost: { path: ../ghost }\n",
+      local: "reqseq-local: 1\nrepositories:\n  ghost: { path: ../ghost }\n",
     });
     expect((await loadWorkspaceLayout(ws.path("main"))).problems).toEqual([
       {
@@ -129,7 +129,7 @@ describe("loadWorkspaceLayout", () => {
 
   it("ignores a faulty local file with a warning", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), {
-      local: "logreq-local: 1\nrepositories:\n  a: [unclosed\n",
+      local: "reqseq-local: 1\nrepositories:\n  a: [unclosed\n",
       folders: ["a"],
     });
     const layout = await loadWorkspaceLayout(ws.path("main"));
@@ -140,12 +140,12 @@ describe("loadWorkspaceLayout", () => {
       severity: "warning",
       file: LOCAL_FILE,
     });
-    expect(layout.problems[0]?.message).toMatch(/; \.logreq\/local\.yaml is ignored$/);
+    expect(layout.problems[0]?.message).toMatch(/; \.reqseq\/local\.yaml is ignored$/);
   });
 
   it("ignores a local file that does not match its schema, with a warning per violation", async () => {
     const ws = await setup(yaml(`${MAIN}  - { name: a, url: u }\n`), {
-      local: "logreq-local: 1\nrepositories:\n  a: { folder: ../x }\nextra: 1\n",
+      local: "reqseq-local: 1\nrepositories:\n  a: { folder: ../x }\nextra: 1\n",
       folders: ["a"],
     });
     const layout = await loadWorkspaceLayout(ws.path("main"));
@@ -159,7 +159,7 @@ describe("loadWorkspaceLayout", () => {
 
   it("keeps YAML warnings of both files", async () => {
     const ws = await setup(`${yaml(MAIN)}ignore: [!unknown x]\n`, {
-      local: "logreq-local: 1\nrepositories: !other {}\n",
+      local: "reqseq-local: 1\nrepositories: !other {}\n",
     });
     const layout = await loadWorkspaceLayout(ws.path("main"));
     expect(layout.problems.map((p) => [p.code, p.file])).toEqual([
@@ -169,7 +169,7 @@ describe("loadWorkspaceLayout", () => {
   });
 
   it("keeps the YAML warnings of a local file that does not match its schema", async () => {
-    const ws = await setup(yaml(MAIN), { local: "logreq-local: !other 2\n" });
+    const ws = await setup(yaml(MAIN), { local: "reqseq-local: !other 2\n" });
     const layout = await loadWorkspaceLayout(ws.path("main"));
     expect(layout.problems.map((p) => [p.code, p.severity])).toEqual([
       ["file.yaml-warning", "warning"],
@@ -220,7 +220,7 @@ describe("loadWorkspaceLayout", () => {
     ]);
 
     const overridden = await setup(yaml(MAIN), {
-      local: "logreq-local: 1\nrepositories:\n  main: { path: ../x }\n",
+      local: "reqseq-local: 1\nrepositories:\n  main: { path: ../x }\n",
     });
     expect((await loadWorkspaceLayout(overridden.path("main"))).problems).toEqual([
       {
@@ -401,17 +401,17 @@ describe("loadWorkspaceLayout", () => {
   });
 
   it("fails with file.faulty for a workspace file with invalid YAML", async () => {
-    const ws = await setup("logreq-workspace: 1\nname: [unclosed\n");
+    const ws = await setup("reqseq-workspace: 1\nname: [unclosed\n");
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.code).toBe("file.faulty");
     expect(error.details?.["problems"]).toEqual([
       expect.objectContaining({ code: "file.invalid-yaml", file: WORKSPACE_FILE }),
     ]);
-    expect(error.message).toMatch(/^logreq-workspace\.yaml is faulty: Invalid YAML at line/);
+    expect(error.message).toMatch(/^reqseq-workspace\.yaml is faulty: Invalid YAML at line/);
   });
 
   it("fails with file.faulty for a workspace file that does not match its schema", async () => {
-    const ws = await setup("logreq-workspace: 2\nname: W\nrepositories: []\n");
+    const ws = await setup("reqseq-workspace: 2\nname: W\nrepositories: []\n");
     const error = await failure(loadWorkspaceLayout(ws.path("main")));
     expect(error.code).toBe("file.faulty");
     const problems = error.details?.["problems"] as readonly {
@@ -424,7 +424,7 @@ describe("loadWorkspaceLayout", () => {
       new Set([`workspace.invalid error ${WORKSPACE_FILE}`]),
     );
     expect(error.message).toContain(
-      "Invalid logreq-workspace.yaml: /logreq-workspace must be equal to constant",
+      "Invalid reqseq-workspace.yaml: /reqseq-workspace must be equal to constant",
     );
   });
 });

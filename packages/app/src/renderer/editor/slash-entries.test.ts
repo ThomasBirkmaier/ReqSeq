@@ -272,27 +272,27 @@ describe("the reference", () => {
   };
 
   it("[SR-129/AK4] writes the title within the repository of the source", () => {
-    expect(referenceMarkdown(target, "main")).toBe(`[The title](logreq:${target.id})`);
+    expect(referenceMarkdown(target, "main")).toBe(`[The title](reqseq:${target.id})`);
   });
 
   it("[SR-129/AK4] writes the short ID and the repository for a target in another repository (D-058)", () => {
     expect(referenceMarkdown(target, "other repo")).toBe(
-      `[SR-5555](logreq:${target.id}?version=&repository=main)`,
+      `[SR-5555](reqseq:${target.id}?version=&repository=main)`,
     );
     expect(referenceMarkdown({ ...target, repository: "a b&c" }, "main")).toBe(
-      `[SR-5555](logreq:${target.id}?version=&repository=a%20b%26c)`,
+      `[SR-5555](reqseq:${target.id}?version=&repository=a%20b%26c)`,
     );
   });
 
   it("[SR-129/AK4] falls back to the identifier for an empty title and escapes the label", () => {
-    expect(referenceMarkdown({ ...target, title: "  " }, "main")).toBe(`[SR-036](logreq:${target.id})`);
+    expect(referenceMarkdown({ ...target, title: "  " }, "main")).toBe(`[SR-036](reqseq:${target.id})`);
     expect(referenceMarkdown({ ...target, title: "a [b] `c` \\d" }, "main")).toBe(
-      `[a \\[b\\] \\\`c\\\` \\\\d](logreq:${target.id})`,
+      `[a \\[b\\] \\\`c\\\` \\\\d](reqseq:${target.id})`,
     );
     expect(
       micromark(referenceMarkdown({ ...target, title: "a [b] `c`" }, "main"), {
         allowDangerousProtocol: true,
       }),
-    ).toBe(`<p><a href="logreq:${target.id}">a [b] \`c\`</a></p>`);
+    ).toBe(`<p><a href="reqseq:${target.id}">a [b] \`c\`</a></p>`);
   });
 });

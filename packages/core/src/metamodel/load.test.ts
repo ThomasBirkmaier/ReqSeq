@@ -48,7 +48,7 @@ const YML_WARNING = {
 
 /** A metamodel file with one status, the initial one; `extra` is added to the file. */
 const statusFile = (key: string, extra = ""): string =>
-  `logreq-metamodel: 1\nstatuses:\n  - key: ${key}\n    name: ${key}\n    initial: true\n${extra}`;
+  `reqseq-metamodel: 1\nstatuses:\n  - key: ${key}\n    name: ${key}\n    initial: true\n${extra}`;
 
 describe("loadMetamodel", () => {
   it("[SR-011/AK1] reads types, properties, relation kinds and statuses only from the YAML files of the named folder", async () => {
@@ -103,8 +103,8 @@ describe("loadMetamodel", () => {
   it("[SR-011/AK1] reads the metamodel from a folder in another repository of the workspace", async () => {
     const ws = await createFixtureWorkspace({
       files: {
-        "system/logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: shared/mm }\n",
+        "system/reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: shared/mm }\n",
         "system/mm/decoy.yaml": statusFile("decoy"),
         "models/shared/mm/statuses.yaml": statusFile("open"),
       },
@@ -144,8 +144,8 @@ describe("loadMetamodel", () => {
     const ws = await fixture({ git: true });
     await ws.git(["checkout", "--quiet", "-b", "moved"]);
     await ws.write(
-      "logreq-workspace.yaml",
-      "logreq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n",
+      "reqseq-workspace.yaml",
+      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: x, main: true }\nmetamodel: { repository: system, path: metamodel }\n",
     );
     await ws.commit(".", "move metamodel");
 
@@ -170,7 +170,7 @@ describe("loadMetamodel", () => {
 
   it("[SR-011/AK3] reports file, line and reason of a metamodel file with faulty YAML", async () => {
     const ws = await fixture({
-      files: { "model/statuses.yaml": "logreq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
+      files: { "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses:\n  - key: draft\n    name: [Draft\n" },
     });
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(false);
@@ -193,7 +193,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/variant-types.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - key: variant\n    name: Variant\n    colour: red\n  - key: package\n    name: Package\n",
+          "reqseq-metamodel: 1\ntypes:\n  - key: variant\n    name: Variant\n    colour: red\n  - key: package\n    name: Package\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -231,7 +231,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/markdown.yaml":
-          "logreq-metamodel: 1\nproperties:\n  - key: notes\n    name: Notes\n    kind: text\n    markdown: true\n  - key: level\n    name: Level\n    kind: number\n    markdown: true\n",
+          "reqseq-metamodel: 1\nproperties:\n  - key: notes\n    name: Notes\n    kind: text\n    markdown: true\n  - key: level\n    name: Level\n    kind: number\n    markdown: true\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -257,7 +257,7 @@ describe("loadMetamodel", () => {
     expect(
       metamodel.problems.filter((p) => p.file === "model/statuses.yaml").map((p) => [p.line, p.message]),
     ).toEqual([
-      [2, "Invalid model/statuses.yaml: (root) must have required property 'logreq-metamodel'"],
+      [2, "Invalid model/statuses.yaml: (root) must have required property 'reqseq-metamodel'"],
       [2, "Invalid model/statuses.yaml: (root) must NOT have additional properties: states"],
     ]);
   });
@@ -310,7 +310,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: need, name: N, prefix: N }\nproperties:\n  - { key: title, name: T, kind: text }\nrelations:\n  - { key: derives-from, name: D }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: need, name: N, prefix: N }\nproperties:\n  - { key: title, name: T, kind: text }\nrelations:\n  - { key: derives-from, name: D }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -328,7 +328,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml":
-          "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: D }\ntypes:\n  - { key: need, name: N, prefix: N }\n",
+          "reqseq-metamodel: 1\nstatuses:\n  - { key: draft, name: D }\ntypes:\n  - { key: need, name: N, prefix: N }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -343,7 +343,7 @@ describe("loadMetamodel", () => {
 
   it("reports a relation kind key that a property already uses and ignores the relation kind", async () => {
     const ws = await fixture({
-      files: { "model/z-more.yaml": "logreq-metamodel: 1\nrelations:\n  - { key: title, name: Title of }\n" },
+      files: { "model/z-more.yaml": "reqseq-metamodel: 1\nrelations:\n  - { key: title, name: Title of }\n" },
     });
     const metamodel = await load(ws.root);
     expect(metamodel.valid).toBe(false);
@@ -365,7 +365,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml":
-          "logreq-metamodel: 1\nrelations:\n  - { key: parent, name: Parent }\nproperties:\n  - { key: parent, name: Parent, kind: text }\n  - { key: derives-from, name: D, kind: text }\n",
+          "reqseq-metamodel: 1\nrelations:\n  - { key: parent, name: Parent }\nproperties:\n  - { key: parent, name: Parent, kind: text }\n  - { key: derives-from, name: D, kind: text }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -390,7 +390,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "properties:",
           "  - key: parent",
           "    name: Parent",
@@ -448,7 +448,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/statuses.yaml":
-          "logreq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft }\n  - { key: done, name: Done, initial: false }\n",
+          "reqseq-metamodel: 1\nstatuses:\n  - { key: draft, name: Draft }\n  - { key: done, name: Done, initial: false }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -469,7 +469,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml":
-          "logreq-metamodel: 1\nstatuses:\n  - { key: open, name: Open, initial: true }\n  - key: new\n    name: New\n    initial: true\n  - { key: closed, name: Closed, initial: false }\n",
+          "reqseq-metamodel: 1\nstatuses:\n  - { key: open, name: Open, initial: true }\n  - key: new\n    name: New\n    initial: true\n  - { key: closed, name: Closed, initial: false }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -509,9 +509,9 @@ describe("loadMetamodel", () => {
   it("does not report a missing initial status or type while a file is faulty, which may define them", async () => {
     const ws = await fixture({
       files: {
-        "model/statuses.yaml": "logreq-metamodel: 1\nstatuses: [\n",
+        "model/statuses.yaml": "reqseq-metamodel: 1\nstatuses: [\n",
         "model/z-more.yaml":
-          "logreq-metamodel: 1\nrelations:\n  - { key: refines, name: Refines, target-types: [feature] }\n",
+          "reqseq-metamodel: 1\nrelations:\n  - { key: refines, name: Refines, target-types: [feature] }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -525,7 +525,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml": statusFile("open"),
-        "model/z-faulty.yaml": "logreq-metamodel: 1\nstatuses: [\n",
+        "model/z-faulty.yaml": "reqseq-metamodel: 1\nstatuses: [\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -539,7 +539,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml": [
-          "logreq-metamodel: 1",
+          "reqseq-metamodel: 1",
           "types:",
           "  - key: mystery",
           "    name: Mystery",
@@ -567,9 +567,9 @@ describe("loadMetamodel", () => {
   it("reports the reserved prefix UNKNOWN also while a file is faulty", async () => {
     const ws = await fixture({
       files: {
-        "model/z-faulty.yaml": "logreq-metamodel: 1\ntypes: [\n",
+        "model/z-faulty.yaml": "reqseq-metamodel: 1\ntypes: [\n",
         "model/z-more.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: mystery, name: Mystery, prefix: UNKNOWN }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: mystery, name: Mystery, prefix: UNKNOWN }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -587,7 +587,7 @@ describe("loadMetamodel", () => {
     const ws = await fixture({
       files: {
         "model/z-more.yaml":
-          "logreq-metamodel: 1\ntypes:\n  - { key: unknown-ish, name: Unknownish, prefix: UNKNOWNX }\n  - { key: unk, name: Unk, prefix: UNK }\n",
+          "reqseq-metamodel: 1\ntypes:\n  - { key: unknown-ish, name: Unknownish, prefix: UNKNOWNX }\n  - { key: unk, name: Unk, prefix: UNK }\n",
       },
     });
     const metamodel = await load(ws.root);
@@ -693,37 +693,37 @@ describe("loadMetamodel", () => {
   it("reads a metamodel in the root of the main repository, but not the workspace file", async () => {
     const ws = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: . }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: . }\n",
         "statuses.yaml": statusFile("open"),
       },
     });
     onTestFinished(() => ws.cleanup());
     const metamodel = await load(ws.root);
-    // logreq-workspace.yaml lies in the same folder but is never a metamodel file. Every other
+    // reqseq-workspace.yaml lies in the same folder but is never a metamodel file. Every other
     // .yaml file of the root is one, also an unrelated one (documented in the core README).
     expect(metamodel).toMatchObject({ files: ["statuses.yaml"], valid: true, problems: [] });
     expect(keys(metamodel).statuses).toEqual(["open"]);
   });
 
-  it("reads logreq-workspace.yaml as a metamodel file in the root of another repository", async () => {
+  it("reads reqseq-workspace.yaml as a metamodel file in the root of another repository", async () => {
     const ws = await createFixtureWorkspace({
       files: {
-        "system/logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: . }\n",
-        "models/logreq-workspace.yaml": statusFile("open"),
+        "system/reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: models, url: y }\nmetamodel: { repository: models, path: . }\n",
+        "models/reqseq-workspace.yaml": statusFile("open"),
       },
     });
     onTestFinished(() => ws.cleanup());
     const metamodel = await load(ws.path("system"));
-    expect(metamodel).toMatchObject({ files: ["logreq-workspace.yaml"], valid: true });
+    expect(metamodel).toMatchObject({ files: ["reqseq-workspace.yaml"], valid: true });
   });
 
   it("names the folder of a root metamodel that has no files as .", async () => {
     const ws = await createFixtureWorkspace({
       files: {
-        "logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: . }\n",
+        "reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: solo, url: x }\nmetamodel: { repository: solo, path: . }\n",
       },
     });
     onTestFinished(() => ws.cleanup());

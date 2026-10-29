@@ -76,8 +76,8 @@ describe("reqseq workspace check with evidence records (SR-028)", () => {
 
   it("[SR-028/AK3] reqseq workspace check lists a record that names an unknown UUID", async () => {
     const record =
-      "---\nlogreq-record: 1\nkind: verification\n" +
-      `element: ${UNKNOWN}\nversion: n1:e62ed39c555648e2\nmethod: test\nitem: build-513\n` +
+      "---\nreqseq-record: 1\nkind: verification\n" +
+      `element: ${UNKNOWN}\nversion: n1:de6d3ed288b0f3de\nmethod: test\nitem: build-513\n` +
       "result: failed\ndate: 2026-10-23T10:00:00Z\n---\n";
     const cwd = await fixture({ "ci-results/evidence/2026-10-23-unknown-test.md": record });
     const { human, output } = await check(cwd);
@@ -119,7 +119,7 @@ describe("outdated evidence in workspace check (SR-025)", () => {
         elementRepository: "system",
         elementFile: "requirements/SR-0d0000000002.md",
         storedVersion: "n1:00000000000000b2",
-        currentVersion: "n1:1b52356e55a694d7",
+        currentVersion: "n1:7db6e9d75d39b846",
       },
     ]);
   });

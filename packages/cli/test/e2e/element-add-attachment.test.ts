@@ -90,13 +90,13 @@ describe("reqseq element add-attachment (SR-097)", () => {
       'file: requirements/SR-6328cee88fb3/Wind-layout.png\nmarkdown: "![Wind-layout](SR-6328cee88fb3/Wind-layout.png)"\n',
       "",
     ]);
-    const refused = await reqseq(["element", "add-attachment", "SR-e88fb3", "logreq-workspace.yaml"], {
+    const refused = await reqseq(["element", "add-attachment", "SR-e88fb3", "reqseq-workspace.yaml"], {
       cwd: ws.root,
     });
     expect([refused.code, refused.stdout, refused.stderr]).toEqual([
       2,
       "",
-      "error input.invalid: logreq-workspace.yaml is no image ReqSeq embeds; the name must end in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg, .webp\n",
+      "error input.invalid: reqseq-workspace.yaml is no image ReqSeq embeds; the name must end in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg, .webp\n",
     ]);
   });
 });

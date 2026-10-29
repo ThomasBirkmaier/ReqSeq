@@ -1,5 +1,5 @@
 // Inline references in the text of an element (ADR-0004, SR-066, D-058): Markdown links
-// `[<label>](logreq:<uuid>?version=<version>)`, plus `&repository=<name>` (the workspace name of the
+// `[<label>](reqseq:<uuid>?version=<version>)`, plus `&repository=<name>` (the workspace name of the
 // target's repository, D-041) when the target lies in another repository than the source (decision
 // on spec question #177 (c), option 1). A link without `repository` (or with an empty one) points
 // into the source's own repository, as a relation target without one does (D-058); so that links
@@ -22,14 +22,14 @@ import { resolveTarget, targetState } from "./relations.js";
 import type { ElementStore } from "./store.js";
 import { isUuid } from "./uuid.js";
 
-/** An inline reference `[label](logreq:<uuid>?version=<version>&repository=<name>)` in a text. */
+/** An inline reference `[label](reqseq:<uuid>?version=<version>&repository=<name>)` in a text. */
 export interface InlineReference {
   readonly id: string;
   /** Undefined when the link has no `version` parameter. */
   readonly version?: string;
   /** The first `repository` parameter as written; undefined when the link has none. */
   readonly repository?: string;
-  /** The link destination as written: `logreq:` and the UUID, then the query, if any. */
+  /** The link destination as written: `reqseq:` and the UUID, then the query, if any. */
   readonly destination: string;
   /** Offsets of the destination in the text, end exclusive. */
   readonly start: number;
@@ -66,7 +66,7 @@ export type LinkedReference = TextReference & {
   readonly item?: number;
 };
 
-export const SCHEME = "logreq:";
+export const SCHEME = "reqseq:";
 
 /** The query parameters of a destination, in order, as written; empty ones (`?`, `&&`) are none. */
 export const queryOf = (destination: string): string[] => {
@@ -85,7 +85,7 @@ const param = (params: readonly string[], name: string): string | undefined =>
 
 /**
  * The inline references of a Markdown text in order: links (not images) whose destination is
- * `logreq:<uuid>`, outside code (`markdownLinks`). A `logreq:` link whose target is no UUID is not
+ * `reqseq:<uuid>`, outside code (`markdownLinks`). A `reqseq:` link whose target is no UUID is not
  * one.
  */
 export const inlineReferences = (text: string): InlineReference[] => {
@@ -130,7 +130,7 @@ export const inlineReferences = (text: string): InlineReference[] => {
 /**
  * The inline references of the text `body` of a file whose frontmatter is `frontmatter` (the raw
  * YAML between the `---` lines), with their lines in the file, for the element store. Most texts
- * have no `logreq:` link, so they are not scanned (N-036).
+ * have no `reqseq:` link, so they are not scanned (N-036).
  */
 export const textReferences = (frontmatter: string, body: string): TextReference[] => {
   if (!body.includes(SCHEME)) {
@@ -156,7 +156,7 @@ export type ValuePlace = (
  * The inline references in the string values of the frontmatter `data` (a value, or the strings of
  * a list), whatever the key: the metamodel is not known when a file is read, `referencesOf` takes
  * the marked properties (SR-127). `place` gives the line of a value. A file whose frontmatter has
- * no `logreq:` has none, which is nearly every file, so it is not scanned (N-036).
+ * no `reqseq:` has none, which is nearly every file, so it is not scanned (N-036).
  */
 export const propertyReferences = (
   frontmatter: string,

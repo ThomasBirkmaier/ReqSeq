@@ -10,7 +10,7 @@ const RULES = [
   { pattern: /^schemas\/generated\//, fix: "run `pnpm contracts:generate`" },
   { pattern: /^packages\/core\/src\/generated\//, fix: "run `pnpm contracts:generate`" },
   {
-    pattern: /^spec\/(?!metamodel\/|logreq-workspace\.yaml$|README\.md$)/,
+    pattern: /^spec\/(?!metamodel\/|reqseq-workspace\.yaml$|README\.md$)/,
     fix: "use the ReqSeq CLI or MCP with `--workspace spec` (see the spec-change skill)",
   },
 ];
@@ -38,7 +38,7 @@ export function repoRoot(file) {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
-    return fs.existsSync(path.join(root, "spec", "logreq-workspace.yaml"))
+    return fs.existsSync(path.join(root, "spec", "reqseq-workspace.yaml"))
       ? fs.realpathSync(root)
       : undefined;
   } catch {

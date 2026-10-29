@@ -365,13 +365,13 @@ const yamlProblem = (r: YamlReadResult): Problem => {
 
 describe("readYamlFile", () => {
   it("returns document, data and snapshot of a YAML file", async () => {
-    await put("logreq-workspace.yaml", "# workspace\nname: demo\nrepositories: [a, b]\n");
-    const r = await readYamlFile(root, "logreq-workspace.yaml");
+    await put("reqseq-workspace.yaml", "# workspace\nname: demo\nrepositories: [a, b]\n");
+    const r = await readYamlFile(root, "reqseq-workspace.yaml");
     expect(r.kind).toBe("parsed");
     if (r.kind !== "parsed") {
       return;
     }
-    expect(r.file.path).toBe("logreq-workspace.yaml");
+    expect(r.file.path).toBe("reqseq-workspace.yaml");
     expect(r.file.data).toEqual({ name: "demo", repositories: ["a", "b"] });
     expect(r.file.document.get("name")).toBe("demo");
     expect(r.file.bom).toBe(false);

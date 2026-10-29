@@ -11,12 +11,12 @@ acceptance-criteria:
 verification-method: test
 topic: "Metamodell und Typen"
 packages:
-  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:f5900659a91cb0df, title: "Stufe 1: Fundament" }
+  - { id: 46610a27-2866-47fb-bb8f-293faae4885f, version: n1:7315eea66e551d94, title: "Stufe 1: Fundament" }
 derives-from:
-  - { id: 6ad4f636-daf5-4ccf-86d9-ddb4a7ec1b28, version: n1:46651697d8ac6406, title: Große Datenmengen }
-  - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:643198d9c6d03ede, title: Bestand prüfen }
+  - { id: 6ad4f636-daf5-4ccf-86d9-ddb4a7ec1b28, version: n1:dfb6208ba57988f0, title: Große Datenmengen }
+  - { id: 6adc6938-28fa-42f6-b018-5bbf010cc58c, version: n1:36dc84f63608e84c, title: Bestand prüfen }
 based-on:
-  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n1:aa83cee4e109580c, title: Kommandozeile neben der App }
+  - { id: 6adc58f4-fbf7-4c3d-84da-de15d00286a2, version: n1:ddba1713410acb43, title: Kommandozeile neben der App }
 ---
 
 Die Kommandozeile muss einen Arbeitsbereich mit 50.000 Elementen in höchstens 60 Sekunden prüfen.

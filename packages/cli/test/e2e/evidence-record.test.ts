@@ -72,7 +72,7 @@ describe("reqseq evidence record (SR-030)", () => {
     expect(output.files).toEqual([file]);
     const { version } = output.record as { version: string };
     expect(await fs.readFile(ws.path(file), "utf8")).toBe(
-      `---\nlogreq-record: 1\nkind: verification\nelement: ${S2}\nversion: ${version}\nmethod: inspection\nitem: unit 7\nresult: passed\ndate: ${DATE}\nevidence: photos/unit-7.jpg\n---\n`,
+      `---\nreqseq-record: 1\nkind: verification\nelement: ${S2}\nversion: ${version}\nmethod: inspection\nitem: unit 7\nresult: passed\ndate: ${DATE}\nevidence: photos/unit-7.jpg\n---\n`,
     );
     const listed = (await json(ws, ["evidence", "list", "SR-00c002"])) as { records: { file: string }[] };
     expect(listed.records.map((r) => r.file)).toEqual([file]);

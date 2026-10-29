@@ -3,7 +3,7 @@
 // `writeFileAtomic`, so the two never disagree. Up to `fullParseUpTo` bytes the file is parsed whole,
 // as UTF-8 JSON. A larger file may not fit into one string (V8 holds at most about 512 MB), so above
 // the bound only the frame of a data file is checked: an optional byte order mark, then `{`,
-// `"logreq-data"`, `:`, `2` and `,` at the start and `}` at the end, with any JSON whitespace around
+// `"reqseq-data"`, `:`, `2` and `,` at the start and `}` at the end, with any JSON whitespace around
 // and between them (CRLF, the indentation of `data export --json`), so a file above the bound is
 // judged like the same file below it; and valid UTF-8 in the first and the last MiB, each cut at a
 // code-point boundary. Assumption (#277, how only): a larger file with that frame is treated as a
@@ -16,7 +16,7 @@ export const JSON_FULL_PARSE_BYTES = 64 * 1024 * 1024;
 const EDGE_BYTES = 1024 * 1024;
 
 /** The tokens of the start of the frame, in order; JSON whitespace may stand around each. */
-const FRAME_START = ["{", '"logreq-data"', ":", "2", ","].map((token) => Buffer.from(token, "utf8"));
+const FRAME_START = ["{", '"reqseq-data"', ":", "2", ","].map((token) => Buffer.from(token, "utf8"));
 const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const CLOSE = 0x7d;
 
@@ -25,7 +25,7 @@ const isJsonSpace = (byte: number | undefined): boolean =>
   byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d;
 
 /**
- * What a JSON file is: `data` a ReqSeq data file (parsed: an object with `"logreq-data": 2`; above
+ * What a JSON file is: `data` a ReqSeq data file (parsed: an object with `"reqseq-data": 2`; above
  * the bound: the frame), `json` readable JSON of another kind, `faulty` no readable UTF-8 JSON,
  * `unchecked` above the bound without the frame (not read whole, so not known to be JSON).
  */
@@ -100,7 +100,7 @@ export const jsonDataKind = (
   } catch {
     return "faulty";
   }
-  return typeof data === "object" && data !== null && (data as Record<string, unknown>)["logreq-data"] === 2
+  return typeof data === "object" && data !== null && (data as Record<string, unknown>)["reqseq-data"] === 2
     ? "data"
     : "json";
 };

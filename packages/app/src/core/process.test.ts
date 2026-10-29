@@ -256,7 +256,7 @@ describe("serveCoreProcess", () => {
     await waitUntil(() => inside.exit.mock.calls.length === 1);
     expect(inside.exit).toHaveBeenCalledWith(1);
     expect(inside.log).toHaveBeenCalledWith(
-      `The core process could not open the workspace: ${folder} holds no logreq-workspace.yaml`,
+      `The core process could not open the workspace: ${folder} holds no reqseq-workspace.yaml`,
     );
     expect(inside.parent.sent).toEqual([]);
     expect(record).toHaveBeenCalledOnce();

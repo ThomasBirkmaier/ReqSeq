@@ -6,7 +6,7 @@
 import type { ActivityAccess, CatalogEntry, CommandErrorObject } from "@reqseq/core";
 
 /** Main to preload: the workspace of the window, with the port to its core process when one is open. */
-export const WORKSPACE_CHANNEL = "logreq:workspace";
+export const WORKSPACE_CHANNEL = "reqseq:workspace";
 
 /**
  * Renderer to main: the text to put on the system clipboard (SR-128); `ipcMain.handle` answers `true`

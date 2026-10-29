@@ -251,8 +251,8 @@ describe("element store", () => {
     const ws = await fixture({
       fixture: "SR-004/three-repositories",
       files: {
-        "system/logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+        "system/reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
         "system/vendor/sub/SR-0c1d2e3f4a5b.md": element(ID_A),
       },
       git: ["system/vendor/sub"],
@@ -268,8 +268,8 @@ describe("element store", () => {
     const ws = await fixture({
       fixture: "SR-004/three-repositories",
       files: {
-        "system/logreq-workspace.yaml":
-          "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
+        "system/reqseq-workspace.yaml":
+          "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x, main: true }\n  - { name: sub, url: y, path: vendor/sub }\nmetamodel: { repository: system, path: metamodel }\n",
         "system/vendor/sub/SR-0c1d2e3f4a5b.md": element(ID_A),
       },
     });
@@ -295,8 +295,8 @@ describe("element store", () => {
     const ws = await fixture({
       fixture: "SR-003/any-folder",
       files: {
-        "logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\nignore: ["requirements/display/**", "**/*.draft.md", "Entwürfe für Kunden"]\n',
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\nignore: ["requirements/display/**", "**/*.draft.md", "Entwürfe für Kunden"]\n',
         "node_modules/pkg/SR-0c1d2e3f4a5b.md": element(ID_A),
         "a/node_modules/SR-0c1d2e3f4a5b.md": element(ID_A),
         ".git/SR-0c1d2e3f4a5b.md": element(ID_A),
@@ -381,7 +381,7 @@ describe("element store", () => {
       const ws = await fixture({
         fixture: "SR-003/any-folder",
         files: {
-          "logreq-workspace.yaml": `logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\nignore: [${pattern}]\n`,
+          "reqseq-workspace.yaml": `reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\nignore: [${pattern}]\n`,
         },
       });
       await expect(store(ws.root)).rejects.toMatchObject({ code: "file.faulty" });

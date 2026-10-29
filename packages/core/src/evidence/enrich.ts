@@ -2,14 +2,14 @@
 // to each test case that names a requirement the UUID, the current version, the item (Prüfling) and
 // the date, so that the JUnit reader (SR-093) assigns it without further input (AK3).
 //
-// - References: every `logreq:element` property in file order, then the name tokens of the test case
+// - References: every `reqseq:element` property in file order, then the name tokens of the test case
 //   (`elementRefsOf`). A property is an explicit statement: one that names no element or more than
 //   one is reported. A name token of the form of a short ID or UUID is reported the same way; any
 //   other name token (an identifier such as `[SR-036]`, a pytest parameter list) counts only when it
 //   names exactly one element. Elements named twice count once.
 // - A test case with a reported reference stays unchanged and is listed (AK2, spec question #529 Q1);
 //   the others are enriched and the file is written.
-// - A test case that already has a `logreq:version` is never changed: its version is the one it was
+// - A test case that already has a `reqseq:version` is never changed: its version is the one it was
 //   tested against (D-026, spec question #529 Q5, assumption "keep"). A kept version that is no longer
 //   current gives `evidence.outdated` (warning); one the reader rejects `evidence.invalid-record`.
 // - The bytes are spliced at the offsets of the JUnit model, so every other byte stays (BOM, CRLF,
@@ -35,11 +35,11 @@ import type { JunitProperty, JunitTestCase } from "./junit-model.js";
 import { elementRefsOf, junitTestCases } from "./junit-model.js";
 import { evidenceReadState } from "./state.js";
 
-const ELEMENT = "logreq:element";
-const VERSION = "logreq:version";
-const ITEM = "logreq:item";
-const DATE = "logreq:date";
-const VARIANT = "logreq:variant";
+const ELEMENT = "reqseq:element";
+const VERSION = "reqseq:version";
+const ITEM = "reqseq:item";
+const DATE = "reqseq:date";
+const VARIANT = "reqseq:variant";
 
 /** What a reference names (`resolveRef` without the throw). */
 export type RefResolution =
@@ -131,7 +131,7 @@ type Plan =
   | {
       readonly kind: "enrich";
       readonly testCase: JunitTestCase;
-      /** The `logreq:element` properties and the element each names, in file order. */
+      /** The `reqseq:element` properties and the element each names, in file order. */
       readonly named: readonly { readonly property: JunitProperty; readonly id: string }[];
       /** Elements only the name names, to append. */
       readonly added: readonly string[];
@@ -150,7 +150,7 @@ const nameOf = (testCase: JunitTestCase): Pick<UnknownRef, "testCase" | "classNa
 const valuesOf = (testCase: JunitTestCase, name: string): string[] =>
   testCase.properties.filter((p) => p.name === name).map((p) => p.value.trim());
 
-/** Why an existing `logreq:variant` does not fit (enrich writes none, S2), or undefined. */
+/** Why an existing `reqseq:variant` does not fit (enrich writes none, S2), or undefined. */
 const variantProblem = (testCase: JunitTestCase): string | undefined => {
   const variants = valuesOf(testCase, VARIANT);
   const wrong = variants.find((v) => !isUuidText(v));

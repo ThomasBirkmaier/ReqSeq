@@ -559,7 +559,7 @@ describe("the reference to an element", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see [The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`see [The title](reqseq:${target.id})`);
     expect(view.state.selection.main.head).toBe(doc(view).length);
     expect(focus).toHaveBeenCalled();
   });
@@ -569,7 +569,7 @@ describe("the reference to an element", () => {
     act(() => {
       request.insert({ ...target, repository: "other" });
     });
-    expect(doc(view)).toBe(`[SR-5555](logreq:${target.id}?version=&repository=other)`);
+    expect(doc(view)).toBe(`[SR-5555](reqseq:${target.id}?version=&repository=other)`);
   });
 
   it("[SR-129/AK4] follows the / when the text before it changed while the question was open", async () => {
@@ -580,7 +580,7 @@ describe("the reference to an element", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`>> see [The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`>> see [The title](reqseq:${target.id})`);
   });
 
   it("[SR-129/AK4] writes at the caret when the / and its query are gone", async () => {
@@ -591,7 +591,7 @@ describe("the reference to an element", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see other[The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`see other[The title](reqseq:${target.id})`);
   });
 
   it("[SR-129/AK4] takes one undo step", async () => {
@@ -618,7 +618,7 @@ describe("the reference to an element", () => {
     act(() => {
       request.insert(target);
     });
-    expect(doc(view)).toBe(`see /ref[The title](logreq:${target.id})`);
+    expect(doc(view)).toBe(`see /ref[The title](reqseq:${target.id})`);
   });
 
   it("[SR-129/AK4] does nothing when the editor is gone", async () => {

@@ -7,7 +7,7 @@ import { parseFileBytes } from "../files/index.js";
 import { lineOf } from "./elements.js";
 import { frontmatterLines, textLineOf } from "./item-lines.js";
 
-const T = "{ id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: n1:4a120bac998acdc8 }";
+const T = "{ id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: n1:323df2732ed684b0 }";
 
 /** The file of `frontmatter` as the store parses it. */
 const parsed = (frontmatter: string): ParsedFile => {

@@ -151,7 +151,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
   it("a need whose only validation record has a variant is open, and the record stays visible in its hint (#534 Q2)", async () => {
     const record = [
       "---",
-      "logreq-record: 1",
+      "reqseq-record: 1",
       "kind: validation",
       `element: ${N4}`,
       "version: n1:0000000000000000",
@@ -172,7 +172,7 @@ describe("validation status in element.get, element.resolve, evidence.status and
     const current = String((await get(plain, N4)).element.version);
     const record = [
       "---",
-      "logreq-record: 1",
+      "reqseq-record: 1",
       "kind: validation",
       `element: ${N4}`,
       `version: ${current}`,

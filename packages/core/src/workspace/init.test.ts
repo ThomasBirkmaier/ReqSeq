@@ -31,7 +31,7 @@ describe("repositoryNameFor", () => {
 });
 
 describe("createWorkspace when the workspace file cannot be written", () => {
-  const model = { name: "standard-model.yaml", text: "logreq-metamodel: 1\n" };
+  const model = { name: "standard-model.yaml", text: "reqseq-metamodel: 1\n" };
 
   /** Lets the first `failAt - 1` writes through and fails the next one with `error`. */
   const failWrite = async (failAt: number, error: unknown): Promise<void> => {
@@ -53,7 +53,7 @@ describe("createWorkspace when the workspace file cannot be written", () => {
   };
 
   it("names the metamodel file that was written before, with the code of the failure", async () => {
-    await failWrite(2, new CommandError("file.read-only", "Not written: logreq-workspace.yaml is read-only"));
+    await failWrite(2, new CommandError("file.read-only", "Not written: reqseq-workspace.yaml is read-only"));
     const error = await createWorkspace(await folder(), { name: "W", metamodelFile: model }).catch(
       (e: unknown) => e,
     );
@@ -61,7 +61,7 @@ describe("createWorkspace when the workspace file cannot be written", () => {
     expect(error).toMatchObject({
       code: "file.read-only",
       message:
-        "Not written: logreq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running workspace.init again.",
+        "Not written: reqseq-workspace.yaml is read-only; metamodel/standard-model.yaml was written already and is left in place; remove it before running workspace.init again.",
       details: { written: ["metamodel/standard-model.yaml"] },
     });
   });

@@ -1,4 +1,4 @@
-logreq-version n1
+reqseq-version n1
 text
 "The images of this text pin the Markdown subset of normal form n1 (ADR-0005 \"Files\").\n\n<!-- HTML is not recognised, so this image counts: ![Hidden](SR-7a8b9c0d1e2f/comment.png) -->\n\nA paragraph line, so the next line is paragraph text and no definition:\n[para]: SR-7a8b9c0d1e2f/para.png\n\n![Para][para] ![Listed][list]\n\n- [list]: SR-7a8b9c0d1e2f/list(1).png\n\n- An item, so the next list item marker starts a new block:\n- [item]: SR-7a8b9c0d1e2f/item.png\n\n![Item][item]\n\n\t![Tab-indented code](SR-7a8b9c0d1e2f/tab.png)\n\n![Query and fragment](SR-7a8b9c0d1e2f/photo.png?size=2#top)\n![Escape](SR-7a8b9c0d1e2f/under\\_score.png)\n![Invalid percent-encoding](SR-7a8b9c0d1e2f/bad%zz.png)\n![Backslash](SR-7a8b9c0d1e2f\\none.png)\n![Trailing dot](SR-7a8b9c0d1e2f/dot.)\n![Trailing slash](SR-7a8b9c0d1e2f/photo.png/)\n![Control character](SR-7a8b9c0d1e2f/%01.png)\n![Own file](SR-7a8b9c0d1e2f.md)\n![Git](.git/config)"
 prop requirement-type

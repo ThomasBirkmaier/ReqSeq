@@ -34,7 +34,7 @@ const N = `${P}a0000000001`;
 const A = `${P}b0000000001`;
 const N_FILE = "needs/N-0a0000000001.md";
 const A_FILE = "requirements/SR-0b0000000001.md";
-const N_VERSION = "n1:4a120bac998acdc8";
+const N_VERSION = "n1:323df2732ed684b0";
 const STALE = 1000;
 
 /** fixtures/SR-025/outdated with N renamed and A deriving from N `STALE` times, each with the old title. */

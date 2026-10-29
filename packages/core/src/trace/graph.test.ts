@@ -34,7 +34,7 @@ const U1 = uuid(10);
 
 const workspaceFile = (repositories: readonly string[]): string =>
   [
-    "logreq-workspace: 1",
+    "reqseq-workspace: 1",
     "name: Trace",
     "repositories:",
     "  - { name: system, url: git@example.com:system.git, main: true }",
@@ -51,7 +51,7 @@ const element = (id: string, type: string, frontmatter: readonly string[] = [], 
   ["---", `id: ${id}`, `type: ${type}`, "status: draft", "title: T", ...frontmatter, "---", text].join("\n");
 
 const FILES = {
-  "system/logreq-workspace.yaml": workspaceFile([PLATFORM, AWAY]),
+  "system/reqseq-workspace.yaml": workspaceFile([PLATFORM, AWAY]),
   "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
   "system/needs/N-000000000001.md": element(N1, "need"),
   "system/needs/N-000000000002.md": element(N2, "need"),
@@ -67,7 +67,7 @@ const FILES = {
       // A replacement is no derivation, and neither is an inline reference (ADR-0004).
       `supersedes:\n  - { id: ${N2}, version: ${V}, title: T }`,
     ],
-    `See [the need](logreq:${N1}?version=${V}).\n`,
+    `See [the need](reqseq:${N1}?version=${V}).\n`,
   ),
   "system/requirements/SR-000000000004.md": element(S2, "system-requirement", [
     "derives-from:",
@@ -295,7 +295,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
   });
 
   it("is complete downwards when every repository of the workspace file is on this machine", async () => {
-    const workspace = await open({ ...FILES, "system/logreq-workspace.yaml": workspaceFile([PLATFORM]) });
+    const workspace = await open({ ...FILES, "system/reqseq-workspace.yaml": workspaceFile([PLATFORM]) });
     const r = await recordsOf(workspace);
     const graph = derivationGraph(await traceContext(workspace), "trace.chain");
     expect(childrenOf(graph, r(S1)).incomplete).toBe(false);
@@ -342,7 +342,7 @@ describe("derivation graph (D-012, SR-013, ADR-0004)", () => {
 
   it("stops at a cycle in the derivations and names it", async () => {
     const workspace = await open({
-      "system/logreq-workspace.yaml": workspaceFile([]),
+      "system/reqseq-workspace.yaml": workspaceFile([]),
       "system/metamodel/standard-model.yaml": STANDARD_MODEL_TEXT,
       // A derives from B, B from C and C from A.
       "system/requirements/SR-000000000001.md": element(N1, "system-requirement", [

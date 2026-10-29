@@ -35,10 +35,10 @@ type Name = keyof typeof ID;
 const NAME = new Map<string, Name>((Object.entries(ID) as [Name, string][]).map(([name, id]) => [id, name]));
 /** The current versions (the fixture's README). */
 const VERSION = {
-  a1: "n1:c2b89c0554cf891b",
-  b1: "n1:d7089e63fea26191",
-  b2: "n1:46f520a356e92a87",
-  b4: "n1:4e09d2361f4d1948",
+  a1: "n1:9d97d0ccf9b75591",
+  b1: "n1:697a2ad17ed49170",
+  b2: "n1:077d46fbf1a6a93d",
+  b4: "n1:1e68aa41d13d05b1",
 } as const;
 const OLD = "n1:0000000000000000";
 /** Store order: system (needs, packages, requirements, variants), then sensor. */
@@ -84,7 +84,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
   it("[SR-061/AK1] gives every element of both repositories with its properties, relations, version, verification status and validity", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace);
-    expect(out["logreq-data"]).toBe(2);
+    expect(out["reqseq-data"]).toBe(2);
     expect(out.workspace).toBe("Weather station");
     expect(names(out)).toEqual(ALL);
     const b1 = element(out, "b1");
@@ -275,11 +275,11 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
 
   it("exports a workspace whose metamodel is not valid: every requirement open, nothing at the top", async () => {
     const ws = await fixture();
-    await ws.write("system/metamodel/standard-model.yaml", "logreq-metamodel: 1\ntypes: [}\n");
+    await ws.write("system/metamodel/standard-model.yaml", "reqseq-metamodel: 1\ntypes: [}\n");
     const out = await exportOf(open(ws));
     expect(out.incomplete).toBe(false);
     expect(Object.keys(out)).toEqual([
-      "logreq-data",
+      "reqseq-data",
       "commit",
       "dirty",
       "workspace",
@@ -349,7 +349,7 @@ describe("data.export: only the selection (SR-061 AK2, SR-101)", () => {
     expect([faulty.code, faulty.details?.["files"]]).toEqual(["file.faulty", ["baselines/broken.yaml"]]);
     await ws.write(
       "system/baselines/copy.yaml",
-      "logreq-baseline: 1\nname: Release 1\ndate: 2026-10-24T09:00:00Z\n" +
+      "reqseq-baseline: 1\nname: Release 1\ndate: 2026-10-24T09:00:00Z\n" +
         "repositories:\n  - { name: system, commit: 61aa061aa061aa061aa061aa061aa061aa061aa0 }\nelements: []\n",
     );
     const twice = await failure(workspace, { selection: { baseline: "Release 1" } });

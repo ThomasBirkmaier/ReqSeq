@@ -53,8 +53,8 @@ type Metamodel = CommandOutput<"metamodel.get">;
 const standardModel = async (): Promise<Metamodel> => {
   const fixture = await createFixtureWorkspace({
     files: {
-      "logreq-workspace.yaml":
-        'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
       "metamodel/standard-model.yaml": await fsp.readFile(defaultStandardModelFile, "utf8"),
     },
   });
@@ -276,7 +276,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     const { size } = await fsp.stat(file);
     expect(size).toBe(indentedBytes + 1);
     const { head, tail } = await edges(file, 21);
-    expect(head).toBe('{\n  "logreq-data": 2,');
+    expect(head).toBe('{\n  "reqseq-data": 2,');
     expect(tail.endsWith("\n}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
@@ -312,7 +312,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     }
     expect(breaks).toBe(lineCount);
     const { head, tail } = await edges(file, 17);
-    expect(head).toBe('{"logreq-data":2,');
+    expect(head).toBe('{"reqseq-data":2,');
     expect(tail.endsWith("}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
@@ -423,7 +423,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       );
       expect(reply.status).toBe(200);
       expect(reply.bytes).toBe(compactBytes + 1);
-      expect(reply.head).toBe('{"logreq-data":2,');
+      expect(reply.head).toBe('{"reqseq-data":2,');
       expect(reply.tail.endsWith("}\n")).toBe(true);
       await recordValue(
         `POST data.export over the local API at N-036: ${(reply.bytes / MB).toFixed(0)} MB`,
@@ -454,7 +454,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(run.code).toBe(0);
     const { answer } = run;
     expect(answer.head).toContain(JSON.stringify(largeOutputNote(MAX_TEXT_BYTES)));
-    expect(answer.head).toContain('"structuredContent":{"logreq-data":2,');
+    expect(answer.head).toContain('"structuredContent":{"reqseq-data":2,');
     expect(answer.tail.endsWith("}")).toBe(true);
     // The structured content is the compact export; the envelope and the note add less than 1 KB.
     expect(answer.bytes).toBeGreaterThan(compactBytes);

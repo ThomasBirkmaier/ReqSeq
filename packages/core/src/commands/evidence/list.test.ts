@@ -162,14 +162,14 @@ describe("evidence.list (SR-032)", () => {
     expect(named(await list(workspace, { ref: A1 }))[0]).toEqual(["build-512", V3, []]);
     await ws.write(
       "baselines/release-1.2.yaml",
-      "logreq-baseline: 1\nname: Release 1.2\ndate: 2026-10-25T09:00:00Z\nrepositories:\n" +
+      "reqseq-baseline: 1\nname: Release 1.2\ndate: 2026-10-25T09:00:00Z\nrepositories:\n" +
         "  - { name: system, commit: 4abcdef04abcdef04abcdef04abcdef04abcdef0 }\nelements:\n" +
         `  - { id: ${A1}, version: ${V3} }\n`,
     );
     await rm(ws.path("baselines/beta.yaml"));
     await ws.write(
       "baselines/release-1.1.yaml",
-      "logreq-baseline: 1\nname: Release 1.1 (rebuilt)\ndate: 2026-10-15T09:00:00Z\nrepositories:\n" +
+      "reqseq-baseline: 1\nname: Release 1.1 (rebuilt)\ndate: 2026-10-15T09:00:00Z\nrepositories:\n" +
         "  - { name: system, commit: 3abcdef03abcdef03abcdef03abcdef03abcdef0 }\nelements: []\n",
     );
     expect(named(await list(workspace, { ref: A1 }))).toEqual([
@@ -182,7 +182,7 @@ describe("evidence.list (SR-032)", () => {
 
   it("[SR-032/AK2] lists a faulty baseline file as a problem and names no baseline from it", async () => {
     const ws = await fixture({
-      "baselines/broken.yaml": `logreq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements:\n  - { id: ${A1}, version: ${V1} }\n`,
+      "baselines/broken.yaml": `reqseq-baseline: 1\ndate: 2026-10-01T09:00:00Z\nrepositories: []\nelements:\n  - { id: ${A1}, version: ${V1} }\n`,
     });
     const output = await list(await open(ws), { ref: A1 });
     expect(named(output).at(-1)).toEqual(["Display sample B2", V1, ["Beta", "Release 1.0"]]);
@@ -212,13 +212,13 @@ describe("evidence.list (SR-032)", () => {
 
   it("marks the list incomplete when an evidence location or the baselines folder is not on this machine (SR-006 AK2)", async () => {
     const vault =
-      "logreq-workspace: 1\nname: Weather station\nrepositories:\n" +
+      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
       '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
       '  - { name: vault, url: "git@git.example.com:ws/vault.git", path: ../vault }\n' +
       "metamodel: { repository: system, path: metamodel }\n";
     const baselinesAway = await open(
       await fixture({
-        "logreq-workspace.yaml": `${vault}baselines: { repository: vault, path: baselines }\n`,
+        "reqseq-workspace.yaml": `${vault}baselines: { repository: vault, path: baselines }\n`,
       }),
     );
     expect(await list(baselinesAway, { ref: A2 })).toEqual({
@@ -228,7 +228,7 @@ describe("evidence.list (SR-032)", () => {
       incomplete: true,
     });
     const ws = await fixture({
-      "logreq-workspace.yaml": `${vault}evidence:\n  - { repository: vault, path: evidence }\n`,
+      "reqseq-workspace.yaml": `${vault}evidence:\n  - { repository: vault, path: evidence }\n`,
     });
     const workspace = new Workspace(ws.root);
     onTestFinished(() => workspace.close());

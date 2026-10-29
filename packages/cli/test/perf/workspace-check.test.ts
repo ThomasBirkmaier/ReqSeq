@@ -40,7 +40,7 @@ const OLD_VERSION: VersionFunction = () => "n1:0000000000000000";
 const storedVersions = (files: ReadonlyMap<string, string>): number => {
   let count = 0;
   for (const content of files.values()) {
-    count += [...content.matchAll(/\{ id: [0-9a-f-]{36}, version: |\(logreq:[0-9a-f-]{36}\?version=/g)]
+    count += [...content.matchAll(/\{ id: [0-9a-f-]{36}, version: |\(reqseq:[0-9a-f-]{36}\?version=/g)]
       .length;
   }
   return count;
@@ -52,8 +52,8 @@ type Metamodel = CommandOutput<"metamodel.get">;
 const standardModel = async (): Promise<Metamodel> => {
   const fixture = await createFixtureWorkspace({
     files: {
-      "logreq-workspace.yaml":
-        'logreq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
+      "reqseq-workspace.yaml":
+        'reqseq-workspace: 1\nname: Model\nrepositories:\n  - { name: system, url: "x" }\nmetamodel: { repository: system, path: metamodel }\n',
       "metamodel/standard-model.yaml": await fs.readFile(defaultStandardModelFile, "utf8"),
     },
   });

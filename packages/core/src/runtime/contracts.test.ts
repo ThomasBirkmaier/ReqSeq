@@ -156,7 +156,7 @@ describe("fileSchemaValidator", () => {
     const validate = fileSchemaValidator("workspace.schema.json");
     expect(fileSchemaValidator("workspace.schema.json")).toBe(validate);
     const file = {
-      "logreq-workspace": 1,
+      "reqseq-workspace": 1,
       name: "W",
       repositories: [{ name: "w", url: "u" }],
       metamodel: { repository: "w", path: "model" },

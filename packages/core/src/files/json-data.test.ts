@@ -7,7 +7,7 @@ const MIB = 1024 * 1024;
 const bytes = (text: string): Buffer => Buffer.from(text, "utf8");
 /** A framed file of `size` bytes: the frame around a string of `fill` (one byte each). */
 const framed = (size: number, fill = "a"): Buffer => {
-  const head = '{"logreq-data":2,"x":"';
+  const head = '{"reqseq-data":2,"x":"';
   const tail = '"}\n';
   return bytes(`${head}${fill.repeat(size - head.length - tail.length)}${tail}`);
 };
@@ -22,12 +22,12 @@ const EMOJI = [0xf0, 0x9f, 0x98, 0x80];
 
 describe("jsonDataKind: whether a JSON file is a ReqSeq data file", () => {
   it("parses a file up to the bound whole: data, other JSON or faulty", () => {
-    expect(jsonDataKind(bytes('{"logreq-data":2}\n'))).toBe("data");
-    expect(jsonDataKind(bytes('{"logreq-data":2,"x":[1]}'), 100)).toBe("data");
-    for (const text of ['{"logreq-data":1}', "[1]", "null", "1", '"logreq-data"', "﻿{}"]) {
+    expect(jsonDataKind(bytes('{"reqseq-data":2}\n'))).toBe("data");
+    expect(jsonDataKind(bytes('{"reqseq-data":2,"x":[1]}'), 100)).toBe("data");
+    for (const text of ['{"reqseq-data":1}', "[1]", "null", "1", '"reqseq-data"', "﻿{}"]) {
       expect([text, jsonDataKind(bytes(text))]).toEqual([text, "json"]);
     }
-    for (const text of ["not json", "{", '{"logreq-data":2,']) {
+    for (const text of ["not json", "{", '{"reqseq-data":2,']) {
       expect([text, jsonDataKind(bytes(text))]).toEqual([text, "faulty"]);
     }
     expect(jsonDataKind(Buffer.from([0x7b, 0xff, 0x7d]))).toBe("faulty");
@@ -43,7 +43,7 @@ describe("jsonDataKind: whether a JSON file is a ReqSeq data file", () => {
     expect(jsonDataKind(withBytes(large, 0, [0x5b]), 1000)).toBe("unchecked");
     expect(jsonDataKind(withBytes(large, large.length - 1, [0x78]), 1000)).toBe("unchecked");
     expect(jsonDataKind(withBytes(large, large.length - 2, [0x5d]), 1000)).toBe("unchecked");
-    expect(jsonDataKind(bytes('{"logreq-data":2}\n'), 10)).toBe("unchecked");
+    expect(jsonDataKind(bytes('{"reqseq-data":2}\n'), 10)).toBe("unchecked");
     // Invalid UTF-8 in the first and in the last MiB; in the middle it is not read.
     expect(jsonDataKind(withBytes(large, 100, [0xff]), 1000)).toBe("unchecked");
     expect(jsonDataKind(withBytes(large, large.length - 100, [0xc3]), 1000)).toBe("unchecked");
@@ -56,10 +56,10 @@ describe("jsonDataKind: whether a JSON file is a ReqSeq data file", () => {
   it("accepts a byte order mark and JSON whitespace in the frame, as the parse below the bound does (code review S2)", () => {
     const body = (start: string, end: string): Buffer => bytes(`${start}"x":"${"a".repeat(2 * MIB)}"${end}`);
     const layouts: readonly (readonly [string, string, string])[] = [
-      ["CRLF (a checkout with autocrlf)", '{"logreq-data":2,\r\n', "}\r\n"],
-      ["indent 2 (data export --json)", '{\n  "logreq-data": 2,\n  ', "\n}\n"],
-      ["byte order mark", '\ufeff{"logreq-data":2,', "}\n"],
-      ["spaces and tabs between every token, no final line break", ' \t{ "logreq-data" \t:\r\n 2 , ', " }"],
+      ["CRLF (a checkout with autocrlf)", '{"reqseq-data":2,\r\n', "}\r\n"],
+      ["indent 2 (data export --json)", '{\n  "reqseq-data": 2,\n  ', "\n}\n"],
+      ["byte order mark", '\ufeff{"reqseq-data":2,', "}\n"],
+      ["spaces and tabs between every token, no final line break", ' \t{ "reqseq-data" \t:\r\n 2 , ', " }"],
     ];
     for (const [name, start, end] of layouts) {
       const file = body(start, end);
@@ -67,14 +67,14 @@ describe("jsonDataKind: whether a JSON file is a ReqSeq data file", () => {
       expect([name, jsonDataKind(file, 4 * MIB)]).toEqual([name, "data"]);
     }
     for (const [name, start] of [
-      ["another value", '{"logreq-data":10,'],
-      ["no comma", '{"logreq-data":2 "x":1,'],
-      ["two byte order marks", '\ufeff\ufeff{"logreq-data":2,'],
-      ["another key first", '{"x":1,"logreq-data":2,'],
+      ["another value", '{"reqseq-data":10,'],
+      ["no comma", '{"reqseq-data":2 "x":1,'],
+      ["two byte order marks", '\ufeff\ufeff{"reqseq-data":2,'],
+      ["another key first", '{"x":1,"reqseq-data":2,'],
     ] as const) {
       expect([name, jsonDataKind(body(start, "}\n"), 1000)]).toEqual([name, "unchecked"]);
     }
-    expect(jsonDataKind(body('{"logreq-data":2,', "}\n,"), 1000)).toBe("unchecked");
+    expect(jsonDataKind(body('{"reqseq-data":2,', "}\n,"), 1000)).toBe("unchecked");
   });
 
   it("cuts the edges at a code-point boundary: a character across a MiB edge is valid (review N3)", () => {

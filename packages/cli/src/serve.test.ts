@@ -65,7 +65,7 @@ class Sink {
 let fixture: FixtureWorkspace;
 
 beforeEach(async () => {
-  fixture = await createFixtureWorkspace({ files: { "logreq-workspace.yaml": "logreq-workspace: 1\n" } });
+  fixture = await createFixtureWorkspace({ files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\n" } });
   // The cache folder of the OS user lands in the fixture on every OS.
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, fixture.path("home"));

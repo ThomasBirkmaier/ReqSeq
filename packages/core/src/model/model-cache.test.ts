@@ -35,7 +35,7 @@ import { elementStoreState, loadElements } from "./store.js";
 import { warmModel } from "./warm.js";
 
 const WORKSPACE =
-  "logreq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
+  "reqseq-workspace: 1\nname: W\nrepositories:\n  - { name: system, url: x }\nmetamodel: { repository: system, path: metamodel }\n";
 const ID_A = "0b0e6f6c-3c1f-4c55-9d0e-0c1d2e3f4a5b";
 const ID_B = "5f1c2a0e-8d4b-4b8e-a6f1-2b3c4d5e6f70";
 const ID_C = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
@@ -46,7 +46,7 @@ const element = (id: string, title: string, extra = ""): string =>
 
 /** Files of every kind a store holds: elements, a file that is not one, a faulty one, one without frontmatter. */
 const FILES: Readonly<Record<string, string>> = {
-  "logreq-workspace.yaml": WORKSPACE,
+  "reqseq-workspace.yaml": WORKSPACE,
   "requirements/a.md": element(ID_A, "Alpha"),
   "requirements/b.md": element(ID_B, "Bravo"),
   "requirements/c.md": element(ID_C, "Charlie"),
@@ -291,7 +291,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
   });
 
   it("keeps the cache while few files are out of date, and reads those again", async () => {
-    const files: Record<string, string> = { "logreq-workspace.yaml": WORKSPACE };
+    const files: Record<string, string> = { "reqseq-workspace.yaml": WORKSPACE };
     for (let i = 0; i < 150; i += 1) {
       files[`many/${String(i).padStart(3, "0")}.md`] = `---\nn: ${String(i)}\n---\n`;
     }
@@ -318,7 +318,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
     await age(ws);
     const cache = await tempFolder();
     await loadOnce(ws.root, cache);
-    await ws.write("logreq-workspace.yaml", WORKSPACE.replace("name: system", "name: main"));
+    await ws.write("reqseq-workspace.yaml", WORKSPACE.replace("name: system", "name: main"));
     const renamed = await loadOnce(ws.root, cache);
     expect(renamed.read).toHaveLength(7);
     expect(renamed.store).toStrictEqual(await fullRead(ws.root));
@@ -338,7 +338,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
     "leaves out an entry with %s and reads that file each time, exactly as a full read",
     async (_tag, extra) => {
       const ws = await fixture({
-        "logreq-workspace.yaml": WORKSPACE,
+        "reqseq-workspace.yaml": WORKSPACE,
         "requirements/a.md": element(ID_A, "Alpha", extra),
         "requirements/b.md": element(ID_B, "Bravo"),
       });
@@ -357,7 +357,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
 
   it("caches an alias used twice: both copies come back equal", async () => {
     const ws = await fixture({
-      "logreq-workspace.yaml": WORKSPACE,
+      "reqseq-workspace.yaml": WORKSPACE,
       "requirements/a.md": element(ID_A, "Alpha", "first: &x [1, 2]\nsecond: *x\n"),
     });
     await age(ws);
@@ -496,7 +496,7 @@ describe("model cache of the element store (ADR-0008, SR-082)", () => {
   });
 
   it("checks the files of a large repository in chunks", async () => {
-    const files: Record<string, string> = { "logreq-workspace.yaml": WORKSPACE };
+    const files: Record<string, string> = { "reqseq-workspace.yaml": WORKSPACE };
     for (let i = 0; i < 2_001; i += 1) {
       files[`many/${String(i).padStart(4, "0")}.md`] = `---\nn: ${String(i)}\n---\n`;
     }

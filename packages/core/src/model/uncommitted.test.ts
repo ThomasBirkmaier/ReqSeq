@@ -39,7 +39,7 @@ const layout = {
   main: "system",
   metamodel: { repository: "model", path: "meta/" },
   file: {
-    "logreq-workspace": 1,
+    "reqseq-workspace": 1,
     name: "W",
     repositories: [{ name: "system", url: "u", main: true }],
     filters: { repository: "system", path: "./saved" },
@@ -66,8 +66,8 @@ describe("stateRules and isStateFile (K2)", () => {
   });
 
   it("counts the workspace file of the main repository only", () => {
-    expect(isStateFile(system, "logreq-workspace.yaml")).toBe(true);
-    expect(isStateFile(model, "logreq-workspace.yaml")).toBe(false);
+    expect(isStateFile(system, "reqseq-workspace.yaml")).toBe(true);
+    expect(isStateFile(model, "reqseq-workspace.yaml")).toBe(false);
   });
 
   it("counts YAML files directly in the YAML folders, nothing else there", () => {
@@ -101,7 +101,7 @@ describe("stateRules and isStateFile (K2)", () => {
 
   it("lists the state files ReqSeq knows of, each once", () => {
     expect(stateFiles(system, ["a/b.md", "a/b.md"], ["saved/a.yaml", "saved/notes.txt"])).toEqual([
-      "logreq-workspace.yaml",
+      "reqseq-workspace.yaml",
       "saved/a.yaml",
       "a/b.md",
       "img/Ä.png",
@@ -230,7 +230,7 @@ describe("repositoryState", () => {
   });
 
   it("counts a new YAML file of a metamodel in the repository folder itself", async () => {
-    const ws = await fixture({ files: { "model.yaml": "logreq-metamodel: 1\n" }, git: true });
+    const ws = await fixture({ files: { "model.yaml": "reqseq-metamodel: 1\n" }, git: true });
     const rules = stateRules(
       { main: "w", metamodel: { repository: "w", path: "." }, file: {} } as unknown as Pick<
         WorkspaceLayout,

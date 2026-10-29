@@ -55,10 +55,10 @@ const layout = (sensorAvailable: boolean): { readonly repositories: readonly Rep
 describe("inline references with repository (D-058, decision on #177 (c))", () => {
   it("reads the version and the first repository parameter as written (an empty one as none), and the line of each link", () => {
     const text = [
-      `a [b](logreq:${A}?version=${V}&repository=sensor&repository=other)`,
+      `a [b](reqseq:${A}?version=${V}&repository=sensor&repository=other)`,
       "",
-      `[c](logreq:${B}) [d](logreq:${B}?repository=)`,
-      `[e](logreq:${A}?x=1)`,
+      `[c](reqseq:${B}) [d](reqseq:${B}?repository=)`,
+      `[e](reqseq:${A}?x=1)`,
     ].join("\n");
     expect(
       inlineReferences(text).map(({ id, version, repository, line }) => [id, version, repository, line]),
@@ -72,10 +72,10 @@ describe("inline references with repository (D-058, decision on #177 (c))", () =
 
   it("gives the references of a text with their lines in the file, and none for a text without reqseq links", () => {
     expect(
-      textReferences("id: x\ntype: y\n", `\nSee [a](logreq:${A}?version=${V}&repository=sensor).\n`),
+      textReferences("id: x\ntype: y\n", `\nSee [a](reqseq:${A}?version=${V}&repository=sensor).\n`),
     ).toEqual([{ id: A, version: V, repository: "sensor", line: 6 }]);
-    expect(textReferences("", `[a](logreq:${A})`)).toEqual([{ id: A, line: 3 }]);
-    expect(textReferences("id: x\n", "[a](https://example.com) and `logreq:` in code")).toEqual([]);
+    expect(textReferences("", `[a](reqseq:${A})`)).toEqual([{ id: A, line: 3 }]);
+    expect(textReferences("id: x\n", "[a](https://example.com) and `reqseq:` in code")).toEqual([]);
   });
 
   it("keeps the references of an element in its record, and none for a text without them", () => {
@@ -95,7 +95,7 @@ describe("inline references with repository (D-058, decision on #177 (c))", () =
       return classified.element;
     };
     expect(
-      parse(`---\nid: ${A}\ntype: need\n---\n\n[b](logreq:${B}?version=${V}&repository=sensor)\n`).references,
+      parse(`---\nid: ${A}\ntype: need\n---\n\n[b](reqseq:${B}?version=${V}&repository=sensor)\n`).references,
     ).toEqual([{ id: B, version: V, repository: "sensor", line: 6 }]);
     expect(Object.hasOwn(parse(`---\nid: ${A}\ntype: need\n---\nNo references.\n`), "references")).toBe(
       false,
@@ -178,14 +178,14 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
     }
     return classified.element;
   };
-  const link = `[b](logreq:${B}?version=${V})`;
+  const link = `[b](reqseq:${B}?version=${V})`;
   const marked = (...keys: string[]): Metamodel =>
     ({
       valid: true,
       properties: keys.map((key) => ({ key, name: key, kind: "text", markdown: true })),
     }) as unknown as Metamodel;
 
-  it("records a link in any string value of the frontmatter, in a list or alone, with its line, and none for a file without logreq: in it", () => {
+  it("records a link in any string value of the frontmatter, in a list or alone, with its line, and none for a file without reqseq: in it", () => {
     const record = element(
       [
         `title: See ${link}`,
@@ -195,12 +195,12 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
         "  - 5",
         "single: |",
         `  one ${link}`,
-        `  two [c](logreq:${A})`,
+        `  two [c](reqseq:${A})`,
         `folded: Alone ${link}`,
         "number: 1",
         "",
       ].join("\n"),
-      `Text with [c](logreq:${A}).\n`,
+      `Text with [c](reqseq:${A}).\n`,
     );
     expect(record.propertyReferences).toEqual([
       { id: B, version: V, line: 4, key: "title" },
@@ -211,9 +211,9 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
     ]);
     expect(record.references).toEqual([{ id: A, line: 15 }]);
     expect(
-      Object.hasOwn(element('a: "[x](https://example.com)"\n', `[c](logreq:${A})`), "propertyReferences"),
+      Object.hasOwn(element('a: "[x](https://example.com)"\n', `[c](reqseq:${A})`), "propertyReferences"),
     ).toBe(false);
-    expect(Object.hasOwn(element("a: 'logreq: no link'\n"), "propertyReferences")).toBe(false);
+    expect(Object.hasOwn(element("a: 'reqseq: no link'\n"), "propertyReferences")).toBe(false);
   });
 
   it("puts a link in a value whose key is written as an alias on line 1, as the line cannot be found", () => {
@@ -223,7 +223,7 @@ describe("references in the properties of the frontmatter (SR-127)", () => {
   });
 
   it("gives the references of the properties marked markdown, then those of the text, and the record's own list when no marked property holds a link", () => {
-    const record = element(`title: "${link}"\nnotes: "${link}"\nmore:\n  - "${link}"\n`, `[c](logreq:${A})`);
+    const record = element(`title: "${link}"\nnotes: "${link}"\nmore:\n  - "${link}"\n`, `[c](reqseq:${A})`);
     expect(referencesOf(record, marked("notes", "more")).map((r) => [r.key, r.item, r.id])).toEqual([
       ["notes", undefined, B],
       ["more", 0, B],

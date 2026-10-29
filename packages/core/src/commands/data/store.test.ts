@@ -130,7 +130,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     const out = await storeIn(root, { folder: "out" });
     expect(out).toEqual({ files: [`out/${commit}.json`], problems: [] });
     const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
-    expect(text.startsWith('{"logreq-data":2,')).toBe(true);
+    expect(text.startsWith('{"reqseq-data":2,')).toBe(true);
     expect(text.endsWith("}\n")).toBe(true);
     const data = JSON.parse(text) as Data;
     expect(timeless(data)).toEqual(timeless(await exportIn(root)));
@@ -333,7 +333,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     expect(await dirtyAfter(ws, () => undefined)).toBe(false);
     expect(
       await dirtyAfter(ws, () => {
-        append(ws, "logreq-workspace.yaml", "# changed\n");
+        append(ws, "reqseq-workspace.yaml", "# changed\n");
       }),
     ).toBe(true);
     expect(
@@ -356,7 +356,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
         append(ws, "README.md", "Changed.\n");
       }),
     ).toBe(true);
-    expect(await dirtyAfter(ws, () => ws.write("baselines/release-2.yml", "logreq-baseline: 1\n"))).toBe(
+    expect(await dirtyAfter(ws, () => ws.write("baselines/release-2.yml", "reqseq-baseline: 1\n"))).toBe(
       true,
     );
   });
@@ -450,7 +450,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "evidence/2026-10-20-SR-a1-test.md", "More.\n");
     });
     await unchanged(() => ws.write("evidence/ci/run.xml", "<testsuites/>\n"));
-    await unchanged(() => ws.write(".logreq/local.yaml", "logreq-local: 1\n"));
+    await unchanged(() => ws.write(".reqseq/local.yaml", "reqseq-local: 1\n"));
     await unchanged(() => {
       append(ws, "src/tool.py", "MORE = 2\n");
     });
@@ -458,7 +458,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "generated/notes.md", "More.\n");
     });
     await unchanged(() =>
-      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":2}\n'),
+      ws.write("out/0000000000000000000000000000000000000000.json", '{"reqseq-data":2}\n'),
     );
     await unchanged(() => ws.write("metamodel/extra.json", "{}\n"));
     await unchanged(() => ws.write("requirements/notes.MD", "Not an element file name.\n"));
@@ -579,8 +579,8 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     const json = await fixture({
       fixture: "SR-062/store",
       files: {
-        "logreq-workspace.yaml": fs
-          .readFileSync(ws.path("logreq-workspace.yaml"), "utf8")
+        "reqseq-workspace.yaml": fs
+          .readFileSync(ws.path("reqseq-workspace.yaml"), "utf8")
           .replace('  - "generated/**"', '  - "generated/**"\n  - "**/*.json"'),
       },
       git: true,
@@ -680,7 +680,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   it("replaces only a ReqSeq data file: another file of the name stays as it is", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    for (const text of ['{"logreq-data":1}', "[1]", "null", "not json", "﻿{}"]) {
+    for (const text of ['{"reqseq-data":1}', "[1]", "null", "not json", "﻿{}"]) {
       await ws.write(`out/${commit}.json`, text);
       const error = await failure(ws.root, { folder: "out" });
       expect([error.code, error.details]).toEqual([
@@ -701,7 +701,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     async () => {
       const ws = await fixture();
       const commit = await ws.head();
-      await ws.write(`out/${commit}.json`, '{"logreq-data":2}\n');
+      await ws.write(`out/${commit}.json`, '{"reqseq-data":2}\n');
       fs.chmodSync(ws.path(`out/${commit}.json`), 0o444);
       expect((await failure(ws.root, { folder: "out" })).code).toBe("file.read-only");
     },
@@ -761,7 +761,7 @@ describe("data.store: a file larger than one string (#277)", () => {
     const ws = await fixture();
     const commit = await ws.head();
     // The frame of a data file around bytes that are no JSON: above the bound only the frame counts.
-    const framed = `{"logreq-data":2,"elements":[${"x".repeat(300)}}\n`;
+    const framed = `{"reqseq-data":2,"elements":[${"x".repeat(300)}}\n`;
     const store = async (fullParseUpTo?: number): Promise<Output> => {
       const workspace = new Workspace(ws.root);
       try {
@@ -784,7 +784,7 @@ describe("data.store: a file larger than one string (#277)", () => {
     expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(framed);
     expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
     const text = fs.readFileSync(ws.path(`out/${commit}.json`), "utf8");
-    expect((JSON.parse(text) as Data)["logreq-data"]).toBe(2);
+    expect((JSON.parse(text) as Data)["reqseq-data"]).toBe(2);
     // The stored file is over the bound too, and is replaced again.
     expect(text.length).toBeGreaterThan(100);
     expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
@@ -817,7 +817,7 @@ describe("data.store: selection and read-only workspace", () => {
 
   it("data.store is refused with workspace.read-only while the metamodel is faulty", async () => {
     const ws = await fixture();
-    fs.writeFileSync(ws.path("metamodel/standard-model.yaml"), "logreq-metamodel: 1\ntypes: nope\n");
+    fs.writeFileSync(ws.path("metamodel/standard-model.yaml"), "reqseq-metamodel: 1\ntypes: nope\n");
     const error = await failure(ws.root, { folder: "out" });
     expect(error.code).toBe("workspace.read-only");
     expect(fs.existsSync(ws.path("out"))).toBe(false);
@@ -829,8 +829,8 @@ describe("data.store: nested repositories", () => {
     const ws = await fixture({
       fixture: "SR-062/store",
       files: {
-        "logreq-workspace.yaml":
-          'logreq-workspace: 1\nname: Nested\nrepositories:\n  - { name: system, url: "u", main: true }\n' +
+        "reqseq-workspace.yaml":
+          'reqseq-workspace: 1\nname: Nested\nrepositories:\n  - { name: system, url: "u", main: true }\n' +
           '  - { name: inner, url: "v", path: inner }\nmetamodel: { repository: system, path: metamodel }\n',
         "inner/requirements/SR-0000000000c1.md":
           "---\nid: 62062062-0000-4000-8000-0000000000c1\ntype: system-requirement\nstatus: draft\ntitle: Inner\n---\n",
