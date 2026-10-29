@@ -282,7 +282,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   // The runner copies the template with `fs.cp`, so every tracked file is stat-dirty: the content check
-  // (SR-062 K2, review S2) keeps the state clean, and the file is `<commit>.json`, not `-dirty`.
+  // (SR-062 K2, review S2) keeps the state clean, and the file is `<commit>.jsonl`, not `-dirty`.
   "data.store": [
     {
       name: "the whole workspace into out",
@@ -293,7 +293,7 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
       check: (results) => {
         const written = (results["core"]?.outcome as { output?: { files?: string[] } }).output?.files ?? [];
-        expect(written).toEqual([expect.stringMatching(/^out\/[0-9a-f]{40}\.json$/)]);
+        expect(written).toEqual([expect.stringMatching(/^out\/[0-9a-f]{40}\.jsonl$/)]);
       },
     },
   ],
@@ -2140,34 +2140,6 @@ const ACCESSES = ["core", "cli", "api", "mcp", "app"] as const;
  */
 const GENERATED_AT_TOP: ReadonlySet<string> = new Set(["data.export"]);
 
-/**
- * Commands that write a data file (`<commit>.json`, SR-062) with the time of the call at its top: the
- * top-level `generated` of each written `*.json` is checked as `GENERATED_AT_TOP` does and replaced by
- * `<generated>` in the text; every other byte of the file is compared.
- */
-const GENERATED_IN_FILES: ReadonlySet<string> = new Set(["data.store"]);
-
-/** `files` with the top-level `generated` of each LogReq data file replaced (see `GENERATED_IN_FILES`). */
-const filesWithoutGenerated = (
-  access: string,
-  files: Record<string, string>,
-  start: number,
-  end: number,
-): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(files).map(([name, text]) => {
-      if (!name.endsWith(".json") || !text.startsWith('{"logreq-data":2,')) {
-        return [name, text];
-      }
-      const { generated } = JSON.parse(text) as { generated?: unknown };
-      const outcome = withoutGenerated(access, { output: { generated } }, start, end);
-      expect(outcome).toEqual({ output: { generated: "<generated>" } });
-      const field = `"generated":${JSON.stringify(generated)}`;
-      expect([access, name, text.split(field).length]).toEqual([access, name, 2]);
-      return [name, text.replace(field, '"generated":"<generated>"')];
-    }),
-  );
-
 /** `outcome` with its top-level `generated` replaced, after checking it lies between `start` and `end` (ms). */
 const withoutGenerated = (access: string, outcome: Outcome, start: number, end: number): Outcome => {
   if (!("output" in outcome)) {
@@ -2214,10 +2186,8 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
               : await viaApp(root, entry, input);
     const end = Date.now();
     const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
-    const written = await filesOf(top);
-    const files = GENERATED_IN_FILES.has(entry.name)
-      ? filesWithoutGenerated(access, written, start, end)
-      : written;
+    // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
+    const files = await filesOf(top);
     const result = normalized({ outcome, files }, top) as Result;
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);

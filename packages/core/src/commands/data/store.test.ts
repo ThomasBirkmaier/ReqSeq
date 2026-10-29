@@ -11,11 +11,11 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import * as exportModule from "../../data/export.js";
-import { storeData } from "../../data/index.js";
+import { DATA_LINES } from "../../data/store.js";
 import * as files from "../../files/index.js";
 import * as reader from "../../git/reader.js";
-import { resolveSelection } from "../../query/index.js";
-import { fileSchemaValidator } from "../../runtime/contracts.js";
+import type { DataExportLine } from "../../generated/types.js";
+import { fileSchemaValidator, loadContracts } from "../../runtime/contracts.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 
@@ -45,6 +45,7 @@ const actual = await vi.importActual<typeof reader>("../../git/reader.js");
 
 type Output = CommandOutput<"data.store">;
 type Data = CommandOutput<"data.export">;
+type Line = DataExportLine;
 
 /** Symbolic links need a privilege on Windows. */
 const NO_LINKS = process.platform === "win32";
@@ -94,13 +95,35 @@ const failure = async (root: string, input: Readonly<Record<string, unknown>>): 
   return error as CommandError;
 };
 
-const readData = (file: string): Data => JSON.parse(fs.readFileSync(file, "utf8")) as Data;
-
-/** The data without the time of the call. */
-const timeless = (data: Data): Omit<Data, "generated"> => {
-  const { generated: _generated, ...rest } = data;
-  return rest;
+/** The lines of a stored file, parsed; the text ends with a line break (or is empty). */
+const readLines = (file: string): Line[] => {
+  const text = fs.readFileSync(file, "utf8");
+  expect(text === "" || text.endsWith("\n")).toBe(true);
+  return text === ""
+    ? []
+    : text
+        .slice(0, -1)
+        .split("\n")
+        .map((line) => JSON.parse(line) as Line);
 };
+
+/** The lines `data` gives: its state, then each element (SR-062 AK1, #319). */
+const linesOf = (data: Data): Line[] =>
+  data.elements.map((element) => ({
+    "logreq-data": 2,
+    ...(data.commit === undefined ? {} : { commit: data.commit }),
+    dirty: data.dirty,
+    ...element,
+  }));
+
+/** The state every line of a stored file carries: `[commit, dirty]` of each line, once when all agree. */
+const stateIn = (file: string): (readonly [string | undefined, boolean])[] => [
+  ...new Map(
+    readLines(file).map(
+      (l) => [`${String(l.commit)} ${String(l.dirty)}`, [l.commit, l.dirty] as const] as const,
+    ),
+  ).values(),
+];
 
 /** The names in `folder`, or undefined when it does not exist. */
 const namesIn = (folder: string): string[] | undefined =>
@@ -113,8 +136,8 @@ const dirtyAfter = async (ws: FixtureWorkspace, change: () => Promise<void> | vo
   await ws.git(["reset", "--hard", "-q"]);
   await ws.git(["clean", "-fdxq"]);
   const [file = ""] = out.files;
-  expect(file).toMatch(/^out\/[0-9a-f]{40}(-dirty)?\.json$/);
-  return file.endsWith("-dirty.json");
+  expect(file).toMatch(/^out\/[0-9a-f]{40}(-dirty)?\.jsonl$/);
+  return file.endsWith("-dirty.jsonl");
 };
 
 const append = (ws: FixtureWorkspace, file: string, text: string): void => {
@@ -122,41 +145,42 @@ const append = (ws: FixtureWorkspace, file: string, text: string): void => {
 };
 
 describe("data.store: the data of a state as a file named after its commit (SR-062 AK1)", () => {
-  it("[SR-062/AK1] writes the data of the state into the given folder as a JSON file named after the commit of the main repository", async () => {
+  it("[SR-062/AK1] writes the data of the state into the given folder as JSON Lines, one element per line, named after the commit of the main repository", async () => {
     const ws = await fixture(EXPORT);
     const root = ws.path("system");
     const commit = await ws.head("system");
     expect(fs.existsSync(ws.path("system/out"))).toBe(false);
     const out = await storeIn(root, { folder: "out" });
-    expect(out).toEqual({ files: [`out/${commit}.json`], problems: [] });
-    const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
-    expect(text.startsWith('{"logreq-data":2,')).toBe(true);
-    expect(text.endsWith("}\n")).toBe(true);
-    const data = JSON.parse(text) as Data;
-    expect(timeless(data)).toEqual(timeless(await exportIn(root)));
-    expect(data.repositories).toEqual([
-      { name: "system", available: true, commit, dirty: false },
-      { name: "sensor", available: true, commit: await ws.head("sensor"), dirty: false },
-    ]);
+    expect(out).toEqual({ files: [`out/${commit}.jsonl`], problems: [] });
+    const text = fs.readFileSync(ws.path(`system/out/${commit}.jsonl`), "utf8");
+    const exported = await exportIn(root);
+    // Byte for byte the lines of `data export --jsonl` (no line holds the time of the call).
+    const catalog = loadContracts().entry("data.export")?.jsonLines;
+    expect(catalog).toEqual(DATA_LINES);
+    expect(text).toBe([...files.jsonLines(exported, DATA_LINES)].join(""));
+    const lines = readLines(ws.path(`system/out/${commit}.jsonl`));
+    expect(lines).toHaveLength(exported.elements.length);
+    expect(lines).toEqual(linesOf(exported));
+    for (const line of text.slice(0, -1).split("\n")) {
+      expect(line.startsWith(`{"logreq-data":2,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
+    }
   });
 
-  it("[SR-062/AK1] names the file <commit>-dirty.json when an element file has uncommitted changes", async () => {
+  it("[SR-062/AK1] names the file <commit>-dirty.jsonl when an element file has uncommitted changes", async () => {
     const changed = await fixture();
     const commit = await changed.head();
     append(changed, "requirements/SR-0000000000a1.md", "More text.\n");
     expect(await storeIn(changed.root, { folder: "out" })).toEqual({
-      files: [`out/${commit}-dirty.json`],
+      files: [`out/${commit}-dirty.jsonl`],
       problems: [],
     });
-    expect(readData(changed.path(`out/${commit}-dirty.json`)).repositories).toEqual([
-      { name: "system", available: true, commit, dirty: true },
-    ]);
+    expect(stateIn(changed.path(`out/${commit}-dirty.jsonl`))).toEqual([[commit, true]]);
     const added = await fixture();
     await added.write(
       "requirements/SR-0000000000a3.md",
       "---\nid: 62062062-0000-4000-8000-0000000000a3\ntype: system-requirement\nstatus: draft\ntitle: New\n---\n",
     );
-    expect((await storeIn(added.root, { folder: "out" })).files).toEqual([`out/${commit}-dirty.json`]);
+    expect((await storeIn(added.root, { folder: "out" })).files).toEqual([`out/${commit}-dirty.jsonl`]);
   });
 
   it("[SR-062/AK1] a dirty second repository makes the file -dirty too", async () => {
@@ -164,26 +188,40 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     append(ws, "sensor/requirements/SR-0000000000e1.md", "Changed.\n");
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out" });
-    expect(out.files).toEqual([`out/${commit}-dirty.json`]);
-    expect(readData(ws.path(`system/out/${commit}-dirty.json`)).repositories.map((r) => r.dirty)).toEqual([
-      false,
-      true,
-    ]);
+    expect(out.files).toEqual([`out/${commit}-dirty.jsonl`]);
+    expect(stateIn(ws.path(`system/out/${commit}-dirty.jsonl`))).toEqual([[commit, true]]);
+    expect((await exportIn(ws.path("system"))).repositories.map((r) => r.dirty)).toEqual([false, true]);
   });
 
   it("[SR-062/AK1] a second run on the same commit replaces the file of that commit", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    const file = ws.path(`out/${commit}.json`);
+    const file = ws.path(`out/${commit}.jsonl`);
     await storeIn(ws.root, { folder: "out" });
-    const first = readData(file);
-    fs.writeFileSync(file, JSON.stringify({ ...first, generated: "2000-01-01T00:00:00Z" }));
+    const first = fs.readFileSync(file, "utf8");
+    // An older file of LogReq: its first line is enough (review PS3), also when a crash cut it.
+    const old = `{"logreq-data":2,"commit":"${commit}","dirty":false,"id":"older"}\n{"logreq-data":2,"ti`;
+    fs.writeFileSync(file, old);
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
-      files: [`out/${commit}.json`],
+      files: [`out/${commit}.jsonl`],
       problems: [],
     });
-    expect(namesIn(ws.path("out"))).toEqual([`${commit}.json`]);
-    expect(readData(file).generated).not.toBe("2000-01-01T00:00:00Z");
+    expect(namesIn(ws.path("out"))).toEqual([`${commit}.jsonl`]);
+    expect(fs.readFileSync(file, "utf8")).toBe(first);
+    // An empty file (a selection without elements) is LogReq's too.
+    fs.writeFileSync(file, "");
+    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
+    expect(fs.readFileSync(file, "utf8")).toBe(first);
+  });
+
+  it("[SR-062/AK1] leaves an old <commit>.json as it is and writes <commit>.jsonl next to it", async () => {
+    const ws = await fixture();
+    const commit = await ws.head();
+    const old = '{"logreq-data":1,"workspace":"W","elements":[]}\n';
+    await ws.write(`out/${commit}.json`, old);
+    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
+    expect(namesIn(ws.path("out"))).toEqual([`${commit}.json`, `${commit}.jsonl`]);
+    expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(old);
   });
 
   it("[SR-062/AK1] without a commit of the main repository nothing is written and git.unavailable is an error", async () => {
@@ -216,12 +254,15 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(fs.existsSync(empty.path("out"))).toBe(false);
   });
 
-  it("[SR-062/AK2] the stored file matches the shipped data-export.schema.json and names no path of this machine", async () => {
+  it("[SR-062/AK2] each line of the stored file matches $defs/line of the shipped data-export.schema.json, and it names no path of this machine", async () => {
     const ws = await fixture(EXPORT);
     const out = await storeIn(ws.path("system"), { folder: "out" });
-    const text = fs.readFileSync(ws.path(`system/${String(out.files[0])}`), "utf8");
-    const validate = fileSchemaValidator("data-export.schema.json");
-    expect([validate(JSON.parse(text)), validate.errors]).toEqual([true, null]);
+    const file = ws.path(`system/${String(out.files[0])}`);
+    const text = fs.readFileSync(file, "utf8");
+    const validate = fileSchemaValidator("data-export.schema.json#/$defs/line");
+    for (const line of readLines(file)) {
+      expect([line.id, validate(line), validate.errors]).toEqual([line.id, true, null]);
+    }
     expect(text).not.toContain(ws.root);
     expect(text).not.toContain(os.tmpdir());
   });
@@ -233,7 +274,7 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out" });
     expect(out).toEqual({
-      files: [`out/${commit}-dirty.json`],
+      files: [`out/${commit}-dirty.jsonl`],
       problems: [
         {
           code: "git.unavailable",
@@ -244,10 +285,7 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
         },
       ],
     });
-    expect(readData(ws.path(`system/out/${commit}-dirty.json`)).repositories).toEqual([
-      { name: "system", available: true, commit, dirty: false },
-      { name: "sensor", available: true },
-    ]);
+    expect(stateIn(ws.path(`system/out/${commit}-dirty.jsonl`))).toEqual([[commit, true]]);
   });
 
   it("names the file -dirty when Git refuses a second repository (safe.directory)", async () => {
@@ -262,7 +300,7 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
     });
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out" });
-    expect(out.files).toEqual([`out/${commit}-dirty.json`]);
+    expect(out.files).toEqual([`out/${commit}-dirty.jsonl`]);
     expect(out.problems).toEqual([
       {
         code: "git.unavailable",
@@ -274,13 +312,13 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
     ]);
   });
 
-  it("names the file -dirty when Git cannot tell the changes, with a warning, and no dirty in the file", async () => {
+  it("names the file -dirty when Git cannot tell the changes, with a warning, and dirty in every line", async () => {
     const ws = await fixture();
     const commit = await ws.head();
     vi.mocked(reader.changedPaths).mockResolvedValueOnce({ known: false, reason: "timeout", detail: "slow" });
     const out = await storeIn(ws.root, { folder: "out" });
     expect(out).toEqual({
-      files: [`out/${commit}-dirty.json`],
+      files: [`out/${commit}-dirty.jsonl`],
       problems: [
         {
           code: "git.unavailable",
@@ -291,9 +329,7 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
         },
       ],
     });
-    expect(readData(ws.path(`out/${commit}-dirty.json`)).repositories).toEqual([
-      { name: "system", available: true, commit },
-    ]);
+    expect(stateIn(ws.path(`out/${commit}-dirty.jsonl`))).toEqual([[commit, true]]);
     vi.mocked(reader.openObjectReader).mockImplementationOnce(() => ({
       info: () => Promise.resolve({ known: false, reason: "not-a-repository", detail: "broken" }),
       read: () => Promise.resolve({ known: false, reason: "not-a-repository", detail: "broken" }),
@@ -310,7 +346,7 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
     fs.rmSync(ws.path("sensor"), { recursive: true });
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out" });
-    expect(out.files).toEqual([`out/${commit}.json`]);
+    expect(out.files).toEqual([`out/${commit}.jsonl`]);
     expect(out.problems).toEqual([
       {
         code: "workspace.repository-missing",
@@ -318,12 +354,8 @@ describe("data.store: a second repository without a known commit (#531 Q2, revie
         message: "Repository sensor is not available locally",
       },
     ]);
-    const data = readData(ws.path(`system/out/${commit}.json`));
-    expect(data.incomplete).toBe(true);
-    expect(data.repositories).toEqual([
-      { name: "system", available: true, commit, dirty: false },
-      { name: "sensor", available: false },
-    ]);
+    // The lines tell no incompleteness (only the JSON form has `incomplete`); the info says it.
+    expect(stateIn(ws.path(`system/out/${commit}.jsonl`))).toEqual([[commit, false]]);
   });
 });
 
@@ -385,7 +417,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     ).toBe(true);
   });
 
-  it("keeps <commit>.json and dirty: false for a committed link to an embedded file that exists nowhere", async () => {
+  it("keeps <commit>.jsonl and dirty: false for a committed link to an embedded file that exists nowhere", async () => {
     const ws = await fixture({
       ...STORE,
       files: {
@@ -395,12 +427,10 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     });
     const commit = await ws.head();
     expect(await storeIn(ws.root, { folder: "out" })).toEqual({
-      files: [`out/${commit}.json`],
+      files: [`out/${commit}.jsonl`],
       problems: [],
     });
-    expect(readData(ws.path(`out/${commit}.json`)).repositories).toEqual([
-      { name: "system", available: true, commit, dirty: false },
-    ]);
+    expect(stateIn(ws.path(`out/${commit}.jsonl`))).toEqual([[commit, false]]);
     // Once the image is there, it is an uncommitted change.
     expect(
       await dirtyAfter(ws, () => {
@@ -427,7 +457,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     await ws.write("requirements/SR-a3/shot.local.png", "shot");
     await ws.commit();
     const out = await storeIn(ws.root, { folder: "out" });
-    expect(out.files).toEqual([`out/${await ws.head()}-dirty.json`]);
+    expect(out.files).toEqual([`out/${await ws.head()}-dirty.jsonl`]);
   });
 
   it.skipIf(NO_LINKS)("counts a link where the commit has a file with the same content", async () => {
@@ -441,7 +471,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     ).toBe(true);
   });
 
-  it("does not count evidence records, the local file, code, ignored Markdown and stored JSON files", async () => {
+  it("does not count evidence records, the local file, code, ignored Markdown and stored data files", async () => {
     const ws = await fixture();
     const unchanged = async (change: () => Promise<void> | void): Promise<void> => {
       expect(await dirtyAfter(ws, change)).toBe(false);
@@ -458,7 +488,10 @@ describe("data.store: which changes make the state dirty (K2)", () => {
       append(ws, "generated/notes.md", "More.\n");
     });
     await unchanged(() =>
-      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":2}\n'),
+      ws.write("out/0000000000000000000000000000000000000000.jsonl", '{"logreq-data":2,"dirty":false}\n'),
+    );
+    await unchanged(() =>
+      ws.write("out/0000000000000000000000000000000000000000.json", '{"logreq-data":1}\n'),
     );
     await unchanged(() => ws.write("metamodel/extra.json", "{}\n"));
     await unchanged(() => ws.write("requirements/notes.MD", "Not an element file name.\n"));
@@ -469,14 +502,14 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     const copy = path.join(tempFolder(), "copy");
     fs.cpSync(ws.root, copy, { recursive: true });
     const commit = await ws.head();
-    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}.json`]);
-    expect(readData(path.join(copy, `out/${commit}.json`)).repositories[0]?.dirty).toBe(false);
+    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
+    expect(stateIn(path.join(copy, `out/${commit}.jsonl`))).toEqual([[commit, false]]);
     const element = path.join(copy, "requirements/SR-0000000000a1.md");
     const later = new Date(Date.now() + 60_000);
     fs.utimesSync(element, later, later);
-    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}.json`]);
+    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
     fs.writeFileSync(element, fs.readFileSync(element, "utf8").replace("Show", "Shew"));
-    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}-dirty.json`]);
+    expect((await storeIn(copy, { folder: "out" })).files).toEqual([`out/${commit}-dirty.jsonl`]);
   });
 
   it("does not count a state file committed in NFD and checked out in NFC", async () => {
@@ -488,7 +521,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     if (fs.existsSync(ws.path(nfd)) && !fs.existsSync(ws.path(nfc))) {
       fs.renameSync(ws.path(nfd), ws.path(nfc));
     }
-    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.json`]);
+    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
   });
 
   it("leaves .git as it was on a copied work tree: the diff and the object round write nothing (D-036)", async () => {
@@ -514,7 +547,7 @@ describe("data.store: which changes make the state dirty (K2)", () => {
     const ws = await fixture({ fixture: "SR-062/subfolder", git: true });
     const commit = await ws.head();
     expect(await storeIn(ws.path("spec"), { folder: "out" })).toEqual({
-      files: [`out/${commit}.json`],
+      files: [`out/${commit}.jsonl`],
       problems: [],
     });
   });
@@ -555,25 +588,25 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       fs.symlinkSync(outside, ws.path("away"));
       const commit = await ws.head();
       expect(await storeIn(ws.root, { folder: "away" })).toEqual({
-        files: [path.join(ws.root, "away", `${commit}.json`)],
+        files: [path.join(ws.root, "away", `${commit}.jsonl`)],
         problems: [],
       });
-      expect(namesIn(outside)).toEqual([`${commit}.json`]);
+      expect(namesIn(outside)).toEqual([`${commit}.jsonl`]);
       fs.mkdirSync(path.join(outside, ".git", "x"), { recursive: true });
       fs.symlinkSync(path.join(outside, ".git", "x"), ws.path("into-git"));
       const error = await failure(ws.root, { folder: "into-git" });
       expect([error.code, error.details]).toEqual([
         "input.invalid",
-        { file: `${commit}.json`, reason: "git-folder" },
+        { file: `${commit}.jsonl`, reason: "git-folder" },
       ]);
     },
   );
 
-  it("writes into an ignored folder, which it creates, and under an ignore glob for *.json (review S1)", async () => {
+  it("writes into an ignored folder, which it creates, and under an ignore glob for *.jsonl (review S1)", async () => {
     const ws = await fixture();
     const commit = await ws.head();
     expect(await storeIn(ws.root, { folder: "generated/out" })).toEqual({
-      files: [`generated/out/${commit}.json`],
+      files: [`generated/out/${commit}.jsonl`],
       problems: [],
     });
     const json = await fixture({
@@ -581,25 +614,23 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       files: {
         "logreq-workspace.yaml": fs
           .readFileSync(ws.path("logreq-workspace.yaml"), "utf8")
-          .replace('  - "generated/**"', '  - "generated/**"\n  - "**/*.json"'),
+          .replace('  - "generated/**"', '  - "generated/**"\n  - "**/*.jsonl"'),
       },
       git: true,
     });
-    expect((await storeIn(json.root, { folder: "out" })).files).toEqual([`out/${await json.head()}.json`]);
+    expect((await storeIn(json.root, { folder: "out" })).files).toEqual([`out/${await json.head()}.jsonl`]);
   });
 
   it("writes into the repository folder itself and into an existing folder outside every repository, which it names absolute", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    expect((await storeIn(ws.root, { folder: "." })).files).toEqual([`${commit}.json`]);
+    expect((await storeIn(ws.root, { folder: "." })).files).toEqual([`${commit}.jsonl`]);
     const outside = tempFolder();
     expect(await storeIn(ws.root, { folder: outside })).toEqual({
-      files: [path.join(outside, `${commit}.json`)],
+      files: [path.join(outside, `${commit}.jsonl`)],
       problems: [],
     });
-    expect(timeless(readData(path.join(outside, `${commit}.json`)))).toEqual(
-      timeless(await exportIn(ws.root)),
-    );
+    expect(readLines(path.join(outside, `${commit}.jsonl`))).toEqual(linesOf(await exportIn(ws.root)));
   });
 
   it("refuses a missing folder outside, a path through a file outside and a folder in .git outside", async () => {
@@ -680,19 +711,38 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   it("replaces only a LogReq data file: another file of the name stays as it is", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    for (const text of ['{"logreq-data":1}', "[1]", "null", "not json", "﻿{}"]) {
-      await ws.write(`out/${commit}.json`, text);
+    // Not LogReq's: the old JSON form of version 1, another first line, a byte order mark, a first key
+    // other than logreq-data, a first line that is cut.
+    for (const text of [
+      '{"logreq-data":1}\n',
+      '{"logreq-data":1,"workspace":"W","elements":[]}\n',
+      "[1]\n",
+      "null\n",
+      "not json\n",
+      '\ufeff{"logreq-data":2}\n',
+      '{"id":"a","logreq-data":2}\n',
+      '{"logreq-data":2,"id"',
+    ]) {
+      await ws.write(`out/${commit}.jsonl`, text);
       const error = await failure(ws.root, { folder: "out" });
       expect([error.code, error.details]).toEqual([
         "input.invalid",
-        { file: `${commit}.json`, reason: "not-a-data-file" },
+        { file: `${commit}.jsonl`, reason: "not-a-data-file" },
       ]);
-      expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(text);
+      expect(fs.readFileSync(ws.path(`out/${commit}.jsonl`), "utf8")).toBe(text);
     }
-    await ws.write(`out/${commit}.json`, Buffer.from([0x7b, 0xff, 0x7d]));
+    // Broken UTF-8 after a first line of LogReq: anything but a cut at the end.
+    await ws.write(
+      `out/${commit}.jsonl`,
+      Buffer.concat([
+        Buffer.from('{"logreq-data":2,"dirty":false}\n{"t":"'),
+        Buffer.from([0xff]),
+        Buffer.from('"}\n'),
+      ]),
+    );
     expect((await failure(ws.root, { folder: "out" })).code).toBe("input.invalid");
-    fs.rmSync(ws.path(`out/${commit}.json`));
-    fs.mkdirSync(ws.path(`out/${commit}.json`));
+    fs.rmSync(ws.path(`out/${commit}.jsonl`));
+    fs.mkdirSync(ws.path(`out/${commit}.jsonl`));
     expect((await failure(ws.root, { folder: "out" })).code).toBe("file.faulty");
   });
 
@@ -701,8 +751,8 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     async () => {
       const ws = await fixture();
       const commit = await ws.head();
-      await ws.write(`out/${commit}.json`, '{"logreq-data":2}\n');
-      fs.chmodSync(ws.path(`out/${commit}.json`), 0o444);
+      await ws.write(`out/${commit}.jsonl`, '{"logreq-data":2,"dirty":false}\n');
+      fs.chmodSync(ws.path(`out/${commit}.jsonl`), 0o444);
       expect((await failure(ws.root, { folder: "out" })).code).toBe("file.read-only");
     },
   );
@@ -717,7 +767,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       });
       const error = await failure(ws.root, { folder: "out" });
       expect([error.code, (error.details as { rule?: string }).rule]).toEqual(["input.invalid", "link"]);
-      expect(namesIn(ws.path("requirements"))).not.toContain(`${await ws.head()}.json`);
+      expect(namesIn(ws.path("requirements"))).not.toContain(`${await ws.head()}.jsonl`);
     },
   );
 
@@ -742,72 +792,53 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   });
 });
 
-describe("data.store: a file larger than one string (#277)", () => {
-  it("[SR-062/AK1] writes the bytes of JSON.stringify and a line break, in chunks given lazily (review S6)", async () => {
+describe("data.store: a file larger than one string (#277, #319)", () => {
+  it("[SR-062/AK1] writes the lines of jsonLines, in chunks given lazily (review S6)", async () => {
     const ws = await fixture(EXPORT);
     const commit = await ws.head("system");
     vi.mocked(files.writeFileAtomic).mockClear();
     vi.mocked(exportModule.exportDataWithProblems).mockClear();
     await storeIn(ws.path("system"), { folder: "out" });
-    const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
+    const text = fs.readFileSync(ws.path(`system/out/${commit}.jsonl`), "utf8");
     const built = (await vi.mocked(exportModule.exportDataWithProblems).mock.results[0]
       ?.value) as exportModule.ExportWithProblems;
-    expect(text).toBe(`${JSON.stringify(built.data)}\n`);
-    const content = vi.mocked(files.writeFileAtomic).mock.calls[0]?.[2];
-    expect(typeof content).toBe("function");
+    expect(text).toBe(
+      linesOf(built.data)
+        .map((line) => `${JSON.stringify(line)}\n`)
+        .join(""),
+    );
+    const call = vi.mocked(files.writeFileAtomic).mock.calls[0];
+    expect(typeof call?.[2]).toBe("function");
+    expect(call?.[4]).toEqual({ kind: "jsonl" });
   });
 
-  it("replaces a data file over the bound by its frame, which the guard and the refusal check alike (review B1)", async () => {
+  it("writes an empty file for a selection without elements, and replaces it", async () => {
     const ws = await fixture();
     const commit = await ws.head();
-    // The frame of a data file around bytes that are no JSON: above the bound only the frame counts.
-    const framed = `{"logreq-data":2,"elements":[${"x".repeat(300)}}\n`;
-    const store = async (fullParseUpTo?: number): Promise<Output> => {
-      const workspace = new Workspace(ws.root);
-      try {
-        const selected = await resolveSelection(workspace, {}, "data.store", { baseline: true });
-        return await storeData(
-          workspace,
-          selected,
-          { folder: "out" },
-          fullParseUpTo === undefined ? {} : { fullParseUpTo },
-        );
-      } finally {
-        await workspace.close();
-      }
-    };
-    await ws.write(`out/${commit}.json`, framed);
-    await expect(store()).rejects.toMatchObject({
-      code: "input.invalid",
-      details: { reason: "not-a-data-file" },
-    });
-    expect(fs.readFileSync(ws.path(`out/${commit}.json`), "utf8")).toBe(framed);
-    expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
-    const text = fs.readFileSync(ws.path(`out/${commit}.json`), "utf8");
-    expect((JSON.parse(text) as Data)["logreq-data"]).toBe(2);
-    // The stored file is over the bound too, and is replaced again.
-    expect(text.length).toBeGreaterThan(100);
-    expect(await store(100)).toEqual({ files: [`out/${commit}.json`], problems: [] });
+    const none = { folder: "out", selection: { ids: [] } };
+    const selected = await storeIn(ws.root, none);
+    expect(selected.files).toEqual([`out/${commit}.jsonl`]);
+    expect(fs.readFileSync(ws.path(`out/${commit}.jsonl`), "utf8")).toBe("");
+    expect((await storeIn(ws.root, none)).files).toEqual([`out/${commit}.jsonl`]);
   });
 });
 
 describe("data.store: selection and read-only workspace", () => {
-  it("stores a package selection with the selection in the file and the same name", async () => {
+  it("stores a package selection under the same name", async () => {
     const ws = await fixture(EXPORT);
     const commit = await ws.head("system");
     const out = await storeIn(ws.path("system"), { folder: "out", selection: { package: "PKG-0000d1" } });
-    expect(out.files).toEqual([`out/${commit}.json`]);
-    const data = readData(ws.path(`system/out/${commit}.json`));
-    expect(data.selection).toEqual({ package: "PKG-0000d1" });
-    expect(data.elements.map((e) => e.id.slice(-2))).toEqual(["b1", "b2"]);
+    expect(out.files).toEqual([`out/${commit}.jsonl`]);
+    const lines = readLines(ws.path(`system/out/${commit}.jsonl`));
+    expect(lines.map((e) => e.id.slice(-2))).toEqual(["b1", "b2"]);
   });
 
   it("takes selection.baseline (SR-061 AK2), which element.list still refuses", async () => {
     const ws = await fixture(EXPORT);
     const root = ws.path("system");
     const out = await storeIn(root, { folder: "out", selection: { baseline: "release-1" } });
-    const data = readData(path.join(root, String(out.files[0])));
-    expect(data.elements.map((e) => e.id.slice(-2))).toEqual(["a1", "b1", "b3"]);
+    const lines = readLines(path.join(root, String(out.files[0])));
+    expect(lines.map((e) => e.id.slice(-2))).toEqual(["a1", "b1", "b3"]);
     const workspace = new Workspace(root);
     onTestFinished(() => workspace.close());
     await expect(
@@ -839,8 +870,9 @@ describe("data.store: nested repositories", () => {
     });
     const commit = await ws.head();
     const out = await storeIn(ws.root, { folder: "inner/out" });
-    expect(out).toEqual({ files: [`inner/out/${commit}.json`], problems: [] });
-    expect(readData(ws.path(`inner/out/${commit}.json`)).repositories).toEqual([
+    expect(out).toEqual({ files: [`inner/out/${commit}.jsonl`], problems: [] });
+    expect(stateIn(ws.path(`inner/out/${commit}.jsonl`))).toEqual([[commit, false]]);
+    expect((await exportIn(ws.root)).repositories).toEqual([
       { name: "system", available: true, commit, dirty: false },
       { name: "inner", available: true, commit, dirty: false },
     ]);
@@ -859,6 +891,6 @@ describe("data.store: nested repositories", () => {
     await ws.git(["init", "-q"]);
     await ws.write(".gitignore", "vendored/\n");
     const commit = await ws.commit();
-    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.json`]);
+    expect((await storeIn(ws.root, { folder: "out" })).files).toEqual([`out/${commit}.jsonl`]);
   });
 });

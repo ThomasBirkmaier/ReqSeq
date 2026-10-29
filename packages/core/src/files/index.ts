@@ -18,6 +18,7 @@ export {
   readElementFiles,
   readFileSha256,
   readFileSnapshot,
+  readJsonlSnapshot,
   readFileStat,
   readYamlFile,
 } from "./read.js";
@@ -29,6 +30,7 @@ export type {
   ParsedFile,
   ReadFilesOptions,
   ReadFilesResult,
+  JsonlSnapshotReadResult,
   SnapshotReadResult,
   YamlFile,
   YamlReadResult,
@@ -44,8 +46,7 @@ export { JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks } from "./json-text.js";
 export type { JsonChunkOptions } from "./json-text.js";
 export { jsonLines } from "./json-lines.js";
 export type { JsonLinesSpec } from "./json-lines.js";
-export { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
-export type { JsonDataKind } from "./json-data.js";
+export { DATA_HEAD_BYTES, isJsonlDataFile } from "./jsonl-data.js";
 export { editElementFile, zip } from "./edit.js";
 export { editYamlDocument, renderYamlDocument } from "./yaml-document.js";
 export { yamlPointerLine } from "./yaml-pointer.js";

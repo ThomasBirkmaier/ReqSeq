@@ -12,6 +12,7 @@ import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
 import { elementText } from "./text.js";
+import { readJsonlFile } from "./jsonl-data.js";
 
 /** A file whose frontmatter parsed. Whether it is an element (`id` and `type`) is decided by the model. */
 export interface ParsedFile extends ParsedContent {
@@ -50,7 +51,7 @@ type RawFile =
   | { readonly kind: "problem"; readonly problem: Problem; readonly missing?: boolean };
 
 /** Why a file that `lstat` found is not read, or undefined when it is a regular file. */
-const statProblem = (file: string, stat: Stats): RawFile | undefined => {
+const statProblem = (file: string, stat: Stats): ReturnType<typeof unreadable> | undefined => {
   if (stat.isSymbolicLink()) {
     return unreadable(file, "it is a symbolic link; LogReq does not follow links to its files");
   }
@@ -312,6 +313,42 @@ export const readFileSnapshot = async (root: string, relativePath: string): Prom
   }
   const { file, bytes, mtimeMs } = raw;
   return { kind: "read", bytes, snapshot: makeSnapshot(file, bytes.byteLength, mtimeMs, sha256(bytes)) };
+};
+
+/** What `readJsonlSnapshot` gives. */
+export type JsonlSnapshotReadResult =
+  | { readonly kind: "read"; readonly dataFile: boolean; readonly snapshot: FileSnapshot }
+  | { readonly kind: "problem"; readonly problem: Problem; readonly missing: boolean };
+
+/**
+ * A JSON Lines file below `root` (`data.store`, #319) with the checks of `readFileSnapshot`, but read in
+ * pieces and never held whole (it may be larger than one string): whether it is a LogReq data file
+ * (`jsonl-data.ts`) and the snapshot to pass to `writeFileAtomic` with `{ kind: "jsonl" }`.
+ */
+export const readJsonlSnapshot = async (
+  root: string,
+  relativePath: string,
+): Promise<JsonlSnapshotReadResult> => {
+  const { absolute, file } = resolveInRoot(root, relativePath);
+  try {
+    const stat = await fs.lstat(absolute);
+    const problem = statProblem(file, stat);
+    if (problem !== undefined) {
+      return { ...problem, missing: false };
+    }
+    if (!(await folderInsideRoot(root, absolute))) {
+      return { ...unreadable(file, OUTSIDE), missing: false };
+    }
+    const read = await readJsonlFile(absolute);
+    return {
+      kind: "read",
+      dataFile: read.dataFile,
+      snapshot: makeSnapshot(file, read.size, stat.mtimeMs, read.sha256),
+    };
+  } catch (e) {
+    const code = String(errorCode(e));
+    return { ...unreadable(file, code), missing: code === "ENOENT" || code === "ENOTDIR" };
+  }
 };
 
 /** A whole-file YAML document (metamodel, workspace, baseline, filter, mapping file). */

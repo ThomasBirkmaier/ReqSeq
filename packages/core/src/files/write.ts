@@ -20,7 +20,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes, parseYamlFileBytes } from "./parse.js";
-import { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
+import { readJsonlFile } from "./jsonl-data.js";
 import { errorCode, folderInsideRoot, replaceErrorCode, resolveInRoot } from "./paths.js";
 import { retry, TRANSIENT_CODES } from "./retry.js";
 import type { FileSnapshot } from "./snapshot.js";
@@ -35,18 +35,13 @@ export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(
 /**
  * Which "still parses" check guards a replace: `element` (default) for Markdown element files,
  * `yaml` for whole-file YAML documents (metamodel, workspace, baseline, filter, mapping), `xml` for
- * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029) and `json`
- * for JSON files (`data.store`, SR-062).
+ * XML files the own scanner reads (a JUnit file `evidence.enrichJunit` rewrites, SR-029) and `jsonl`
+ * for LogReq data files (`data.store`, SR-062, #319; `jsonl-data.ts`), which are read in pieces.
  */
-export type FileKind = "element" | "yaml" | "xml" | "json";
+export type FileKind = "element" | "yaml" | "xml" | "jsonl";
 
 export interface WriteOptions {
   readonly kind?: FileKind;
-  /**
-   * `json` only: up to this size the target is parsed whole, above it only the frame of a LogReq
-   * data file is checked (`jsonDataKind`); default `JSON_FULL_PARSE_BYTES` (tests take small ones).
-   */
-  readonly fullParseUpTo?: number;
 }
 
 /**
@@ -79,9 +74,9 @@ const NOT_WRITABLE: readonly string[] = ["EACCES", "EPERM", "EROFS"];
 const changedOnDisk = (file: string, reason: string): CommandError =>
   new CommandError("file.changed-on-disk", `Not written: ${file} ${reason}. Read it again first.`);
 
-/** Why the current bytes must not be written over, or undefined when they still parse. */
+/** Why the current bytes must not be written over, or undefined when they still parse (`jsonl`: below). */
 const REFUSAL: Readonly<
-  Record<FileKind, (file: string, bytes: Uint8Array, options: WriteOptions) => string | undefined>
+  Record<Exclude<FileKind, "jsonl">, (file: string, bytes: Uint8Array) => string | undefined>
 > = {
   element: (file, bytes) => {
     const current = parseFileBytes(file, bytes);
@@ -100,15 +95,6 @@ const REFUSAL: Readonly<
     return current.kind === "refused"
       ? `is no readable XML (line ${String(current.line)}); fix it by hand`
       : undefined;
-  },
-  json: (_file, bytes, options) => {
-    const bound = options.fullParseUpTo ?? JSON_FULL_PARSE_BYTES;
-    const kind = jsonDataKind(bytes, bound);
-    return kind === "faulty"
-      ? "is no readable JSON; fix it by hand"
-      : kind === "unchecked"
-        ? `is larger than ${String(bound)} bytes and not framed as a LogReq data file; fix it by hand`
-        : undefined;
   },
 };
 
@@ -237,16 +223,26 @@ const checkUnchanged = async (
   options: WriteOptions,
 ): Promise<void> => {
   await inspectTarget(absolute, file);
-  let bytes: Uint8Array;
+  const kind = options.kind ?? "element";
+  let refusal: string | undefined;
   try {
-    bytes = await fs.readFile(absolute);
+    if (kind === "jsonl") {
+      // Read in pieces and hashed as it goes: a data file may be larger than one string (#319).
+      const read = await readJsonlFile(absolute);
+      if (read.sha256 !== expected.sha256) {
+        throw changedOnDisk(file, "changed on disk since it was read");
+      }
+      refusal = read.dataFile ? undefined : "is not a LogReq data file; LogReq replaces only its own";
+    } else {
+      const bytes = await fs.readFile(absolute);
+      if (sha256(bytes) !== expected.sha256) {
+        throw changedOnDisk(file, "changed on disk since it was read");
+      }
+      refusal = REFUSAL[kind](file, bytes);
+    }
   } catch (e) {
     throw replaceErrorCode(e, "ENOENT", changedOnDisk(file, "was removed since it was read"));
   }
-  if (sha256(bytes) !== expected.sha256) {
-    throw changedOnDisk(file, "changed on disk since it was read");
-  }
-  const refusal = REFUSAL[options.kind ?? "element"](file, bytes, options);
   if (refusal !== undefined) {
     throw new CommandError("file.faulty", `Not written: ${file} ${refusal}`);
   }

@@ -12,5 +12,5 @@ export {
   withRelationVersions,
 } from "./export.js";
 export type { ExportOptions, ExportWithProblems, ExportedProperties } from "./export.js";
-export { dataFileName, isDataFile, storeData } from "./store.js";
+export { DATA_LINES, dataFileName, storeData } from "./store.js";
 export type { StoreOptions } from "./store.js";

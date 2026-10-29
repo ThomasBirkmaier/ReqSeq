@@ -1,13 +1,14 @@
 // The data of a state as a file (SR-062, D-008, D-025): `data.store` writes what `data.export` gives
-// for the same selection to `<commit>.json` in a folder the caller names, for a pipeline that keeps
-// one file per state and evaluates them with other tools (Grafana, DuckDB).
+// for the same selection as JSON Lines, one element per line (SR-062 AK1, #319), to `<commit>.jsonl`
+// in a folder the caller names, for a pipeline that keeps one file per state and evaluates them with
+// other tools (Grafana, DuckDB `read_json_auto('*.jsonl')`).
 //
 // - The commit is HEAD of the main repository, as the header of the file gives it, so the name and
 //   the content never disagree (K1). Without one (no Git, no repository, no commit yet, Git refuses
 //   or does not answer) nothing is written and no folder is created: `git.unavailable` as an error
 //   problem (exit code 1, ADR-0009). The commit is checked first, so a pipeline without Git fails
 //   before the export is built.
-// - `<commit>-dirty.json` unless every available repository has a known commit and is known clean
+// - `<commit>-dirty.jsonl` unless every available repository has a known commit and is known clean
 //   (K2, `repositoryState`): uncommitted changes to the files the data is made of, in any repository.
 //   A repository whose commit or `dirty` Git cannot tell gives a `git.unavailable` warning.
 // - Where the file may go (K4, ADR-0002 rule 5), every check before any folder is created:
@@ -18,12 +19,14 @@
 //     path is in a repository is refused; one that leads out of every repository is judged as outside;
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
-//   - an existing file of the name is replaced only when it is a LogReq data file (`"logreq-data": 2`;
-//     above 64 MiB the frame of a data file, `jsonDataKind` of the files block, #277), under its
-//     snapshot and the `json` guard, which checks the same way; anything else is `input.invalid` and
-//     stays as it is.
-// - The content is compact JSON with a line break, UTF-8 without BOM, `logreq-data` first (K5). It is
-//   written in chunks (`jsonChunks`), never as one string, which V8 cannot hold at N-036 (#277).
+//   - an existing file of the name is replaced only when it is a LogReq data file (its first line starts
+//     with `"logreq-data"` 2 or later, and valid UTF-8; `jsonl-data.ts` of the files block, #319),
+//     read in pieces under its snapshot and the `jsonl` guard, which checks the same way; anything else
+//     is `input.invalid` and stays as it is. Old `<commit>.json` files are neither read nor replaced.
+// - The content is the JSON Lines of `data export --jsonl` (`jsonLines` with `DATA_LINES`, the
+//   catalog's `jsonLines` of data.export): per element `logreq-data`, `commit` and `dirty`, then the
+//   element; compact, LF, UTF-8 without BOM (K5). It is written in chunks, never as one string, which
+//   V8 cannot hold at N-036 (#277).
 // - `files` is relative to the workspace root when the file lies in a repository, else absolute.
 // - No status is read for writing or written (D-030), Git is only read (D-036), nothing is deleted
 //   (D-045); the replaced file is a data file, never an element.
@@ -32,14 +35,8 @@ import path from "node:path";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { FileSnapshot } from "../files/index.js";
-import {
-  createFolder,
-  JSON_FULL_PARSE_BYTES,
-  jsonChunks,
-  jsonDataKind,
-  readFileSnapshot,
-  writeFileAtomic,
-} from "../files/index.js";
+import type { JsonLinesSpec } from "../files/index.js";
+import { createFolder, jsonLines, readJsonlSnapshot, writeFileAtomic } from "../files/index.js";
 import type { DataStoreOutput, ElementSelection } from "../generated/types.js";
 import { refuseUnlisted, repositoryCommit } from "../model/index.js";
 import type { Selected } from "../query/index.js";
@@ -49,29 +46,17 @@ import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.j
 import type { ExportOptions, ExportWithProblems } from "./export.js";
 import { NO_COMMIT_TEXT, exportDataWithProblems } from "./export.js";
 
-/** The name of the data file of `commit`: `<commit>.json`, `<commit>-dirty.json` when not clean. */
+/** The name of the data file of `commit`: `<commit>.jsonl`, `<commit>-dirty.jsonl` when not clean. */
 export const dataFileName = (commit: string, clean: boolean): string =>
-  `${commit}${clean ? "" : "-dirty"}.json`;
+  `${commit}${clean ? "" : "-dirty"}.jsonl`;
 
-/**
- * Whether `bytes` are a LogReq data file: UTF-8 JSON of an object with `"logreq-data": 2`; above
- * `fullParseUpTo` bytes (default 64 MiB) the frame of a data file (`jsonDataKind` of the files block).
- */
-export const isDataFile = (bytes: Uint8Array, fullParseUpTo: number = JSON_FULL_PARSE_BYTES): boolean =>
-  jsonDataKind(bytes, fullParseUpTo) === "data";
-
-/** The text of the file: compact JSON and a line break, in chunks. */
-function* chunksWithNewline(data: unknown): Generator<string, void, undefined> {
-  yield* jsonChunks(data, { indent: 0 });
-  yield "\n";
-}
+/** The lines of the file: the catalog's `jsonLines` of data.export (a test keeps them equal). */
+export const DATA_LINES: JsonLinesSpec = { items: "elements", fields: ["logreq-data", "commit", "dirty"] };
 
 /** How `storeData` reads what it does not get from the workspace (tests). */
 export interface StoreOptions extends ExportOptions {
   /** Builds the data; default `exportDataWithProblems`. */
   readonly exportData?: typeof exportDataWithProblems;
-  /** Up to this size an existing file is parsed whole (`isDataFile`); default 64 MiB. */
-  readonly fullParseUpTo?: number;
 }
 
 /** Where the file goes (see the file comment). */
@@ -192,12 +177,8 @@ const noCommit = (name: string, why: string): DataStoreOutput => ({
 });
 
 /** The snapshot an existing data file is replaced under, or null to create the file. */
-const existingSnapshot = async (
-  folder: string,
-  name: string,
-  fullParseUpTo: number,
-): Promise<FileSnapshot | null> => {
-  const read = await readFileSnapshot(folder, name);
+const existingSnapshot = async (folder: string, name: string): Promise<FileSnapshot | null> => {
+  const read = await readJsonlSnapshot(folder, name);
   if (read.kind === "problem") {
     if (read.missing) {
       return null;
@@ -206,7 +187,7 @@ const existingSnapshot = async (
       file: name,
     });
   }
-  if (!isDataFile(read.bytes, fullParseUpTo)) {
+  if (!read.dataFile) {
     throw new CommandError(
       "input.invalid",
       `Not stored: ${name} is not a LogReq data file; LogReq replaces only its own data files`,
@@ -244,7 +225,7 @@ export const storeData = async (
     input.selection,
     options,
   );
-  const commit = built.data.repositories.find((r) => r.name === main.name)?.commit;
+  const commit = built.data.commit;
   if (commit === undefined) {
     return noCommit(main.name, "it was no longer known after the export");
   }
@@ -262,13 +243,9 @@ export const storeData = async (
   } else {
     folder = place.folder;
   }
-  const fullParseUpTo = options.fullParseUpTo ?? JSON_FULL_PARSE_BYTES;
-  const snapshot = await existingSnapshot(folder, name, fullParseUpTo);
+  const snapshot = await existingSnapshot(folder, name);
   // A function, so a second pass (no hard links) gets new chunks; never an array of all of them.
-  await writeFileAtomic(folder, name, () => chunksWithNewline(built.data), snapshot, {
-    kind: "json",
-    fullParseUpTo,
-  });
+  await writeFileAtomic(folder, name, () => jsonLines(built.data, DATA_LINES), snapshot, { kind: "jsonl" });
   const mainFolder = await fs.realpath(layout.root);
   return {
     files: [
