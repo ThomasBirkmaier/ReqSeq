@@ -1,7 +1,7 @@
 ---
 id: 6adc7afa-cc9c-4c24-b09c-ebcabc64050e
 type: system-requirement
-status: draft
+status: approved
 title: "Beziehungen nach erlaubten Typen prüfen"
 spec-id: "SR-086"
 requirement-type: functional

@@ -1,7 +1,7 @@
 ---
 id: 6adc7af9-5aa9-408a-8b40-b26efaff1525
 type: system-requirement
-status: draft
+status: approved
 title: "Property-Werte nach Wertart prüfen"
 spec-id: "SR-085"
 requirement-type: functional
