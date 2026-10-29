@@ -15,7 +15,8 @@ import {
 } from "@logreq/core";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { callTool, serveMcp } from "./server.js";
+import { MAX_TEXT_BYTES, callTool, largeOutputNote, serveMcp } from "./server.js";
+import { MAX_MESSAGE_BYTES } from "./transport.js";
 import { toolName } from "./tools.js";
 import { LineTransport } from "./transport.js";
 
@@ -209,7 +210,11 @@ let workspace: Workspace;
 const sessions: Session[] = [];
 
 /** A client and `serveMcp` connected by two pipes with the stdio framing, as `logreq mcp` runs. */
-const open = async (signal?: AbortSignal, rt: CommandRuntime = runtime): Promise<Session> => {
+const open = async (
+  signal?: AbortSignal,
+  rt: CommandRuntime = runtime,
+  maxTextBytes?: number,
+): Promise<Session> => {
   const toServer = new PassThrough();
   const toClient = new PassThrough();
   const served = serveMcp({
@@ -218,6 +223,7 @@ const open = async (signal?: AbortSignal, rt: CommandRuntime = runtime): Promise
     input: toServer,
     output: { write: (text) => toClient.write(text) },
     ...(signal === undefined ? {} : { signal }),
+    ...(maxTextBytes === undefined ? {} : { maxTextBytes }),
   });
   const client = new Client({ name: "test", version: "1" });
   await client.connect(new LineTransport(toClient, { write: (text) => toServer.write(text) }));
@@ -426,6 +432,37 @@ describe("serveMcp without a workspace", () => {
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({
       workspaces: [{ root, opened: opened.toISOString(), exists: true }],
+    });
+  });
+});
+
+describe("an output larger than the text bound (#277)", () => {
+  it("sends the output as structuredContent on every size, and as text only up to the bound", async () => {
+    expect(MAX_TEXT_BYTES).toBe(MAX_MESSAGE_BYTES);
+    expect(MAX_TEXT_BYTES).toBe(32 * 1024 * 1024);
+    const output = { text: "Größe", root: workspace.root };
+    const size = Buffer.byteLength(JSON.stringify(output));
+    const signal = new AbortController().signal;
+    const fits = await callTool(runtime, workspace, "test.echo", { text: "Größe" }, signal, size);
+    expect(fits).toEqual({
+      content: [{ type: "text", text: JSON.stringify(output) }],
+      structuredContent: output,
+    });
+    const over = await callTool(runtime, workspace, "test.echo", { text: "Größe" }, signal, size - 1);
+    expect(over).toEqual({
+      content: [{ type: "text", text: largeOutputNote(size - 1) }],
+      structuredContent: output,
+    });
+    expect(largeOutputNote(size - 1)).toContain("data_store");
+    expect(largeOutputNote(size - 1)).toContain(String(size - 1));
+  });
+
+  it("takes the bound of the server options over a session", async () => {
+    const { client } = await open(undefined, runtime, 10);
+    const result = await client.callTool({ name: "test_echo", arguments: { text: "Größe" } });
+    expect(result).toEqual({
+      content: [{ type: "text", text: largeOutputNote(10) }],
+      structuredContent: { text: "Größe", root: workspace.root },
     });
   });
 });

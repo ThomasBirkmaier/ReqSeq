@@ -1,8 +1,9 @@
 // SR-061 and #277 in the performance suite (ADR-0011): `data.export` of the generated workspace of
 // N-036 (50,000 elements, 200,000 relations) with the evidence records a project of that size keeps
-// (`withEvidenceRecords`), through the command line and the local API. The JSON is larger than one
-// string can hold (about 0.55 GB compact, V8 holds at most about 512 MB in one string), so both
-// accesses write it in chunks (`jsonChunks`). Runs with `pnpm test:perf` after `pnpm build`, nightly and
+// (`withEvidenceRecords`), through the command line, the local API and the MCP server. The JSON is
+// larger than one string can hold (about 0.55 GB compact, V8 holds at most about 512 MB in one string),
+// so every access writes it in chunks (`jsonChunks`); over MCP it is the `structuredContent` and the
+// text content is the note of an output over 32 MiB (ADR-0009). Runs with `pnpm test:perf` after `pnpm build`, nightly and
 // on pull requests labelled `perf`, never in the required test run. SR-061 names no time: the rows
 // record the time, the peaks of the CLI process's memory (`support/peak-memory.mjs`, default heap
 // flags) and the bytes; the tagged tests assert that the JSON is delivered: exit code 0 or status 200,
@@ -18,6 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { startApiServer } from "@logreq/api";
+import { MAX_TEXT_BYTES, largeOutputNote } from "@logreq/mcp";
 import type { CommandOutput, VersionValue } from "@logreq/core";
 import { Workspace, computeVersion, invoke, jsonByteLength, jsonChunks } from "@logreq/core";
 import type { VersionFunction } from "@logreq/testkit";
@@ -122,6 +124,81 @@ const logreqToFile = (
     child.on("close", (code) => {
       fs.closeSync(out);
       resolve({ code, stderr: Buffer.concat(err).toString("utf8") });
+    });
+  });
+
+/** One answer line of `logreq mcp`: its bytes, its first bytes and its last bytes. */
+interface McpLine {
+  readonly bytes: number;
+  readonly head: string;
+  readonly tail: string;
+}
+
+/**
+ * `logreq mcp` in `cwd`: initialize, then one `tools/call` of `tool`. The answer line is scanned by
+ * bytes, never held as one string. Resolves when the server exited after its standard input ended.
+ */
+const mcpCall = (
+  tool: string,
+  cwd: string,
+  env: Readonly<Record<string, string>>,
+): Promise<{ code: number | null; stderr: string; answer: McpLine }> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", blockNetwork, bin, "mcp"], {
+      cwd,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...cliEnv(), ...env },
+    });
+    const send = (message: unknown): void => {
+      child.stdin.write(`${JSON.stringify(message)}\n`);
+    };
+    const err: Buffer[] = [];
+    let line = 0;
+    let bytes = 0;
+    let head: Buffer = Buffer.alloc(0);
+    let tail: Buffer = Buffer.alloc(0);
+    let answer: McpLine | undefined;
+    child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
+    child.stdout.on("data", (data: Buffer) => {
+      let rest = data;
+      while (rest.length > 0) {
+        const end = rest.indexOf(10);
+        const piece = end === -1 ? rest : rest.subarray(0, end);
+        bytes += piece.length;
+        if (head.length < 4096) {
+          head = Buffer.concat([head, piece.subarray(0, 4096 - head.length)]);
+        }
+        tail = Buffer.concat([tail, piece]).subarray(-64);
+        if (end === -1) {
+          return;
+        }
+        line += 1;
+        if (line === 1) {
+          send({ jsonrpc: "2.0", method: "notifications/initialized" });
+          send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: tool, arguments: {} } });
+        } else {
+          answer = { bytes, head: head.toString("utf8"), tail: tail.toString("utf8") };
+          child.stdin.end();
+        }
+        bytes = 0;
+        head = Buffer.alloc(0);
+        tail = Buffer.alloc(0);
+        rest = rest.subarray(end + 1);
+      }
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (answer === undefined) {
+        reject(new Error(`no answer from logreq mcp: ${Buffer.concat(err).toString("utf8")}`));
+        return;
+      }
+      resolve({ code, stderr: Buffer.concat(err).toString("utf8"), answer });
+    });
+    send({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "perf", version: "1" } },
     });
   });
 
@@ -246,5 +323,36 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
       await server.close();
       await workspace.close();
     }
+  }, 1_800_000);
+
+  it("[SR-061/AK1] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async () => {
+    const memoryFile = path.join(scratch, "memory-mcp.json");
+    const env = {
+      LOGREQ_PEAK_MEMORY: memoryFile,
+      NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
+    };
+    const { result: run } = await measure(
+      "MCP tool call data_export at N-036 (new logreq mcp process, written in chunks)",
+      () => mcpCall("data_export", root, env),
+      {
+        basis:
+          "SR-061 AK1, SR-080, #277 (MCP over stdio, from process start to the end of the answer line; recorded, no limit in the spec)",
+      },
+    );
+    expect(run.stderr).toBe("");
+    expect(run.code).toBe(0);
+    const { answer } = run;
+    expect(answer.head).toContain(JSON.stringify(largeOutputNote(MAX_TEXT_BYTES)));
+    expect(answer.head).toContain('"structuredContent":{"logreq-data":1,');
+    expect(answer.tail.endsWith("}")).toBe(true);
+    // The structured content is the compact export; the envelope and the note add less than 1 KB.
+    expect(answer.bytes).toBeGreaterThan(compactBytes);
+    expect(answer.bytes).toBeLessThan(compactBytes + 1024);
+    const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
+    await recordValue(
+      `MCP tool call data_export at N-036: answer line ${(answer.bytes / MB).toFixed(0)} MB (structuredContent ${(compactBytes / MB).toFixed(0)} MB, the text is the note); server process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
+      0,
+      { basis: "SR-061 AK1, SR-080, #277 (recorded)" },
+    );
   }, 1_800_000);
 });

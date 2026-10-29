@@ -1,8 +1,13 @@
 // The MCP stdio framing (one JSON-RPC message per line, UTF-8) over any input stream and text sink, so the
-// server runs on the streams of the CLI (`logreq mcp`) and on in-memory streams in tests. Reading and
-// writing the messages is the SDK's (ReadBuffer, serializeMessage); this only connects the streams.
+// server runs on the streams of the CLI (`logreq mcp`) and on in-memory streams in tests. Reading is the
+// SDK's (ReadBuffer). Writing gives the bytes of the SDK's `serializeMessage` (`JSON.stringify` and a line
+// break), but in chunks of core's `jsonChunks`, since a result such as `data_export` at N-036 is larger
+// than V8 holds in one string (#277). Sends go through a queue, each after the one before, so the line of
+// one message is never broken by another (a ping answer, a notification); a send waits for the sink to
+// drain when it pushes back, and stops when the transport is closed.
+import { jsonChunks } from "@logreq/core";
 import type { JSONRPCMessage, Transport } from "@modelcontextprotocol/server";
-import { ReadBuffer, serializeMessage } from "@modelcontextprotocol/server";
+import { ReadBuffer } from "@modelcontextprotocol/server";
 
 /**
  * Chunks of standard input (or any stream); strings are UTF-8 text. A stream with `destroy` (a Node
@@ -10,9 +15,27 @@ import { ReadBuffer, serializeMessage } from "@modelcontextprotocol/server";
  */
 export type InputStream = AsyncIterable<string | Uint8Array> & { readonly destroy?: () => unknown };
 
-/** Where messages go; one call per message. */
+/** Where messages go, in pieces; the shape of the CLI's stdout. */
 export interface TextSink {
+  /** `false` when the sink buffers more than it wants (then wait for `drained`) or is closed. */
   write(text: string): unknown;
+  /** After a write returned false: true when the sink takes more, false when it is closed. */
+  drained?(): Promise<boolean>;
+}
+
+/**
+ * One message as its line: compact JSON in chunks, the line break on the last one, so a message of one
+ * chunk (almost every one) is a single write, as before.
+ */
+function* lineOf(message: JSONRPCMessage): Generator<string, void, undefined> {
+  let held: string | undefined;
+  for (const chunk of jsonChunks(message, { indent: 0 })) {
+    if (held !== undefined) {
+      yield held;
+    }
+    held = chunk;
+  }
+  yield `${held ?? ""}\n`;
 }
 
 /** Largest incoming message, as for the body of an API request. */
@@ -32,6 +55,8 @@ export class LineTransport implements Transport {
   readonly #resolveClosed: () => void;
   #started = false;
   #closed = false;
+  /** The sends so far, each after the one before; never rejects. */
+  #queue: Promise<void> = Promise.resolve();
   /** Fulfilled once the transport is closed, for whatever reason. */
   readonly closed: Promise<void>;
 
@@ -86,11 +111,38 @@ export class LineTransport implements Transport {
     await this.close();
   }
 
+  /** Queues `message`; resolves when its line is written (or dropped, once closed). */
   send(message: JSONRPCMessage): Promise<void> {
-    if (!this.#closed) {
-      this.#output.write(serializeMessage(message));
+    const sent = this.#queue.then(() => this.#write(message));
+    this.#queue = sent.catch(() => undefined);
+    return sent;
+  }
+
+  async #write(message: JSONRPCMessage): Promise<void> {
+    let written = false;
+    try {
+      for (const chunk of lineOf(message)) {
+        if (this.#closed) {
+          return;
+        }
+        written = true;
+        if (this.#output.write(chunk) === false && this.#output.drained !== undefined) {
+          // Raced against `closed`, so a send does not stay pending once the transport is closed.
+          const more = await Promise.race([this.#output.drained(), this.closed.then(() => false)]);
+          if (!more) {
+            // The reader has gone away (or the transport closed): nothing more can reach the client.
+            await this.close();
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      if (written) {
+        // Half a line is out: the next message would be glued onto it, so the stream is unusable.
+        await this.close();
+      }
+      throw error;
     }
-    return Promise.resolve();
   }
 
   close(): Promise<void> {
