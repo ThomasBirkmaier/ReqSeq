@@ -1,5 +1,6 @@
-// Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles and the argument
-// sources of the command prompt (SR-108). Returns the error lines; `validate-schemas.mjs` prints them.
+// Checks of the command catalog that JSON Schema cannot express (ADR-0002): titles, the argument
+// sources of the command prompt (SR-108) and the JSON Lines form (`jsonLines`, #319). Returns the
+// error lines; `validate-schemas.mjs` prints them.
 
 /** Sources that give elements: what `of` of an element source names. */
 const ELEMENTS = ["element", "relationTarget"];
@@ -99,10 +100,82 @@ function checkArguments(cmd) {
   return errors.map((e) => `arguments: ${e}`);
 }
 
-/** @param {{ commands: any[] }} catalog */
-export function checkCatalog(catalog) {
+/**
+ * The schema a `$ref` names, with the file it is in: refs relative to `file` (a key of `schemas`,
+ * `commands/` for command schemas), `#` alone or `#/$defs/<name>`.
+ */
+function resolveRef(ref, file, schemas) {
+  const [target, pointer = ""] = ref.split("#");
+  const name = target === "" ? file : target.replace(/^\.\.\//, "");
+  const root = schemas[name];
+  const def = /^\/\$defs\/([^/]+)$/.exec(pointer)?.[1];
+  const schema = pointer === "" ? root : def === undefined ? undefined : root?.$defs?.[def];
+  return schema === undefined ? undefined : { schema, file: name };
+}
+
+/** The properties of an object schema, its `$ref` and its `allOf` parts included (by name). */
+function propertiesOf(schema, file, schemas, seen = new Set()) {
+  if (typeof schema !== "object" || schema === null || seen.has(schema)) {
+    return new Map();
+  }
+  seen.add(schema);
+  const found = new Map(Object.entries(schema.properties ?? {}));
+  const parts = [...(schema.$ref === undefined ? [] : [{ $ref: schema.$ref }]), ...(schema.allOf ?? [])];
+  for (const part of parts) {
+    const resolved = part.$ref === undefined ? { schema: part, file } : resolveRef(part.$ref, file, schemas);
+    if (resolved !== undefined) {
+      for (const [name, property] of propertiesOf(resolved.schema, resolved.file, schemas, seen)) {
+        found.set(name, found.get(name) ?? property);
+      }
+    }
+  }
+  return found;
+}
+
+/** The type of a property, after one `$ref`. */
+function typeOf(property, file, schemas) {
+  const resolved = property.$ref === undefined ? undefined : resolveRef(property.$ref, file, schemas);
+  return property.type ?? resolved?.schema.type;
+}
+
+/**
+ * `jsonLines` (#319): `items` is a top-level array of the output, every field a top-level property that
+ * is no array and no property of the item schema, so a line never holds a key twice.
+ */
+function checkJsonLines(cmd, schemas) {
+  if (cmd.jsonLines === undefined) {
+    return [];
+  }
+  const { items, fields } = cmd.jsonLines;
+  const output = propertiesOf(cmd.output, "commands/", schemas);
+  const array = output.get(items);
+  if (array === undefined || array.type !== "array") {
+    return [`jsonLines: "${items}" is not a top-level array of the output`];
+  }
+  const outputFile =
+    cmd.output.$ref === undefined ? "commands/" : resolveRef(cmd.output.$ref, "commands/", schemas)?.file;
+  const item = propertiesOf(array.items ?? {}, outputFile ?? "commands/", schemas);
+  return fields.flatMap((field) => {
+    const property = output.get(field);
+    if (property === undefined) {
+      return [`jsonLines: "${field}" is not a top-level field of the output`];
+    }
+    if (typeOf(property, outputFile, schemas) === "array") {
+      return [`jsonLines: "${field}" is an array`];
+    }
+    return item.has(field) ? [`jsonLines: "${field}" is also a property of the items of "${items}"`] : [];
+  });
+}
+
+/**
+ * @param {{ commands: any[] }} catalog
+ * @param {Record<string, any>} schemas the schema files by name (`loadContracts`), for `jsonLines`
+ */
+export function checkCatalog(catalog, schemas = {}) {
   const titles = new Map();
   return catalog.commands.flatMap((cmd) =>
-    [...checkTitle(cmd, titles), ...checkArguments(cmd)].map((e) => `catalog.json: ${cmd.name}: ${e}`),
+    [...checkTitle(cmd, titles), ...checkArguments(cmd), ...checkJsonLines(cmd, schemas)].map(
+      (e) => `catalog.json: ${cmd.name}: ${e}`,
+    ),
   );
 }

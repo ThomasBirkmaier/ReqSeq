@@ -21,6 +21,8 @@ export interface Invocation {
   readonly json: boolean;
   /** `--yaml`: the whole output as YAML instead of the compact form. */
   readonly yaml: boolean;
+  /** `--jsonl`: the output as JSON Lines (only on entries with `jsonLines`, #319). */
+  readonly jsonl: boolean;
   /** `--workspace`, as given. */
   readonly workspace: string | undefined;
   /** `--input`, as given. */
@@ -40,7 +42,7 @@ export interface ProgramOptions {
   readonly version: string;
   readonly writeOut: (text: string) => void;
   readonly writeErr: (text: string) => void;
-  /** Usage errors as the error object of common.schema.json (`--json` on the line). */
+  /** Usage errors as the error object of common.schema.json (`--json` or `--jsonl` on the line). */
   readonly jsonErrors: boolean;
   /** Runs the command the line asked for. */
   readonly run: (invocation: Invocation) => Promise<void>;
@@ -162,6 +164,15 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
     .addOption(
       new Option("--yaml", "print the whole command output as YAML, problems one per line").conflicts("json"),
     );
+  if (entry.jsonLines !== undefined) {
+    // Only where the catalog offers the form (#319, ADR-0009): elsewhere commander reports an unknown option.
+    command.addOption(
+      new Option(
+        "--jsonl",
+        `print the output as JSON Lines: one line per item of ${entry.jsonLines.items}, each with ${entry.jsonLines.fields.join(", ")} first`,
+      ).conflicts(["json", "yaml"]),
+    );
+  }
   if (inputOnly.length > 0) {
     command.addHelpText("after", `\nOnly via --input: ${inputOnly.map((f) => f.name).join(", ")}`);
   }
@@ -174,6 +185,7 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
       flags: flagOptions.map(({ field, main }) => ({ field, value: opts[main.attributeName()] })),
       json: opts["json"] === true,
       yaml: opts["yaml"] === true,
+      jsonl: opts["jsonl"] === true,
       workspace: text(opts["workspace"]),
       input: text(opts["input"]),
     });
@@ -193,7 +205,7 @@ export function buildProgram(options: ProgramOptions): Command {
     .configureOutput({
       writeOut: options.writeOut,
       writeErr: options.writeErr,
-      // commander's messages are "error: <text>\n"; with --json they become an input.invalid error object.
+      // commander's messages are "error: <text>\n"; with --json or --jsonl they become an input.invalid error object.
       outputError: (text, write) => {
         write(
           options.jsonErrors

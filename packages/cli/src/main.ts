@@ -10,6 +10,7 @@ import {
   errorClass,
   findWorkspaceRoot,
   getCommandRuntime,
+  jsonLines,
   warmWorkspace,
   watchWorkspace,
 } from "@logreq/core";
@@ -186,16 +187,20 @@ async function execute(
     output = await call(invocation, options, runtime);
   } catch (caught) {
     const error = asCommandError(caught);
-    options.stderr.write(renderError(error, invocation.json, spelledMessage(error, invocation.entry)));
+    options.stderr.write(
+      renderError(error, invocation.json || invocation.jsonl, spelledMessage(error, invocation.entry)),
+    );
     return options.signal?.aborted === true ? EXIT.aborted : exitCodeFor(error);
   }
   await writePieces(
     options.stdout,
     invocation.json
       ? jsonOutput(output)
-      : invocation.yaml
-        ? yamlOutput(output)
-        : [renderHuman(output, invocation.entry.effect === "read")],
+      : invocation.jsonl && invocation.entry.jsonLines !== undefined
+        ? jsonLines(output, invocation.entry.jsonLines)
+        : invocation.yaml
+          ? yamlOutput(output)
+          : [renderHuman(output, invocation.entry.effect === "read")],
     options.signal,
   );
   return options.signal?.aborted === true ? EXIT.aborted : outcomeExitCode(output);
@@ -292,7 +297,7 @@ export async function runCli(options: RunCliOptions): Promise<ExitCode> {
       version: PRODUCT_VERSION,
       writeOut: (text) => options.stdout.write(text),
       writeErr: (text) => options.stderr.write(text),
-      jsonErrors: options.argv.includes("--json"),
+      jsonErrors: options.argv.includes("--json") || options.argv.includes("--jsonl"),
       run: async (invocation) => {
         exitCode = await execute(invocation, options, runtime);
       },

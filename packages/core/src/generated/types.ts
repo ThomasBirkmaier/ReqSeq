@@ -358,11 +358,16 @@ export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
 
 /**
- * Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.
+ * Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `logreq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  readonly "logreq-data": 1;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). */
+  readonly "logreq-data": 2;
+  /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
+  readonly commit?: Commit;
+  /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
+  readonly dirty: boolean;
   readonly workspace: string;
   /** Time of the export, UTC, in seconds. */
   readonly generated: IsoDateTime;
@@ -382,7 +387,10 @@ export interface DataExportFile {
   readonly elements: readonly DataExportElement[];
 }
 
-/** Schema: `schemas/data-export.schema.json#/$defs/element`. */
+/**
+ * An element as the commands give it: the fields of `$defs/elementFields`, and no others.
+ * Schema: `schemas/data-export.schema.json#/$defs/element`.
+ */
 export interface DataExportElement {
   readonly id: Uuid;
   readonly shortId: ShortId;
@@ -418,6 +426,94 @@ export interface DataExportElement {
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
   readonly problems?: readonly Problem[];
+}
+
+/**
+ * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`): `logreq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4).
+ * Schema: `schemas/data-export.schema.json#/$defs/line`.
+ */
+export interface DataExportLine {
+  readonly id: Uuid;
+  readonly shortId: ShortId;
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  readonly identifier?: string;
+  readonly type: Key;
+  /** The status key as written; left out when the element has none (a type without status, #306). */
+  readonly status?: Key;
+  readonly title: string;
+  /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
+  readonly text?: string;
+  /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
+  readonly version?: Version;
+  /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
+  readonly versionDate?: string | null;
+  readonly repository: string;
+  /** Path relative to the repository. */
+  readonly file: string;
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  readonly readOnly?: boolean;
+  /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
+  readonly validity?: readonly Uuid[];
+  /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
+  readonly packages?: readonly Uuid[];
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  readonly emergent?: boolean;
+  /** All other properties by key, unknown ones included. */
+  readonly properties: Readonly<Record<string, unknown>>;
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  readonly relations: readonly DataExportRelation[];
+  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  readonly verification?: readonly DataExportVerificationEntry[];
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
+  readonly validation?: ValidationStatus;
+  readonly problems?: readonly Problem[];
+  readonly "logreq-data": 2;
+  /** As `commit` of the JSON form. */
+  readonly commit?: Commit;
+  /** As `dirty` of the JSON form. */
+  readonly dirty: boolean;
+}
+
+/**
+ * The fields of an element, shared by `$defs/element` and `$defs/line`; open, so never used alone.
+ * Schema: `schemas/data-export.schema.json#/$defs/elementFields`.
+ */
+export interface DataExportElementFields {
+  readonly id: Uuid;
+  readonly shortId: ShortId;
+  /** The value of its property with the meaning `identifier` (an ID from another source such as SR-036, #305), for display next to `shortId`; left out when it has none. The property itself stays under `properties`. */
+  readonly identifier?: string;
+  readonly type: Key;
+  /** The status key as written; left out when the element has none (a type without status, #306). */
+  readonly status?: Key;
+  readonly title: string;
+  /** Markdown text below the frontmatter, without the blank line after the closing `---` (ADR-0004). Left out by list commands unless asked for. */
+  readonly text?: string;
+  /** The current version of the element (ADR-0005). Left out when it cannot be computed (its file no longer holds the element, an embedded image cannot be read, a counted value has no normal form); then `problems` says why (file.faulty). */
+  readonly version?: Version;
+  /** Date of the version from Git (D-013: shown instead of the hash; ADR-0005): the committer date of the newest commit that started this version (no parent of it had the version), in UTC as YYYY-MM-DDTHH:MM:SSZ. null when no commit has it (uncommitted content), when Git cannot tell (no git, not a repository, no commit, shallow clone) and when Git did not answer in time. Left out when `version` is left out. */
+  readonly versionDate?: string | null;
+  readonly repository: string;
+  /** Path relative to the repository. */
+  readonly file: string;
+  /** Unknown type, invalid metamodel or read-only repository (SR-011 AK3, SR-016 AK3, SR-018 AK2). */
+  readonly readOnly?: boolean;
+  /** Given by data.export: the UUIDs of the variants the property with the meaning `validity` names, in its order; `[]` = the core and every variant (SR-040 AK1, D-020). Left out when the metamodel has no validity property. */
+  readonly validity?: readonly Uuid[];
+  /** Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property. */
+  readonly packages?: readonly Uuid[];
+  /** SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there. */
+  readonly emergent?: boolean;
+  /** All other properties by key, unknown ones included. */
+  readonly properties: Readonly<Record<string, unknown>>;
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  readonly relations: readonly DataExportRelation[];
+  /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
+  readonly verification?: readonly DataExportVerificationEntry[];
+  /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
+  readonly validation?: ValidationStatus;
+  readonly problems?: readonly Problem[];
+  readonly [key: string]: unknown;
 }
 
 /** Schema: `schemas/data-export.schema.json#/$defs/relation`. */
@@ -1098,6 +1194,13 @@ export interface CommandCatalog {
       readonly of?: string;
     }[];
     readonly input: Readonly<Record<string, unknown>>;
+    /** The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319). */
+    readonly jsonLines?: {
+      /** A top-level array of `output`: one line per item. */
+      readonly items: string;
+      /** Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`). */
+      readonly fields: readonly string[];
+    };
     /** Outputs are JSON objects and say so at the root, also next to a `$ref`: MCP needs `type: object` at the root of an output schema (ADR-0009). */
     readonly output: {
       readonly type: "object";
@@ -2405,7 +2508,7 @@ export interface EvidenceWithoutPassedTestOutput {
 }
 
 /**
- * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Input of `data.export` as `run` gets it: validated, properties with a `default` filled in. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export input`.
  */
 export interface DataExportInput {
@@ -2413,7 +2516,7 @@ export interface DataExportInput {
 }
 
 /**
- * Output of `data.export`. Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
+ * Output of `data.export`. Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.
  * Schema: `schemas/commands/catalog.json data.export output`.
  */
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;

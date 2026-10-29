@@ -136,6 +136,7 @@ const invocation = (parts: Partial<Invocation>): Invocation => ({
   flags: [],
   json: false,
   yaml: false,
+  jsonl: false,
   workspace: undefined,
   input: undefined,
   ...parts,

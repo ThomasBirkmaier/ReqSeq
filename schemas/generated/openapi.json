@@ -151,6 +151,31 @@
                           "input": {
                             "type": "object"
                           },
+                          "jsonLines": {
+                            "type": "object",
+                            "required": [
+                              "items",
+                              "fields"
+                            ],
+                            "properties": {
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "A top-level array of `output`: one line per item."
+                              },
+                              "fields": {
+                                "type": "array",
+                                "uniqueItems": true,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "description": "Top-level fields of `output` that every line carries before the keys of its item, in this order; a field the output leaves out is left out of the lines too. None is an array or a property of the item schema (`catalog-checks.mjs`)."
+                              }
+                            },
+                            "additionalProperties": false,
+                            "description": "The command also gives its output as JSON Lines (one compact JSON object and LF per line, UTF-8): the CLI with `--jsonl`, the API with `Accept: application/x-ndjson` (ADR-0009). Each line is the listed `fields` of the output, then one item of `items`; the other top-level fields are not in the lines. MCP and the app keep the JSON object (ADR-0002 rule 3, #319)."
+                          },
                           "output": {
                             "type": "object",
                             "required": [
@@ -339,6 +364,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -540,6 +575,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -773,6 +818,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -910,6 +965,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1074,6 +1139,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1275,6 +1350,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -1453,6 +1538,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1651,6 +1746,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -1823,6 +1928,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2048,6 +2163,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2353,6 +2478,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -2582,6 +2717,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -2752,6 +2897,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -2912,6 +3067,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3191,6 +3356,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -3339,6 +3514,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3523,6 +3708,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -3679,6 +3874,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3845,6 +4050,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4290,6 +4505,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -4467,6 +4692,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4728,6 +4963,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5087,6 +5332,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5490,6 +5745,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -5828,6 +6093,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -5997,6 +6272,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -6176,6 +6461,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -6437,6 +6732,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -6618,6 +6923,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -6782,6 +7097,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -6958,6 +7283,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -7174,6 +7509,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -7380,6 +7725,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -7550,6 +7905,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -7778,6 +8143,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -7929,6 +8304,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -8116,6 +8501,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -8172,7 +8567,7 @@
     "/v1/commands/data.export": {
       "post": {
         "operationId": "data_export",
-        "summary": "Data of the current state as JSON for external evaluation: every element unless a selection is given; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
+        "summary": "Data of the current state as JSON for external evaluation, or, from the command line and the API, as JSON Lines with one element per line: every element unless a selection is given, so an evaluation selects by filter, package, baseline or variant instead of exporting everything; no paging. With `data store` the only commands so far that take `selection.baseline`: the elements the baseline lists, as they are now. `data store` writes a whole state to a file.",
         "tags": [
           "data"
         ],
@@ -8200,12 +8595,18 @@
         },
         "responses": {
           "200": {
-            "description": "Result",
+            "description": "Result: JSON, or JSON Lines when `Accept` names application/x-ndjson with q > 0 (#319)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "$ref": "#/components/schemas/data-export"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string",
+                  "description": "One compact JSON object and LF per item of `elements` of the JSON result: the fields `logreq-data`, `commit`, `dirty` of the result first (those it gives), then the keys of the item. UTF-8, no other field of the result."
                 }
               }
             }
@@ -8408,6 +8809,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -8583,6 +8994,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -8740,6 +9161,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -8907,6 +9338,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -9056,6 +9497,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -9229,6 +9680,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -9392,6 +9853,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -9587,6 +10058,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -9795,6 +10276,16 @@
               }
             }
           },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Command error of class conflict",
             "content": {
@@ -9945,6 +10436,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -10126,6 +10627,16 @@
           },
           "404": {
             "description": "Command error of class not-found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/common/$defs/error"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "`Accept` names application/x-ndjson, but not JSON, and the command gives no JSON Lines (input.invalid)",
             "content": {
               "application/json": {
                 "schema": {
@@ -10827,10 +11338,11 @@
       },
       "data-export": {
         "title": "Data of a state (Stand) as JSON",
-        "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). Also defines the element and relation shapes all commands return.",
+        "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `logreq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
         "type": "object",
         "required": [
           "logreq-data",
+          "dirty",
           "workspace",
           "generated",
           "repositories",
@@ -10838,7 +11350,16 @@
         ],
         "properties": {
           "logreq-data": {
-            "const": 1
+            "const": 2,
+            "description": "The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`)."
+          },
+          "commit": {
+            "$ref": "#/components/schemas/common/$defs/commit",
+            "description": "The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell."
+          },
+          "dirty": {
+            "type": "boolean",
+            "description": "`false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file."
           },
           "workspace": {
             "type": "string"
@@ -10894,6 +11415,44 @@
         "$defs": {
           "element": {
             "type": "object",
+            "description": "An element as the commands give it: the fields of `$defs/elementFields`, and no others.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/data-export/$defs/elementFields"
+              }
+            ],
+            "unevaluatedProperties": false
+          },
+          "line": {
+            "type": "object",
+            "description": "One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`): `logreq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4).",
+            "required": [
+              "logreq-data",
+              "dirty"
+            ],
+            "properties": {
+              "logreq-data": {
+                "const": 2
+              },
+              "commit": {
+                "$ref": "#/components/schemas/common/$defs/commit",
+                "description": "As `commit` of the JSON form."
+              },
+              "dirty": {
+                "type": "boolean",
+                "description": "As `dirty` of the JSON form."
+              }
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/data-export/$defs/elementFields"
+              }
+            ],
+            "unevaluatedProperties": false
+          },
+          "elementFields": {
+            "type": "object",
+            "description": "The fields of an element, shared by `$defs/element` and `$defs/line`; open, so never used alone.",
             "required": [
               "id",
               "shortId",
@@ -10999,8 +11558,7 @@
                   "$ref": "#/components/schemas/common/$defs/problem"
                 }
               }
-            },
-            "additionalProperties": false
+            }
           },
           "relation": {
             "type": "object",

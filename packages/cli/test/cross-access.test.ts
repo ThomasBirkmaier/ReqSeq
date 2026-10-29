@@ -18,7 +18,14 @@ import { startApiServer } from "@logreq/api";
 import type { Channel, IpcRendererLike } from "@logreq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
 import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@logreq/core";
-import { CommandError, Workspace, createCommandRuntime, jsonChunks, rememberWorkspace } from "@logreq/core";
+import {
+  CommandError,
+  Workspace,
+  createCommandRuntime,
+  jsonChunks,
+  jsonLines,
+  rememberWorkspace,
+} from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
@@ -2149,7 +2156,7 @@ const filesWithoutGenerated = (
 ): Record<string, string> =>
   Object.fromEntries(
     Object.entries(files).map(([name, text]) => {
-      if (!name.endsWith(".json") || !text.startsWith('{"logreq-data":1,')) {
+      if (!name.endsWith(".json") || !text.startsWith('{"logreq-data":2,')) {
         return [name, text];
       }
       const { generated } = JSON.parse(text) as { generated?: unknown };
@@ -2336,5 +2343,78 @@ describe("every catalog command on every access", { timeout: TEST_TIMEOUT }, () 
     const app = connectApp(workspace);
     expect((await app.bridge.commands()).map((c) => c.name)).toEqual(names);
     await app.close();
+  });
+});
+
+/** The text of a POST to the API of `root` with an `Accept` header, and its content type. */
+const apiText = async (
+  root: string,
+  name: string,
+  input: object,
+  accept: string,
+): Promise<{ readonly type: string | undefined; readonly text: string }> => {
+  const workspace = new Workspace(root);
+  const server = await startApiServer({ workspace, runtime, cacheFolder: cache });
+  try {
+    const { token } = JSON.parse(await fs.readFile(server.endpointFile, "utf8")) as { token: string };
+    return await new Promise((resolve, reject) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port: server.port,
+          method: "POST",
+          path: `/v1/commands/${name}`,
+          headers: { authorization: `Bearer ${token}`, accept },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          res.on("end", () => {
+            resolve({ type: res.headers["content-type"], text: Buffer.concat(chunks).toString("utf8") });
+          });
+        },
+      );
+      req.on("error", reject);
+      req.end(JSON.stringify(input));
+    });
+  } finally {
+    await server.close();
+    await workspace.close();
+  }
+};
+
+describe("cross-access: JSON Lines (#319)", { timeout: TEST_TIMEOUT }, () => {
+  it("[SR-061/AK4] the CLI with --jsonl and the API with application/x-ndjson give the same lines, those of the core output", async () => {
+    const lined = runtime.contracts.commands.filter((e) => e.jsonLines !== undefined);
+    expect(lined.map((e) => e.name)).toEqual(["data.export"]);
+    for (const entry of lined) {
+      const spec = entry.jsonLines;
+      if (spec === undefined) {
+        continue;
+      }
+      for (const input of [{}, { selection: { package: "PKG-0000d1" } }]) {
+        const { root } = await copy({
+          name: "lines",
+          fixture: EXPORT,
+          root: "system",
+          input,
+          expect: "output",
+        });
+        const core = await viaCore(root, entry, input);
+        const expected = [...jsonLines((core as { output: unknown }).output, spec)].join("");
+        const items = ((core as { output: Record<string, unknown[]> }).output[spec.items] ?? []).length;
+        expect([input, expected.split("\n").length - 1]).toEqual([input, items]);
+        const stdout = new Sink();
+        const stderr = new Sink();
+        const argv = [...argvFor(entry, input, runtime.contracts.schemas), "--jsonl", "--workspace", root];
+        const code = await runCli({ argv, cwd: root, stdin: Readable.from([]), stdout, stderr, runtime });
+        expect([input, code, stderr.text, stdout.text]).toEqual([input, EXIT.ok, "", expected]);
+        const api = await apiText(root, entry.name, input, "application/x-ndjson");
+        expect([input, api]).toEqual([
+          input,
+          { type: "application/x-ndjson; charset=utf-8", text: expected },
+        ]);
+      }
+    }
   });
 });

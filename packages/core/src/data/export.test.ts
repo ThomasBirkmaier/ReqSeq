@@ -170,6 +170,7 @@ describe("the header of an export", () => {
     expect(exportTime(new Date("2026-10-27T08:09:10.987Z"))).toBe("2026-10-27T08:09:10Z");
     const header = {
       name: "Weather station",
+      main: "system",
       generated: "2026-10-27T08:09:10Z",
       repositories: [
         { name: "system", available: true, commit: "0123456789abcdef0123456789abcdef01234567" },
@@ -178,14 +179,38 @@ describe("the header of an export", () => {
       ],
       incomplete: true,
     };
-    expect(exportHeader({ ...header, selection: { package: "PKG-0000d1" } })).toEqual({
-      "logreq-data": 1,
+    const out = exportHeader({ ...header, selection: { package: "PKG-0000d1" } });
+    expect(out).toEqual({
+      "logreq-data": 2,
+      commit: "0123456789abcdef0123456789abcdef01234567",
+      dirty: true,
       workspace: "Weather station",
       generated: "2026-10-27T08:09:10Z",
       selection: { package: "PKG-0000d1" },
       repositories: header.repositories,
       incomplete: true,
     });
+    // `logreq-data` first, then the state: the order of every line of the JSON Lines form.
+    expect(Object.keys(out).slice(0, 3)).toEqual(["logreq-data", "commit", "dirty"]);
     expect(exportHeader({ ...header, selection: undefined })).not.toHaveProperty("selection");
+  });
+
+  it("is clean only when every available repository is known clean; the commit is the main one's", () => {
+    const at = (dirty: boolean | undefined) => ({
+      name: "Weather station",
+      main: "sensor",
+      generated: "2026-10-27T08:09:10Z",
+      selection: undefined,
+      repositories: [
+        { name: "system", available: true, commit: "0123456789abcdef0123456789abcdef01234567", dirty: false },
+        { name: "sensor", available: true, ...(dirty === undefined ? {} : { dirty }) },
+        { name: "vault", available: false },
+      ],
+      incomplete: true,
+    });
+    expect(exportHeader(at(false))).toMatchObject({ dirty: false });
+    expect(exportHeader(at(false))).not.toHaveProperty("commit");
+    expect(exportHeader(at(true))).toMatchObject({ dirty: true });
+    expect(exportHeader(at(undefined))).toMatchObject({ dirty: true });
   });
 });

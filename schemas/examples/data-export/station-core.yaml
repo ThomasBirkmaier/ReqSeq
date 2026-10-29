@@ -4,7 +4,9 @@
 # one requirement have a validation status (SR-038). The emergent requirement (SR-035) has no own record,
 # so it is open in each view, never indirect. Records and test cases are checked by
 # packages/core/src/evidence/record.test.ts: a data-export file has no place for them.
-logreq-data: 1
+logreq-data: 2
+commit: 0123456789abcdef0123456789abcdef01234567
+dirty: false
 workspace: Weather station
 generated: 2026-10-27T08:00:00Z
 selection: { ids: [SR-e88fb3, SR-e88fa0, SR-e88fe0, N-e88f00] }

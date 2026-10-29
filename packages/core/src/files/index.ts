@@ -42,6 +42,8 @@ export { isTempFile, TEMP_FILE_PATTERN, writeFileAtomic } from "./write.js";
 export type { FileContent, FileKind, WriteOptions } from "./write.js";
 export { JSON_CHUNK_LENGTH, jsonByteLength, jsonChunks } from "./json-text.js";
 export type { JsonChunkOptions } from "./json-text.js";
+export { jsonLines } from "./json-lines.js";
+export type { JsonLinesSpec } from "./json-lines.js";
 export { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
 export type { JsonDataKind } from "./json-data.js";
 export { editElementFile, zip } from "./edit.js";
