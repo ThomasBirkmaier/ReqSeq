@@ -119,17 +119,29 @@ export class LineTransport implements Transport {
   }
 
   async #write(message: JSONRPCMessage): Promise<void> {
-    for (const chunk of lineOf(message)) {
-      if (this.#closed) {
-        return;
-      }
-      if (this.#output.write(chunk) === false && this.#output.drained !== undefined) {
-        if (!(await this.#output.drained())) {
-          // The reader has gone away: nothing more can reach the client.
-          await this.close();
+    let written = false;
+    try {
+      for (const chunk of lineOf(message)) {
+        if (this.#closed) {
           return;
         }
+        written = true;
+        if (this.#output.write(chunk) === false && this.#output.drained !== undefined) {
+          // Raced against `closed`, so a send does not stay pending once the transport is closed.
+          const more = await Promise.race([this.#output.drained(), this.closed.then(() => false)]);
+          if (!more) {
+            // The reader has gone away (or the transport closed): nothing more can reach the client.
+            await this.close();
+            return;
+          }
+        }
       }
+    } catch (error) {
+      if (written) {
+        // Half a line is out: the next message would be glued onto it, so the stream is unusable.
+        await this.close();
+      }
+      throw error;
     }
   }
 

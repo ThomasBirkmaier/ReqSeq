@@ -234,4 +234,34 @@ describe("LineTransport: large messages and the send queue (#277)", () => {
     expect(written).toEqual([serializeMessage(ping(9))]);
     await transport.close();
   });
+
+  it("closes the transport when a large message fails after its first chunk, so no line is glued on (review S1)", async () => {
+    const written: string[] = [];
+    const transport = new LineTransport(new PassThrough(), { write: (text) => written.push(text) });
+    const received = connect(transport);
+    await transport.start();
+    const message = large(10) as unknown as { result: { structuredContent: { elements: unknown[] } } };
+    message.result.structuredContent.elements.push({ n: 1n });
+    await expect(transport.send(message as unknown as JSONRPCMessage)).rejects.toThrow(TypeError);
+    expect(written.length).toBeGreaterThan(0);
+    expect(received.closes).toBe(1);
+    const count = written.length;
+    await transport.send(ping(11));
+    expect(written).toHaveLength(count);
+  });
+
+  it("does not leave a send pending on a drain that never comes once the transport closes", async () => {
+    const pieces: string[] = [];
+    const sink = {
+      write: (text: string): boolean => (pieces.push(text), false),
+      drained: (): Promise<boolean> => new Promise<boolean>(() => undefined),
+    };
+    const transport = new LineTransport(new PassThrough(), sink);
+    await transport.start();
+    const sending = transport.send(large(12));
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    await transport.close();
+    await sending;
+    expect(pieces).toHaveLength(1);
+  });
 });
