@@ -613,7 +613,9 @@ class ActivityWatcher implements ActivityWatch {
    * folder watch starts or closes, so a file written meanwhile gives no event (#385). The workspace
    * watcher does that when it watches its repositories anew after a layout change, and tells it with
    * this batch; a change of an element, which an agent's change writes just before the access, gives
-   * one as well. It is no polling: nothing is read without a batch.
+   * one as well. This narrows the gap but does not close it: Node does not tell when the stream runs
+   * again, so an access written after this read and before then waits for the next batch or access.
+   * It is no polling: nothing is read without a batch.
    */
   async #recheck(): Promise<void> {
     await this.#read();
@@ -675,8 +677,8 @@ class ActivityWatcher implements ActivityWatch {
  * was recorded (`access.at`, never more than `holdMs` after it arrived), unless the file then holds a
  * newer access (read once more, for an event that came late), which is held for what is left of its
  * own hold; a newer access drops a held one. A file that is too large, broken or of another version is
- * ignored. The file is also read again on every batch of the workspace watcher, for an access whose
- * file event was lost (#385). A watch that cannot start or fails is logged and ends; there is no polling.
+ * ignored. The file is also read again on every batch of the workspace watcher, which narrows, but
+ * does not close, the gap in which a file event is lost (#385). A watch that cannot start or fails is logged and ends; there is no polling.
  */
 export const watchActivity = (workspace: Workspace, options: ActivityWatchOptions): ActivityWatch =>
   new ActivityWatcher(workspace, options);
