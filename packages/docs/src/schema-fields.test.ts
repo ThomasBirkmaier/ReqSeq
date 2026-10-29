@@ -19,6 +19,8 @@ describe("schema fields", () => {
     expect(typeText({ anyOf: [{ type: "string" }, { type: "integer" }] })).toBe("`string` or `integer`");
     expect(typeText({ oneOf: [{ type: "boolean" }] })).toBe("`boolean`");
     expect(typeText({ allOf: [{ $ref: "#/$defs/a" }, { type: "object" }] })).toBe("`a` and `object`");
+    expect(typeText({ allOf: [{ $ref: "#/$defs/relativePath" }, { minLength: 1 }] })).toBe("`relativePath`");
+    expect(typeText({ allOf: [{ minLength: 1 }] })).toBe("`any`");
     expect(typeText({ type: "array", items: { type: "string" } })).toBe("array of `string`");
     expect(typeText({ type: "array" })).toBe("`array`");
     expect(typeText({ type: ["string", "null"] })).toBe("`string` or `null`");

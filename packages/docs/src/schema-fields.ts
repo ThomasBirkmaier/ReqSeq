@@ -16,6 +16,9 @@ type Schema = Readonly<Record<string, unknown>>;
 /** Nested objects are listed to this depth; deeper ones are named by their type only. */
 const MAX_DEPTH = 2;
 
+/** The keywords by which a schema names a type, as `typeText` reads them. */
+const TYPE_KEYWORDS = ["$ref", "enum", "const", "anyOf", "oneOf", "allOf", "type"];
+
 const isSchema = (value: unknown): value is Schema =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -55,7 +58,11 @@ export function typeText(schema: Schema): string {
     return alternatives.filter(isSchema).map(typeText).join(" or ");
   }
   if (Array.isArray(schema["allOf"])) {
-    return schema["allOf"].filter(isSchema).map(typeText).join(" and ");
+    // Parts that only constrain (`minLength`, `not`) name no type of their own: `relativePath`, not `relativePath and any`.
+    const named = schema["allOf"]
+      .filter(isSchema)
+      .filter((part) => TYPE_KEYWORDS.some((keyword) => keyword in part));
+    return named.length === 0 ? code("any") : named.map(typeText).join(" and ");
   }
   const type = schema["type"];
   if (type === "array") {

@@ -13,7 +13,7 @@ D-067: ReqSeq has documentation for its users, in Get started, How-to, Reference
 **Sources and layout.**
 
 - Hand-written pages: `docs/guide/` (Markdown, English, SR-074).
-- `packages/docs` (`@reqseq/docs`, private, never shipped): the generator in `src/` (TypeScript, 100 % coverage, ADR-0016). `pnpm docs:generate` copies `docs/guide/` into the one content folder Starlight reads, `packages/docs/site/src/content/docs/` (git-ignored, a copy rather than a link so every system reads the same files), and later writes the generated reference next to it.
+- `packages/docs` (`@reqseq/docs`, private, never shipped): the generator in `src/` (TypeScript, 100 % coverage, ADR-0016). It depends on `core`, `cli`, `app`, `api` and `mcp`, whose exports it reads. `pnpm docs:generate` copies `docs/guide/` into the one content folder Starlight reads, `packages/docs/site/src/content/docs/` (git-ignored, a copy rather than a link so every system reads the same files), and writes the generated reference next to it. Hand-written pages live in `index.md` or the section folders `start/`, `how-to/` and `concepts/`, which the sidebar lists; the generator refuses a page elsewhere.
 - `packages/docs/site/`: the Starlight site, `.mjs` config and CSS only. It is not a workspace member (`packages/*` matches direct children only) and has its own lockfile, installed with `--ignore-workspace --ignore-scripts` only by the docs steps of CI and by `docs-pages.yml` (precedent: `toolchain/packaging/`, ADR-0014). So the about 290 packages of Astro never reach other jobs or agent installs.
 - `pnpm docs:build` generates, installs the site and builds it into `packages/docs/site/dist/`.
 

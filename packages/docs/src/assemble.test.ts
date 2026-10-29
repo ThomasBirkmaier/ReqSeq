@@ -60,6 +60,15 @@ describe("assembleContent", () => {
     );
   });
 
+  it("refuses a hand-written page that no section of the sidebar lists", async () => {
+    await writeFile(join(paths.guideDir, "notes.md"), "# Notes\n");
+    await mkdir(join(paths.guideDir, "other"));
+    await writeFile(join(paths.guideDir, "other", "page.md"), "# Other\n");
+    await expect(assembleContent(paths)).rejects.toThrow(
+      "docs/guide: notes.md, other/page.md not in a section of the sidebar (start, how-to, concepts)",
+    );
+  });
+
   it("fails when the guide folder is missing", async () => {
     await rm(paths.guideDir, { recursive: true });
     await expect(assembleContent(paths)).rejects.toThrow(/ENOENT/);
