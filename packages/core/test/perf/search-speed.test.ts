@@ -2,7 +2,7 @@
 // 300 ms in the generated workspace of N-036 with 50,000 elements and 200,000 relations.
 //
 // "Wenn ein Suchbegriff eingegeben wird" as measured here (#110): a warm server (`warmWorkspace`, as
-// `logreq serve` and the app start, with the search index built in the background and ready),
+// `reqseq serve` and the app start, with the search index built in the background and ready),
 // `element.search` through the catalog (`invoke`, as every access calls it, SR-080) with the default
 // page of 50 hits ("die ersten Treffer"). The app searches as the user types, so every keystroke is a
 // search of the term so far. The terms below cover that and the costliest terms of the generated
@@ -20,7 +20,7 @@
 // The scoring that makes these searches fast is MiniSearch's to the bit: the last test compares the
 // scores of `scoreWords` with those of MiniSearch's `search` for every term, on this workspace
 // (search-scoring.ts).
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measure,
@@ -28,7 +28,7 @@ import {
   recordValue,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import type { Query } from "minisearch";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";

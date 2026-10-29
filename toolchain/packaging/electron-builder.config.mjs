@@ -15,13 +15,13 @@ const staged = (name) => {
   return value;
 };
 
-const launchers = staged("LOGREQ_STAGED_LAUNCHERS");
+const launchers = staged("REQSEQ_STAGED_LAUNCHERS");
 
 export default {
   appId: names.appId,
   productName: names.productName,
-  electronVersion: staged("LOGREQ_ELECTRON_VERSION"),
-  directories: { output: staged("LOGREQ_DELIVERY_DIR") },
+  electronVersion: staged("REQSEQ_ELECTRON_VERSION"),
+  directories: { output: staged("REQSEQ_DELIVERY_DIR") },
   files: ["package.json", "out/**", "node_modules/**", "!**/*.map", "!**/*.d.ts", "!**/*.tsbuildinfo"],
   asar: true,
   // No native modules; and the staged node_modules is complete.
@@ -32,18 +32,18 @@ export default {
   extraResources: [
     // From the parent folder: electron-builder always leaves out the node_modules folder directly under `from`.
     {
-      from: dirname(staged("LOGREQ_STAGED_CLI")),
+      from: dirname(staged("REQSEQ_STAGED_CLI")),
       to: ".",
       filter: [
-        `${basename(staged("LOGREQ_STAGED_CLI"))}/**/*`,
+        `${basename(staged("REQSEQ_STAGED_CLI"))}/**/*`,
         "!**/*.map",
         "!**/*.d.ts",
         "!**/*.tsbuildinfo",
       ],
     },
-    { from: staged("LOGREQ_NOTICES"), to: "THIRD_PARTY_NOTICES.txt" },
+    { from: staged("REQSEQ_NOTICES"), to: "THIRD_PARTY_NOTICES.txt" },
     {
-      from: staged("LOGREQ_JUNIT_GUIDE"),
+      from: staged("REQSEQ_JUNIT_GUIDE"),
       to: "docs/junit",
       filter: ["**/*", "!**/__pycache__/**", "!**/.pytest_cache/**"],
     },

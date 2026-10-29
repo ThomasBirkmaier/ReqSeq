@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-// ADR-0014, ADR-0011 (#324): the delivery tests install the built artifacts (LOGREQ_DELIVERY_DIR) and inspect
+// ADR-0014, ADR-0011 (#324): the delivery tests install the built artifacts (REQSEQ_DELIVERY_DIR) and inspect
 // and start them. Only the release workflow runs them: `pnpm test:delivery`, on Linux inside a network
 // namespace with loopback only, as a non-root user (the app starts only with its sandbox on).
 // No coverage: the packaged processes are not measured; the unit tests carry the coverage thresholds (ADR-0016).
 export default defineConfig({
   resolve: {
-    alias: { "@logreq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
+    alias: { "@reqseq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
   },
   test: {
     include: ["packages/*/test/delivery/**/*.test.ts"],

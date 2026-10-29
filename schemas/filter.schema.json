@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/filter.schema.json",
+  "$id": "https://reqseq.dev/schemas/filter.schema.json",
   "title": "Saved filter file",
   "description": "A named filter saved as YAML in the repository (D-056, SR-070): a `*.yaml` file directly in the `filters` folder of the workspace file. The same condition language is the `where` of every command that takes a selection, so a saved filter gives the same elements in app, CLI, API and MCP (SR-070 AK3). Element references may take any form (`resolveRef`); `filter.save` writes UUIDs.",
   "type": "object",

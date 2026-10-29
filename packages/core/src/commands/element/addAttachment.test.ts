@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -135,7 +135,7 @@ describe("element.addAttachment", () => {
       linked,
     );
     expect(await opened.fixture.git(["cat-file", "-s", `HEAD:${linked}`])).toBe(`${String(PNG.length)}\n`);
-    // LogReq finds it the same way: the version of the commit is the current one, so it has a date.
+    // ReqSeq finds it the same way: the version of the commit is the current one, so it has a date.
     const got = (await invoke(
       "element.get",
       { ref: WIND.id, versionDate: true },
@@ -148,7 +148,7 @@ describe("element.addAttachment", () => {
     expect(await versionOf(opened, WIND.id)).not.toBe(version);
   });
 
-  it("[SR-097/AK2] a folder name LogReq did not choose is percent-encoded in the link, which still finds the image", async () => {
+  it("[SR-097/AK2] a folder name ReqSeq did not choose is percent-encoded in the link, which still finds the image", async () => {
     const element =
       "---\nid: 0b7c6e1a-1111-4222-8333-000000000001\ntype: system-requirement\nstatus: draft\ntitle: Odd\n---\n";
     const opened = await open({
@@ -263,7 +263,7 @@ describe("element.addAttachment", () => {
       expect(error.message).not.toContain(opened.fixture.root);
     }
     expect((await addError(opened, { ref: WIND.id, sourcePath: "incoming/notes.txt" })).message).toBe(
-      "notes.txt is no image LogReq embeds; the name must end in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg, .webp",
+      "notes.txt is no image ReqSeq embeds; the name must end in .avif, .bmp, .gif, .jpeg, .jpg, .png, .svg, .webp",
     );
     expect(await filesBelow(opened.fixture.path("requirements"))).toEqual([
       "SR-1d2e3f4a5b6c.md",

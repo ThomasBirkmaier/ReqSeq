@@ -6,7 +6,7 @@
 // - A save writes only input, never over a change on disk, a deleted file or a read-only element (SR-106).
 // - "Save element" says what happened; autosave and the other saves say only what went wrong, and an error
 //   or a hint of core once while it stays the same (D-062).
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { Draft } from "./drafts.js";
 import { rebased } from "./drafts.js";
 import type { PropertyModel } from "./element-view.js";

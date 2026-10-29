@@ -1,5 +1,5 @@
 # The file itself is JSON (api.json); shown here as YAML, which reads the same.
-logreq-api: 1
+reqseq-api: 1
 port: 49731
 token: q1v6m0Qy8hJ1v1sQyQ0d2l1G3n2l7Pp3b8e1o4yWk9c
 urls:

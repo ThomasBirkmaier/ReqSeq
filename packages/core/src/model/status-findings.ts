@@ -29,7 +29,7 @@ import { carryStoreUpdate, elementStoreState } from "./store.js";
 /** A status hint (path `["status"]`), before its line is known (`locateFindings` adds it). */
 export type StatusFinding = LocatableFinding & { readonly path: readonly ["status"] };
 
-const UNCHANGED = "LogReq changes no file";
+const UNCHANGED = "ReqSeq changes no file";
 
 /** `Decision (decision)`. */
 const typeLabel = (type: EffectiveType): string => `${type.name} (${type.key})`;

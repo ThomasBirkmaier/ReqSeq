@@ -57,7 +57,7 @@ describe("createFixtureWorkspace", () => {
   });
 
   it("copies a fixture case and lets files override it", async () => {
-    const fixturesDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-fixtures-"));
+    const fixturesDir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-fixtures-"));
     try {
       fs.mkdirSync(path.join(fixturesDir, "SR-000", "case", "sub"), { recursive: true });
       fs.writeFileSync(path.join(fixturesDir, "SR-000", "case", "keep.md"), "copied");
@@ -78,7 +78,7 @@ describe("createFixtureWorkspace", () => {
   });
 
   it("removes the temporary folder when building fails", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-parent-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-parent-"));
     try {
       await expect(make({ tempDir, files: { "../escape.md": "x" } })).rejects.toThrow(/relative/);
       expect(fs.readdirSync(tempDir)).toEqual([]);
@@ -95,7 +95,7 @@ describe("createFixtureWorkspace", () => {
     expect((await ws.git(["ls-files"])).trim()).toBe("a.md");
     // Unix time instead of %aI: Git 2.55 on macOS prints UTC as "Z", older Git as "+00:00".
     expect((await ws.git(["log", "--format=%an <%ae> %at %s"])).trim()).toBe(
-      "LogReq Test <test@logreq.invalid> 1767225601 fixture",
+      "ReqSeq Test <test@reqseq.invalid> 1767225601 fixture",
     );
     expect((await ws.git(["branch", "--show-current"])).trim()).toBe("main");
   });
@@ -156,7 +156,7 @@ describe("createFixtureWorkspace", () => {
     expect(read(ws.path("a.md"))).toBe("a");
     expect(await ws.git(["show", `${first}:a.md`])).toBe("changed");
     expect((await ws.git(["log", "-1", "--format=%P %an %s", first])).trim()).toBe(
-      `${before} LogReq Test fixture`,
+      `${before} ReqSeq Test fixture`,
     );
     // On another parent, with a message; no branch or other ref is left.
     const second = await ws.commitFiles({ "c.md": "c" }, { parent: first, message: "upstream" });
@@ -258,7 +258,7 @@ describe("cloneFixtureWorkspace", () => {
   });
 
   it("clones another repository of the fixture, into a given parent folder", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-parent-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-parent-"));
     try {
       const origin = await make({ files: { "product/p.md": "p" }, git: ["product"] });
       const copy = await clone(origin, "product", { tempDir });
@@ -271,7 +271,7 @@ describe("cloneFixtureWorkspace", () => {
   });
 
   it("removes the temporary folder when the clone fails", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-parent-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-parent-"));
     try {
       // No Git repository to clone.
       const origin = await make({ files: { "a.md": "a" } });

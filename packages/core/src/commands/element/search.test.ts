@@ -7,8 +7,8 @@
 // The search index itself (words, fuzzy and prefix, IDs, carries) is tested in
 // query/search-index.test.ts; here the command: selection, fields, page and output.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

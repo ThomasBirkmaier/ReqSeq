@@ -1,7 +1,7 @@
 // How the fields of a command input schema appear on the command line (ADR-0009). Generic: only the
 // JSON Schema decides, never the command. Validation stays in core; this only picks the argument form.
-import type { CatalogEntry, JsonSchema } from "@logreq/core";
-import { SCHEMA_BASE, contractsBundle } from "@logreq/core";
+import type { CatalogEntry, JsonSchema } from "@reqseq/core";
+import { SCHEMA_BASE, contractsBundle } from "@reqseq/core";
 
 /** Values the command line can carry directly. Anything else is `complex` and only reachable via `--input`. */
 export type ScalarKind = "string" | "number" | "boolean";

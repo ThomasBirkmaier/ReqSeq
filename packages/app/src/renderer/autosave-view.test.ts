@@ -5,7 +5,7 @@ import "../../../../scripts/test-support/dom-selection.mjs";
 // Saving without a save command in the element buffer (SR-105): one second after the last input, at once
 // when a prompt opens or the buffer is closed, and undo and redo since the buffer was opened, also for a
 // choice. The scheduler itself is tested in `autosave.test.ts`, leaving and coming back in `App.test.ts`.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";

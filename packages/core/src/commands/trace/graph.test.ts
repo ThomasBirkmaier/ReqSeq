@@ -5,8 +5,8 @@
 // C1, GG1 from G1 (valid only in the variant V1). D1 references S1 (so it is above and below S1), D2
 // references C1 (a link from a parent to a child), E1 references S1, C1 is based on D1 (a link the
 // walks do not take) and G1 references itself.
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

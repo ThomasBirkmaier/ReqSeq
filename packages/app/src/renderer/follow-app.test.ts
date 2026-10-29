@@ -6,7 +6,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentActivity, InvokeResult, LogReqBridge, WorkspaceChange } from "../shared/protocol.js";
+import type { AgentActivity, InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { NO_ACCESS } from "./use-follow.js";
 
@@ -82,7 +82,7 @@ const fakeBridge = (handlers: Record<string, Handler>, commands: readonly unknow
         : { ok: true, output },
     );
   });
-  const bridge: LogReqBridge = {
+  const bridge: ReqSeqBridge = {
     invoke,
     commands: () => Promise.resolve(commands as never),
     on: (event, listener) => {
@@ -152,7 +152,7 @@ const flush = async (): Promise<void> => {
   });
 };
 
-const render = async (bridge: LogReqBridge): Promise<void> => {
+const render = async (bridge: ReqSeqBridge): Promise<void> => {
   await act(async () => {
     root.render(createElement(App, { bridge }));
     await Promise.resolve();
@@ -295,7 +295,7 @@ describe("Follow agent in the window (SR-117)", () => {
     // change; nothing else does.
     const stored = (): string[] =>
       Object.keys(window.localStorage).filter(
-        (name) => !name.startsWith("logreq.usage") && !name.startsWith("logreq.buffers"),
+        (name) => !name.startsWith("reqseq.usage") && !name.startsWith("reqseq.buffers"),
       );
     const before = stored().map((name) => [name, window.localStorage.getItem(name)]);
     await runCommand("Follow agent");
@@ -467,7 +467,7 @@ describe("Follow agent in the window (SR-117)", () => {
     await toggle();
     await runCommand("Overview");
     // Its buffer is open (and kept as such, SR-115 AK4), but it is no recent element.
-    const recent = (): string => window.localStorage.getItem("logreq.recent.v1\nWeather station") ?? "";
+    const recent = (): string => window.localStorage.getItem("reqseq.recent.v1\nWeather station") ?? "";
     expect(recent()).not.toContain("uuid-1");
     // Shown by the user later: then it is.
     await keyDown(window, "p", { ctrlKey: true });

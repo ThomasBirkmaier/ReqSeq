@@ -2,7 +2,7 @@
 // share as a percentage rounded down to one decimal, `60 %`, `66.6 %`, `64.2 %`, so 100 % only when every
 // counted requirement is verified or indirect (ADR-0012 "Status rules", bullet "Verification degree";
 // assumption of spec question #592 Q3). One rule on every access: the CLI's readable output imports it
-// from `@logreq/core`, the app's result buffer from `@logreq/core/verification-degree`. This module
+// from `@reqseq/core`, the app's result buffer from `@reqseq/core/verification-degree`. This module
 // imports nothing, so the renderer bundle loads no other part of core with it.
 
 /**

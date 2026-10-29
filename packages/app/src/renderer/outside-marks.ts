@@ -4,7 +4,7 @@
 // briefly and quietly where it is shown: a grey tint that fades, no colour, no text, no control (D-062).
 // What changed is compared from the outputs of the commands (ADR-0002): this module decides only what
 // to tint and for how long.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { ChangedElements } from "../shared/protocol.js";
 import { heading } from "./copy.js";
 import { TITLE_FIELD, propertyBoxes, relationGroups } from "./element-view.js";

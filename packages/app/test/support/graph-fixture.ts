@@ -8,7 +8,7 @@
 //   is also based on one of the decisions, a long link past the package. So the graph has eight drawn
 //   layers and about 790 links, not easier than real data.
 // Every link stores the current version of its target, as in a real workspace: the files are written
-// with an old version, and `logreq hint confirm` writes the current ones (SR-027), so `trace.graph`
+// with an old version, and `reqseq hint confirm` writes the current ones (SR-027), so `trace.graph`
 // computes the versions of the targets for its `outdated` mark as it does on real data.
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
@@ -123,7 +123,7 @@ export const cli = async (folder: string, argv: readonly string[]): Promise<stri
 
 /** Writes the workspace and stores the current versions in its links. */
 export const writeGraphFixture = async (): Promise<GraphFixture> => {
-  const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-graph-fixture-")));
+  const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-graph-fixture-")));
   const folder = path.join(top, "workspace");
   await fs.mkdir(folder);
   await fs.cp(path.join(FIXTURE, "metamodel"), path.join(folder, "metamodel"), { recursive: true });

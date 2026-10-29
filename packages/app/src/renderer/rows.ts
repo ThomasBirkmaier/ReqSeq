@@ -1,6 +1,6 @@
 // The rows of the list and the search buffers, as `element.list` and `element.search` give them, and
 // how many rows to ask for.
-import type { ElementListOutput, ElementSearchOutput } from "@logreq/core";
+import type { ElementListOutput, ElementSearchOutput } from "@reqseq/core";
 import { elementBufferOf } from "./buffers.js";
 import type { ElementBuffer } from "./buffers.js";
 

@@ -5,10 +5,10 @@
 // same chain, the largest graph whose links within a level are ranked. It is recorded, not asserted:
 // SR-111 AK6 is asserted end to end in the app (test/graph-performance.spec.ts), and
 // `packages/core/test/perf/trace-graph.test.ts` records the core part of the same call.
-import type { TraceGraphOutput } from "@logreq/core";
-import { Workspace, invoke, warmWorkspace } from "@logreq/core";
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
-import { generateLargeWorkspace, measureMedian, recordValue, writeLargeWorkspace } from "@logreq/testkit";
+import type { TraceGraphOutput } from "@reqseq/core";
+import { Workspace, invoke, warmWorkspace } from "@reqseq/core";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measureMedian, recordValue, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LEVEL_LAYERS_ABOVE, layoutGraph } from "../../src/renderer/graph-layout.js";
 

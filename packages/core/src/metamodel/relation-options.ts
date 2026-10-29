@@ -9,7 +9,7 @@
 // - Its target types are every type of the metamodel the kind allows, subtypes included, in
 //   metamodel order, so a search restricted to them (`{ type: targetTypes }`) finds the same
 //   elements with or without `subtypes` (AK2).
-// - A type the metamodel does not know gets no kind: LogReq only reads such an element (SR-016 AK3).
+// - A type the metamodel does not know gets no kind: ReqSeq only reads such an element (SR-016 AK3).
 import { CommandError } from "../catalog.js";
 import type { MetamodelKey, MetamodelRelationKind } from "../generated/types.js";
 import type { Metamodel } from "./load.js";

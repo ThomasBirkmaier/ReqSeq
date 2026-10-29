@@ -3,8 +3,8 @@
 // A target whose repository is not on this machine (SR-006, N-041): shown only with its short ID as
 // not accessible, results that follow it are incomplete, and nothing else is blocked.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, CommandOutput } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";

@@ -1,5 +1,5 @@
-import type { CatalogEntry, JsonSchema } from "@logreq/core";
-import { contractsBundle, getCommandRuntime } from "@logreq/core";
+import type { CatalogEntry, JsonSchema } from "@reqseq/core";
+import { contractsBundle, getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { InputField } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
@@ -18,7 +18,7 @@ const entry = (input: JsonSchema, name = "test.fields"): CatalogEntry => ({
 
 // Extra schemas for references that loop or use escaped pointers.
 const loop: JsonSchema = {
-  $id: "https://logreq.dev/schemas/loop.schema.json",
+  $id: "https://reqseq.dev/schemas/loop.schema.json",
   $defs: {
     a: { $ref: "#/$defs/b" },
     b: { $ref: "#/$defs/a" },
@@ -171,7 +171,7 @@ describe("inputFields", () => {
 
   it("marks local paths, also behind further references and in arrays", () => {
     const local: JsonSchema = {
-      $id: "https://logreq.dev/schemas/local.schema.json",
+      $id: "https://reqseq.dev/schemas/local.schema.json",
       $defs: { alias: { $ref: "common.schema.json#/$defs/localPath" } },
     };
     const f = Object.fromEntries(

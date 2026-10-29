@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import YAML from "yaml";
 import type { CommandOutput } from "../catalog.js";
@@ -105,7 +105,7 @@ describe("imageLinks", () => {
 
 /** A temporary repository folder. */
 const tempRoot = async (): Promise<string> => {
-  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-images-")));
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-images-")));
   onTestFinished(() => fs.rm(root, { recursive: true, force: true }));
   return root;
 };

@@ -2,7 +2,7 @@
 // title and text the elements that name it. This module only builds the input of `element.list`
 // (`where.package`) and tells which types are packages; core selects and sorts (ADR-0002). The rule
 // "which types are packages" is the one of core: the effective `meaning` of the type in `metamodel.get`.
-import type { ElementSelection, MetamodelGetOutput } from "@logreq/core";
+import type { ElementSelection, MetamodelGetOutput } from "@reqseq/core";
 import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { sortLabel } from "./buffers.js";
 import type { BufferData } from "./modeline.js";

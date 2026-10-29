@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/workspace.schema.json",
+  "$id": "https://reqseq.dev/schemas/workspace.schema.json",
   "title": "Workspace file",
   "description": "`logreq-workspace.yaml` in the root of the main repository (D-041, SR-004). Names the repositories that belong together. Everyone has locally only those they may access; missing ones are shown as not available (N-041, SR-004 AK3). A single-repository workspace lists only itself (SR-004 AK2).",
   "type": "object",
@@ -17,7 +17,7 @@
       "maxContains": 1,
       "if": { "minItems": 2 },
       "then": { "contains": { "$ref": "#/$defs/mainRepository" }, "minContains": 1 },
-      "description": "The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by LogReq; JSON Schema cannot express it)."
+      "description": "The entry with `main: true` is the repository that holds this file. With two or more repositories exactly one has `main: true`; a single repository is the main one even without it. Names are unique (checked by ReqSeq; JSON Schema cannot express it)."
     },
     "metamodel": {
       "description": "Where the metamodel lies: a folder in one of the repositories, the main one or its own (D-021, SR-011, SR-018).",
@@ -55,7 +55,7 @@
         "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "url": {
           "type": "string",
-          "description": "Address of the repository on the Git server. Informational: LogReq never clones or fetches (D-036)."
+          "description": "Address of the repository on the Git server. Informational: ReqSeq never clones or fetches (D-036)."
         },
         "path": {
           "type": "string",

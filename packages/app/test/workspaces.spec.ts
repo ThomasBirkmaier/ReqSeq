@@ -109,13 +109,13 @@ test.describe("Open workspace", () => {
     running = await launchApp(STATION, { recent: [buoy.root] });
     const { app, window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
-    await expect(window).toHaveTitle("Weather station - LogReq");
+    await expect(window).toHaveTitle("Weather station - ReqSeq");
     expect(await goToFinds(window, "Survive icing")).toBe(true);
     await openWorkspacePrompt(window);
     await window.keyboard.type("quokka");
     await expect(names(window)).toHaveText([buoy.root]);
     await window.keyboard.press("Enter");
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
     await expect(window.getByLabel("Modeline")).toContainText("Ocean buoy");
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
     // The same window, and no other.
@@ -129,7 +129,7 @@ test.describe("Open workspace", () => {
   });
 
   test("[SR-131/AK4] a recent workspace that is gone is marked not found, and choosing it keeps the open workspace", async () => {
-    const gone = path.join(os.tmpdir(), `logreq-app-gone-${String(process.pid)}`, "harbour");
+    const gone = path.join(os.tmpdir(), `reqseq-app-gone-${String(process.pid)}`, "harbour");
     running = await launchApp(STATION, { recent: [gone, buoy.root] });
     const { app, window } = running;
     await expect(window.getByRole("listbox", { name: "Overview" })).toBeVisible();
@@ -142,7 +142,7 @@ test.describe("Open workspace", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText(
       `${gone} is not found; Weather station stays open`,
     );
-    await expect(window).toHaveTitle("Weather station - LogReq");
+    await expect(window).toHaveTitle("Weather station - ReqSeq");
     expect(app.windows()).toEqual([window]);
     expect(await goToFinds(window, "Survive icing")).toBe(true);
   });
@@ -155,7 +155,7 @@ test.describe("Open workspace", () => {
     await openWorkspacePrompt(window);
     await window.keyboard.type("quokka");
     await window.keyboard.press("Enter");
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
     const { kept } = running;
     await running.close({ keep: true });
     // Started as the packaged app starts: no workspace; the command prompt works all the same.
@@ -169,7 +169,7 @@ test.describe("Open workspace", () => {
     await expect(options(window).locator(".hint")).toHaveCount(0);
     // And it opens one.
     await window.keyboard.press("Enter");
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
   });
 
   test("[SR-131/AK3] unsaved input in the editor is in the file before the workspace changes", async () => {
@@ -183,7 +183,7 @@ test.describe("Open workspace", () => {
     await window.keyboard.type("quokka");
     await expect(names(window)).toHaveText([buoy.root]);
     await window.keyboard.press("Enter");
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
     expect(await fs.readFile(file, "utf8")).toContain("Typed before the switch.");
   });
 
@@ -199,7 +199,7 @@ test.describe("Open workspace", () => {
       const file = Menu.getApplicationMenu()?.items.find((item) => item.label === "File");
       file?.submenu?.items.find((item) => item.label === "Open Workspace…")?.click();
     }, buoy.root);
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
     expect(app.windows()).toEqual([window]);
     expect(await fs.readFile(file, "utf8")).toContain("Typed before the dialog.");
   });
@@ -217,7 +217,7 @@ test.describe("Open workspace", () => {
     await window.keyboard.type(typed);
     await expect(names(window).first()).toHaveText(`Open ${typed}`);
     await window.keyboard.press("Enter");
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
     expect(app.windows()).toEqual([window]);
     expect(await goToFinds(window, "Show wind speed")).toBe(true);
     await openWorkspacePrompt(window);
@@ -229,6 +229,6 @@ test.describe("Open workspace", () => {
     await expect(window.getByLabel("Minibuffer")).toHaveText(
       `No workspace in ${os.tmpdir()} or a folder above it; Ocean buoy stays open`,
     );
-    await expect(window).toHaveTitle("Ocean buoy - LogReq");
+    await expect(window).toHaveTitle("Ocean buoy - ReqSeq");
   });
 });

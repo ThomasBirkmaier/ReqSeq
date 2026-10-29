@@ -4,7 +4,7 @@
 //   repository (`settingLocation`). A saved filter is a `*.yaml` file directly in that folder that
 //   matches `filter.schema.json`, as the metamodel folder is read; a `.yml` file is reported and not
 //   read. Filters are not elements (D-056: "Alle anderen Dateien des Tools sind YAML"), so D-045 does
-//   not apply to them; LogReq never deletes, moves or renames a filter file.
+//   not apply to them; ReqSeq never deletes, moves or renames a filter file.
 // - Read on every call, never kept: a handful of small files, and a filter another person committed
 //   is there as soon as the working copy has it (AK2), also for a running server or the app.
 // - Names compare ignoring case and Unicode normal form (`fold`, spec-frage #363 option 2A), as

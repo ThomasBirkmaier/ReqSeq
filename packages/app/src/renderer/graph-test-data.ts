@@ -1,6 +1,6 @@
 // Test data for the graph buffer's tests: `trace.graph` answers built from short names. Only test files
 // import it.
-import type { TraceGraphOutput } from "@logreq/core";
+import type { TraceGraphOutput } from "@reqseq/core";
 import type { GraphEdge, GraphNode } from "./graph.js";
 
 export const graphNode = (name: string, level: number, extra: Partial<GraphNode> = {}): GraphNode => ({

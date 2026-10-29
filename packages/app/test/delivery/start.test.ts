@@ -10,8 +10,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRecentWorkspaces } from "@logreq/core/recent-workspaces";
-import type { DeliveryNames, DeliverySystem } from "@logreq/testkit";
+import { readRecentWorkspaces } from "@reqseq/core/recent-workspaces";
+import type { DeliveryNames, DeliverySystem } from "@reqseq/testkit";
 import {
   DELIVERY_SYSTEMS,
   DELIVERY_TARGET,
@@ -20,7 +20,7 @@ import {
   deliveryLayout,
   installDelivery,
   offlineProblems,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { chromium } from "@playwright/test";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 
@@ -29,23 +29,23 @@ const names = JSON.parse(
   readFileSync(path.join(repo, "toolchain", "packaging", "names.json"), "utf8"),
 ) as DeliveryNames;
 const { version } = JSON.parse(readFileSync(path.join(repo, "package.json"), "utf8")) as { version: string };
-const deliveryDir = process.env["LOGREQ_DELIVERY_DIR"] ?? path.join(repo, "delivery");
+const deliveryDir = process.env["REQSEQ_DELIVERY_DIR"] ?? path.join(repo, "delivery");
 /**
  * The tests without network (SR-078 AK2) run on Linux, in the network namespace with loopback only that
- * scripts/package/delivery-tests.sh makes and marks with LOGREQ_DELIVERY_OFFLINE=1. Without it they fail
+ * scripts/package/delivery-tests.sh makes and marks with REQSEQ_DELIVERY_OFFLINE=1. Without it they fail
  * instead of being skipped, and with it the namespace is checked first. macOS and Windows have no namespace.
  */
 const NO_NAMESPACE = "no network namespace on this system (installation without network is tested on Linux)";
 const assertOffline = async (): Promise<void> => {
   expect(
-    process.env["LOGREQ_DELIVERY_OFFLINE"],
-    "LOGREQ_DELIVERY_OFFLINE is not set: run the suite with scripts/package/delivery-tests.sh",
+    process.env["REQSEQ_DELIVERY_OFFLINE"],
+    "REQSEQ_DELIVERY_OFFLINE is not set: run the suite with scripts/package/delivery-tests.sh",
   ).toBe("1");
   expect(offlineProblems(Object.keys(os.networkInterfaces()), await connectProbe("1.1.1.1", 443))).toEqual(
     [],
   );
 };
-/** Chromium refuses to run as root without turning its sandbox off, which LogReq never does (ADR-0014). */
+/** Chromium refuses to run as root without turning its sandbox off, which ReqSeq never does (ADR-0014). */
 const root = process.getuid?.() === 0;
 
 const temps: string[] = [];

@@ -7,7 +7,7 @@ describe("workspaceArgument", () => {
 
   it("takes --workspace <folder> and --workspace=<folder>, relative to the current folder", () => {
     expect(workspaceArgument(["electron", ".", "--workspace", "ws"], cwd)).toBe(path.join(cwd, "ws"));
-    expect(workspaceArgument(["logreq", `--workspace=${path.resolve("/abs")}`], cwd)).toBe(
+    expect(workspaceArgument(["reqseq", `--workspace=${path.resolve("/abs")}`], cwd)).toBe(
       path.resolve("/abs"),
     );
   });

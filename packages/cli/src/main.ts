@@ -1,7 +1,7 @@
-// `logreq`: the command line adapter over the command catalog (ADR-0002, ADR-0009). It only translates
+// `reqseq`: the command line adapter over the command catalog (ADR-0002, ADR-0009). It only translates
 // transport: argv to a command input, the output to stdout, errors to stderr and an exit code.
 import path from "node:path";
-import type { CommandErrorClass, CommandErrorCode, CommandRuntime, InvokeContext } from "@logreq/core";
+import type { CommandErrorClass, CommandErrorCode, CommandRuntime, InvokeContext } from "@reqseq/core";
 import {
   CommandError,
   PRODUCT_VERSION,
@@ -13,9 +13,9 @@ import {
   jsonLines,
   warmWorkspace,
   watchWorkspace,
-} from "@logreq/core";
-import { checkPort, refuseRunningApi, startApiServer } from "@logreq/api";
-import { serveMcp } from "@logreq/mcp";
+} from "@reqseq/core";
+import { checkPort, refuseRunningApi, startApiServer } from "@reqseq/api";
+import { serveMcp } from "@reqseq/mcp";
 import { CommanderError } from "commander";
 import type { InputStream } from "./input.js";
 import { buildInput } from "./input.js";
@@ -24,7 +24,7 @@ import { buildProgram } from "./program.js";
 import { renderHuman } from "./present.js";
 import { jsonOutput, outcomeExitCode, renderError, spelledMessage, yamlOutput } from "./render.js";
 
-/** Exit codes of `logreq` (ADR-0009). */
+/** Exit codes of `reqseq` (ADR-0009). */
 export const EXIT = {
   /** Success without error findings. */
   ok: 0,
@@ -255,7 +255,7 @@ async function serveUntilStopped(
       }
       const server = await startApiServer({ runtime, workspace, port });
       options.stdout.write(
-        `LogReq API on ${server.urls.join(" and ")}\nPort and token: ${server.endpointFile}\nStop with Ctrl-C.\n`,
+        `ReqSeq API on ${server.urls.join(" and ")}\nPort and token: ${server.endpointFile}\nStop with Ctrl-C.\n`,
       );
       await stopped(signal);
       await server.close();
@@ -287,7 +287,7 @@ async function serve(
   return EXIT.ok;
 }
 
-/** Run `logreq` with these arguments and return the exit code. Never rejects. */
+/** Run `reqseq` with these arguments and return the exit code. Never rejects. */
 export async function runCli(options: RunCliOptions): Promise<ExitCode> {
   let exitCode: ExitCode = EXIT.ok;
   try {

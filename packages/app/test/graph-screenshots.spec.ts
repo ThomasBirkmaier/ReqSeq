@@ -8,7 +8,7 @@
 // - on the generated workspaces of SR-111 AK6: a package graph of 500 nodes at depth 1 and a whole chain
 //   of 500 nodes, both laid out in the layers of their levels (#500).
 // The window is 1280×800. The PNGs go to `test-results/electron/screenshots/` (or the folder in
-// LOGREQ_SCREENSHOTS); keeping them is a deliberate step, not part of a test run.
+// REQSEQ_SCREENSHOTS); keeping them is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +23,7 @@ import { writeGraphFixture } from "./support/graph-fixture.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** Opens an element by Ctrl+P and its ID, once the hit is there. */
@@ -35,7 +35,7 @@ const open = async (window: Page, id: string, title: string): Promise<void> => {
   await expect(window.locator("article h1")).toHaveText(title);
 };
 
-/** The number of nodes `logreq trace graph` gives for the input. */
+/** The number of nodes `reqseq trace graph` gives for the input. */
 const nodeCount = async (running: RunningApp, input: Record<string, unknown>): Promise<number> =>
   (
     JSON.parse(

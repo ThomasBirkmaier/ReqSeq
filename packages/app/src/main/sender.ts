@@ -1,7 +1,7 @@
 // Who may send a message from a renderer to the main process (ADR-0010): the main frame of the web
-// contents of the LogReq window, showing the bundled renderer (`app://logreq`). The renderer is not
-// trusted, so every channel from it (`logreq:copy`, `logreq:recent-workspaces`,
-// `logreq:open-workspace`, `logreq:saved`) checks this first; what it then accepts is each handler's own
+// contents of the ReqSeq window, showing the bundled renderer (`app://reqseq`). The renderer is not
+// trusted, so every channel from it (`reqseq:copy`, `reqseq:recent-workspaces`,
+// `reqseq:open-workspace`, `reqseq:saved`) checks this first; what it then accepts is each handler's own
 // check.
 import { RENDERER_HOST } from "./protocols.js";
 
@@ -17,7 +17,7 @@ export interface WindowContents {
 }
 
 /** Whether `event` comes from the main frame of `contents`, showing the bundled renderer. */
-export const fromLogReqWindow = (event: unknown, contents: WindowContents): boolean => {
+export const fromReqSeqWindow = (event: unknown, contents: WindowContents): boolean => {
   const { sender, senderFrame } = event as SenderEvent;
   const url = senderFrame === null ? null : URL.parse(senderFrame.url);
   return (

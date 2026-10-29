@@ -4,8 +4,8 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { elementStoreState } from "../model/index.js";
@@ -449,7 +449,7 @@ describe("hint.confirm (SR-027)", () => {
     const ws = await fixture({ git: true });
     await changeTargets(ws);
     await ws.commit(undefined, "Change N and V");
-    // Every byte of the repository's Git folder, before LogReq reads anything.
+    // Every byte of the repository's Git folder, before ReqSeq reads anything.
     const git = tree(ws.path(".git"));
     const workspace = open(ws.root);
     const before = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;

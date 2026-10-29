@@ -1,17 +1,17 @@
-// `logreq trace chain` end to end (SR-022, ADR-0009): the built binary with the product commands on
+// `reqseq trace chain` end to end (SR-022, ADR-0009): the built binary with the product commands on
 // fixture workspaces, its exit code, its JSON and its readable output. Also the tests SR-013 handed
 // over to this command (#25: AK1 and AK3, #127 option 1). The evidence in the chain (SR-022 AK1, AK3;
 // SR-033) on fixtures/SR-033/chain: test cases and executions read from JUnit and Markdown record
 // files in its evidence location.
 // Run after `pnpm build` with `pnpm test:e2e`.
 import { rm } from "node:fs/promises";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
-const logreq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> => run(args, { cwd });
 
 interface Output {
   readonly root: string;
@@ -44,10 +44,10 @@ beforeAll(() => {
 const P = "5c0e1d2a-0022-4022-8022-00000000";
 const V = "n1:0000000000000000";
 
-describe("logreq trace chain (SR-022)", () => {
+describe("reqseq trace chain (SR-022)", () => {
   it("[SR-022/AK1] prints every level below a need with its depth, as JSON and readable", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
-    const json = await logreq(["trace", "chain", "N-00a001", "--json"], ws.root);
+    const json = await reqseq(["trace", "chain", "N-00a001", "--json"], ws.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     const output = JSON.parse(json.stdout) as Output;
     expect(output.nodes.map((n) => [n.shortId, n.depth, n.direction])).toEqual([
@@ -58,7 +58,7 @@ describe("logreq trace chain (SR-022)", () => {
       ["CR-00c002", 2, "down"],
     ]);
     // Readable: an indented tree with the depth in front and the gaps marked (#310).
-    const human = await logreq(["trace", "chain", "N-00a001"], ws.root);
+    const human = await reqseq(["trace", "chain", "N-00a001"], ws.root);
     expect(human).toEqual({
       code: 0,
       stdout: [
@@ -75,13 +75,13 @@ describe("logreq trace chain (SR-022)", () => {
       stderr: "",
     });
     // The whole output as YAML on request.
-    const yaml = await logreq(["trace", "chain", "N-00a001", "--yaml"], ws.root);
+    const yaml = await reqseq(["trace", "chain", "N-00a001", "--yaml"], ws.root);
     expect(yaml.stdout).toContain("    shortId: CR-00c002\n    type: component-requirement\n");
   });
 
   it("[SR-022/AK1] shows a later page without nesting an element under the wrong parent (#310)", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
-    const page = await logreq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
+    const page = await reqseq(["trace", "chain", "N-00a001", "--limit", "2", "--offset", "2"], ws.root);
     expect(page.stdout.split("\n").slice(0, 3)).toEqual([
       "children:",
       `  1  SR-00b002  draft  Show wind direction  [gap: no evidence]  [under ${P}a001]`,
@@ -92,7 +92,7 @@ describe("logreq trace chain (SR-022)", () => {
 
   it("[SR-022/AK4] marks a cycle whose closing edge starts on another page (#310)", async () => {
     const ws = await fixture({ fixture: "SR-090/cycle" });
-    const page = await logreq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
+    const page = await reqseq(["trace", "chain", "N-000001", "--limit", "2"], ws.root);
     expect(page.code).toBe(0);
     expect(page.stdout.split("\n").slice(0, 3)).toEqual([
       "N-a0000000001  approved  See the wind",
@@ -100,7 +100,7 @@ describe("logreq trace chain (SR-022)", () => {
       "  1  SR-b0000000001  draft  Show wind speed  [cycle from 5e9c0a7d-2b4f-4c61-9d08-0b0000000002]",
     ]);
     // An edge into the root from another page closes a cycle; the root has no parent in its chain.
-    const up = await logreq(
+    const up = await reqseq(
       ["trace", "chain", "SR-b0000000001", "--direction", "up", "--limit", "1"],
       ws.root,
     );
@@ -111,7 +111,7 @@ describe("logreq trace chain (SR-022)", () => {
 
   it("[SR-022/AK2] prints every parent of a component requirement up to the needs", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
-    const json = await logreq(["trace", "chain", "CR-00c002", "--direction", "up", "--json"], ws.root);
+    const json = await reqseq(["trace", "chain", "CR-00c002", "--direction", "up", "--json"], ws.root);
     expect(json.code).toBe(0);
     expect((JSON.parse(json.stdout) as Output).nodes.map((n) => [n.shortId, n.depth])).toEqual([
       ["CR-00c002", 0],
@@ -125,11 +125,11 @@ describe("logreq trace chain (SR-022)", () => {
   it("[SR-022/AK3] marks the gaps: a need without a child, requirements without a child and evidence", async () => {
     const ws = await fixture({ fixture: "SR-022/chain" });
     const rain = JSON.parse(
-      (await logreq(["trace", "chain", "N-00a003", "--json"], ws.root)).stdout,
+      (await reqseq(["trace", "chain", "N-00a003", "--json"], ws.root)).stdout,
     ) as Output;
     expect(rain.gaps).toEqual([{ id: `${P}a003`, repository: "system", kind: "no-child" }]);
     const wind = JSON.parse(
-      (await logreq(["trace", "chain", "N-00a001", "--max-depth", "1", "--json"], ws.root)).stdout,
+      (await reqseq(["trace", "chain", "N-00a001", "--max-depth", "1", "--json"], ws.root)).stdout,
     ) as Output;
     expect(wind.gaps).toEqual([]);
   });
@@ -163,7 +163,7 @@ describe("logreq trace chain (SR-022)", () => {
         ].join("\n"),
       },
     });
-    const human = await logreq(["trace", "chain", "SR-00b001", "--direction", "down"], ws.root);
+    const human = await reqseq(["trace", "chain", "SR-00b001", "--direction", "down"], ws.root);
     expect(human.code).toBe(0);
     expect(human.stdout).toContain(
       "warning  trace.cycle  system:components/CR-00000000c001.md  The chain stops at a cycle of derivations with 2 elements: Component Requirement CR-00c001, Component Requirement CR-00c002  (element CR-00c001)\n",
@@ -171,7 +171,7 @@ describe("logreq trace chain (SR-022)", () => {
   });
 });
 
-describe("logreq trace chain follows the meaning derivation (SR-013)", () => {
+describe("reqseq trace chain follows the meaning derivation (SR-013)", () => {
   const OWN: FixtureOptions = {
     fixture: "SR-013/own-meanings",
     files: {
@@ -184,7 +184,7 @@ describe("logreq trace chain follows the meaning derivation (SR-013)", () => {
 
   it("[SR-013/AK1] follows the own relation kind satisfies, not traces-to", async () => {
     const ws = await fixture(OWN);
-    const json = await logreq(["trace", "chain", "W-0000f1", "--json"], ws.root);
+    const json = await reqseq(["trace", "chain", "W-0000f1", "--json"], ws.root);
     expect(json.code).toBe(0);
     const output = JSON.parse(json.stdout) as Output;
     expect(output.nodes.map((n) => n.shortId)).toEqual(["W-0000f1", "SPI-0000f2"]);
@@ -200,7 +200,7 @@ describe("logreq trace chain follows the meaning derivation (SR-013)", () => {
           "logreq-metamodel: 1\nrelations:\n  - { key: satisfies, name: Satisfies, inverse-name: Satisfied by }\n",
       },
     });
-    const human = await logreq(["trace", "chain", "W-0000f1"], ws.root);
+    const human = await reqseq(["trace", "chain", "W-0000f1"], ws.root);
     expect(human).toEqual({
       code: 2,
       stdout: "",
@@ -240,9 +240,9 @@ interface WithEvidence extends Output {
   }[];
 }
 
-/** `logreq trace chain <ref> --json` on `ws`. */
+/** `reqseq trace chain <ref> --json` on `ws`. */
 const chainJson = async (ws: FixtureWorkspace, ref: string): Promise<WithEvidence> => {
-  const run = await logreq(["trace", "chain", ref, "--json"], ws.root);
+  const run = await reqseq(["trace", "chain", ref, "--json"], ws.root);
   expect([run.code, run.stderr]).toEqual([0, ""]);
   return JSON.parse(run.stdout) as WithEvidence;
 };
@@ -255,8 +255,8 @@ const fields = (e: Execution): unknown[] => [
   e.evidence ?? `${e.repository ?? ""}/${e.file ?? ""}:${String(e.line)}`,
 ];
 
-describe("logreq trace chain: test cases and executions (SR-033)", () => {
-  it("[SR-033/AK1] logreq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {
+describe("reqseq trace chain: test cases and executions (SR-033)", () => {
+  it("[SR-033/AK1] reqseq trace chain shows test cases and executions read from JUnit and Markdown record files", async () => {
     const ws = await fixture({
       fixture: "SR-033/chain",
       files: {
@@ -298,7 +298,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
       ],
     ]);
     expect(below?.records).toEqual([]);
-    const human = await logreq(["trace", "chain", "SR-33b001", "--direction", "down"], ws.root);
+    const human = await reqseq(["trace", "chain", "SR-33b001", "--direction", "down"], ws.root);
     expect(human).toEqual({
       code: 0,
       stdout: [
@@ -316,7 +316,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
     });
   });
 
-  it("[SR-022/AK1] logreq trace chain shows every level of a need down to the record files, with their depth", async () => {
+  it("[SR-022/AK1] reqseq trace chain shows every level of a need down to the record files, with their depth", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "N-33a001");
     expect(output.nodes.map((n) => [n.shortId, n.depth])).toEqual([
@@ -335,7 +335,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
     expect(output.evidence[3]?.records.map(fields)).toEqual([
       ["2026-10-20T14:00:00Z", "passed", "Display sample B4", "reports/inspection-b4.pdf"],
     ]);
-    const human = await logreq(["trace", "chain", "N-33a001"], ws.root);
+    const human = await reqseq(["trace", "chain", "N-33a001"], ws.root);
     expect(human).toEqual({
       code: 0,
       stdout: [
@@ -360,7 +360,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
     });
   });
 
-  it("[SR-033/AK2] logreq trace chain shows a JUnit test case that names two requirements at both", async () => {
+  it("[SR-033/AK2] reqseq trace chain shows a JUnit test case that names two requirements at both", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "N-33a001");
     // One <testcase> of run-1.xml names SR-33b001 and SR-33b002: shown at each, with its own executions.
@@ -384,7 +384,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
     // It counts for each: neither leaf requirement has a no-evidence gap ...
     expect(output.gaps.map((g) => g.id)).toEqual([`${Q}b003`]);
     // ... and the coverage counts both with evidence.
-    const coverage = await logreq(["evidence", "coverage", "--json"], ws.root);
+    const coverage = await reqseq(["evidence", "coverage", "--json"], ws.root);
     const level = (
       JSON.parse(coverage.stdout) as {
         levels: { type: string; elements: { withEvidence: string[] } }[];
@@ -393,7 +393,7 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
     expect(level?.elements.withEvidence).toEqual([`${Q}b001`, `${Q}b002`, `${Q}b004`]);
   });
 
-  it("[SR-033/AK3] logreq trace chain marks a skipped JUnit test case as not executed", async () => {
+  it("[SR-033/AK3] reqseq trace chain marks a skipped JUnit test case as not executed", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const output = await chainJson(ws, "SR-33b003");
     expect(output.evidence).toEqual([
@@ -413,14 +413,14 @@ describe("logreq trace chain: test cases and executions (SR-033)", () => {
         records: [],
       },
     ]);
-    const human = await logreq(["trace", "chain", "SR-33b003"], ws.root);
+    const human = await reqseq(["trace", "chain", "SR-33b003"], ws.root);
     expect(human.stdout.split("\n").slice(0, 2)).toEqual([
       "SR-33b003  draft  Show gusts  [gap: no evidence]",
       "  1  test case  tests.test_wind › test_gusts[SR-33b003]  [not executed]",
     ]);
   });
 
-  it("[SR-022/AK3] logreq trace chain marks a gap at a requirement whose test case was skipped, and none at one with a record file", async () => {
+  it("[SR-022/AK3] reqseq trace chain marks a gap at a requirement whose test case was skipped, and none at one with a record file", async () => {
     const ws = await fixture({ fixture: "SR-033/chain" });
     const gaps = async (): Promise<unknown[]> =>
       (await chainJson(ws, "N-33a001")).gaps.map((g) => [g.id, g.kind]);

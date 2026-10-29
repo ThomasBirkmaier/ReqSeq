@@ -121,7 +121,7 @@ const cleanEnv = (): NodeJS.ProcessEnv =>
  */
 export async function createFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {
   const base = await fs.realpath(
-    await fs.mkdtemp(path.join(options.tempDir ?? os.tmpdir(), "logreq-fixture-")),
+    await fs.mkdtemp(path.join(options.tempDir ?? os.tmpdir(), "reqseq-fixture-")),
   );
   const root = path.join(base, "workspace");
   // An empty global config: user settings (signing, autocrlf, hooks, templates) must not leak in.
@@ -172,10 +172,10 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
           GIT_CONFIG_GLOBAL: gitconfig,
           GIT_CONFIG_NOSYSTEM: "1",
           GIT_TERMINAL_PROMPT: "0",
-          GIT_AUTHOR_NAME: "LogReq Test",
-          GIT_AUTHOR_EMAIL: "test@logreq.invalid",
-          GIT_COMMITTER_NAME: "LogReq Test",
-          GIT_COMMITTER_EMAIL: "test@logreq.invalid",
+          GIT_AUTHOR_NAME: "ReqSeq Test",
+          GIT_AUTHOR_EMAIL: "test@reqseq.invalid",
+          GIT_COMMITTER_NAME: "ReqSeq Test",
+          GIT_COMMITTER_EMAIL: "test@reqseq.invalid",
           GIT_AUTHOR_DATE: date,
           GIT_COMMITTER_DATE: date,
         },
@@ -197,9 +197,9 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       const parent = options.parent ?? (await workspace.head(repository));
       commitCount++;
       const seconds = (BASE_DATE + commitCount * 1000) / 1000;
-      const ref = `refs/logreq-fixture/${String(commitCount)}`;
+      const ref = `refs/reqseq-fixture/${String(commitCount)}`;
       const stream = [
-        Buffer.from(`commit ${ref}\ncommitter LogReq Test <test@logreq.invalid> ${String(seconds)} +0000\n`),
+        Buffer.from(`commit ${ref}\ncommitter ReqSeq Test <test@reqseq.invalid> ${String(seconds)} +0000\n`),
         ...data(options.message ?? "fixture"),
         Buffer.from(`from ${parent}\n`),
         ...Object.entries(files).flatMap(([file, content]) => fileCommand(repository, file, content)),
@@ -214,7 +214,7 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       historyCount++;
       const ref =
         options.branch === undefined
-          ? `refs/logreq-fixture/history-${String(historyCount)}`
+          ? `refs/reqseq-fixture/history-${String(historyCount)}`
           : `refs/heads/${options.branch}`;
       const marks = new Map<string, number>();
       const made: { readonly name: string; readonly mark: number; readonly date: Date }[] = [];
@@ -236,7 +236,7 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
           // A commit without parents starts a new root (`reset` empties the branch).
           ...(first === undefined ? [Buffer.from(`reset ${ref}\n`)] : []),
           Buffer.from(
-            `commit ${ref}\nmark :${String(i + 1)}\ncommitter LogReq Test <test@logreq.invalid> ${String(seconds)} +0000\n`,
+            `commit ${ref}\nmark :${String(i + 1)}\ncommitter ReqSeq Test <test@reqseq.invalid> ${String(seconds)} +0000\n`,
           ),
           ...data(commit.message ?? commit.name),
           ...(first === undefined ? [] : [Buffer.from(`from ${parentRef(first)}\n`)]),

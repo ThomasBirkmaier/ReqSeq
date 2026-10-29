@@ -4,8 +4,8 @@
 // `topic` nor `priority`. The selection is the one of element.list (SR-101), tested there.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -414,7 +414,7 @@ describe("element.bulkUpdate (SR-071)", () => {
         id: X9,
         shortId: "UNKNOWN-000099",
         reason: "unknown-type",
-        message: "The metamodel has no type nope, so LogReq only reads other/X-000000000099.md",
+        message: "The metamodel has no type nope, so ReqSeq only reads other/X-000000000099.md",
       },
       expect.objectContaining({ id: P1, reason: "not-a-property" }),
       expect.objectContaining({ id: P2, reason: "not-a-property" }),

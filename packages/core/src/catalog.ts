@@ -1,4 +1,4 @@
-// The command catalog is the only place where LogReq has program logic (ADR-0002).
+// The command catalog is the only place where ReqSeq has program logic (ADR-0002).
 // CLI, API, MCP server and app are generic adapters that call `invoke` (runtime/invoke.ts).
 // See packages/core/README.md for how a command is written and registered.
 import type { CommandCatalog, CommandErrorObject, CommandTypes, Problem } from "./generated/types.js";
@@ -65,9 +65,9 @@ export interface CommandContext {
  * - `input`: the request itself is wrong (fix the input and retry).
  * - `not-found`: something the request names does not exist (element, workspace, folder).
  * - `conflict`: the request is fine, but the state of the workspace or a file refuses it.
- * - `unavailable`: a tool LogReq needs is missing on this machine (Git).
+ * - `unavailable`: a tool ReqSeq needs is missing on this machine (Git).
  * - `not-implemented`: the command is in the catalog, but this version does not implement it yet (#303).
- * - `internal`: a bug in LogReq, or a call aborted by its caller (`details.aborted`).
+ * - `internal`: a bug in ReqSeq, or a call aborted by its caller (`details.aborted`).
  *
  * CLI: `internal` is exit code 3, every other class exit code 2 (#124). API and MCP: #125.
  */

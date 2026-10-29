@@ -6,7 +6,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -131,7 +131,7 @@ const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promis
   Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) }),
 );
 
-const bridge: LogReqBridge = {
+const bridge: ReqSeqBridge = {
   invoke,
   commands: () => Promise.resolve([]),
   on: () => () => undefined,

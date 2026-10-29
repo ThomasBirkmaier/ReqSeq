@@ -1,4 +1,4 @@
-// End-to-end tests of `logreq serve api` and `logreq mcp` (ADR-0009, ADR-0011): the built binary as a real
+// End-to-end tests of `reqseq serve api` and `reqseq mcp` (ADR-0009, ADR-0011): the built binary as a real
 // process on a fixture workspace. On Linux CI inside `unshare -rn`: only loopback exists.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -8,9 +8,9 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { LineTransport } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { LineTransport } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -39,7 +39,7 @@ beforeAll(() => {
   }
 });
 
-/** `logreq <args>` in the fixture, with the OS cache folder inside the fixture on every OS. */
+/** `reqseq <args>` in the fixture, with the OS cache folder inside the fixture on every OS. */
 const start = async (
   args: readonly string[],
 ): Promise<{ child: ChildProcessWithoutNullStreams; ws: FixtureWorkspace }> => {
@@ -75,7 +75,7 @@ const firstLines = (child: ChildProcessWithoutNullStreams): Promise<string> =>
       }
     });
     child.on("exit", () => {
-      reject(new Error(`logreq ended early: ${text}`));
+      reject(new Error(`reqseq ended early: ${text}`));
     });
   });
 
@@ -138,7 +138,7 @@ const probe = (port: number, hosts: readonly string[]): Promise<string[]> =>
     });
   });
 
-describe("logreq serve api", () => {
+describe("reqseq serve api", () => {
   const external = externalAddresses();
 
   it.skipIf(external.length === 0)(
@@ -223,11 +223,11 @@ describe("logreq serve api", () => {
       expect.fail("The second API started although the first one runs");
     }
     expect(outcome).toBe(2);
-    expect(stderr).toContain("A LogReq API for this working copy runs already at http://127.0.0.1:");
+    expect(stderr).toContain("A ReqSeq API for this working copy runs already at http://127.0.0.1:");
   });
 });
 
-describe("logreq mcp", () => {
+describe("reqseq mcp", () => {
   it("serves MCP on standard input and output and exits 0 when the input ends", async () => {
     const { child } = await start(["mcp"]);
     let stderr = "";

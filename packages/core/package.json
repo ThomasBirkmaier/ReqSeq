@@ -1,5 +1,5 @@
 {
-  "name": "@logreq/core",
+  "name": "@reqseq/core",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
@@ -33,6 +33,6 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@logreq/testkit": "workspace:*"
+    "@reqseq/testkit": "workspace:*"
   }
 }

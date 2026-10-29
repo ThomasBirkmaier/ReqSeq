@@ -9,6 +9,6 @@ if (root === null) {
 }
 createRoot(root).render(
   <StrictMode>
-    <App bridge={window.logreq} />
+    <App bridge={window.reqseq} />
   </StrictMode>,
 );

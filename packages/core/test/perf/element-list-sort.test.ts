@@ -6,8 +6,8 @@
 // The tree reads the parents of every element of the store as store positions once per store
 // (`parentPositions`), not the incoming relation index: the first tree of a store is recorded apart,
 // and so is the first tree of a workspace without the index (a one-shot CLI call).
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState, shortIdState } from "../../src/model/index.js";

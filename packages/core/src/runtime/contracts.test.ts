@@ -28,7 +28,7 @@ const entry = (
   input,
   output,
 });
-const catalogOf = (...commands: object[]): object => ({ "logreq-catalog": 1, commands });
+const catalogOf = (...commands: object[]): object => ({ "reqseq-catalog": 1, commands });
 
 describe("loadContracts", () => {
   it("loads the catalog of this repository", () => {
@@ -39,7 +39,7 @@ describe("loadContracts", () => {
     expect(contracts.commands.map((c) => c.name)).toEqual(file.commands.map((c) => c.name));
     expect(contracts.entry("workspace.status")?.stage).toBe(1);
     expect(contracts.entry("no.such")).toBeUndefined();
-    expect(contracts.schemas.map((s) => s["$id"])).toContain("https://logreq.dev/schemas/common.schema.json");
+    expect(contracts.schemas.map((s) => s["$id"])).toContain("https://reqseq.dev/schemas/common.schema.json");
   });
 
   it("compiles the input and output schema of every catalog command", () => {
@@ -101,7 +101,7 @@ describe("loadContracts", () => {
   });
 
   it("rejects a catalog that does not match catalog.meta.schema.json", () => {
-    expect(() => loadContracts({ catalog: { "logreq-catalog": 1 } })).toThrow(
+    expect(() => loadContracts({ catalog: { "reqseq-catalog": 1 } })).toThrow(
       /invalid command catalog: \(root\) must/,
     );
     expect(() => loadContracts({ catalog: catalogOf({ ...entry("test.x"), effect: "write-git" }) })).toThrow(

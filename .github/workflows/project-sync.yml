@@ -1,6 +1,6 @@
 name: Project sync
 
-# Mirrors issues into the GitHub project "LogReq". Labels stay the source of truth.
+# Mirrors issues into the GitHub project "ReqSeq". Labels stay the source of truth.
 # Needs the repository secret PROJECT_TOKEN (classic PAT, scopes repo + project);
 # without it the job skips.
 

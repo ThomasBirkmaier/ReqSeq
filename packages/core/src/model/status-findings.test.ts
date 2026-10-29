@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { invoke } from "../runtime/invoke.js";
@@ -43,27 +43,27 @@ const UNKNOWN = hint(
   "element.status-not-allowed",
   "D-000000ddd002.md",
   "4d4d4d4d-4444-4444-8444-000000ddd002",
-  "Status frozen is not in the metamodel; the statuses of type Decision (decision) are accepted (Accepted), superseded (Superseded); LogReq changes no file",
+  "Status frozen is not in the metamodel; the statuses of type Decision (decision) are accepted (Accepted), superseded (Superseded); ReqSeq changes no file",
   4,
 );
 const OTHER_TYPE = hint(
   "element.status-not-allowed",
   "SR-000000bbb002.md",
   "2b2b2b2b-2222-4222-8222-000000bbb002",
-  "Status Accepted (accepted) is not a status of type Requirement (requirement), whose statuses are draft (Draft), obsolete (Obsolete); LogReq changes no file",
+  "Status Accepted (accepted) is not a status of type Requirement (requirement), whose statuses are draft (Draft), obsolete (Obsolete); ReqSeq changes no file",
   4,
 );
 const MISSING = hint(
   "element.missing-status",
   "SR-000000bbb003.md",
   "2b2b2b2b-2222-4222-8222-000000bbb003",
-  "Type Requirement (requirement) has statuses, but the element has none; they are draft (Draft), obsolete (Obsolete); LogReq changes no file",
+  "Type Requirement (requirement) has statuses, but the element has none; they are draft (Draft), obsolete (Obsolete); ReqSeq changes no file",
 );
 const NO_STATUS = hint(
   "element.status-not-allowed",
   "T-000000eee002.md",
   "5e5e5e5e-5555-4555-8555-000000eee002",
-  "Type Glossary Term (term) has no status, but the element has status draft; LogReq changes no file",
+  "Type Glossary Term (term) has no status, but the element has status draft; ReqSeq changes no file",
   4,
 );
 
@@ -120,7 +120,7 @@ describe("status hints of elements against the statuses of their type (#306)", (
     expect((await statusHints(opened))[0]).toMatchObject({
       code: "element.status-not-allowed",
       message:
-        'Status ["accepted"] is not in the metamodel; the statuses of type Decision (decision) are accepted (Accepted), superseded (Superseded); LogReq changes no file',
+        'Status ["accepted"] is not in the metamodel; the statuses of type Decision (decision) are accepted (Accepted), superseded (Superseded); ReqSeq changes no file',
       line: 4,
     });
   });
@@ -166,7 +166,7 @@ describe("status hints of elements against the statuses of their type (#306)", (
       {
         ...MISSING,
         message:
-          "Type Requirement (requirement) has statuses, but the element has none; they are draft (Draft), approved (Approved), accepted (Accepted), obsolete (Obsolete), superseded (Superseded); LogReq changes no file",
+          "Type Requirement (requirement) has statuses, but the element has none; they are draft (Draft), approved (Approved), accepted (Accepted), obsolete (Obsolete), superseded (Superseded); ReqSeq changes no file",
       },
       NO_STATUS,
     ]);

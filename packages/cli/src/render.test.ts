@@ -1,4 +1,4 @@
-import { CommandError } from "@logreq/core";
+import { CommandError } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import {
   outcomeExitCode,

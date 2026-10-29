@@ -15,7 +15,7 @@ const where = (element: ElementRecord): string => `${element.file} (${element.re
 
 const message = (others: readonly ElementRecord[]): string => {
   const subject = others.length === 1 ? "Another element file has" : "Other element files have";
-  return `${subject} the same UUID: ${others.map(where).join(", ")}; relations to this UUID are ambiguous, and LogReq changes none of the files`;
+  return `${subject} the same UUID: ${others.map(where).join(", ")}; relations to this UUID are ambiguous, and ReqSeq changes none of the files`;
 };
 
 /** The finding of one element when another file of `store` has its UUID (`duplicateIdFindings`). */

@@ -13,8 +13,8 @@
 // target file: every element is a target). The check without Git in this case is the second
 // `[SR-020/AK1]` CLI test.
 import fs from "node:fs/promises";
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { datedProblems, outdatedRelationsState } from "../../src/hints/index.js";

@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron } from "@playwright/test";
-import { rememberWorkspace } from "@logreq/core/recent-workspaces";
+import { rememberWorkspace } from "@reqseq/core/recent-workspaces";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,7 +53,7 @@ export interface FixtureWorkspace {
 export const copyFixture = async (source: Fixture): Promise<FixtureWorkspace> => {
   const { files = {} } = source;
   const from = "folder" in source ? source.folder : path.join(FIXTURES, ...source.fixture.split("/"));
-  const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-fixture-")));
+  const top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-app-fixture-")));
   const root = path.join(top, source.name ?? "workspace");
   await fs.cp(from, root, { recursive: true });
   for (const [relative, content] of Object.entries(files)) {
@@ -82,7 +82,7 @@ export interface RunningApp {
     argv: readonly string[],
   ): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
   /**
-   * Starts `logreq mcp` on the workspace with the app's cache folder, as an agent starts it, and connects
+   * Starts `reqseq mcp` on the workspace with the app's cache folder, as an agent starts it, and connects
    * to it as an MCP client (initialize first). The server ends with the app or with `close()`.
    */
   mcp(): Promise<McpSession>;
@@ -100,7 +100,7 @@ export interface RunningApp {
   readonly kept: Kept;
 }
 
-/** An MCP client on a `logreq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
+/** An MCP client on a `reqseq mcp` process: newline-delimited JSON-RPC on its standard input and output. */
 export interface McpSession {
   /** Calls a tool; resolves to its `structuredContent`, rejects with the text of an error result. */
   call(tool: string, args: Readonly<Record<string, unknown>>): Promise<unknown>;
@@ -111,7 +111,7 @@ export interface McpSession {
   close(): Promise<void>;
 }
 
-/** Starts `logreq mcp` with `args` and `env`, and initializes an MCP session on it. */
+/** Starts `reqseq mcp` with `args` and `env`, and initializes an MCP session on it. */
 const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promise<McpSession> => {
   const child = spawn(process.execPath, ["--import", BLOCK_NETWORK, CLI, "mcp", ...args], {
     env,
@@ -129,7 +129,7 @@ const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promis
   // One listener for the whole session: a request that is still waiting when the server ends fails.
   child.once("exit", () => {
     for (const { reject } of waiting.values()) {
-      reject(new Error(`logreq mcp ended: ${stderr}`));
+      reject(new Error(`reqseq mcp ended: ${stderr}`));
     }
     waiting.clear();
   });
@@ -158,7 +158,7 @@ const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promis
   let next = 0;
   const request = (method: string, params: unknown): Promise<Record<string, unknown>> => {
     if (child.exitCode !== null) {
-      return Promise.reject(new Error(`logreq mcp ended: ${stderr}`));
+      return Promise.reject(new Error(`reqseq mcp ended: ${stderr}`));
     }
     next += 1;
     const id = next;
@@ -171,7 +171,7 @@ const startMcp = async (args: readonly string[], env: NodeJS.ProcessEnv): Promis
   await request("initialize", {
     protocolVersion: "2025-06-18",
     capabilities: {},
-    clientInfo: { name: "logreq-app-e2e", version: "1" },
+    clientInfo: { name: "reqseq-app-e2e", version: "1" },
   });
   child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
   return {
@@ -218,13 +218,13 @@ export interface LaunchOptions {
 }
 
 /**
- * Opt-in: `LOGREQ_CPU_THROTTLE=<rate>` slows the window's renderer `rate` times (Chromium's
+ * Opt-in: `REQSEQ_CPU_THROTTLE=<rate>` slows the window's renderer `rate` times (Chromium's
  * `Emulation.setCPUThrottlingRate`, 10 to 20 is useful), so that races which only show on a busy CI runner
  * show locally (#542). Off by default; CI does not set it. Run e.g.
- * `LOGREQ_CPU_THROTTLE=15 playwright test --config test/playwright.config.ts --repeat-each 20`.
+ * `REQSEQ_CPU_THROTTLE=15 playwright test --config test/playwright.config.ts --repeat-each 20`.
  */
 const throttle = async (window: Page): Promise<void> => {
-  const rate = Number(process.env["LOGREQ_CPU_THROTTLE"] ?? "1");
+  const rate = Number(process.env["REQSEQ_CPU_THROTTLE"] ?? "1");
   if (!(rate > 1)) {
     return;
   }
@@ -263,10 +263,10 @@ export const launchApp = async (
   // temporary folder on every OS. The environment below moves the cache folder; the user data folder needs
   // Chromium's `--user-data-dir` switch, because on macOS Electron takes `appData` from Foundation
   // (~/Library/Application Support of the account), which does not follow HOME (#505). Without it, every
-  // test on a Mac shared the real user data of the LogReq app of that account.
+  // test on a Mac shared the real user data of the ReqSeq app of that account.
   const home =
     kept === undefined
-      ? await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-app-home-")))
+      ? await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-app-home-")))
       : kept.home;
   const userData = path.join(home, "user-data");
   const recent = options.recent ?? [];
@@ -284,7 +284,7 @@ export const launchApp = async (
     XDG_CONFIG_HOME: home,
     APPDATA: home,
     LOCALAPPDATA: home,
-    LOGREQ_VALIDATE_OUTPUT: "1",
+    REQSEQ_VALIDATE_OUTPUT: "1",
   };
   const app = await electron.launch({
     executablePath: ELECTRON,

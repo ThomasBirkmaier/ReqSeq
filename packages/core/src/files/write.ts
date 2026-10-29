@@ -3,7 +3,7 @@
 // Replace: write and fsync a temp file next to the target, then check the target's bytes on disk
 // against the snapshot and that they still parse, and rename at once; a rename that fails
 // transiently is retried together with the check. The window between check and rename is a few
-// system calls long; a change made by another program inside it is lost. Two LogReq processes on
+// system calls long; a change made by another program inside it is lost. Two ReqSeq processes on
 // one working copy are not locked against each other.
 //
 // Create: write and fsync a temp file, then hard-link it to the target, which never replaces an
@@ -27,8 +27,8 @@ import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
 import { scanXml } from "./xml-scan.js";
 
-/** Temp files are `.<file name>.<8 hex>.logreq-tmp` in the target's folder (watchers ignore them). */
-export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.logreq-tmp$/;
+/** Temp files are `.<file name>.<8 hex>.reqseq-tmp` in the target's folder (watchers ignore them). */
+export const TEMP_FILE_PATTERN = /^\..+\.[0-9a-f]{8}\.reqseq-tmp$/;
 
 export const isTempFile = (fileName: string): boolean => TEMP_FILE_PATTERN.test(fileName);
 
@@ -43,7 +43,7 @@ export type FileKind = "element" | "yaml" | "xml" | "json";
 export interface WriteOptions {
   readonly kind?: FileKind;
   /**
-   * `json` only: up to this size the target is parsed whole, above it only the frame of a LogReq
+   * `json` only: up to this size the target is parsed whole, above it only the frame of a ReqSeq
    * data file is checked (`jsonDataKind`); default `JSON_FULL_PARSE_BYTES` (tests take small ones).
    */
   readonly fullParseUpTo?: number;
@@ -69,7 +69,7 @@ interface Written {
 const tempPathFor = (absolute: string): string =>
   path.join(
     path.dirname(absolute),
-    `.${path.basename(absolute)}.${randomBytes(4).toString("hex")}.logreq-tmp`,
+    `.${path.basename(absolute)}.${randomBytes(4).toString("hex")}.reqseq-tmp`,
   );
 
 const NO_HARD_LINKS: readonly string[] = ["EPERM", "ENOTSUP", "ENOSYS"];
@@ -88,7 +88,7 @@ const REFUSAL: Readonly<
     return current.kind === "problem"
       ? `is faulty (${current.problem.code}); fix it by hand`
       : current.kind === "no-frontmatter"
-        ? "has no frontmatter; LogReq never changes such files"
+        ? "has no frontmatter; ReqSeq never changes such files"
         : undefined;
   },
   yaml: (file, bytes) => {
@@ -107,7 +107,7 @@ const REFUSAL: Readonly<
     return kind === "faulty"
       ? "is no readable JSON; fix it by hand"
       : kind === "unchecked"
-        ? `is larger than ${String(bound)} bytes and not framed as a LogReq data file; fix it by hand`
+        ? `is larger than ${String(bound)} bytes and not framed as a ReqSeq data file; fix it by hand`
         : undefined;
   },
 };

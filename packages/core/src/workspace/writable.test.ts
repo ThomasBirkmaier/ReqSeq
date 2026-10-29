@@ -8,7 +8,7 @@ import { isWritableFolder } from "./writable.js";
 const errno = (code: string): NodeJS.ErrnoException => Object.assign(new Error(code), { code });
 
 const tempFolder = async (): Promise<string> => {
-  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-writable-"));
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-writable-"));
   onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
   return folder;
 };

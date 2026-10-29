@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse hook (.claude/settings.json): blocks Edit and Write on files that only tools write.
-// Generated files come from `pnpm contracts:generate`, spec elements from the LogReq CLI or MCP (D-064).
+// Generated files come from `pnpm contracts:generate`, spec elements from the ReqSeq CLI or MCP (D-064).
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,7 +11,7 @@ const RULES = [
   { pattern: /^packages\/core\/src\/generated\//, fix: "run `pnpm contracts:generate`" },
   {
     pattern: /^spec\/(?!metamodel\/|logreq-workspace\.yaml$|README\.md$)/,
-    fix: "use the LogReq CLI or MCP with `--workspace spec` (see the spec-change skill)",
+    fix: "use the ReqSeq CLI or MCP with `--workspace spec` (see the spec-change skill)",
   },
 ];
 
@@ -31,7 +31,7 @@ function existingDir(file) {
   return dir;
 }
 
-/** Finds the LogReq checkout (main checkout or worktree) that contains the file, with symlinks resolved. */
+/** Finds the ReqSeq checkout (main checkout or worktree) that contains the file, with symlinks resolved. */
 export function repoRoot(file) {
   try {
     const root = execFileSync("git", ["-C", existingDir(file), "rev-parse", "--show-toplevel"], {

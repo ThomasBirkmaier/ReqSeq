@@ -7,7 +7,7 @@ import { createFolder } from "./folder.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-folder-")));
+  root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-folder-")));
 });
 
 afterEach(async () => {
@@ -34,7 +34,7 @@ describe("createFolder", () => {
   });
 
   it("refuses a folder linked outside the root and creates nothing there", async () => {
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.symlink(outside, abs("linked"), "junction");
       await expect(createFolder(root, "linked/new")).rejects.toMatchObject({

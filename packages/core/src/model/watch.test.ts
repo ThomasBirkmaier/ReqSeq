@@ -2,8 +2,8 @@ import { EventEmitter } from "node:events";
 import nodeFs from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { searchElements } from "../query/search-index.js";
@@ -528,7 +528,7 @@ describe("the watcher's rules (SR-007)", () => {
     for (const name of [
       ".git/index",
       "node_modules/x/a.md",
-      "requirements/.SR-88cc6ebc472a.md.0a1b2c3d.logreq-tmp",
+      "requirements/.SR-88cc6ebc472a.md.0a1b2c3d.reqseq-tmp",
       "docs/image.png",
       ".",
     ]) {
@@ -922,7 +922,7 @@ describe("the watcher's rules (SR-007)", () => {
         repository: "system",
         file: ".",
         message:
-          "Changes in this folder are not seen until LogReq restarts or the layout changes: it cannot be watched (EACCES)",
+          "Changes in this folder are not seen until ReqSeq restarts or the layout changes: it cannot be watched (EACCES)",
       },
     ]);
 
@@ -1276,12 +1276,12 @@ describe("the watcher's watch per folder (SR-007, Linux)", () => {
       [
         "system",
         "needs",
-        "Changes in this folder are not seen until LogReq restarts or the layout changes: the operating system's limit of watched folders is reached (ENOSPC; on Linux raise fs.inotify.max_user_watches)",
+        "Changes in this folder are not seen until ReqSeq restarts or the layout changes: the operating system's limit of watched folders is reached (ENOSPC; on Linux raise fs.inotify.max_user_watches)",
       ],
       [
         "sub",
         ".",
-        "Changes in this folder are not seen until LogReq restarts or the layout changes: it cannot be watched (EACCES)",
+        "Changes in this folder are not seen until ReqSeq restarts or the layout changes: it cannot be watched (EACCES)",
       ],
     ]);
     expect(watcherProblems(workspace)).toEqual([]);
@@ -1507,19 +1507,19 @@ describe("watcherProblems (SR-007)", () => {
   });
 });
 
-describe("the watcher and LogReq's own writes (#166)", () => {
+describe("the watcher and ReqSeq's own writes (#166)", () => {
   it("does not apply a write of element.update or element.create a second time when it sees the file", async () => {
     const { workspace } = await opened();
     await workspace.get(elementStoreState);
     const { fake, watcher } = await watched(workspace);
-    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by LogReq" }, { workspace });
+    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by ReqSeq" }, { workspace });
     const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {
       readonly files: readonly string[];
     };
     const store = workspace.peek(elementStoreState);
     expect(store).toBeDefined();
     const shortIds = await workspace.get(shortIdState);
-    expect(await title(workspace, REQUIREMENT)).toBe("Renamed by LogReq");
+    expect(await title(workspace, REQUIREMENT)).toBe("Renamed by ReqSeq");
     fake.only().send(REQUIREMENT_FILE, "change");
     fake.only().send(String(created.files[0]));
     await watcher.settled();
@@ -1868,12 +1868,12 @@ describe("the watcher tells its listeners what changed (#331, SR-007)", () => {
     expect(await title(workspace, REQUIREMENT)).toBe("Read in full");
   });
 
-  it("tells nobody about LogReq's own writes when it sees their files (#166)", async () => {
+  it("tells nobody about ReqSeq's own writes when it sees their files (#166)", async () => {
     const { workspace } = await opened();
     await workspace.get(elementStoreState);
     const { fake, watcher } = await watched(workspace);
     const changes = changesOf(watcher);
-    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by LogReq" }, { workspace });
+    await invoke("element.update", { ref: REQUIREMENT, title: "Renamed by ReqSeq" }, { workspace });
     const created = (await invoke("element.create", { type: "need", title: "New" }, { workspace })) as {
       readonly files: readonly string[];
     };

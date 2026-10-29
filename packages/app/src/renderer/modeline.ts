@@ -1,6 +1,6 @@
 // What the modeline and the minibuffer show of the open workspace (`workspace.status`). Pure display
 // (SR-080 AK1): every value comes from the command's output or error object as it is.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { InvokeResult } from "../shared/protocol.js";
 import type { Buffer, ElementBuffer, GraphBuffer } from "./buffers.js";
 import { bufferName } from "./buffers.js";
@@ -29,7 +29,7 @@ const plural = (count: number, word: string): string => `${String(count)} ${word
 
 /** The title of the window: the workspace's name, then the app's. On macOS the title bar shows it too. */
 export const windowTitle = (view: WorkspaceView | undefined): string =>
-  view?.name === undefined ? "LogReq" : `${view.name} - LogReq`;
+  view?.name === undefined ? "ReqSeq" : `${view.name} - ReqSeq`;
 
 /** Whether the open workspace is read-only; no workspace is not. */
 export const readOnlyNow = (view: WorkspaceView | undefined): boolean => view?.readOnly === true;

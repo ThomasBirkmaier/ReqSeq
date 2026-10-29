@@ -7,7 +7,7 @@ import type {
   ElementSelection,
   FilterSortKeyWithDefaults,
   TraceGraphInput,
-} from "@logreq/core";
+} from "@reqseq/core";
 import { hasSavedFilter } from "./list-filters.js";
 
 /** One step of a list filter: the text the label shows and what it adds to the selection (a condition or a saved filter). */

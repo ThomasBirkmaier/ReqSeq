@@ -300,7 +300,7 @@ const reviveRepository = (value: unknown): readonly [string, CachedRepository] |
 };
 
 /**
- * The model cache in `text`, or undefined when it is not one LogReq can use: not JSON, another
+ * The model cache in `text`, or undefined when it is not one ReqSeq can use: not JSON, another
  * format, written by other code (`code`), for another root, or with an entry of the wrong shape.
  */
 export const parseModelCache = (

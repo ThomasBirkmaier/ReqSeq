@@ -7,14 +7,14 @@
 // layout in the app. Most of it is the `outdated` mark: the current versions of the link targets of
 // every node (about 2,600 files for 500 nodes), read from their files while the workspace has not
 // built the versions of the whole store (no warm-up builds them).
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measure,
   measureMedian,
   thresholdMessage,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { elementStoreState } from "../../src/model/index.js";

@@ -1,4 +1,4 @@
-// Whether a JSON file is a LogReq data file (`data.store`, SR-062; #277). One check serves the guard
+// Whether a JSON file is a ReqSeq data file (`data.store`, SR-062; #277). One check serves the guard
 // before a data file is replaced (`isDataFile` of the data block) and the `json` refusal of
 // `writeFileAtomic`, so the two never disagree. Up to `fullParseUpTo` bytes the file is parsed whole,
 // as UTF-8 JSON. A larger file may not fit into one string (V8 holds at most about 512 MB), so above
@@ -7,7 +7,7 @@
 // and between them (CRLF, the indentation of `data export --json`), so a file above the bound is
 // judged like the same file below it; and valid UTF-8 in the first and the last MiB, each cut at a
 // code-point boundary. Assumption (#277, how only): a larger file with that frame is treated as a
-// LogReq data file.
+// ReqSeq data file.
 
 /** Up to this size (64 MiB) a JSON file is parsed whole. */
 export const JSON_FULL_PARSE_BYTES = 64 * 1024 * 1024;
@@ -25,7 +25,7 @@ const isJsonSpace = (byte: number | undefined): boolean =>
   byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d;
 
 /**
- * What a JSON file is: `data` a LogReq data file (parsed: an object with `"logreq-data": 2`; above
+ * What a JSON file is: `data` a ReqSeq data file (parsed: an object with `"logreq-data": 2`; above
  * the bound: the frame), `json` readable JSON of another kind, `faulty` no readable UTF-8 JSON,
  * `unchecked` above the bound without the frame (not read whole, so not known to be JSON).
  */

@@ -3,7 +3,7 @@
 // against the levels (D1 and D2 above the element reference the element and one of its children), and
 // the view opened on it (AK1); the title, type and marks of every node, never cut, also on the long IDs
 // and types of `spec/` (AK4), the keys and Enter (AK5), and `+` and `-` (AK2). What the window shows is
-// compared with `logreq trace graph` for the same input (SR-080). Keys use ControlOrMeta, so the same
+// compared with `reqseq trace graph` for the same input (SR-080). Keys use ControlOrMeta, so the same
 // tests run on Linux and macOS. The depth and the relation kinds are chosen in the command prompt
 // ("Graph depth", "Show only relation kind", "Also show relation kind"), by keys only (AK2, AK3).
 import { fileURLToPath } from "node:url";

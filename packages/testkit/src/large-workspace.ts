@@ -1,7 +1,7 @@
 // Generator for large workspaces (ADR-0011, D-055, N-036): by default 50,000 elements with 200,000
 // relations of the standard model in four repositories, the same bytes for the same seed on every
 // machine. Large workspaces are generated, never committed (fixtures/README.md).
-// This package is test tooling and never shipped; it cannot import `@logreq/core` (core's tests
+// This package is test tooling and never shipped; it cannot import `@reqseq/core` (core's tests
 // import the testkit), so the caller passes the version function (ADR-0005), and core's tests
 // check that what core reads back matches it.
 import { createHash } from "node:crypto";
@@ -17,7 +17,7 @@ export const defaultStandardModelFile: string = fileURLToPath(
   new URL("../../../schemas/examples/metamodel/standard-model.yaml", import.meta.url),
 );
 
-/** The identifier property the generator adds to the metamodel it writes (#305), as the LogReq spec has it. */
+/** The identifier property the generator adds to the metamodel it writes (#305), as the ReqSeq spec has it. */
 export const SPEC_ID_KEY = "spec-id";
 
 const TOP_PROPERTIES = "\nproperties:\n";

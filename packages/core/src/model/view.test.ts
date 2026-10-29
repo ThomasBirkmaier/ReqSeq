@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { FileSnapshot, ParsedFile } from "../files/index.js";
 import { parseFileBytes } from "../files/index.js";

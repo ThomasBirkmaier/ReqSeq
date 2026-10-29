@@ -18,7 +18,7 @@
 // above 0 below it (AK1): a node whose links do not put it on its side (its walk reached it through a
 // node that took its level from the other walk) gets an invisible layout link from the element, or to
 // it, which is never drawn.
-import type { TraceGraphOutput } from "@logreq/core";
+import type { TraceGraphOutput } from "@reqseq/core";
 import type { LayoutGraph, Point } from "./dagre.js";
 import { layoutGraphOf, runLayout } from "./dagre.js";
 import type { GraphEdge, GraphNode } from "./graph.js";

@@ -1,6 +1,6 @@
 import { readFile, rm, writeFile } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Problem } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
@@ -225,7 +225,7 @@ describe("missing relation targets (SR-089)", () => {
       "system",
       "needs/N-2c3d4e5f6a7b.md",
     ]);
-    const note = "; its file may be needs/N-2c3d4e5f6a7b.md, which LogReq cannot read";
+    const note = "; its file may be needs/N-2c3d4e5f6a7b.md, which ReqSeq cannot read";
     expect((await workspace.get(missingTargetProblemsState)).map((p) => p.message)).toEqual(
       AFTER_REMOVAL.map((p) => `${p.message}${note}`),
     );
@@ -389,7 +389,7 @@ const withText = async (file: string, text: string): Promise<string> => {
 const OTHER_GONE = "11111111-2222-4333-8444-555555555555";
 
 /**
- * The SR's file with references in the text, on lines 17 to 20 of the file. As LogReq writes them,
+ * The SR's file with references in the text, on lines 17 to 20 of the file. As ReqSeq writes them,
  * those within the repository name none (D-058); line 20 is a link to the sensor repository
  * written before references named their repository.
  */
@@ -485,7 +485,7 @@ describe("inline references to missing targets (SR-089, D-058, decision on #177 
     const { fixture, workspace } = await withReferences();
     await writeFile(fixture.path(REMOVED_FILE), "---\nid: [unclosed\n---\n");
     const context = await contextOf(workspace);
-    const note = "; its file may be needs/N-2c3d4e5f6a7b.md, which LogReq cannot read";
+    const note = "; its file may be needs/N-2c3d4e5f6a7b.md, which ReqSeq cannot read";
     const sr = recordOf(context.store, SR);
     expect(missingReferenceFindings(sr, context).map((f) => f.problem.message)).toEqual([
       `${referenceGone(SR_NAME, REMOVED, "system")}${note}${VAULT_HINT}`,

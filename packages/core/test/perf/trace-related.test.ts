@@ -4,8 +4,8 @@
 // is a result like a chain, so it asserts SR-082 AK4's 500 ms (tagged, ADR-0011); the other times
 // are recorded only: a full listing of every child (the largest page, 5,000, page by page) with
 // versions read from the files and with the versions the workspace keeps.
-import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace, VersionFunction } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { currentVersions, elementStoreState } from "../../src/model/index.js";

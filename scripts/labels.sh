@@ -10,7 +10,7 @@ for n in 0 1 2 3 4 5 6; do label "stage:$n" c5def5 "Stage $n (D-035, D-052)"; do
 label spec-frage    fbca04 "Question about the spec for the product owner"
 label spec-geändert e99695 "Spec changed after implementation"
 label spec-export   bfd4f2 "Export of the spec from Logseq (obsolete since #326)"
-label dogfooding    c5def5 "Found while using LogReq on its own spec"
+label dogfooding    c5def5 "Found while using ReqSeq on its own spec"
 label blocked       b60205 "Waiting on another issue or an answer"
 label agent:working 1d76db "An agent is working on this"
 label querschnitt   0e8a16 "Cross-cutting SR, stays open across stages"

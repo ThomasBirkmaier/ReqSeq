@@ -1,7 +1,7 @@
 // The steps of a list filter (SR-124) and the prompts that choose them. A step only says what it adds to
 // the selection of `element.list`; the core filters (ADR-0002). Which values a property has in the shown
 // list comes from `element.facets`: the app shows them and builds the step, it counts nothing.
-import type { ElementFacetsOutput } from "@logreq/core";
+import type { ElementFacetsOutput } from "@reqseq/core";
 import type { Choice, Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";
 

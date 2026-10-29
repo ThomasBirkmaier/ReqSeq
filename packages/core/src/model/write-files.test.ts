@@ -2,7 +2,7 @@
 // with failures the file system cannot be made to produce on demand (a restore that is refused, an
 // error that is no CommandError). The writer is wrapped so a test can make chosen calls fail.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import type * as files from "../files/index.js";

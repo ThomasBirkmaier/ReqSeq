@@ -2,8 +2,8 @@
 // hints with `@text:<key>` IDs, confirming, missing targets, affected elements and writing.
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { parse } from "yaml";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";

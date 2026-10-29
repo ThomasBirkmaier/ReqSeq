@@ -4,7 +4,7 @@
 // stand-in that fails once on request. A value without a normal form has a content to compare
 // (`elementContent`, #276; element.update tests).
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type * as Images from "./images.js";

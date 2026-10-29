@@ -7,7 +7,7 @@
 // the read adds to the heap and to the resident memory are recorded (ADR-0011); a peak near the
 // default heap of Node (about 2.2 GB) is a finding for the concurrency of `xml` reads. Its own file,
 // so the Vitest process measures nothing else, and the generated tree is dropped before the read.
-import type { EvidenceCounts } from "@logreq/testkit";
+import type { EvidenceCounts } from "@reqseq/testkit";
 import {
   generateLargeWorkspace,
   measurePeakMemory,
@@ -15,7 +15,7 @@ import {
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { evidenceReadState } from "../../src/evidence/index.js";
 import { warmModel } from "../../src/model/index.js";

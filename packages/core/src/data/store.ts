@@ -18,7 +18,7 @@
 //     path is in a repository is refused; one that leads out of every repository is judged as outside;
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
-//   - an existing file of the name is replaced only when it is a LogReq data file (`"logreq-data": 2`;
+//   - an existing file of the name is replaced only when it is a ReqSeq data file (`"logreq-data": 2`;
 //     above 64 MiB the frame of a data file, `jsonDataKind` of the files block, #277), under its
 //     snapshot and the `json` guard, which checks the same way; anything else is `input.invalid` and
 //     stays as it is.
@@ -54,7 +54,7 @@ export const dataFileName = (commit: string, clean: boolean): string =>
   `${commit}${clean ? "" : "-dirty"}.json`;
 
 /**
- * Whether `bytes` are a LogReq data file: UTF-8 JSON of an object with `"logreq-data": 2`; above
+ * Whether `bytes` are a ReqSeq data file: UTF-8 JSON of an object with `"logreq-data": 2`; above
  * `fullParseUpTo` bytes (default 64 MiB) the frame of a data file (`jsonDataKind` of the files block).
  */
 export const isDataFile = (bytes: Uint8Array, fullParseUpTo: number = JSON_FULL_PARSE_BYTES): boolean =>
@@ -170,7 +170,7 @@ const placeOf = async (
   if (!folder) {
     throw new CommandError(
       "file.folder-missing",
-      `Not stored: the folder ${shown} does not exist; outside the repositories of the workspace LogReq creates no folders`,
+      `Not stored: the folder ${shown} does not exist; outside the repositories of the workspace ReqSeq creates no folders`,
       { folder: shown },
     );
   }
@@ -209,7 +209,7 @@ const existingSnapshot = async (
   if (!isDataFile(read.bytes, fullParseUpTo)) {
     throw new CommandError(
       "input.invalid",
-      `Not stored: ${name} is not a LogReq data file; LogReq replaces only its own data files`,
+      `Not stored: ${name} is not a ReqSeq data file; ReqSeq replaces only its own data files`,
       { file: name, reason: "not-a-data-file" },
     );
   }

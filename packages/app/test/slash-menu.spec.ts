@@ -45,7 +45,7 @@ const ENTRIES = [
 ];
 
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 /** Opens the demo element and puts the cursor at the end of its text, on the empty last line. */

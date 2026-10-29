@@ -5,8 +5,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -62,7 +62,7 @@ const fixture = async (options: FixtureOptions = STORE): Promise<FixtureWorkspac
 
 /** A temporary folder outside every fixture. */
 const tempFolder = (): string => {
-  const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "logreq-store-out-")));
+  const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-store-out-")));
   onTestFinished(() => {
     fs.rmSync(folder, { recursive: true, force: true });
   });
@@ -677,7 +677,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     expect(exportModule.exportDataWithProblems).toHaveBeenCalledTimes(1);
   });
 
-  it("replaces only a LogReq data file: another file of the name stays as it is", async () => {
+  it("replaces only a ReqSeq data file: another file of the name stays as it is", async () => {
     const ws = await fixture();
     const commit = await ws.head();
     for (const text of ['{"logreq-data":1}', "[1]", "null", "not json", "﻿{}"]) {

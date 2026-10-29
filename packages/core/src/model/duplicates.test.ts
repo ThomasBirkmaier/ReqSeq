@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Problem } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -43,7 +43,7 @@ const duplicate = (repository: string, file: string, line: number, message: stri
 });
 
 const ALSO_IN = (where: string): string =>
-  `Another element file has the same UUID: ${where}; relations to this UUID are ambiguous, and LogReq changes none of the files`;
+  `Another element file has the same UUID: ${where}; relations to this UUID are ambiguous, and ReqSeq changes none of the files`;
 
 const FIXTURE_PROBLEMS: readonly Problem[] = [
   duplicate("system", COPY_FILE, 2, ALSO_IN(`${ORIGINAL_FILE} (system)`)),
@@ -97,7 +97,7 @@ describe("duplicate IDs (SR-088)", () => {
       [`sensor/${third}`]: `---\nid: ${COPIED}\ntype: need\ntitle: Old copy\n---\n`,
     });
     const others = (a: string, b: string): string =>
-      `Other element files have the same UUID: ${a}, ${b}; relations to this UUID are ambiguous, and LogReq changes none of the files`;
+      `Other element files have the same UUID: ${a}, ${b}; relations to this UUID are ambiguous, and ReqSeq changes none of the files`;
     expect(await workspace.get(duplicateIdProblemsState)).toEqual([
       duplicate("system", COPY_FILE, 2, others(`${ORIGINAL_FILE} (system)`, `${third} (sensor)`)),
       duplicate("system", ORIGINAL_FILE, 2, others(`${COPY_FILE} (system)`, `${third} (sensor)`)),

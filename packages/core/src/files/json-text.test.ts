@@ -1,7 +1,7 @@
 // jsonChunks and jsonByteLength (#277): the joined chunks are exactly JSON.stringify's text, for
 // indent 0 and 2, on command outputs of the fixtures and on seeded random values; the pieces stay
 // near the chunk length on any shape (review B3); toJSON gets the key at walked levels (N1).
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it } from "vitest";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";

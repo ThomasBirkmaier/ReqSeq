@@ -7,8 +7,8 @@
 // variants, validities, emergent and invalid elements, a twin, an embedded image, and records in the
 // core and per variant against current and older versions.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementStore } from "../model/index.js";

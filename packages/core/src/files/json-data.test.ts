@@ -1,5 +1,5 @@
 // jsonDataKind (#277, review B1, N3, S9; code review S2): parsed whole up to the bound, above it the frame of a
-// LogReq data file. The unit tests take a small bound; the 64 MiB constant is tested once.
+// ReqSeq data file. The unit tests take a small bound; the 64 MiB constant is tested once.
 import { describe, expect, it } from "vitest";
 import { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
 
@@ -20,7 +20,7 @@ const withBytes = (buffer: Buffer, offset: number, insert: readonly number[]): B
 /** 😀 in UTF-8. */
 const EMOJI = [0xf0, 0x9f, 0x98, 0x80];
 
-describe("jsonDataKind: whether a JSON file is a LogReq data file", () => {
+describe("jsonDataKind: whether a JSON file is a ReqSeq data file", () => {
   it("parses a file up to the bound whole: data, other JSON or faulty", () => {
     expect(jsonDataKind(bytes('{"logreq-data":2}\n'))).toBe("data");
     expect(jsonDataKind(bytes('{"logreq-data":2,"x":[1]}'), 100)).toBe("data");

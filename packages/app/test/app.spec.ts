@@ -1,6 +1,6 @@
 // The app shell (#322, ADR-0010): the processes, the bridge to the command catalog, the protocols and the
 // security settings, on the built app.
-import type { InvokeResult, LogReqBridge } from "@logreq/app";
+import type { InvokeResult, ReqSeqBridge } from "@reqseq/app";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -9,7 +9,7 @@ import { launchApp } from "./support/app.js";
 
 declare global {
   interface Window {
-    readonly logreq: LogReqBridge;
+    readonly reqseq: ReqSeqBridge;
   }
 }
 
@@ -47,7 +47,7 @@ const loadsImage = (running: RunningApp, url: string): Promise<boolean> =>
   );
 
 const invoke = (running: RunningApp, name: string, input: unknown): Promise<InvokeResult> =>
-  running.window.evaluate(([n, i]) => window.logreq.invoke(n, i), [name, input] as const);
+  running.window.evaluate(([n, i]) => window.reqseq.invoke(n, i), [name, input] as const);
 
 test.describe("on a fixture workspace", () => {
   let running: RunningApp;
@@ -60,7 +60,7 @@ test.describe("on a fixture workspace", () => {
 
   test("starts and shows the status of the workspace", async () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
-    await expect(running.window).toHaveTitle("Weather station - LogReq");
+    await expect(running.window).toHaveTitle("Weather station - ReqSeq");
     await expect(running.window.getByLabel("Minibuffer")).toHaveText("");
   });
 
@@ -82,7 +82,7 @@ test.describe("on a fixture workspace", () => {
   });
 
   test("[SR-099/AK1] the bridge offers the catalog commands and nothing else", async () => {
-    const offered = await running.window.evaluate(() => Object.keys(window.logreq).sort());
+    const offered = await running.window.evaluate(() => Object.keys(window.reqseq).sort());
     // Besides the catalog, the facilities of the window: `copyText` (SR-128), and the recent workspaces,
     // the switch between them and saving before it (SR-131). None of them deletes anything.
     expect(offered).toEqual([
@@ -95,7 +95,7 @@ test.describe("on a fixture workspace", () => {
       "recentWorkspaces",
     ]);
     const names = await running.window.evaluate(async () =>
-      (await window.logreq.commands()).map((c) => c.name),
+      (await window.reqseq.commands()).map((c) => c.name),
     );
     expect(names).toEqual(CATALOG.commands.map((c) => c.name));
     expect(names.filter((name) => /delete/i.test(name))).toEqual([]);
@@ -112,18 +112,18 @@ test.describe("on a fixture workspace", () => {
     const heard = await running.window.evaluate(async () => {
       const names: string[] = [];
       const on = (name: string, listener: () => void): (() => void) =>
-        (window.logreq.on as (event: string, listener: () => void) => () => void)(name, listener);
+        (window.reqseq.on as (event: string, listener: () => void) => () => void)(name, listener);
       const offs = ["element-deleted", "follow-mode", "toString"].map((name) =>
         on(name, () => names.push(name)),
       );
       let off: () => void = () => undefined;
       const written = new Promise<void>((resolve) => {
-        off = window.logreq.on("workspace-changed", ({ reason }) => {
+        off = window.reqseq.on("workspace-changed", ({ reason }) => {
           names.push(reason);
           resolve();
         });
       });
-      await window.logreq.invoke("element.create", {
+      await window.reqseq.invoke("element.create", {
         type: "system-requirement",
         title: "Show gusts",
         properties: { "requirement-type": "functional", "acceptance-criteria": ["Shown."] },
@@ -152,7 +152,7 @@ test.describe("on a fixture workspace", () => {
     expect(running.stderr()).not.toContain("Blocked a request");
     const fromMain = await running.app.evaluate(async ({ session }) => {
       try {
-        await session.defaultSession.fetch("https://example.com/logreq-probe");
+        await session.defaultSession.fetch("https://example.com/reqseq-probe");
         return "loaded";
       } catch (error) {
         return String(error);
@@ -160,7 +160,7 @@ test.describe("on a fixture workspace", () => {
     });
     expect(fromMain).toContain("ERR_BLOCKED_BY_CLIENT");
     expect(running.stderr()).toContain("Blocked a request to https://example.com\n");
-    expect(running.stderr()).not.toContain("logreq-probe");
+    expect(running.stderr()).not.toContain("reqseq-probe");
     // The page's content security policy stops these before they reach the session.
     expect(await loadsImage(running, "https://example.com/image.png")).toBe(false);
     const fetched = await running.window.evaluate(() =>
@@ -172,7 +172,7 @@ test.describe("on a fixture workspace", () => {
     expect(fetched).toBe("refused");
   });
 
-  test("logreq-file: serves images inside a repository of the workspace, nothing else", async () => {
+  test("reqseq-file: serves images inside a repository of the workspace, nothing else", async () => {
     const root = running.workspace?.root ?? "";
     // An image outside the repository, and a link to it inside.
     await fs.promises.writeFile(path.join(root, "..", "outside.png"), PNG);
@@ -181,20 +181,20 @@ test.describe("on a fixture workspace", () => {
       path.join(root, "images", "link.png"),
       "file",
     );
-    expect(await loadsImage(running, "logreq-file://workspace/system/images/dot.png")).toBe(true);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/images/dot.png")).toBe(true);
     // Chromium resolves dot segments, also encoded ones, before the request: still inside.
-    expect(await loadsImage(running, "logreq-file://workspace/system/x/%2e%2e/images/dot.png")).toBe(true);
-    expect(await loadsImage(running, "logreq-file://workspace/system/images/missing.png")).toBe(false);
-    expect(await loadsImage(running, "logreq-file://workspace/system/images/notes.txt")).toBe(false);
-    expect(await loadsImage(running, "logreq-file://workspace/vault/images/dot.png")).toBe(false);
-    expect(await loadsImage(running, "logreq-file://workspace/system/images/link.png")).toBe(false);
-    expect(await loadsImage(running, "logreq-file://workspace/system/..%2Foutside.png")).toBe(false);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/x/%2e%2e/images/dot.png")).toBe(true);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/images/missing.png")).toBe(false);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/images/notes.txt")).toBe(false);
+    expect(await loadsImage(running, "reqseq-file://workspace/vault/images/dot.png")).toBe(false);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/images/link.png")).toBe(false);
+    expect(await loadsImage(running, "reqseq-file://workspace/system/..%2Foutside.png")).toBe(false);
   });
 
   test("navigation and new windows are denied", async () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     await running.window.evaluate(() => {
-      window.open("app://logreq/index.html");
+      window.open("app://reqseq/index.html");
       window.open("https://example.com/");
     });
     await running.window.evaluate(() => {
@@ -204,7 +204,7 @@ test.describe("on a fixture workspace", () => {
     const windows = await running.app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().map((w) => w.webContents.getURL()),
     );
-    expect(windows).toEqual(["app://logreq/index.html"]);
+    expect(windows).toEqual(["app://reqseq/index.html"]);
     expect(
       await running.window.evaluate(() => document.querySelector('[aria-label="Modeline"]')?.textContent),
     ).toContain("Weather station");
@@ -213,7 +213,7 @@ test.describe("on a fixture workspace", () => {
   test("a core process that stops is started again on the same workspace", async () => {
     await expect(running.window.getByLabel("Modeline")).toContainText("Weather station");
     const pid = await running.app.evaluate(
-      ({ app }) => app.getAppMetrics().find((m) => m.name === "LogReq core")?.pid,
+      ({ app }) => app.getAppMetrics().find((m) => m.name === "ReqSeq core")?.pid,
     );
     expect(pid).toBeGreaterThan(0);
     process.kill(pid ?? 0);

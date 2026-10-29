@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -57,7 +57,7 @@ const recordOf = (store: ElementStore, id: string): ElementRecord => {
 const unknownProperty = (file: string, elementId: string, key: string, line?: number): Problem => ({
   code: "element.unknown-property",
   severity: "warning",
-  message: `Property ${key} is not in the metamodel; LogReq keeps it and its value unchanged`,
+  message: `Property ${key} is not in the metamodel; ReqSeq keeps it and its value unchanged`,
   repository: "system",
   file,
   ...(line === undefined ? {} : { line }),
@@ -67,7 +67,7 @@ const unknownProperty = (file: string, elementId: string, key: string, line?: nu
 const UNKNOWN_TYPE: Problem = {
   code: "element.unknown-type",
   severity: "warning",
-  message: "Type gadget is not in the metamodel; LogReq shows the element and only reads it",
+  message: "Type gadget is not in the metamodel; ReqSeq shows the element and only reads it",
   repository: "system",
   file: GADGET_FILE,
   line: 3,
@@ -76,7 +76,7 @@ const UNKNOWN_TYPE: Problem = {
 
 const notOfType = (key: string, name: string, line?: number): Problem => ({
   ...unknownProperty(GUSTS_FILE, GUSTS, key, line),
-  message: `Property ${name} (${key}) is not a property of type System Requirement (system-requirement); LogReq keeps it and its value unchanged`,
+  message: `Property ${name} (${key}) is not a property of type System Requirement (system-requirement); ReqSeq keeps it and its value unchanged`,
 });
 
 const GUSTS_PROBLEMS: readonly Problem[] = [

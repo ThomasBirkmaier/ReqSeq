@@ -29,7 +29,7 @@ describe("measure", () => {
   });
 
   it("appends one JSON line per measurement to the results file, creating its folder", async () => {
-    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-"));
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-perf-"));
     const file = path.join(folder, "nested", "perf.jsonl");
     vi.stubEnv(PERF_RESULTS_ENV, file);
     await measure("first", async () => Promise.resolve("done"), { basis: "SR-082 AK2", thresholdMs: 30_000 });
@@ -55,7 +55,7 @@ describe("measure", () => {
 
 describe("measureMedian", () => {
   it("runs as often as asked and records one line with the median time", async () => {
-    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-"));
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-perf-"));
     const file = path.join(folder, "perf.jsonl");
     vi.stubEnv(PERF_RESULTS_ENV, file);
     let calls = 0;
@@ -94,7 +94,7 @@ describe("recordValue", () => {
       basis: "N-036",
       ms: 12.3,
     });
-    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-"));
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-perf-"));
     const file = path.join(folder, "perf.jsonl");
     vi.stubEnv(PERF_RESULTS_ENV, file);
     await recordValue("slowest", 321.46, { basis: "SR-098 AK1", thresholdMs: 300 });

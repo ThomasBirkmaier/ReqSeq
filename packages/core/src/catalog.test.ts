@@ -120,7 +120,7 @@ describe("CommandError", () => {
   it("serialises to the error object of common.schema.json", () => {
     const contracts = loadContracts({
       catalog: {
-        "logreq-catalog": 1,
+        "reqseq-catalog": 1,
         commands: [
           {
             name: "test.fail",

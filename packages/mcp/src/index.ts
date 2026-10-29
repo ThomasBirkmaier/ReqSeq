@@ -1,4 +1,4 @@
-// The MCP server (ADR-0009): an adapter over the command catalog of @logreq/core (ADR-0002), stdio only.
+// The MCP server (ADR-0009): an adapter over the command catalog of @reqseq/core (ADR-0002), stdio only.
 export { MAX_TEXT_BYTES, callTool, createMcpServer, largeOutputNote, serveMcp } from "./server.js";
 export type { McpServerOptions, ServeMcpOptions } from "./server.js";
 export { catalogTools, serverTools, toolName } from "./tools.js";

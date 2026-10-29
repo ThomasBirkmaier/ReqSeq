@@ -1,7 +1,7 @@
 // Screenshots of the look of the window (#490) for the pull request: the element view with the status
 // line, and the command prompt open over it, in light and in dark, and once more with the renderer told it
 // runs on macOS (the title bar strip). The window is 1280×800. The PNGs go to
-// `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS) as
+// `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS) as
 // `look-[mac-]<scheme>-<view>.png`.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { launchApp, listAll, modifier } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 const ELEMENT = "Beim Schreiben per Suche verlinken";
 

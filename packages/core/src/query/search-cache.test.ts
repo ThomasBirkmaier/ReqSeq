@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import MiniSearch from "minisearch";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
@@ -56,7 +56,7 @@ const fixture = async (): Promise<FixtureWorkspace> => {
 };
 
 const tempFolder = async (): Promise<string> => {
-  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-search-cache-")));
+  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-search-cache-")));
   onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
   return folder;
 };

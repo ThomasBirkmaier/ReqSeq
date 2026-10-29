@@ -1,10 +1,10 @@
-// SR-099 (D-045): LogReq offers no delete of an element, only supersede. The app, CLI, API and MCP server
+// SR-099 (D-045): ReqSeq offers no delete of an element, only supersede. The app, CLI, API and MCP server
 // offer exactly the catalog commands (ADR-0002 rule 3), so the catalog and the implemented write commands
 // are checked here; packages/cli/test/no-delete.test.ts checks the three adapters. The app has no UI before
 // stage 3; by #127 option 1 its part of AK1 is this catalog test until then.
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { elementStoreState } from "../model/index.js";
 import { loadContracts } from "../runtime/contracts.js";

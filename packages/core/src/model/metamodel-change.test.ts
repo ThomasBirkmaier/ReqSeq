@@ -1,11 +1,11 @@
-// SR-015: a changed metamodel takes effect in an open workspace without a restart, and LogReq
+// SR-015: a changed metamodel takes effect in an open workspace without a restart, and ReqSeq
 // rewrites no element file for it. The real watcher (SR-007) picks up the saved metamodel file;
 // element views, findings and versions are then those of the new metamodel, and every element file
 // keeps its bytes and its modification time.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { readElementFile } from "../files/index.js";
@@ -180,7 +180,7 @@ const findings = async ({ workspace }: Opened): Promise<Record<string, readonly 
 const missingRequired = (file: string, elementId: string, type: string, line?: number): Problem => ({
   code: "element.missing-required",
   severity: "warning",
-  message: `Required property Verification Method (verification-method) of type ${type} has no value; LogReq changes no file`,
+  message: `Required property Verification Method (verification-method) of type ${type} has no value; ReqSeq changes no file`,
   repository: "system",
   file,
   ...(line === undefined ? {} : { line }),
@@ -211,7 +211,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
       "  - { key: rationale, name: Rationale, kind: text }\n\nrelations:",
     );
     const start = performance.now();
-    // As vim, JetBrains IDEs and LogReq's own atomic write save: a new file renamed over the old one.
+    // As vim, JetBrains IDEs and ReqSeq's own atomic write save: a new file renamed over the old one.
     await opened.fixture.write("metamodel/.model.yaml.swp", added);
     await fs.rename(opened.fixture.path("metamodel/.model.yaml.swp"), opened.fixture.path(MODEL));
     const ms = await takenOver(opened.workspace, start, (m) =>
@@ -248,7 +248,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
         code: "element.unknown-property",
         file: NEED_FILE,
         message:
-          "Property Priority (priority) is not a property of type Need (need); LogReq keeps it and its value unchanged",
+          "Property Priority (priority) is not a property of type Need (need); ReqSeq keeps it and its value unchanged",
       }),
     ]);
 
@@ -266,7 +266,7 @@ describe("metamodel changes without rewriting element files (SR-015)", () => {
         code: "element.unknown-property",
         file: NEED_FILE,
         message:
-          "Property Priority (priority) is not a property of type Stakeholder Need (need); LogReq keeps it and its value unchanged",
+          "Property Priority (priority) is not a property of type Stakeholder Need (need); ReqSeq keeps it and its value unchanged",
       }),
     ]);
     expect({ ...after.findings, unknown: [] }).toEqual({ ...before.findings, unknown: [] });

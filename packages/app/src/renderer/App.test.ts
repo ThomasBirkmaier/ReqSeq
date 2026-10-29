@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   CommandListing,
   InvokeResult,
-  LogReqBridge,
+  ReqSeqBridge,
   SaveExpired,
   SaveReason,
   WorkspaceChange,
@@ -47,12 +47,12 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
     );
   });
   const copyText = vi.fn<(text: string) => Promise<boolean>>(() => Promise.resolve(true));
-  const recentWorkspaces = vi.fn<LogReqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
-  const openWorkspace = vi.fn<LogReqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
+  const recentWorkspaces = vi.fn<ReqSeqBridge["recentWorkspaces"]>(() => Promise.resolve([]));
+  const openWorkspace = vi.fn<ReqSeqBridge["openWorkspace"]>(() => Promise.resolve({ ok: true }));
   // The window's saver, which main calls before a switch (SR-131 AK3) or before the window closes
   // (`closing`, SR-105 AK1).
   const savers: ((request?: SaveReason) => Promise<boolean>)[] = [];
-  const onSave = vi.fn<LogReqBridge["onSave"]>((save) => {
+  const onSave = vi.fn<ReqSeqBridge["onSave"]>((save) => {
     const saver = (request: SaveReason = { closing: false }): Promise<boolean> => save(request);
     savers.push(saver);
     return () => {
@@ -61,7 +61,7 @@ const fakeBridge = (handlers: Record<string, Handler>) => {
   });
   // Main gave up waiting for the save (SR-131 AK3).
   const expired = new Set<(data: SaveExpired) => void>();
-  const bridge: LogReqBridge = {
+  const bridge: ReqSeqBridge = {
     invoke,
     commands: () => Promise.resolve([]),
     // Only the workspace's changes; `agent-activity` (SR-117) subscribes nothing here (follow-app.test.ts).
@@ -208,7 +208,7 @@ const flush = async (): Promise<void> => {
   });
 };
 
-const render = async (bridge: LogReqBridge): Promise<void> => {
+const render = async (bridge: ReqSeqBridge): Promise<void> => {
   await act(async () => {
     root.render(createElement(App, { bridge }));
     await Promise.resolve();
@@ -289,7 +289,7 @@ const listAll = async (): Promise<void> => {
   await runCommand("List all elements");
 };
 
-const renderList = async (bridge: LogReqBridge): Promise<void> => {
+const renderList = async (bridge: ReqSeqBridge): Promise<void> => {
   await render(bridge);
   await listAll();
 };
@@ -303,7 +303,7 @@ const calls = (invoke: ReturnType<typeof fakeBridge>["invoke"], name: string): u
 describe("App", () => {
   it("is a white sheet with the modeline and the minibuffer; empty until the status is there", async () => {
     let answer: (result: InvokeResult) => void = () => undefined;
-    const bridge: LogReqBridge = {
+    const bridge: ReqSeqBridge = {
       invoke: () =>
         new Promise((resolve) => {
           answer = resolve;
@@ -325,14 +325,14 @@ describe("App", () => {
     });
     // The overview is asked for; until it answers, the modeline names the buffer.
     expect(text("Modeline")).toBe("OverviewWeather stationread-only");
-    expect(document.title).toBe("Weather station - LogReq");
+    expect(document.title).toBe("Weather station - ReqSeq");
   });
 
   it("on macOS names the window in a title bar strip of the sheet, which has no control; elsewhere has none (#490)", async () => {
     const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     const { bridge } = fakeBridge({ "workspace.status": () => NO_WORKSPACE });
     await render(bridge);
-    expect(query(".titlebar").textContent).toBe("LogReq");
+    expect(query(".titlebar").textContent).toBe("ReqSeq");
     act(() => {
       root.unmount();
     });
@@ -340,7 +340,7 @@ describe("App", () => {
     root = createRoot(container);
     await render(other.bridge);
     const bar = query(".titlebar");
-    expect(bar.textContent).toBe("Weather station - LogReq");
+    expect(bar.textContent).toBe("Weather station - ReqSeq");
     expect(bar.getAttribute("aria-hidden")).toBe("true");
     expect(bar.querySelector("button, input, a, [tabindex]")).toBeNull();
     act(() => {
@@ -468,7 +468,7 @@ describe("App", () => {
     expect(query("label").textContent).toBe("Status");
     await keyDown(query("input"), "Escape");
     // The usage is in the storage of the app, never in a workspace file, and holds no title or text.
-    const stored = JSON.parse(window.localStorage.getItem("logreq.usage.v1") ?? "null") as {
+    const stored = JSON.parse(window.localStorage.getItem("reqseq.usage.v1") ?? "null") as {
       commands: unknown[][];
       queries: unknown[][];
     };
@@ -676,7 +676,7 @@ describe("App", () => {
     expect(container.querySelector("input")).toBeNull();
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
     expect(text("Modeline")).toBe("Overview3 elementsOther");
-    expect(document.title).toBe("Other - LogReq");
+    expect(document.title).toBe("Other - ReqSeq");
     expect(invoke).toHaveBeenCalled();
   });
 
@@ -701,14 +701,14 @@ describe("App", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await flush();
-    expect(document.title).toBe("Other - LogReq");
+    expect(document.title).toBe("Other - ReqSeq");
     // The closed connection of the first answers last, with nothing: the view stays the second one's.
     await act(async () => {
       answers[0]?.({ ok: false, error: { code: "workspace.not-found", message: "closed" } as never });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await flush();
-    expect(document.title).toBe("Other - LogReq");
+    expect(document.title).toBe("Other - ReqSeq");
     expect(text("Modeline")).toContain("Other");
     expect(query('[role="listbox"]').getAttribute("aria-label")).toBe("Overview");
   });
@@ -749,7 +749,7 @@ describe("App", () => {
     await change("opened");
     expect(container.querySelector('[role="listbox"]')).toBeNull();
     expect(text("Modeline")).toBe("No workspace");
-    expect(document.title).toBe("LogReq");
+    expect(document.title).toBe("ReqSeq");
   });
 
   it("keeps the buffers and sends nothing more when the core process has stopped for good", async () => {
@@ -1116,7 +1116,7 @@ describe("App, the overview (SR-118)", () => {
     incomplete: false,
   };
   const twoTypes = (): Record<string, Handler> => ({ ...workspace(), "element.facets": () => TWO_TYPES });
-  const KEY = (name = STATUS.name): string => `logreq.recent.v1\n${name}`;
+  const KEY = (name = STATUS.name): string => `reqseq.recent.v1\n${name}`;
   const seed = (entries: object[]): void => {
     window.localStorage.setItem(KEY(), JSON.stringify(entries));
   };

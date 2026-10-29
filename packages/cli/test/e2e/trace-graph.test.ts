@@ -1,13 +1,13 @@
-// `logreq trace graph` end to end (SR-111): the built binary on fixtures/SR-111/graph, as JSON and as
+// `reqseq trace graph` end to end (SR-111): the built binary on fixtures/SR-111/graph, as JSON and as
 // lines. SR-b0000000001 derives from a need, is based on a decision, is in a package, supersedes an
 // obsolete requirement and references a decision with an outdated version; three component
 // requirements derive from it, one with an outdated version, and two levels more hang below the first.
 // Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Output {
   readonly root: string;
@@ -40,7 +40,7 @@ const graph = async (args: readonly string[]): Promise<{ run: Run; output: Outpu
 
 const nodes = (output: Output): unknown[] => output.nodes.map((n) => [n.shortId, n.level]);
 
-describe("logreq trace graph (SR-111)", () => {
+describe("reqseq trace graph (SR-111)", () => {
   it("[SR-111/AK1] gives the element at level 0, its parents above and its children below", async () => {
     const { run: result, output } = await graph(["SR-b0000000001", "--meanings", "derivation"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);

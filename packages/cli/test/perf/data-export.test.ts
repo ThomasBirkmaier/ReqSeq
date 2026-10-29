@@ -18,9 +18,9 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { startApiServer } from "@logreq/api";
-import { MAX_TEXT_BYTES, largeOutputNote } from "@logreq/mcp";
-import type { CommandOutput, VersionValue } from "@logreq/core";
+import { startApiServer } from "@reqseq/api";
+import { MAX_TEXT_BYTES, largeOutputNote } from "@reqseq/mcp";
+import type { CommandOutput, VersionValue } from "@reqseq/core";
 import {
   Workspace,
   computeVersion,
@@ -29,8 +29,8 @@ import {
   jsonChunks,
   jsonLines,
   loadContracts,
-} from "@logreq/core";
-import type { VersionFunction } from "@logreq/testkit";
+} from "@reqseq/core";
+import type { VersionFunction } from "@reqseq/testkit";
 import {
   createFixtureWorkspace,
   defaultStandardModelFile,
@@ -39,9 +39,9 @@ import {
   recordValue,
   withEvidenceRecords,
   writeLargeWorkspace,
-} from "@logreq/testkit";
+} from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/logreq.js";
+import { bin, blockNetwork, cliEnv, requireBuiltCli } from "../support/reqseq.js";
 
 const ELEMENTS = 50_000;
 const RELATIONS = 200_000;
@@ -112,8 +112,8 @@ const edges = async (file: string, length: number): Promise<{ head: string; tail
   }
 };
 
-/** `logreq <args>` with stdout into `file` (the output may not fit into one string), stderr collected. */
-const logreqToFile = (
+/** `reqseq <args>` with stdout into `file` (the output may not fit into one string), stderr collected. */
+const reqseqToFile = (
   args: readonly string[],
   cwd: string,
   file: string,
@@ -135,7 +135,7 @@ const logreqToFile = (
     });
   });
 
-/** One answer line of `logreq mcp`: its bytes, its first bytes and its last bytes. */
+/** One answer line of `reqseq mcp`: its bytes, its first bytes and its last bytes. */
 interface McpLine {
   readonly bytes: number;
   readonly head: string;
@@ -143,7 +143,7 @@ interface McpLine {
 }
 
 /**
- * `logreq mcp` in `cwd`: initialize, then one `tools/call` of `tool`. The answer line is scanned by
+ * `reqseq mcp` in `cwd`: initialize, then one `tools/call` of `tool`. The answer line is scanned by
  * bytes, never held as one string. Resolves when the server exited after its standard input ended.
  */
 const mcpCall = (
@@ -197,7 +197,7 @@ const mcpCall = (
     child.on("error", reject);
     child.on("close", (code) => {
       if (answer === undefined) {
-        reject(new Error(`no answer from logreq mcp: ${Buffer.concat(err).toString("utf8")}`));
+        reject(new Error(`no answer from reqseq mcp: ${Buffer.concat(err).toString("utf8")}`));
         return;
       }
       resolve({ code, stderr: Buffer.concat(err).toString("utf8"), answer });
@@ -229,7 +229,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     const fixture = await writeLargeWorkspace(withEvidenceRecords(generated).workspace);
     root = fixture.workspaceRoot;
     cleanup = fixture.cleanup;
-    scratch = await fsp.mkdtemp(path.join(os.tmpdir(), "logreq-sr-061-"));
+    scratch = await fsp.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-061-"));
     const workspace = new Workspace(root);
     try {
       const data = await invoke("data.export", {}, { workspace });
@@ -261,12 +261,12 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     const file = path.join(scratch, "export.json");
     const memoryFile = path.join(scratch, "memory.json");
     const env = {
-      LOGREQ_PEAK_MEMORY: memoryFile,
+      REQSEQ_PEAK_MEMORY: memoryFile,
       NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
     };
     const { result: run } = await measure(
-      "logreq data export --json at N-036 into a file (new CLI process, written in chunks)",
-      () => logreqToFile(["data", "export", "--json"], root, file, env),
+      "reqseq data export --json at N-036 into a file (new CLI process, written in chunks)",
+      () => reqseqToFile(["data", "export", "--json"], root, file, env),
       {
         basis: "SR-061 AK1, #277 (command line, from process start to exit; recorded, no limit in the spec)",
       },
@@ -280,7 +280,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(tail.endsWith("\n}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
-      `logreq data export --json at N-036: ${(size / MB).toFixed(0)} MB (compact ${(compactBytes / MB).toFixed(0)} MB); CLI process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
+      `reqseq data export --json at N-036: ${(size / MB).toFixed(0)} MB (compact ${(compactBytes / MB).toFixed(0)} MB); CLI process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
       0,
       { basis: "SR-061 AK1, #277 (recorded)" },
     );
@@ -290,12 +290,12 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     const file = path.join(scratch, "export.jsonl");
     const memoryFile = path.join(scratch, "memory-jsonl.json");
     const env = {
-      LOGREQ_PEAK_MEMORY: memoryFile,
+      REQSEQ_PEAK_MEMORY: memoryFile,
       NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
     };
     const { result: run } = await measure(
-      "logreq data export --jsonl at N-036 into a file (new CLI process, one element per line)",
-      () => logreqToFile(["data", "export", "--jsonl"], root, file, env),
+      "reqseq data export --jsonl at N-036 into a file (new CLI process, one element per line)",
+      () => reqseqToFile(["data", "export", "--jsonl"], root, file, env),
       {
         basis: "SR-061 AK4, #319 (command line, from process start to exit; recorded, no limit in the spec)",
       },
@@ -316,7 +316,7 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
     expect(tail.endsWith("}\n")).toBe(true);
     const peak = JSON.parse(await fsp.readFile(memoryFile, "utf8")) as PeakMemory;
     await recordValue(
-      `logreq data export --jsonl at N-036: ${(size / MB).toFixed(0)} MB, ${String(lineCount)} lines; CLI process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
+      `reqseq data export --jsonl at N-036: ${(size / MB).toFixed(0)} MB, ${String(lineCount)} lines; CLI process peak heap in use ${(peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(peak.maxRss / MB).toFixed(0)} MB`,
       0,
       { basis: "SR-061 AK4, #319 (recorded)" },
     );
@@ -439,11 +439,11 @@ describe("data.export with 50,000 elements and their records (SR-061, N-036, #27
   it("[SR-061/AK1] gives the data of every element over MCP at N-036 (structuredContent, the text is the note)", async () => {
     const memoryFile = path.join(scratch, "memory-mcp.json");
     const env = {
-      LOGREQ_PEAK_MEMORY: memoryFile,
+      REQSEQ_PEAK_MEMORY: memoryFile,
       NODE_OPTIONS: `${process.env["NODE_OPTIONS"] ?? ""} --import=${peakMemoryPreload}`.trim(),
     };
     const { result: run } = await measure(
-      "MCP tool call data_export at N-036 (new logreq mcp process, written in chunks)",
+      "MCP tool call data_export at N-036 (new reqseq mcp process, written in chunks)",
       () => mcpCall("data_export", root, env),
       {
         basis:

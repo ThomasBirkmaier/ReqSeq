@@ -1,13 +1,13 @@
-// `logreq data export` end to end (SR-061): the built binary on fixtures/SR-061/export (two Git
+// `reqseq data export` end to end (SR-061): the built binary on fixtures/SR-061/export (two Git
 // repositories `system` and `sensor`, Markdown and JUnit record files, variants, a package, a saved
 // filter and baselines; its README lists the elements and the expected selections), as lines, as
 // JSON and as JSON Lines (#319), and both against the schema files on disk with the Ajv setup of scripts/contracts
 // (ADR-0003). Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -68,8 +68,8 @@ const schemaValidator = async (schema: string): Promise<Validate | undefined> =>
   return loadContracts().ajv.getSchema(`${BASE}${schema}`);
 };
 
-describe("logreq data export (SR-061)", () => {
-  it("[SR-061/AK1] logreq data export --json gives every element with properties, relations, version, status and validity read from the files", async () => {
+describe("reqseq data export (SR-061)", () => {
+  it("[SR-061/AK1] reqseq data export --json gives every element with properties, relations, version, status and validity read from the files", async () => {
     const ws = await fixture();
     const result = await exportIn(ws, ["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
@@ -106,7 +106,7 @@ describe("logreq data export (SR-061)", () => {
     expect(byId.get("e1")?.relations.map((r) => [r.id, r.outdated])).toEqual([[`${P}b1`, false]]);
   });
 
-  it("[SR-061/AK1] logreq data export prints one line per element", async () => {
+  it("[SR-061/AK1] reqseq data export prints one line per element", async () => {
     const result = await exportIn(await fixture(), []);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     const lines = result.stdout.split("\n");
@@ -123,7 +123,7 @@ describe("logreq data export (SR-061)", () => {
     ]);
   });
 
-  it("[SR-061/AK2] logreq data export gives only the selection of a package, a saved filter, a baseline and a variant", async () => {
+  it("[SR-061/AK2] reqseq data export gives only the selection of a package, a saved filter, a baseline and a variant", async () => {
     const ws = await fixture();
     const cases: readonly [Readonly<Record<string, unknown>>, readonly string[]][] = [
       [{ package: "PKG-0000d1" }, ["b1", "b2"]],
@@ -139,7 +139,7 @@ describe("logreq data export (SR-061)", () => {
     }
   });
 
-  it("[SR-061/AK3] the JSON of logreq data export matches schemas/data-export.schema.json", async () => {
+  it("[SR-061/AK3] the JSON of reqseq data export matches schemas/data-export.schema.json", async () => {
     const ws = await fixture();
     const validate = await schemaValidator("data-export.schema.json");
     for (const args of [[], ["--input", JSON.stringify({ selection: { baseline: "release-1" } })]]) {
@@ -151,7 +151,7 @@ describe("logreq data export (SR-061)", () => {
   });
 });
 
-describe("logreq data export --jsonl (SR-061 AK4, #319)", () => {
+describe("reqseq data export --jsonl (SR-061 AK4, #319)", () => {
   /** The lines of a `--jsonl` run, each parsed; the text ends with a line break. */
   const linesOf = (stdout: string): Record<string, unknown>[] => {
     expect(stdout.endsWith("\n")).toBe(true);
@@ -161,7 +161,7 @@ describe("logreq data export --jsonl (SR-061 AK4, #319)", () => {
       .map((line) => JSON.parse(line) as Record<string, unknown>);
   };
 
-  it("[SR-061/AK4] logreq data export --jsonl prints one element per line, the state of the export first", async () => {
+  it("[SR-061/AK4] reqseq data export --jsonl prints one element per line, the state of the export first", async () => {
     const ws = await fixture();
     for (const args of [[], ["--input", JSON.stringify({ selection: { package: "PKG-0000d1" } })]]) {
       const json = await exportIn(ws, [...args, "--json"]);
@@ -177,7 +177,7 @@ describe("logreq data export --jsonl (SR-061 AK4, #319)", () => {
     }
   });
 
-  it("[SR-061/AK3] every line of logreq data export --jsonl matches $defs/line of schemas/data-export.schema.json", async () => {
+  it("[SR-061/AK3] every line of reqseq data export --jsonl matches $defs/line of schemas/data-export.schema.json", async () => {
     const ws = await fixture();
     const validate = await schemaValidator("data-export.schema.json#/$defs/line");
     const result = await exportIn(ws, ["--jsonl"]);

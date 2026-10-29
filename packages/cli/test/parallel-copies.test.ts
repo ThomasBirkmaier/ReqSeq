@@ -6,13 +6,13 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import type { ApiServer } from "@logreq/api";
-import { startApiServer } from "@logreq/api";
-import type { CacheEnvironment, CommandOutput } from "@logreq/core";
-import { Workspace, cacheFolder, createCommandRuntime, watchWorkspace } from "@logreq/core";
-import { LineTransport, serveMcp } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
+import type { ApiServer } from "@reqseq/api";
+import { startApiServer } from "@reqseq/api";
+import type { CacheEnvironment, CommandOutput } from "@reqseq/core";
+import { Workspace, cacheFolder, createCommandRuntime, watchWorkspace } from "@reqseq/core";
+import { LineTransport, serveMcp } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { cloneFixtureWorkspace, createFixtureWorkspace } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { EXIT, runCli } from "../src/index.js";
@@ -34,7 +34,7 @@ const SEEN_LIMIT_MS = 10_000;
 // folder on every OS; the servers get the shared cache folder of each test.
 let cacheHome = "";
 beforeAll(async () => {
-  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-home-"));
+  cacheHome = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-home-"));
   for (const name of ["HOME", "USERPROFILE", "XDG_CACHE_HOME", "LOCALAPPDATA"]) {
     vi.stubEnv(name, cacheHome);
   }
@@ -46,7 +46,7 @@ afterAll(async () => {
 
 /** One OS cache folder for every copy, as one OS user has: `base` stands for the profile. */
 const sharedCache = async (): Promise<{ readonly base: string; readonly env: CacheEnvironment }> => {
-  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-081-cache-")));
+  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-081-cache-")));
   onTestFinished(() => fs.rm(base, { recursive: true, force: true, maxRetries: 3 }));
   return {
     base,
@@ -70,7 +70,7 @@ const clones = async (
   return { origin, copies };
 };
 
-/** A workspace that stays open with its watcher, as in `logreq serve api` and `logreq mcp`. */
+/** A workspace that stays open with its watcher, as in `reqseq serve api` and `reqseq mcp`. */
 const serving = (root: string): Workspace => {
   const workspace = new Workspace(root);
   watchWorkspace(workspace);
@@ -113,7 +113,7 @@ const post = (
     req.end(JSON.stringify(input));
   });
 
-/** An MCP session on its own workspace of the copy, as `logreq mcp` has. */
+/** An MCP session on its own workspace of the copy, as `reqseq mcp` has. */
 const mcp = async (root: string): Promise<Client> => {
   const toServer = new PassThrough();
   const toClient = new PassThrough();
@@ -141,7 +141,7 @@ class Sink {
   }
 }
 
-/** `logreq <argv> --json` in the copy, a one-shot command with its own workspace. */
+/** `reqseq <argv> --json` in the copy, a one-shot command with its own workspace. */
 const cli = async (root: string, argv: readonly string[]): Promise<unknown> => {
   const stdout = new Sink();
   const stderr = new Sink();
@@ -255,7 +255,7 @@ describe("separate working copies used at the same time (SR-081)", { timeout: 12
         problems: unknown[];
       };
       expect(status.problems).toEqual([]);
-      // Nothing of LogReq lies in the working tree: only the new element files are untracked.
+      // Nothing of ReqSeq lies in the working tree: only the new element files are untracked.
       const changes = (await copy.git(["status", "--porcelain", "--untracked-files=all"])).trim().split("\n");
       expect(changes).toHaveLength(3 * PER_ACCESS);
       for (const line of changes) {
@@ -289,7 +289,7 @@ describe("separate working copies used at the same time (SR-081)", { timeout: 12
     await before.close();
     await fs.writeFile(
       crashed.endpointFile,
-      JSON.stringify({ "logreq-api": 1, port: 1, token: "t", urls: ["http://127.0.0.1:1"], pid: 2147483646 }),
+      JSON.stringify({ "reqseq-api": 1, port: 1, token: "t", urls: ["http://127.0.0.1:1"], pid: 2147483646 }),
     );
 
     // Someone moves the copy away (inside the fixture's temporary folder, so cleanup removes it) and

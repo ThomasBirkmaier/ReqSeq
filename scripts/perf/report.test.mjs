@@ -18,7 +18,7 @@ const junit = (cases, { errors = 0 } = {}) =>
   `<?xml version="1.0" encoding="UTF-8" ?>\n<testsuites name="vitest tests" tests="${cases.length}" errors="${errors}">\n<testsuite name="perf" errors="${errors}" skipped="0">\n${cases.join("\n")}\n</testsuite>\n</testsuites>\n`;
 const PASSED = '<testcase name="loads">\n</testcase>';
 const THRESHOLD =
-  '<testcase name="[SR-020/AK1] checks">\n<failure message="perf threshold exceeded: logreq check &lt;cold&gt;: expected 61000 to be less than or equal to 60000" type="AssertionError">\n</failure>\n</testcase>';
+  '<testcase name="[SR-020/AK1] checks">\n<failure message="perf threshold exceeded: reqseq check &lt;cold&gt;: expected 61000 to be less than or equal to 60000" type="AssertionError">\n</failure>\n</testcase>';
 const WRONG =
   '<testcase name="finds nothing">\n<failure message="expected [ 1 ] to deeply equal []" type="AssertionError">\n</failure>\n</testcase>';
 
@@ -29,7 +29,7 @@ const MACHINE = { os: "Linux 6 (x64)", cores: 4, memoryGb: 16, node: "v22.12.0" 
 
 const folders = [];
 const temp = () => {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-perf-report-"));
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-perf-report-"));
   folders.push(folder);
   return folder;
 };

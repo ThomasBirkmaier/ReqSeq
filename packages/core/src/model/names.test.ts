@@ -1,7 +1,7 @@
 // How outputs name the elements they give by UUID only (#588, `names`), on fixtures/enabler-305/identifiers:
 // N-001 (need), SR-036 and SR-037 (system requirements, SR-037 derived from SR-036), D-047 (decision);
 // every type has the property `spec-id` with the meaning identifier.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";

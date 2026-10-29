@@ -32,7 +32,7 @@ const QS = "7a12a8c7-43e7-4349-9453-0ac2b6d5157d";
 
 /** A repository with the spec workspace (two SRs, two packages) and the given extra files. */
 function repo(extra = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "logreq-trace-check-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "reqseq-trace-check-"));
   roots.push(root);
   const files = {
     "spec/logreq-workspace.yaml": WORKSPACE,
@@ -73,7 +73,7 @@ function repo(extra = {}) {
   return root;
 }
 
-describe("trace-check on the LogReq workspace in spec/", () => {
+describe("trace-check on the ReqSeq workspace in spec/", () => {
   it("reads system requirements by their identifier, in any folder and any YAML style", () => {
     const spec = readSpec(path.join(repo(), "spec"));
     expect([...spec.srs.keys()].sort()).toEqual(["SR-001", "SR-002"]);

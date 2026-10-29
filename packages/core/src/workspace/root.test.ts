@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it } from "vitest";
 import { WORKSPACE_FILE, findWorkspaceRoot } from "./root.js";
 

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { FileSnapshot } from "../files/index.js";
 import { readElementFile, writeFileAtomic } from "../files/index.js";
@@ -723,7 +723,7 @@ describe("withWrittenFiles (#166)", () => {
   const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
   const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
 
-  /** The fixture with its store read, and a way to write a file as LogReq does. */
+  /** The fixture with its store read, and a way to write a file as ReqSeq does. */
   const opened = async (
     files: Readonly<Record<string, string>> = {},
   ): Promise<{
@@ -885,7 +885,7 @@ describe("recordWrites (#166)", () => {
   const REQUIREMENT = "5cb1e198-1130-4a13-9d25-88cc6ebc472a";
   const REQUIREMENT_FILE = "requirements/SR-88cc6ebc472a.md";
 
-  /** Opens the fixture, reads the store and changes the requirement on disk as LogReq writes it. */
+  /** Opens the fixture, reads the store and changes the requirement on disk as ReqSeq writes it. */
   const opened = async (): Promise<{
     workspace: Workspace;
     layout: WorkspaceLayout;

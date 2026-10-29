@@ -89,7 +89,7 @@ const startProblem = async (
     relative = relative === "" ? name : `${relative}/${name}`;
     const folder = path.join(repository.folder, relative);
     if (SKIPPED_NAMES.has(name)) {
-      return skippedFolder(repository.name, file, `lies in ${name}, which LogReq never reads`);
+      return skippedFolder(repository.name, file, `lies in ${name}, which ReqSeq never reads`);
     }
     if (ignored(relative)) {
       return skippedFolder(repository.name, file, "matches an ignore glob of the workspace file");
@@ -115,7 +115,7 @@ const startProblem = async (
       return skippedFolder(
         repository.name,
         file,
-        "is or lies below a symbolic link; LogReq does not follow links",
+        "is or lies below a symbolic link; ReqSeq does not follow links",
       );
     }
     if (stat?.isDirectory() !== true) {

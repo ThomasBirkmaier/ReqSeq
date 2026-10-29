@@ -1,5 +1,5 @@
 {
-  "name": "@logreq/api",
+  "name": "@reqseq/api",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
@@ -19,6 +19,6 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@logreq/core": "workspace:*"
+    "@reqseq/core": "workspace:*"
   }
 }

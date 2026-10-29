@@ -1,7 +1,7 @@
 // The command prompt on the built app (SR-108, SR-121, SR-133, #85): what was chosen for a typed text comes
 // first the next time, also after the app restarts; the commands that fit the shown view come first; a catalog
 // command asks its arguments with the values core gives; a write command ("Confirm hints") runs from it.
-// Keys use ControlOrMeta, so the same tests run on Linux and macOS. With LOGREQ_SCREENSHOTS set, the argument
+// Keys use ControlOrMeta, so the same tests run on Linux and macOS. With REQSEQ_SCREENSHOTS set, the argument
 // entry is also saved as a screenshot there.
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -85,7 +85,7 @@ test.describe("the command prompt", () => {
     );
     await expect(names(window)).toHaveText(kinds);
     await window.keyboard.type("der");
-    const shots = process.env["LOGREQ_SCREENSHOTS"];
+    const shots = process.env["REQSEQ_SCREENSHOTS"];
     if (shots !== undefined) {
       await window.screenshot({ path: path.join(shots, "catalog-prompt.png") });
     }

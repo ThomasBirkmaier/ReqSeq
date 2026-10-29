@@ -1,5 +1,5 @@
 {
-  "name": "@logreq/mcp",
+  "name": "@reqseq/mcp",
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
@@ -19,7 +19,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@logreq/core": "workspace:*",
+    "@reqseq/core": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1"
   },
   "devDependencies": {

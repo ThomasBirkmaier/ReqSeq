@@ -39,7 +39,7 @@
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
 // that can be confirmed (`hint.list`). `filter` and a `view` (variants, stage 5, #737) stay typed text.
-import type { CommandTypes } from "@logreq/core";
+import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
 import { findElements } from "./actions.js";

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/data-export.schema.json",
+  "$id": "https://reqseq.dev/schemas/data-export.schema.json",
   "title": "Data of a state (Stand) as JSON",
   "description": "Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `logreq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.",
   "type": "object",

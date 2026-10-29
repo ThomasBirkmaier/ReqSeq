@@ -2,7 +2,7 @@
 // (commands/data/export.test.ts) do not reach: a metamodel without validity or packages property,
 // entries that name no UUID, relation ends that are not available or have no version, the reads of
 // the second pass, and the header. Records and metamodel come from the fixture; the rest is stubbed.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { DataExportElement, DataExportRelation } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";

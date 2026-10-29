@@ -1,4 +1,4 @@
-// Runs the built `logreq` binary (packages/cli/dist/bin.js) as a new process, for the CLI tests that
+// Runs the built `reqseq` binary (packages/cli/dist/bin.js) as a new process, for the CLI tests that
 // spawn it: the e2e suite (`pnpm test:e2e`) and the performance suite (`pnpm test:perf`). Both need
 // `pnpm build` first. The process loads the network block of the test run, so it fails any connection
 // that leaves the machine (SR-077).
@@ -23,7 +23,7 @@ export const blockNetwork = pathToFileURL(
  * cache (SR-082) or `api.json` lands in the real cache of the user or the runner. Removed when the
  * process exits.
  */
-export const cacheHome = mkdtempSync(path.join(os.tmpdir(), "logreq-cache-home-"));
+export const cacheHome = mkdtempSync(path.join(os.tmpdir(), "reqseq-cache-home-"));
 process.once("exit", () => {
   rmSync(cacheHome, { recursive: true, force: true });
 });
@@ -59,8 +59,8 @@ export interface RunOptions {
   readonly env?: Readonly<Record<string, string>>;
 }
 
-/** Runs `logreq <args>` with an empty stdin and collects its exit code and output. */
-export const logreq = (args: readonly string[], options: RunOptions): Promise<Run> =>
+/** Runs `reqseq <args>` with an empty stdin and collects its exit code and output. */
+export const reqseq = (args: readonly string[], options: RunOptions): Promise<Run> =>
   new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", blockNetwork, bin, ...args], {
       cwd: options.cwd,

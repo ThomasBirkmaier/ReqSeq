@@ -146,7 +146,7 @@ export const createWorkspace = async (root: string, input: NewWorkspace): Promis
 
 /**
  * The failure of the workspace file write, naming the metamodel file that was written before it and
- * is left in place (LogReq removes nothing), so the person can remove it before trying again.
+ * is left in place (ReqSeq removes nothing), so the person can remove it before trying again.
  */
 const withWritten = (error: unknown, written: readonly string[]): unknown =>
   error instanceof CommandError && written.length > 0

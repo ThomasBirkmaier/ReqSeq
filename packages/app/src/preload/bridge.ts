@@ -1,4 +1,4 @@
-// `window.logreq` (ADR-0010): the only thing the sandboxed renderer can reach. The main process sends
+// `window.reqseq` (ADR-0010): the only thing the sandboxed renderer can reach. The main process sends
 // the window's workspace on WORKSPACE_CHANNEL, with a port to the core process when one is open; every
 // call goes over that port. The bridge is generic over the catalog: `invoke(name, input)` for every
 // command, the catalog for the command palette, and `on` for the events of `BridgeEvents`. The
@@ -10,7 +10,7 @@
 import type {
   CommandListing,
   InvokeResult,
-  LogReqBridge,
+  ReqSeqBridge,
   PortEvent,
   PortRequest,
   SaveReason,
@@ -107,7 +107,7 @@ class Connection {
   }
 }
 
-export const createBridge = (ipc: IpcRendererLike): LogReqBridge => {
+export const createBridge = (ipc: IpcRendererLike): ReqSeqBridge => {
   /** The listeners of each event; the data of an event is checked by `portMessage` before it gets here. */
   const listeners = new Map<string, Set<(data: unknown) => void>>();
   const emit = ({ event, data }: PortEvent): void => {

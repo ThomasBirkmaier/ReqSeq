@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CommandError } from "../catalog.js";
 import type * as FilesBlock from "../files/index.js";

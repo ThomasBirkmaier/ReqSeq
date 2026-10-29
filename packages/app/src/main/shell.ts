@@ -44,13 +44,13 @@ const ready = async (electron: ShellElectron, options: ShellOptions, core: CoreP
   secureSession(session, options.log);
   session.protocol.handle("app", rendererFiles(options.paths.renderer));
   session.protocol.handle(
-    "logreq-file",
+    "reqseq-file",
     workspaceFiles((url) => core.file(url)),
   );
   const window = new electron.BrowserWindow({
     width: 1200,
     height: 800,
-    title: "LogReq",
+    title: "ReqSeq",
     // The colour of the sheet in the scheme of the system, so that a dark start does not flash white (SR-113).
     backgroundColor: electron.nativeTheme.shouldUseDarkColors ? SHEET.dark : SHEET.light,
     autoHideMenuBar: true,
@@ -130,7 +130,7 @@ export const startShell = (electron: ShellElectron, options: ShellOptions): Prom
     app.quit();
   });
   const core = new CoreProcess({
-    fork: () => electron.utilityProcess.fork(options.paths.core, [], { serviceName: "LogReq core" }),
+    fork: () => electron.utilityProcess.fork(options.paths.core, [], { serviceName: "ReqSeq core" }),
     channel: () => new electron.MessageChannelMain(),
     log: options.log,
   });

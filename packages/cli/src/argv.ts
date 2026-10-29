@@ -1,8 +1,8 @@
 // The reverse of the parser: the command line for a command input, for the cross-access test (SR-080,
 // #125) and scripts. Uses positional arguments and flags where they carry the value exactly, and puts
 // the rest into one inline `--input`. Generic like the parser: only the schema decides.
-import type { CatalogEntry, JsonSchema } from "@logreq/core";
-import { contractsBundle } from "@logreq/core";
+import type { CatalogEntry, JsonSchema } from "@reqseq/core";
+import { contractsBundle } from "@reqseq/core";
 import type { InputField } from "./fields.js";
 import { inputFields, kebab } from "./fields.js";
 
@@ -34,7 +34,7 @@ const flagArgs = (field: InputField, value: unknown): string[] | undefined => {
 };
 
 /**
- * `logreq` arguments that make `runCli` call `entry` with `input` (without `--json` and `--workspace`).
+ * `reqseq` arguments that make `runCli` call `entry` with `input` (without `--json` and `--workspace`).
  * Local path fields are made absolute by the CLI against its current folder; give absolute paths or
  * run it in the folder the paths are relative to.
  */

@@ -1,8 +1,8 @@
 // The files of the evidence folders (ADR-0012 "Reading"): the walk of every `evidence` location of the
 // workspace file. Enabler tests of the evidence block (#535); the SR tests come with the readers.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Problem } from "../catalog.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
@@ -143,7 +143,7 @@ describe("evidenceFiles", () => {
         severity: "warning",
         repository: "system",
         file: "evidence/link.md",
-        message: "Not read: it is a symbolic link; LogReq does not follow links",
+        message: "Not read: it is a symbolic link; ReqSeq does not follow links",
       },
       {
         code: "file.skipped",
@@ -158,7 +158,7 @@ describe("evidenceFiles", () => {
         repository: "system",
         file: "linked/inner",
         message:
-          "Not read: the evidence folder is or lies below a symbolic link; LogReq does not follow links",
+          "Not read: the evidence folder is or lies below a symbolic link; ReqSeq does not follow links",
       },
     ]);
   });
@@ -194,7 +194,7 @@ describe("evidenceFiles", () => {
       message: `Not read: the evidence folder ${reason}`,
     });
     expect(out.problems).toEqual([
-      skipped("node_modules/results", "lies in node_modules, which LogReq never reads"),
+      skipped("node_modules/results", "lies in node_modules, which ReqSeq never reads"),
       skipped("website/evidence", "matches an ignore glob of the workspace file"),
       skipped(
         "inner/results",

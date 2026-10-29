@@ -1,4 +1,4 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";

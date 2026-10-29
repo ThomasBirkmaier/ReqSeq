@@ -1,5 +1,5 @@
 // The property boxes of an element are edited in place (SR-104) on the built app: the boxes below the text
-// are the filled properties of `logreq element get`, a box is typed in and saved with the text, an emptied
+// are the filled properties of `reqseq element get`, a box is typed in and saved with the text, an emptied
 // box removes its property from the file (AK4), and the keys move between the boxes. Every result is
 // compared with the CLI and the file of the workspace (SR-080). The numbers of the performance test are
 // recorded, not asserted (a generous guard only). Keys use ControlOrMeta (Linux and macOS).
@@ -13,7 +13,7 @@ import { launchApp } from "./support/app.js";
 import { markdownMetamodel, quoted } from "./support/boxes.js";
 
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 const RESULTS = fileURLToPath(new URL("../../../test-results/", import.meta.url));
 

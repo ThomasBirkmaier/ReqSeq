@@ -2,8 +2,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { CacheEnvironment } from "../workspace/cache.js";
@@ -31,7 +31,7 @@ const cacheIn = (folder: string): CacheEnvironment => ({
 describe("recordOpenedWorkspace", () => {
   it("[SR-131/AK6] records the root of the opened workspace in the list of recent workspaces", async () => {
     const ws = await fixture();
-    const cache = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-recent-cache-")));
+    const cache = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-cache-")));
     cleanups.push(() => fs.rm(cache, { recursive: true, force: true }));
     const environment = cacheIn(cache);
     const now = new Date("2026-10-27T10:00:00Z");

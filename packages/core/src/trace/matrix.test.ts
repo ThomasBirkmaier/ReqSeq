@@ -1,7 +1,7 @@
 // The keys of the traceability matrix (SR-125): which relation keys make columns, on a metamodel
 // object that a metamodel file cannot describe (a relation kind whose key a property of another
 // kind has, which makes the file invalid). The matrix itself: commands/trace/matrix.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";

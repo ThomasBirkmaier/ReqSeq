@@ -14,7 +14,7 @@ export const READ_CHUNK = 250;
  * `workerData` of a read worker. `serveReads` serves only a thread started with it, so the module
  * loaded in any other thread (a test runner's worker, say) never answers on a port not its own.
  */
-export const READ_WORKER = "logreq-read-worker";
+export const READ_WORKER = "reqseq-read-worker";
 
 /** One message to a worker: files of a repository, tagged so that the answer finds its call. */
 export interface ReadJob {

@@ -1,4 +1,4 @@
-// The standard model that LogReq ships (D-012, D-037, D-059, SR-014). `pnpm contracts:generate`
+// The standard model that ReqSeq ships (D-012, D-037, D-059, SR-014). `pnpm contracts:generate`
 // embeds schemas/examples/metamodel/standard-model.yaml unchanged (contracts:check keeps it equal),
 // so the package needs no schemas folder at run time (ADR-0014). `workspace.init` writes it into a
 // new workspace as its metamodel file; it is never read from here as the metamodel of a workspace

@@ -2,8 +2,8 @@
 // elements): needs N-0000a1 and N-0000a2, variants VAR-0000c1 and VAR-0000c2, packages PKG-0000d1 and
 // PKG-0000d2, system requirements SR-0000b1 to SR-0000b5, software requirements SWR-0000f1, SWR-0000f2.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { parse } from "yaml";
 import type { CommandOutput } from "../../catalog.js";

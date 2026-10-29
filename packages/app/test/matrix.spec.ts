@@ -1,5 +1,5 @@
 // The traceability matrix (SR-125, #442) on the built app and the fixture fixtures/SR-125/matrix: Ctrl+T on a
-// list, on a package page and on a list with a saved filter shows the matrix that `logreq trace matrix`
+// list, on a package page and on a list with a saved filter shows the matrix that `reqseq trace matrix`
 // gives for the same selection and sort (SR-080 AK2, SR-125 AK6). Keys use ControlOrMeta, so the same
 // tests run on Linux and macOS.
 import { expect, test } from "@playwright/test";

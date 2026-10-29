@@ -1,9 +1,9 @@
-// `logreq serve api` and `logreq mcp` in-process (ADR-0009); the built binaries are in test/e2e/servers.test.ts.
+// `reqseq serve api` and `reqseq mcp` in-process (ADR-0009); the built binaries are in test/e2e/servers.test.ts.
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
-import type { CommandRuntime } from "@logreq/core";
+import type { CommandRuntime } from "@reqseq/core";
 import {
   cacheFolder,
   lockCacheFile,
@@ -12,10 +12,10 @@ import {
   defineWorkspaceState,
   getCommandRuntime,
   loadContracts,
-} from "@logreq/core";
-import { LineTransport } from "@logreq/mcp";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
+} from "@reqseq/core";
+import { LineTransport } from "@reqseq/mcp";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RunCliOptions } from "./main.js";
@@ -41,7 +41,7 @@ const failingState = defineWorkspaceState("fails-on-close", () => 1, {
 
 const runtimeFor = (names: readonly string[]): CommandRuntime =>
   createCommandRuntime({
-    contracts: loadContracts({ catalog: { "logreq-catalog": 1, commands: names.map(entry) } }),
+    contracts: loadContracts({ catalog: { "reqseq-catalog": 1, commands: names.map(entry) } }),
     validateOutput: true,
     commands: [
       defineTestCommand({ name: "test.root", run: (ctx) => Promise.resolve({ root: ctx.workspace.root }) }),
@@ -132,14 +132,14 @@ const started = async (sink: Sink): Promise<void> => {
   }
 };
 
-describe("logreq serve api", () => {
+describe("reqseq serve api", () => {
   it("serves the workspace of the current folder until the signal aborts, then exits 0", async () => {
     const controller = new AbortController();
     const opts = options(["serve", "api"], { signal: controller.signal });
     const exit = runCli(opts);
     await started(opts.out);
     const file = path.join(cacheFolder(fixture.root), "api.json");
-    expect(opts.out.text).toMatch(/^LogReq API on http:\/\/127\.0\.0\.1:(\d+)/);
+    expect(opts.out.text).toMatch(/^ReqSeq API on http:\/\/127\.0\.0\.1:(\d+)/);
     expect(opts.out.text).toContain(`Port and token: ${file}\n`);
     const endpoint = JSON.parse(await fs.readFile(file, "utf8")) as { port: number; token: string };
     expect(await post(endpoint.port, endpoint.token, "test.root")).toEqual({
@@ -179,7 +179,7 @@ describe("logreq serve api", () => {
     const opts = options(["serve", "api"]);
     expect(await runCli(opts)).toBe(EXIT.usage);
     expect(opts.err.text).toMatch(
-      /^error input\.invalid: A LogReq API for this working copy runs already or is starting/,
+      /^error input\.invalid: A ReqSeq API for this working copy runs already or is starting/,
     );
     await lock?.release();
   });
@@ -252,7 +252,7 @@ describe("logreq serve api", () => {
   });
 });
 
-describe("logreq mcp", () => {
+describe("reqseq mcp", () => {
   const session = async (signal?: AbortSignal, rt: CommandRuntime = runtime) => {
     const toServer = new PassThrough();
     const toClient = new PassThrough();

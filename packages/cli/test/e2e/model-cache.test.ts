@@ -6,10 +6,10 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cliEnv, logreq, requireBuiltCli } from "../support/logreq.js";
+import { cliEnv, reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -49,7 +49,7 @@ const age = async (ws: FixtureWorkspace): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 2_100));
 };
 
-describe("logreq with the model cache (SR-082)", () => {
+describe("reqseq with the model cache (SR-082)", () => {
   it.each([
     ["SR-019/findings", ""],
     ["SR-085/value-kinds", "system/"],
@@ -61,11 +61,11 @@ describe("logreq with the model cache (SR-082)", () => {
     });
     const cwd = main === "" ? ws.root : ws.path(main.slice(0, -1));
     cleanups.push(() => ws.cleanup());
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-model-cache-home-"));
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-model-cache-home-"));
     cleanups.push(() => fs.rm(home, { recursive: true, force: true }));
     await age(ws);
     const env = cliEnv(home) as Record<string, string>;
-    const first = await logreq(["workspace", "check", "--json"], { cwd, env });
+    const first = await reqseq(["workspace", "check", "--json"], { cwd, env });
     // The cache folder of the OS user lies in `home` on every OS (cliEnv).
     const cached = (await fs.readdir(home, { recursive: true })).filter((file) =>
       file.endsWith("model.json"),
@@ -78,7 +78,7 @@ describe("logreq with the model cache (SR-082)", () => {
     const entries = model.repositories.flatMap((repository) => repository.files.map(([file]) => file));
     expect(entries.filter((file) => file.endsWith(".md")).length).toBeGreaterThan(0);
     expect(entries.filter((file) => file.endsWith("odd-values.md"))).toEqual([]);
-    const second = await logreq(["workspace", "check", "--json"], { cwd, env });
+    const second = await reqseq(["workspace", "check", "--json"], { cwd, env });
     expect(second).toStrictEqual(first);
     expect(first.stderr).toBe("");
     expect(JSON.stringify(first.stdout)).toContain("odd-values.md");

@@ -1,14 +1,14 @@
-// `logreq trace matrix` end to end with evidence (SR-126, ADR-0009): the built binary on
+// `reqseq trace matrix` end to end with evidence (SR-126, ADR-0009): the built binary on
 // fixtures/SR-126/matrix (its README lists every element and its evidence), with the records read from
 // the JUnit and Markdown files of the fixture. The readable output shows each requirement's verification
 // status after it and the degree under `evidence`; the test case cells are in `--json`, as SR-125 keeps
 // the relation cells there. The selection is complex input, so it comes with `--input`. Run after
 // `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -82,8 +82,8 @@ const EVIDENCE = [
   "",
 ].join("\n");
 
-describe("logreq trace matrix with evidence (SR-126)", () => {
-  it("[SR-126/AK1] logreq trace matrix --json gives the test cases and the verification status read from JUnit and Markdown record files", async () => {
+describe("reqseq trace matrix with evidence (SR-126)", () => {
+  it("[SR-126/AK1] reqseq trace matrix --json gives the test cases and the verification status read from JUnit and Markdown record files", async () => {
     const rows = await rowsOf({ selection: { ids: ["SR-126b01", "SR-126b05", "N-126a01"] } });
     expect(rows.map((r) => [r.shortId, r.testCases, r.verification])).toEqual([
       ["N-126a01", undefined, undefined],
@@ -109,13 +109,13 @@ describe("logreq trace matrix with evidence (SR-126)", () => {
     ]);
   });
 
-  it("[SR-126/AK1] logreq trace matrix prints the verification status after each requirement", async () => {
+  it("[SR-126/AK1] reqseq trace matrix prints the verification status after each requirement", async () => {
     const result = await matrix(SR);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toContain(`${ROWS}\ntotal: 10\n`);
   });
 
-  it("[SR-126/AK2] logreq trace matrix --json marks the cells read from record files", async () => {
+  it("[SR-126/AK2] reqseq trace matrix --json marks the cells read from record files", async () => {
     const rows = await rowsOf(SR);
     const marks = rows.map((r) => [
       r.shortId,
@@ -131,7 +131,7 @@ describe("logreq trace matrix with evidence (SR-126)", () => {
     ]);
   });
 
-  it("[SR-126/AK3] logreq trace matrix prints an indirectly verified requirement as indirect", async () => {
+  it("[SR-126/AK3] reqseq trace matrix prints an indirectly verified requirement as indirect", async () => {
     const result = await matrix({ selection: { ids: ["SR-126b07"] } });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(result.stdout).toContain(
@@ -139,7 +139,7 @@ describe("logreq trace matrix with evidence (SR-126)", () => {
     );
   });
 
-  it("[SR-126/AK4] logreq trace matrix prints the degree above the status column as 55.5 % with the count per status", async () => {
+  it("[SR-126/AK4] reqseq trace matrix prints the degree above the status column as 55.5 % with the count per status", async () => {
     const result = await matrix({ ...SR, limit: 2 });
     expect([result.code, result.stderr]).toEqual([0, ""]);
     // The degree is of the whole selection, not of the page of two rows, and comes before the rows

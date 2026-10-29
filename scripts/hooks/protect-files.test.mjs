@@ -11,7 +11,7 @@ describe("protect-files hook", () => {
   it("blocks generated files and spec elements", () => {
     expect(protectedReason("schemas/generated/openapi.json")).toMatch(/contracts:generate/);
     expect(protectedReason("packages/core/src/generated/types.ts")).toMatch(/contracts:generate/);
-    expect(protectedReason("spec/system-requirement/SR-036.md")).toMatch(/LogReq CLI/);
+    expect(protectedReason("spec/system-requirement/SR-036.md")).toMatch(/ReqSeq CLI/);
   });
 
   it("allows the hand-edited spec files and everything else", () => {

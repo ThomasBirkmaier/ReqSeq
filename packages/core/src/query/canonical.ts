@@ -1,6 +1,6 @@
 // A condition as `filter.save` writes it into a saved filter file (SR-070; product owner's note on #82): the
 // same condition, with every element reference as the UUID of the element it names (`resolveRef`, any
-// form and case, #309, #305) and every choice given by its display name as its key, as LogReq writes
+// form and case, #309, #305) and every choice given by its display name as its key, as ReqSeq writes
 // values into element files (#316). A UUID stays right when a short ID grows or an identifier moves,
 // and in a working copy with other repositories (D-017). Everything else is kept as given.
 //

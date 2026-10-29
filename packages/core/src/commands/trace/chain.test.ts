@@ -3,8 +3,8 @@
 // in the chain (SR-033, SR-022 AK1/AK3) on fixtures/SR-033/chain with records injected through
 // `evidenceReadState` (#127 option 1; skipped test cases too); the record files are read end to end
 // in packages/cli/test/e2e/trace-chain.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

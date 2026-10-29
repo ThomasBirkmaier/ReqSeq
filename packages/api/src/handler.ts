@@ -3,9 +3,9 @@
 // the catalog names (ADR-0002 rule 3), and the output is sent as core returns it (SR-080 AK2).
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
-import type { CatalogEntry } from "@logreq/core";
-import { CommandError, errorClass, jsonChunks, jsonLines } from "@logreq/core";
+import type { CommandErrorClass, CommandErrorObject, CommandRuntime, Workspace } from "@reqseq/core";
+import type { CatalogEntry } from "@reqseq/core";
+import { CommandError, errorClass, jsonChunks, jsonLines } from "@reqseq/core";
 
 /** HTTP status of each error class (ADR-0009 "Errors"); documented in schemas/generated/openapi.json. */
 export const HTTP_STATUS_BY_CLASS: Readonly<Record<CommandErrorClass, number>> = {

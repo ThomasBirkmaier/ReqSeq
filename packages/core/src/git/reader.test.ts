@@ -1,5 +1,5 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace, MadeCommit } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace, MadeCommit } from "@reqseq/testkit";
 import type * as ChildProcess from "node:child_process";
 import type { ExecFileOptions, SpawnOptions } from "node:child_process";
 import { EventEmitter } from "node:events";

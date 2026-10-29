@@ -2,7 +2,7 @@
 // columns and cursor steps of its answer. The matrix is a mode of the list buffer (D-062). Pure display of
 // the command's output (ADR-0002): columns, counts, shares, gaps, outdated and missing all come from core, so
 // every access shows the same (SR-125 AK6); the app only lays them out.
-import type { DataExportRelation, TraceMatrixInput, TraceMatrixOutput } from "@logreq/core";
+import type { DataExportRelation, TraceMatrixInput, TraceMatrixOutput } from "@reqseq/core";
 import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { listSort, relationBuffer } from "./buffers.js";
 import { relationLabel } from "./element-view.js";

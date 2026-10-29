@@ -1,6 +1,6 @@
 // compileWhere on a condition the schema does not allow (#336): core validates every input first,
 // so this is reached only by a caller that bypasses the validation, and it is a bug, not an input error.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { FilterCondition } from "../generated/types.js";
 import { metamodelState } from "../metamodel/index.js";

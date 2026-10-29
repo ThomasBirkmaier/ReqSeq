@@ -1,7 +1,7 @@
 // "Copy field" (SR-128): the value of each field of an element as the text that goes on the clipboard.
 // The value is the one the file stores (the Markdown source of the text, the lines of a box as shown),
 // one value per line (#457). Pure: the window puts it on the clipboard.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { PropertyBox } from "./element-view.js";
 import { TITLE_FIELD, propertyBoxes, relationGroups, relationLabel } from "./element-view.js";
 

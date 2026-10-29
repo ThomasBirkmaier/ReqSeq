@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { Workspace } from "../runtime/workspace.js";

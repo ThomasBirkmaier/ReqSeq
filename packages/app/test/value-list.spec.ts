@@ -34,7 +34,7 @@ const FIXTURE = {
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 interface Listed {

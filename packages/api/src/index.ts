@@ -1,4 +1,4 @@
-// The local API (ADR-0009): an adapter over the command catalog of @logreq/core (ADR-0002) on loopback only.
+// The local API (ADR-0009): an adapter over the command catalog of @reqseq/core (ADR-0002) on loopback only.
 export {
   COMMANDS_PATH,
   DRAIN_BYTES,

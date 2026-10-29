@@ -2,7 +2,7 @@
 // give hundreds of thousands of findings, e.g. after one typo in the metamodel). The superseded-
 // validity state is replaced by a cheap stub with 250,000 problems; spreading them into `push`
 // would overflow the stack.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";

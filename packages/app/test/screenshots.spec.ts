@@ -1,6 +1,6 @@
 // Screenshots of the main view on a copy of the repository's own specification (`spec/`), for the
 // verification record of SR-100 (verification/SR-100.md). The window is 1280×800. The PNGs go to
-// `test-results/electron/screenshots/` (or the folder in LOGREQ_SCREENSHOTS); copying them to
+// `test-results/electron/screenshots/` (or the folder in REQSEQ_SCREENSHOTS); copying them to
 // `verification/SR-100/` is a deliberate step, not part of a test run.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { launchApp, listAll } from "./support/app.js";
 
 const SPEC = fileURLToPath(new URL("../../../spec", import.meta.url));
 const OUT =
-  process.env["LOGREQ_SCREENSHOTS"] ??
+  process.env["REQSEQ_SCREENSHOTS"] ??
   fileURLToPath(new URL("../../../test-results/electron/screenshots", import.meta.url));
 
 test("screenshots of the main view on the specification workspace", async () => {

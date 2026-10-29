@@ -22,7 +22,7 @@ import type { FileReadResult, YamlReadResult } from "./read.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-files-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-files-"));
 });
 
 afterEach(async () => {
@@ -311,7 +311,7 @@ describe("YAML warnings, links and aborting", () => {
   });
 
   it("does not read through a folder linked outside the root", async () => {
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.writeFile(path.join(outside, "a.md"), good("a"));
       await fs.symlink(outside, path.join(root, "linked"), "junction");
@@ -410,7 +410,7 @@ describe("readYamlFile", () => {
   });
 });
 
-describe("readFileSnapshot (a file LogReq rewrites as a whole, SR-029)", () => {
+describe("readFileSnapshot (a file ReqSeq rewrites as a whole, SR-029)", () => {
   it("gives the bytes as read and their snapshot", async () => {
     await put("ci/results.xml", "\uFEFF<testsuites/>\r\n");
     const r = await readFileSnapshot(path.join(root, "ci"), "results.xml");
@@ -461,7 +461,7 @@ describe("readElementFileSync (worker threads of a cold load, ADR-0008)", () => 
     await fs.symlink(path.join(root, "req/a.md"), path.join(root, "link.md"), "file");
     await put("real/b.md", good("b"));
     await fs.symlink(path.join(root, "real"), path.join(root, "alias"), "junction");
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.writeFile(path.join(outside, "c.md"), good("c"));
       await fs.symlink(outside, path.join(root, "linked"), "junction");

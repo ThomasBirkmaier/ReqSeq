@@ -4,7 +4,7 @@
 // Never shipped: packages/cli/package.json publishes dist only.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { CommandError, createCommandRuntime, defineCommand } from "@logreq/core";
+import { CommandError, createCommandRuntime, defineCommand } from "@reqseq/core";
 import { EXIT, runCli } from "../../../dist/main.js";
 import { connectProcess } from "../../../dist/process.js";
 

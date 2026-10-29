@@ -10,8 +10,8 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import tls from "node:tls";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -70,7 +70,7 @@ const SR_037 = "30500000-0000-4000-8000-0000000b0037";
 const HINTS: FixtureOptions = { fixture: "SR-026/hints" };
 
 const tempFolder = async (): Promise<string> => {
-  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-activity-"));
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-activity-"));
   onTestFinished(() => fs.rm(folder, { recursive: true, force: true, maxRetries: 3 }));
   return folder;
 };
@@ -806,7 +806,7 @@ describe("watching the last access (SR-117)", () => {
     await watching(opened.workspace, seen.options);
     await write(ACTIVITY_FILE, JSON.stringify(activityFile("2".repeat(64), 1)));
     await write("model.json", "{}");
-    await write(`.${ACTIVITY_FILE}.0123abcd.logreq-tmp`, "{");
+    await write(`.${ACTIVITY_FILE}.0123abcd.reqseq-tmp`, "{");
     await write(ACTIVITY_FILE, "{");
     await write(ACTIVITY_FILE, JSON.stringify({ ...activityFile("2".repeat(64), 2), version: 2 }));
     await write(ACTIVITY_FILE, `${JSON.stringify(activityFile("2".repeat(64), 3))}${" ".repeat(5000)}`);

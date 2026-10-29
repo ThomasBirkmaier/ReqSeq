@@ -1,12 +1,12 @@
 // JUnit XML as records (SR-093) end to end: the built binary reads an enriched JUnit file from the
 // evidence folder of the workspace file (fixtures/SR-093/junit). Until the status commands are in
-// (SR-031), the records show through the check of outdated evidence in `logreq workspace check`
+// (SR-031), the records show through the check of outdated evidence in `reqseq workspace check`
 // (SR-025 AK4), which names the requirement, the JUnit file and the line of the test case.
 // Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { logreq, requireBuiltCli } from "../support/logreq.js";
+import { reqseq, requireBuiltCli } from "../support/reqseq.js";
 
 interface Problem {
   readonly code: string;
@@ -36,13 +36,13 @@ beforeAll(() => {
   requireBuiltCli("pnpm test:e2e");
 });
 
-/** `logreq workspace check --json` on fixtures/SR-093/junit with `files` written on top. */
+/** `reqseq workspace check --json` on fixtures/SR-093/junit with `files` written on top. */
 const check = async (
   files: Readonly<Record<string, string>> = {},
 ): Promise<{ code: number | null; output: Output }> => {
   const ws = await createFixtureWorkspace({ fixture: "SR-093/junit", files });
   fixtures.push(ws);
-  const run = await logreq(["workspace", "check", "--json"], { cwd: ws.root });
+  const run = await reqseq(["workspace", "check", "--json"], { cwd: ws.root });
   return { code: run.code, output: JSON.parse(run.stdout) as Output };
 };
 
@@ -51,8 +51,8 @@ const evidence = (output: Output): (string | number | undefined)[][] =>
     .filter((p) => p.code.startsWith("evidence."))
     .map((p) => [p.code, p.elementId, p.file, p.line, p.storedVersion]);
 
-describe("logreq reads JUnit XML as records (SR-093)", () => {
-  it("[SR-093/AK1] logreq workspace check reads an enriched JUnit file from the evidence folder and assigns each test case to its requirement", async () => {
+describe("reqseq reads JUnit XML as records (SR-093)", () => {
+  it("[SR-093/AK1] reqseq workspace check reads an enriched JUnit file from the evidence folder and assigns each test case to its requirement", async () => {
     const { code, output } = await check();
     // SR-46fb54 and SR-0b0036 have records of older versions (the second test case names two
     // requirements, each with its own version); SR-0c0037 has one of its current version. The skipped
@@ -65,7 +65,7 @@ describe("logreq reads JUnit XML as records (SR-093)", () => {
     expect(code).toBe(0);
   });
 
-  it("[SR-093/AK2] logreq workspace check passes over test cases that name no requirement without a problem", async () => {
+  it("[SR-093/AK2] reqseq workspace check passes over test cases that name no requirement without a problem", async () => {
     // A pytest file whose test cases name no requirement (parameter lists, a skipped one). Workspace
     // check shows the problems of the read state (SR-028's evidenceProblemsState), so this proves
     // that no record arises and that the reader reports nothing.

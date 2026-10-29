@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -131,7 +131,7 @@ const GRAPH_LISTING = {
 
 const bridge = (
   commands: readonly unknown[] = [],
-): { bridge: LogReqBridge; invoke: ReturnType<typeof vi.fn> } => {
+): { bridge: ReqSeqBridge; invoke: ReturnType<typeof vi.fn> } => {
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     "workspace.status": () => ({ name: "Weather station", readOnly: false }),
     "metamodel.get": () => ({

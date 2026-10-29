@@ -1,4 +1,4 @@
-// The mode „Agent folgen“ (SR-117) on the built app: a real `logreq mcp` child on the same copy and with
+// The mode „Agent folgen“ (SR-117) on the built app: a real `reqseq mcp` child on the same copy and with
 // the same cache folder is the agent (`running.mcp()` of `support/app.ts`). The app watches the activity
 // file of the copy in its core process and the window shows the element of each access while the mode is
 // on.
@@ -59,14 +59,14 @@ const arm = (window: Page, id: string | undefined, text: string): Promise<void> 
         readonly element: { readonly id: string };
       }
       const page = window as unknown as {
-        logreq: { on: (event: string, listener: (access: Access) => void) => () => void };
+        reqseq: { on: (event: string, listener: (access: Access) => void) => () => void };
         followProbe?: { at?: string; shown?: number };
         followDisarm?: () => void;
       };
       page.followDisarm?.();
       const probe: { at?: string; shown?: number } = {};
       page.followProbe = probe;
-      const off = page.logreq.on("agent-activity", (access) => {
+      const off = page.reqseq.on("agent-activity", (access) => {
         if (probe.at === undefined && (id === undefined || access.element.id === id)) {
           probe.at = access.at;
         }

@@ -2,7 +2,7 @@
 // The traceability matrix buffer (SR-125) over a call that answers `trace.matrix`: header with count and
 // share, one row per element, cells with the other ends, gaps, outdated and missing marks, paging, and the
 // keys that walk through a row and open an element.
-import type { DataExportRelation } from "@logreq/core";
+import type { DataExportRelation } from "@reqseq/core";
 import { Fragment, act, createElement, useLayoutEffect, useReducer } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";

@@ -6,7 +6,7 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EditorView } from "@codemirror/view";
-import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -73,7 +73,7 @@ const HANDLERS: Record<string, Handler> = {
   }),
 };
 
-const bridge: LogReqBridge = {
+const bridge: ReqSeqBridge = {
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
     Promise.resolve({ ok: true, output: HANDLERS[name]?.(input) }),
   commands: () => Promise.resolve([]),

@@ -12,7 +12,7 @@ import { isTempFile, writeFileAtomic } from "./write.js";
 let root: string;
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-write-"));
+  root = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-write-"));
 });
 
 afterEach(async () => {
@@ -191,7 +191,7 @@ describe("writeFileAtomic: replace", () => {
   });
 
   it("refuses a folder linked outside the root", async () => {
-    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-outside-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-outside-"));
     try {
       await fs.symlink(outside, abs("linked"), "junction");
       await expect(writeFileAtomic(root, "linked/n.md", A, null)).rejects.toMatchObject({
@@ -223,7 +223,7 @@ describe("writeFileAtomic: replace", () => {
     });
     await writeFileAtomic(root, "a.md", A, file.snapshot);
     expect(isTempFile(seen)).toBe(true);
-    expect(seen).toMatch(/^\.a\.md\.[0-9a-f]{8}\.logreq-tmp$/);
+    expect(seen).toMatch(/^\.a\.md\.[0-9a-f]{8}\.reqseq-tmp$/);
     expect(isTempFile("a.md")).toBe(false);
   });
 });
@@ -514,7 +514,7 @@ describe("writeFileAtomic: chunk content (#277)", () => {
       {
         code: "file.faulty",
         message: expect.stringContaining(
-          "is larger than 100 bytes and not framed as a LogReq data file",
+          "is larger than 100 bytes and not framed as a ReqSeq data file",
         ) as string,
       },
     );
@@ -539,7 +539,7 @@ describe("retry", () => {
   });
 });
 
-describe("SR-008 AK3: a faulty file is never written by LogReq", () => {
+describe("SR-008 AK3: a faulty file is never written by ReqSeq", () => {
   it("[SR-008/AK3] refuses a snapshot of a faulty file and leaves it unchanged", async () => {
     const content = "---\nid: a\n  bad: [\n---\n";
     await put("a.md", content);

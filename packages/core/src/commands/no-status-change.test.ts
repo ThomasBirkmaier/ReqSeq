@@ -8,8 +8,8 @@
 // the guard below adds it to the scenarios once it is.
 import fs from "node:fs";
 import path from "node:path";
-import { createFixtureWorkspace, untilWatching } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { elementStoreState, watchWorkspace } from "../model/index.js";

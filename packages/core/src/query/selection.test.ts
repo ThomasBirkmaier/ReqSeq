@@ -3,8 +3,8 @@
 // stage 5. On fixtures/SR-061/export (its README lists the baselines and the expected selections);
 // what data.export makes of it: commands/data/export.test.ts.
 import { rm } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../catalog.js";
 import { Workspace } from "../runtime/workspace.js";

@@ -1,4 +1,4 @@
-// Rendering of new YAML values in LogReq's one fixed style (ADR-0004, ADR-0007). Only values a
+// Rendering of new YAML values in ReqSeq's one fixed style (ADR-0004, ADR-0007). Only values a
 // command writes go through here; untouched bytes of a file are never rendered again.
 //
 // - Scalars are plain when that reads back as the same value, else double-quoted with escapes.

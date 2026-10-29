@@ -14,7 +14,7 @@
 //   Types are named as written, their subtypes not added: the inheritance curves show them.
 // - The links of one ordered pair of nodes are one edge, in the order of their first link: the
 //   inheritance first, then the relation kinds and then the relation properties, in metamodel order.
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 
 /** The key of the node of a type. */
 export const typeKey = (type: string): string => `type:${type}`;

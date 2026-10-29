@@ -1,4 +1,4 @@
-import type { ElementFacetsOutput } from "@logreq/core";
+import type { ElementFacetsOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { Prompt } from "./actions.js";
 import type { FilterStep } from "./buffers.js";

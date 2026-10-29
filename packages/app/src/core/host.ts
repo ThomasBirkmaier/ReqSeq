@@ -8,8 +8,8 @@
 // through the API or MCP (SR-117) that the activity watch reports.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AccessName, CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@logreq/core";
-import { CommandError } from "@logreq/core";
+import type { AccessName, CatalogEntry, CommandErrorObject, CommandRuntime, Workspace } from "@reqseq/core";
+import { CommandError } from "@reqseq/core";
 import type {
   AgentActivity,
   ChangeScope,
@@ -36,7 +36,7 @@ export interface CoreHost {
    * read commands; a write command runs to its end, so no write is cut off.
    */
   connect(channel: Channel): void;
-  /** A file of the workspace for the `logreq-file:` protocol (`logreq-file://workspace/<repository>/<path>`). */
+  /** A file of the workspace for the `reqseq-file:` protocol (`reqseq-file://workspace/<repository>/<path>`). */
   file(url: string): Promise<FileAnswer>;
   /**
    * Aborts the running read commands, waits for the running write commands, then closes every port and
@@ -70,7 +70,7 @@ export interface CoreHostOptions {
 }
 
 /**
- * Images only: the renderer shows files of the workspace as images (CSP `img-src logreq-file:`), and
+ * Images only: the renderer shows files of the workspace as images (CSP `img-src reqseq-file:`), and
  * nothing else may leave the workspace through the protocol.
  */
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
@@ -89,7 +89,7 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
 const NOT_FOUND: FileAnswer = { status: 404 };
 
 /**
- * The host of every `logreq-file:` URL. The repository is the first name of the path, because Chromium
+ * The host of every `reqseq-file:` URL. The repository is the first name of the path, because Chromium
  * changes hosts such as `1.2` or `0x1f` into IPv4 addresses and refuses `a..b`.
  */
 export const FILE_HOST = "workspace";
@@ -111,11 +111,11 @@ export const lexicalTarget = (
   return isInside(folder, target, paths) ? target : undefined;
 };
 
-/** The repository and the path below it of a `logreq-file:` URL, or undefined. */
+/** The repository and the path below it of a `reqseq-file:` URL, or undefined. */
 const fileOf = (url: string): { readonly repository: string; readonly relative: string } | undefined => {
   const parsed = URL.parse(url);
   const decoded =
-    parsed?.protocol === "logreq-file:" && parsed.host === FILE_HOST ? decodedPath(parsed) : undefined;
+    parsed?.protocol === "reqseq-file:" && parsed.host === FILE_HOST ? decodedPath(parsed) : undefined;
   const slash = decoded?.indexOf("/") ?? -1;
   return decoded === undefined || slash < 1
     ? undefined

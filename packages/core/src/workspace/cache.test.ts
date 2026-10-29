@@ -4,8 +4,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { cloneFixtureWorkspace, createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { cloneFixtureWorkspace, createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   cacheFolder,
@@ -51,16 +51,16 @@ describe("osCacheFolder", () => {
 });
 
 describe("cacheFolder", () => {
-  it("is logreq/<sha256 of the absolute root> in the OS cache folder, one per working copy", () => {
+  it("is reqseq/<sha256 of the absolute root> in the OS cache folder, one per working copy", () => {
     const environment = { platform: "linux" as const, env: {}, home: "/home/ada" };
-    expect(cacheFolder("/work/copy-1", environment)).toBe(`/home/ada/.cache/logreq/${sha("/work/copy-1")}`);
+    expect(cacheFolder("/work/copy-1", environment)).toBe(`/home/ada/.cache/reqseq/${sha("/work/copy-1")}`);
     expect(cacheFolder("/work/copy-1/", environment)).toBe(cacheFolder("/work/copy-1", environment));
     expect(cacheFolder("/work/copy-2", environment)).not.toBe(cacheFolder("/work/copy-1", environment));
   });
 
   it("hashes Windows paths as Windows resolves them, in lower case", () => {
     const environment = { platform: "win32" as const, env: { LOCALAPPDATA: "C:\\L" }, home: "C:\\U" };
-    expect(cacheFolder("C:\\Work\\Copy", environment)).toBe(`C:\\L\\logreq\\${sha("c:\\work\\copy")}`);
+    expect(cacheFolder("C:\\Work\\Copy", environment)).toBe(`C:\\L\\reqseq\\${sha("c:\\work\\copy")}`);
     expect(cacheFolder("c:\\WORK\\copy\\", environment)).toBe(cacheFolder("C:\\Work\\Copy", environment));
   });
 
@@ -68,7 +68,7 @@ describe("cacheFolder", () => {
     "gives a folder reached through a symbolic link the cache folder of the folder itself",
     async () => {
       // Windows needs extra rights for symbolic links; canonicalRoot uses the same realpath there.
-      const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-root-")));
+      const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-root-")));
       try {
         const real = path.join(base, "copy");
         await fs.mkdir(real);
@@ -191,8 +191,8 @@ describe("writeCacheFile", () => {
   });
 
   it("writes a private file into the folder, creating it, and returns its path", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
-    const target = path.join(folder, "logreq", "abc");
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
+    const target = path.join(folder, "reqseq", "abc");
     const file = await writeCacheFile(target, "api.json", '{"port":1}\n');
     expect(file).toBe(path.join(target, "api.json"));
     expect(await fs.readFile(file, "utf8")).toBe('{"port":1}\n');
@@ -208,7 +208,7 @@ describe("writeCacheFile", () => {
   });
 
   it("reads a cache file back, gives undefined when there is none, and removes it", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
     expect(await readCacheFile(folder, "api.json")).toBeUndefined();
     await writeCacheFile(folder, "api.json", "{}\n");
     expect(await readCacheFile(folder, "api.json")).toBe("{}\n");
@@ -218,7 +218,7 @@ describe("writeCacheFile", () => {
   });
 
   it("reads a cache file of at most maxBytes, and gives undefined for a larger one or none", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
     expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
     await writeCacheFile(folder, "api.json", "1234");
     expect(await readCacheFile(folder, "api.json", 4)).toBe("1234");
@@ -230,7 +230,7 @@ describe("writeCacheFile", () => {
   it.runIf(process.platform !== "win32")(
     "gives undefined for a FIFO or a device in place of a cache file of at most maxBytes, without waiting",
     async () => {
-      folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+      folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
       // No process writes into the FIFO: a blocking open would wait for one for ever.
       await promisify(execFile)("mkfifo", [path.join(folder, "api.json")]);
       expect(await readCacheFile(folder, "api.json", 4)).toBeUndefined();
@@ -241,7 +241,7 @@ describe("writeCacheFile", () => {
   );
 
   it("locks a cache file with <name>.lock next to it, once at a time", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
     const lock = await lockCacheFile(folder, "api.json");
     expect(lock?.file).toBe(path.join(folder, "api.json.lock"));
     expect(await lockCacheFile(folder, "api.json")).toBeUndefined();
@@ -250,13 +250,13 @@ describe("writeCacheFile", () => {
   });
 
   it("gives undefined when a folder on the path is a file", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
     await fs.writeFile(path.join(folder, "file"), "");
     expect(await readCacheFile(path.join(folder, "file"), "api.json")).toBeUndefined();
   });
 
   it("rejects with the Node error when a cache file cannot be read", async () => {
-    folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-cache-"));
+    folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cache-"));
     await fs.mkdir(path.join(folder, "api.json"));
     await expect(readCacheFile(folder, "api.json")).rejects.toMatchObject({
       code: expect.stringMatching(/^(EISDIR|EPERM|EACCES)$/) as unknown,

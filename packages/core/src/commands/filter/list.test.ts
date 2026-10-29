@@ -3,8 +3,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -96,8 +96,8 @@ describe("filter.list (SR-070)", () => {
     expect(saved.files).toEqual(["filters/draft-requirements.yaml"]);
     const mine = await elements(workspace, { selection: { filter: "Draft requirements" } });
     await fixture.commit();
-    // Another person: a clone of the repository on another machine, opened by its own LogReq.
-    const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-sr-070-"));
+    // Another person: a clone of the repository on another machine, opened by its own ReqSeq.
+    const elsewhere = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-sr-070-"));
     onTestFinished(() => fs.rm(elsewhere, { recursive: true, force: true }));
     const clone = path.join(elsewhere, "system");
     await fixture.git(["clone", "--quiet", fixture.root, clone]);

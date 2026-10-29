@@ -10,7 +10,7 @@
 // - One row per relation kind, in metamodel order: its key and name, its source and target types by name.
 //   A side left out allows every type ("any type"), an empty list none ("none"), as the schema says.
 // - The problems of the output, one line each; they are no rows.
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import { inheritedProperties, typeKey } from "./metamodel-graph.js";
 
 /** A property of a type, as a line of its row. */

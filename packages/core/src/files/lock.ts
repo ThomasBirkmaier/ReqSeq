@@ -1,6 +1,6 @@
-// Lock files of LogReq outside the working tree, e.g. the one around the start of the local API, so that
-// two `logreq serve api` for the same working copy never both write `api.json` (ADR-0009). A lock is a
-// private file (mode 0600) created with exclusive create, which every file system that LogReq runs on
+// Lock files of ReqSeq outside the working tree, e.g. the one around the start of the local API, so that
+// two `reqseq serve api` for the same working copy never both write `api.json` (ADR-0009). A lock is a
+// private file (mode 0600) created with exclusive create, which every file system that ReqSeq runs on
 // (NTFS, ext4, APFS, ...) makes atomic: of two processes that create it at the same time, one gets it.
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";

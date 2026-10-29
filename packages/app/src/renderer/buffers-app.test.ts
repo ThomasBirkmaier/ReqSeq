@@ -5,7 +5,7 @@ import { act, createElement } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InvokeResult, LogReqBridge } from "../shared/protocol.js";
+import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { recentKey } from "./recent.js";
 
@@ -109,7 +109,7 @@ const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promis
 /** The listeners of `workspace-changed`: another workspace opens in the window (SR-131). */
 const listeners = new Set<(change: { readonly reason: "opened" }) => void>();
 
-const bridge: LogReqBridge = {
+const bridge: ReqSeqBridge = {
   invoke,
   commands: () => Promise.resolve([]),
   on: (event: string, listener: (data: never) => void) => {

@@ -1,4 +1,4 @@
-// `logreq workspace recent` end to end (SR-131, SR-080 AK4): the built binary reads the list of the
+// `reqseq workspace recent` end to end (SR-131, SR-080 AK4): the built binary reads the list of the
 // workspaces the app opened last from the OS cache folder of its environment, from any folder, as JSON
 // and readable, and writes nothing. Only the app records the list; here core's `rememberWorkspace`
 // seeds it, as the app's core process would.
@@ -6,13 +6,13 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { CacheEnvironment } from "@logreq/core";
-import { RECENT_WORKSPACES_FILE, recentWorkspacesFolder, rememberWorkspace } from "@logreq/core";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { CacheEnvironment } from "@reqseq/core";
+import { RECENT_WORKSPACES_FILE, recentWorkspacesFolder, rememberWorkspace } from "@reqseq/core";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 let home = "";
 let fixture: FixtureWorkspace;
@@ -22,7 +22,7 @@ beforeAll(() => {
 });
 
 beforeEach(async () => {
-  home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-recent-home-")));
+  home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-home-")));
   fixture = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
 });
 
@@ -31,15 +31,15 @@ afterEach(async () => {
   await fs.rm(home, { recursive: true, force: true, maxRetries: 3 });
 });
 
-/** The OS cache folder of a CLI started by `logreq` below, on every OS. */
+/** The OS cache folder of a CLI started by `reqseq` below, on every OS. */
 const environment = (): CacheEnvironment => ({
   platform: process.platform,
   env: { XDG_CACHE_HOME: home, LOCALAPPDATA: home },
   home,
 });
 
-/** `logreq <args>` with home and OS cache folder in `home` (as `cliEnv(home)`). */
-const logreq = (args: readonly string[], cwd: string): Promise<Run> =>
+/** `reqseq <args>` with home and OS cache folder in `home` (as `cliEnv(home)`). */
+const reqseq = (args: readonly string[], cwd: string): Promise<Run> =>
   run(args, { cwd, env: { HOME: home, USERPROFILE: home, XDG_CACHE_HOME: home, LOCALAPPDATA: home } });
 
 const at = (minute: number): string => new Date(Date.UTC(2026, 9, 27, 10, minute)).toISOString();
@@ -49,13 +49,13 @@ const opened = async (root: string, minute: number): Promise<void> => {
   await rememberWorkspace(root, { now: new Date(at(minute)), environment: environment() });
 };
 
-describe("logreq workspace recent (SR-131)", () => {
+describe("reqseq workspace recent (SR-131)", () => {
   it("[SR-131/AK1] prints the recent workspaces, the last opened first, with whether each still holds a workspace", async () => {
     const gone = path.join(home, "gone");
     await opened(gone, 1);
     await opened(fixture.root, 2);
 
-    const json = await logreq(["workspace", "recent", "--json"], fixture.root);
+    const json = await reqseq(["workspace", "recent", "--json"], fixture.root);
     expect([json.code, json.stderr]).toEqual([0, ""]);
     expect(JSON.parse(json.stdout)).toEqual({
       workspaces: [
@@ -64,7 +64,7 @@ describe("logreq workspace recent (SR-131)", () => {
       ],
     });
 
-    const readable = await logreq(["workspace", "recent"], fixture.root);
+    const readable = await reqseq(["workspace", "recent"], fixture.root);
     expect([readable.code, readable.stderr]).toEqual([0, ""]);
     expect(readable.stdout).toContain(`root: ${fixture.root}`);
     expect(readable.stdout.indexOf(fixture.root)).toBeLessThan(readable.stdout.indexOf(gone));
@@ -78,7 +78,7 @@ describe("logreq workspace recent (SR-131)", () => {
     const elsewhere = path.join(home, "elsewhere");
     await fs.mkdir(elsewhere);
 
-    const result = await logreq(["workspace", "recent", "--json"], elsewhere);
+    const result = await reqseq(["workspace", "recent", "--json"], elsewhere);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
       workspaces: [{ root: fixture.root, opened: at(2), exists: true }],
@@ -90,7 +90,7 @@ describe("logreq workspace recent (SR-131)", () => {
   });
 
   it("prints an empty list when the app recorded none", async () => {
-    const result = await logreq(["workspace", "recent", "--json"], fixture.root);
+    const result = await reqseq(["workspace", "recent", "--json"], fixture.root);
     expect([result.code, result.stderr, JSON.parse(result.stdout)]).toEqual([0, "", { workspaces: [] }]);
   });
 });

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/api-endpoint.schema.json",
+  "$id": "https://reqseq.dev/schemas/api-endpoint.schema.json",
   "title": "API endpoint file",
-  "description": "`api.json` in the cache folder of the working copy (`<OS cache>/logreq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `logreq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
+  "description": "`api.json` in the cache folder of the working copy (`<OS cache>/reqseq/<sha256 of the absolute workspace root>/`, ADR-0008): where the running local API of `reqseq serve api` listens, and its token (ADR-0009). Written at start with mode 0600; a client reads it and sends `Authorization: Bearer <token>`. The API listens on loopback only (SR-079). A file left behind by a stopped API names a port nobody listens on.",
   "type": "object",
-  "required": ["logreq-api", "port", "token", "urls", "pid"],
+  "required": ["reqseq-api", "port", "token", "urls", "pid"],
   "properties": {
-    "logreq-api": { "const": 1 },
+    "reqseq-api": { "const": 1 },
     "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "token": {
       "type": "string",

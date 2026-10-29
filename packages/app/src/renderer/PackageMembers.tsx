@@ -1,7 +1,7 @@
 // The package page (SR-112): the elements that name the package, below its text, as a list of its own with
 // a heading that gives their count (SR-114 AK3). Layout only: `ElementView` keeps the count, which its keys
 // need, and gets it from the list's `onData`.
-import type { ElementSelection } from "@logreq/core";
+import type { ElementSelection } from "@reqseq/core";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
 import type { Call } from "./call.js";
 import { ListView } from "./ListView.js";

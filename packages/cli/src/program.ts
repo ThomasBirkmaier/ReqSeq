@@ -1,6 +1,6 @@
 // The commander tree, generated from the command catalog (ADR-0002 rule 3, ADR-0009). No command is
 // named here: groups, actions, arguments and flags all come from the catalog entries.
-import type { CatalogEntry, CommandRuntime } from "@logreq/core";
+import type { CatalogEntry, CommandRuntime } from "@reqseq/core";
 import { Command, Option } from "commander";
 import type { InputField } from "./fields.js";
 import { RESERVED_FLAGS, inputFields, kebab } from "./fields.js";
@@ -29,7 +29,7 @@ export interface Invocation {
   readonly input: string | undefined;
 }
 
-/** `logreq serve api` or `logreq mcp`: a server over the whole catalog instead of one command. */
+/** `reqseq serve api` or `reqseq mcp`: a server over the whole catalog instead of one command. */
 export type ServeRequest =
   | { readonly server: "api"; readonly port: string | undefined; readonly workspace: string | undefined }
   | { readonly server: "mcp"; readonly workspace: string | undefined };
@@ -57,11 +57,11 @@ const WORKSPACE_OPTION = [
   "workspace root (default: nearest folder upwards with logreq-workspace.yaml)",
 ] as const;
 
-/** `logreq serve api` and `logreq mcp` (ADR-0009). There is no option for the address (SR-079 AK3). */
+/** `reqseq serve api` and `reqseq mcp` (ADR-0009). There is no option for the address (SR-079 AK3). */
 const addServers = (program: Command, options: ProgramOptions): void => {
   const serve = program
     .command("serve")
-    .description("the local API on loopback: logreq serve api --help")
+    .description("the local API on loopback: reqseq serve api --help")
     .usage("api [options]");
   const api = serve
     .command("api")
@@ -192,9 +192,9 @@ const addCommand = (group: Command, entry: CatalogEntry, options: ProgramOptions
   });
 };
 
-/** Build `logreq` with one subcommand per catalog entry, `logreq <group> <action>`. */
+/** Build `reqseq` with one subcommand per catalog entry, `reqseq <group> <action>`. */
 export function buildProgram(options: ProgramOptions): Command {
-  const program = new Command("logreq")
+  const program = new Command("reqseq")
     .description(
       "LogReq: requirements as plain files in Git. Every command of the catalog, from the command line.",
     )
@@ -216,7 +216,7 @@ export function buildProgram(options: ProgramOptions): Command {
     })
     // List subcommands with their own usage (`get <ref> [options]`), as their help shows it.
     .configureHelp({ subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}` })
-    .addHelpText("after", "\nOptions of a command follow it: logreq <group> <action> --help");
+    .addHelpText("after", "\nOptions of a command follow it: reqseq <group> <action> --help");
   const groups = new Map<string, Command>();
   for (const entry of options.runtime.contracts.commands) {
     const name = entry.name.slice(0, entry.name.indexOf("."));

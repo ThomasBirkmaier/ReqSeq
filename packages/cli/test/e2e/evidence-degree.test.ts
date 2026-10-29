@@ -1,12 +1,12 @@
-// `logreq evidence degree` end to end (SR-037, ADR-0009): the built binary on fixtures/SR-037/degree (its
+// `reqseq evidence degree` end to end (SR-037, ADR-0009): the built binary on fixtures/SR-037/degree (its
 // README lists every element, its record, its status and its packages), with the records read from the
 // Markdown files of the fixture, as readable output and as JSON. The selection is complex input, so it
 // comes with `--input`. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -38,13 +38,13 @@ const P1 = [
   "",
 ].join("\n");
 
-describe("logreq evidence degree (SR-037)", () => {
-  it("[SR-037/AK1] logreq evidence degree prints 60 % and the count per status for a package", async () => {
+describe("reqseq evidence degree (SR-037)", () => {
+  it("[SR-037/AK1] reqseq evidence degree prints 60 % and the count per status for a package", async () => {
     const result = await degree({ selection: { package: "PKG-00d001" } });
     expect([result.code, result.stderr, result.stdout]).toEqual([0, "", P1]);
   });
 
-  it("[SR-037/AK2] logreq evidence degree --json counts indirect requirements as verified and apart", async () => {
+  it("[SR-037/AK2] reqseq evidence degree --json counts indirect requirements as verified and apart", async () => {
     const result = await degree({ selection: { package: "PKG-00d002" } }, ["--json"]);
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -54,7 +54,7 @@ describe("logreq evidence degree (SR-037)", () => {
     });
   });
 
-  it("[SR-037/AK3] logreq evidence degree leaves out the requirements with an obsolete status", async () => {
+  it("[SR-037/AK3] reqseq evidence degree leaves out the requirements with an obsolete status", async () => {
     const result = await degree({ selection: { package: "PKG-00d003" } });
     expect([result.code, result.stderr, result.stdout]).toEqual([0, "", P1]);
   });

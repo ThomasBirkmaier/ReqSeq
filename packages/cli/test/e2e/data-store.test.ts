@@ -1,16 +1,16 @@
-// `logreq data store` end to end (SR-062): the built binary on fixtures/SR-061/export (two Git
+// `reqseq data store` end to end (SR-062): the built binary on fixtures/SR-061/export (two Git
 // repositories `system` and `sensor`, cwd `system`). AK1: a pipeline call with a target folder writes
 // `<commit>.json`; AK2: two stored states are evaluated from the files alone, with `node:fs`,
 // `JSON.parse` and the schema files on disk (the Ajv setup of scripts/contracts, ADR-0003), without any
-// `@logreq/*` module and after the workspace is gone. Run after `pnpm build` with `pnpm test:e2e`.
+// `@reqseq/*` module and after the workspace is gone. Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it, onTestFinished } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 const fixtures: FixtureWorkspace[] = [];
 afterEach(async () => {
@@ -31,13 +31,13 @@ const fixture = async (git = true): Promise<FixtureWorkspace> => {
   return ws;
 };
 
-/** `logreq <args>` with cwd `system`. */
+/** `reqseq <args>` with cwd `system`. */
 const inSystem = (ws: FixtureWorkspace, args: readonly string[]): Promise<Run> =>
   run(args, { cwd: ws.path("system") });
 
 /** A temporary folder outside every fixture, removed after the test. */
 const tempFolder = async (): Promise<string> => {
-  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-states-")));
+  const folder = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-states-")));
   onTestFinished(() => fs.rm(folder, { recursive: true, force: true }));
   return folder;
 };
@@ -95,8 +95,8 @@ const RAW_JUNIT =
   '<property name="logreq:variant" value="61061061-0000-4000-8000-0000000000c2"/></properties></testcase>\n' +
   "  </testsuite>\n</testsuites>\n";
 
-describe("logreq data store (SR-062)", () => {
-  it("[SR-062/AK1] a pipeline call logreq data store --folder out writes out/<commit>.json", async () => {
+describe("reqseq data store (SR-062)", () => {
+  it("[SR-062/AK1] a pipeline call reqseq data store --folder out writes out/<commit>.json", async () => {
     const ws = await fixture();
     const commit = await ws.head("system");
     const result = await inSystem(ws, ["data", "store", "--folder", "out"]);
@@ -110,7 +110,7 @@ describe("logreq data store (SR-062)", () => {
     ]);
   });
 
-  it("[SR-062/AK1] logreq data store without Git exits with 1 and writes nothing", async () => {
+  it("[SR-062/AK1] reqseq data store without Git exits with 1 and writes nothing", async () => {
     const ws = await fixture(false);
     const result = await inSystem(ws, ["data", "store", "--folder", "out", "--json"]);
     expect(result.code).toBe(1);
@@ -134,7 +134,7 @@ describe("logreq data store (SR-062)", () => {
     await expect(fs.stat(ws.path("system/out"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("[SR-062/AK2] two stored states are evaluated from the files alone, without LogReq or the workspace", async () => {
+  it("[SR-062/AK2] two stored states are evaluated from the files alone, without ReqSeq or the workspace", async () => {
     const ws = await fixture();
     const states = await tempFolder();
     const target = path.join(states, "stored");
@@ -175,7 +175,7 @@ describe("logreq data store (SR-062)", () => {
     const fixturePath = ws.root;
     await ws.cleanup();
     fixtures.splice(fixtures.indexOf(ws), 1);
-    // 6. The evaluation: node:fs, JSON.parse and the schema file, nothing of LogReq.
+    // 6. The evaluation: node:fs, JSON.parse and the schema file, nothing of ReqSeq.
     const validate = await schemaValidator("data-export.schema.json");
     const names = (await fs.readdir(kept)).sort();
     expect(names).toEqual([`${commitA}.json`, `${commitB}.json`].sort());

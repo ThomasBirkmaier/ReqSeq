@@ -139,7 +139,7 @@ export const isStateFile = (rules: StateRules, file: string): boolean => {
 };
 
 /**
- * The state files LogReq knows of in the repository of `rules`: the workspace file (main), the
+ * The state files ReqSeq knows of in the repository of `rules`: the workspace file (main), the
  * YAML files `yaml` lists (relative to the repository), the element files `elements` and the
  * embedded files. Each once, as given.
  */

@@ -158,14 +158,14 @@ describe("CoreProcess", () => {
 
   it("relays file requests and their answers; without a core process, or when it ends, nothing is found", async () => {
     const { core, children } = setup();
-    expect(await core.file("logreq-file://workspace/system/a.png")).toEqual({ status: 404 });
+    expect(await core.file("reqseq-file://workspace/system/a.png")).toEqual({ status: 404 });
     await core.open("/ws");
     const child = children[0];
-    const first = core.file("logreq-file://workspace/system/a.png");
-    const second = core.file("logreq-file://workspace/system/b.png");
+    const first = core.file("reqseq-file://workspace/system/a.png");
+    const second = core.file("reqseq-file://workspace/system/b.png");
     expect(child?.sent.slice(1).map((s) => s.message)).toEqual([
-      { type: "file", id: 1, url: "logreq-file://workspace/system/a.png" },
-      { type: "file", id: 2, url: "logreq-file://workspace/system/b.png" },
+      { type: "file", id: 1, url: "reqseq-file://workspace/system/a.png" },
+      { type: "file", id: 2, url: "reqseq-file://workspace/system/b.png" },
     ]);
     const data = new Uint8Array([7]);
     child?.emit("message", { type: "file", id: 1, status: 200, mimeType: "image/png", data });

@@ -1,9 +1,9 @@
 // SR-028 "Nachweis-Datensätze als Markdown lesen": the Markdown reader of the evidence block
 // (`markdown.ts`), on fixtures/SR-028/records (the requirements in repository `system`, the records in
 // the evidence folder of repository `ci-results`, the repository of another tool) and on bytes.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { parseDocument } from "yaml";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import type { MockInstance } from "vitest";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { outdatedEvidenceProblemsState } from "../hints/index.js";
@@ -288,7 +288,7 @@ describe("SR-028 reading Markdown records", () => {
   });
 
   it("a key the format does not know gives a warning and the record counts", () => {
-    const out = read(record("tool: pytest-logreq\nrun:\n  id: 7"));
+    const out = read(record("tool: pytest-reqseq\nrun:\n  id: 7"));
     expect(out.records).toHaveLength(1);
     expect(out.records[0]).not.toHaveProperty("tool");
     expect(out.problems).toEqual([

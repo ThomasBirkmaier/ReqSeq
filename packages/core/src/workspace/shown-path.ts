@@ -1,4 +1,4 @@
-// Paths of files LogReq writes outside the LogReq files (ADR-0002 rule 5): how `files` and problems
+// Paths of files ReqSeq writes outside the ReqSeq files (ADR-0002 rule 5): how `files` and problems
 // show them, and the refusal of a `.git` folder. Used by `evidence.enrichJunit` (SR-029) and
 // `data.store` (SR-062). Pure path code: nothing is read.
 import path from "node:path";
@@ -10,7 +10,7 @@ export const refuseGit = (real: string, file: string): void => {
   if (real.split(path.sep).some((segment) => segment.toLowerCase() === ".git")) {
     throw new CommandError(
       "input.invalid",
-      `${path.basename(file)} lies in a .git folder; LogReq never writes to Git`,
+      `${path.basename(file)} lies in a .git folder; ReqSeq never writes to Git`,
       { file: path.basename(file), reason: "git-folder" },
     );
   }

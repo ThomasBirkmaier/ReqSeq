@@ -6,7 +6,7 @@ import "../../../../scripts/test-support/dom-selection.mjs";
 // heading when the title is entered, it is saved with the text and the boxes as `title` (SR-105), and a
 // change of the file follows the rules of a box (SR-106). The click offset and the heading of an empty title
 // are tested in `title-box.test.ts`, the input it sends in `property-edit.test.ts`.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { act, createElement } from "react";

@@ -14,8 +14,8 @@
 // The evidence conditions (AK1 "Nachweisstatus", AK3 "ohne Nachweis") are tested through the
 // evidence provider (decision on #127, option 1); stage 4 adds end-to-end tests with records.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

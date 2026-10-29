@@ -6,8 +6,8 @@
 // 1,000 files (SR-007 AK2: search current within 10 s). The generated texts are short and use a
 // small vocabulary, so an in-memory index of 50,000 longer texts from a large vocabulary is measured
 // as well. Recorded only: the tagged SR-098 test is search-speed.test.ts (#110).
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -172,7 +172,7 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
 
   it("records serialising the index into the cache folder and loading it again", async () => {
     const index = await searchIndex(opened());
-    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-search-cache-"));
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-search-cache-"));
     try {
       const root = canonicalRoot(opened().root);
       const { result: digest } = await measure(
@@ -218,7 +218,7 @@ describe("search index with 50,000 elements and 200,000 relations (ADR-0008, N-0
           );
         }
       };
-      // As `logreq serve api` does it (`warmWorkspace`): the model loaded, then the index in the
+      // As `reqseq serve api` does it (`warmWorkspace`): the model loaded, then the index in the
       // background, here without the delay, so that the opens below run while it builds.
       await warmModel(fresh);
       await open(

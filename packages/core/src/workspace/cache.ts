@@ -1,4 +1,4 @@
-// The cache folder of a working copy (ADR-0008, SR-081 AK2): `<OS cache>/logreq/<sha256 of the canonical
+// The cache folder of a working copy (ADR-0008, SR-081 AK2): `<OS cache>/reqseq/<sha256 of the canonical
 // workspace root>/`, never inside a repository and never shared between copies. The token file of the
 // local API lives there (ADR-0009); the model cache follows with SR-081 and SR-082.
 import { createHash } from "node:crypto";
@@ -71,7 +71,7 @@ export function canonicalRoot(root: string, platform: NodeJS.Platform = process.
 export function cacheFolder(root: string, environment: CacheEnvironment = processEnvironment()): string {
   const paths = environment.platform === "win32" ? path.win32 : path.posix;
   const hash = createHash("sha256").update(canonicalRoot(root, environment.platform), "utf8").digest("hex");
-  return paths.join(osCacheFolder(environment), "logreq", hash);
+  return paths.join(osCacheFolder(environment), "reqseq", hash);
 }
 
 /** Read errors that mean "there is no such file". */

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -361,7 +361,7 @@ describe("element.create", () => {
     const missing = (out: Output, key: string, name: string, line?: number): Record<string, unknown> => ({
       code: "element.missing-required",
       severity: "warning",
-      message: `Required property ${name} (${key}) of type System Requirement (system-requirement) has no value; LogReq changes no file`,
+      message: `Required property ${name} (${key}) of type System Requirement (system-requirement) has no value; ReqSeq changes no file`,
       repository: "system",
       file: out.element.file,
       elementId: out.element.id,
@@ -671,7 +671,7 @@ describe("element.create", () => {
       expect(await treeBelow(opened.root)).toEqual(before);
     };
 
-    it("never writes below .git, at the top or in any folder (D-036: LogReq never writes to Git)", async () => {
+    it("never writes below .git, at the top or in any folder (D-036: ReqSeq never writes to Git)", async () => {
       const opened = await open({ fixture: "SR-001/two-elements", git: true });
       await refused(opened, [
         ...inFolder("skipped-name", ".git"),
@@ -824,7 +824,7 @@ describe("element.create", () => {
       const opened = await standard();
       await opened.workspace.get(elementStoreState);
       foldNormalForm([NFD]);
-      // HFS+ stores every new name in NFD; the folder LogReq creates as NFC is NFD on disk.
+      // HFS+ stores every new name in NFD; the folder ReqSeq creates as NFC is NFD on disk.
       const mkdir = vi.mocked(fs.mkdir).getMockImplementation();
       vi.mocked(fs.mkdir).mockImplementation(((p: string, options: object) =>
         mkdir?.(p.replace(NFC, NFD), options)) as typeof fs.mkdir);
@@ -947,7 +947,7 @@ describe("element.create", () => {
       const mkdir = fs.mkdir.bind(fs);
       const spy = vi.spyOn(fs, "mkdir").mockImplementation((async (folder: string, options: object) => {
         await mkdir(folder, options);
-        // Someone else turns the new folder into a repository of its own before LogReq writes.
+        // Someone else turns the new folder into a repository of its own before ReqSeq writes.
         await fs.writeFile(path.join(opened.root, "fresh", ".git"), "gitdir: elsewhere\n");
         return undefined;
       }) as typeof fs.mkdir);

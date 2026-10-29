@@ -29,7 +29,7 @@ export interface ProcessIo {
 }
 
 /**
- * Connect the binary to the process. A closed pipe (`EPIPE`, e.g. `logreq ... | head`) drops the rest of
+ * Connect the binary to the process. A closed pipe (`EPIPE`, e.g. `reqseq ... | head`) drops the rest of
  * that output quietly and keeps the command's exit code; any other write error makes the exit code 3.
  * A write that the stream buffers beyond its limit returns false, and `drained` waits for the stream's
  * `drain` (back-pressure for a large output, #277); it resolves false once the stream failed.

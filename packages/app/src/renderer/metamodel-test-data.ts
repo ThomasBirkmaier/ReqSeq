@@ -1,7 +1,7 @@
 // The output of `metamodel.get` on fixtures/SR-130/metamodel, as core gives it (the core test
 // `packages/core/src/commands/metamodel/get.test.ts` checks the same values on the fixture), for the
 // app's tests of the metamodel graph (SR-130).
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 
 export const FIXTURE_METAMODEL: MetamodelGetOutput = {
   types: [

@@ -1,7 +1,7 @@
 // A typed call of one catalog command through the bridge. The renderer shows what the command gives and
 // builds only its input (ADR-0002); the types are those of the catalog.
-import type { CommandErrorObject, CommandTypes } from "@logreq/core";
-import type { LogReqBridge } from "../shared/protocol.js";
+import type { CommandErrorObject, CommandTypes } from "@reqseq/core";
+import type { ReqSeqBridge } from "../shared/protocol.js";
 
 /**
  * The output of command `N`, or why it failed: the code, message and details of the error object every
@@ -23,7 +23,7 @@ export type Call = <N extends keyof CommandTypes>(
 ) => Promise<Answer<N>>;
 
 export const callOn =
-  (bridge: LogReqBridge): Call =>
+  (bridge: ReqSeqBridge): Call =>
   async (name, input) => {
     const result = await bridge.invoke(name, input);
     return result.ok

@@ -30,7 +30,7 @@ let top = "";
 let environment: CacheEnvironment;
 
 beforeEach(async () => {
-  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-recent-")));
+  top = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-recent-")));
   const cache = path.join(top, "cache");
   environment = {
     platform: process.platform,
@@ -96,14 +96,14 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
     expect(validate(JSON.parse(await fs.readFile(listFile(), "utf8")))).toBe(true);
   });
 
-  it("stores the list in <OS cache>/logreq/recent-workspaces.json with mode 0600, never inside the workspace", async () => {
+  it("stores the list in <OS cache>/reqseq/recent-workspaces.json with mode 0600, never inside the workspace", async () => {
     const a = await folder("a");
     await rememberWorkspace(a, { environment });
     const cache = path.join(top, "cache");
     const expected =
       process.platform === "darwin"
-        ? path.join(cache, "Library", "Caches", "logreq", RECENT_WORKSPACES_FILE)
-        : path.join(cache, "logreq", RECENT_WORKSPACES_FILE);
+        ? path.join(cache, "Library", "Caches", "reqseq", RECENT_WORKSPACES_FILE)
+        : path.join(cache, "reqseq", RECENT_WORKSPACES_FILE);
     expect(listFile()).toBe(expected);
     expect(JSON.parse(await fs.readFile(expected, "utf8"))).toMatchObject({
       format: 1,
@@ -117,10 +117,10 @@ describe("rememberWorkspace and readRecentWorkspaces", () => {
     expect(await fs.readdir(path.dirname(expected))).toEqual([RECENT_WORKSPACES_FILE]);
     // The folder of the list on every platform, from the given environment or this process's.
     expect(recentWorkspacesFolder({ platform: "win32", env: { LOCALAPPDATA: "D:\\L" }, home: "C:\\U" })).toBe(
-      "D:\\L\\logreq",
+      "D:\\L\\reqseq",
     );
     expect(recentWorkspacesFolder({ platform: "linux", env: {}, home: "/home/ada" })).toBe(
-      "/home/ada/.cache/logreq",
+      "/home/ada/.cache/reqseq",
     );
     expect(path.isAbsolute(recentWorkspacesFolder())).toBe(true);
   });

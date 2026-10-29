@@ -1,7 +1,7 @@
 // The workspaces opened last and the switch between them (SR-131, ADR-0010): channels from the renderer
 // to the main process. They go to main, not over the port, because no core process runs while no
 // workspace is open, and switching the workspace of the window is main's job. The list is core's
-// (`@logreq/core/recent-workspaces`: order, keys, existence checks, typed paths), loaded on the first
+// (`@reqseq/core/recent-workspaces`: order, keys, existence checks, typed paths), loaded on the first
 // request, so the start of main loads no part of core; main only marks the entry its core process has
 // open.
 //
@@ -12,7 +12,7 @@
 // the answer. One switch runs at a time: from the request to save until the other workspace is open, a
 // second one answers `busy` and asks for no second save.
 //
-// The renderer is not trusted. Every channel takes only messages from the main frame of the LogReq
+// The renderer is not trusted. Every channel takes only messages from the main frame of the ReqSeq
 // window (`sender.ts`). An open takes a root that is, character for character, a root of the stored
 // list, read again for each request, or (`typed`) a typed folder path that core's lexical check takes
 // (absolute or `~`, no UNC path, no NUL, at most 4096 characters) before any file-system call, and only
@@ -27,7 +27,7 @@ import type {
   recentWorkspaceStates,
   typedWorkspaceFolder,
   workspaceExists,
-} from "@logreq/core/recent-workspaces";
+} from "@reqseq/core/recent-workspaces";
 import type { OpenWorkspaceResult, RecentWorkspaceEntry, SaveRequest } from "../shared/protocol.js";
 import {
   MAX_ROOT_LENGTH,
@@ -39,7 +39,7 @@ import {
 } from "../shared/protocol.js";
 import { CLOSE_SAVE_TIMEOUT_MS } from "./close.js";
 import type { WindowContents } from "./sender.js";
-import { fromLogReqWindow } from "./sender.js";
+import { fromReqSeqWindow } from "./sender.js";
 
 /** The parts of core's module of the list that main uses. */
 export interface RecentWorkspacesModule {
@@ -109,7 +109,7 @@ export const SAVE_TIMEOUT_MS = 30_000;
 
 /** Core's module of the list, without the rest of core (no schema validator, no command). */
 export const loadRecentWorkspaces = (): Promise<RecentWorkspacesModule> =>
-  import("@logreq/core/recent-workspaces");
+  import("@reqseq/core/recent-workspaces");
 
 const OPENED: OpenWorkspaceResult = { ok: true };
 const REFUSED: OpenWorkspaceResult = { ok: false, reason: "refused" };
@@ -155,7 +155,7 @@ export const handleWorkspaces = (
   const waiting = new Map<number, (saved: boolean | "timeout") => void>();
   let nextSave = 1;
   electron.ipcMain.on(SAVED_CHANNEL, (event, value: unknown) => {
-    const answer = fromLogReqWindow(event, contents) ? saveAnswer(value) : undefined;
+    const answer = fromReqSeqWindow(event, contents) ? saveAnswer(value) : undefined;
     if (answer !== undefined) {
       waiting.get(answer.id)?.(answer.saved);
     }
@@ -225,7 +225,7 @@ export const handleWorkspaces = (
   electron.ipcMain.handle(
     RECENT_WORKSPACES_CHANNEL,
     async (event): Promise<readonly RecentWorkspaceEntry[]> => {
-      if (!fromLogReqWindow(event, contents)) {
+      if (!fromReqSeqWindow(event, contents)) {
         return [];
       }
       try {
@@ -270,7 +270,7 @@ export const handleWorkspaces = (
   electron.ipcMain.handle(
     OPEN_WORKSPACE_CHANNEL,
     async (event, root: unknown, how: unknown): Promise<OpenWorkspaceResult> => {
-      if (!plausibleRoot(root) || !fromLogReqWindow(event, contents)) {
+      if (!plausibleRoot(root) || !fromReqSeqWindow(event, contents)) {
         return REFUSED;
       }
       let found: string | OpenWorkspaceResult;

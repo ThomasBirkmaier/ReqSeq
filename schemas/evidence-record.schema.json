@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://logreq.dev/schemas/evidence-record.schema.json",
+  "$id": "https://reqseq.dev/schemas/evidence-record.schema.json",
   "title": "Evidence record (Datensatz), Markdown frontmatter",
-  "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by LogReq (SR-030) and by anyone else count the same.",
+  "description": "Open format for a verification or validation record (D-007, D-026, SR-028). A manual record is a Markdown file with this frontmatter; the text below may describe the check. Automatic test results stay JUnit XML; the same fields are JUnit properties, see docs/adr/0012-evidence-records.md. The evidence itself (Beleg) stays where it is; `evidence` only points to it. Records written by ReqSeq (SR-030) and by anyone else count the same.",
   "type": "object",
   "required": ["logreq-record", "kind", "element", "version", "result", "date"],
   "properties": {
@@ -32,7 +32,7 @@
     "date": { "$ref": "common.schema.json#/$defs/dateTime" },
     "evidence": {
       "type": "string",
-      "description": "Where the Beleg is: relative path, file URL or any URI. LogReq does not open or manage it."
+      "description": "Where the Beleg is: relative path, file URL or any URI. ReqSeq does not open or manage it."
     },
     "test-case": { "type": "string", "description": "Optional test case name or ID (D-026, SR-033)." }
   },

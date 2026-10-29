@@ -11,7 +11,7 @@ afterEach(async () => {
 
 describe("code-fingerprint.mjs", () => {
   it("writes what the model cache module of the build gives into that build", async () => {
-    const dist = await fs.mkdtemp(path.join(os.tmpdir(), "logreq-fingerprint-"));
+    const dist = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-fingerprint-"));
     folders.push(dist);
     await fs.mkdir(path.join(dist, "model"));
     await fs.writeFile(

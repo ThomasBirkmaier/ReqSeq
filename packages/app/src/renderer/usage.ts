@@ -7,7 +7,7 @@ import { rank } from "./fuzzy.js";
 import type { Ranked } from "./fuzzy.js";
 
 /** The storage key; the version lets a later format start empty instead of misreading this one. */
-export const USAGE_KEY = "logreq.usage.v1";
+export const USAGE_KEY = "reqseq.usage.v1";
 /** The most commands and the most typed texts kept; the ones used longest ago go first. */
 export const USAGE_KEEP = 500;
 

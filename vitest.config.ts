@@ -4,9 +4,9 @@ import { configDefaults, defineConfig } from "vitest/config";
 // ADR-0011: one Vitest run for all packages; JUnit output is the evidence record (D-050).
 // ADR-0016: coverage thresholds (100 % per file in core, 80 % per adapter package) are a required gate.
 export default defineConfig({
-  // Tests use the testkit sources directly, so they need no build of @logreq/testkit first.
+  // Tests use the testkit sources directly, so they need no build of @reqseq/testkit first.
   resolve: {
-    alias: { "@logreq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
+    alias: { "@reqseq/testkit": fileURLToPath(new URL("./packages/testkit/src/index.ts", import.meta.url)) },
   },
   test: {
     include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"],
@@ -37,7 +37,7 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // ADR-0002 rule 4: command outputs are checked against the catalog in tests (packages/core runtime/invoke.ts).
-    env: { LOGREQ_VALIDATE_OUTPUT: "1" },
+    env: { REQSEQ_VALIDATE_OUTPUT: "1" },
     // `agent` prints only failures and the summary: short logs for agents and CI (#392).
     reporters: ["agent", ["junit", { outputFile: "test-results/junit.xml", addFileAttribute: true }]],
     coverage: {

@@ -1,11 +1,11 @@
-// `logreq trace related` end to end (SR-023): the built binary on fixtures/SR-023/related, as lines
+// `reqseq trace related` end to end (SR-023): the built binary on fixtures/SR-023/related, as lines
 // and as JSON. N1 and N2 are needs; A derives from N1, B from N1 and N2, C from A and B, D refines C,
 // E derives from N2. Run after `pnpm build` with `pnpm test:e2e`.
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { Run } from "../support/logreq.js";
-import { logreq as run, requireBuiltCli } from "../support/logreq.js";
+import type { Run } from "../support/reqseq.js";
+import { reqseq as run, requireBuiltCli } from "../support/reqseq.js";
 
 interface Output {
   readonly elements: readonly { readonly id: string; readonly shortId: string; readonly text?: string }[];
@@ -31,7 +31,7 @@ const related = async (args: readonly string[]): Promise<{ run: Run; output: Out
 
 const shortIds = (output: Output): string[] => output.elements.map((e) => e.shortId);
 
-describe("logreq trace related (SR-023)", () => {
+describe("reqseq trace related (SR-023)", () => {
   it("[SR-023/AK1] lists the children of a parent on every level, and up to a depth", async () => {
     const all = await related(["children", "--refs", "N-0000a1"]);
     expect([all.run.code, all.run.stderr]).toEqual([0, ""]);

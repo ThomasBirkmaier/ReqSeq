@@ -1,5 +1,5 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { CommandError } from "../catalog.js";
 import { metamodelState, STANDARD_MODEL_TEXT } from "../metamodel/index.js";

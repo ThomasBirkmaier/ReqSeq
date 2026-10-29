@@ -51,7 +51,7 @@ export const FOLLOWED_ACCESSES: readonly AccessName[] = ["api", "mcp"];
 /** The file in the cache folder of the copy. */
 export const ACTIVITY_FILE = "activity.json";
 
-/** A larger file is not LogReq's and is ignored. */
+/** A larger file is not ReqSeq's and is ignored. */
 export const ACTIVITY_MAX_BYTES = 4096;
 
 /** A process writes the file at most once per this time; the latest access of a burst wins. */
@@ -631,7 +631,7 @@ class ActivityWatcher implements ActivityWatch {
 /**
  * Watch the accesses that API and MCP processes of the copy of `workspace` record (SR-117), for the
  * app's core process: one plain watch of the cache folder (not recursive, `persistent: false`),
- * created with mode 0700 when missing; only `activity.json` counts (LogReq's temp files and the
+ * created with mode 0700 when missing; only `activity.json` counts (ReqSeq's temp files and the
  * other cache files are dropped). The file present at start is the baseline and is never reported.
  * A new access is reported once the element store of `workspace` holds the element's file with the
  * hash the access saw (after the watcher of `workspace` applied the change; the watcher is started

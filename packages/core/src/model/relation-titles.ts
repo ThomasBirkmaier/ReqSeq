@@ -1,6 +1,6 @@
 // Stored titles of relation targets follow their targets (spec question #307, product owner decision,
 // 2026-10-26; ADR-0004 "Stored titles"). A relation target within the source's repository stores
-// the target's title so that the file reads well without LogReq (SR-010, D-058). The title does not
+// the target's title so that the file reads well without ReqSeq (SR-010, D-058). The title does not
 // count to any version (ADR-0005), so a rename gives no hint; instead, whenever a command writes a
 // source file anyway, the stored titles of its same-repository targets are set to the targets'
 // current titles. `hint.confirm` writes through the same path, so confirming writes the current

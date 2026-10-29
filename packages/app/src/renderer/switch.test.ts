@@ -1,5 +1,5 @@
 // Saving the unsaved input before another workspace opens in the window (SR-131 AK3, `switch.ts`).
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { Buffer, ElementBuffer } from "./buffers.js";
 import { elementBuffer, overviewBuffer } from "./buffers.js";

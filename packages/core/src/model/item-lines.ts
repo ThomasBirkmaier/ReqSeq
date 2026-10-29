@@ -1,5 +1,5 @@
 // The line of a relation value in the YAML text of a frontmatter, read from the text without
-// parsing it (ADR-0008, N-036). LogReq writes a relation target as one flow mapping per line
+// parsing it (ADR-0008, N-036). ReqSeq writes a relation target as one flow mapping per line
 // (ADR-0004, SR-102), under a top-level key at the start of a line; for that layout the line is
 // found by a scan of the lines. Parsing the YAML of every file with a finding again (`lineOf`) cost
 // about 28 s at 50,000 files on the main thread; the scan reads only text.
@@ -56,7 +56,7 @@ export const frontmatterLines = (frontmatter: string): string[] =>
 /**
  * The line of the value at `path` (`[key]` or `[key, index]`) in the frontmatter of `lines`
  * (`frontmatterLines`; the YAML text starts at line 2 of the file) as `lineOf` gives it, when the
- * text is written as LogReq writes relations; undefined otherwise (see the file comment).
+ * text is written as ReqSeq writes relations; undefined otherwise (see the file comment).
  */
 export const textLineOf = (
   lines: readonly string[],

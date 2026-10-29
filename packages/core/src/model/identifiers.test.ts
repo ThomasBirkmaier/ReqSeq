@@ -1,9 +1,9 @@
-// Identifiers (#305): the property with the meaning `identifier` (here `spec-id`, as the LogReq spec
+// Identifiers (#305): the property with the meaning `identifier` (here `spec-id`, as the ReqSeq spec
 // will use it after the migration) names elements besides UUID and short ID, outputs show it next
 // to the short ID, and a duplicate within a type is a finding.
 import { readFile, rm, writeFile } from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandName, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -193,10 +193,10 @@ describe("identifiers as element references (#305)", () => {
     expect(hints.hints).toEqual([]);
     await run(opened, "relation.add", { source: "D-047", kind: "derives-from", target: "N-001" });
     expect(await readFile(opened.fixture.path(D047.file), "utf8")).toContain(`{ id: ${N001.id}, version: `);
-    await run(opened, "element.update", { ref: "D-047", title: "The spec moves into LogReq" });
+    await run(opened, "element.update", { ref: "D-047", title: "The spec moves into ReqSeq" });
     await run(opened, "element.setStatus", { refs: ["D-047"], status: "obsolete" });
     expect(await elementOf(opened, "d-047")).toMatchObject({
-      title: "The spec moves into LogReq",
+      title: "The spec moves into ReqSeq",
       status: "obsolete",
     });
   });

@@ -1,13 +1,13 @@
-// CLI end-to-end tests (ADR-0011): spawn the built `logreq` on fixture workspaces.
+// CLI end-to-end tests (ADR-0011): spawn the built `reqseq` on fixture workspaces.
 // Run after `pnpm build` with `pnpm test:e2e`; on Linux CI also inside `unshare -rn` (no network).
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cliEnv } from "../support/logreq.js";
+import { cliEnv } from "../support/reqseq.js";
 
 const cliDir = fileURLToPath(new URL("../../", import.meta.url));
 const bin = path.join(cliDir, "dist", "bin.js");
@@ -29,11 +29,11 @@ interface RunOptions {
   /** Use the test entry with test-only command implementations instead of dist/bin.js. */
   readonly testCommands?: boolean;
   readonly stdin?: string;
-  /** Close the read end of stdout after the first chunk, like `logreq ... | head -1`. */
+  /** Close the read end of stdout after the first chunk, like `reqseq ... | head -1`. */
   readonly closeStdoutEarly?: boolean;
 }
 
-const logreq = (args: readonly string[], options: RunOptions): Promise<Run> =>
+const reqseq = (args: readonly string[], options: RunOptions): Promise<Run> =>
   new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -93,30 +93,30 @@ beforeAll(() => {
   }
 });
 
-describe("logreq binary", () => {
+describe("reqseq binary", () => {
   it("prints its version and help without colors", async () => {
     const ws = await workspace();
-    const version = await logreq(["--version"], { cwd: ws.root });
+    const version = await reqseq(["--version"], { cwd: ws.root });
     expect(version.code).toBe(0);
     expect(version.stdout).toMatch(/^\d+\.\d+\.\d+\n$/);
-    const help = await logreq(["--help"], { cwd: ws.root });
+    const help = await reqseq(["--help"], { cwd: ws.root });
     expect(help.code).toBe(0);
     expect(help.stdout).toMatch(/workspace <action> \[options\]/);
     expect(help.stdout).toMatch(/reqif <action> \[options\]/);
     expect(help.stdout).not.toContain("\u001b[");
-    const group = await logreq(["element", "--help"], { cwd: ws.root });
+    const group = await reqseq(["element", "--help"], { cwd: ws.root });
     expect(group.stdout).toMatch(/set-status <status> \[options\]/);
     // status: null removes the status line (#343); the command line gives null with --input.
-    const setStatus = await logreq(["element", "set-status", "--help"], { cwd: ws.root });
+    const setStatus = await reqseq(["element", "set-status", "--help"], { cwd: ws.root });
     expect(setStatus.stdout).toMatch(/null only via\s+--input/);
   });
 
   it("exits 2 for usage errors and for commands that are not implemented yet", async () => {
     const ws = await workspace();
-    const unknown = await logreq(["nope"], { cwd: ws.root });
+    const unknown = await reqseq(["nope"], { cwd: ws.root });
     expect(unknown.code).toBe(2);
     expect(unknown.stderr).toContain("unknown command 'nope'");
-    const planned = await logreq(["reqif", "export", "out.reqif", "--json"], { cwd: ws.root });
+    const planned = await reqseq(["reqif", "export", "out.reqif", "--json"], { cwd: ws.root });
     expect(planned.code).toBe(2);
     expect(planned.stdout).toBe("");
     expect(JSON.parse(planned.stderr)).toEqual({
@@ -124,7 +124,7 @@ describe("logreq binary", () => {
       message: "Command reqif.export is not implemented yet",
       details: { command: "reqif.export" },
     });
-    const usageJson = await logreq(["workspace", "nope", "--json"], { cwd: ws.root });
+    const usageJson = await reqseq(["workspace", "nope", "--json"], { cwd: ws.root });
     expect(usageJson.code).toBe(2);
     expect(JSON.parse(usageJson.stderr)).toEqual({
       code: "input.invalid",
@@ -135,7 +135,7 @@ describe("logreq binary", () => {
   it("runs a product command on a fixture workspace, found from a subfolder", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository", git: true });
     fixtures.push(ws);
-    const result = await logreq(["workspace", "status", "--json"], { cwd: ws.path("requirements") });
+    const result = await reqseq(["workspace", "status", "--json"], { cwd: ws.path("requirements") });
     expect(result.stderr).toBe("");
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ name: "Weather station", readOnly: false });
@@ -144,12 +144,12 @@ describe("logreq binary", () => {
   it("shows one element with element get, and exits 2 for an unknown reference", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
     fixtures.push(ws);
-    const supersede = await logreq(
+    const supersede = await reqseq(
       ["element", "supersede", "N-d4e5f6", "obsolete", "--successor", "N-e5f6a7", "--json"],
       { cwd: ws.root },
     );
     expect(supersede.code).toBe(0);
-    const shown = await logreq(["element", "get", "N-d4e5f6", "--json"], { cwd: ws.root });
+    const shown = await reqseq(["element", "get", "N-d4e5f6", "--json"], { cwd: ws.root });
     expect(shown.stderr).toBe("");
     expect(shown.code).toBe(0);
     expect(JSON.parse(shown.stdout)).toMatchObject({
@@ -169,14 +169,14 @@ describe("logreq binary", () => {
     const element = (stdout: string): Record<string, unknown> =>
       (JSON.parse(stdout) as { element: Record<string, unknown> }).element;
     expect(element(shown.stdout)).not.toHaveProperty("versionDate");
-    const dated = await logreq(["element", "get", "SR-f6a7b8", "--version-date", "--json"], { cwd: ws.root });
+    const dated = await reqseq(["element", "get", "SR-f6a7b8", "--version-date", "--json"], { cwd: ws.root });
     expect(dated.code).toBe(0);
     expect(element(dated.stdout)["versionDate"]).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
-    const changed = await logreq(["element", "get", "N-d4e5f6", "--version-date", "--json"], {
+    const changed = await reqseq(["element", "get", "N-d4e5f6", "--version-date", "--json"], {
       cwd: ws.root,
     });
     expect(element(changed.stdout)["versionDate"]).toBe(element(dated.stdout)["versionDate"]);
-    const unknown = await logreq(["element", "get", "N-ffffff", "--json"], { cwd: ws.root });
+    const unknown = await reqseq(["element", "get", "N-ffffff", "--json"], { cwd: ws.root });
     expect(unknown.code).toBe(2);
     expect(unknown.stdout).toBe("");
     expect(JSON.parse(unknown.stderr)).toMatchObject({ code: "ref.unknown" });
@@ -185,7 +185,7 @@ describe("logreq binary", () => {
   it("[SR-064/AK2] creates an element with only type and title, as argument or as --title: exit 0, the file written, and each hint printed once (#310)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     fixtures.push(ws);
-    const created = await logreq(["element", "create", "system-requirement", "--title", "Show gusts"], {
+    const created = await reqseq(["element", "create", "system-requirement", "--title", "Show gusts"], {
       cwd: ws.root,
     });
     expect([created.code, created.stderr]).toEqual([0, ""]);
@@ -204,7 +204,7 @@ describe("logreq binary", () => {
       "acceptance-criteria",
     ]);
     expect(lines).toHaveLength(3 + missing.length + 1);
-    const positional = await logreq(["element", "create", "system-requirement", "Show calm", "--json"], {
+    const positional = await reqseq(["element", "create", "system-requirement", "Show calm", "--json"], {
       cwd: ws.root,
     });
     expect(positional.code).toBe(0);
@@ -221,7 +221,7 @@ describe("logreq binary", () => {
       ["element.missing-required", "warning", "requirement-type"],
       ["element.missing-required", "warning", "acceptance-criteria"],
     ]);
-    const shown = await logreq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
+    const shown = await reqseq(["element", "get", lines[0]?.split("  ")[0] ?? ""], { cwd: ws.root });
     expect(shown.stdout).toMatch(
       /^SR-[0-9a-f]{6,} {2}draft {2}Show gusts {2}\[verification: core open\]\n {2}id: [0-9a-f-]{36}\n {2}type: system-requirement\n {2}file: /,
     );
@@ -230,7 +230,7 @@ describe("logreq binary", () => {
   it("names elements by their spec ID and shows it next to the short ID (#305)", async () => {
     const ws = await createFixtureWorkspace({ fixture: "enabler-305/identifiers" });
     fixtures.push(ws);
-    const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+    const run = (...args: string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
     const shown = await run("element", "get", "sr-036");
     expect([shown.code, shown.stderr]).toEqual([0, ""]);
     expect(shown.stdout.split("\n")[0]).toBe(
@@ -267,7 +267,7 @@ describe("logreq binary", () => {
     async () => {
       const ws = await createFixtureWorkspace({ fixture: "SR-072/supersede", git: true });
       fixtures.push(ws);
-      const run = (...args: string[]): Promise<Run> => logreq(args, { cwd: ws.root });
+      const run = (...args: string[]): Promise<Run> => reqseq(args, { cwd: ws.root });
       const REF_FORM =
         "is not a reference to an element (a UUID, a short ID such as SR-3c90b0 or an identifier such as SR-036; at most 256 characters, without control characters or spaces at either end)";
       // SR-036 may be an identifier (#305); this workspace has none, so it names no element.
@@ -298,7 +298,7 @@ describe("logreq binary", () => {
       expect(pkg.stderr).toBe(
         `error input.invalid: Invalid input for hint.list: --package "Stufe 2 " ${REF_FORM}\n`,
       );
-      const init = await logreq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
+      const init = await reqseq(["workspace", "init", "--workspace", ws.root], { cwd: ws.root });
       expect([init.code, init.stderr]).toEqual([
         2,
         "error input.invalid: Invalid input for workspace.init: <path> is required; <name> is required\n",
@@ -335,10 +335,10 @@ describe("logreq binary", () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-088/copied-file" });
     fixtures.push(ws);
     const cwd = ws.path("system");
-    const both = await logreq(["element", "get", "N-cf2661", "--json"], { cwd });
+    const both = await reqseq(["element", "get", "N-cf2661", "--json"], { cwd });
     expect(both.code).toBe(2);
     expect(JSON.parse(both.stderr)).toMatchObject({ code: "ref.ambiguous" });
-    const copy = await logreq(
+    const copy = await reqseq(
       [
         "element",
         "get",
@@ -362,7 +362,7 @@ describe("logreq binary", () => {
     const ws = await createFixtureWorkspace({ fixture: "SR-090/cycle", git: true });
     fixtures.push(ws);
     const D = "5e9c0a7d-2b4f-4c61-9d08-0b0000000004";
-    const added = await logreq(["relation", "add", "SR-b0000000001", "derives-from", D, "--json"], {
+    const added = await reqseq(["relation", "add", "SR-b0000000001", "derives-from", D, "--json"], {
       cwd: ws.root,
     });
     expect(added.stderr).toBe("");
@@ -374,28 +374,28 @@ describe("logreq binary", () => {
         { code: "trace.cycle", severity: "warning", file: "requirements/SR-0b0000000004.md", line: 10 },
       ],
     });
-    const shown = await logreq(["element", "get", "SR-b0000000001", "--json"], { cwd: ws.root });
+    const shown = await reqseq(["element", "get", "SR-b0000000001", "--json"], { cwd: ws.root });
     expect(JSON.parse(shown.stdout)).toMatchObject({
       element: {
         relations: [{ kind: "derives-from" }, { kind: "derives-from" }, { kind: "derives-from", id: D }],
       },
     });
-    const removed = await logreq(["relation", "remove", "SR-b0000000001", "derives-from", D, "--json"], {
+    const removed = await reqseq(["relation", "remove", "SR-b0000000001", "derives-from", D, "--json"], {
       cwd: ws.root,
     });
     expect(removed.code).toBe(0);
     expect(JSON.parse(removed.stdout)).toEqual({ files: ["requirements/SR-0b0000000001.md"], problems: [] });
     expect(await ws.git(["status", "--porcelain"])).toBe("");
-    const refused = await logreq(["relation", "add", "N-a0000000001", "derives-from", D], { cwd: ws.root });
+    const refused = await reqseq(["relation", "add", "N-a0000000001", "derives-from", D], { cwd: ws.root });
     expect(refused.code).not.toBe(0);
     expect(refused.stderr).toContain("is not allowed");
   });
 });
 
-describe("logreq with test commands", () => {
+describe("reqseq with test commands", () => {
   it("exits 0 for a workspace without findings", async () => {
     const ws = await workspace();
-    const result = await logreq(["workspace", "check"], { cwd: ws.root, testCommands: true });
+    const result = await reqseq(["workspace", "check"], { cwd: ws.root, testCommands: true });
     expect(result).toMatchObject({
       code: 0,
       stdout: "ok: true\ncheckedElements: 0\nNo problems.\n",
@@ -405,7 +405,7 @@ describe("logreq with test commands", () => {
 
   it("exits 1 for error findings and lists each with severity, code, file:line and message", async () => {
     const ws = await workspace({ "test-problems.json": JSON.stringify(problems) });
-    const result = await logreq(["workspace", "check"], { cwd: ws.root, testCommands: true });
+    const result = await reqseq(["workspace", "check"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(1);
     expect(result.stdout).toBe(
       [
@@ -422,7 +422,7 @@ describe("logreq with test commands", () => {
 
   it("prints exactly the command output with --json", async () => {
     const ws = await workspace({ "test-problems.json": JSON.stringify(problems) });
-    const result = await logreq(["workspace", "check", "--json"], { cwd: ws.root, testCommands: true });
+    const result = await reqseq(["workspace", "check", "--json"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(1);
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({ ok: false, problems, checkedElements: 0 });
@@ -436,7 +436,7 @@ describe("logreq with test commands", () => {
       file: `product/file-${String(i)}.md`,
     }));
     const ws = await workspace({ "test-problems.json": JSON.stringify(many) });
-    const result = await logreq(["workspace", "check"], {
+    const result = await reqseq(["workspace", "check"], {
       cwd: ws.root,
       testCommands: true,
       closeStdoutEarly: true,
@@ -448,7 +448,7 @@ describe("logreq with test commands", () => {
 
   it("exits 0 for warnings only", async () => {
     const ws = await workspace({ "test-problems.json": JSON.stringify(problems.slice(1)) });
-    const result = await logreq(["workspace", "check", "--json"], { cwd: ws.root, testCommands: true });
+    const result = await reqseq(["workspace", "check", "--json"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(0);
   });
 
@@ -456,7 +456,7 @@ describe("logreq with test commands", () => {
     const ws = await workspace({
       "input.json": JSON.stringify({ changedFiles: ["c.md"], changedSince: "main" }),
     });
-    const flags = await logreq(
+    const flags = await reqseq(
       [
         "workspace",
         "check",
@@ -480,12 +480,12 @@ describe("logreq with test commands", () => {
       [ws.path("a.md"), "changed since HEAD~1"],
       [ws.path("b.md"), "changed since HEAD~1"],
     ]);
-    const fromFile = await logreq(["workspace", "check", "--input", "@input.json", "--json"], {
+    const fromFile = await reqseq(["workspace", "check", "--input", "@input.json", "--json"], {
       cwd: ws.root,
       testCommands: true,
     });
     expect(files(fromFile)).toEqual([[ws.path("c.md"), "changed since main"]]);
-    const fromStdin = await logreq(["workspace", "check", "--input", "-", "--json"], {
+    const fromStdin = await reqseq(["workspace", "check", "--input", "-", "--json"], {
       cwd: ws.root,
       testCommands: true,
       stdin: JSON.stringify({ changedFiles: ["d.md"] }),
@@ -498,13 +498,13 @@ describe("logreq with test commands", () => {
       "product/deep/x.md": "x",
       "other/logreq-workspace.yaml": "logreq-workspace: 1\n",
     });
-    const nested = await logreq(["workspace", "status", "--json"], {
+    const nested = await reqseq(["workspace", "status", "--json"], {
       cwd: ws.path("product/deep"),
       testCommands: true,
     });
     expect(nested.code).toBe(0);
     expect(JSON.parse(nested.stdout)).toMatchObject({ repositories: [{ path: ws.root }] });
-    const explicit = await logreq(["workspace", "status", "--workspace", "../other", "--json"], {
+    const explicit = await reqseq(["workspace", "status", "--workspace", "../other", "--json"], {
       cwd: ws.path("product"),
       testCommands: true,
     });
@@ -513,13 +513,13 @@ describe("logreq with test commands", () => {
 
   it("exits 2 for command errors, with the error on stderr", async () => {
     const ws = await workspace();
-    const human = await logreq(["element", "get", "SR-46fb54"], { cwd: ws.root, testCommands: true });
+    const human = await reqseq(["element", "get", "SR-46fb54"], { cwd: ws.root, testCommands: true });
     expect(human).toMatchObject({
       code: 2,
       stdout: "",
       stderr: "error element.not-found: No element SR-46fb54\n",
     });
-    const json = await logreq(["element", "get", "SR-46fb54", "--json"], {
+    const json = await reqseq(["element", "get", "SR-46fb54", "--json"], {
       cwd: ws.root,
       testCommands: true,
     });
@@ -529,7 +529,7 @@ describe("logreq with test commands", () => {
       message: "No element SR-46fb54",
       details: { ref: "SR-46fb54" },
     });
-    const invalid = await logreq(["element", "get", "not a ref "], { cwd: ws.root, testCommands: true });
+    const invalid = await reqseq(["element", "get", "not a ref "], { cwd: ws.root, testCommands: true });
     expect(invalid.code).toBe(2);
     expect(invalid.stderr).toMatch(
       /^error input\.invalid: Invalid input for element\.get: <ref> "not a ref " is not a reference /,
@@ -538,7 +538,7 @@ describe("logreq with test commands", () => {
 
   it("exits 3 for internal errors without their original text", async () => {
     const ws = await workspace();
-    const result = await logreq(["metamodel", "get", "--json"], { cwd: ws.root, testCommands: true });
+    const result = await reqseq(["metamodel", "get", "--json"], { cwd: ws.root, testCommands: true });
     expect(result.code).toBe(3);
     expect(result.stdout).toBe("");
     expect(JSON.parse(result.stderr)).toEqual({

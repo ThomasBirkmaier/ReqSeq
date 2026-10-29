@@ -1,7 +1,7 @@
 // The relations of an element in its buffer: one target as a link that opens its element buffer (#416), or
 // with its state when it cannot be opened, and the groups of the relations that are no property (one field
 // per relation kind, incoming ones with an arrow). `element-view.ts` builds the rows and the groups.
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer } from "./buffers.js";
 import type { RelationRow } from "./element-view.js";

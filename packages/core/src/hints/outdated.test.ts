@@ -3,8 +3,8 @@
 // ADR-0004) and references N in its text; requirement B refines A. Every stored version is current.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
@@ -179,7 +179,7 @@ describe("outdated relations and references (SR-025)", () => {
     await changeTargets(ws);
     const workspace = open(ws.root);
     // "Exit-Code ungleich 0" for an outdated relation, a warning: with failOn warning (#304, option 1;
-    // SR-025 AK2 gets a new version after the spec moves into LogReq). By default it is ok.
+    // SR-025 AK2 gets a new version after the spec moves into ReqSeq). By default it is ok.
     const out = await check(workspace, { failOn: "warning" });
     expect(out.ok).toBe(false);
     expect(await check(workspace)).toEqual({ ...out, ok: true });

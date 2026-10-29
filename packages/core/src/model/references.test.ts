@@ -70,7 +70,7 @@ describe("inline references with repository (D-058, decision on #177 (c))", () =
     ]);
   });
 
-  it("gives the references of a text with their lines in the file, and none for a text without logreq links", () => {
+  it("gives the references of a text with their lines in the file, and none for a text without reqseq links", () => {
     expect(
       textReferences("id: x\ntype: y\n", `\nSee [a](logreq:${A}?version=${V}&repository=sensor).\n`),
     ).toEqual([{ id: A, version: V, repository: "sensor", line: 6 }]);

@@ -2,7 +2,7 @@
 // one in the same repository, another repository, a repository that is not on this machine or not in
 // the workspace file, a missing and an ambiguous one. The data of the acceptance criteria:
 // commands/trace/neighbourhood.test.ts.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { metamodelState } from "../metamodel/index.js";
 import { STANDARD_MODEL_TEXT } from "../metamodel/standard-model.js";

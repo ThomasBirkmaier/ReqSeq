@@ -1,5 +1,5 @@
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { CommandError, errorClass } from "../catalog.js";
 import type { CommandName, Problem } from "../catalog.js";

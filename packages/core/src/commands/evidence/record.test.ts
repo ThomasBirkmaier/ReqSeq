@@ -5,8 +5,8 @@
 // packages/cli/test/cross-access.test.ts; the CLI in packages/cli/test/e2e/evidence-record.test.ts.
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";

@@ -1,4 +1,4 @@
-import type { DataExportElement } from "@logreq/core";
+import type { DataExportElement } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { Draft } from "./drafts.js";
 import type { PropertyInfo, PropertyModel } from "./element-view.js";

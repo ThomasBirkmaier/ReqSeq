@@ -37,7 +37,7 @@ export interface CommandRuntimeOptions {
   readonly contracts?: Contracts;
   /**
    * Check every output against the catalog output schema; a mismatch is an `internal` error.
-   * Default: on when the environment has `LOGREQ_VALIDATE_OUTPUT=1` (tests and debug builds).
+   * Default: on when the environment has `REQSEQ_VALIDATE_OUTPUT=1` (tests and debug builds).
    */
   readonly validateOutput?: boolean;
 }
@@ -77,7 +77,7 @@ const toCommandError = (name: string, error: unknown, signal: AbortSignal): Comm
  */
 export function createCommandRuntime(options: CommandRuntimeOptions = {}): CommandRuntime {
   const contracts = options.contracts ?? loadContracts();
-  const validateOutput = options.validateOutput ?? process.env["LOGREQ_VALIDATE_OUTPUT"] === "1";
+  const validateOutput = options.validateOutput ?? process.env["REQSEQ_VALIDATE_OUTPUT"] === "1";
   const registry = new Map<string, AnyCommand>();
   // Write commands that are refused while the workspace is read-only (SR-011 AK3): the catalog
   // entry says so with `whileReadOnly` (ADR-0002 rule 5); read commands have no such field.

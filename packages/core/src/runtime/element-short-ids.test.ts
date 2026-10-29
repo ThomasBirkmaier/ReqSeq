@@ -1,6 +1,6 @@
 // The short ID of the element each problem names, added where outputs leave the runtime (#315).
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, JsonSchema, Problem } from "../catalog.js";
 import { defineTestCommand } from "../catalog.js";
@@ -798,7 +798,7 @@ describe("every command names the short ID of the element of each problem (#315)
     const recursive: Record<string, unknown> = { type: "object" };
     recursive["properties"] = { child: recursive, problems: PROBLEMS };
     const catalog = {
-      "logreq-catalog": 1,
+      "reqseq-catalog": 1,
       commands: [
         {
           name: "test.recursive",
@@ -832,7 +832,7 @@ describe("every command names the short ID of the element of each problem (#315)
 
   it("leaves it out for a command that names an element without having read the store", async () => {
     const catalog = {
-      "logreq-catalog": 1,
+      "reqseq-catalog": 1,
       commands: [
         {
           name: "test.named",

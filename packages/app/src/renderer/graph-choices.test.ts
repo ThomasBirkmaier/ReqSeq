@@ -1,4 +1,4 @@
-import type { MetamodelGetOutput } from "@logreq/core";
+import type { MetamodelGetOutput } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
 import { graphBuffer } from "./buffers.js";

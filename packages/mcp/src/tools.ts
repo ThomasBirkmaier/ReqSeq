@@ -1,8 +1,8 @@
 // The MCP tools of the catalog (ADR-0009): one per command, `group_action`, with the schemas of the catalog.
 // The same rewriting as scripts/contracts/generate.mjs, from the runtime catalog, so a test-only catalog gets
 // its tools too; a test checks that the product catalog gives exactly schemas/generated/mcp-tools.json.
-import type { CatalogEntry, CommandRuntime, Contracts, JsonSchema } from "@logreq/core";
-import { SCHEMA_BASE } from "@logreq/core";
+import type { CatalogEntry, CommandRuntime, Contracts, JsonSchema } from "@reqseq/core";
+import { SCHEMA_BASE } from "@reqseq/core";
 
 export interface McpToolAnnotations {
   readonly readOnlyHint: boolean;

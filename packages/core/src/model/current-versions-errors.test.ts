@@ -2,7 +2,7 @@
 // `file.faulty` from the image lookup and the RangeError of a value without a normal form become
 // entries without a version. Everything else rejects, and a check that failed is not kept for the
 // next caller. The image lookup and the version are replaced by stand-ins that fail on request.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { currentVersions } from "./current-versions.js";

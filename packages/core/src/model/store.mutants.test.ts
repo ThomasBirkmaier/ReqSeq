@@ -2,7 +2,7 @@
 // a file read again that did not parse before and after, with another result, and snapshots of a
 // write that differ from the store's in one field only.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";

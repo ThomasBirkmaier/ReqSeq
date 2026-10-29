@@ -2,7 +2,7 @@
 // and booleans converted when they look like one, local paths made absolute); core validates the result.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { CommandError } from "@logreq/core";
+import { CommandError } from "@reqseq/core";
 import type { InputField, ScalarKind } from "./fields.js";
 import type { Invocation } from "./program.js";
 

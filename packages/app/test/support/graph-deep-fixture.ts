@@ -15,7 +15,7 @@
 // - long links: 4 `based-on` from level 2 to levels -1 and -2;
 // 886 links in all. The types are simplified to needs, decisions and system requirements; the link
 // profile is what costs the layout. Every link stores the current version of its target: the files are
-// written with an old version, and `logreq hint confirm` writes the current ones (SR-027).
+// written with an old version, and `reqseq hint confirm` writes the current ones (SR-027).
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -225,7 +225,7 @@ const fileOf = (root: number, element: Element, links: readonly Link[]): string 
 
 /** Writes the workspace and stores the current versions in its links. */
 export const writeGraphDeepFixture = async (): Promise<GraphDeepFixture> => {
-  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "logreq-graph-deep-fixture-")));
+  const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-graph-deep-fixture-")));
   const folder = path.join(base, "workspace");
   await fs.mkdir(folder);
   await fs.cp(path.join(FIXTURE, "metamodel"), path.join(folder, "metamodel"), { recursive: true });

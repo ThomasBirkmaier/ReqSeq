@@ -3,7 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-/** Dependency fields of a package.json whose `@logreq/*` entries point at workspace packages. */
+/** Dependency fields of a package.json whose `@reqseq/*` entries point at workspace packages. */
 const DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "peerDependencies"];
 
 /** Specs npm cannot install from a tarball or a plain folder. */
@@ -11,7 +11,7 @@ const LOCAL_SPEC = /^(?:workspace|link|file):/;
 
 /**
  * The manifest of a staged package: `version` set, every dependency on a package of this workspace
- * (`scope`, e.g. `@logreq/`) pinned to that version, development fields dropped. Throws when a
+ * (`scope`, e.g. `@reqseq/`) pinned to that version, development fields dropped. Throws when a
  * `workspace:`, `link:` or `file:` spec is left, which `npm install` refuses (EUNSUPPORTEDPROTOCOL).
  */
 export function stagedManifest(manifest, { version, scope, extra = {} }) {

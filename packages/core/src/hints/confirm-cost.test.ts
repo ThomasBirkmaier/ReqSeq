@@ -2,7 +2,7 @@
 // (spec question #281) is planned again round after round, and only its own files are; the other
 // files of the call are planned once. Counted as calls of the file writer (`editElementFile`), so
 // the check does not depend on the load of the machine.
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import * as files from "../files/index.js";

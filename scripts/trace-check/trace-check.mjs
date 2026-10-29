@@ -3,7 +3,7 @@
 // Usage: node scripts/trace-check/trace-check.mjs [--require SR-001,SR-002] [--stage 1]
 //        [--pr-body <file>] [--enabler] [--report <file>]
 //
-// The spec is the LogReq workspace in spec/ (D-064, #326). A system requirement is an element file of
+// The spec is the ReqSeq workspace in spec/ (D-064, #326). A system requirement is an element file of
 // type `system-requirement`, found anywhere below spec/ by its frontmatter (ADR-0004); its spec ID
 // (SR-036) is the property with the meaning `identifier` of the metamodel in spec/metamodel/. A
 // stage is the package whose identifier is `Stufe-<n>` (or the identifier given, e.g. `Querschnitt`);
@@ -51,7 +51,7 @@ function markdownFiles(dir) {
 
 /** The metamodel facts trace-check needs: the identifier key and the invalid statuses. */
 /**
- * The metamodel folder the workspace file names (`metamodel: { repository, path }`), resolved like LogReq
+ * The metamodel folder the workspace file names (`metamodel: { repository, path }`), resolved like ReqSeq
  * does: the main repository is the folder of the workspace file, another one lies at its `path`
  * (default `../<name>`) relative to it.
  */

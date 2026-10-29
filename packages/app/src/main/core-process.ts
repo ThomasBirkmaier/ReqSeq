@@ -1,5 +1,5 @@
 // The main process's side of the core process (ADR-0010): starts it for the open workspace, hands each
-// window load a port to it, relays `logreq-file:` requests, starts it again when it stops unexpectedly,
+// window load a port to it, relays `reqseq-file:` requests, starts it again when it stops unexpectedly,
 // and stops it before another workspace opens or the app quits. It knows no command.
 import type { CoreRequest, FileAnswer, WorkspaceChangeReason, WorkspaceMessage } from "../shared/protocol.js";
 import { WORKSPACE_CHANNEL, coreMessage } from "../shared/protocol.js";
@@ -108,7 +108,7 @@ export class CoreProcess {
     this.#send(undefined);
   }
 
-  /** A file of the workspace for `logreq-file:`; not found without a core process. */
+  /** A file of the workspace for `reqseq-file:`; not found without a core process. */
   file(url: string): Promise<FileAnswer> {
     const running = this.#running;
     if (running === undefined) {

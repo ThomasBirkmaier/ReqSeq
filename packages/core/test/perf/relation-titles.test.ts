@@ -5,8 +5,8 @@
 // of the written file, not with their square). The whole save is recorded next to a save of the
 // same file with every title current. Correctness is asserted as usual.
 import fs from "node:fs";
-import type { FixtureWorkspace } from "@logreq/testkit";
-import { createFixtureWorkspace, measure } from "@logreq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, measure } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { editElementFile } from "../../src/files/index.js";

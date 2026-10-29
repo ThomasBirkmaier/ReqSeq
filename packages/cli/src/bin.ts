@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The `logreq` binary (package.json "bin"). Everything it does is in runCli (main.ts) and connectProcess.
+// The `reqseq` binary (package.json "bin"). Everything it does is in runCli (main.ts) and connectProcess.
 import { EXIT, runCli } from "./main.js";
 import { connectProcess } from "./process.js";
 

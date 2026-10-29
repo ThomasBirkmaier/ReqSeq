@@ -2,8 +2,8 @@
 // mapping per case, git's own answers through `vi.mock` of the reader (as workspace/status.test.ts
 // does), the others on real folders.
 import fs from "node:fs";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import * as reader from "../git/reader.js";
 import { repositoryCommit } from "./repository-commit.js";

@@ -4,8 +4,8 @@
 // change of a text property and of a relation-valued property (`packages`, a new target gets its
 // current version) are recorded with `measure`. SR-071 names no time, so nothing is asserted against
 // a threshold (N-036 is the basis); correctness is asserted as usual.
-import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@logreq/testkit";
-import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@logreq/testkit";
+import type { GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
+import { generateLargeWorkspace, measure, writeLargeWorkspace } from "@reqseq/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CommandOutput } from "../../src/catalog.js";
 import { getCommandRuntime, invoke } from "../../src/runtime/invoke.js";

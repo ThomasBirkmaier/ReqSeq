@@ -1,4 +1,4 @@
-// The app's own protocols (ADR-0010): `app:` serves the bundled renderer, `logreq-file:` the images of
+// The app's own protocols (ADR-0010): `app:` serves the bundled renderer, `reqseq-file:` the images of
 // the workspace, which the core process reads (only files inside a repository of the workspace).
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -9,11 +9,11 @@ import { CONTENT_SECURITY_POLICY } from "./security.js";
 /** The schemes the app registers before it is ready: standard and secure, like `https:`. */
 export const APP_SCHEMES = [
   { scheme: "app", privileges: { standard: true, secure: true } },
-  { scheme: "logreq-file", privileges: { standard: true, secure: true } },
+  { scheme: "reqseq-file", privileges: { standard: true, secure: true } },
 ];
 
-/** The host of the bundled renderer; the origin of the window is `app://logreq`. */
-export const RENDERER_HOST = "logreq";
+/** The host of the bundled renderer; the origin of the window is `app://reqseq`. */
+export const RENDERER_HOST = "reqseq";
 export const RENDERER_URL = `app://${RENDERER_HOST}/index.html`;
 
 /** Media types of the bundled renderer's files; any other file is not served. */
@@ -54,7 +54,7 @@ export const rendererFiles =
   };
 
 /**
- * The `logreq-file:` handler: asks the core process for the file. An image is never a document, so
+ * The `reqseq-file:` handler: asks the core process for the file. An image is never a document, so
  * even an SVG opened on its own runs no script.
  */
 export const workspaceFiles =

@@ -2,8 +2,8 @@
 // Beta (A1 at V1), Release 1.0 (A1 at V1, A2 at V2), Release 1.1 (A1 at V2, A2 at V2) and a README
 // in the default folder `baselines`. What evidence.list makes of it: commands/evidence/list.test.ts.
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
-import type { FixtureOptions } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
+import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";

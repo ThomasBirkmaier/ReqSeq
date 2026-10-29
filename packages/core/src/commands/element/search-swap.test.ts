@@ -4,7 +4,7 @@
 // right after `resolveSelection`, the only place where it can fall between the two (query/index.js
 // is wrapped for this file only).
 import fs from "node:fs/promises";
-import { createFixtureWorkspace } from "@logreq/testkit";
+import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../../catalog.js";
 import type * as Query from "../../query/index.js";

@@ -6,7 +6,7 @@
 // What it reads: start, end and empty tags with attributes, text, CDATA sections, comments,
 // processing instructions, the five predefined entities and numeric character references. UTF-8
 // only, with or without a byte order mark. A `<!DOCTYPE` and any other entity are refused: no entity
-// expansion and no external reference is ever followed, so no file can make LogReq open a network
+// expansion and no external reference is ever followed, so no file can make ReqSeq open a network
 // connection or read another file (offline, XXE safe). The scan is iterative (an explicit stack), so
 // deep nesting cannot overflow the call stack, and linear in the size of the file, also for hostile
 // input (one tag with many attributes, long texts). Refusal messages quote at most a few characters
