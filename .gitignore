@@ -17,3 +17,7 @@ __pycache__/
 # Staged delivery and built artifacts (scripts/package/stage.mjs, electron-builder; #324)
 /build/package/
 /delivery/
+
+# User documentation site (ADR-0017): the content folder the generator fills, and Astro's cache
+packages/docs/site/src/content/docs/
+packages/docs/site/.astro/

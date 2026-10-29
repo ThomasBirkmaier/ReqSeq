@@ -1,0 +1,19 @@
+// The user documentation site (ADR-0017). Nothing here loads from the network: no web fonts, no CDN, no analytics.
+import starlight from "@astrojs/starlight";
+import { defineConfig } from "astro/config";
+import starlightLinksValidator from "starlight-links-validator";
+
+export default defineConfig({
+  site: "https://thomasbirkmaier.github.io",
+  // `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
+  base: process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq",
+  integrations: [
+    starlight({
+      title: "ReqSeq",
+      description: "User documentation of ReqSeq.",
+      customCss: ["./src/styles/theme.css"],
+      // A dead internal link fails the build.
+      plugins: [starlightLinksValidator()],
+    }),
+  ],
+});

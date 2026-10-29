@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "tsc -b packages/testkit packages/core packages/core/test packages/cli packages/cli/test packages/api packages/mcp packages/app packages/app/test",
+    "typecheck": "tsc -b packages/testkit packages/docs packages/core packages/core/test packages/cli packages/cli/test packages/api packages/mcp packages/app packages/app/test",
     "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,7 +27,11 @@
     "test:perf": "node -e \"const fs = require('node:fs'); for (const f of ['test-results/perf.jsonl', 'test-results/junit-perf.xml']) fs.rmSync(f, { force: true })\" && vitest run --config vitest.perf.config.ts",
     "perf:report": "node scripts/perf/report.mjs",
     "reqseq": "node packages/cli/dist/bin.js",
-    "spec:check": "node packages/cli/dist/bin.js workspace check --workspace spec"
+    "spec:check": "node packages/cli/dist/bin.js workspace check --workspace spec",
+    "docs:generate": "pnpm --filter \"@reqseq/docs...\" build && node packages/docs/dist/bin.js",
+    "docs:install": "pnpm install --dir packages/docs/site --ignore-workspace --frozen-lockfile --ignore-scripts",
+    "docs:build": "pnpm docs:generate && pnpm docs:install && node packages/docs/site/run.mjs build",
+    "docs:dev": "pnpm docs:generate && node packages/docs/site/run.mjs dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

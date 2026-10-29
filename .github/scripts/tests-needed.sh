@@ -6,7 +6,8 @@
 # script, so a pull request cannot classify itself with a changed copy.
 #
 # Safe paths, checked against the tests and scripts:
-# - docs/**          ADRs and architecture: read by people and agents only.
+# - docs/**          ADRs and architecture: read by people and agents only; not docs/guide/ (the user
+#                     documentation, built by `checks`, ADR-0017).
 # - .claude/**       agent rules and skills.
 # - verification/**  records: read by trace-check only (the Electron screenshots go to test-results/).
 # - toolchain/**/*.md, except anything below toolchain/junit/ (read by the e2e test
@@ -28,6 +29,8 @@ while IFS= read -r path || [ -n "$path" ]; do
   case "$path" in
     # First: `case` takes the first arm that matches, and the next arm would take toolchain/junit/*.md.
     toolchain/junit/*) needed=true ;;
+    # The user documentation's pages: the docs steps of `checks` build them (ADR-0017).
+    docs/guide/*) needed=true ;;
     docs/* | .claude/* | verification/* | toolchain/*.md) ;;
     */*) needed=true ;;
     *.md) ;;

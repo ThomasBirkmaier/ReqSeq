@@ -1,0 +1,16 @@
+{
+  "name": "docs-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Starlight site of the user documentation (ADR-0017): outside the pnpm workspace, with its own lockfile, so only the docs step and the Pages workflow install it.",
+  "type": "module",
+  "scripts": {
+    "build": "node run.mjs build",
+    "dev": "node run.mjs dev"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "0.42.6",
+    "astro": "7.3.8",
+    "starlight-links-validator": "0.27.0"
+  }
+}
