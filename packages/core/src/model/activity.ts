@@ -440,7 +440,8 @@ class ActivityWatcher implements ActivityWatch {
   #closed = false;
   /** The `(process, seq)` of the last file seen; the file at start is the baseline, never reported. */
   #seen: string | undefined;
-  #reading = false;
+  /** The read that runs (`#read`), until it saw no new event. */
+  #reading: Promise<void> | undefined;
   #again = false;
   /** The latest access that is not reported yet, with the timer that reports it at the latest. */
   #held: Held | undefined;
@@ -517,25 +518,31 @@ class ActivityWatcher implements ActivityWatch {
     this.#drop();
   }
 
-  async #read(): Promise<void> {
-    if (this.#reading) {
+  /**
+   * Reads the file and takes a new access in it. A call while a read runs makes that read read again;
+   * either way the promise resolves once the file was read after this call.
+   */
+  #read(): Promise<void> {
+    if (this.#reading !== undefined) {
       this.#again = true;
-      return;
+      return this.#reading;
     }
-    this.#reading = true;
     this.#again = false;
-    try {
-      do {
-        const file = await readActivity(this.#folder);
-        const key = keyOf(file);
-        if (file !== undefined && key !== this.#seen && !this.#closed) {
-          this.#seen = key;
-          await this.#arrive(file);
-        }
-      } while (this.#takeAgain());
-    } finally {
-      this.#reading = false;
-    }
+    this.#reading = (async (): Promise<void> => {
+      try {
+        do {
+          const file = await readActivity(this.#folder);
+          const key = keyOf(file);
+          if (file !== undefined && key !== this.#seen && !this.#closed) {
+            this.#seen = key;
+            await this.#arrive(file);
+          }
+        } while (this.#takeAgain());
+      } finally {
+        this.#reading = undefined;
+      }
+    })();
+    return this.#reading;
   }
 
   /** Whether an event came while the file was read, and resets it. */
@@ -554,12 +561,22 @@ class ActivityWatcher implements ActivityWatch {
     const held: Held = {
       file,
       timer: setTimeout(() => {
-        this.#release(held);
+        void this.#expire(held);
       }, this.#options.holdMs ?? ACTIVITY_HOLD_MS),
     };
     held.timer.unref();
     this.#held = held;
     await this.#check(held);
+  }
+
+  /**
+   * The hold of `held` ended: the file is read once more before it is reported, because the event of
+   * a newer access can come late or be merged with a later one (macOS FSEvents under load, #304). A
+   * newer access in the file drops `held` and is held in its place; otherwise `held` is reported.
+   */
+  async #expire(held: Held): Promise<void> {
+    await this.#read();
+    this.#release(held);
   }
 
   /** On every watcher batch: the held access is reported once the store holds what it saw. */
@@ -619,7 +636,8 @@ class ActivityWatcher implements ActivityWatch {
  * A new access is reported once the element store of `workspace` holds the element's file with the
  * hash the access saw (after the watcher of `workspace` applied the change; the watcher is started
  * when it is not running), at once when the store is not built, and at the latest `holdMs` after it
- * arrived; a newer access drops a held one. A file that is too large, broken or of another version is
+ * arrived, unless the file then holds a newer access (read once more, for an event that came late);
+ * a newer access drops a held one. A file that is too large, broken or of another version is
  * ignored. A watch that cannot start or fails is logged and ends; there is no polling.
  */
 export const watchActivity = (workspace: Workspace, options: ActivityWatchOptions): ActivityWatch =>
