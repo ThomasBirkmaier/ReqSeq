@@ -1,4 +1,4 @@
-// SR-062 and #697 in the performance suite (ADR-0011): `logreq data store` as a pipeline runs it, a
+// SR-062 and #277 in the performance suite (ADR-0011): `logreq data store` as a pipeline runs it, a
 // new process of the built CLI on the generated workspace of N-036 (50,000 elements, 200,000
 // relations) with the evidence records a project of that size keeps (`withEvidenceRecords`), every
 // repository a Git repository. The data of that state is larger than one string can hold (about
@@ -97,7 +97,7 @@ const edges = async (file: string, length: number): Promise<{ head: string; tail
   }
 };
 
-describe("logreq data store with 50,000 elements and their records (SR-062, N-036, #697)", () => {
+describe("logreq data store with 50,000 elements and their records (SR-062, N-036, #277)", () => {
   let root = "";
   let cleanup: (() => Promise<void>) | undefined;
   let out = "";
@@ -135,7 +135,7 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
       name,
       () => logreq(["data", "store", "--folder", out, "--json"], { cwd: root, env }),
       {
-        basis: "SR-062 AK1, #697 (command line, from process start to exit; recorded, no limit in the spec)",
+        basis: "SR-062 AK1, #277 (command line, from process start to exit; recorded, no limit in the spec)",
       },
     );
     const peak = JSON.parse(await fs.readFile(memoryFile, "utf8")) as PeakMemory;
@@ -155,7 +155,7 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
     const { head, tail } = await edges(file, 17);
     expect(head).toBe('{"logreq-data":1,');
     expect(tail.endsWith("}\n")).toBe(true);
-    const basis = "SR-062 AK1, #697 (recorded)";
+    const basis = "SR-062 AK1, #277 (recorded)";
     await recordValue(
       `logreq data store at N-036: file of ${(size / MB).toFixed(0)} MB; CLI process peak heap in use ${(first.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(first.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(first.peak.maxRss / MB).toFixed(0)} MB`,
       0,
@@ -167,7 +167,8 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
     expect(second.run.stderr).toBe("");
     expect(second.run.code).toBe(0);
     expect((JSON.parse(second.run.stdout) as CommandOutput<"data.store">).files).toEqual([file]);
-    expect((await fs.readdir(out)).filter((name) => name.endsWith(".json"))).toHaveLength(1);
+    // Only the data file: no temporary file is left behind.
+    expect(await fs.readdir(out)).toEqual([path.basename(file)]);
     await recordValue(
       `logreq data store at N-036, replacing: CLI process peak heap in use ${(second.peak.heapUsed / MB).toFixed(0)} MB (sampled), heap reserved ${(second.peak.heapTotal / MB).toFixed(0)} MB, resident memory ${(second.peak.maxRss / MB).toFixed(0)} MB`,
       0,
@@ -192,12 +193,12 @@ describe("logreq data store with 50,000 elements and their records (SR-062, N-03
           }
           return { chunks, largest, length };
         },
-        { basis: "#697 (recorded)" },
+        { basis: "#277 (recorded)" },
       );
       await recordValue(
         `jsonChunks of the data.export of the whole workspace: ${String(result.chunks)} chunks, largest ${(result.largest / MB).toFixed(2)} M code units, ${(result.length / MB).toFixed(0)} M code units in all`,
         0,
-        { basis: "#697 (recorded)" },
+        { basis: "#277 (recorded)" },
       );
       expect(result.chunks).toBeGreaterThan(1);
       expect(result.largest).toBeLessThan(4 * 1024 * 1024);

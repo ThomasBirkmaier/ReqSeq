@@ -1,5 +1,5 @@
 // The `files` block (ADR-0007): reading and writing element and YAML files, scanning XML files
-// (ADR-0012), and JSON text larger than one string (`jsonChunks`, #697). The only module that writes
+// (ADR-0012), and JSON text larger than one string (`jsonChunks`, #277). The only module that writes
 // to disk. Core blocks import it relatively; it is not part of the package's public API, except
 // `isTempFile` and the JSON text functions the adapters stream with (`src/index.ts`).
 export { findConflictMarker } from "./conflict-markers.js";

@@ -412,7 +412,7 @@ describe("writeFileAtomic: review findings", () => {
   });
 });
 
-describe("writeFileAtomic: chunk content (#697)", () => {
+describe("writeFileAtomic: chunk content (#277)", () => {
   const CHUNKS = ["---\nid: a\n", Buffer.from("title: Grüße 😀\n", "utf8"), "---\n", "", "text\n"];
   const WHOLE = "---\nid: a\ntitle: Grüße 😀\n---\ntext\n";
 
@@ -481,7 +481,11 @@ describe("writeFileAtomic: chunk content (#697)", () => {
       yield "---\n";
       throw new Error("no more");
     };
-    await expect(writeFileAtomic(root, "n.md", failing, null)).rejects.toMatchObject({ code: "internal" });
+    await expect(writeFileAtomic(root, "n.md", failing, null)).rejects.toMatchObject({
+      code: "internal",
+      message: "Not written: n.md (its content could not be produced)",
+      cause: expect.objectContaining({ message: "no more" }) as unknown,
+    });
     expect(await fs.readdir(root)).toEqual(["a.md"]);
   });
 

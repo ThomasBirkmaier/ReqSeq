@@ -1,4 +1,4 @@
-// JSON text larger than one string (#697). V8 holds at most about 512 MB in one string, so an output
+// JSON text larger than one string (#277). V8 holds at most about 512 MB in one string, so an output
 // such as `data.export` at N-036 cannot go through one `JSON.stringify`. `jsonChunks` gives exactly
 // the text of `JSON.stringify(value, null, indent || undefined)` in pieces of about one chunk.
 //
@@ -8,7 +8,8 @@
 // the output some levels down). The extra work is the measuring: about one chunk for every walked
 // node, plus one measuring pass over each subtree handed to the native call. The rules are those of
 // `JSON.stringify`: `toJSON(key)` at every walked level (the native call does it below; inside a
-// subtree handed to it, `toJSON` runs twice, once for the measuring), keys by
+// subtree handed to it, `toJSON`, getters and Proxy traps run twice, once for the measuring; the
+// text is that of the one native call), keys by
 // `Object.keys`, `undefined`, functions and symbols left out of objects and `null` in arrays, number,
 // string and boolean objects unwrapped, a BigInt and a circular structure a `TypeError`. A top-level
 // value that gives no text (`undefined`) gives no chunk; what to print then is the caller's. Pieces
@@ -223,6 +224,10 @@ export function* jsonChunks(value: unknown, options: JsonChunkOptions): Generato
       // returned such an object) is walked instead, since the native call would call it once more.
       push(native(v, pad));
     } else {
+      // A toJSON that returns its own object again ends here, not in a stack overflow.
+      if (stack.has(v)) {
+        throw circular();
+      }
       stack.add(v);
       if (Array.isArray(v)) {
         yield* emitArray(v as readonly unknown[], pad);

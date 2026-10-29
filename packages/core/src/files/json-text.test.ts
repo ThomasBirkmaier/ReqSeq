@@ -1,4 +1,4 @@
-// jsonChunks and jsonByteLength (#697): the joined chunks are exactly JSON.stringify's text, for
+// jsonChunks and jsonByteLength (#277): the joined chunks are exactly JSON.stringify's text, for
 // indent 0 and 2, on command outputs of the fixtures and on seeded random values; the pieces stay
 // near the chunk length on any shape (review B3); toJSON gets the key at walked levels (N1).
 import { createFixtureWorkspace } from "@logreq/testkit";
@@ -104,7 +104,7 @@ const randomValue = (random: () => number, depth: number): unknown => {
   }
 };
 
-describe("jsonChunks: the text of JSON.stringify in pieces (#697)", () => {
+describe("jsonChunks: the text of JSON.stringify in pieces (#277)", () => {
   it("joins to JSON.stringify for indent 0 and 2 on seeded random values and every chunk length", () => {
     const random = randomOf(697);
     for (let run = 0; run < 400; run += 1) {
@@ -180,6 +180,13 @@ describe("jsonChunks: the text of JSON.stringify in pieces (#697)", () => {
     (loop["a"] as unknown[]).push({ back: loop });
     expect(() => [...jsonChunks(loop, { indent: 2, chunkLength: 1 })]).toThrow(TypeError);
     expect(() => [...jsonChunks(loop, { indent: 2 })]).toThrow(TypeError);
+    const own: Record<string, unknown> = { a: 1 };
+    own["toJSON"] = () => own;
+    own["self"] = own;
+    expect(() => JSON.stringify(own)).toThrow(TypeError);
+    for (const chunkLength of [1, JSON_CHUNK_LENGTH]) {
+      expect(() => [...jsonChunks(own, { indent: 0, chunkLength })]).toThrow(TypeError);
+    }
   });
 
   it("calls toJSON with the key at the levels it walks (review N1)", () => {
@@ -235,7 +242,7 @@ describe("jsonChunks: the text of JSON.stringify in pieces (#697)", () => {
   });
 });
 
-describe("jsonByteLength: UTF-8 bytes of JSON.stringify, counted (#697)", () => {
+describe("jsonByteLength: UTF-8 bytes of JSON.stringify, counted (#277)", () => {
   it("equals Buffer.byteLength of JSON.stringify on seeded random values", () => {
     const random = randomOf(36);
     for (let run = 0; run < 400; run += 1) {

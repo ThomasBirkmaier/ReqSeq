@@ -1,4 +1,4 @@
-// jsonDataKind (#697, review B1, N3, S9): parsed whole up to the bound, above it the frame of a
+// jsonDataKind (#277, review B1, N3, S9; code review S2): parsed whole up to the bound, above it the frame of a
 // LogReq data file. The unit tests take a small bound; the 64 MiB constant is tested once.
 import { describe, expect, it } from "vitest";
 import { JSON_FULL_PARSE_BYTES, jsonDataKind } from "./json-data.js";
@@ -35,13 +35,13 @@ describe("jsonDataKind: whether a JSON file is a LogReq data file", () => {
 
   it("checks only the frame above the bound: start, end and the UTF-8 of the first and last MiB", () => {
     const large = framed(3 * MIB);
-    // Not JSON at all between the frame, yet framed: the assumption of #697.
+    // Not JSON at all between the frame, yet framed: the assumption of #277.
     const notJson = withBytes(large, MIB + 10, [0x22, 0x7b]);
     expect(jsonDataKind(large, 1000)).toBe("data");
     expect(jsonDataKind(notJson, 1000)).toBe("data");
     expect(jsonDataKind(notJson, 4 * MIB)).toBe("faulty");
     expect(jsonDataKind(withBytes(large, 0, [0x5b]), 1000)).toBe("unchecked");
-    expect(jsonDataKind(withBytes(large, large.length - 1, [0x7d]), 1000)).toBe("unchecked");
+    expect(jsonDataKind(withBytes(large, large.length - 1, [0x78]), 1000)).toBe("unchecked");
     expect(jsonDataKind(withBytes(large, large.length - 2, [0x5d]), 1000)).toBe("unchecked");
     expect(jsonDataKind(bytes('{"logreq-data":1}\n'), 10)).toBe("unchecked");
     // Invalid UTF-8 in the first and in the last MiB; in the middle it is not read.
@@ -51,6 +51,30 @@ describe("jsonDataKind: whether a JSON file is a LogReq data file", () => {
     // A file shorter than two edges is read once from each end.
     expect(jsonDataKind(framed(100), 50)).toBe("data");
     expect(jsonDataKind(withBytes(framed(100), 50, [0xff]), 50)).toBe("unchecked");
+  });
+
+  it("accepts a byte order mark and JSON whitespace in the frame, as the parse below the bound does (code review S2)", () => {
+    const body = (start: string, end: string): Buffer => bytes(`${start}"x":"${"a".repeat(2 * MIB)}"${end}`);
+    const layouts: readonly (readonly [string, string, string])[] = [
+      ["CRLF (a checkout with autocrlf)", '{"logreq-data":1,\r\n', "}\r\n"],
+      ["indent 2 (data export --json)", '{\n  "logreq-data": 1,\n  ', "\n}\n"],
+      ["byte order mark", '\ufeff{"logreq-data":1,', "}\n"],
+      ["spaces and tabs between every token, no final line break", ' \t{ "logreq-data" \t:\r\n 1 , ', " }"],
+    ];
+    for (const [name, start, end] of layouts) {
+      const file = body(start, end);
+      expect([name, jsonDataKind(file, 1000)]).toEqual([name, "data"]);
+      expect([name, jsonDataKind(file, 4 * MIB)]).toEqual([name, "data"]);
+    }
+    for (const [name, start] of [
+      ["another value", '{"logreq-data":10,'],
+      ["no comma", '{"logreq-data":1 "x":1,'],
+      ["two byte order marks", '\ufeff\ufeff{"logreq-data":1,'],
+      ["another key first", '{"x":1,"logreq-data":1,'],
+    ] as const) {
+      expect([name, jsonDataKind(body(start, "}\n"), 1000)]).toEqual([name, "unchecked"]);
+    }
+    expect(jsonDataKind(body('{"logreq-data":1,', "}\n,"), 1000)).toBe("unchecked");
   });
 
   it("cuts the edges at a code-point boundary: a character across a MiB edge is valid (review N3)", () => {

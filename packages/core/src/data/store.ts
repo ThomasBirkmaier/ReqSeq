@@ -19,11 +19,11 @@
 //   - outside every repository the folder must exist (`file.folder-missing`) and must not lie in a
 //     `.git` folder (`refuseGit`);
 //   - an existing file of the name is replaced only when it is a LogReq data file (`"logreq-data": 1`;
-//     above 64 MiB the frame LogReq writes, `jsonDataKind` of the files block, #697), under its
+//     above 64 MiB the frame of a data file, `jsonDataKind` of the files block, #277), under its
 //     snapshot and the `json` guard, which checks the same way; anything else is `input.invalid` and
 //     stays as it is.
 // - The content is compact JSON with a line break, UTF-8 without BOM, `logreq-data` first (K5). It is
-//   written in chunks (`jsonChunks`), never as one string, which V8 cannot hold at N-036 (#697).
+//   written in chunks (`jsonChunks`), never as one string, which V8 cannot hold at N-036 (#277).
 // - `files` is relative to the workspace root when the file lies in a repository, else absolute.
 // - No status is read for writing or written (D-030), Git is only read (D-036), nothing is deleted
 //   (D-045); the replaced file is a data file, never an element.
@@ -55,7 +55,7 @@ export const dataFileName = (commit: string, clean: boolean): string =>
 
 /**
  * Whether `bytes` are a LogReq data file: UTF-8 JSON of an object with `"logreq-data": 1`; above
- * `fullParseUpTo` bytes (default 64 MiB) the frame LogReq writes (`jsonDataKind` of the files block).
+ * `fullParseUpTo` bytes (default 64 MiB) the frame of a data file (`jsonDataKind` of the files block).
  */
 export const isDataFile = (bytes: Uint8Array, fullParseUpTo: number = JSON_FULL_PARSE_BYTES): boolean =>
   jsonDataKind(bytes, fullParseUpTo) === "data";

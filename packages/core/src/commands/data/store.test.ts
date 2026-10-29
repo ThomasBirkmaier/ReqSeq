@@ -742,14 +742,17 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
   });
 });
 
-describe("data.store: a file larger than one string (#697)", () => {
+describe("data.store: a file larger than one string (#277)", () => {
   it("[SR-062/AK1] writes the bytes of JSON.stringify and a line break, in chunks given lazily (review S6)", async () => {
     const ws = await fixture(EXPORT);
     const commit = await ws.head("system");
     vi.mocked(files.writeFileAtomic).mockClear();
+    vi.mocked(exportModule.exportDataWithProblems).mockClear();
     await storeIn(ws.path("system"), { folder: "out" });
     const text = fs.readFileSync(ws.path(`system/out/${commit}.json`), "utf8");
-    expect(text).toBe(`${JSON.stringify(JSON.parse(text))}\n`);
+    const built = (await vi.mocked(exportModule.exportDataWithProblems).mock.results[0]
+      ?.value) as exportModule.ExportWithProblems;
+    expect(text).toBe(`${JSON.stringify(built.data)}\n`);
     const content = vi.mocked(files.writeFileAtomic).mock.calls[0]?.[2];
     expect(typeof content).toBe("function");
   });

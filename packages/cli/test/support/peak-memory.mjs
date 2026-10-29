@@ -1,4 +1,4 @@
-// Preload for a spawned CLI of the performance suite (#697, review S6): when LOGREQ_PEAK_MEMORY names
+// Preload for a spawned CLI of the performance suite (#277, review S6): when LOGREQ_PEAK_MEMORY names
 // a file, samples heap in use and heap reserved every 10 ms while the process runs and writes the
 // peaks and the peak resident memory (`maxRSS`, exact) there as JSON when the process exits. A
 // synchronous stretch is sampled only when it returns to the event loop, so the heap peaks are lower

@@ -11,7 +11,7 @@
 // the content is written a second time (so chunk content is a function giving a new iterable).
 //
 // Content is a string (UTF-8), bytes, or chunks: a function that gives an iterable of strings and
-// bytes, called once per pass, for a text larger than one string (`jsonChunks`, #697). Chunks are
+// bytes, called once per pass, for a text larger than one string (`jsonChunks`, #277). Chunks are
 // written one by one, hashed and counted as they go, so the snapshot is that of the whole file.
 //
 // After a rename or link the folder is fsynced, best effort (Windows cannot open folders).
@@ -55,9 +55,9 @@ export interface WriteOptions {
  */
 export type FileContent = string | Uint8Array | (() => Iterable<string | Uint8Array>);
 
-/** Content as chunks; a string is checked first, since a string is itself iterable. */
+/** Content as chunks; a string or bytes are one chunk (a string is never iterated by character). */
 const chunksOf = (content: FileContent): (() => Iterable<string | Uint8Array>) =>
-  typeof content === "string" || content instanceof Uint8Array ? () => [content] : content;
+  typeof content === "function" ? content : () => [content];
 
 /** What a pass wrote. */
 interface Written {
@@ -117,7 +117,19 @@ const toCommandError = (error: unknown, file: string, replacing: boolean): Comma
   if (error instanceof CommandError) {
     return error;
   }
-  const code = String(errorCode(error));
+  const code = errorCode(error);
+  if (code === undefined) {
+    // No file system error: the content itself failed (a chunk function that threw, such as a
+    // serialiser on a value JSON cannot hold). Its text stays in `cause`.
+    return new CommandError(
+      "internal",
+      `Not written: ${file} (its content could not be produced)`,
+      undefined,
+      {
+        cause: error,
+      },
+    );
+  }
   if (code !== "ENOENT") {
     return new CommandError("internal", `Not written: ${file} (${code})`);
   }
