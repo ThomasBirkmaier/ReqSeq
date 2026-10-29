@@ -46,13 +46,13 @@ Open an [issue](https://github.com/ThomasBirkmaier/ReqSeq/issues) with the versi
 
 ## Data and privacy
 
-ReqSeq works on your files only. It opens no network connections and sends no telemetry; the local API listens on loopback only. It reads Git and never writes to it.
+ReqSeq works on your files only. It opens no network connections and sends no telemetry; the local API listens on loopback only.
 
 ## Development
 
 This repository is built almost entirely by Claude agents, against its own specification in `spec/`. The rules they follow are in [CLAUDE.md](CLAUDE.md), the architecture in [docs/architecture/](docs/architecture/README.md) and the decisions on how to build it in [docs/adr/](docs/adr/).
 
-Build and test with Node 22 and pnpm: `pnpm install`, `pnpm build`, `pnpm test`. The checks a pull request must pass are in [.claude/skills/verify/SKILL.md](.claude/skills/verify/SKILL.md).
+Build and test with Node 22.12 or later and pnpm: `pnpm install`, `pnpm build`, `pnpm test`. The checks a pull request must pass are in [.claude/skills/verify/SKILL.md](.claude/skills/verify/SKILL.md).
 
 | Folder | Content |
 |---|---|
@@ -62,7 +62,7 @@ Build and test with Node 22 and pnpm: `pnpm install`, `pnpm build`, `pnpm test`.
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
 | `packages/` | `core`, `cli`, `api`, `mcp`, `app`, `docs` (the documentation site) |
 | `verification/` | Records for analysis, inspection and demonstration |
-| `toolchain/` | Examples and integration tests for the tools around ReqSeq (Git server, CI, Grafana, Pandoc, ...); `toolchain/junit/` connects a test tool that writes JUnit XML (SR-063) |
+| `toolchain/` | `junit/` connects a test tool that writes JUnit XML (SR-063); `packaging/` builds the release archives |
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `sr-issues`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 

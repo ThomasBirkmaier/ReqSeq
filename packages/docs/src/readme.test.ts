@@ -22,7 +22,7 @@ describe("README", () => {
     expect(firstParagraph(await read("README.md"))).toBe(sentence);
   });
 
-  it("has the commands of Get started as its quick start, which run there", async () => {
+  it("has the commands of Get started as its quick start", async () => {
     const steps = async (path: string): Promise<(readonly string[])[]> =>
       pageSteps({ path, text: await read(path) }).map((step) => step.argv);
     const readme = await steps("README.md");
