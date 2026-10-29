@@ -57,6 +57,29 @@ describe("connectProcess", () => {
     expect(proc.exitCode).toBe(3);
   });
 
+  it("also treats ECONNRESET as the reader gone, as macOS reports a closed socket pair (#304)", () => {
+    const proc = new FakeProcess();
+    const io = connectProcess(proc);
+    proc.stdout.emit("error", errno("ECONNRESET"));
+    expect(io.stdout.write("dropped")).toBe(false);
+    expect(proc.stderr.written).toEqual([]);
+    expect(io.writeFailed).toBe(false);
+    expect(proc.exitCode).toBeUndefined();
+  });
+
+  it("says on stderr why stdout failed, by code or else by message", () => {
+    const proc = new FakeProcess();
+    const io = connectProcess(proc);
+    proc.stdout.emit("error", errno("EIO"));
+    proc.stdout.emit("error", new Error("odd"));
+    expect(proc.stderr.written).toEqual([
+      "Writing the output failed: EIO\n",
+      "Writing the output failed: odd\n",
+    ]);
+    expect(io.writeFailed).toBe(true);
+    expect(proc.exitCode).toBe(3);
+  });
+
   it("passes back-pressure on: drained waits for drain, and answers false once the stream failed (#277)", async () => {
     const proc = new FakeProcess();
     const io = connectProcess(proc);

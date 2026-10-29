@@ -386,21 +386,42 @@ describe("writeFileAtomic: review findings", () => {
     expect(await text("bad.xml")).toBe("<testsuites>");
   });
 
-  it("replaces a JSON file that still parses, and refuses one that does not (SR-062)", async () => {
-    await put("d.json", "{}");
-    await writeFileAtomic(root, "d.json", '{"a":1}', await forge("d.json"), { kind: "json" });
-    expect(await text("d.json")).toBe('{"a":1}');
-    await put("bad.json", "{");
+  it("replaces a ReqSeq data file in JSON Lines, also a cut one, and refuses any other (SR-062, #319)", async () => {
+    const line = '{"reqseq-data":2,"dirty":false,"id":"a"}\n';
+    await put("d.jsonl", `${line}{"reqseq-data":2,"id":"b","t":"Grö`);
+    await writeFileAtomic(root, "d.jsonl", () => [line, line], await forge("d.jsonl"), { kind: "jsonl" });
+    expect(await text("d.jsonl")).toBe(line + line);
+    for (const [name, content] of [
+      ["old.jsonl", '{"reqseq-data":1}\n'],
+      ["other.jsonl", '{"a":1}\n'],
+    ] as const) {
+      await put(name, content);
+      await expect(
+        writeFileAtomic(root, name, line, await forge(name), { kind: "jsonl" }),
+      ).rejects.toMatchObject({
+        code: "file.faulty",
+        message: expect.stringContaining("is not a ReqSeq data file") as string,
+      });
+      expect(await text(name)).toBe(content);
+    }
+    await fs.writeFile(
+      abs("latin.jsonl"),
+      Buffer.concat([Buffer.from(line), Buffer.from([0x22, 0xe4, 0x22, 0x0a])]),
+    );
     await expect(
-      writeFileAtomic(root, "bad.json", "{}", await forge("bad.json"), { kind: "json" }),
-    ).rejects.toMatchObject({
-      code: "file.faulty",
-      message: expect.stringContaining("is no readable JSON") as string,
-    });
-    await fs.writeFile(abs("latin.json"), Buffer.from([0x22, 0xe4, 0x22]));
-    await expect(
-      writeFileAtomic(root, "latin.json", "{}", await forge("latin.json"), { kind: "json" }),
+      writeFileAtomic(root, "latin.jsonl", line, await forge("latin.jsonl"), { kind: "jsonl" }),
     ).rejects.toMatchObject({ code: "file.faulty" });
+    // The hash is that of the whole file, read in pieces: a change after the snapshot is seen.
+    await put("e.jsonl", line);
+    const snapshot = await forge("e.jsonl");
+    await put("e.jsonl", line + line);
+    await expect(writeFileAtomic(root, "e.jsonl", line, snapshot, { kind: "jsonl" })).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
+    await fs.rm(abs("e.jsonl"));
+    await expect(writeFileAtomic(root, "e.jsonl", line, snapshot, { kind: "jsonl" })).rejects.toMatchObject({
+      code: "file.changed-on-disk",
+    });
   });
 
   it("[SR-008/AK3] refuses to replace a faulty YAML file", async () => {
@@ -487,38 +508,6 @@ describe("writeFileAtomic: chunk content (#277)", () => {
       cause: expect.objectContaining({ message: "no more" }) as unknown,
     });
     expect(await fs.readdir(root)).toEqual(["a.md"]);
-  });
-
-  it("replaces a JSON file over the bound that has the frame of a data file, and refuses one without (review B1)", async () => {
-    // Not JSON between the frame: above the bound it is not parsed.
-    const large = `{"reqseq-data":2,"x":"${"a".repeat(200)}"{}\n`;
-    await put("d.json", large);
-    const options = { kind: "json", fullParseUpTo: 100 } as const;
-    await writeFileAtomic(
-      root,
-      "d.json",
-      () => ['{"reqseq-data":2,', '"y":2}', "\n"],
-      await forge("d.json"),
-      options,
-    );
-    expect(await text("d.json")).toBe('{"reqseq-data":2,"y":2}\n');
-    await put("d.json", large);
-    await expect(
-      writeFileAtomic(root, "d.json", "{}", await forge("d.json"), { kind: "json" }),
-    ).rejects.toMatchObject({
-      code: "file.faulty",
-      message: expect.stringContaining("no readable JSON") as string,
-    });
-    await put("e.json", `[${"1,".repeat(100)}1]\n`);
-    await expect(writeFileAtomic(root, "e.json", "{}", await forge("e.json"), options)).rejects.toMatchObject(
-      {
-        code: "file.faulty",
-        message: expect.stringContaining(
-          "is larger than 100 bytes and not framed as a ReqSeq data file",
-        ) as string,
-      },
-    );
-    expect(await text("e.json")).toBe(`[${"1,".repeat(100)}1]\n`);
   });
 });
 

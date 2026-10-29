@@ -358,7 +358,7 @@ export type VerificationStatus = "open" | "verified" | "indirect" | "failed" | "
 export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
 
 /**
- * Output of `data.export` and the file `<commit>.json` (or `<commit>-dirty.json`) that `data.store` writes (SR-061, SR-062) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
+ * Output of `data.export` (SR-061) for external evaluation tools such as Grafana or DuckDB (D-008). The JSON Lines form (`data export --jsonl`, the API with `Accept: application/x-ndjson`, and the file `<commit>.jsonl` or `<commit>-dirty.jsonl` that `data.store` writes, SR-062) has one `#/$defs/line` per element instead: the state fields `reqseq-data`, `commit` and `dirty`, then the element. Also defines the element and relation shapes all commands return.
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
@@ -429,7 +429,7 @@ export interface DataExportElement {
 }
 
 /**
- * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`): `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4).
+ * One line of the JSON Lines form of data.export (`data export --jsonl`, the API with `Accept: application/x-ndjson`) and of the file of data.store: `reqseq-data`, `commit` and `dirty` of the state first, as at the top level of the JSON form, then the fields of one element, unchanged (SR-061 AK4, SR-062 AK1).
  * Schema: `schemas/data-export.schema.json#/$defs/line`.
  */
 export interface DataExportLine {
@@ -2522,7 +2522,7 @@ export interface DataExportInput {
 export type DataExportOutput = DataExportFile & Readonly<Record<string, unknown>>;
 
 /**
- * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Input of `data.store` as `run` gets it: validated, properties with a `default` filled in. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store input`.
  */
 export interface DataStoreInput {
@@ -2532,7 +2532,7 @@ export interface DataStoreInput {
 }
 
 /**
- * Output of `data.store`. Write the data of the current state (as data export gives it) to `<commit>.json` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
+ * Output of `data.store`. Write the data of the current state (as data export gives it) as JSON Lines, one element per line, to `<commit>.jsonl` in a folder; `-dirty` with uncommitted ReqSeq files, replaces the file of the same commit; an old `<commit>.json` stays as it is. Many such files load as one table, grouped by `commit` and `dirty`. One folder per selection: the name is the same for every selection. Takes `selection.baseline` as `data export` does.
  * Schema: `schemas/commands/catalog.json data.store output`.
  */
 export interface DataStoreOutput {

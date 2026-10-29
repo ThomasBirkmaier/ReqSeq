@@ -55,7 +55,7 @@ flowchart LR
   gittool --> git
   git <--> gitserver
   testtools -- JUnit XML --> files
-  cli -- JSON per state --> evaltools
+  cli -- JSON Lines per state --> evaltools
   files -- Markdown --> evaltools
   partner <-- ReqIF files --> cli
 ```
@@ -214,7 +214,7 @@ sequenceDiagram
   L-->>P: results.xml with UUID, version, item, date (SR-029)
   P->>P: store results.xml in the evidence location (outside LogReq)
   P->>L: logreq data store --folder out/
-  L-->>P: out/<commit>.json for Grafana (SR-062), <commit>-dirty.json with uncommitted LogReq files
+  L-->>P: out/<commit>.jsonl, one element per line, for Grafana and DuckDB (SR-062), <commit>-dirty.jsonl with uncommitted LogReq files
 ```
 
 ## 7. Deployment
