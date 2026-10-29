@@ -12,39 +12,39 @@ Product owner decision, 2026-10-28, confirmed on a decision card the same day: t
 
 **One portable artifact per system, no installer.** electron-builder builds:
 
-- Windows: a zip of the program folder's contents (`LogReq.exe`, `bin\logreq.cmd`, `resources\` at its top level, no folder around them), x64.
-- macOS: a zip with `LogReq.app`, arm64 (the machines that build and test it are Apple silicon; Intel or universal is one configuration line later).
-- Linux: a tar.gz with one folder (`LogReq`, `bin/logreq`, `chrome-sandbox`, `resources/`), x64 (the Ubuntu 24.04 reference of SR-076).
+- Windows: a zip of the program folder's contents (`ReqSeq.exe`, `bin\reqseq.cmd`, `resources\` at its top level, no folder around them), x64.
+- macOS: a zip with `ReqSeq.app`, arm64 (the machines that build and test it are Apple silicon; Intel or universal is one configuration line later).
+- Linux: a tar.gz with one folder (`ReqSeq`, `bin/reqseq`, `chrome-sandbox`, `resources/`), x64 (the Ubuntu 24.04 reference of SR-076).
 
 Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with bundled dependencies) for pipelines that already have Node 22.
 
-**Names.** Every artifact and launcher name is defined here and, in the build, in one configuration entry of `toolchain/packaging/` that all build scripts, tests and the release workflow read: in the build, a rename of the product changes only that entry. The delivery docs (`docs/delivery/`) follow this table and are changed with it. The names also decide where user data lives (last two rows); a rename moves those folders, so the renamed version must take the old data over once. `<version>` is the version of the root `package.json`, which `logreq --version` also reports.
+**Names.** Every artifact and launcher name is defined here and, in the build, in one configuration entry of `toolchain/packaging/` that all build scripts, tests and the release workflow read: in the build, a rename of the product changes only that entry. The delivery docs (`docs/delivery/`) follow this table and are changed with it. The names also decide where user data lives (last two rows); a rename moves those folders, so the renamed version must take the old data over once. `<version>` is the version of the root `package.json`, which `reqseq --version` also reports.
 
 | What | Name |
 |---|---|
-| Product name, macOS bundle | `LogReq`, `LogReq.app` |
-| App binary | `LogReq.app/Contents/MacOS/LogReq` (macOS), `LogReq.exe` (Windows), `LogReq` (Linux) |
-| Launcher (CLI and MCP server) | `bin/logreq` (macOS: `LogReq.app/Contents/Resources/bin/logreq`), `bin\logreq.cmd` (Windows) |
-| macOS artifact | `LogReq-<version>-mac-arm64.zip` |
-| Linux artifact | `LogReq-<version>-linux-x64.tar.gz` (folder `LogReq-<version>-linux-x64/`) |
-| Windows artifact | `LogReq-<version>-win-x64.zip` |
-| CLI tarball | `logreq-cli-<version>.tgz` |
+| Product name, macOS bundle | `ReqSeq`, `ReqSeq.app` |
+| App binary | `ReqSeq.app/Contents/MacOS/ReqSeq` (macOS), `ReqSeq.exe` (Windows), `ReqSeq` (Linux) |
+| Launcher (CLI and MCP server) | `bin/reqseq` (macOS: `ReqSeq.app/Contents/Resources/bin/reqseq`), `bin\reqseq.cmd` (Windows) |
+| macOS artifact | `ReqSeq-<version>-mac-arm64.zip` |
+| Linux artifact | `ReqSeq-<version>-linux-x64.tar.gz` (folder `ReqSeq-<version>-linux-x64/`) |
+| Windows artifact | `ReqSeq-<version>-win-x64.zip` |
+| CLI tarball | `reqseq-cli-<version>.tgz` |
 | Checksums | `SHA256SUMS.txt` |
-| App data folder (Electron's userData, from the product name; recent elements) | `~/Library/Application Support/LogReq`, `~/.config/LogReq`, `%APPDATA%\LogReq` |
-| Cache folder (recent workspaces, model caches; ADR-0008) | `logreq` in the OS cache folder (`~/Library/Caches`, `$XDG_CACHE_HOME` or `~/.cache`, `%LOCALAPPDATA%`) |
+| App data folder (Electron's userData, from the product name; recent elements) | `~/Library/Application Support/ReqSeq`, `~/.config/ReqSeq`, `%APPDATA%\ReqSeq` |
+| Cache folder (recent workspaces, model caches; ADR-0008) | `reqseq` in the OS cache folder (`~/Library/Caches`, `$XDG_CACHE_HOME` or `~/.cache`, `%LOCALAPPDATA%`) |
 
 **Content.** Every artifact contains app, CLI and MCP server (SR-076 AK2):
 
 - the app: `app.asar` with the electron-vite output and the app's production dependencies;
 - the CLI and the MCP server as a plain folder `resources/cli` outside the asar, with a flat production `node_modules`. They run on the bundled Electron binary with `ELECTRON_RUN_AS_NODE=1` through the launcher, so no separate Node installation is needed, and they start no Chromium: they need neither a display nor the Linux sandbox step below;
-- the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `logreq.cmd` next to `LogReq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([docs/delivery/README.md](../delivery/README.md));
+- the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([docs/delivery/README.md](../delivery/README.md));
 - `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015);
 - the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question #600 Q3, assumption);
 - Electron's licence and Chromium's notices.
 
-Everything is in the artifact; nothing is downloaded at install or run time (SR-078 AK2). No auto-update and no update configuration (no `app-update.yml`, electron-builder never publishes). Git is a prerequisite and not part of the delivery: LogReq calls the `git` on the PATH.
+Everything is in the artifact; nothing is downloaded at install or run time (SR-078 AK2). No auto-update and no update configuration (no `app-update.yml`, electron-builder never publishes). Git is a prerequisite and not part of the delivery: ReqSeq calls the `git` on the PATH.
 
-**Linux on Ubuntu 24.04.** AppArmor blocks the user namespaces of Chromium's sandbox there, so Electron uses the SUID helper `chrome-sandbox`, which must be owned by root with mode 4755. The documented one-time admin step (`sudo chown root:root …/chrome-sandbox && sudo chmod 4755 …/chrome-sandbox`, or an AppArmor profile) downloads nothing. LogReq never passes `--no-sandbox`. Without admin rights the app does not start on a stock Ubuntu 24.04; the CLI and the MCP server do.
+**Linux on Ubuntu 24.04.** AppArmor blocks the user namespaces of Chromium's sandbox there, so Electron uses the SUID helper `chrome-sandbox`, which must be owned by root with mode 4755. The documented one-time admin step (`sudo chown root:root …/chrome-sandbox && sudo chmod 4755 …/chrome-sandbox`, or an AppArmor profile) downloads nothing. ReqSeq never passes `--no-sandbox`. Without admin rights the app does not start on a stock Ubuntu 24.04; the CLI and the MCP server do.
 
 **Electron fuses.** A fuse is one bit in the binary and applies to the whole binary:
 

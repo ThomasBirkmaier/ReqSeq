@@ -19,7 +19,7 @@ Relations and references store the version of their target as a hash over its co
 **Canonical form (n1):** UTF-8 bytes of
 
 ```
-logreq-version n1\n
+reqseq-version n1\n
 text\n<normalised text as one JSON string>\n
 prop <key>\n<canonical JSON of the value>\n      (keys sorted by code point)
 file <path>\n<sha256 hex | missing>\n         (paths sorted by code point)

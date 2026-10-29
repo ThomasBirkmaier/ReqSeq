@@ -23,7 +23,7 @@ The tests name only the ID, never the version. When a requirement changes, the t
   ```
 
   `/usr/local/bin` may need `sudo`; any folder on your `PATH` will do, for example `~/.local/bin`. The link works in scripts and CI steps too (an `alias` would not). Check it with `reqseq --help`.
-- **A ReqSeq workspace** (the requirements), checked out on the machine that runs the tests, at the state your tests test against. Its file `logreq-workspace.yaml` must list an evidence folder:
+- **A ReqSeq workspace** (the requirements), checked out on the machine that runs the tests, at the state your tests test against. Its file `reqseq-workspace.yaml` must list an evidence folder:
 
   ```yaml
   evidence:
@@ -55,7 +55,7 @@ prints one line per element:
 There are two ways. Use either; they give the same result.
 
 - **In the test name**, in square brackets: `[SR-b2c0de]`, or with the number of an acceptance criterion `[SR-b2c0de/AK2]`. Several brackets name several requirements.
-- **As a property** of the test case named `logreq:element`, with the ID as its value.
+- **As a property** of the test case named `reqseq:element`, with the ID as its value.
 
 A test that names no requirement is passed over. You do not have to name a requirement in every test.
 
@@ -65,7 +65,7 @@ A test that names no requirement is passed over. You do not have to name a requi
 it("[SR-a1c0de] accepts a valid password", () => { /* ... */ });
 
 it("locks the account after three wrong passwords", async ({ annotate }) => {
-  await annotate("SR-b2c0de", "logreq:element");
+  await annotate("SR-b2c0de", "reqseq:element");
   // ...
 });
 ```
@@ -74,7 +74,7 @@ it("locks the account after three wrong passwords", async ({ annotate }) => {
 
 ```python
 def test_accepts_a_valid_password(record_property):
-    record_property("logreq:element", "SR-a1c0de")
+    record_property("reqseq:element", "SR-a1c0de")
     ...
 
 @pytest.mark.parametrize("passwords", [["a", "b", "c"]], ids=["SR-b2c0de"])
@@ -84,7 +84,7 @@ def test_locks_the_account(passwords):
 
 pytest writes properties into its JUnit file only with `junit_family = xunit1` in `pytest.ini` (see `pytest/pytest.ini`). pytest's own parameter lists such as `test_add[1-2]` are passed over; only a bracket that holds an ID counts.
 
-**Any other tool.** Its JUnit file must have, for each test case that checks a requirement, either the ID in brackets in the `name` attribute of the `<testcase>`, or a `<property name="logreq:element" value="SR-b2c0de"/>` inside its `<properties>`. Most tools can do one of the two: put the ID into the test name, or use the tool's way of adding a property. Write one test, run it, open the JUnit file and look for the ID. Step 4 then tells you whether ReqSeq finds it.
+**Any other tool.** Its JUnit file must have, for each test case that checks a requirement, either the ID in brackets in the `name` attribute of the `<testcase>`, or a `<property name="reqseq:element" value="SR-b2c0de"/>` inside its `<properties>`. Most tools can do one of the two: put the ID into the test name, or use the tool's way of adding a property. Write one test, run it, open the JUnit file and look for the ID. Step 4 then tells you whether ReqSeq finds it.
 
 ## Step 3: let the tool write JUnit XML
 
@@ -109,7 +109,7 @@ reqseq evidence enrich-junit results.xml "$BUILD" --workspace "$REQSEQ_WORKSPACE
 
 - `results.xml`: the JUnit file of the test tool.
 - `"$BUILD"`: what was tested (the Prüfling), for example the build number or the version of your software. Set the variable before, for example `BUILD=build-1`.
-- `--workspace "$REQSEQ_WORKSPACE"`: the folder of the workspace checkout (the folder with `logreq-workspace.yaml`).
+- `--workspace "$REQSEQ_WORKSPACE"`: the folder of the workspace checkout (the folder with `reqseq-workspace.yaml`).
 - `--output ...`: where the enriched file goes: a folder below the evidence folder of the workspace (here `evidence/ci`). One file per run, so the build is part of the name. Without `--output` the file is enriched in place.
 
 The folder of `--output` must exist. Git keeps no empty folders, so create it once in the repository that holds the evidence folder and commit it with an empty file `.gitkeep` in it (as `workspace/evidence/ci/.gitkeep` here), or let the pipeline run `mkdir -p "$REQSEQ_WORKSPACE/evidence/ci"` before the line, as the CI snippets below do.

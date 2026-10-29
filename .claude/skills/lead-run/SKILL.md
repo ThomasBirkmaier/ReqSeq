@@ -1,6 +1,6 @@
 ---
 name: lead-run
-description: Drives one LogReq stage (D-035) to acceptance over a long autonomous run - orders the issues, runs up to three agents, checks progress against the spec, hands over to a fresh lead. Its merge.md has the review and merge rules for every LogReq PR. Use when asked to run, continue or check a stage, or to review or merge a PR.
+description: Drives one ReqSeq stage (D-035) to acceptance over a long autonomous run - orders the issues, runs up to three agents, checks progress against the spec, hands over to a fresh lead. Its merge.md has the review and merge rules for every ReqSeq PR. Use when asked to run, continue or check a stage, or to review or merge a PR.
 ---
 
 # Running a stage
@@ -11,7 +11,7 @@ The lead runs a stage over hours or days and stays the one place that knows its 
 
 The state is in the stage epic, the issue labels and `deps` blocks, the merged PRs, and the handover file `/mnt/project-files/stufe<n>/lead-uebergabe.md`, which lists open PRs, running agents, decisions and the next steps. A fresh lead starts by reading the epic and that file. Claim progress only from tool results (a merged PR, a green check), and name failures and skipped steps.
 
-The GitHub project "LogReq" is filled by the `project-sync` workflow from the labels, so change labels, state and sub-issues, never project fields. Each open issue has exactly one of `sr`, `enabler`, `bug` and `spec-frage`. SR and enabler issues carry a stage label or `querschnitt` and hang under their epic. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
+The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels, so change labels, state and sub-issues, never project fields. Each open issue has exactly one of `sr`, `enabler`, `bug` and `spec-frage`. SR and enabler issues carry a stage label or `querschnitt` and hang under their epic. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
 
 ## Order
 
@@ -27,7 +27,7 @@ About every ten merges, and at least once a day, a fresh agent compares the clos
 
 ## Handover
 
-Hand over to a fresh lead thread at natural breaks (the end of a stage, after a quality gate, before the work moves to another thread or container), in the evening before the night's work, and once a day as a safety net. Save the state to the handover file and to project memory (`logreq-stufe<n>`), then ask the coordinator for the new thread. A long context alone is no reason to stop, because the session summarizes it.
+Hand over to a fresh lead thread at natural breaks (the end of a stage, after a quality gate, before the work moves to another thread or container), in the evening before the night's work, and once a day as a safety net. Save the state to the handover file and to project memory (`reqseq-stufe<n>`), then ask the coordinator for the new thread. A long context alone is no reason to stop, because the session summarizes it.
 
 ## Stage done
 

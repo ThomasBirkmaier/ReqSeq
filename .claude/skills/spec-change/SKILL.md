@@ -1,11 +1,11 @@
 ---
 name: spec-change
-description: Reads and changes the LogReq specification in spec/ with the LogReq CLI or MCP, sets statuses only on the product owner's decision, and syncs the SR issues. Use for any spec PR or SR issue sync.
+description: Reads and changes the ReqSeq specification in spec/ with the ReqSeq CLI or MCP, sets statuses only on the product owner's decision, and syncs the SR issues. Use for any spec PR or SR issue sync.
 ---
 
 # Changing the spec
 
-`spec/` is a LogReq workspace (D-064), and `spec/README.md` has the layout and the common commands. LogReq changes it, nothing else does: `node packages/cli/dist/bin.js element create|update|set-status|supersede ... --workspace spec`, or the MCP server `node packages/cli/dist/bin.js mcp --workspace spec`. Each change gets a PR of its own with label `enabler` and must pass `pnpm spec:check`. The metamodel (`spec/metamodel/`) and `spec/logreq-workspace.yaml` have no command and are changed by hand in such a PR.
+`spec/` is a ReqSeq workspace (D-064), and `spec/README.md` has the layout and the common commands. ReqSeq changes it, nothing else does: `node packages/cli/dist/bin.js element create|update|set-status|supersede ... --workspace spec`, or the MCP server `node packages/cli/dist/bin.js mcp --workspace spec`. Each change gets a PR of its own with label `enabler` and must pass `pnpm spec:check`. The metamodel (`spec/metamodel/`) and `spec/reqseq-workspace.yaml` have no command and are changed by hand in such a PR.
 
 **Texts.** They are German and carry exactly what the product owner decided, with nothing added, left out or reinterpreted. They read as requirement text, not as a quote of the chat. A new wish becomes a draft element linked to its issue, and a pure bug stays an issue (product owner decision, 2026-10-26).
 

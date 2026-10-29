@@ -1,16 +1,16 @@
-# LogReq architecture (arc42, short)
+# ReqSeq architecture (arc42, short)
 
-Status: written at stage 0 (D-052); §5 updated to the code on 2026-10-28 (#635). The specification is the LogReq workspace in `spec/` (German, maintained with LogReq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters LogReq needs.
+Status: written at stage 0 (D-052); §5 updated to the code on 2026-10-28 (#635). The specification is the ReqSeq workspace in `spec/` (German, maintained with ReqSeq since #326, D-064); decisions `D-xxx` say **what**, the ADRs in `docs/adr/` say **how**. This document connects them. It uses only the arc42 chapters ReqSeq needs.
 
 ## 1. Goals
 
-LogReq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-018, D-024).
+ReqSeq is a local requirements tool on plain files in Git: one Markdown file per element, traceability, coverage and evidence, usable from a desktop app, a CLI, a local API and an MCP server. It deliberately leaves collaboration, review, history, rights, documents and dashboards to existing tools (D-008, D-014, D-016, D-018, D-024).
 
 ### Quality goals
 
 | Priority | Goal | Measured by |
 |---|---|---|
-| 1 | **Readable, mergeable files.** Files make sense without LogReq; different elements never conflict. | SR-001, SR-009, SR-010, SR-102, D-015, D-056 |
+| 1 | **Readable, mergeable files.** Files make sense without ReqSeq; different elements never conflict. | SR-001, SR-009, SR-010, SR-102, D-015, D-056 |
 | 2 | **Same function everywhere.** App, CLI, API and MCP give the same result. | SR-080, D-029 |
 | 3 | **Large workspaces stay fluid.** 50,000 elements, 200,000 relations: start ≤ 3 s (cached) / ≤ 30 s, open ≤ 200 ms, filter or chain ≤ 500 ms, search ≤ 300 ms, check ≤ 60 s. | SR-020, SR-068, SR-082, N-036 |
 | 4 | **Closed networks.** No outgoing connection, ever; API and MCP only on the local machine. | SR-077, SR-078, SR-079 |
@@ -19,7 +19,7 @@ LogReq is a local requirements tool on plain files in Git: one Markdown file per
 ## 2. Constraints
 
 - TypeScript and Electron (D-004); Windows 11, macOS 14, Ubuntu 24.04 (SR-076).
-- Git is the storage; LogReq reads Git and writes only files (D-024, D-036, SR-083).
+- Git is the storage; ReqSeq reads Git and writes only files (D-024, D-036, SR-083).
 - English UI and standard model (D-019); the spec stays German.
 - No user or rights management (D-016); no deletion of elements (D-045); status set only by people (D-030).
 - Built by agents in stages (D-035) with this architecture as fixed frame (D-052).
@@ -32,8 +32,8 @@ flowchart LR
   agent([AI agents])
   pipeline([CI pipeline])
   subgraph local[Local machine]
-    app[LogReq app]
-    cli[logreq CLI]
+    app[ReqSeq app]
+    cli[reqseq CLI]
     api[Local API 127.0.0.1]
     mcp[MCP server stdio]
     files[(Working copies: element, metamodel, baseline, filter, mapping, evidence files)]
@@ -60,7 +60,7 @@ flowchart LR
   partner <-- ReqIF files --> cli
 ```
 
-LogReq talks only to the local file system and the local `git` program. Everything across the network is done by the Git tool and the Git server.
+ReqSeq talks only to the local file system and the local `git` program. Everything across the network is done by the Git tool and the Git server.
 
 ## 4. Solution strategy
 
@@ -153,7 +153,7 @@ With `runtime` split, the imports have no cycle and form these layers, from the 
 |---|---|---|
 | `catalog.ts`, `commands` | Command types, `defineCommand`, `CommandError` (`catalog.ts`); implementations of all catalog commands and their registry (`commands/index.ts`) | 1 onward |
 | `runtime` | Entry: `invoke` (the one entry point of the adapters: validate input, run the command, map errors, add short IDs, record agent accesses), `warmWorkspace` (SR-082), agent instructions for MCP. State: the `Workspace` object that holds all state of one workspace (SR-081), kept async states, contracts loaded for validation, readable input errors | 1 onward |
-| `workspace` | Read `logreq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces | 1 |
+| `workspace` | Read `reqseq-workspace.yaml`, locate repositories, report missing and not writable ones (SR-004, SR-006, SR-018); cache folder, recent workspaces | 1 |
 | `metamodel` | Load and merge metamodel files, inheritance, meanings, standard model (SR-011..SR-015) | 1 |
 | `files` | Parse and write element and YAML files losslessly (ADR-0007, SR-008, SR-016) | 1 |
 | `version` | Normal form and hash (SR-021) | 1 |
@@ -178,7 +178,7 @@ sequenceDiagram
   participant G as git reader
   participant FS as files + cache
   A->>C: workspace.status / any first command
-  C->>FS: read logreq-workspace.yaml
+  C->>FS: read reqseq-workspace.yaml
   C->>FS: locate repositories (path or local override)
   C-->>C: mark missing repositories (SR-004 AK3)
   C->>FS: load metamodel folder, validate
@@ -204,22 +204,22 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant P as Pipeline
-  participant L as logreq CLI
+  participant L as reqseq CLI
   participant T as Test tool
-  P->>L: logreq workspace check --changed-since origin/main --json
+  P->>L: reqseq workspace check --changed-since origin/main --json
   L-->>P: problems as JSON, exit 1 if errors (warnings too with --fail-on warning; SR-019, SR-025)
   P->>T: run tests (names contain [SR-46fb54])
   T-->>P: results.xml (JUnit)
-  P->>L: logreq evidence enrich-junit results.xml --item build-512
+  P->>L: reqseq evidence enrich-junit results.xml --item build-512
   L-->>P: results.xml with UUID, version, item, date (SR-029)
-  P->>P: store results.xml in the evidence location (outside LogReq)
-  P->>L: logreq data store --folder out/
-  L-->>P: out/<commit>.jsonl, one element per line, for Grafana and DuckDB (SR-062), <commit>-dirty.jsonl with uncommitted LogReq files
+  P->>P: store results.xml in the evidence location (outside ReqSeq)
+  P->>L: reqseq data store --folder out/
+  L-->>P: out/<commit>.jsonl, one element per line, for Grafana and DuckDB (SR-062), <commit>-dirty.jsonl with uncommitted ReqSeq files
 ```
 
 ## 7. Deployment
 
-One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`logreq serve api` or app setting) and binds to loopback.
+One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux) with app, CLI and MCP server, all offline; installing means unpacking (ADR-0014). Instances on separate working copies are independent; caches are per copy in the OS cache folder (SR-081). The API runs only when started (`reqseq serve api` or app setting) and binds to loopback.
 
 ## 8. Cross-cutting concepts
 
@@ -243,7 +243,7 @@ See [docs/adr](../adr/README.md).
 | Electron performance with large lists | Virtualised lists in the app; perf tests from stage 3. |
 | Version date needs Git history; shallow clones | Date shown as unknown; documented. |
 | CI runners differ from the reference machine | Times are recorded as analysis, nightly and on PRs labelled `perf`; tagged AK tests assert their threshold, and the record names the runner's cores and memory (ADR-0011). |
-| The spec lies in a subfolder of the code repository | LogReq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (#377). |
+| The spec lies in a subfolder of the code repository | ReqSeq sees no Git there: no version dates and no `workspace check --changed-since` on `spec/` (#377). |
 
 ## 11. Glossary
 
