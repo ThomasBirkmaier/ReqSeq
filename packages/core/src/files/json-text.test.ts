@@ -232,6 +232,21 @@ describe("jsonChunks: the text of JSON.stringify in pieces (#277)", () => {
     }
   });
 
+  it("measures indented native pieces with their padding: deep subtrees stay within one chunk", () => {
+    // About 1 KB compact, at depth 7: re-indented it is several times that.
+    const leaf = { list: Array.from({ length: 40 }, (_, i) => ({ n: i, tags: ["a", "b"] })) };
+    let deep: unknown = Array.from({ length: 30 }, () => leaf);
+    for (let level = 0; level < 7; level += 1) {
+      deep = { level, items: [deep] };
+    }
+    for (const chunkLength of [2000, 20_000]) {
+      const chunks = [...jsonChunks(deep, { indent: 2, chunkLength })];
+      expect(chunks.join("")).toBe(JSON.stringify(deep, null, 2));
+      // A chunk is at most the length before the last cut, one key and one native piece of one chunk.
+      expect(Math.max(...chunks.map((c) => c.length))).toBeLessThan(2 * chunkLength + 20);
+    }
+  });
+
   it("never splits a surrogate pair at a chunk edge", () => {
     const value = Array.from({ length: 300 }, (_, i) => ["😀".repeat(i % 7), "𝄞", i]);
     for (const chunkLength of [1, 2, 3, 5]) {

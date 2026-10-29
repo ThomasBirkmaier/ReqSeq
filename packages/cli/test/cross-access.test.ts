@@ -18,13 +18,15 @@ import { startApiServer } from "@logreq/api";
 import type { Channel, IpcRendererLike } from "@logreq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@logreq/app";
 import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@logreq/core";
-import { CommandError, Workspace, createCommandRuntime, rememberWorkspace } from "@logreq/core";
+import { CommandError, Workspace, createCommandRuntime, jsonChunks, rememberWorkspace } from "@logreq/core";
 import { LineTransport, serveMcp, toolName } from "@logreq/mcp";
 import type { FixtureOptions, FixtureWorkspace } from "@logreq/testkit";
 import { createFixtureWorkspace } from "@logreq/testkit";
 import { Client } from "@modelcontextprotocol/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { stringify } from "yaml";
 import { EXIT, argvFor, runCli } from "../src/index.js";
+import { YAML_OPTIONS, yamlPieces } from "../src/render.js";
 
 /** The SHA-256 of SR-e88fb3 in SR-004/one-repository, as element.get gives it (`fileSha256`, SR-106). */
 const WIND_SHA256 = createHash("sha256")
@@ -1841,10 +1843,35 @@ type Outcome = { readonly output: unknown } | { readonly error: unknown };
 
 const errorOf = (error: unknown): unknown => (error instanceof CommandError ? error.toJSON() : error);
 
+/**
+ * #277: the pieces the CLI (`--json`, `--yaml`) and the API stream join to the whole text, on every
+ * output of the suite: `jsonChunks` to `JSON.stringify` (small chunk lengths, so the walk descends),
+ * `yamlPieces` to `stringify` with the same options.
+ */
+const expectWholeText = (name: string, output: unknown): void => {
+  const value = output ?? null;
+  for (const [indent, chunkLength] of [
+    [0, 64],
+    [2, 64],
+    [2, 4096],
+  ] as const) {
+    const whole = indent === 0 ? JSON.stringify(value) : JSON.stringify(value, null, 2);
+    expect([name, indent, chunkLength, [...jsonChunks(value, { indent, chunkLength })].join("")]).toEqual([
+      name,
+      indent,
+      chunkLength,
+      whole,
+    ]);
+  }
+  expect([name, [...yamlPieces(output)].join("")]).toEqual([name, stringify(output, YAML_OPTIONS)]);
+};
+
 const viaCore = async (root: string, entry: CatalogEntry, input: object): Promise<Outcome> => {
   const workspace = new Workspace(root);
   try {
-    return { output: await runtime.invoke(entry.name, input, { workspace }) };
+    const output = await runtime.invoke(entry.name, input, { workspace });
+    expectWholeText(entry.name, output);
+    return { output };
   } catch (error) {
     return { error: errorOf(error) };
   } finally {

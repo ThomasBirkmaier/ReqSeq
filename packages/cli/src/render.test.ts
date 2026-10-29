@@ -7,7 +7,11 @@ import {
   renderJson,
   renderProblem,
   renderYaml,
+  YAML_OPTIONS,
+  jsonOutput,
+  yamlPieces,
 } from "./render.js";
+import { stringify } from "yaml";
 
 const uuid = "6adc6bad-b94e-40cf-bd99-7ef5e126d1e6";
 
@@ -20,6 +24,44 @@ describe("renderJson", () => {
 
   it("prints null for a command without output", () => {
     expect(renderJson(undefined)).toBe("null\n");
+  });
+});
+
+describe("jsonOutput and yamlPieces: the whole text in pieces (#277)", () => {
+  const shared = { name: "case", steps: ["a", "b"] };
+  const value = {
+    "key: with colon": [1, 2],
+    empty: [],
+    nothing: undefined,
+    nested: [[1, [2, []]], { a: { b: [] } }],
+    text: [{ block: "line 1\n\nline 3\n", plain: "x" }, "two\nlines"],
+    // Line terminators of JavaScript that are no line breaks of the pieces (review B1).
+    separators: [
+      { text: "line\u2028next", other: "para\u2029next" },
+      "a\rb",
+      { block: "one\r\ntwo\n\u2028three\n" },
+    ],
+    twice: [shared, { last: shared }],
+    "": [null],
+    map: { a: 1 },
+  };
+
+  it("joins jsonOutput to JSON.stringify with indent 2 and a line break, in more than one chunk when large", () => {
+    expect([...jsonOutput(value)].join("")).toBe(`${JSON.stringify(value, null, 2)}\n`);
+    const large = Array.from({ length: 20_000 }, (_, n) => ({ n, text: "x".repeat(60) }));
+    const chunks = [...jsonOutput(large)];
+    expect(chunks.length).toBeGreaterThan(2);
+    expect(chunks.join("")).toBe(`${JSON.stringify(large, null, 2)}\n`);
+  });
+
+  it("joins yamlPieces to the YAML of the whole, without anchors", () => {
+    for (const v of [value, [value, value], [], {}, "text", 1, null, value.text]) {
+      expect([...yamlPieces(v)].join("")).toBe(stringify(v, YAML_OPTIONS));
+    }
+    expect([...yamlPieces(value)].join("")).not.toMatch(/[&*]a1/);
+    expect([...yamlPieces({ a: undefined })].join("")).toBe("{}\n");
+    expect(renderYaml({ hidden: undefined, problems: [] })).toBe("{}\nNo problems.\n");
+    expect([...yamlPieces(value)].length).toBeGreaterThan(Object.keys(value).length);
   });
 });
 
