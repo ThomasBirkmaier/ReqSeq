@@ -606,8 +606,17 @@ class ActivityWatcher implements ActivityWatch {
     this.#release(held);
   }
 
-  /** On every watcher batch: the held access is reported once the store holds what it saw. */
+  /**
+   * On every watcher batch: the file is read again, and the held access is reported once the store
+   * holds what it saw. The read catches an access whose file event was lost: on macOS all folder
+   * watches of a process share one FSEvents stream, which libuv stops and creates anew whenever a
+   * folder watch starts or closes, so a file written meanwhile gives no event (#385). The workspace
+   * watcher does that when it watches its repositories anew after a layout change, and tells it with
+   * this batch; a change of an element, which an agent's change writes just before the access, gives
+   * one as well. It is no polling: nothing is read without a batch.
+   */
   async #recheck(): Promise<void> {
+    await this.#read();
     const held = this.#held;
     if (held !== undefined) {
       await this.#check(held);
@@ -666,7 +675,8 @@ class ActivityWatcher implements ActivityWatch {
  * was recorded (`access.at`, never more than `holdMs` after it arrived), unless the file then holds a
  * newer access (read once more, for an event that came late), which is held for what is left of its
  * own hold; a newer access drops a held one. A file that is too large, broken or of another version is
- * ignored. A watch that cannot start or fails is logged and ends; there is no polling.
+ * ignored. The file is also read again on every batch of the workspace watcher, for an access whose
+ * file event was lost (#385). A watch that cannot start or fails is logged and ends; there is no polling.
  */
 export const watchActivity = (workspace: Workspace, options: ActivityWatchOptions): ActivityWatch =>
   new ActivityWatcher(workspace, options);
