@@ -15,7 +15,7 @@ This repository is built almost entirely by Claude agents. The rules they follow
 | `fixtures/` | Small test data per system requirement, generator for large data sets |
 | `scripts/` | `trace-check`, `sr-issues`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
-Test data for realistic scenarios lives in the separate repository `reqseq-testdata`.
+Test data for realistic scenarios lives in the separate repository `ReqSeq-testdata`.
 
 ## License
 
