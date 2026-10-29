@@ -180,7 +180,30 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
-  packages/docs: {}
+  packages/docs:
+    dependencies:
+      '@reqseq/api':
+        specifier: workspace:*
+        version: link:../api
+      '@reqseq/app':
+        specifier: workspace:*
+        version: link:../app
+      '@reqseq/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@reqseq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@reqseq/mcp':
+        specifier: workspace:*
+        version: link:../mcp
+    devDependencies:
+      micromark:
+        specifier: 4.0.3
+        version: 4.0.3
+      micromark-extension-gfm:
+        specifier: 3.0.0
+        version: 3.0.0
 
   packages/mcp:
     dependencies:

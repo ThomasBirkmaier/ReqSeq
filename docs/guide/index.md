@@ -12,4 +12,4 @@ You can use it in four ways, and each gives the same result:
 - **API**: a local HTTP API on loopback only, started with `reqseq serve api`.
 - **MCP**: an MCP server for AI agents, started with `reqseq mcp`.
 
-How-to guides and a reference for every command follow.
+The command reference shows every command with its input, its output and its call in each of the four. How-to guides follow.
