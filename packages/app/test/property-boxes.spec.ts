@@ -593,7 +593,7 @@ test.describe("property boxes of an element with many values", () => {
     await window.keyboard.press("ControlOrMeta+P");
     await window.keyboard.type(SR_TITLE);
     await expect(window.locator('.candidates [role="option"]').first()).toContainText(SR_TITLE);
-    // Open: from the Enter key to the paint of the 50 values.
+    // Open: from the Enter key to the paint of the box of the 50 values.
     await window.evaluate((count) => {
       const w = globalThis as unknown as { __t0?: number; __open?: number };
       delete w.__t0;
@@ -609,7 +609,8 @@ test.describe("property boxes of an element with many values", () => {
       );
       const check = (): void => {
         const lines = document.querySelectorAll('[data-field="acceptance-criteria"] .cm-line').length;
-        // (CodeMirror draws the lines in view and a margin, not all 50.)
+        // CodeMirror draws the lines in view and a margin, not all 50; how many depends on the size of the
+        // window and on where the box lies in it (8 on the smaller window of the Windows runner, #304).
         if (lines >= count && w.__open === undefined && w.__t0 !== undefined) {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
@@ -619,12 +620,29 @@ test.describe("property boxes of an element with many values", () => {
         }
       };
       new MutationObserver(check).observe(document.body, { childList: true, subtree: true });
-    }, 10);
+    }, 1);
     await window.keyboard.press("Enter");
-    await window.waitForFunction(() => (globalThis as unknown as { __open?: number }).__open !== undefined);
+    // Polled as one string, so that a timeout prints all of it: the key, the element, the lines and the paint.
+    await expect
+      .poll(
+        () =>
+          window.evaluate(() => {
+            const w = globalThis as unknown as { __t0?: number; __open?: number };
+            return JSON.stringify({
+              key: w.__t0 !== undefined,
+              title: document.querySelector("article h1")?.textContent ?? null,
+              lines: document.querySelectorAll('[data-field="acceptance-criteria"] .cm-line').length,
+              open: w.__open !== undefined,
+            });
+          }),
+        { timeout: 30_000 },
+      )
+      .toContain('"open":true');
     const open = await window.evaluate(() => (globalThis as unknown as { __open: number }).__open);
     const lines = field(window, "acceptance-criteria").locator(".cm-line");
-    expect(await lines.count()).toBeGreaterThanOrEqual(10);
+    // With the box in view, CodeMirror draws more of its values than at the opening.
+    await field(window, "acceptance-criteria").scrollIntoViewIfNeeded();
+    await expect.poll(() => lines.count()).toBeGreaterThanOrEqual(10);
     expect((await cliGet(running)).element.properties["acceptance-criteria"]).toHaveLength(MANY);
     expect(await window.locator(".cm-editor").count()).toBeLessThanOrEqual(10);
     // Typing: from the keydown to the paint of the character, in the middle of the list.

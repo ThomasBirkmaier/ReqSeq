@@ -3,7 +3,7 @@
 // knows nothing of commands: the element buffer reads the document through `onChange` and the handle,
 // and saves it (ADR-0002).
 import { completionStatus } from "@codemirror/autocomplete";
-import { history, historyField, historyKeymap, standardKeymap } from "@codemirror/commands";
+import { history, historyField, historyKeymap, redo, standardKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Transaction } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -277,6 +277,9 @@ export const Editor = ({
                 return true;
               },
             },
+            // Ctrl/Cmd+Shift+Z redoes on every system, as on the choice and relation boxes (`historyStep`,
+            // SR-105 AK2); CodeMirror binds it only on Linux and macOS, and Ctrl+Y outside macOS.
+            { key: "Mod-Shift-z", run: redo, preventDefault: true },
             ...historyKeymap,
             ...standardKeymap,
           ]),

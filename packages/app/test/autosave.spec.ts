@@ -321,15 +321,16 @@ for (const scheme of ["light", "dark"] as const) {
   test(`screenshot of a save that failed in ${scheme}`, async () => {
     const running = await launchApp(await workspace(), { colorScheme: scheme });
     const { window } = running;
-    // The folder of the element cannot be written: core refuses the save, and the input stays.
-    const folder = path.join(running.workspace?.root ?? "", path.dirname(SR_FILE));
+    // The file of the element is read-only: core refuses the save, and the input stays. The file, not its
+    // folder: Windows ignores the read-only attribute of a folder, and a read-only file is refused everywhere.
+    const file = path.join(running.workspace?.root ?? "", SR_FILE);
     try {
       await fs.mkdir(OUT, { recursive: true });
       await running.app.evaluate(({ BrowserWindow }) => {
         BrowserWindow.getAllWindows()[0]?.setContentSize(1280, 800);
       });
       await open(window, SR_TITLE);
-      await fs.chmod(folder, 0o555);
+      await fs.chmod(file, 0o444);
       await window.keyboard.press("Enter");
       await window.keyboard.type(" Neu.");
       await expect(modeline(window)).toContainText("not saved", { timeout: 5000 });
@@ -337,12 +338,12 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(text(window)).toContainText("Neu.");
       await window.screenshot({ path: path.join(OUT, `sr-105-not-saved-${scheme}.png`) });
       // Writable again: the next input saves, and `not saved` goes.
-      await fs.chmod(folder, 0o755);
+      await fs.chmod(file, 0o644);
       await window.keyboard.type(" Mehr.");
       await written(read(running, SR_FILE), "Neu. Mehr.", Date.now());
       await expect(modeline(window)).not.toContainText("not saved");
     } finally {
-      await fs.chmod(folder, 0o755);
+      await fs.chmod(file, 0o644);
       await running.close();
     }
   });
