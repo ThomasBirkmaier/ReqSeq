@@ -180,6 +180,8 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
+  packages/docs: {}
+
   packages/mcp:
     dependencies:
       '@modelcontextprotocol/server':

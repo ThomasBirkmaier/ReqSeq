@@ -1,0 +1,45 @@
+/* Calm and readable: warm off-white, one accent (rust), serif headings, system fonts only (ADR-0017). */
+:root {
+  --sl-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --reqseq-font-heading: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+
+  /* Dark mode: warm greys. */
+  --sl-color-accent-low: hsl(16, 35%, 20%);
+  --sl-color-accent: hsl(16, 60%, 58%);
+  --sl-color-accent-high: hsl(20, 70%, 84%);
+  --sl-color-white: hsl(36, 30%, 96%);
+  --sl-color-gray-1: hsl(36, 18%, 90%);
+  --sl-color-gray-2: hsl(36, 10%, 76%);
+  --sl-color-gray-3: hsl(36, 6%, 56%);
+  --sl-color-gray-4: hsl(30, 6%, 36%);
+  --sl-color-gray-5: hsl(30, 8%, 23%);
+  --sl-color-gray-6: hsl(30, 10%, 15%);
+  --sl-color-black: hsl(30, 10%, 10%);
+}
+
+:root[data-theme="light"] {
+  /* Light mode: warm off-white background, dark brown-grey text. */
+  --sl-color-accent-low: hsl(20, 60%, 90%);
+  --sl-color-accent: hsl(14, 58%, 42%);
+  --sl-color-accent-high: hsl(14, 60%, 28%);
+  --sl-color-white: hsl(30, 15%, 12%);
+  --sl-color-gray-1: hsl(30, 12%, 18%);
+  --sl-color-gray-2: hsl(30, 9%, 26%);
+  --sl-color-gray-3: hsl(30, 6%, 38%);
+  --sl-color-gray-4: hsl(32, 6%, 56%);
+  --sl-color-gray-5: hsl(36, 12%, 78%);
+  --sl-color-gray-6: hsl(38, 25%, 91%);
+  --sl-color-gray-7: hsl(40, 30%, 95%);
+  --sl-color-black: hsl(40, 33%, 97%);
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4),
+h1#_top {
+  font-family: var(--reqseq-font-heading);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.sl-markdown-content {
+  line-height: 1.7;
+}

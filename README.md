@@ -7,9 +7,10 @@ This repository is built almost entirely by Claude agents. The rules they follow
 | Folder | Content |
 |---|---|
 | `spec/` | The specification, a ReqSeq workspace (D-064). Changed only with ReqSeq, see [spec/README.md](spec/README.md). |
+| `docs/guide/` | The user documentation's hand-written pages, built into a site by `packages/docs` (`pnpm docs:build`, ADR-0017) |
 | `docs/architecture/`, `docs/adr/`, `docs/delivery/` | arc42 (short), architecture decision records, getting and installing the delivery |
 | `schemas/` | JSON Schemas for all file formats, OpenAPI, MCP tool list |
-| `packages/` | `core`, `cli`, `api`, `mcp`, `app` |
+| `packages/` | `core`, `cli`, `api`, `mcp`, `app`, `docs` (the documentation site) |
 | `verification/` | Records for analysis, inspection and demonstration |
 | `toolchain/` | Examples and integration tests for the tools around ReqSeq (Git server, CI, Grafana, Pandoc, ...); `toolchain/junit/` connects a test tool that writes JUnit XML (SR-063) |
 | `fixtures/` | Small test data per system requirement, generator for large data sets |

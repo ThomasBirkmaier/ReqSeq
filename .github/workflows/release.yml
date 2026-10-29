@@ -115,6 +115,9 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-24.04
+    outputs:
+      # `true` when this run published the release of a release tag (docs below).
+      publish: ${{ steps.tag.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -185,3 +188,17 @@ jobs:
           done
           jq -n --arg body "$body" '{body: $body, draft: false}' | call -X PATCH "$api/releases/$id" --data @- \
             | jq -r '.html_url'
+
+  # The user documentation of the published release on GitHub Pages (ADR-0017). Called here, not on
+  # `release: published`, because a release published with `github.token` starts no workflow.
+  docs:
+    name: docs
+    needs: release
+    if: needs.release.outputs.publish == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs-pages.yml
+    with:
+      tag: ${{ github.ref_name }}
