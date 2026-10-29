@@ -7,7 +7,7 @@ spec-id: SR-140
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-29: Annahme der Doku-Strategie mit einer Dokumentation für Nutzer, die erzeugt und geprüft wird, und ihrer Aufnahme in die Spezifikation als Need mit wenigen Systemanforderungen."
 requirement-type: functional
 acceptance-criteria:
-  - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen eine Workspace, ein erstes Element und eine erste Kette.
+  - Gegeben der Einstieg, wenn seine Schritte der Reihe nach ausgeführt werden, dann entstehen ein Arbeitsbereich, ein erstes Element und eine erste Kette.
   - Gegeben ein Beispiel im Einstieg oder in einer Anleitung, wenn die Dokumentation gebaut wird, dann läuft es gegen die Version, zu der die Dokumentation gehört, und ein fehlschlagendes Beispiel verhindert den Bau.
   - Gegeben eine Anleitung zu einer Aufgabe, die in App, Kommandozeile, API und MCP möglich ist, wenn sie gelesen wird, dann zeigt sie den Ablauf für jeden dieser Zugänge.
 verification-method: test
