@@ -712,7 +712,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
     const ws = await fixture();
     const commit = await ws.head();
     // Not LogReq's: the old JSON form of version 1, another first line, a byte order mark, a first key
-    // other than logreq-data, a first line that is cut.
+    // other than logreq-data, a first line cut inside the signature.
     for (const text of [
       '{"logreq-data":1}\n',
       '{"logreq-data":1,"workspace":"W","elements":[]}\n',
@@ -721,7 +721,7 @@ describe("data.store: where the file may go (K4, ADR-0002 rule 5)", () => {
       "not json\n",
       '\ufeff{"logreq-data":2}\n',
       '{"id":"a","logreq-data":2}\n',
-      '{"logreq-data":2,"id"',
+      '{"logreq-data":2',
     ]) {
       await ws.write(`out/${commit}.jsonl`, text);
       const error = await failure(ws.root, { folder: "out" });

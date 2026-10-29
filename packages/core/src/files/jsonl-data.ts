@@ -1,6 +1,7 @@
 // Whether a file is a LogReq data file (`data.store`, SR-062 AK1; #319): JSON Lines whose first line
-// starts with `"logreq-data"` as the first key, with an integer of at least 2, within the first MiB;
-// and valid UTF-8 (a sequence cut at the very end is allowed, see below). No later line is scanned:
+// starts with `{"logreq-data":` and an integer of at least 2 (the signature), within the first MiB;
+// and valid UTF-8 (a sequence cut at the very end is allowed, see below). Only the start of the first
+// line is read, so a first element larger than one MiB does not block the next run. No later line is scanned:
 // the first line is the signature, and a file of LogReq that a crash cut in the middle (the in-place
 // write where the file system has no hard links) is still LogReq's and is replaced on the next run,
 // instead of blocking the pipeline for that commit until someone removes it (review PS3). An empty
@@ -12,17 +13,16 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 
-/** The first line must end within this many bytes (1 MiB). */
+/** The signature must lie within this many bytes (1 MiB). */
 export const DATA_HEAD_BYTES = 1024 * 1024;
 
 /** The pieces a file is read in. */
 const PIECE_BYTES = 1024 * 1024;
 
 const LF = 0x0a;
-const CR = 0x0d;
 
-/** `"logreq-data"` first, then the version: the start of every line LogReq writes (`jsonLines`). */
-const FIRST_KEY = /^\{[\t\n\r ]*"logreq-data"[\t\n\r ]*:/;
+/** `"logreq-data"` first, then the version and the end of that value: the start of every line LogReq writes (`jsonLines`). */
+const SIGNATURE = /^\{[\t\r ]*"logreq-data"[\t\r ]*:[\t\r ]*([1-9][0-9]*)[\t\r ]*[,}]/;
 
 /** What a check over all pieces of a file gives. */
 export interface JsonlDataResult {
@@ -32,22 +32,11 @@ export interface JsonlDataResult {
   readonly dataFile: boolean;
 }
 
-/** Whether `line` (without its LF) is the first line of a LogReq data file. */
-const isFirstLine = (line: Uint8Array): boolean => {
-  const end = line.byteLength > 0 && line[line.byteLength - 1] === CR ? line.byteLength - 1 : line.byteLength;
-  let text: string;
-  let value: unknown;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(line.subarray(0, end));
-    value = JSON.parse(text);
-  } catch {
-    return false;
-  }
-  if (!FIRST_KEY.test(text) || typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const version = (value as Record<string, unknown>)["logreq-data"];
-  return typeof version === "number" && Number.isInteger(version) && version >= 2;
+/** Whether `head` (the start of the first line, without its LF) holds the signature of a LogReq data file. */
+const isFirstLine = (head: Buffer): boolean => {
+  // The signature is ASCII; a byte outside it fails the pattern, and UTF-8 is checked on its own.
+  const match = SIGNATURE.exec(head.toString("latin1"));
+  return match !== null && Number(match[1]) >= 2;
 };
 
 /** The check of `isJsonlDataFile` over the pieces of a file, in order. */
@@ -56,10 +45,10 @@ export class JsonlDataCheck {
   readonly #decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
   #size = 0;
   #utf8 = true;
-  /** The bytes before the first LF, while it has not come and they are within DATA_HEAD_BYTES. */
+  /** The bytes before the first LF, until it comes or they reach DATA_HEAD_BYTES. */
   #head: Uint8Array[] = [];
   #headBytes = 0;
-  /** Undefined until the first LF came or the head is over the bound. */
+  /** Undefined until the first LF came or the head reached the bound. */
   #first: boolean | undefined;
 
   update(piece: Uint8Array): void {
@@ -78,10 +67,8 @@ export class JsonlDataCheck {
       // A copy: the caller may reuse the piece's memory for the next one.
       this.#head.push(Buffer.from(part));
       this.#headBytes += part.byteLength;
-      if (this.#headBytes > DATA_HEAD_BYTES) {
-        this.#first = false;
-      } else if (lf !== -1) {
-        this.#first = isFirstLine(Buffer.concat(this.#head));
+      if (lf !== -1 || this.#headBytes >= DATA_HEAD_BYTES) {
+        this.#first = isFirstLine(Buffer.concat(this.#head).subarray(0, DATA_HEAD_BYTES));
       }
       if (this.#first !== undefined) {
         this.#head = [];
@@ -91,7 +78,7 @@ export class JsonlDataCheck {
 
   /** The result; a UTF-8 sequence cut at the end of the file is not checked (a cut file stays LogReq's). */
   finish(): JsonlDataResult {
-    // A first line without LF: the whole file is that line (a file cut inside it is not recognised).
+    // A first line without LF: the whole file is that line (a file cut inside the signature is not recognised).
     const first = this.#first ?? (this.#size === 0 || isFirstLine(Buffer.concat(this.#head)));
     return {
       size: this.#size,

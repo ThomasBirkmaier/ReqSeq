@@ -1,5 +1,5 @@
-// What counts as a LogReq data file (#319, SR-062 AK1, review PS3): the first line, valid UTF-8, and
-// nothing else; read in pieces with the hash of the whole file.
+// What counts as a LogReq data file (#319, SR-062 AK1, review PS3): the signature at the start of the
+// first line, valid UTF-8, and nothing else; read in pieces with the hash of the whole file.
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -50,24 +50,31 @@ describe("isJsonlDataFile (#319)", () => {
       '["logreq-data",2]\n',
       "﻿" + LINE,
       `\n${LINE}`,
-      '{"logreq-data":2,\n"x":1}\n',
+      '{"logreq-data":02}\n',
+      '{"logreq-data":-2}\n',
+      '{"logreq-data":2e1}\n',
       '{"logreq-data":2',
       "plain text\n",
-      // The old JSON form.
-      '{"logreq-data":2,"workspace":"W","elements":[\n',
+      // The JSON form, as `data export --json` writes it.
+      '{\n  "logreq-data": 2,\n',
     ]) {
       expect([text, isJsonlDataFile(bytes(text))]).toEqual([text, false]);
     }
   });
 
-  it("refuses a first line longer than one MiB, also when it comes in pieces", () => {
+  it("takes a first line longer than one MiB by its signature, also when it comes in pieces (review of #331)", () => {
     const long = `{"logreq-data":2,"x":"${"a".repeat(DATA_HEAD_BYTES)}"}\n`;
-    expect(isJsonlDataFile(bytes(long))).toBe(false);
+    expect(isJsonlDataFile(bytes(long))).toBe(true);
     const check = new JsonlDataCheck();
     for (let at = 0; at < long.length; at += 4096) {
       check.update(bytes(long.slice(at, at + 4096)));
     }
-    expect(check.finish().dataFile).toBe(false);
+    expect(check.finish().dataFile).toBe(true);
+  });
+
+  it("refuses a signature that does not lie within the first MiB", () => {
+    const late = `{${" ".repeat(DATA_HEAD_BYTES)}"logreq-data":2}\n`;
+    expect(isJsonlDataFile(bytes(late))).toBe(false);
   });
 
   it("finds the first line across pieces, with a character across an edge", () => {
