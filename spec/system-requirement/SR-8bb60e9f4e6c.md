@@ -1,7 +1,7 @@
 ---
 id: 6adc6c44-ff50-43b1-88d3-8bb60e9f4e6c
 type: system-requirement
-status: draft
+status: approved
 title: "Nachweis mit Fassung, Prüfling und Baselines zeigen"
 spec-id: "SR-032"
 requirement-type: functional

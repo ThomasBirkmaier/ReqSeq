@@ -1,7 +1,7 @@
 ---
 id: 6adc7b04-8e48-40e1-8fdb-01bb7cbab2ec
 type: system-requirement
-status: draft
+status: approved
 title: "Prüfung auf geänderte Elemente beschränken"
 spec-id: "SR-092"
 requirement-type: functional

@@ -1,7 +1,7 @@
 ---
 id: 6adc7b0b-4466-475b-a48d-d636f9f1f4ee
 type: system-requirement
-status: draft
+status: approved
 title: "Bilder einfügen"
 spec-id: "SR-097"
 requirement-type: functional
