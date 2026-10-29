@@ -20,24 +20,27 @@ concurrency:
   # against the new base.
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
+  # Marking a pull request ready for review gets a group of its own (#303): it must not cancel the Ubuntu lane that
+  # still runs on the same commit, because a cancelled check on the head commit blocks the merge (merge.md).
   # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
   # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
   # its ref.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || github.event.action == 'ready_for_review' && 'ready' || 'full' }}
   cancel-in-progress: true
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
 # run code from pull requests on a machine of its own).
-# Two lanes (#303, product owner decision, 2026-10-29): every run starts the Ubuntu lane (`static`, `checks` and
+# Two lanes (#303, product owner decision, 2026-10-29): every push starts the Ubuntu lane (`static`, `checks` and
 # `electron` on ubuntu-24.04, in parallel). A draft pull request stops there, so the pushes while it is worked on cost
-# a few runner minutes each. A pull request that is ready for review (`ready_for_review` and each push after it), the
-# nightly and the manual run add the platform lane: `checks` and `electron` on macos-14 and windows-2025, after the
-# Ubuntu lane of the same run passed (a pull request) or finished (nightly, manual). So every pull request is checked
+# a few runner minutes each. On a pull request that is not a draft, the nightly and the manual run the platform lane
+# follows: `checks` and `electron` on macos-14 and windows-2025, after the Ubuntu lane of the same run passed (a pull
+# request) or finished (nightly, manual). Marking a draft ready for review runs only the platform lane: the Ubuntu
+# lane already ran on that commit (merge.md asks for it green first). So every pull request is checked
 # on all three systems before its merge (merge.md), but not every push.
 
 jobs:
   # Title, body and label edits only matter to trace-check, which reads the PR text (D-050). The full run's
-  # `checks` job runs the same check; this job runs only for edits of the title or body (not of the base branch)
+  # `static` job runs the same check; this job runs only for edits of the title or body (not of the base branch)
   # and for the labels that trace-check reads, in a concurrency group of its own.
   pr-text:
     name: trace-check (PR text)
@@ -89,7 +92,7 @@ jobs:
     name: static
     # A normal run takes 2-3 minutes; the bound ends a hang early.
     timeout-minutes: 8
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     permissions:
       contents: read
       pull-requests: read # Write PR body
@@ -174,7 +177,7 @@ jobs:
     name: checks (ubuntu-24.04)
     # A normal run takes 6-7 minutes; the bound ends a hang early.
     timeout-minutes: 15
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
       - uses: actions/checkout@v4
@@ -268,7 +271,7 @@ jobs:
     name: electron (ubuntu-24.04)
     # A normal run takes 8-11 minutes (install, build, about 250 tests one app at a time); the bound ends a hang.
     timeout-minutes: 20
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
     runs-on: ubuntu-24.04
     steps: &electron-steps
       - uses: actions/checkout@v4
@@ -301,13 +304,24 @@ jobs:
         if: steps.changes.outputs.tests != 'false'
         shell: bash
         run: |
-          echo "version=$(node -p "require('./packages/app/node_modules/electron/package.json').version")" >> "$GITHUB_OUTPUT"
+          version="$(node -p "require('./packages/app/node_modules/electron/package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "electron_config_cache=$RUNNER_TEMP/electron-cache" >> "$GITHUB_ENV"
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: electron-cache
         if: steps.changes.outputs.tests != 'false'
         with:
           path: ${{ runner.temp }}/electron-cache
           key: electron-${{ runner.os }}-${{ runner.arch }}-${{ steps.electron.outputs.version }}
+      # Saved right after the download, so that a red test run still fills the cache.
+      - name: Electron binary
+        if: steps.changes.outputs.tests != 'false'
+        run: pnpm --filter @logreq/app electron:install
+      - uses: actions/cache/save@v4
+        if: steps.changes.outputs.tests != 'false' && steps.electron-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: ${{ steps.electron-cache.outputs.cache-primary-key }}
       # Core (the app loads it in its core process) and the CLI (the tests compare with it).
       - if: steps.changes.outputs.tests != 'false'
         run: pnpm build
@@ -345,7 +359,7 @@ jobs:
 
   # The platform lane (#303): the steps of `checks` and `electron` on macOS 14 and Windows 2025. A pull request runs
   # it only when it is not a draft, and only after its Ubuntu lane passed: a red Ubuntu lane starts no macOS or
-  # Windows job. Nightly and manual runs run it after the Ubuntu lane whatever its result, so that every system's
+  # Windows job. The run of `ready_for_review` has no Ubuntu lane and starts the platform lane at once. Nightly and manual runs run it after the Ubuntu lane whatever its result, so that every system's
   # result is there. A skipped platform job shows its name without the system (`checks (${{ matrix.os }})`), so
   # merge.md asks for the jobs of all three systems to be present and green.
   checks-platform:
@@ -354,8 +368,9 @@ jobs:
     # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
     timeout-minutes: 25
     if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' ||
-      (!github.event.pull_request.draft && needs.static.result == 'success' &&
+      ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
+      (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
+      !github.event.pull_request.draft && needs.static.result == 'success' &&
       needs.checks.result == 'success' && needs.electron.result == 'success')) }}
     strategy:
       fail-fast: false
@@ -370,8 +385,9 @@ jobs:
     # Windows took more than 20 minutes on 2026-10-29 (one app at a time); the bound ends a hang.
     timeout-minutes: 30
     if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' ||
-      (!github.event.pull_request.draft && needs.static.result == 'success' &&
+      ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
+      (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
+      !github.event.pull_request.draft && needs.static.result == 'success' &&
       needs.checks.result == 'success' && needs.electron.result == 'success')) }}
     strategy:
       fail-fast: false

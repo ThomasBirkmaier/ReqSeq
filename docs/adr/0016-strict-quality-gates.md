@@ -19,7 +19,7 @@ Agents write almost all of the code and merge on their own (D-051). Gates that a
 - React components (`.tsx`) are measured and reported, but have no threshold (product owner decision, 2026-10-27, #537). Playwright and the `[SR-xxx/AKn]` tests are the evidence for them; a component test is written where it checks behaviour, never only to reach a coverage number. Logic that a component needs goes into a `.ts` module, which is under the threshold of its package.
 - Repository scripts under `scripts/` (export, trace check, contracts) are tooling, not product code. They are linted and tested but not under the 100 % threshold.
 
-**Gate.** All of this runs in the required check `checks` (its static steps and its unit tests, #566; before, the jobs `static` and `test`). Agents never lower a threshold, disable a rule globally or add an ignore pattern to get green; such a change is an ADR change announced to the product owner.
+**Gate.** All of this runs in the required checks `static` (typecheck, lint, format) and `checks` (unit tests with coverage) of ADR-0011 (#303; from #566 to #303 both in `checks`). Agents never lower a threshold, disable a rule globally or add an ignore pattern to get green; such a change is an ADR change announced to the product owner.
 
 ## Consequences
 
