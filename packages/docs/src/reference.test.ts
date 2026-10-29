@@ -7,6 +7,7 @@ import { inline } from "./markdown.js";
 import { codeAnchor, readProblemCodes } from "./codes.js";
 import { FORMATS, readExamples, schemaName } from "./formats.js";
 import { readGeneratedContracts, referencePages } from "./reference.js";
+import { modelAnchor, readStandardModel } from "./standard-model.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -23,6 +24,7 @@ const sources = async (runtime: ReturnType<typeof getCommandRuntime>) => ({
   codes: await readProblemCodes(repoRoot),
   schemas: runtime.contracts.schemas,
   examples: await readExamples(repoRoot),
+  standardModel: await readStandardModel(repoRoot),
 });
 
 const pageAt = (pages: readonly { path: string; text: string }[], path: string): string =>
@@ -35,7 +37,7 @@ describe("reference", () => {
   it("[SR-139/AK1] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
-    expect(pages).toHaveLength(runtime.contracts.commands.length + 2 + FORMATS.length + 2);
+    expect(pages).toHaveLength(runtime.contracts.commands.length + 2 + FORMATS.length + 3);
     expect(runtime.contracts.commands.length).toBeGreaterThanOrEqual(49);
     for (const entry of runtime.contracts.commands) {
       const page = pageOf(pages, entry.name);
@@ -85,7 +87,7 @@ describe("reference", () => {
     expect(pages[0]?.text).toContain("](/ReqSeq/reference/problem-codes/)");
   });
 
-  it("[SR-139/AK3] describes every file format with its fields, definitions and examples", async () => {
+  it("[SR-139/AK3] describes every file format with its fields, definitions and examples, and every part of the standard model", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
     const examples = await readExamples(repoRoot);
@@ -111,9 +113,26 @@ describe("reference", () => {
     expect(pageOf(pages, "element.get")).toContain(
       "[`elementRef`](/ReqSeq/reference/common-types/#elementRef)",
     );
+    const model = await readStandardModel(repoRoot);
+    const modelPage = pageAt(pages, "reference/standard-model.md");
+    const parts = [
+      ["type", model.types],
+      ["property", model.properties],
+      ["relation", model.relations],
+      ["status", model.statuses],
+    ] as const;
+    for (const [part, items] of parts) {
+      expect(items.length, part).toBeGreaterThan(0);
+      for (const item of items) {
+        expect(item.description, `${part} ${item.key}`).toMatch(/\S/);
+        expect(modelPage, `${part} ${item.key}`).toContain(
+          `<a id="${modelAnchor(part, item.key)}"></a>\n\n### ${inline(item.name)} (\`${item.key}\`)\n\n${inline(item.description ?? "")}\n`,
+        );
+      }
+    }
   });
 
-  it("[SR-139/AK4] shows a changed summary of a command and a changed remedy of a code and a changed format description without a page changed by hand", async () => {
+  it("[SR-139/AK4] shows a changed summary of a command and a changed remedy of a code, a changed format description and a changed standard model description without a page changed by hand", async () => {
     const catalog = structuredClone(contractsBundle.catalog) as {
       commands: { name: string; summary: string }[];
     };
@@ -134,10 +153,19 @@ describe("reference", () => {
     const schemas = runtime.contracts.schemas.map((schema) =>
       schemaName(schema) === "workspace" ? { ...schema, description: format } : schema,
     );
+    const model = await readStandardModel(repoRoot);
+    const description = "A changed description of the status <draft>.";
+    const standardModel = {
+      ...model,
+      statuses: model.statuses.map((status) =>
+        status.initial === true ? { ...status, description } : status,
+      ),
+    };
     const pages = await referencePages(
-      { ...(await sources(runtime)), codes: changedCodes, schemas, examples: {} },
+      { ...(await sources(runtime)), codes: changedCodes, schemas, examples: {}, standardModel },
       "/",
     );
+    expect(pageAt(pages, "reference/standard-model.md")).toContain(`\n${inline(description)}\n`);
     expect(pageAt(pages, "reference/formats/workspace.md")).toContain(`\n${format}\n`);
     const page = pageOf(pages, "element.get");
     expect(page).toContain(`\n${inline(changed)}\n`);

@@ -5,6 +5,7 @@ import type * as Assemble from "./assemble.js";
 import type * as Codes from "./codes.js";
 import type * as Formats from "./formats.js";
 import type * as Reference from "./reference.js";
+import type * as Model from "./standard-model.js";
 
 const assembleContent = vi.fn(() => Promise.resolve(["index.md"]));
 const referencePages = vi.fn(() => Promise.resolve([{ path: "reference/commands/index.md", text: "" }]));
@@ -14,6 +15,12 @@ const codes = { problems: {}, errors: {} };
 const readProblemCodes = vi.fn(() => Promise.resolve(codes));
 const examples = { workspace: [] };
 const readExamples = vi.fn(() => Promise.resolve(examples));
+const standardModel = { types: [], properties: [], relations: [], statuses: [] };
+const readStandardModel = vi.fn(() => Promise.resolve(standardModel));
+vi.mock("./standard-model.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Model>()),
+  readStandardModel,
+}));
 vi.mock("./assemble.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Assemble>()),
   assembleContent,
@@ -41,6 +48,7 @@ describe("bin", () => {
     const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
     expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
+    expect(readStandardModel).toHaveBeenCalledWith(paths.repoRoot);
     expect(referencePages).toHaveBeenCalledWith(
       {
         runtime: getCommandRuntime(),
@@ -48,6 +56,7 @@ describe("bin", () => {
         examples,
         generated,
         codes,
+        standardModel,
       },
       "/base",
     );
