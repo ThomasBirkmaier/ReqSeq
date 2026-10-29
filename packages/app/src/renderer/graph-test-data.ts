@@ -86,7 +86,7 @@ export const S1_GRAPH = graphOutput(
     graphEdge("S1", "N1"),
     graphEdge("S1", "D1", BASED_ON),
     graphEdge("S1", "PKG", { kind: "packages", property: true }),
-    graphEdge("S1", "O1", { kind: "supersedes", meaning: "replacement" }),
+    graphEdge("S1", "O1", { kind: "supersedes", meaning: "succession" }),
     graphEdge("S1", "D2", { ...REFERENCE, outdated: true }),
     graphEdge("D1", "S1", REFERENCE),
     graphEdge("D2", "C1", REFERENCE),

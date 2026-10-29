@@ -84,7 +84,7 @@ describe("data.export: every element of a workspace (SR-061 AK1)", () => {
   it("[SR-061/AK1] gives every element of both repositories with its properties, relations, version, verification status and validity", async () => {
     const workspace = open(await fixture());
     const out = await exportOf(workspace);
-    expect(out["reqseq-data"]).toBe(2);
+    expect(out["reqseq-data"]).toBe(3);
     expect(out.workspace).toBe("Weather station");
     expect(names(out)).toEqual(ALL);
     const b1 = element(out, "b1");

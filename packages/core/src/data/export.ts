@@ -200,7 +200,7 @@ export const exportHeader = (input: {
 }): Omit<DataExportFile, "elements"> => {
   const commit = input.repositories.find((r) => r.name === input.main)?.commit;
   return {
-    "reqseq-data": 2,
+    "reqseq-data": 3,
     ...(commit === undefined ? {} : { commit }),
     dirty: !input.repositories.every((r) => !r.available || r.dirty === false),
     workspace: input.name,
