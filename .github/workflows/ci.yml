@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled, closed]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
   # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
   # manual run check main; a red nightly run is fixed the next morning, through a pull request to main (#340).
@@ -14,10 +14,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Label and text edits get their own group so they never cancel a full run. A label other than `enabler` or
-  # `spec-export` does not change trace-check's result: its run starts no job and gets a group of its own, so that
-  # it never cancels a running text check (#566). A change of the base branch is a full run: the code is checked
-  # against the new base.
+  # Title, body and label edits run trace-check in pr-text.yml, not here (#372): a CI run of such an event would be the
+  # newest run of the head commit, and GitHub reads the required checks from it, where the platform jobs are skipped
+  # under a name without the system. A change of the base branch therefore starts no run either; the next push checks
+  # the code against the new base (`pnpm merge:main`).
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
   # Marking a pull request ready for review gets a group of its own (#303): it must not cancel the Ubuntu lane that
@@ -25,7 +25,7 @@ concurrency:
   # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
   # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
   # its ref.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || github.event.action == 'ready_for_review' && 'ready' || 'full' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || github.event.action == 'ready_for_review' && 'ready' || 'full' }}
   cancel-in-progress: true
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
@@ -39,52 +39,6 @@ concurrency:
 # on all three systems before its merge (merge.md), but not every push.
 
 jobs:
-  # Title, body and label edits only matter to trace-check, which reads the PR text (D-050). The full run's
-  # `static` job runs the same check; this job runs only for edits of the title or body (not of the base branch)
-  # and for the labels that trace-check reads, in a concurrency group of its own.
-  pr-text:
-    name: trace-check (PR text)
-    if: >-
-      github.event_name == 'pull_request' && github.event.pull_request.state == 'open' &&
-      ((github.event.action == 'edited' && !github.event.changes.base) ||
-      (contains(fromJSON('["labeled","unlabeled"]'), github.event.action) &&
-      contains(fromJSON('["enabler","spec-export"]'), github.event.label.name)))
-    permissions:
-      contents: read
-      pull-requests: read # Write PR body
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      # No pnpm cache: the root's devDependencies (about 160 packages; trace-check needs `yaml`, #326) download
-      # faster than the whole store's cache restores.
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-      - name: Install the root's dependencies only
-        run: pnpm install --frozen-lockfile --filter reqseq --ignore-scripts
-      - name: Write PR body
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ github.event.pull_request.url }}
-        # The pull request as it is now, not as the event saw it: a label added right after opening the pull
-        # request (`enabler`) counts in the run of `opened` too, and a re-run reads the current text (#571).
-        run: |
-          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" "$PR_URL" > pr.json
-          jq -r '.title + "\n\n" + (.body // "")' pr.json > pr-body.txt
-          jq -r '[.labels[].name] | any(. == "enabler" or . == "spec-export")' pr.json > pr-enabler.txt
-      - name: Trace check
-        run: |
-          args="--pr-body pr-body.txt"
-          if [ "$(cat pr-enabler.txt)" = "true" ]; then args="$args --enabler"; fi
-          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
-      - name: Report
-        if: always()
-        run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
-
   # Static checks: they do not depend on the operating system and need no build, so Ubuntu only and apart from the
   # tests (#303). Each step after the install runs even when an earlier one failed (`!cancelled()`), so that one red
   # step never hides another result; the job is red if any step is.
@@ -92,7 +46,7 @@ jobs:
     name: static
     # A normal run takes 2-3 minutes; the bound ends a hang early.
     timeout-minutes: 8
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
     permissions:
       contents: read
       pull-requests: read # Write PR body
@@ -194,7 +148,7 @@ jobs:
     name: checks (ubuntu-24.04)
     # A normal run takes 6-7 minutes; the bound ends a hang early.
     timeout-minutes: 15
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
       - uses: actions/checkout@v4
@@ -293,7 +247,7 @@ jobs:
     name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
     # A normal run takes 5-6 minutes (install, build, half of about 260 tests one app at a time); the bound ends a hang.
     timeout-minutes: 15
-    if: ${{ !contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base) }}
+    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
     strategy:
       fail-fast: false
       matrix:
@@ -392,7 +346,7 @@ jobs:
     name: electron (ubuntu-24.04)
     needs: electron-shard
     timeout-minutes: 2
-    if: ${{ !cancelled() && (!contains(fromJSON('["edited","labeled","unlabeled","closed","ready_for_review"]'), github.event.action) || (github.event.action == 'edited' && github.event.changes.base)) }}
+    if: ${{ !cancelled() && !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Both shards passed
@@ -418,7 +372,7 @@ jobs:
       cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
-      (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
+      (github.event.action != 'closed' &&
       !github.event.pull_request.draft && needs.static.result == 'success' &&
       needs.checks.result == 'success' && needs.electron.result == 'success')) }}
     strategy:
@@ -441,7 +395,7 @@ jobs:
       cancel-in-progress: true
     if: >-
       ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
-      (!contains(fromJSON('["edited","labeled","unlabeled","closed"]'), github.event.action) &&
+      (github.event.action != 'closed' &&
       !github.event.pull_request.draft && needs.static.result == 'success' &&
       needs.checks.result == 'success' && needs.electron.result == 'success')) }}
     strategy:
