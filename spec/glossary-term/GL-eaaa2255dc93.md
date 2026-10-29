@@ -7,7 +7,7 @@ synonyms:
   - "Art"
   - "Klasse"
 see-also:
-  - { id: 6ad4f967-cd5c-4742-9496-c32698d7e56d, version: n1:0082da0ecb9c3612, title: Element }
+  - { id: 6ad4f967-cd5c-4742-9496-c32698d7e56d, version: n1:5d232d73c12d355d, title: Element }
 ---
 
 Art eines Elements, zum Beispiel Need oder System Requirement. Ein Typ kann einen anderen erweitern und erbt dann dessen Properties.
