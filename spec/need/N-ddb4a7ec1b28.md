@@ -1,7 +1,7 @@
 ---
 id: 6ad4f636-daf5-4ccf-86d9-ddb4a7ec1b28
 type: need
-status: draft
+status: approved
 title: "Große Datenmengen"
 spec-id: "N-036"
 topic: "Betrieb und Leistung"
