@@ -562,6 +562,25 @@ const watching = async (workspace: Workspace, options: ActivityWatchOptions): Pr
 
 const quiet = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Resolves once a watch has read the activity file with `seq` (the access is held from then on). */
+const readOf = (seq: number): Promise<void> => {
+  const read = vi.mocked(WorkspaceBlock.readCacheFile);
+  const original = read.getMockImplementation() as typeof WorkspaceBlock.readCacheFile;
+  onTestFinished(() => {
+    read.mockImplementation(original);
+  });
+  return new Promise((resolve) => {
+    read.mockImplementation(async (...args) => {
+      const text = await original(...args);
+      if (args[1] === ACTIVITY_FILE && text?.includes(`"seq":${String(seq)},`) === true) {
+        read.mockImplementation(original);
+        resolve();
+      }
+      return text;
+    });
+  });
+};
+
 /** Another process of the copy: its own workspace on the same root and cache folder. */
 const server = (opened: Copy): Workspace => open(opened.fixture.root, opened.cache);
 
@@ -619,27 +638,31 @@ describe("watching the last access (SR-117)", () => {
   });
 
   it("drops a held access for a newer one, and reports a held one after holdMs", async () => {
+    const holdMs = 1000;
     const opened = await copy(IDENTIFIERS);
     const store = await opened.workspace.get(elementStoreState);
     const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs: 400 });
+    await watching(opened.workspace, { ...seen.options, holdMs });
     const write = (file: ActivityFile): Promise<string> =>
       WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
 
+    // Wait until the first access is held, not for a fixed time (file events are late on macOS, #304).
+    const held = readOf(1);
     await write(activityFile("0".repeat(64), 1));
-    await quiet(100);
+    await held;
+    const heldAt = Date.now();
     const next = seen.next();
     await write(activityFile(known, 2, SR_037));
     expect((await next).element.id).toBe(SR_037);
-    await quiet(600);
+    await quiet(heldAt + holdMs + 200 - Date.now());
     expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037]);
 
     const late = seen.next();
     const started = Date.now();
     await write(activityFile("1".repeat(64), 3));
     expect((await late).element.id).toBe(SR_036);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(350);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
 
     // A change of the files while nothing is held reports nothing.
     const changed = new Promise<void>((resolve) => {
@@ -653,6 +676,43 @@ describe("watching the last access (SR-117)", () => {
     await changed;
     await quiet(50);
     expect(seen.seen).toHaveLength(2);
+  });
+
+  it("reports a newer access whose file event comes late, not the held one it supersedes", async () => {
+    const opened = await copy(IDENTIFIERS);
+    const store = await opened.workspace.get(elementStoreState);
+    const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
+    // The events of the cache folder pass until `late` is set: then they are lost, as a late or
+    // merged FSEvents batch on macOS looks until the hold ends (#304).
+    let late = false;
+    const actual = await vi.importActual<typeof NodeFs>("node:fs");
+    const watchMock = vi.mocked(fsWatch);
+    watchMock.mockImplementation(((
+      folder: string,
+      options: NodeFs.WatchOptionsWithStringEncoding,
+      listener: NodeFs.WatchListener<string>,
+    ) =>
+      actual.watch(folder, options, (event, name) => {
+        if (folder !== opened.cache || !late) {
+          listener(event, name);
+        }
+      })) as typeof fsWatch);
+    onTestFinished(() => {
+      watchMock.mockImplementation(actual.watch);
+    });
+    const seen = accesses();
+    await watching(opened.workspace, { ...seen.options, holdMs: 1000 });
+    const write = (file: ActivityFile): Promise<string> =>
+      WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
+
+    const held = readOf(1);
+    await write(activityFile("0".repeat(64), 1));
+    await held;
+    late = true;
+    const next = seen.next();
+    await write(activityFile(known, 2, SR_037));
+    expect((await next).element.id).toBe(SR_037);
+    expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037]);
   });
 
   it("reports nothing that it was still reading or checking when it closed", async () => {
