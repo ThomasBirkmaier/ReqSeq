@@ -1,5 +1,6 @@
-// The hint IDs of outdated relations (SR-025), which hint.confirm (SR-027) resolves: every ID parses
-// back to what it names, and nothing else parses.
+// The hint IDs of outdated relations (SR-025) and of changed core requirements at a replacement
+// (SR-045), which hint.confirm (SR-027) resolves: every ID parses back to what it names, and nothing
+// else parses.
 import { describe, expect, it } from "vitest";
 import type { HintTarget } from "./hint-id.js";
 import { hintIdOf, parseHintId } from "./hint-id.js";
@@ -7,7 +8,12 @@ import { hintIdOf, parseHintId } from "./hint-id.js";
 const S = "5e025a7d-2b4f-4c61-9d08-0b0000000001";
 const T = "5e025a7d-2b4f-4c61-9d08-0a0000000001";
 const VERSION = "n1:323df2732ed684b0";
-const AT = { sourceRepository: "system", file: "requirements/SR-0b0000000001.md", source: S };
+const AT = {
+  code: "relation.outdated",
+  sourceRepository: "system",
+  file: "requirements/SR-0b0000000001.md",
+  source: S,
+} as const;
 /** The place as an ID writes it. */
 const PLACE = `system/requirements%2FSR-0b0000000001.md/${S}`;
 
@@ -73,6 +79,25 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
     expect(parseHintId(id("@text", "&n=2"))).not.toHaveProperty("property");
   });
 
+  it("names a changed core requirement at the replaces item of a variant requirement (SR-045)", () => {
+    const target: HintTarget = {
+      kind: "relation",
+      ...AT,
+      code: "variant.core-changed",
+      key: "replaces",
+      target: T,
+      repository: "core",
+      version: VERSION,
+    };
+    const id = `variant.core-changed/${PLACE}/replaces/${T}?version=${VERSION}&repository=core`;
+    expect(hintIdOf(target)).toBe(id);
+    expect(parseHintId(id)).toEqual(target);
+    // The same place with the other code is another hint.
+    expect(parseHintId(id.replace("variant.core-changed", "relation.outdated"))).toMatchObject({
+      code: "relation.outdated",
+    });
+  });
+
   it.each([
     ["no query", `relation.outdated/${PLACE}/derives-from/${T}`],
     ["another code", `relation.missing-target/${PLACE}/derives-from/${T}?version=${VERSION}`],
@@ -112,6 +137,15 @@ describe("hint IDs of outdated relations (SR-025, D-042)", () => {
       "a property reference without its place",
       `relation.outdated/${PLACE}/@text:notes/${T}?version=${VERSION}`,
     ],
+    [
+      "a changed core requirement in the text",
+      `variant.core-changed/${PLACE}/@text/${T}?version=${VERSION}&n=1`,
+    ],
+    [
+      "a changed core requirement in a Markdown property",
+      `variant.core-changed/${PLACE}/@text:notes/${T}?version=${VERSION}&n=1`,
+    ],
+    ["an unknown code prefix", `variant.nested/${PLACE}/replaces/${T}?version=${VERSION}`],
     ["a reference with place 0", `relation.outdated/${PLACE}/@text/${T}?version=${VERSION}&n=0`],
   ])("rejects an ID with %s", (_case, id) => {
     expect(parseHintId(id)).toBeUndefined();

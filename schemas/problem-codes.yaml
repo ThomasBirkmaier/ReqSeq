@@ -61,7 +61,7 @@ problems:
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
     remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
   relation.outdated:
-    cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review.
+    cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. A `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement (SR-041 AK8) or from a requirement without validity (SR-041 AK6) it stays `relation.outdated`.
     remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.
   relation.target-superseded:
     cause: A relation points to an element whose status marks it as superseded.
@@ -73,7 +73,7 @@ problems:
     cause: The relation existed without a valid stored version; the target's current version was stored now.
     remedy: None needed.
   hint.not-confirmable:
-    cause: Only a hint on a changed version (`relation.outdated`) can be confirmed; the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place.
+    cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place.
     remedy: Other hints go away when what they report is fixed. For a file the message names, correct it by hand.
   hint.not-found:
     cause: No open hint has the given ID. It was confirmed already, or the relation, its target or the file changed since.
@@ -82,14 +82,17 @@ problems:
     cause: Relations of a deriving kind form a cycle, so the chain of the elements in it never ends.
     remedy: Remove or change one of the relations of the cycle the message lists.
   variant.core-changed:
-    cause: An element of the core that a variant replaces or extends has changed since the variant was written. This version does not raise it yet.
-    remedy: Review the variant's element against the changed core element.
+    cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version (SR-045). It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. This version does not raise it yet.
+    remedy: Check the replacing requirement against the change, then confirm the hint (`hint.confirm`). It stores the core requirement's current version, and its title when both are in one repository (D-058); a variant in its own repository (D-020) gets the version only.
   variant.superseded-in-validity:
     cause: The validity of an element lists a variant element that is superseded.
     remedy: List the successor instead, or remove the entry.
   variant.nested:
-    cause: A variant is based on another variant, which ReqSeq does not support. This version does not raise it yet.
-    remedy: Base the variant on the core.
+    cause: A variant has validity entries, but a variant builds only on the core (D-020, SR-039 AK2/AK3). This version does not raise it yet.
+    remedy: Remove the validity entries of the variant; a relation between variants is allowed.
+  variant.target-not-core:
+    cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view (SR-041 AK8, SR-042 AK7). This version does not raise it yet.
+    remedy: Point the entry at a core requirement, or remove it; to retire an element for everyone, supersede it (SR-072).
   evidence.unknown-element:
     cause: An evidence record or a test case names an element that the workspace does not have.
     remedy: Correct the element named in the record or test, or check that its repository is on this machine.
@@ -168,8 +171,8 @@ errors:
     cause: The metamodel does not allow this relation kind between the types of source and target.
     remedy: Use an allowed relation kind, or change the metamodel.
   variant.nested:
-    cause: The variant would be based on another variant, which ReqSeq does not support. This version does not raise it yet.
-    remedy: Base the variant on the core.
+    cause: The variant would get validity entries, but a variant builds only on the core (D-020, SR-039 AK2/AK3). This version does not raise it yet.
+    remedy: Write the variant without validity entries; a relation between variants is allowed.
   baseline.uncommitted-changes:
     cause: A baseline needs a committed state, but the working tree has uncommitted changes. This version does not raise it yet.
     remedy: Commit or stash the changes first.

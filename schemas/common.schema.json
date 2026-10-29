@@ -256,6 +256,7 @@
         "variant.core-changed",
         "variant.superseded-in-validity",
         "variant.nested",
+        "variant.target-not-core",
         "evidence.unknown-element",
         "evidence.invalid-record",
         "evidence.outdated",
@@ -360,7 +361,7 @@
       ]
     },
     "view": {
-      "description": "`core`, a variant ID, or absent for all elements (SR-043).",
+      "description": "`core`, a variant ID, or absent for all. A variant's view: the core requirements it neither excludes nor replaces, plus those valid for it; elements without validity property are in every view (SR-043). A missing repository leaves out what is stored there, and the output says `incomplete` (SR-006 AK2).",
       "anyOf": [
         {
           "const": "core"

@@ -97,7 +97,7 @@
           "properties": {
             "validFor": {
               "$ref": "common.schema.json#/$defs/view",
-              "description": "Elements that apply in this view by their validity."
+              "description": "Elements that apply in this view by their validity only, not the view: replacements and exclusions do not count."
             }
           },
           "additionalProperties": false
