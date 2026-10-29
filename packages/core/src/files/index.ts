@@ -21,6 +21,7 @@ export {
   readJsonlSnapshot,
   readFileStat,
   readYamlFile,
+  readYamlFileFast,
 } from "./read.js";
 export type {
   BodyReadResult,

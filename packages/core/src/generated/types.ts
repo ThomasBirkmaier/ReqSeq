@@ -51,26 +51,62 @@ export interface ApiEndpointFile {
 }
 
 /**
- * A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).
+ * A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.
  * Schema: `schemas/baseline.schema.json#`.
  */
 export interface BaselineFile {
   readonly "reqseq-baseline": 1;
-  readonly name: string;
+  readonly name: BaselineName;
+  /** When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2). */
   readonly date: IsoDateTime;
-  /** How the elements were selected, for information. The element list is authoritative. */
-  readonly selection?: ElementSelection;
+  readonly selection?: BaselineStoredSelection;
+  /** The repositories of the selected elements, the main repository and the metamodel's, each once with its HEAD commit (SR-050 AK4). */
   readonly repositories: readonly {
     readonly name: string;
     readonly commit: Commit;
   }[];
-  /** Sorted by id; one flow mapping per line. */
+  /** Sorted by id, then repository; one flow mapping per line. */
   readonly elements: readonly {
     readonly id: Uuid;
     readonly version: Version;
+    /** The repository of the copy, relative to the repository of the baseline file: given when they differ or the UUID has copies in several repositories. */
     readonly repository?: string;
   }[];
 }
+
+/**
+ * Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004).
+ * Schema: `schemas/baseline.schema.json#/$defs/name`.
+ */
+export type BaselineName = string;
+
+/**
+ * The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, elements as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058). The title is the one at baseline time.
+ * Schema: `schemas/baseline.schema.json#/$defs/storedSelection`.
+ */
+export interface BaselineStoredSelection {
+  readonly ids?: readonly BaselineStoredRef[];
+  /** Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written. */
+  readonly filter?: string;
+  readonly where?: FilterCondition;
+  readonly package?: BaselineStoredRef;
+  readonly view?: "core" | BaselineStoredRef;
+}
+
+/**
+ * An element of the stored selection: as written, or any reference a person may write by hand.
+ * Schema: `schemas/baseline.schema.json#/$defs/storedRef`.
+ */
+export type BaselineStoredRef =
+  | ElementRef
+  | {
+    readonly id: Uuid;
+    readonly title: string;
+  }
+  | {
+    readonly id: Uuid;
+    readonly repository: string;
+  };
 
 /**
  * Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).
@@ -263,6 +299,8 @@ export type ProblemCode =
   | "variant.core-changed"
   | "variant.superseded-in-validity"
   | "variant.nested"
+  | "variant.core-changed-since-baseline"
+  | "variant.core-new-since-baseline"
   | "evidence.unknown-element"
   | "evidence.invalid-record"
   | "evidence.outdated"
@@ -297,6 +335,7 @@ export interface CommandErrorObject {
     | "relation.not-allowed"
     | "variant.nested"
     | "baseline.uncommitted-changes"
+    | "baseline.exists"
     | "reqif.invalid"
     | "reqif.unmapped"
     | "git.unavailable"
@@ -1170,7 +1209,7 @@ export interface CommandCatalog {
     readonly arguments: readonly {
       /** A top-level property of `input`. */
       readonly field: string;
-      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
+      /** element: elements found by element.search. type: types of the metamodel. status: statuses of the type of the element in `of` (without it, every status of the metamodel). invalidStatus: of those, the ones the metamodel marks invalid. relationKind: kinds that relation.options allows from the element in `of` (without it, every relation kind of the metamodel). relationTarget: elements of the target types of the kind in `of` (element.search with selection.where.type). relation: with `of` an element field, the kinds of the existing relations of that element; with `of` a relation field (the kind asked before), the targets of the relations of that kind (relation.remove: source, kind, target). property: properties of the type of the element in `of` (every property of the metamodel without it). value: the values the metamodel fixes for the property in `of`. hint: open hints of the element in `of` (without it, every open hint). filter: saved filters. baseline: baselines (baseline.list). repository: repositories of the workspace. selection: the selection of the list shown. choice: the inline `enum` of the property. text, number, boolean: typed free input. json: any other object or mixed field, typed as JSON and checked by core. */
       readonly complete:
         | "element"
         | "type"
@@ -1183,6 +1222,7 @@ export interface CommandCatalog {
         | "value"
         | "hint"
         | "filter"
+        | "baseline"
         | "repository"
         | "selection"
         | "choice"
@@ -2581,79 +2621,168 @@ export interface VariantExcludeOutput {
 }
 
 /**
- * Input of `baseline.create` as `run` gets it: validated, properties with a `default` filled in. Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.
+ * Input of `baseline.create` as `run` gets it: validated, properties with a `default` filled in. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
  * Schema: `schemas/commands/catalog.json baseline.create input`.
  */
 export interface BaselineCreateInput {
-  readonly name: string;
+  readonly name: BaselineName;
+  /** Stored in the file: a saved filter as its where and view, elements as UUID and title. Not baseline. */
   readonly selection: ElementSelection;
 }
 
 /**
- * Output of `baseline.create`. Write a baseline file for a selection. Refused while selected elements have uncommitted changes. Never commits.
+ * Output of `baseline.create`. Write a baseline file for a selection (SR-050, ADR-0018): name, date, the HEAD commit of every repository involved, ID and version of every element. Refused while files of the selection are not committed. Never commits, never replaces a baseline.
  * Schema: `schemas/commands/catalog.json baseline.create output`.
  */
 export interface BaselineCreateOutput {
   readonly files: readonly string[];
+  readonly baseline: {
+    readonly name: string;
+    /** The file, relative to the workspace root, / as separator. */
+    readonly file: string;
+    /** The repository that holds the file; `repository` in the file is relative to it. */
+    readonly repository: string;
+    readonly date: IsoDateTime;
+    /** Number of elements in the file. */
+    readonly elements: number;
+  };
   readonly problems?: readonly Problem[];
+  /** A repository is not here, so the view may miss a replacement or exclusion stored there (SR-006); the file is written all the same, with a warning. */
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace.
+ * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list input`.
  */
 export type BaselineListInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `baseline.list`. Baseline files of the workspace.
+ * Output of `baseline.list`. Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list output`.
  */
 export interface BaselineListOutput {
+  /** The valid baselines, in file order (code units of the file name). */
   readonly baselines: readonly {
     readonly name: string;
+    /** Relative to the workspace root, / as separator. */
     readonly file: string;
+    /** The repository that holds the file. */
+    readonly repository: string;
     readonly date: IsoDateTime;
+    /** The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise. */
+    readonly view?: ViewId;
+    /** Number of elements in the file. */
+    readonly elements: number;
   }[];
+  /** The baselines folder: the workspace file's `baselines`, or `baselines` in the main repository. */
+  readonly location: WorkspaceLocation;
+  /** baseline.invalid of the files that are no valid baseline. */
+  readonly problems?: readonly Problem[];
+  /** The repository of the baselines folder is not here, so its baselines are not seen (SR-006 AK2). */
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.
+ * Input of `baseline.get` as `run` gets it: validated, properties with a `default` filled in. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get input`.
  */
 export interface BaselineGetInput {
+  /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
-  readonly withEvidence?: boolean;
+  /** Also give the status of each requirement at its version in the baseline: records up to the baseline's date and time, own records only, in the view of its selection (SR-094). */
+  readonly withEvidence: boolean;
+  /** Elements of the page; total counts all. */
+  readonly limit: number;
+  readonly offset: number;
 }
 
 /**
- * Output of `baseline.get`. Elements of a baseline with their version then, marked changed, added or superseded since; optional evidence status per version.
+ * Output of `baseline.get`. Elements of a baseline with their version then and its date, marked changed, superseded, removed or added since (SR-051); with withEvidence the evidence status of each requirement at its version in the baseline (SR-094).
  * Schema: `schemas/commands/catalog.json baseline.get output`.
  */
 export interface BaselineGetOutput {
   readonly name: string;
-  readonly date?: IsoDateTime;
-  readonly elements: readonly Readonly<Record<string, unknown>>[];
-  readonly added?: readonly Uuid[];
+  /** Relative to the workspace root, / as separator. */
+  readonly file: string;
+  /** The repository that holds the file. */
+  readonly repository: string;
+  readonly date: IsoDateTime;
+  /** The view of the stored selection; left out for the core. */
+  readonly view?: ViewId;
+  /** The file stores a selection. Without it no element is added or removed (SR-051 AK2/AK3). */
+  readonly selectionKnown: boolean;
+  readonly repositories: readonly {
+    readonly name: string;
+    readonly commit: Commit;
+  }[];
+  /** One page: the file's entries in file order, then the added elements in store order. State precedence: missing, superseded, removed, changed, unchanged; added only for elements not in the file. */
+  readonly elements: readonly {
+    readonly id: Uuid;
+    /** The repository of the copy, whenever it is known. */
+    readonly repository?: string;
+    /** missing: not in the store, or in a repository that is not here (incomplete). removed: not superseded and no longer in the stored selection (SR-051 AK3). added: in the stored selection and not in the file. */
+    readonly state: "unchanged" | "changed" | "superseded" | "removed" | "added" | "missing";
+    /** The version in the baseline; left out for added. */
+    readonly version?: Version;
+    /** Date of that version from the Git history (ADR-0005), read for the page only; null when unknown. */
+    readonly versionDate?: string | null;
+    /** The current version when it differs, also for removed and added. */
+    readonly current?: Version;
+    /** With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5). */
+    readonly verification?: {
+      readonly view: ViewId;
+      readonly status: "open" | "verified" | "failed" | "outdated";
+      /** The record that decides the status. */
+      readonly decidedBy?: {
+        readonly repository: string;
+        /** Relative to the workspace root, / as separator. */
+        readonly file: string;
+        readonly line?: number;
+      };
+    };
+  }[];
+  /** Elements per state over all pages. */
+  readonly counts: {
+    readonly unchanged: number;
+    readonly changed: number;
+    readonly superseded: number;
+    readonly removed: number;
+    readonly added: number;
+    readonly missing: number;
+  };
+  /** Entries of the file plus added elements. */
+  readonly total: number;
+  /** The elements of the page and the variant of `view`, each once in the order first named (#588). */
+  readonly names: readonly ElementName[];
+  readonly problems?: readonly Problem[];
+  readonly incomplete?: Incomplete;
 }
 
 /**
- * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.
+ * Input of `baseline.compare` as `run` gets it: validated, properties with a `default` filled in. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
  * Schema: `schemas/commands/catalog.json baseline.compare input`.
  */
 export interface BaselineCompareInput {
+  /** Name of a baseline, or its file name (with or without .yaml). */
   readonly baseline: string;
   readonly ref: ElementRef;
 }
 
 /**
- * Output of `baseline.compare`. The Git command and commits that show the difference of an element since a baseline (SR-051 AK3). Read only.
+ * Output of `baseline.compare`. The two commits and the Git command that show the difference of an element since a baseline (SR-051 AK4). Runs nothing.
  * Schema: `schemas/commands/catalog.json baseline.compare output`.
  */
 export interface BaselineCompareOutput {
   readonly repository: string;
   readonly from: Commit;
+  /** The commit to compare with; null for the working copy. */
   readonly to: string | null;
+  /** The element file now, relative to its repository. */
   readonly file: string;
+  /** Its path at the baseline commit, when the file moved. */
+  readonly oldFile?: string;
+  /** git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>, to run in the workspace root, / as separator, the same on every access. */
   readonly command: readonly string[];
 }
 

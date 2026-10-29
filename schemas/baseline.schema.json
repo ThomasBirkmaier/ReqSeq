@@ -2,18 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reqseq.dev/schemas/baseline.schema.json",
   "title": "Baseline file",
-  "description": "A baseline is a YAML file with name, date, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050). ReqSeq writes the file; a person commits it with Git (D-036, SR-050 AK4). No reason or approval field (D-006, SR-050 AK3). The metamodel of the baseline is given by the commit of the metamodel repository (D-021).",
+  "description": "A baseline is a YAML file with name, date, the stored selection, the commit of every repository involved and ID plus version of every element in the selection (D-039, SR-050, ADR-0018). ReqSeq writes the file once and never changes or replaces it; a person commits it with Git (D-036, D-045). No reason or approval field (D-006). The metamodel of the baseline is given by the commit of the metamodel repository (D-021). ReqSeq writes the keys in this order, one entry per line; a file in another layout is read too, more slowly.",
   "type": "object",
   "required": ["reqseq-baseline", "name", "date", "repositories", "elements"],
   "properties": {
     "reqseq-baseline": { "const": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "date": { "$ref": "common.schema.json#/$defs/dateTime" },
-    "selection": {
-      "description": "How the elements were selected, for information. The element list is authoritative.",
-      "$ref": "common.schema.json#/$defs/selection"
+    "name": { "$ref": "#/$defs/name" },
+    "date": {
+      "description": "When the baseline was created, in UTC without fractions. Its day is the UTC day (SR-094 AK2).",
+      "$ref": "common.schema.json#/$defs/dateTime"
     },
+    "selection": { "$ref": "#/$defs/storedSelection" },
     "repositories": {
+      "description": "The repositories of the selected elements, the main repository and the metamodel's, each once with its HEAD commit (SR-050 AK4).",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -34,12 +35,59 @@
         "properties": {
           "id": { "$ref": "common.schema.json#/$defs/uuid" },
           "version": { "$ref": "common.schema.json#/$defs/version" },
-          "repository": { "type": "string" }
+          "repository": {
+            "type": "string",
+            "description": "The repository of the copy, relative to the repository of the baseline file: given when they differ or the UUID has copies in several repositories."
+          }
         },
         "additionalProperties": false
       },
-      "description": "Sorted by id; one flow mapping per line."
+      "description": "Sorted by id, then repository; one flow mapping per line."
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "name": {
+      "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004).",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
+    },
+    "storedSelection": {
+      "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, elements as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058). The title is the one at baseline time.",
+      "type": "object",
+      "properties": {
+        "ids": { "type": "array", "items": { "$ref": "#/$defs/storedRef" } },
+        "filter": {
+          "type": "string",
+          "description": "Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written."
+        },
+        "where": { "$ref": "filter.schema.json#/$defs/condition" },
+        "package": { "$ref": "#/$defs/storedRef" },
+        "view": { "anyOf": [{ "const": "core" }, { "$ref": "#/$defs/storedRef" }] }
+      },
+      "additionalProperties": false
+    },
+    "storedRef": {
+      "description": "An element of the stored selection: as written, or any reference a person may write by hand.",
+      "anyOf": [
+        { "$ref": "common.schema.json#/$defs/elementRef" },
+        {
+          "type": "object",
+          "required": ["id", "title"],
+          "properties": { "id": { "$ref": "common.schema.json#/$defs/uuid" }, "title": { "type": "string" } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["id", "repository"],
+          "properties": {
+            "id": { "$ref": "common.schema.json#/$defs/uuid" },
+            "repository": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
 }

@@ -117,7 +117,7 @@ flowchart TB
   commands -->|every block except git| blocks
   data --> evidence & files & mm & model & variants & ws
   query --> baselines & evidence & files & mm & model & trace & variants & ws
-  hints --> evidence & files & mm & model & trace & variants & ws
+  hints --> baselines & evidence & files & mm & model & trace & variants & ws
   evidence --> files & mm & model & trace & variants & ws
   trace --> mm & model & ws
   variants --> mm & model & ws
@@ -135,7 +135,7 @@ An arrow means that at least one module of the source imports a value (a functio
 | `commands` | baselines, data, evidence, files, hints, metamodel, model, query, runtime state, trace, variants, version, workspace | |
 | `data` | evidence, files, metamodel, model, variants, workspace | git, query, runtime state |
 | `query` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
-| `hints` | evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
+| `hints` | baselines, evidence, files, metamodel, model, runtime state, trace, variants, workspace | |
 | `evidence` | files, metamodel, model, runtime state, trace, variants, workspace | |
 | `trace` | metamodel, model, runtime state, workspace | |
 | `variants` | metamodel, model, runtime state, workspace | |
