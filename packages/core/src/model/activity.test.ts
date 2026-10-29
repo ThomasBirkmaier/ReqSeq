@@ -581,16 +581,17 @@ const readOf = (seq: number): Promise<void> => {
   });
 };
 
+/** What happens to a file event of the watcher of the workspace: passed on, dropped, or queued. */
+type Gate = "pass" | "drop" | "queue";
+
 /**
- * Drops the file events of the watcher of the workspace (it calls the real `fs.watch`; the watch of
- * the cache folder goes through the mock above and is not affected) until the returned function is
- * called. FSEvents (macOS) can report the fixture's own files, written just before the watch
- * started: a batch with the workspace file resets the layout and with it the store, and a held
- * access is then reported at once, by design (`watchActivity`: the next read reads the files as they
- * are), not when its hold ends (#304). A test of the hold has no use for these events.
+ * Gates the file events of the watcher of the workspace (it calls the real `fs.watch`; the watch of
+ * the cache folder goes through the mock above and is not affected), starting with `initial`. The
+ * returned function sets the gate; setting "pass" first passes on the queued events, in order.
  */
-const holdWorkspaceEvents = async (): Promise<() => void> => {
-  let dropping = true;
+const gateWorkspaceEvents = async (initial: Gate): Promise<(gate: Gate) => void> => {
+  let gate = initial;
+  const queued: (() => void)[] = [];
   const real = (await vi.importActual<{ default: typeof NodeFs }>("node:fs")).default;
   // The real one, taken before the spy replaces it; it needs no `this`.
   const original = real.watch;
@@ -600,15 +601,38 @@ const holdWorkspaceEvents = async (): Promise<() => void> => {
     listener: NodeFs.WatchListener<string>,
   ) =>
     original(folder, options, (event, name) => {
-      if (!dropping) {
+      if (gate === "pass") {
         listener(event, name);
+      } else if (gate === "queue") {
+        queued.push(() => {
+          listener(event, name);
+        });
       }
     })) as typeof real.watch);
   onTestFinished(() => {
     spy.mockRestore();
   });
+  return (next) => {
+    gate = next;
+    if (next === "pass") {
+      for (const pass of queued.splice(0)) {
+        pass();
+      }
+    }
+  };
+};
+
+/**
+ * Drops the file events of the watcher of the workspace until the returned function is called.
+ * FSEvents (macOS) can report the fixture's own files, written just before the watch started: a
+ * batch with the workspace file resets the layout and with it the store, and a held access is then
+ * reported at once, by design (`watchActivity`: the next read reads the files as they are), not when
+ * its hold ends (#304). A test of the hold has no use for these events.
+ */
+const holdWorkspaceEvents = async (): Promise<() => void> => {
+  const gate = await gateWorkspaceEvents("drop");
   return () => {
-    dropping = false;
+    gate("pass");
   };
 };
 
@@ -647,6 +671,7 @@ describe("watching the last access (SR-117)", () => {
   it("[SR-117/AK1] reports a change only once the store of the watching process holds it", async () => {
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
+    const gate = await gateWorkspaceEvents("pass");
     const seen = accesses();
     await watching(opened.workspace, { ...seen.options, holdMs: 10_000 });
     const file = opened.fixture.path("requirements/SR-0000000b0037.md");
@@ -657,6 +682,10 @@ describe("watching the last access (SR-117)", () => {
     const store = await opened.workspace.get(elementStoreState);
     expect(store.byId.get(SR_037)?.[0]?.snapshot.sha256).toBe(await sha256Of(file));
 
+    // The new element reaches the store only after the access was looked at, whichever file event
+    // the OS reports first (#304): the access to an element the built store does not know is held.
+    gate("queue");
+    const held = readOf(1);
     const created = seen.next();
     const output = (await call(
       server(opened),
@@ -664,6 +693,12 @@ describe("watching the last access (SR-117)", () => {
       { type: "system-requirement", title: "Follow agents" },
       "mcp",
     )) as CommandOutput<"element.create">;
+    await held;
+    await quiet(100);
+    expect(seen.seen).toHaveLength(1);
+    expect(opened.workspace.peek(elementStoreState)).toBeDefined();
+    expect((await opened.workspace.get(elementStoreState)).byId.has(output.element.id)).toBe(false);
+    gate("pass");
     expect((await created).element.id).toBe(output.element.id);
     expect((await opened.workspace.get(elementStoreState)).byId.has(output.element.id)).toBe(true);
   });
