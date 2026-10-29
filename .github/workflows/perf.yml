@@ -16,11 +16,6 @@ on:
   schedule:
     - cron: "30 2 * * *"
   workflow_dispatch:
-    inputs:
-      github-runners:
-        description: Run on GitHub's runner (the reference machine; costs Actions minutes)
-        type: boolean
-        default: false
   pull_request:
     types: [opened, labeled, synchronize, reopened, closed]
 
@@ -45,7 +40,7 @@ jobs:
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'perf') && github.event.action != 'closed' &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf')
-    runs-on: [self-hosted, logreq-linux]
+    runs-on: ubuntu-24.04
     outputs:
       tests: ${{ steps.changes.outputs.tests }}
     steps:
@@ -72,9 +67,9 @@ jobs:
       (github.event_name != 'pull_request' ||
       (contains(github.event.pull_request.labels.*.name, 'perf') && github.event.action != 'closed' &&
       (github.event.action != 'labeled' || github.event.label.name == 'perf')))
-    # On the Mac runner (product owner decision, 2026-10-26, #365: no Actions budget); its times are a guide value. A manual run
-    # with `github-runners: true` measures on GitHub's runner of the reference size before a stage acceptance.
-    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.github-runners && '"ubuntu-24.04"' || '["self-hosted","logreq-linux"]') }}
+    # GitHub's hosted Ubuntu runner for public repositories has 4 cores and 16 GB, the reference machine
+    # (ADR-0011); the job prints what it got.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
       exceeded: ${{ steps.report.outputs.exceeded }}
@@ -123,7 +118,7 @@ jobs:
     name: record and report
     needs: perf
     if: always() && needs.perf.result != 'skipped' && github.event_name != 'pull_request' && needs.perf.outputs.exceeded != ''
-    runs-on: [self-hosted, logreq-linux]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # the nightly run commits verification/performance.md to main
       issues: write # an exceeded threshold opens or updates an issue
@@ -148,9 +143,8 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
       - name: Open or update the issue for exceeded thresholds
-        # Runs from other branches stay out of the issue. `actions/github-script`, not `gh`: the image of the
-        # self-hosted runner has no GitHub CLI (toolchain/self-hosted-runner/README.md; the nightly run of
-        # 2026-10-28 failed with "gh: command not found").
+        # Runs from other branches stay out of the issue. `actions/github-script`, not `gh`, so the step needs no
+        # GitHub CLI on the runner.
         if: needs.perf.outputs.exceeded != '0' && github.ref == 'refs/heads/main'
         uses: actions/github-script@v7
         env:

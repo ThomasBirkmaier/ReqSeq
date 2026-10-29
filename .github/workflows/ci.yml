@@ -6,17 +6,9 @@ on:
   # No run on a push to main (product owner decision, 2026-10-28): every pull request is fully checked before its merge,
   # and with three runners the main runs only queued up and were cancelled by the next merge. The nightly run and the
   # manual run check main; a red nightly run is fixed on main the next morning.
-  # macOS runs only here, to save Actions minutes (product owner decision, 2026-10-24). No scheduled run on GitHub's runners
-  # (product owner decision, 2026-10-26, #365: no Actions budget): Windows and the reference run on GitHub's runners only run
-  # on manual dispatch before a stage acceptance, after the product owner has raised the spending limit.
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
-    inputs:
-      github-runners:
-        description: Run Linux and macOS on GitHub's runners (costs Actions minutes)
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -28,22 +20,15 @@ concurrency:
   # against the new base.
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
-  # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly run that waits
-  # for the Mac, or a manual run on GitHub's runners.
+  # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
   # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
   # its ref.
   group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && !contains(fromJSON('["enabler","spec-export"]'), github.event.label.name) && format('noop-{0}', github.run_id) || github.event.action == 'edited' && github.event.changes.base && 'full' || contains(fromJSON('["edited","labeled","unlabeled"]'), github.event.action) && 'meta' || 'full' }}
   cancel-in-progress: true
 
-# Runners (toolchain/self-hosted-runner/README.md): Linux and macOS jobs run on the self-hosted runners on the
-# product owner's Mac, to save Actions minutes (product owner decision, 2026-10-25); while the Mac is offline they wait in the queue instead of
-# falling back to GitHub, so the Actions budget is never spent by accident. Each job's `runs-on` is a fixed
-# expression, so no job has to pick the runners first (#566: that job waited 3-13 min for a runner of its own):
-# - pull requests from forks never run on the Mac: GitHub's runners;
-# - a manual run with `github-runners: true` (the reference run for SR-076 before a stage acceptance: macOS 14 and
-#   Ubuntu 24.04 x64) uses GitHub's runners for Linux and macOS;
-# - Windows always runs on GitHub (no self-hosted runner); it stays red while GitHub cannot start hosted jobs.
-# The expression is repeated in each job because `runs-on` cannot read workflow-level `env`.
+# Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
+# run code from pull requests on a machine of its own). Every run covers the three reference systems of SR-076
+# (Ubuntu 24.04, macOS 14, Windows 2025) in parallel.
 
 jobs:
   # Title, body and label edits only matter to trace-check, which reads the PR text (D-050). The full run's
@@ -59,7 +44,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # Write PR body
-    runs-on: ${{ fromJSON(github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-24.04"' || '["self-hosted","logreq-linux"]') }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,7 +82,7 @@ jobs:
   # with coverage, the spec check, the CLI e2e suite without network and trace-check. Each step after the install
   # runs even when an earlier check failed (`!cancelled()`), so that one red step never hides another result; the
   # job is red if any step is.
-  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems (macOS nightly).
+  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
   checks:
     name: checks (${{ matrix.os }})
     # A normal run takes 6-7 minutes; this only ends a hang, so that it does not hold a Linux runner for 6 hours.
@@ -109,11 +94,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS and Windows only on the nightly and manual runs; pull requests use Linux only.
-        # Windows minutes cost money (product owner decision, 2026-10-26: Windows only at night); a nightly Windows failure is fixed
-        # the next morning, and a manual run covers all three systems before a stage acceptance.
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'schedule' && '["ubuntu-24.04","macos-14"]' || '["ubuntu-24.04"]') }}
-    runs-on: ${{ fromJSON(((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || (github.event_name == 'workflow_dispatch' && inputs.github-runners)) && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
+        os: [ubuntu-24.04, macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -131,7 +113,7 @@ jobs:
 
       # Pull requests that change only files no test or build reads (docs, agent rules, verification records,
       # Markdown at the root; .github/scripts/tests-needed.sh) skip the build, the unit tests, the spec check and
-      # e2e, and Electron skips its tests, to spare the three Linux runners (#520). The static checks and
+      # e2e, and Electron skips its tests, to save runner time (#520). The static checks and
       # trace-check always run. Nightly and manual runs always run everything. If this step
       # fails, `tests` stays empty and everything runs (and the job is red).
       - name: Changed files
@@ -171,8 +153,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.os == 'ubuntu-24.04' }}
         run: pnpm licenses:check
       # scripts/sr-issues (Python, run by the spec-change skill); the label and reopen rules are unit-tested.
-      # setup-python, because the self-hosted Linux image had no Python before python3 was added to it; the
-      # version is pinned and has builds for Ubuntu 24.04 on x64 (GitHub) and arm64 (the Mac's Linux runners).
+      # setup-python pins the version (it has builds for Ubuntu 24.04 on x64).
       - uses: actions/setup-python@v6
         id: python
         if: ${{ !cancelled() && matrix.os == 'ubuntu-24.04' }}
@@ -275,9 +256,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS and Windows only on the nightly and manual runs; pull requests use Linux only.
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-24.04","macos-14","windows-2025"]' || github.event_name == 'schedule' && '["ubuntu-24.04","macos-14"]' || '["ubuntu-24.04"]') }}
-    runs-on: ${{ fromJSON(((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || (github.event_name == 'workflow_dispatch' && inputs.github-runners)) && '{"ubuntu-24.04":"ubuntu-24.04","macos-14":"macos-14","windows-2025":"windows-2025"}' || '{"ubuntu-24.04":["self-hosted","logreq-linux"],"macos-14":["self-hosted","logreq-mac"],"windows-2025":"windows-2025"}')[matrix.os] }}
+        os: [ubuntu-24.04, macos-14, windows-2025]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -308,7 +288,7 @@ jobs:
       - name: Display server and libraries for Electron (Linux)
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
         run: |
-          # The image of the self-hosted runners has no X libraries; GitHub's image has most of them.
+          # GitHub's image has most of these; install whatever is missing.
           packages="xvfb xauth libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libcups2t64 libatk-bridge2.0-0t64 libxkbcommon0 libdrm2"
           if ! dpkg -s $packages >/dev/null 2>&1; then
             sudo apt-get update -qq

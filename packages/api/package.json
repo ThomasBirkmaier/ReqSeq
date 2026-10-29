@@ -2,6 +2,7 @@
   "name": "@logreq/api",
   "version": "0.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "files": [
     "dist",

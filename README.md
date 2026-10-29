@@ -16,3 +16,7 @@ This repository is built almost entirely by Claude agents. The rules they follow
 | `scripts/` | `trace-check`, `sr-issues`, `spec-migrate` (the one-time migration from Logseq), `spec-export` (obsolete) |
 
 Test data for realistic scenarios lives in the separate repository `logreq-testdata`.
+
+## License
+
+Copyright (c) 2026 Thomas Birkmaier. All rights reserved. No license is granted; see [LICENSE](LICENSE).

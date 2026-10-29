@@ -2,6 +2,7 @@
   "name": "@logreq/cli",
   "version": "0.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "The logreq command line: every command of the catalog (ADR-0009).",
   "type": "module",
   "bin": {

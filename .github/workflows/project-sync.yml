@@ -20,9 +20,7 @@ concurrency:
 
 jobs:
   sync:
-    # On the Mac runner, so that issue events cost no Actions minutes (#365). While the Mac is offline the
-    # job waits in the queue; the nightly run catches up on anything missed.
-    runs-on: [self-hosted, logreq-linux]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
