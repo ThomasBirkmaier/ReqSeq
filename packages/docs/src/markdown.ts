@@ -33,3 +33,8 @@ export function table(head: readonly string[], rows: readonly (readonly string[]
   const line = (cells: readonly string[]): string => `| ${cells.join(" | ")} |`;
   return [line(head), line(head.map(() => "---")), ...rows.map(line)].join("\n");
 }
+
+/** Markdown that is already Markdown (a type with links and code spans) as one table cell. */
+export function markdownCell(markdown: string): string {
+  return markdown.replace(/\s*\r?\n\s*/g, " ").replaceAll("|", "\\|");
+}

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { commandSlug } from "./command-page.js";
 import { inline } from "./markdown.js";
 import { codeAnchor, readProblemCodes } from "./codes.js";
+import { FORMATS, readExamples, schemaName } from "./formats.js";
 import { readGeneratedContracts, referencePages } from "./reference.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -20,7 +21,12 @@ const sources = async (runtime: ReturnType<typeof getCommandRuntime>) => ({
   runtime,
   generated: await readGeneratedContracts(repoRoot),
   codes: await readProblemCodes(repoRoot),
+  schemas: runtime.contracts.schemas,
+  examples: await readExamples(repoRoot),
 });
+
+const pageAt = (pages: readonly { path: string; text: string }[], path: string): string =>
+  pages.find((page) => page.path === path)?.text ?? "";
 
 const codesOf = (pages: readonly { path: string; text: string }[]): string =>
   pages.find((page) => page.path === "reference/problem-codes.md")?.text ?? "";
@@ -29,7 +35,7 @@ describe("reference", () => {
   it("[SR-139/AK1] gives every command a page with title, summary, input, output and its call in app, CLI, API and MCP", async () => {
     const runtime = getCommandRuntime();
     const pages = await referencePages(await sources(runtime), "/ReqSeq");
-    expect(pages).toHaveLength(runtime.contracts.commands.length + 2);
+    expect(pages).toHaveLength(runtime.contracts.commands.length + 2 + FORMATS.length + 2);
     expect(runtime.contracts.commands.length).toBeGreaterThanOrEqual(49);
     for (const entry of runtime.contracts.commands) {
       const page = pageOf(pages, entry.name);
@@ -79,7 +85,35 @@ describe("reference", () => {
     expect(pages[0]?.text).toContain("](/ReqSeq/reference/problem-codes/)");
   });
 
-  it("[SR-139/AK4] shows a changed summary of a command and a changed remedy of a code without a page changed by hand", async () => {
+  it("[SR-139/AK3] describes every file format with its fields, definitions and examples", async () => {
+    const runtime = getCommandRuntime();
+    const pages = await referencePages(await sources(runtime), "/ReqSeq");
+    const examples = await readExamples(repoRoot);
+    for (const name of FORMATS) {
+      const schema = runtime.contracts.schemas.find((candidate) => schemaName(candidate) === name) ?? {};
+      const page = pageAt(pages, `reference/formats/${name}.md`);
+      expect(page, name).toContain(`title: ${JSON.stringify(schema["title"])}`);
+      expect(page, name).toContain(`\n${inline(String(schema["description"]))}\n`);
+      for (const field of Object.keys(schema["properties"] ?? {})) {
+        expect(page, `${name}.${field}`).toContain(`| \`${field}\` |`);
+      }
+      for (const definition of Object.keys(schema["$defs"] ?? {})) {
+        expect(page, `${name}#${definition}`).toContain(`<a id="${definition}"></a>`);
+      }
+      for (const example of examples[name] ?? []) {
+        expect(page, example.file).toContain(`### \`${example.file}\``);
+      }
+    }
+    const common = runtime.contracts.schemas.find((schema) => schemaName(schema) === "common") ?? {};
+    for (const definition of Object.keys(common["$defs"] ?? {})) {
+      expect(pageAt(pages, "reference/common-types.md")).toContain(`<a id="${definition}"></a>`);
+    }
+    expect(pageOf(pages, "element.get")).toContain(
+      "[`elementRef`](/ReqSeq/reference/common-types/#elementRef)",
+    );
+  });
+
+  it("[SR-139/AK4] shows a changed summary of a command and a changed remedy of a code and a changed format description without a page changed by hand", async () => {
     const catalog = structuredClone(contractsBundle.catalog) as {
       commands: { name: string; summary: string }[];
     };
@@ -96,7 +130,15 @@ describe("reference", () => {
       ...codes,
       problems: { ...codes.problems, "relation.outdated": { cause: "Unchanged.", remedy } },
     };
-    const pages = await referencePages({ ...(await sources(runtime)), codes: changedCodes }, "/");
+    const format = "A changed description of the workspace file.";
+    const schemas = runtime.contracts.schemas.map((schema) =>
+      schemaName(schema) === "workspace" ? { ...schema, description: format } : schema,
+    );
+    const pages = await referencePages(
+      { ...(await sources(runtime)), codes: changedCodes, schemas, examples: {} },
+      "/",
+    );
+    expect(pageAt(pages, "reference/formats/workspace.md")).toContain(`\n${format}\n`);
     const page = pageOf(pages, "element.get");
     expect(page).toContain(`\n${inline(changed)}\n`);
     expect(codesOf(pages)).toContain(

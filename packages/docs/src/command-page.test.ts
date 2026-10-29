@@ -25,7 +25,7 @@ const access: CommandAccess = {
 };
 
 const page = (command: CatalogEntry, commandAccess: CommandAccess = access): string =>
-  commandPage(command, commandAccess, contractsBundle.schemas, 1);
+  commandPage(command, commandAccess, { schemas: contractsBundle.schemas }, 1);
 
 describe("commandPage", () => {
   it("says how a write command behaves while the workspace is read-only", () => {
