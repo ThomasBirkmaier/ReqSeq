@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rank } from "./fuzzy.js";
+import { IN_ORDER, ONE_SLIP, matchingNames, rank } from "./fuzzy.js";
 
 const ACTIONS = [
   "Go to element or buffer",
@@ -17,10 +17,10 @@ const ACTIONS = [
   "Show element ID and version",
 ];
 
-const names = (query: string): string[] => rank(ACTIONS, (name) => name, query).map(({ item }) => item);
-
 const matching = (items: readonly string[], query: string): string[] =>
   rank(items, (name) => name, query).map(({ item }) => item);
+
+const names = (query: string): string[] => matching(ACTIONS, query);
 
 describe("rank", () => {
   it("keeps all items in the given order for an empty query", () => {
@@ -135,6 +135,41 @@ describe("rank", () => {
     expect(matching(["temp kestrel"], "kestrel temp")).toEqual([]);
     expect(matching(["Users runneradmin kestrel"], "users kestrl")).toEqual(["Users runneradmin kestrel"]);
     expect(matching(["Users runneradmin kestrel"], "kestrl users")).toEqual([]);
+  });
+
+  it("finds no match across a line break, as uFuzzy's regular expression does not", () => {
+    expect(matching(["alpha\nbeta"], "alp bet")).toEqual([]);
+    expect(matching(["Open\u2028workspace"], "open work")).toEqual([]);
+    expect(matching(["first\r\nOpen workspace"], "open work")).toEqual(["first\r\nOpen workspace"]);
+  });
+
+  // A seeded generator, so a failure repeats: the pre-check gives exactly what uFuzzy's `filter` gives.
+  it("finds the same names as uFuzzy's regular expression of the whole needle, for both matchers", () => {
+    let seed = 304;
+    const random = (below: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % below;
+    };
+    const text = (alphabet: string, length: number): string =>
+      Array.from({ length: random(length) + 1 }, () => alphabet.charAt(random(alphabet.length))).join("");
+    const NAME = "abcdeABE  '\"-_.\\/:é1\n\r\u2028";
+    const QUERY = "abcdeAE  '-é1";
+    for (const matcher of [IN_ORDER, ONE_SLIP]) {
+      for (let round = 0; round < 300; round += 1) {
+        const list = Array.from({ length: 8 }, () => text(NAME, 24));
+        const needle = text(QUERY, 12);
+        const terms = matcher.split(needle);
+        if (terms.length > 0) {
+          expect(matchingNames(matcher, list, terms), JSON.stringify([list, needle])).toEqual(
+            matcher.filter(list, needle),
+          );
+        }
+      }
+    }
+  });
+
+  it("finds nothing for a term without an expression", () => {
+    expect(matchingNames(IN_ORDER, ["a b"], ["", "a"])).toEqual([]);
   });
 
   it("keeps the given order among equal matches (recent first)", () => {

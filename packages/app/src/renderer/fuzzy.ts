@@ -17,9 +17,9 @@ const options = (plain: Readonly<Record<string, number>>): uFuzzy.Options => pla
 const keepOrder = (): number => 0;
 type Sort = (info: uFuzzy.Info, haystack: string[], needle: string, compare: () => number) => number[];
 // First try: the letters of each word in order, anything in between ("srch" finds "Search").
-const IN_ORDER = new uFuzzy(options({ intraMode: 0, intraIns: Infinity }));
+export const IN_ORDER = new uFuzzy(options({ intraMode: 0, intraIns: Infinity }));
 // Second try when that finds nothing: one slip per word ("filtre" finds "Filter").
-const ONE_SLIP = new uFuzzy(options({ intraMode: 1, intraSub: 1, intraTrn: 1, intraDel: 1 }));
+export const ONE_SLIP = new uFuzzy(options({ intraMode: 1, intraSub: 1, intraTrn: 1, intraDel: 1 }));
 
 const pairs = (flat: readonly number[]): [number, number][] => {
   const out: [number, number][] = [];
@@ -90,40 +90,71 @@ const byPrefix = (names: readonly string[], needle: string): Match[] => {
   });
 };
 
-/** Whether `matcher` matches `term` (one term of a needle) somewhere in `text`. */
-const matchesTerm = (matcher: uFuzzy, text: string, term: string): boolean =>
-  (matcher.filter([text], term) ?? []).length > 0;
+/** The line terminators that uFuzzy's "anything" between terms (`.`) does not cross. */
+const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/;
 
 /**
- * Whether `matcher` finds the terms of a needle in `name`, in order. uFuzzy tests all terms with one
- * regular expression, the terms joined by "anything"; when a name does not match, its backtracking
- * grows with the length of the name to the power of the number of terms: a typed Windows path of ten
- * terms took half a minute for one key (#304). One term alone is cheap. So each term is placed at its
- * earliest end, found by halving the part after the term before; the earliest end leaves the most room
- * to the terms after it, so this is exactly whether the whole needle matches, and uFuzzy then only sees
- * names that do.
+ * The names `matcher` finds for these terms of a needle, by index in ascending order, as
+ * `matcher.filter(names, needle)` gives them. uFuzzy tests all terms with one regular expression, the
+ * terms joined by "anything"; when a name does not match, its backtracking grows with the length of the
+ * name to the power of the number of terms: a typed Windows path of ten terms took half a minute for one
+ * key (#304). One term alone is cheap, so the terms are tested one by one, which keeps the work linear in
+ * the number of terms (a single long term still costs what uFuzzy's regular expression of it costs).
+ * First each term alone narrows the names, as uFuzzy's own search does. Then, on each line of the names
+ * left (a match never crosses a line break), each term is placed at its earliest end, found by halving
+ * the part after the term before; the earliest end leaves the most room to the terms after it, so this
+ * is exactly whether the whole needle matches. The halving runs for all lines at once, so each step
+ * builds one regular expression. Exported for its tests, with the two matchers.
  */
-const matchesInOrder = (matcher: uFuzzy, name: string, terms: readonly string[]): boolean => {
-  let start = 0;
+export const matchingNames = (matcher: uFuzzy, names: string[], terms: readonly string[]): number[] => {
+  let narrowed = names.map((_, index) => index);
   for (const term of terms) {
-    const rest = name.slice(start);
-    if (!matchesTerm(matcher, rest, term)) {
-      return false;
-    }
-    // The shortest beginning of `rest` that the term matches in: longer than `low`, at most `high`.
-    let low = 0;
-    let high = rest.length;
-    while (high - low > 1) {
-      const middle = Math.floor((low + high) / 2);
-      if (matchesTerm(matcher, rest.slice(0, middle), term)) {
-        high = middle;
-      } else {
-        low = middle;
-      }
-    }
-    start += high;
+    // uFuzzy gives null for a term without an expression, which `split` never gives.
+    narrowed = matcher.filter(names, term, narrowed) ?? [];
   }
-  return true;
+  // One term is the whole expression, and a term never spans a line break.
+  if (terms.length === 1) {
+    return narrowed;
+  }
+  // Each line of a narrowed name: the index of its name, its text and where the next term may start.
+  let lines = narrowed.flatMap((index) =>
+    nth(names, index)
+      .split(LINE_BREAK)
+      .map((text) => ({ index, text, start: 0 })),
+  );
+  for (const term of terms) {
+    // The shortest beginning of the rest of each line that the term matches in: longer than `low`, at most
+    // `high`; `high` past the end means none. It may be empty: a term that is only a contraction ("'ac")
+    // has an empty expression in uFuzzy's single-error mode.
+    const searches = lines.map((line) => {
+      const rest = line.text.slice(line.start);
+      return { line, rest, low: -1, high: rest.length + 1 };
+    });
+    for (;;) {
+      const open = searches.filter((search) => search.high - search.low > 1);
+      if (open.length === 0) {
+        break;
+      }
+      const middles = open.map((search) => Math.floor((search.low + search.high) / 2));
+      const hits = new Set(
+        matcher.filter(
+          open.map((search, at) => search.rest.slice(0, nth(middles, at))),
+          term,
+        ),
+      );
+      open.forEach((search, at) => {
+        if (hits.has(at)) {
+          search.high = nth(middles, at);
+        } else {
+          search.low = nth(middles, at);
+        }
+      });
+    }
+    lines = searches
+      .filter((search) => search.high <= search.rest.length)
+      .map(({ line, high }) => ({ ...line, start: line.start + high }));
+  }
+  return [...new Set(lines.map((line) => line.index))];
 };
 
 /** The names `matcher` finds, the best first. */
@@ -132,7 +163,7 @@ const byLetters = (matcher: uFuzzy, names: string[], needle: string): Match[] =>
   if (terms.length === 0) {
     return [];
   }
-  const found = names.flatMap((name, index) => (matchesInOrder(matcher, name, terms) ? [index] : []));
+  const found = matchingNames(matcher, names, terms);
   const info = matcher.info(found, names, needle);
   const order = (matcher.sort as Sort)(info, names, needle, keepOrder);
   return order.map((at) => ({ index: nth(info.idx, at), ranges: pairs(nth(info.ranges, at)) }));
