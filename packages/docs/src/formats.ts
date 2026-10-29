@@ -66,12 +66,20 @@ export const schemaLink =
       : `${base.replace(/\/$/, "")}/${page}/${definition === undefined ? "" : `#${definition}`}`;
   };
 
+/** A missing folder has no files; any other error of reading it stands. */
+const missingAsEmpty = (error: unknown): [] => {
+  if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    return [];
+  }
+  throw error;
+};
+
 /** The example files of every documented format, from `schemas/examples/<format>/` of the repository. */
 export async function readExamples(repoRoot: string): Promise<Readonly<Record<string, readonly Example[]>>> {
   const entries = await Promise.all(
     FORMATS.map(async (name): Promise<[string, Example[]]> => {
       const folder = join(repoRoot, "schemas", "examples", name);
-      const files = (await readdir(folder, { withFileTypes: true }).catch(() => []))
+      const files = (await readdir(folder, { withFileTypes: true }).catch(missingAsEmpty))
         .filter((entry) => entry.isFile())
         .map((entry) => entry.name)
         .sort();
@@ -91,12 +99,18 @@ const LANGUAGES: Readonly<Record<string, string>> = { ".md": "markdown", ".json"
 const description = (schema: Schema): string =>
   typeof schema["description"] === "string" ? inline(schema["description"]) : "";
 
-/** The `$defs` of a schema, each with an anchor of its name, so a `$ref` can link to it. */
+/** The id the site gives a heading of `name` (github-slugger: lower case, punctuation dropped, blanks to `-`). */
+export const headingSlug = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}_ -]/gu, "")
+    .replace(/ /g, "-");
+
+/** The `$defs` of a schema, each with an anchor of its name (the heading's own id when that equals it), so a `$ref` can link to it. */
 function definitions(schema: Schema, context: SchemaContext): string[] {
   const defs = (schema["$defs"] ?? {}) as Readonly<Record<string, Schema>>;
   return Object.entries(defs).flatMap(([name, definition]) => [
-    `<a id="${name}"></a>`,
-    "",
+    ...(headingSlug(name) === name ? [] : [`<a id="${name}"></a>`, ""]),
     `### \`${name}\``,
     "",
     ...[description(definition), `Type: ${typeText(definition, context)}.`]

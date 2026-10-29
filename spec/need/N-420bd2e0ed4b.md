@@ -1,7 +1,7 @@
 ---
 id: 6adc693b-6c43-4ab0-9c1d-420bd2e0ed4b
 type: need
-status: draft
+status: approved
 title: "Offene Dateiformate"
 spec-id: "N-070"
 topic: "Ablage und Repositories"

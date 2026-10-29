@@ -1,0 +1,63 @@
+name: PR text
+
+# Title, body and label edits only matter to trace-check, which reads the PR text (D-050). The full CI run's `static`
+# job runs the same check; this workflow runs it for edits of the title or body and for the labels that trace-check
+# reads. It is a workflow of its own (#372): a CI run of these events would be the newest CI run of the head commit,
+# and GitHub reads the required checks from that run, where the platform jobs show no system in their names.
+
+on:
+  pull_request:
+    types: [edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  # Only the runs that check share a group. An event the job skips (a label other than `enabler` or `spec-export`, an
+  # edit of the base branch only) gets a group of its own, so that it never cancels a running check (#566).
+  group: pr-text-${{ github.event.pull_request.number }}-${{ ((github.event.action == 'edited' && (github.event.changes.title || github.event.changes.body)) || (contains(fromJSON('["labeled","unlabeled"]'), github.event.action) && contains(fromJSON('["enabler","spec-export"]'), github.event.label.name))) && 'check' || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  pr-text:
+    name: trace-check (PR text)
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.state == 'open' &&
+      ((github.event.action == 'edited' && (github.event.changes.title || github.event.changes.body)) ||
+      (contains(fromJSON('["labeled","unlabeled"]'), github.event.action) &&
+      contains(fromJSON('["enabler","spec-export"]'), github.event.label.name)))
+    permissions:
+      contents: read
+      pull-requests: read # Write PR body
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      # No pnpm cache: the root's devDependencies (about 160 packages; trace-check needs `yaml`, #326) download
+      # faster than the whole store's cache restores.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install the root's dependencies only
+        run: pnpm install --frozen-lockfile --filter reqseq --ignore-scripts
+      - name: Write PR body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.url }}
+        # The pull request as it is now, not as the event saw it: a label added right after opening the pull
+        # request (`enabler`) counts in the run of `opened` too, and a re-run reads the current text (#571).
+        run: |
+          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$PR_URL" > pr.json
+          jq -r '.title + "\n\n" + (.body // "")' pr.json > pr-body.txt
+          jq -r '[.labels[].name] | any(. == "enabler" or . == "spec-export")' pr.json > pr-enabler.txt
+      - name: Trace check
+        run: |
+          args="--pr-body pr-body.txt"
+          if [ "$(cat pr-enabler.txt)" = "true" ]; then args="$args --enabler"; fi
+          node scripts/trace-check/trace-check.mjs $args --report trace-report.md
+      - name: Report
+        if: always()
+        run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true

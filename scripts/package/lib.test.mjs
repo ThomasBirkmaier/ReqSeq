@@ -7,6 +7,7 @@ import {
   isBuildLeftover,
   noticesText,
   packageFolders,
+  releaseNotes,
   removeBuildLeftovers,
   renderLauncher,
   stagedManifest,
@@ -74,6 +75,63 @@ describe("tagReleasesVersion", () => {
     ["v0.3", "0.3.0-beta", false],
   ])("%s releases %s: %s", (tag, version, expected) => {
     expect(tagReleasesVersion(tag, version)).toBe(expected);
+  });
+});
+
+describe("releaseNotes", () => {
+  it("groups the subjects into new, fixes, specification and folded other changes, with the compare link", () => {
+    const notes = releaseNotes(
+      [
+        "feat(cli,api): data export as JSON Lines (#319)",
+        "SR-062: data store writes JSON Lines (#327)",
+        "fix(core): count the activity hold (#342)",
+        "spec: SR-061 and SR-062 export as JSON Lines (#322)",
+        "enabler: warn on large pull requests (#315)",
+        "test(app): pass the app folder (#314)",
+        "",
+      ],
+      { previous: "v0.4", compareUrl: "https://example.test/compare/v0.4...v0.5" },
+    );
+    expect(notes).toBe(
+      [
+        "## Changes since v0.4",
+        "",
+        "### New",
+        "",
+        "- feat(cli,api): data export as JSON Lines (#319)",
+        "- SR-062: data store writes JSON Lines (#327)",
+        "",
+        "### Fixes",
+        "",
+        "- fix(core): count the activity hold (#342)",
+        "",
+        "### Specification",
+        "",
+        "- spec: SR-061 and SR-062 export as JSON Lines (#322)",
+        "",
+        "<details><summary>Other changes (2)</summary>",
+        "",
+        "- enabler: warn on large pull requests (#315)",
+        "- test(app): pass the app folder (#314)",
+        "",
+        "</details>",
+        "",
+        "Full list: https://example.test/compare/v0.4...v0.5",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("mentions nobody and opens no HTML tag", () => {
+    expect(
+      releaseNotes(["fix: bump @types/node and <details> handling"], { previous: "v1", compareUrl: "u" }),
+    ).toContain("- fix: bump `@types/node` and &lt;details> handling");
+  });
+
+  it("says so when nothing changed and leaves the link out for the first release", () => {
+    expect(releaseNotes([""], { previous: undefined, compareUrl: "unused" })).toBe(
+      "## Changes\n\nNo changes.\n",
+    );
   });
 });
 

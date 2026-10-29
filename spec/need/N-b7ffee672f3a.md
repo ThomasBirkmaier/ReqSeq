@@ -1,7 +1,7 @@
 ---
 id: 6adc6937-e37c-4f86-aa15-b7ffee672f3a
 type: need
-status: draft
+status: approved
 title: "Hinweise prüfen und bestätigen"
 spec-id: "N-063"
 topic: "Traceability und Ketten"

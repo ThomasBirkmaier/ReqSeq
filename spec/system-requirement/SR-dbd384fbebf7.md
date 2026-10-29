@@ -15,7 +15,7 @@ refines:
   - { id: 50824eaa-f59b-4bfc-b99e-bbb156836ef0, version: n1:80895fb29bfa5796, title: Graph des aktuellen Elements zeigen }
 derives-from:
   - { id: 1015b447-7845-49a6-984d-f1b4e809800f, version: n1:8971994df12cd206, title: Graph des aktuellen Elements }
-  - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:1ba8294de9948498, title: Status von Nachweis und Validierung }
+  - { id: 6ad50227-3476-4a97-8ec4-5d4f0543bb22, version: n1:b20a6c9601d52cfe, title: Status von Nachweis und Validierung }
 based-on:
   - { id: a1bb397a-362f-4c60-86e4-0e030a92c8d2, version: n1:5c0b4ca8b5e40a01, title: Graph vom aktuellen Element aus }
   - { id: c14efb7d-59da-4ef5-9b85-626310b9a57e, version: n1:fdb39689e8cfdeb5, title: Oberfläche als weißes Blatt }

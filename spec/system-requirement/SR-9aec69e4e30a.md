@@ -1,7 +1,7 @@
 ---
 id: 6adc6d97-8ac2-4012-a447-9aec69e4e30a
 type: system-requirement
-status: draft
+status: approved
 title: "Große Bestände flüssig bearbeiten"
 spec-id: "SR-082"
 rationale: "Entscheidung des Produktverantwortlichen, 2026-10-24: Zielwerte bestätigt. Referenzrechner: 4 Kerne, 16 GB Speicher, SSD."

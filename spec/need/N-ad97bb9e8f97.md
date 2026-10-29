@@ -1,7 +1,7 @@
 ---
 id: 6adc6938-6661-4f39-a0dd-ad97bb9e8f97
 type: need
-status: draft
+status: approved
 title: "Von außen geänderte Dateien"
 spec-id: "N-064"
 topic: "Ablage und Repositories"

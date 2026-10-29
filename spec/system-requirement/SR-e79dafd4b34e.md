@@ -1,7 +1,7 @@
 ---
 id: 6adc7b00-c11d-4c7d-b4b9-e79dafd4b34e
 type: system-requirement
-status: draft
+status: approved
 title: "Zyklen in Ableitungen melden"
 spec-id: "SR-090"
 requirement-type: functional

@@ -1,7 +1,7 @@
 ---
 id: 6adc6bd6-5f7d-44f8-bc1d-be89db7ba23f
 type: system-requirement
-status: draft
+status: approved
 title: "Kette aufwärts und abwärts zeigen"
 spec-id: "SR-022"
 requirement-type: functional

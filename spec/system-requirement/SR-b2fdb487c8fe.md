@@ -1,7 +1,7 @@
 ---
 id: 6adc6ac6-de13-4a53-9e75-b2fdb487c8fe
 type: system-requirement
-status: draft
+status: approved
 title: "Arbeitsbereich aus Datei laden"
 spec-id: "SR-004"
 requirement-type: functional

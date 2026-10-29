@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { commandSlug } from "./command-page.js";
 import { inline } from "./markdown.js";
 import { codeAnchor, readProblemCodes } from "./codes.js";
-import { FORMATS, readExamples, schemaName } from "./formats.js";
+import { FORMATS, headingSlug, readExamples, schemaName } from "./formats.js";
 import { readGeneratedContracts, referencePages } from "./reference.js";
 import { modelAnchor, readStandardModel } from "./standard-model.js";
 
@@ -26,6 +26,12 @@ const sources = async (runtime: ReturnType<typeof getCommandRuntime>) => ({
   examples: await readExamples(repoRoot),
   standardModel: await readStandardModel(repoRoot),
 });
+
+/** A definition's heading, with its own anchor where the heading's id differs from the name: never both. */
+const anchored = (name: string): RegExp =>
+  headingSlug(name) === name
+    ? new RegExp(`(?<!<a id="${name}"></a>\\n\\n)### \`${name}\``)
+    : new RegExp(`<a id="${name}"></a>\\n\\n### \`${name}\``);
 
 const pageAt = (pages: readonly { path: string; text: string }[], path: string): string =>
   pages.find((page) => page.path === path)?.text ?? "";
@@ -100,7 +106,7 @@ describe("reference", () => {
         expect(page, `${name}.${field}`).toContain(`| \`${field}\` |`);
       }
       for (const definition of Object.keys(schema["$defs"] ?? {})) {
-        expect(page, `${name}#${definition}`).toContain(`<a id="${definition}"></a>`);
+        expect(page, `${name}#${definition}`).toMatch(anchored(definition));
       }
       for (const example of examples[name] ?? []) {
         expect(page, example.file).toContain(`### \`${example.file}\``);
@@ -108,7 +114,7 @@ describe("reference", () => {
     }
     const common = runtime.contracts.schemas.find((schema) => schemaName(schema) === "common") ?? {};
     for (const definition of Object.keys(common["$defs"] ?? {})) {
-      expect(pageAt(pages, "reference/common-types.md")).toContain(`<a id="${definition}"></a>`);
+      expect(pageAt(pages, "reference/common-types.md")).toMatch(anchored(definition));
     }
     expect(pageOf(pages, "element.get")).toContain(
       "[`elementRef`](/ReqSeq/reference/common-types/#elementRef)",

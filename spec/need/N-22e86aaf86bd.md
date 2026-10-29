@@ -1,7 +1,7 @@
 ---
 id: 6adc50a5-7bcc-4472-8749-22e86aaf86bd
 type: need
-status: draft
+status: approved
 title: "Filter speichern"
 spec-id: "N-051"
 topic: "Bearbeiten und Finden"
