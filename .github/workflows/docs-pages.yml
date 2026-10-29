@@ -45,14 +45,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            packages/docs/site/pnpm-lock.yaml
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
       - name: Build the documentation
         run: |
-          pnpm docs:build
+          pnpm docs:install
           pnpm audit --dir packages/docs/site --ignore-workspace --audit-level high
+          pnpm docs:build
       - uses: actions/upload-pages-artifact@v4
         with:
           path: packages/docs/site/dist
