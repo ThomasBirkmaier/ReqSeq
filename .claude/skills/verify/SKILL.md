@@ -5,7 +5,7 @@ description: How to check a LogReq change locally - the commands for typecheck, 
 
 # Checking a change
 
-CI runs on the product owner's Mac with limited capacity, and a red run costs about ten minutes. So the cheap checks run locally before a push, and CI runs the rest: coverage, build, e2e, the full Electron suite, offline and cross-access tests, the license and security audit, and performance at night.
+CI runs on GitHub's hosted runners on three systems, and a red run costs about ten minutes. So the cheap checks run locally before a push, and CI runs the rest: coverage, build, e2e, the full Electron suite, offline and cross-access tests, the license and security audit, and performance at night.
 
 ## While you work
 

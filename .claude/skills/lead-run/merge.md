@@ -12,15 +12,15 @@ Merge `main` with `pnpm merge:main`, which regenerates conflicting generated fil
 
 ## Merge as soon as it is green
 
-PRs labelled `blocked` or `needs-human` are not merged. GitHub auto-merge is not available. Subscribe to the PR's activity and merge on the CI event, when the check runs of the head commit (`GET /repos/ThomasBirkmaier/logreq/commits/{sha}/check-runs?per_page=100`) show all of this:
+PRs labelled `blocked` or `needs-human` are not merged. GitHub auto-merge is not available. Subscribe to the PR's activity and merge on the CI event, when the check runs of the head commit (`GET /repos/ThomasBirkmaier/ReqSeq/commits/{sha}/check-runs?per_page=100`) show all of this:
 
-- `checks (ubuntu-24.04)` and `electron (ubuntu-24.04)` exist and concluded `success`. One green workflow is not enough, and `electron` is green with skipped steps on a docs-only PR (#520).
+- `checks` and `electron` exist for `ubuntu-24.04`, `macos-14` and `windows-2025` and concluded `success`. One green workflow is not enough, and `electron` is green with skipped steps on a docs-only PR (#520).
 - The newest `trace-check (PR text)` that was not skipped, if there is one, concluded `success`.
 - Every other check run completed with `success` or `skipped`. The one exception is a PR that works on performance (product owner decision, 2026-10-28): there `perf` may be red when every row over its limit was already over it on main and no measurement is worse. The PR names the rows and the comparison.
 
-If `checks` failed only in its Trace check step or in a flaky step, and you fixed the cause without a push, re-run the failed jobs: `POST /repos/ThomasBirkmaier/logreq/actions/runs/{run_id}/rerun-failed-jobs`. Check the text first with `pnpm trace-check --pr-body <file>`; a green `trace-check (PR text)` does not replace the rerun. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
+If `checks` failed only in its Trace check step or in a flaky step, and you fixed the cause without a push, re-run the failed jobs: `POST /repos/ThomasBirkmaier/ReqSeq/actions/runs/{run_id}/rerun-failed-jobs`. Check the text first with `pnpm trace-check --pr-body <file>`; a green `trace-check (PR text)` does not replace the rerun. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
 
-Merge with `PUT /repos/ThomasBirkmaier/logreq/pulls/{n}/merge` and `merge_method: squash`, keeping the `Implements:` trailers, then delete the branch. Use `rebase` instead only when the commits should stay revertible one by one. Never merge red, and never approve your own PR.
+Merge with `PUT /repos/ThomasBirkmaier/ReqSeq/pulls/{n}/merge` and `merge_method: squash`, keeping the `Implements:` trailers, then delete the branch. Use `rebase` instead only when the commits should stay revertible one by one. Never merge red, and never approve your own PR.
 
 ## After the merge
 

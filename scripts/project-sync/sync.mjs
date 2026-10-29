@@ -6,7 +6,7 @@
 import process from "node:process";
 
 const token = process.env.PROJECT_TOKEN;
-const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "ThomasBirkmaier/logreq").split("/");
+const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "ThomasBirkmaier/ReqSeq").split("/");
 const PROJECT_TITLE = process.env.PROJECT_TITLE ?? "LogReq";
 if (!token) {
   console.log("::notice::PROJECT_TOKEN is not set, skipping project sync.");

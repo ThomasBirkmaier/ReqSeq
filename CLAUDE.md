@@ -37,7 +37,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 
 ## Traps
 
-- GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/logreq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
+- GitHub has no GraphQL from cloud sessions, so `gh issue ...` and `gh pr ...` fail with 403. Use the GitHub MCP tools or `gh api repos/ThomasBirkmaier/ReqSeq/...` (REST). Sub-issues: `POST /repos/{owner}/{repo}/issues/{n}/sub_issues`.
 - Do not read `schemas/generated/` or `packages/core/src/generated/` unless you debug the generator. Regenerate them with `pnpm contracts:generate`. Merge `main` into a branch with `pnpm merge:main`, which regenerates conflicting generated files.
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
