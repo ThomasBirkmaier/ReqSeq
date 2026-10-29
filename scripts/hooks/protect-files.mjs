@@ -22,14 +22,25 @@ export function protectedReason(relPath) {
   return rule && `${posix} is written by a tool, not by hand: ${rule.fix}.`;
 }
 
-/** Finds the Git checkout (main checkout or worktree) that contains the file, even if the file does not exist yet. */
-export function repoRoot(file) {
+/** Finds the nearest existing directory, so a file that does not exist yet can be resolved too. */
+function existingDir(file) {
   let dir = path.dirname(file);
-  while (!fs.existsSync(dir)) {
+  while (!fs.existsSync(dir) && path.dirname(dir) !== dir) {
     dir = path.dirname(dir);
   }
+  return dir;
+}
+
+/** Finds the LogReq checkout (main checkout or worktree) that contains the file, with symlinks resolved. */
+export function repoRoot(file) {
   try {
-    return execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+    const root = execFileSync("git", ["-C", existingDir(file), "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return fs.existsSync(path.join(root, "spec", "logreq-workspace.yaml"))
+      ? fs.realpathSync(root)
+      : undefined;
   } catch {
     return undefined;
   }
@@ -46,11 +57,13 @@ export function check(input) {
   if (!root) {
     return { code: 0 };
   }
-  const reason = protectedReason(path.relative(root, abs));
+  const dir = existingDir(abs);
+  const real = path.join(fs.realpathSync(dir), path.relative(dir, abs));
+  const reason = protectedReason(path.relative(root, real));
   return reason ? { code: 2, message: reason } : { code: 0 };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   const { code, message } = check(JSON.parse(fs.readFileSync(0, "utf8") || "{}"));
   if (message) {
     process.stderr.write(`${message}\n`);

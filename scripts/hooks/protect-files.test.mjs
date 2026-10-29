@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -27,5 +29,15 @@ describe("protect-files hook", () => {
     expect(edit("CLAUDE.md")).toEqual({ code: 0 });
     expect(check({ tool_input: {} })).toEqual({ code: 0 });
     expect(check({ cwd: "/", tool_input: { file_path: "/nonexistent-dir/x" } })).toEqual({ code: 0 });
+  });
+
+  it("sees through a symlinked checkout", () => {
+    const link = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "protect-")), "repo");
+    fs.symlinkSync(root, link, "junction");
+    try {
+      expect(check({ cwd: link, tool_input: { file_path: "spec/need/x.md" } }).code).toBe(2);
+    } finally {
+      fs.rmSync(path.dirname(link), { recursive: true, force: true });
+    }
   });
 });
