@@ -372,7 +372,7 @@ jobs:
         if: runner.os == 'Linux' && steps.changes.outputs.tests != 'false'
         # Each shard runs every second file (test/playwright.config.ts); without a shard, all of them.
         env:
-          ELECTRON_SHARD: ${{ matrix.shard }}
+          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
         run: xvfb-run -a pnpm --filter @logreq/app test:electron
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
