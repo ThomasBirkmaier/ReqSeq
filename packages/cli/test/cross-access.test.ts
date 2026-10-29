@@ -2053,12 +2053,17 @@ const filesOf = async (top: string): Promise<Record<string, string>> => {
   ) as Record<string, string>;
 };
 
-/** Every fixture a scenario uses. Each is built once, because building one spawns `git` several times. */
+/**
+ * Every fixture a scenario uses, each once: building one spawns `git` several times, and many scenarios
+ * share a fixture (a list with repeats built over a hundred, which ran past the hook timeout on Windows, #304).
+ */
 const FIXTURES: readonly FixtureOptions[] = [
-  ONE_REPOSITORY,
-  ...Object.values(SCENARIOS).flatMap((list) =>
-    list.flatMap((s) => (s.fixture === undefined ? [] : [s.fixture])),
-  ),
+  ...new Set([
+    ONE_REPOSITORY,
+    ...Object.values(SCENARIOS).flatMap((list) =>
+      list.flatMap((s) => (s.fixture === undefined ? [] : [s.fixture])),
+    ),
+  ]),
 ];
 const templates = new Map<FixtureOptions, FixtureWorkspace>();
 const copies: string[] = [];
@@ -2087,6 +2092,8 @@ beforeAll(async () => {
   }
 }, 120_000);
 
+// Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
+// than the default hook timeout of 30 s (#304).
 afterAll(async () => {
   await Promise.all([...templates.values()].map((f) => f.cleanup()));
   templates.clear();
@@ -2095,7 +2102,7 @@ afterAll(async () => {
       fs.rm(folder, { recursive: true, force: true, maxRetries: 3 }),
     ),
   );
-});
+}, 120_000);
 
 /** The sample hooks of `git init`: half the files of a fixture, and no Git command of LogReq runs hooks. */
 const isSampleHooks = (source: string): boolean =>
