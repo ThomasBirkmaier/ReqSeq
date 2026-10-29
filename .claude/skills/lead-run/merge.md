@@ -16,7 +16,7 @@ PRs labelled `blocked` or `needs-human` are not merged. GitHub auto-merge is not
 
 - `checks (ubuntu-24.04)` and `electron (ubuntu-24.04)` exist and concluded `success`. One green workflow is not enough, and `electron` is green with skipped steps on a docs-only PR (#520).
 - The newest `trace-check (PR text)` that was not skipped, if there is one, concluded `success`.
-- Every other check run completed with `success` or `skipped`. The one exception is a PR that works on performance (product owner decision, 2026-10-28): there `perf` may be red when every row over its limit was already over it on main and no measurement is worse. The PR names the rows and the comparison.
+- Every other check run completed with `success` or `skipped`. The one exception is a PR that works on performance (product owner decision, 2026-10-28): there `perf` may be red when every row over its limit was already over it on main and no measurement is worse. The PR names the rows and the comparison. The label `perf` starts the perf job once when it is added, not on later pushes, so add it after the last reviewed push, and measure the comparison locally in the container.
 
 If `checks` failed only in its Trace check step or in a flaky step, and you fixed the cause without a push, re-run the failed jobs: `POST /repos/ThomasBirkmaier/logreq/actions/runs/{run_id}/rerun-failed-jobs`. Check the text first with `pnpm trace-check --pr-body <file>`; a green `trace-check (PR text)` does not replace the rerun. You find the failed step with `GET .../actions/runs/{run_id}/jobs` (`steps[].conclusion`), because the annotation only says "exit code 1" (#566).
 
