@@ -101,7 +101,7 @@ describe("packageFolders and noticesText", () => {
     await fs.writeFile(path.join(nm, ".modules.yaml"), "");
     await fs.writeFile(path.join(nm, "@s", "README"), "");
     const found = (await packageFolders(nm)).map((p) => path.relative(nm, p)).sort();
-    expect(found).toEqual(["@s/b", "a", path.join("a", "node_modules", "c")].sort());
+    expect(found).toEqual([path.join("@s", "b"), "a", path.join("a", "node_modules", "c")].sort());
     expect(await packageFolders(path.join(nm, "missing"))).toEqual([]);
   });
 

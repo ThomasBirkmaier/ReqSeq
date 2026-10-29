@@ -835,14 +835,22 @@ describe("a watch that goes on or ends on its own", () => {
         ACTIVITY_FILE,
         JSON.stringify(activityFile("5".repeat(64), seq)),
       );
+    // Each report waits for a watcher event of the cache folder, which macOS runners can deliver
+    // later than vi.waitFor's default of 1 s; how fast is not what this test shows.
     await write(1);
-    await vi.waitFor(() => {
-      expect(logged).toEqual(["An agent's access could not be reported: Error: the port is gone"]);
-    });
+    await vi.waitFor(
+      () => {
+        expect(logged).toEqual(["An agent's access could not be reported: Error: the port is gone"]);
+      },
+      { timeout: 5000 },
+    );
     await write(2);
-    await vi.waitFor(() => {
-      expect(reported).toHaveLength(2);
-    });
+    await vi.waitFor(
+      () => {
+        expect(reported).toHaveLength(2);
+      },
+      { timeout: 5000 },
+    );
     expect(logged).toHaveLength(1);
   });
 });
