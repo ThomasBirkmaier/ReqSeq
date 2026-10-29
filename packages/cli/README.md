@@ -19,6 +19,7 @@ logreq workspace activity              # the element an agent read or changed la
 logreq workspace recent                # the workspaces the app opened last, from any folder (SR-131); --workspace does not change the list
 logreq element update SR-46fb54 --input @change.json   # objects only via --input (JSON, @file or - for stdin)
 logreq data export --jsonl --input '{"selection":{"package":"PKG-0000d1"}}' > state.jsonl   # one element per line; select instead of exporting everything (SR-061 AK2)
+logreq data store --folder out      # a pipeline: out/<commit>.jsonl (or -dirty), the same lines, one file per state
 ```
 
 - Subcommand `logreq <group> <action>`; the action is kebab-case (`element set-status`).

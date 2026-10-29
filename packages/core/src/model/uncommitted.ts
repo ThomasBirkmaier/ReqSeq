@@ -1,6 +1,6 @@
 // Uncommitted changes to the files the data of a state is made of (SR-062 K2, #531 Q2): whether the
 // working copy of a repository still holds the state of its HEAD commit. `data.export` gives it as
-// `repositories[].dirty`, `data.store` names the file `<commit>-dirty.json` by it; stage 5 reuses
+// `repositories[].dirty`, `data.store` names the file `<commit>-dirty.jsonl` by it; stage 5 reuses
 // the functions for SR-050 AK2 (`baseline.uncommitted-changes`). Read only (ADR-0006, D-036).
 //
 // - The state files of a repository: `logreq-workspace.yaml` of the main repository; the `*.yaml` and
@@ -9,7 +9,7 @@
 //   `ignore` glob, not in a nested repository of the workspace) outside the evidence locations; and
 //   every file an element of the store embeds, of any extension. Not counted: evidence records (the
 //   pipeline writes new ones in the same run, and each names its version, D-026), `.logreq/local.yaml`,
-//   code, every other file, and the stored `*.json` files. Paths compare in NFC (ADR-0006).
+//   code, every other file, and the stored `*.jsonl` files. Paths compare in NFC (ADR-0006).
 // - How a repository is found dirty, read only and with no new git command:
 //   1. `changedPaths` against the commit (diff without index refresh, untracked files); the listed
 //      paths that are or were state files are kept.
