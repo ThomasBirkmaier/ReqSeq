@@ -52,7 +52,7 @@ import { locate, workspaceLayoutState } from "../workspace/index.js";
 import { readMarkdownRecord, RECORD_KEY } from "./markdown.js";
 import type { EvidenceRecord } from "./record.js";
 import type { EvidenceRead } from "./state.js";
-import { evidenceReadState } from "./state.js";
+import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
 
 const COMMAND = "evidence.record";
 
@@ -359,8 +359,8 @@ export const withRecord = (
 
 /**
  * Rule 7: the evidence state after `record` was written: a built read gets the record (`withRecord`;
- * `replace` resets the index and the status states built on it), a read that runs is reset, an
- * unbuilt one stays unbuilt.
+ * `replace` carries the records, the index and the status over the one record, `registerInsertion`),
+ * a read that runs is reset, an unbuilt one stays unbuilt.
  */
 const updateEvidence = async (
   workspace: Workspace,
@@ -377,7 +377,16 @@ const updateEvidence = async (
     await workspace.reset(evidenceReadState);
     return;
   }
-  await workspace.replace(evidenceReadState, from, Promise.resolve(withRecord(layout, read, record)));
+  // The records state carries only as the read's own records: not after records were put in place
+  // through the seam of #127 (then the index is of those, and the states are reset as before).
+  const records = workspace.peek(evidenceRecordsState);
+  const ofRead = records === undefined || (await settledValue(records)) === read.records;
+  const next = Promise.resolve(withRecord(layout, read, record));
+  // The states built on the read carry the one record over (#278); no `await` from here to `replace`.
+  if (ofRead && workspace.peek(evidenceRecordsState) === records) {
+    registerInsertion(next, record);
+  }
+  await workspace.replace(evidenceReadState, from, next);
 };
 
 /** The element of a record and the fields to write (rules 1 to 3). */

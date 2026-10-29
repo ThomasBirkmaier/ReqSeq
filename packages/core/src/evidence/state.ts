@@ -5,12 +5,17 @@
 // - `evidenceRecordsState`: its records alone, an array. This is the seam through which tests and
 //   consumers get records without files (decision on #127, option 1): `workspace.replace` it with
 //   the records a test needs. Skipped test cases are given by replacing `evidenceReadState` (do that
-//   first: replacing it resets `evidenceRecordsState`).
+//   first: replacing it gives `evidenceRecordsState` the records of the new read).
+//
+// `evidence.record` puts the record it wrote into a built read (`withRecord`) and registers it for
+// the new value (`registerInsertion`), so the states built on the read carry it over instead of
+// being built again (#278: the index, `evidenceIndexWith`, and the status, `verificationState`).
 //
 // The readers are registered in `EVIDENCE_READERS`, one per extension: the Markdown reader of SR-028
 // (#40, `markdown.ts`) and the JUnit reader of SR-093 (#105, `junit.ts`).
 import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
+import type { StateChange } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -115,13 +120,35 @@ export const evidenceReadState = defineWorkspaceState(
   { dependsOn: [workspaceLayoutState] },
 );
 
+/** The record each read value got from `evidence.record`, by the value (see the file comment). */
+const insertions = new WeakMap<Promise<EvidenceRead>, EvidenceRecord>();
+
+/**
+ * Registers `record` as the one record by which the read `value` differs from the read it replaces
+ * (`withRecord`); call it before `workspace.replace(evidenceReadState, from, value)`.
+ */
+export const registerInsertion = (value: Promise<EvidenceRead>, record: EvidenceRecord): void => {
+  insertions.set(value, record);
+};
+
+/**
+ * The record inserted by `change` when it is a replace of `evidenceReadState` with a registered
+ * value (`registerInsertion`), else undefined: then what changed is not known.
+ */
+export const insertionOf = (change: StateChange): EvidenceRecord | undefined =>
+  change.key === evidenceReadState ? insertions.get(change.to as Promise<EvidenceRead>) : undefined;
+
 /**
  * The evidence records of the workspace (SR-028): the records of `evidenceReadState`. The seam
  * through which the check of SR-025 AK4 and the stage 4 consumers get their records (see the file
- * comment).
+ * comment). Carried over every replace of the read: it is the new read's records.
  */
 export const evidenceRecordsState = defineWorkspaceState(
   "evidence-records",
   async (workspace): Promise<readonly EvidenceRecord[]> => (await workspace.get(evidenceReadState)).records,
-  { dependsOn: [evidenceReadState] },
+  {
+    dependsOn: [evidenceReadState],
+    // Only a replace of the read reaches it: a replace of the layout resets the read first.
+    carry: (_value, change) => (change.to as Promise<EvidenceRead>).then((read) => read.records),
+  },
 );
