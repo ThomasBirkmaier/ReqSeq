@@ -120,10 +120,10 @@ properties:
     many: true
     target-types: [package]
     meaning: packages
+  # emergent does not count to the version (D-057, #227); the code's standard model follows.
   - key: emergent
     name: Emergent
     kind: choice
-    content: true
     meaning: emergent
     choices:
       - { key: "yes", name: "Yes" }

@@ -7,6 +7,7 @@ label sr            0f6b74 "Implements one system requirement"
 label enabler       5a6670 "Work without its own system requirement"
 label bug           d73a4a "Something does not work as specified"
 for n in 0 1 2 3 4 5 6; do label "stage:$n" c5def5 "Stage $n (D-035, D-052)"; done
+label stage:later   c5def5 "Not planned for a stage (package Später)"
 label spec-frage    fbca04 "Question about the spec for the product owner"
 label spec-geändert e99695 "Spec changed after implementation"
 label spec-export   bfd4f2 "Export of the spec from Logseq (obsolete since #326)"

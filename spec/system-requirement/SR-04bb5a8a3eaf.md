@@ -7,7 +7,7 @@ spec-id: "SR-061"
 requirement-type: interface
 acceptance-criteria:
   - "Gegeben ein Arbeitsbereich, wenn die Daten über API oder Kommandozeile abgefragt werden, dann liefert das Tool alle Elemente mit Properties, Beziehungen, Fassung, Nachweisstatus und Gültigkeit als JSON."
-  - "Gegeben eine Auswahl über Filter, Paket, Baseline oder Variante, wenn die Daten abgefragt werden, dann enthält das JSON nur diese Auswahl."
+  - Gegeben eine Auswahl über Filter, Paket, Baseline oder Variante, wenn die Daten abgefragt werden, dann enthält das JSON nur diese Auswahl; bei einer Baseline sind das ihre Elemente im aktuellen Stand, die Fassung zum Zeitpunkt der Baseline zeigt die Baseline selbst (SR-051).
   - "Gegeben die Ausgabe, wenn sie geprüft wird, dann entspricht sie einem mitgelieferten JSON-Schema."
   - Gegeben die Kommandozeile oder die API, wenn die Daten im Format JSON Lines angefordert werden, dann liefern sie ein Element je Zeile.
 verification-method: test

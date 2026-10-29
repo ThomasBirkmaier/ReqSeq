@@ -42,7 +42,7 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - In `packages/core` and `packages/app`, read the README and only the parts under their `docs/` you work on; ADR-0008 and ADR-0010 are split the same way under `docs/adr/0008/` and `docs/adr/0010/`.
 - Squash merges have duplicated scenario blocks in `packages/cli/test/cross-access.test.ts` (TS1117). Check it after merging `main`.
 - The GitHub project "ReqSeq" is filled from the labels by `project-sync`. Change labels, never project fields.
-- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because PRs run on Linux only and Windows runs at night.
+- Keep code platform-neutral (paths via `node:path`, CRLF-safe), because drafts run on Linux only, macOS and Windows run when a PR is ready (and on later pushes once Ubuntu passed), and main is checked on all three at night.
 
 ## How we work
 
@@ -53,5 +53,5 @@ Strict typecheck, lint with zero warnings, format, and unit test coverage of 100
 - Stop and ask the product owner only when you cannot continue without them, or before anything destructive or irreversible, here or on GitHub: deleting files, issues or releases (merged PR branches excepted), force-pushing or rewriting history, or changing branch protection or access.
 - Opus at effort medium by default. Effort high only for risky plans and changes and for the periodic check against the spec.
 - Do what the issue asks. Put pre-existing problems into the collective follow-up issue of the area. If ReqSeq behaves badly while you use it, open a `dogfooding` issue.
-- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` blocks force-pushes and deletion and requires the checks `static`, `checks (ubuntu-24.04)` and `electron (ubuntu-24.04)`, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
+- Agents commit and merge on their own, also for `.claude/`, `.github/`, `schemas/`, `docs/` and this file (D-051). `main` blocks force-pushes and deletion and requires the checks `static` plus `checks` and `electron` on each of `ubuntu-24.04`, `macos-14` and `windows-2025`, so every change, a trivial one too, goes through a pull request. Merge only on green CI, after one review by a second agent whose blocking findings are fixed (`lead-run`, `merge.md`). Tell the product owner in the stage epic about PRs that change the spec, schemas, ADRs, agent rules, skills or CI, without waiting for an answer.
 - Small PRs, one SR each unless SRs are inseparable. Rule, skill and doc changes that belong to no SR or code PR are bundled into one PR per half day (product owner decision, 2026-10-28, #722); since main requires checks, a pure wording fix goes through a PR too (#340).
