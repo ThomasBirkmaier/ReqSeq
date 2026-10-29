@@ -11,7 +11,7 @@ The lead runs a stage over hours or days and stays the one place that knows its 
 
 The state is in the stage epic, the issue labels and `deps` blocks, the merged PRs, and the handover file `/mnt/project-files/stufe<n>/lead-uebergabe.md`, which lists open PRs, running agents, decisions and the next steps. A fresh lead starts by reading the epic and that file. Claim progress only from tool results (a merged PR, a green check), and name failures and skipped steps.
 
-The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels, so change labels, state and sub-issues, never project fields. Each open issue has exactly one of `sr`, `enabler`, `bug` and `spec-frage`. SR and enabler issues carry a stage label or `querschnitt` and hang under their epic. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
+The GitHub project "ReqSeq" is filled by the `project-sync` workflow from the labels, so change labels, state and sub-issues, never project fields. Each open issue except the epics has exactly one of `sr`, `enabler`, `bug` and `spec-frage`, and exactly one of `stage:<n>` (the stage whose scope it belongs to by D-035), `querschnitt` (serves every stage) and `stage:later` (not planned for a stage, package „Später“). SR and enabler issues hang under their epic. A duplicate is closed as `duplicate` with a link to the original, an issue a merged PR finished as `completed` with a link to the PR. Remove `agent:working` when an agent stops, and remove `blocked` when its blocker closed.
 
 ## Order
 

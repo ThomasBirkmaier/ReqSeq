@@ -26,7 +26,7 @@ const TOPICS = {
   "betrieb-und-leistung": "Betrieb und Leistung",
 };
 const FIELDS = {
-  Stage: ["0", "1", "2", "3", "4", "5", "6", "Querschnitt"],
+  Stage: ["0", "1", "2", "3", "4", "5", "6", "Querschnitt", "Später"],
   Kind: ["Epic", "SR", "Enabler", "Bug", "Spec question", "Other"],
   "Agent state": ["Ready", "Working", "Blocked", "Needs human", "Done"],
   Thema: Object.values(TOPICS),
@@ -138,7 +138,8 @@ function agentStateOf(issue, has) {
 function derive(issue) {
   const labels = issue.labels.map((l) => (typeof l === "string" ? l : l.name));
   const has = (l) => labels.includes(l);
-  const stage = has("querschnitt") ? "Querschnitt" : labels.find((l) => l.startsWith("stage:"))?.slice(6);
+  const stageLabel = labels.find((l) => l.startsWith("stage:"))?.slice(6);
+  const stage = has("querschnitt") ? "Querschnitt" : stageLabel === "later" ? "Später" : stageLabel;
   const topic = TOPICS[labels.find((l) => l.startsWith("thema:"))?.slice(6)];
   const sr = issue.title.match(/^SR-\d{3}/)?.[0];
   return {
