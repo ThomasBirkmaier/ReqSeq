@@ -10,7 +10,7 @@ acceptance-criteria:
   - "Gegeben eine Auswahl über Filter, Paket, Baseline oder Variante, wenn die Daten abgefragt werden, dann enthält das JSON nur diese Auswahl."
   - "Gegeben die Ausgabe, wenn sie geprüft wird, dann entspricht sie einem mitgelieferten JSON-Schema."
   - Gegeben ein Requirement, dessen Nachweisstatus in einer Variante, in der es gilt, dem Status im Kern gleicht, wenn die Daten abgefragt werden, dann enthält das JSON für diese Variante keinen eigenen Eintrag; fehlt der Eintrag einer solchen Variante, gilt der Status des Kerns.
-  - Gegeben die Kommandozeile, wenn die Daten im Format JSON Lines angefordert werden, dann liefert sie ein Element je Zeile.
+  - Gegeben die Kommandozeile oder die API, wenn die Daten im Format JSON Lines angefordert werden, dann liefern sie ein Element je Zeile.
 verification-method: test
 topic: "Anbindung und Auswertung"
 packages:
