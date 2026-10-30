@@ -10,9 +10,11 @@
 
 The filter applies this list and never downgrades a finding on it. Blocking findings are correctness, a broken product rule, wrong or missing AK tags or trace, an AK with method Test that no test triggers through the access the AK names, a breach of the repository text rule, and an unjustified ignore or weakened gate. A blocking finding or red CI starts one fix round, which also takes that PR's should-fix items. Send the fix round to the agent that wrote the code (SendMessage) while it is reachable, because it still has the context; its prompt cache lasts only about five minutes, so send the findings soon after the review. Otherwise start a fresh agent with the plan, the findings and the diff. The fix needs no new review, unless it adds logic the findings did not ask for. A blocking finding too large for the PR becomes a linked issue; the PR gets `blocked` and waits. Without a blocking finding, the should-fix items and notes go into the collective follow-up issue of the area, and the PR merges on green CI.
 
-## Conflicts
+## Conflicts and stacked PRs
 
-Merge `main` with `pnpm merge:main`, which regenerates conflicting generated files. A conflict resolved by hand needs a look at that diff before the merge. If the two sides cannot both be kept, label the PR `needs-human` and give the product owner the options.
+No stacked PRs (#412): branch every PR from `main`, never from another PR's branch. A squash merge of the lower PR forces every PR above it to merge `main` and run the whole CI again; on 2026-10-29 runs that only merged `main`, mostly in stacked PRs, were a third of all macOS and Windows runs. Work that builds on an open PR waits for its merge, or goes into the same PR.
+
+Merge `main` into a PR only when GitHub reports a conflict, or after a change of its base branch (below). The ruleset does not require an up-to-date branch, so merging `main` without a conflict only starts a full run. Merge it with `pnpm merge:main`, which regenerates conflicting generated files. A conflict resolved by hand needs a look at that diff before the merge. If the two sides cannot both be kept, label the PR `needs-human` and give the product owner the options.
 
 ## Merge as soon as it is green
 
