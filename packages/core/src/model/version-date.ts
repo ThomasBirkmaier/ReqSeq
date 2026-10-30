@@ -6,9 +6,9 @@
 // One walk per element file and HEAD reads the commits that changed the file or an image one of
 // its texts embeds, and every merge (no history simplification, so the answer never depends on
 // the other files of a call); a merge is evaluated where its sides do not all lead to the same
-// evaluated commit (it may join the text of one side with an image of the other). Where a commit
-// added the file, Git is asked whether it moved it there, and the walk follows the old path
-// (#460): one `log` per round for all such commits, never one `--follow` per file. Git is asked
+// evaluated commit (it may join the text of one side with an image of the other). Git is asked
+// what the commits that changed the file's paths moved, and the walk follows each old path (#460):
+// one `log` for all of them after each history read, never one `--follow` per file. Git is asked
 // for the folders of these paths, which costs far less than one pathspec per file in a deep
 // history; the paths of each walk are picked from its answer. A version is computed only where an answer
 // needs it, newest commit first, until the newest commit that started the version asked for is
@@ -105,8 +105,6 @@ interface FileWalk {
   readonly versions: Map<string, string | undefined>;
   /** The answers so far, by version; null where no commit started it. */
   readonly dates: Map<string, string | null>;
-  /** The commits whose moves were looked up: where the file may have come from an older path. */
-  readonly moved: Set<string>;
   /** Set when Git failed for a reason that does not pass: no more answers at this HEAD. */
   failed: boolean;
 }
@@ -291,6 +289,57 @@ const evaluatedList = (
 };
 
 /**
+ * Looks up the moves of `commits` not looked up yet (one `log`). Git that times out, was stopped or
+ * is missing makes the walk unknown; any other failure (a partial clone without the blobs rename
+ * detection compares) counts as no moves, so the file is not followed (ADR-0005 "Moves").
+ */
+const lookUpMoves = async (
+  facts: Facts,
+  folder: string,
+  commits: readonly string[],
+  signal: AbortSignal,
+): Promise<void> => {
+  const unasked = [...new Set(commits)].filter((c) => !facts.movesAsked.has(c));
+  if (unasked.length === 0) {
+    return;
+  }
+  const found = await fileMoves(folder, unasked, { signal });
+  if (!found.known) {
+    const unknown = new Unknown(found);
+    if (unknown.transient) {
+      throw unknown;
+    }
+  } else {
+    for (const [commit, moves] of found.moves) {
+      facts.moves.set(commit, moves);
+    }
+  }
+  for (const commit of unasked) {
+    facts.movesAsked.add(commit);
+  }
+};
+
+/**
+ * Adds to the names of `walk` the old path of each move of `commits` to one of them (the moves are
+ * in `facts`); whether a name was added.
+ */
+const addOldNames = (walk: FileWalk, commits: readonly HistoryCommit[], facts: Facts): boolean => {
+  const { names, tracked } = walk.walked;
+  const known = new Set(names.map((n) => n.normalize("NFC")));
+  const moves = commits.flatMap(({ commit }) => facts.moves.get(commit) ?? []);
+  const before = names.length;
+  // A path git cannot take on a line is not followed.
+  for (const { from, to } of moves) {
+    if (known.has(to.normalize("NFC")) && !known.has(from.normalize("NFC")) && isGitPath(from)) {
+      names.push(from);
+      known.add(from.normalize("NFC"));
+      tracked.add(from.normalize("NFC"));
+    }
+  }
+  return names.length > before;
+};
+
+/**
  * Reads the history of the files of `walks` (one `log` for all, every merge listed, so a walk gets
  * the same answer whatever other files share the call) and sets where each is evaluated: the
  * commits that changed its file or a tracked image path, and the merges whose sides do not all
@@ -298,62 +347,64 @@ const evaluatedList = (
  * literal pathspec per file costs time per commit, folder entry and path, which grows to minutes
  * in a deep history with large folders; the folders cost about one pass. The changed paths of
  * each commit are matched to the tracked paths of each walk afterwards.
+ *
+ * Then the moves of every commit that changed a name of a file are looked up (one `log` for all);
+ * a move to a name adds the old path, and the history of the walks that got one is read again,
+ * until no name is added. So the names of a walk follow from the history alone, never from the
+ * versions computed so far, and every call at the same HEAD gives the same answer (D-029).
  */
 const readHistory = async (
+  repository: RepositoryWalks,
   folder: string,
-  head: string,
   walks: readonly FileWalk[],
   signal: AbortSignal,
 ): Promise<void> => {
-  const files = walks.flatMap((w) => [...w.walked.tracked].flatMap(forms)).filter(isGitPath);
-  const history = await fileHistory(folder, head, [...new Set(files.map(pathspecOf))], { signal });
-  if (!history.known) {
-    throw new Unknown(history);
-  }
-  const commits = parentsFirst(history.commits);
-  const byPath = new Map<string, HistoryCommit[]>();
-  for (const commit of commits) {
-    for (const changed of commit.paths) {
-      pushTo(byPath, changed.normalize("NFC"), commit);
+  for (let open = walks; open.length > 0;) {
+    const files = open.flatMap((w) => [...w.walked.tracked].flatMap(forms)).filter(isGitPath);
+    const history = await fileHistory(folder, repository.head, [...new Set(files.map(pathspecOf))], {
+      signal,
+    });
+    if (!history.known) {
+      throw new Unknown(history);
     }
-  }
-  for (const walk of walks) {
-    walk.evaluated = evaluatedList(
-      commits,
-      new Set([...walk.walked.tracked].flatMap((t) => byPath.get(t) ?? [])),
+    const commits = parentsFirst(history.commits);
+    const byPath = new Map<string, HistoryCommit[]>();
+    for (const commit of commits) {
+      for (const changed of commit.paths) {
+        pushTo(byPath, changed.normalize("NFC"), commit);
+      }
+    }
+    const changing = (paths: Iterable<string>): HistoryCommit[] => [
+      ...new Set([...paths].flatMap((t) => byPath.get(t) ?? [])),
+    ];
+    const named = open.map((walk) => {
+      walk.evaluated = evaluatedList(commits, new Set(changing(walk.walked.tracked)));
+      return { walk, commits: changing(walk.walked.names.map((n) => n.normalize("NFC"))) };
+    });
+    await lookUpMoves(
+      repository.facts,
+      folder,
+      named.flatMap(({ commits: changed }) => changed.map((c) => c.commit)),
+      signal,
     );
+    open = named
+      .filter(({ walk, commits: changed }) => addOldNames(walk, changed, repository.facts))
+      .map(({ walk }) => walk);
   }
 };
 
 /**
- * Whether the file may have come to `evaluated` from an older path: it holds the element there,
- * a parent does not (at any name known so far), and the commit's moves were not looked up yet.
- */
-const mayHaveMoved = (walk: FileWalk, { commit, parents }: Evaluated): boolean =>
-  walk.versions.get(commit.commit) !== undefined &&
-  !walk.moved.has(commit.commit) &&
-  (parents.length === 0 ||
-    parents.some(
-      (p) => p === null || (walk.versions.has(p.commit) && walk.versions.get(p.commit) === undefined),
-    ));
-
-/**
  * The answer for `version` from the versions computed so far: the date of the newest evaluated
  * commit that has it while none of its parents has, null when no commit has it; or, while that is
- * not certain, the commits whose versions it needs (newest first, about `chunk` of them) and those
- * whose moves it needs (where the file may have had an older path before).
+ * not certain, the commits whose versions it needs (newest first, about `chunk` of them).
  */
 const decide = (
   walk: FileWalk,
   version: string,
   chunk: number,
-):
-  | { readonly date: string | null }
-  | { readonly need: readonly string[]; readonly moves: readonly string[] } => {
+): { readonly date: string | null } | { readonly need: readonly string[] } => {
   const need: string[] = [];
-  const moves: string[] = [];
-  for (const evaluated of walk.evaluated) {
-    const { commit, parents } = evaluated;
+  for (const { commit, parents } of walk.evaluated) {
     if (need.length >= chunk) {
       break;
     }
@@ -361,24 +412,17 @@ const decide = (
       need.push(commit.commit);
       continue;
     }
-    if (mayHaveMoved(walk, evaluated)) {
-      moves.push(commit.commit);
-    }
     if (walk.versions.get(commit.commit) !== version) {
       continue;
     }
     const unknown = parents.filter((p): p is HistoryCommit => p !== null && !walk.versions.has(p.commit));
     need.push(...unknown.map((p) => p.commit));
     // A start only counts when no newer commit is still open.
-    if (
-      need.length === 0 &&
-      moves.length === 0 &&
-      !parents.some((p) => p !== null && walk.versions.get(p.commit) === version)
-    ) {
+    if (need.length === 0 && !parents.some((p) => p !== null && walk.versions.get(p.commit) === version)) {
       return { date: commit.date };
     }
   }
-  return need.length === 0 && moves.length === 0 ? { date: null } : { need, moves };
+  return need.length === 0 ? { date: null } : { need };
 };
 
 /** One open question of a call. */
@@ -615,92 +659,32 @@ const versionAt = (
 };
 
 /**
- * Looks up the moves of the commits `at` (one `log` for those not looked up yet) and adds to each
- * walk the older path a commit moved one of its names from; returns the walks whose names grew.
- */
-const readMoves = async (
-  round: Round,
-  at: readonly { walk: FileWalk; commit: string }[],
-): Promise<FileWalk[]> => {
-  const { facts } = round.walks;
-  const unasked = [...new Set(at.map((a) => a.commit))].filter((c) => !facts.movesAsked.has(c));
-  if (unasked.length > 0) {
-    const found = await fileMoves(round.source.repository.folder, unasked, { signal: round.signal });
-    if (!found.known) {
-      throw new Unknown(found);
-    }
-    for (const [commit, moves] of found.moves) {
-      facts.moves.set(commit, moves);
-    }
-    for (const commit of unasked) {
-      facts.movesAsked.add(commit);
-    }
-  }
-  const grown = new Set<FileWalk>();
-  for (const { walk, commit } of at) {
-    walk.moved.add(commit);
-    const { names, tracked } = walk.walked;
-    const nfc = new Set(names.map((n) => n.normalize("NFC")));
-    const moves = facts.moves.get(commit) ?? [];
-    for (const { from } of moves.filter((m) => nfc.has(m.to.normalize("NFC")))) {
-      // A path git cannot take on a line is not followed.
-      if (isGitPath(from) && !nfc.has(from.normalize("NFC"))) {
-        names.push(from);
-        tracked.add(from.normalize("NFC"));
-        grown.add(walk);
-      }
-    }
-  }
-  return [...grown];
-};
-
-/**
  * Answers `queries` round by round: each round computes the versions the open ones need (one
- * `cat-file` exchange for the texts, one for the images), twice as many as the round before, looks
- * up the moves of the commits where a file may have come from an older path (one `log`), and
- * reads the history again for files whose texts embed a new image path or that had an older path.
+ * `cat-file` exchange for the texts, one for the images), twice as many as the round before, and
+ * reads the history again for files whose texts embed a new image path.
  */
 const answer = async (round: Round, queries: readonly Query[]): Promise<void> => {
   for (let chunk = 2; ; chunk *= 2) {
     const needs = new Map<FileWalk, Set<string>>();
-    const moves = new Map<FileWalk, Set<string>>();
     for (const { walk, version } of queries.filter((q) => !q.walk.dates.has(q.version))) {
       const decision = decide(walk, version, chunk);
       if ("date" in decision) {
         walk.dates.set(version, decision.date);
       } else {
         needs.set(walk, new Set([...(needs.get(walk) ?? []), ...decision.need]));
-        moves.set(walk, new Set([...(moves.get(walk) ?? []), ...decision.moves]));
       }
     }
     if (needs.size === 0) {
       return;
     }
-    const pairs = (map: Map<FileWalk, Set<string>>): { walk: FileWalk; commit: string }[] =>
-      [...map].flatMap(([walk, commits]) => [...commits].map((commit) => ({ walk, commit })));
-    const at = pairs(needs);
-    // Git looks for moves while the texts are read.
-    const [grown, moved] = await Promise.all([
-      readTexts(round, at).then(async (texts) => {
-        const images = await readImages(round, at);
-        for (const { walk, commit } of at) {
-          walk.versions.set(commit, versionAt(round, images, walk, commit));
-        }
-        return texts;
-      }),
-      readMoves(round, pairs(moves)),
-    ]);
-    // Where no name known so far held the element, an older name may: computed again.
-    for (const walk of moved) {
-      for (const [commit, version] of walk.versions) {
-        if (version === undefined) {
-          walk.versions.delete(commit);
-        }
-      }
+    const at = [...needs].flatMap(([walk, commits]) => [...commits].map((commit) => ({ walk, commit })));
+    const grown = await readTexts(round, at);
+    const images = await readImages(round, at);
+    for (const { walk, commit } of at) {
+      walk.versions.set(commit, versionAt(round, images, walk, commit));
     }
-    const changed = new Set([...grown, ...moved]);
-    if (changed.size > 0) {
-      await readHistory(round.source.repository.folder, round.walks.head, [...changed], round.signal);
+    if (grown.length > 0) {
+      await readHistory(round.walks, round.source.repository.folder, grown, round.signal);
     }
   }
 };
@@ -824,14 +808,13 @@ const startWalks = (
       evaluated: [],
       versions: new Map(),
       dates: new Map(),
-      moved: new Set(),
       failed: false,
     });
   }
   if (fresh.size === 0) {
     return;
   }
-  const running = readHistory(source.repository.folder, walks.head, [...fresh.values()], signal).then(
+  const running = readHistory(walks, source.repository.folder, [...fresh.values()], signal).then(
     () => true,
     (error: unknown) => {
       // What Git could not tell for a reason that may pass (a timeout, no git) is asked again next time.
@@ -908,7 +891,13 @@ const repositoryDates = async (
         for (const { walk } of queries) {
           walk.failed = true;
         }
-      } else if (!(error instanceof Unknown) && !(error instanceof CommandError)) {
+      } else if (error instanceof Unknown || error instanceof CommandError) {
+        // What may pass is asked again by the next call, from a new walk: this one may hold a
+        // tracked path whose history was not read (ADR-0005 "No date").
+        for (const { walk } of queries) {
+          walks.files.delete(walk.walked.key);
+        }
+      } else {
         throw error;
       }
     });

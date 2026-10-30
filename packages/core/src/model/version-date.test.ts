@@ -390,11 +390,15 @@ describe("version date", () => {
         { file: FILE2, id: OTHER, version: await versionOf(repo.workspace, element("Second.")) },
       ]),
     ).toEqual([at(repo, "one"), at(repo, "again")]);
-    // Moves are looked up only where a file may have come from elsewhere, each commit once:
-    // `again`, `moved`, then `one` (the moves of `again` are known for the second file).
-    expect(vi.mocked(fileMoves).mock.calls.map(([, commits]) => commits)).toEqual(
-      ["again", "moved", "one"].map((name) => [repo.made[name]?.id]),
-    );
+    // The moves of the commits that changed a name, each commit once: the history of each new
+    // name is read and its commits looked up in turn (the moves of `again` serve the second file).
+    const named = (commits: readonly string[]): string[] =>
+      commits.map((c) => Object.keys(repo.made).find((n) => repo.made[n]?.id === c) ?? c).sort();
+    expect(vi.mocked(fileMoves).mock.calls.map(([, commits]) => named(commits))).toEqual([
+      ["again"],
+      ["moved"],
+      ["one", "two"],
+    ]);
   });
 
   it("follows a move to a path that held another element before", async () => {
@@ -407,13 +411,64 @@ describe("version date", () => {
     expect((await get(repo.workspace)).versionDate).toBe(at(repo, "one"));
   });
 
-  it("is null when git cannot look up a move, and looks again next time", async () => {
+  it("gives the same date whatever versions earlier calls asked for (D-029)", async () => {
+    const OLD = "old/SR-111111111111.md";
+    // A branch changed the version under the old name; the merge took it.
+    const repo = await repository([
+      { name: "base", files: { [OLD]: element("Zero.") } },
+      { name: "moved", deleted: [OLD], files: { [FILE]: element("Zero.") } },
+      { name: "k1", files: { [FILE]: element("Kay.") } },
+      { name: "edit", parents: ["base"], files: { [OLD]: element("One.") } },
+      { name: "merge", parents: ["k1", "edit"], files: { [FILE]: element("One.") } },
+    ]);
+    const one = { version: await versionOf(repo.workspace, element("One.")) };
+    const zero = { version: await versionOf(repo.workspace, element("Zero.")) };
+    const fresh = (): Workspace => {
+      const workspace = new Workspace(repo.fixture.root);
+      onTestFinished(() => workspace.close());
+      return workspace;
+    };
+    expect(await dates(repo.workspace, [one])).toEqual([at(repo, "edit")]);
+    const zeroFirst = fresh();
+    expect(await dates(zeroFirst, [zero])).toEqual([at(repo, "base")]);
+    expect(await dates(zeroFirst, [one])).toEqual([at(repo, "edit")]);
+    expect(await dates(fresh(), [one, zero])).toEqual([at(repo, "edit"), at(repo, "base")]);
+  });
+
+  it("is null when git times out looking up a move or reading the texts after it, and right next time", async () => {
     const repo = await repository([
       { name: "one", files: { "old/SR-111111111111.md": element("One.") } },
       { name: "moved", deleted: ["old/SR-111111111111.md"], files: { [FILE]: element("One.") } },
     ]);
     const version = await versionOf(repo.workspace, element("One."));
     vi.mocked(fileMoves).mockResolvedValueOnce(TIMEOUT);
+    expect(await dates(repo.workspace, [{ version }])).toEqual([null]);
+    // The names grew, then the texts time out: nothing of that walk is kept.
+    nextReader((round) => (round === 1 ? TIMEOUT : undefined));
+    expect(await dates(repo.workspace, [{ version }])).toEqual([null]);
+    expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "one")]);
+  });
+
+  it("does not follow a move where Git cannot look it up for another reason (a partial clone)", async () => {
+    const repo = await repository([
+      { name: "one", files: { "old/SR-111111111111.md": element("One.") } },
+      { name: "moved", deleted: ["old/SR-111111111111.md"], files: { [FILE]: element("One.") } },
+    ]);
+    vi.mocked(fileMoves).mockResolvedValueOnce(BROKEN);
+    expect(
+      await dates(repo.workspace, [{ version: await versionOf(repo.workspace, element("One.")) }]),
+    ).toEqual([at(repo, "moved")]);
+  });
+
+  it("walks again after git timed out reading the history for an image an older text embeds", async () => {
+    const old = element("![o](old.png)");
+    const repo = await repository([
+      { name: "one", files: { [FILE]: old, "requirements/old.png": "o1" } },
+      { name: "image", files: { "requirements/old.png": "o2" } },
+      { name: "now", files: { [FILE]: element("Now.") } },
+    ]);
+    const version = await versionOf(repo.workspace, old, { "old.png": "o1" });
+    vi.mocked(fileHistory).mockImplementationOnce(actual.fileHistory).mockResolvedValueOnce(TIMEOUT);
     expect(await dates(repo.workspace, [{ version }])).toEqual([null]);
     expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "one")]);
   });
