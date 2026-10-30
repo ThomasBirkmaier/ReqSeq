@@ -151,6 +151,24 @@
           },
           "description": "Given by data.export: the UUIDs of the packages the property with the meaning `packages` names, in its order; `[]` when none. Left out when the metamodel has no packages property."
         },
+        "replacedBy": {
+          "type": "array",
+          "description": "Given only for a core requirement (SR-046 AK3): each variant that replaces it and the replacing requirement, one entry per pair; a variant that also excludes it is only in excludedBy. Left out when empty.",
+          "items": {
+            "type": "object",
+            "required": ["variant", "replacement"],
+            "additionalProperties": false,
+            "properties": {
+              "variant": { "$ref": "common.schema.json#/$defs/uuid" },
+              "replacement": { "$ref": "common.schema.json#/$defs/uuid" }
+            }
+          }
+        },
+        "excludedBy": {
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/uuid" },
+          "description": "The variants that exclude this core requirement (SR-042, SR-046 AK3). Left out when empty."
+        },
         "emergent": {
           "type": "boolean",
           "description": "SR-035: true when the element's property with the meaning `emergent` holds the choice `yes` (assumption, spec question #591); only true is given, left out otherwise. An emergent requirement is never `indirect`: without an own verification record in a view it is `open` there."
@@ -169,7 +187,7 @@
         },
         "verification": {
           "type": "array",
-          "description": "Verification status per view: core and each variant the element is valid for (SR-047 AK3).",
+          "description": "Verification status, one entry per view the requirement is in by the view rule: the core when it has no validity, each variant it is in; none for a variant that excludes or replaces it (SR-047 AK3).",
           "items": {
             "$ref": "#/$defs/verificationEntry"
           }

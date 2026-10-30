@@ -262,6 +262,7 @@ const candidateOf = (
     const { key, named } = link;
     const hintId = hintIdOf({
       kind: "relation",
+      code: OUTDATED_CODE,
       ...place,
       key,
       target: target.id,
@@ -275,6 +276,7 @@ const candidateOf = (
   const { repository, occurrence, key } = link;
   const hintId = hintIdOf({
     kind: "reference",
+    code: OUTDATED_CODE,
     ...place,
     target: target.id,
     ...(repository === undefined ? {} : { repository }),
