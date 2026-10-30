@@ -43,6 +43,7 @@ import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import type { Draft, ShownFile } from "./drafts.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 import type { BufferData } from "./modeline.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -91,7 +92,7 @@ const alone = (input: Record<string, unknown>): unknown => ({
  */
 const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => unknown>) =>
   vi.fn((name: string, input: Record<string, unknown>) => {
-    const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : undefined))?.(input);
+    const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : NO_SUMMARY[name]))?.(input);
     return Promise.resolve(
       output instanceof Error
         ? { ok: false, code: "code" in output ? String(output.code) : "x.failed", message: output.message }
@@ -972,6 +973,76 @@ describe("Minibuffer", () => {
       await answer("SR-118", [wanted]);
       expect(wanted.run).toHaveBeenCalledTimes(1);
       expect(stale.run).not.toHaveBeenCalled();
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
+      const asked: ((choices: Choice[]) => void)[] = [];
+      const find = (): Promise<Choice[]> =>
+        new Promise<Choice[]>((resolve) => {
+          asked.push(resolve);
+        });
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("e1", "SR-118 Calm start");
+      await type(input(), "SR-118");
+      const field = input();
+      // One act: the answer is in, but React renders the hits only after the key.
+      await act(async () => {
+        asked[0]?.([hit]);
+        await Promise.resolve();
+        field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes the hit once when a second Enter comes before the prompt has closed (#419)", async () => {
+      const asked: ((choices: Choice[]) => void)[] = [];
+      const find = (): Promise<Choice[]> =>
+        new Promise<Choice[]>((resolve) => {
+          asked.push(resolve);
+        });
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("e1", "SR-118 Calm start");
+      await type(input(), "SR-118");
+      const field = input();
+      const enter = (): void => {
+        field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      };
+      await act(async () => {
+        enter();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        asked[0]?.([hit]);
+        await Promise.resolve();
+        enter();
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes the hit once when two Enters come after the hits arrived and before the prompt has closed (#419)", async () => {
+      const asked: ((choices: Choice[]) => void)[] = [];
+      const find = (): Promise<Choice[]> =>
+        new Promise<Choice[]>((resolve) => {
+          asked.push(resolve);
+        });
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("e1", "SR-118 Calm start");
+      await type(input(), "SR-118");
+      const field = input();
+      await act(async () => {
+        asked[0]?.([hit]);
+        await Promise.resolve();
+        const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+        field.dispatchEvent(enter);
+        field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
       expect(closed).toHaveBeenCalledTimes(1);
     });
 

@@ -7,7 +7,8 @@
 #
 # Safe paths, checked against the tests and scripts:
 # - docs/**          ADRs and architecture: read by people and agents only; not docs/guide/ (the user
-#                     documentation, built by `checks`, ADR-0017).
+#                     documentation, built by `checks`, ADR-0017), and not the generated pictures of
+#                     docs/architecture/ with the README that embeds them (packages/docs/src/diagrams.test.ts).
 # - .claude/**       agent rules and skills.
 # - verification/**  records: read by trace-check only (the Electron screenshots go to test-results/).
 # - toolchain/**/*.md, except anything below toolchain/junit/ (read by the e2e test
@@ -31,6 +32,8 @@ while IFS= read -r path || [ -n "$path" ]; do
     toolchain/junit/*) needed=true ;;
     # The user documentation's pages: the docs steps of `checks` build them (ADR-0017).
     docs/guide/*) needed=true ;;
+    # The architecture pictures: the drift test compares them with their sources.
+    docs/architecture/*.svg | docs/architecture/README.md) needed=true ;;
     docs/* | .claude/* | verification/* | toolchain/*.md) ;;
     */*) needed=true ;;
     *.md) ;;

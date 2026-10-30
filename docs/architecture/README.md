@@ -77,6 +77,10 @@ ReqSeq talks only to the local file system and the local `git` program. Everythi
 
 ## 5. Building blocks
 
+The workspace packages and their dependencies, generated from `packages/*/package.json`:
+
+![Workspace packages and their dependencies](packages.svg)
+
 The diagram and the table below follow the imports of the product code in `packages/core/src` (relative imports across block folders, test files left out) as of 2026-10-28 (#635). A block is a folder of `packages/core/src`; `runtime` is split into its entry modules and its state modules because they sit at opposite ends of the graph.
 
 ```mermaid
@@ -231,6 +235,14 @@ One portable artifact per platform (zip for Windows and macOS, tar.gz for Linux)
 - **Security.** No network; loopback-only API with token; sandboxed renderer; Git read-only allowlist.
 - **Language.** All UI, CLI messages, errors and docs in English (SR-074). Content is shown unchanged (SR-074 AK2).
 - **Logging.** Local only, to the cache folder, rotated; never content of elements at info level.
+
+### Continuous integration
+
+The workflows in `.github/workflows/`, their triggers, jobs, `needs` and runner systems, and the checks `main` requires (`.claude/skills/lead-run/merge.md`):
+
+![CI workflows, jobs and required checks](ci.svg)
+
+Both pictures are generated: `pnpm docs:diagrams` writes them from the sources, and `packages/docs/src/diagrams.test.ts` fails when a committed one is stale.
 
 ## 9. Decisions
 

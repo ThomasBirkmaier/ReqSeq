@@ -82,6 +82,8 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
   // Write commands that are refused while the workspace is read-only (SR-011 AK3): the catalog
   // entry says so with `whileReadOnly` (ADR-0002 rule 5); read commands have no such field.
   const guarded = new Set<string>();
+  // Write commands, which the watcher of the workspace waits for (`Workspace.writesSettled`, #432).
+  const writers = new Set<string>();
   // Where the output of each command holds problems, from its output schema (#315); built on the
   // first call of the command, since a CLI process runs one (#319).
   const locators = new Map<string, () => ProblemLocator | undefined>();
@@ -108,6 +110,9 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
       return located.locator;
     });
     calls.set(command.name, { command: command.name, effect: entry.effect, subject: accessSubject(entry) });
+    if (entry.effect === "write-files") {
+      writers.add(command.name);
+    }
     if (entry.whileReadOnly === "refuse") {
       guarded.add(command.name);
     }
@@ -159,27 +164,30 @@ export function createCommandRuntime(options: CommandRuntimeOptions = {}): Comma
     let output: unknown;
     try {
       // Background work of the workspace (the search index) waits while the command runs.
-      output = await ctx.workspace.runCommand(async () => {
-        if (guarded.has(name)) {
-          await assertWritable(ctx.workspace, name);
-        }
-        // Before the command runs: a catalog the locator cannot follow fails before anything is written.
-        const locator = locators.get(name)?.();
-        const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
-        // Every problem that names an element names its short ID too (#315).
-        const shown = await withElementShortIds(ctx.workspace, locator, result);
-        if (call !== undefined) {
-          // The states the command left, taken now; nothing waits for it (SR-117). Inputs and
-          // outputs of catalog commands are objects (catalog.meta.schema.json).
-          noted = noteAccess(
-            ctx.workspace,
-            call,
-            checked as Readonly<Record<string, unknown>>,
-            shown as Readonly<Record<string, unknown>>,
-          );
-        }
-        return shown;
-      });
+      output = await ctx.workspace.runCommand(
+        async () => {
+          if (guarded.has(name)) {
+            await assertWritable(ctx.workspace, name);
+          }
+          // Before the command runs: a catalog the locator cannot follow fails before anything is written.
+          const locator = locators.get(name)?.();
+          const result = await command.run({ workspace: ctx.workspace, signal }, checked as never);
+          // Every problem that names an element names its short ID too (#315).
+          const shown = await withElementShortIds(ctx.workspace, locator, result);
+          if (call !== undefined) {
+            // The states the command left, taken now; nothing waits for it (SR-117). Inputs and
+            // outputs of catalog commands are objects (catalog.meta.schema.json).
+            noted = noteAccess(
+              ctx.workspace,
+              call,
+              checked as Readonly<Record<string, unknown>>,
+              shown as Readonly<Record<string, unknown>>,
+            );
+          }
+          return shown;
+        },
+        { writes: writers.has(name) },
+      );
     } catch (error) {
       throw toCommandError(name, error, signal);
     }

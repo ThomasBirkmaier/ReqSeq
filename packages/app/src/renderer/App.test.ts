@@ -23,6 +23,7 @@ import { AUTOSAVE_MS } from "./autosave.js";
 import { DEFAULT_SORT } from "./buffers.js";
 import { NOTICE_MS } from "./copy.js";
 import { focusEffect } from "./editor/preview.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,7 +33,7 @@ type Handler = (input: Record<string, unknown>) => unknown;
 const fakeBridge = (handlers: Record<string, Handler>) => {
   const listeners = new Set<(change: WorkspaceChange) => void>();
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> => {
-    const output = handlers[name]?.(input);
+    const output = (handlers[name] ?? NO_SUMMARY[name])?.(input);
     // An error may name its code (`file.changed-on-disk`), as core's do.
     return Promise.resolve(
       output instanceof Error

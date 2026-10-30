@@ -305,6 +305,16 @@ describe("invoke (product runtime)", () => {
     }
   });
 
+  it("runs a write-files command as a write of the workspace, which the watcher waits for (#432)", async () => {
+    const ws = new Workspace("/nowhere");
+    const run = vi.spyOn(ws, "runCommand");
+    const rt = createCommandRuntime();
+    // Both fail inside the command (no workspace there); what counts is how they ran.
+    await rejection(rt.invoke("element.create", { type: "need", title: "T" }, { workspace: ws }));
+    await rejection(rt.invoke("element.list", {}, { workspace: ws }));
+    expect(run.mock.calls.map(([, options]) => options)).toEqual([{ writes: true }, { writes: false }]);
+  });
+
   it("runs on a fixture workspace and reports catalog commands without implementation", async () => {
     const fixture = await createFixtureWorkspace({
       files: { "reqseq-workspace.yaml": "reqseq-workspace: 1\n" },
