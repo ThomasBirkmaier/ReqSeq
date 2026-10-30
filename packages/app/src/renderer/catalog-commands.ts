@@ -466,6 +466,8 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       : await asText(),
   // No command asks a saved filter by name yet; typed text.
   filter: asText,
+  // baseline.list is not implemented yet; typed text until the app offers the baselines (stage 5).
+  baseline: asText,
 };
 
 /** What the argument at `at` offers, or why its values cannot be read. */

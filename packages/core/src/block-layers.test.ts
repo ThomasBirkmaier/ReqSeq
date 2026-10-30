@@ -105,7 +105,17 @@ const TABLE: Readonly<Record<Unit | Shared, Allowed>> = {
     ],
   },
   hints: {
-    values: ["evidence", "files", "metamodel", "model", "runtime state", "trace", "variants", "workspace"],
+    values: [
+      "baselines",
+      "evidence",
+      "files",
+      "metamodel",
+      "model",
+      "runtime state",
+      "trace",
+      "variants",
+      "workspace",
+    ],
   },
   evidence: { values: ["files", "metamodel", "model", "runtime state", "trace", "variants", "workspace"] },
   trace: { values: ["metamodel", "model", "runtime state", "workspace"] },

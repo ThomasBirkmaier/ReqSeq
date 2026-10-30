@@ -93,6 +93,12 @@ problems:
   variant.target-not-core:
     cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view (SR-041 AK8, SR-042 AK7). This version does not raise it yet.
     remedy: Point the entry at a core requirement, or remove it; to retire an element for everyone, supersede it (SR-072).
+  variant.core-changed-since-baseline:
+    cause: A core requirement that the variant adopts has changed since the variant's newest baseline (SR-103 AK1). The hint is at the variant and gives the version in the baseline and the current one. This version does not raise it yet.
+    remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed (D-042).
+  variant.core-new-since-baseline:
+    cause: A core requirement has come into the view of the variant since its newest baseline, because it is new, its exclusion was undone or its replacement removed (SR-103 AK7). The hint gives its current version. This version does not raise it yet.
+    remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed (D-042).
   evidence.unknown-element:
     cause: An evidence record or a test case names an element that the workspace does not have.
     remedy: Correct the element named in the record or test, or check that its repository is on this machine.
@@ -112,7 +118,7 @@ problems:
     cause: An evidence record or a test case names an element ID that several files share, so it is assigned to none of them.
     remedy: Give the copied element file a new UUID (see `element.duplicate-id`).
   baseline.invalid:
-    cause: A baseline file cannot be read or does not match its format.
+    cause: A baseline file cannot be read or does not match its format (ADR-0018), for example an element copy or a repository listed twice.
     remedy: Fix the file at the place the message gives.
   filter.invalid:
     cause: A saved filter cannot be read or does not match its format.
@@ -174,8 +180,11 @@ errors:
     cause: The variant would get validity entries, but a variant builds only on the core (D-020, SR-039 AK2/AK3). This version does not raise it yet.
     remedy: Write the variant without validity entries; a relation between variants is allowed.
   baseline.uncommitted-changes:
-    cause: A baseline needs a committed state, but the working tree has uncommitted changes. This version does not raise it yet.
-    remedy: Commit or stash the changes first.
+    cause: A baseline needs a committed state, but files of the selected elements, their embedded files, the metamodel or the workspace file differ from HEAD or were never committed (SR-050 AK2); evidence records do not count. This version does not raise it yet.
+    remedy: Commit those files with Git, or undo the changes, and create the baseline again.
+  baseline.exists:
+    cause: A baseline with this name exists, ignoring case and Unicode normal form; the error names its file and nothing was written (SR-050 AK6). This version does not raise it yet.
+    remedy: Choose another name. ReqSeq never replaces a baseline.
   reqif.invalid:
     cause: The ReqIF file cannot be read or does not match the ReqIF format. This version does not raise it yet.
     remedy: Check the file, or export it again from the source tool.
@@ -183,8 +192,8 @@ errors:
     cause: The ReqIF file has types or attributes that the mapping does not map. This version does not raise it yet.
     remedy: Complete the mapping and run the import again.
   git.unavailable:
-    cause: The command needs Git, but the `git` program is not on the PATH or the folder is not a Git repository.
-    remedy: Install Git and put it on the PATH, or check the repository.
+    cause: The command needs Git, but the `git` program is not on the PATH or the folder is not a Git repository; for a baseline also when a repository involved is not under Git or has no commit (SR-050 AK7).
+    remedy: Install Git and put it on the PATH, or put the repository under Git and commit, or check the folder.
   git.commit-not-found:
     cause: The given commit is not available locally in any repository of the workspace.
     remedy: Fetch the commit, or deepen a shallow clone.
@@ -192,7 +201,7 @@ errors:
     cause: The file changed on disk since it was read, so writing it would overwrite someone else's change; `workspace.init` also gives it when the workspace file or the metamodel file exists already.
     remedy: Read the element again and repeat the change; for `workspace.init`, choose a folder without these files.
   file.faulty:
-    cause: A file the command needs cannot be read correctly, for example a faulty `reqseq-workspace.yaml`, an image to attach or a folder that cannot be read, or a file to be replaced.
+    cause: A file the command needs cannot be read correctly, for example a faulty `reqseq-workspace.yaml`, an image to attach or a folder that cannot be read, a file to be replaced, or the file of an element selected for a baseline, which then has no version.
     remedy: Fix the file or its permissions as the message says, or move it away, and run the command again.
   file.read-only:
     cause: The folder of the file is not writable.

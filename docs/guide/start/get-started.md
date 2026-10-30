@@ -7,7 +7,7 @@ At the end of this page you have a workspace with a need, a system requirement d
 
 ## Install
 
-Unpack the delivery for your system and put `reqseq` on your path: [Getting ReqSeq](https://github.com/ThomasBirkmaier/ReqSeq/blob/main/docs/delivery/README.md) says how. Then check that it runs:
+Unpack the delivery for your system and put `reqseq` on your path: [Install ReqSeq](/how-to/install-reqseq/) says how. Then check that it runs:
 
 ```sh
 reqseq --version
