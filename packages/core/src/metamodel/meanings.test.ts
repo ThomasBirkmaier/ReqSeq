@@ -188,6 +188,7 @@ describe("built-in meanings", () => {
       identifier: [],
       derivation: ["satisfies"],
       replacement: [],
+      succession: [],
       exclusion: [],
     });
   });
@@ -211,6 +212,7 @@ describe("built-in meanings", () => {
       identifier: "properties",
       derivation: "relations",
       replacement: "relations",
+      succession: "relations",
       exclusion: "relations",
     });
   });
@@ -485,17 +487,16 @@ describe("built-in meanings", () => {
     ]);
   });
 
-  it("assigns every type and property meaning of the standard model to one key, and two relation kinds to derivation and replacement", async () => {
+  it("assigns every type and property meaning of the standard model to one key, and two relation kinds to derivation", async () => {
     // SR-014 AK3 checks the standard model itself; this keeps both in step. Two relation kinds share
-    // derivation (Refines, Derives from) and replacement (Supersedes, Replaces); open question #150.
+    // derivation (Refines, Derives from); open question #150.
     const ws = await createFixtureWorkspace({ fixture: "SR-004/one-repository" });
     onTestFinished(() => ws.cleanup());
     const metamodel = await open(ws.root).get(metamodelState);
     expect(metamodel).toMatchObject({ valid: true, problems: [] });
     for (const [meaning, keys] of Object.entries(metamodel.meanings)) {
       // `identifier` (#305) is no meaning of D-012; the standard model has no property with it.
-      const expected =
-        meaning === "derivation" || meaning === "replacement" ? 2 : meaning === "identifier" ? 0 : 1;
+      const expected = meaning === "derivation" ? 2 : meaning === "identifier" ? 0 : 1;
       expect(keys, meaning).toHaveLength(expected);
     }
   });

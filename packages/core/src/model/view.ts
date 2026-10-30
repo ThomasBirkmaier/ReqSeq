@@ -140,7 +140,7 @@ const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
 
 /**
  * The successors of a superseded element (SR-072 AK3): each relation with the meaning
- * `replacement` from a successor to it (`input.successionsOf`, `successionsFor`), as a relation with
+ * `succession` from a successor to it (`input.successionsOf`, `successionsFor`), as a relation with
  * `direction: "in"`. The other end is the successor, with its `targetState` (D-058): `available`
  * when its repository has exactly one element with its UUID, then also with its short ID and
  * title, also across repositories (SR-005 AK2); `ambiguous` when several files share it (SR-088).
@@ -150,7 +150,7 @@ const outgoingRelations = (input: ListedElementInput): DataExportRelation[] => {
 const successorRelations = (input: ListedElementInput): DataExportRelation[] =>
   input
     .successionsOf(input.record)
-    .map(({ source, kind, item }) => sourceLink(input, source, kind.key, item, { meaning: "replacement" }));
+    .map(({ source, kind, item }) => sourceLink(input, source, kind.key, item, { meaning: "succession" }));
 
 /**
  * The relation under `key` in `source` that points at an element, as the element it points at sees

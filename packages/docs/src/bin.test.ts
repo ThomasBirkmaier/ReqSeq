@@ -2,24 +2,37 @@ import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type * as Assemble from "./assemble.js";
+import type * as Codes from "./codes.js";
 import type * as Examples from "./examples.js";
+import type * as Formats from "./formats.js";
 import type * as Reference from "./reference.js";
+import type * as Model from "./standard-model.js";
 
 const assembleContent = vi.fn(() => Promise.resolve(["index.md"]));
-const commandReference = vi.fn(() => Promise.resolve([{ path: "reference/commands/index.md", text: "" }]));
+const referencePages = vi.fn(() => Promise.resolve([{ path: "reference/commands/index.md", text: "" }]));
 const generated = { openapi: { paths: {} }, mcpTools: { tools: [] } };
 const readGeneratedContracts = vi.fn(() => Promise.resolve(generated));
 const guide = [{ path: "index.md", text: "Index." }];
 const readGuidePages = vi.fn(() => Promise.resolve(guide));
 const checkExamples = vi.fn(() => Promise.resolve(7));
 const wordWarnings = vi.fn(() => ["index.md has 601 words, above the budget of 600"]);
+const codes = { problems: {}, errors: {} };
+const readProblemCodes = vi.fn(() => Promise.resolve(codes));
+const examples = { workspace: [] };
+const readExamples = vi.fn(() => Promise.resolve(examples));
+const standardModel = { types: [], properties: [], relations: [], statuses: [] };
+const readStandardModel = vi.fn(() => Promise.resolve(standardModel));
+vi.mock("./standard-model.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Model>()),
+  readStandardModel,
+}));
 vi.mock("./assemble.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Assemble>()),
   assembleContent,
 }));
 vi.mock("./reference.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Reference>()),
-  commandReference,
+  referencePages,
   readGeneratedContracts,
 }));
 vi.mock("./examples.js", async (importOriginal) => ({
@@ -27,6 +40,14 @@ vi.mock("./examples.js", async (importOriginal) => ({
   readGuidePages,
   checkExamples,
   wordWarnings,
+}));
+vi.mock("./formats.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Formats>()),
+  readExamples,
+}));
+vi.mock("./codes.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Codes>()),
+  readProblemCodes,
 }));
 
 describe("bin", () => {
@@ -43,7 +64,19 @@ describe("bin", () => {
     expect(warn).toHaveBeenCalledWith("docs: warning: index.md has 601 words, above the budget of 600\n");
     expect(checkExamples).toHaveBeenCalledWith(guide, runReqseq);
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
-    expect(commandReference).toHaveBeenCalledWith(getCommandRuntime(), generated, "/base");
+    expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
+    expect(readStandardModel).toHaveBeenCalledWith(paths.repoRoot);
+    expect(referencePages).toHaveBeenCalledWith(
+      {
+        runtime: getCommandRuntime(),
+        schemas: getCommandRuntime().contracts.schemas,
+        examples,
+        generated,
+        codes,
+        standardModel,
+      },
+      "/base",
+    );
     expect(assembleContent).toHaveBeenCalledWith(
       paths,
       [{ path: "reference/commands/index.md", text: "" }],
@@ -53,7 +86,7 @@ describe("bin", () => {
     vi.unstubAllEnvs();
     vi.resetModules();
     await import("./bin.js");
-    expect(commandReference).toHaveBeenLastCalledWith(expect.anything(), generated, "/ReqSeq");
+    expect(referencePages).toHaveBeenLastCalledWith(expect.anything(), "/ReqSeq");
     write.mockRestore();
     warn.mockRestore();
   });

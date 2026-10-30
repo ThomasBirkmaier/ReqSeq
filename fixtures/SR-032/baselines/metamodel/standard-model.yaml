@@ -1,6 +1,6 @@
 # Standard model (D-037, extended by D-059 and D-060), shipped with ReqSeq and written by workspace.init (SR-014).
 # Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
-# each type and property meaning exactly one, derivation and replacement two relation kinds each
+# each type and property meaning exactly one, derivation two relation kinds
 # (open question #150).
 # Marked "assumption": not yet covered by a decision.
 reqseq-metamodel: 1
@@ -8,17 +8,20 @@ reqseq-metamodel: 1
 types:
   - key: need
     name: Need
+    description: "What a stakeholder needs, in their own words. System requirements derive from needs."
     prefix: N
     meaning: need
     properties: [title, rationale, topic]
     required: [title]
   - key: use-case
     name: Use Case
+    description: "A goal a user reaches with the system, step by step. Requirements can refine it."
     prefix: UC
     properties: [title, rationale]
     required: [title]
   - key: system-requirement
     name: System Requirement
+    description: "What the system must do or be, verified against its acceptance criteria."
     prefix: SR
     meaning: requirement
     properties:
@@ -41,17 +44,20 @@ types:
     required: [title, requirement-type, acceptance-criteria]
   - key: decision
     name: Decision
+    description: "A decision with its rationale; requirements are based on it."
     prefix: D
     properties: [title, rationale]
     required: [title]
   - key: variant
     name: Variant
+    description: "A variant of the product. Its requirements replace requirements of the core only through Replaces; Excludes names the core requirements that do not apply in it."
     prefix: VAR
     meaning: variant
     properties: [title]
     required: [title]
   - key: package
     name: Package
+    description: "A group of elements. System requirements name it in their property Package."
     prefix: PKG
     meaning: package
     properties: [title]
@@ -60,14 +66,17 @@ types:
 properties:
   - key: title
     name: Title
+    description: "Short name of the element, shown with its short ID."
     kind: text
     meaning: title
   - key: rationale
     name: Rationale
+    description: "Why the element exists or is as it is."
     kind: text
     markdown: true
   - key: requirement-type
     name: Requirement Type
+    description: "The kind of requirement."
     kind: choice
     content: true
     choices:
@@ -78,12 +87,14 @@ properties:
       - { key: constraint, name: Constraint }
   - key: acceptance-criteria
     name: Acceptance Criteria
+    description: "The conditions under which the requirement is met, one per entry."
     kind: text
     many: true
     content: true
     markdown: true
   - key: validity
     name: Validity
+    description: "The variants the requirement applies to; without validity it belongs to the core and applies to every variant."
     kind: relation
     many: true
     target-types: [variant]
@@ -91,12 +102,14 @@ properties:
     meaning: validity
   - key: packages
     name: Package
+    description: "The packages the element belongs to."
     kind: relation
     many: true
     target-types: [package]
     meaning: packages
   - key: emergent
     name: Emergent
+    description: "Whether the requirement has emergent behaviour: behaviour that does not follow from its children alone. Such a requirement needs evidence of its own."
     kind: choice
     content: true
     meaning: emergent
@@ -105,6 +118,7 @@ properties:
       - { key: "no", name: "No" }
   - key: verification-method
     name: Verification Method
+    description: "How the requirement is verified."
     kind: choice
     content: true
     meaning: verification-method
@@ -113,49 +127,95 @@ properties:
       - { key: analysis, name: Analysis }
       - { key: inspection, name: Inspection }
       - { key: demonstration, name: Demonstration }
-  - { key: statement, name: Statement, kind: text, meaning: statement }
-  - { key: source, name: Source, kind: text, meaning: source }
-  - { key: source-identifier, name: Source Identifier, kind: text, meaning: source-identifier }
-  - { key: import-date, name: Import Date, kind: date, meaning: import-date }
-  - { key: delivery, name: Delivery, kind: text, meaning: delivery }
+  - {
+      key: statement,
+      name: Statement,
+      kind: text,
+      meaning: statement,
+      description: "The statement of the requirement.",
+    }
+  - {
+      key: source,
+      name: Source,
+      kind: text,
+      meaning: source,
+      description: "The source the element was imported from.",
+    }
+  - {
+      key: source-identifier,
+      name: Source Identifier,
+      kind: text,
+      meaning: source-identifier,
+      description: "The identifier of the element in its source.",
+    }
+  - {
+      key: import-date,
+      name: Import Date,
+      kind: date,
+      meaning: import-date,
+      description: "The date of the import.",
+    }
+  - {
+      key: delivery,
+      name: Delivery,
+      kind: text,
+      meaning: delivery,
+      description: "The name of the delivery the element was imported from.",
+    }
   # D-060 names only the property. Marked "assumption": kind text (the topics belong to the
   # project, D-019), on need and system-requirement as this spec uses "thema", not content
   # (like rationale and packages, D-057), not required.
-  - { key: topic, name: Topic, kind: text }
+  - {
+      key: topic,
+      name: Topic,
+      kind: text,
+      description: "The topic the element belongs to, as the project names its topics.",
+    }
 
 relations:
   - key: refines
     name: Refines
+    description: "The source details the target, for example a requirement a need. A chain follows it from need to requirement."
     inverse-name: Refined by
     meaning: derivation
   - key: derives-from
     name: Derives from
+    description: "A system requirement derives from a need, a use case or another system requirement. A chain follows it."
     inverse-name: Derived by
     source-types: [system-requirement]
     target-types: [need, use-case, system-requirement]
     meaning: derivation
   - key: based-on
     name: Based on
+    description: "The source is based on a decision."
     inverse-name: Basis for
     target-types: [decision]
-  - key: supersedes # replacement by a successor, D-045 / SR-072
+  - key: supersedes # a successor supersedes the target, D-045 / SR-072
     name: Supersedes
+    description: "The source says that it supersedes the target. Superseding an element (element.supersede) also sets the target to an invalid status; the relation alone does not."
     inverse-name: Superseded by
-    meaning: replacement
+    meaning: succession
   - key: replaces
     name: Replaces
+    description: "A system requirement of a variant replaces one of the core in that variant."
     inverse-name: Replaced by
     source-types: [system-requirement]
     target-types: [system-requirement]
     meaning: replacement
   - key: excludes # D-059, SR-042
     name: Excludes
+    description: "A variant excludes a system requirement of the core: it does not apply in that variant."
     inverse-name: Excluded by
     source-types: [variant]
     target-types: [system-requirement]
     meaning: exclusion
 
 statuses:
-  - { key: draft, name: Draft, initial: true }
-  - { key: approved, name: Approved }
-  - { key: obsolete, name: Obsolete, invalid: true }
+  - { key: draft, name: Draft, initial: true, description: "Being written or changed." }
+  - { key: approved, name: Approved, description: "Agreed and valid." }
+  - {
+      key: obsolete,
+      name: Obsolete,
+      invalid: true,
+      description: "No longer valid. The element stays visible in the chain.",
+    }
