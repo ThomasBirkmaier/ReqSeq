@@ -17,10 +17,10 @@
 // - Filters (AK2), combined with AND; within `kind` and `type` any of the values: `kind` the code;
 //   `type` the type of the element or one it extends (SR-012, as the filter language counts
 //   subtypes); `package` the elements whose property with the meaning `packages` lists the package;
-//   `variant` the elements that apply in the variant by their validity (`appliesIn`: without a
-//   validity in every variant, glossary "Gültigkeit"); `ref` the hints of one element. A hint whose
-//   element is not in the store (none: every state reports elements of the store) matches no
-//   element filter.
+//   `variant` the elements the view of the variant holds (`viewRuleOf`: without a validity in every
+//   variant, glossary "Gültigkeit", unless the variant excludes or replaces it); `ref` the hints of
+//   one element. A hint whose element is not in the store (none: every state reports elements of
+//   the store) matches no element filter.
 // - The dates of outdated relations are asked of Git only for the hints that pass the filters.
 // - `incomplete` (SR-006 AK2): a repository of the workspace file is not on this machine, so the
 //   hints of its elements are not listed.
@@ -52,14 +52,13 @@ import {
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { derivationCycleProblemsState } from "../trace/index.js";
-import type { View } from "../variants/index.js";
+import type { View, ViewRule } from "../variants/index.js";
 import {
-  appliesIn,
   resolveView,
   supersededValidityProblemsState,
   validityEntries,
-  validityOf,
   validityTarget,
+  viewRuleOf,
 } from "../variants/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
 import { outdatedEvidenceProblemsState } from "./evidence.js";
@@ -172,20 +171,21 @@ const listsPackage = (element: ElementRecord, pkg: NonNullable<HintFilter["packa
     return target?.id === pkg.element.id && target.repository === pkg.element.repository;
   });
 
-/** Whether the element `element` of a hint passes the element filters of `filter`. */
+/** Whether the element `element` of a hint passes the element filters of `filter`; `view` is the rule of its variant. */
 const elementMatches = (
   element: ElementRecord | undefined,
   filter: HintFilter,
   context: { readonly metamodel: Metamodel },
+  view: ViewRule | undefined,
 ): boolean => {
   if (element === undefined) {
     return false;
   }
-  const { types, ref, variant } = filter;
+  const { types, ref } = filter;
   return (
     (types === undefined || types.some((type) => allowsType([type], element.type, context.metamodel))) &&
     (filter.package === undefined || listsPackage(element, filter.package)) &&
-    (variant === undefined || appliesIn(validityOf(context.metamodel), element, variant)) &&
+    (view === undefined || view.includes(element)) &&
     (ref === undefined || ref === element)
   );
 };
@@ -210,10 +210,12 @@ export const hintsOf = async (
   outdated: readonly OutdatedFinding[],
 ): Promise<Problem[]> => {
   const byElement = filtersElements(filter);
+  const view =
+    filter.variant === undefined ? undefined : viewRuleOf({ workspace, ...context }, filter.variant);
   const passes = (problem: Problem): problem is Problem & { readonly elementId: string } =>
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
-    (!byElement || elementMatches(problemElement(context.store, problem), filter, context));
+    (!byElement || elementMatches(problemElement(context.store, problem), filter, context, view));
   const hints: Problem[] = [];
   for (const problem of problems) {
     if (passes(problem)) {
