@@ -8,7 +8,7 @@ import { isEmergent } from "../model/index.js";
 import type { View } from "../variants/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { ChildRules, VerificationResult } from "./indirect.js";
-import { verificationEvaluator } from "./indirect.js";
+import { validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
 
@@ -86,6 +86,7 @@ const evaluator = (setup: Setup) => {
     source,
     setup.noRules === true ? undefined : rules(setup.children ?? new Map()),
     (e) => (versions.has(e) ? versions.get(e) : CURRENT),
+    validityScope(source.validity),
   );
 };
 

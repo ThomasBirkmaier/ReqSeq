@@ -18,6 +18,11 @@
 // of the store as read: a change made outside ReqSeq shows once the watcher's batch carries the state
 // over (the changed elements, those that embed images or had no version, and their ancestors are
 // read and computed again; `carriedStatus`) or resets it.
+// The views are those of the view rule of the store (`ruleScope`, `variants/view-rule.ts`): a
+// requirement has no entry for a variant that excludes or replaces it (SR-047 AK3), and a parent
+// counts no such child there (SR-043 AK7). A change of a rule item (a `replaces` added or removed, or
+// the validity of its source changed) moves the core requirements it names in or out of a view, so
+// the carry takes them, with their ancestors, as affected.
 // The state never reads or changes the element's `status` beyond the invalid flag (D-030).
 import type { DataExportElement, ValidationStatus } from "../generated/types.js";
 import type { Metamodel } from "../metamodel/index.js";
@@ -42,18 +47,25 @@ import {
 import type { StateChange, Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { derivationKinds } from "../trace/index.js";
-import type { View } from "../variants/index.js";
-import { appliesIn, variantsOf } from "../variants/index.js";
+import type { View, ViewRuleIndex } from "../variants/index.js";
+import {
+  ruleTargetsOf,
+  variantsOf,
+  viewRuleIndexIn,
+  viewRuleIndexOf,
+  viewRuleIndexState,
+} from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
-import type { ChildRules, Shown, VerificationEvaluator } from "./indirect.js";
+import type { ChildRules, Shown, VerificationEvaluator, ViewScope } from "./indirect.js";
 import {
   carriedEvaluator,
   childRulesOf,
   hasOwnRecordIn,
   nodeKey,
+  ruleScope,
   verificationEvaluator,
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
@@ -132,15 +144,17 @@ export type VersionReader = (
 /**
  * The verification status of `source` with the variants, the child rules (undefined: no element has
  * children) and a reader of current versions. The versions read are kept for its life, so build one
- * per state of store, metamodel and records (`verificationState`).
+ * per state of store, metamodel and records (`verificationState`). `scope` gives the views
+ * (`ruleScope`).
  */
 export const workspaceStatusOf = (
   source: StatusSource,
   variants: readonly ElementRecord[],
   children: ChildRules | undefined,
   read: VersionReader,
+  scope: ViewScope,
 ): WorkspaceStatus =>
-  statusWith(source, variants, children, read, freshCaches(), freshEvaluator(source, children));
+  statusWith(source, variants, children, read, scope, freshCaches(), freshEvaluator(source, children, scope));
 
 /** The caches of a status that has read and walked nothing yet. */
 const freshCaches = (): StatusCaches => ({
@@ -153,11 +167,11 @@ const freshCaches = (): StatusCaches => ({
 /** Builds the evaluator of a status over its versions (`currentOf`). */
 type EvaluatorOf = (currentOf: (element: ElementRecord) => string | undefined) => VerificationEvaluator;
 
-/** A new evaluator of `source` with `children`. */
+/** A new evaluator of `source` with `children` and `scope`. */
 const freshEvaluator =
-  (source: StatusSource, children: ChildRules | undefined): EvaluatorOf =>
+  (source: StatusSource, children: ChildRules | undefined, scope: ViewScope): EvaluatorOf =>
   (currentOf) =>
-    verificationEvaluator(source, children, currentOf);
+    verificationEvaluator(source, children, currentOf, scope);
 
 /** What a status has read and walked (`workspaceStatusOf`), to start a status carried over a store change. */
 interface StatusCaches {
@@ -188,6 +202,7 @@ const statusWith = (
   variants: readonly ElementRecord[],
   children: ChildRules | undefined,
   read: VersionReader,
+  scope: ViewScope,
   caches: StatusCaches,
   evaluatorOf: EvaluatorOf,
 ): KeptStatus => {
@@ -200,9 +215,10 @@ const statusWith = (
     source.recordsOf(element.id).some((r) => r.kind === "verification");
   // Below an element with an own record in every view it applies in, or one marked emergent (SR-035),
   // its children decide nothing.
+  const holders = views.map((view) => ({ view, includes: scope.includesIn(view) }));
   const decidedByChildren = (element: ElementRecord): boolean =>
     !source.emergent(element) &&
-    views.some((view) => appliesIn(source.validity, element, view) && !hasOwnRecordIn(source, element, view));
+    holders.some(({ view, includes }) => includes(element) && !hasOwnRecordIn(source, element, view));
   let { batches } = caches;
 
   /**
@@ -306,6 +322,8 @@ export interface StatusInputs {
   readonly index: EvidenceIndex | undefined;
   /** The incoming relation index of `store`, for the children; none while the metamodel is not valid. */
   readonly incoming: IncomingIndex | undefined;
+  /** The view rule index of `store` (`viewRuleIndexOf`), for the views. */
+  readonly rules: ViewRuleIndex;
 }
 
 /** The status of `verificationState`: one built from `inputs`, which a store change can carry. */
@@ -317,13 +335,15 @@ const statusOfInputs = (inputs: StatusInputs, read: VersionReader): StateStatus 
   const { metamodel, layout, store, index, incoming } = inputs;
   const children = incoming === undefined ? undefined : childRulesOf({ layout, metamodel, store, incoming });
   const source = statusSource(metamodel, index);
+  const scope = ruleScope(inputs.rules);
   const status = statusWith(
     source,
     variantsOf(store, metamodel),
     children,
     read,
+    scope,
     freshCaches(),
-    freshEvaluator(source, children),
+    freshEvaluator(source, children, scope),
   );
   return { ...status, inputs };
 };
@@ -372,16 +392,19 @@ const upwardsFrom = (
  * and after it (in the new one); a child stores its derivation (ADR-0004), so the old and the new
  * parents of a changed element are among them. The new store's status is built afresh (no versions
  * kept) when the metamodel is not valid or has no derivation, or the variants changed (the views
- * change). `memo` is the incoming index memo as the hook took it, so no `get` runs later (review B5
- * of the #698 plan): a second change before this one resolved pairs its own store and index.
+ * change). `memo` is the incoming index memo and `ruleMemo` the view rule index memo as the hook took
+ * them, so no `get` runs later (review B5 of the #698 plan): a second change before this one resolved
+ * pairs its own store and indexes.
  */
 const carriedStatus = (
   old: StateStatus,
   update: StoreUpdate,
   memo: WeakMap<ElementStore, IncomingIndex>,
+  ruleMemo: WeakMap<ElementStore, ViewRuleIndex>,
   read: VersionReader,
 ): StateStatus => {
   const { metamodel } = old.inputs;
+  const rules = viewRuleIndexIn(ruleMemo, update.to, metamodel);
   const variants = variantsOf(update.to, metamodel);
   const sameViews =
     variants.length === old.variants.length && variants.every((v, i) => v === old.variants[i]);
@@ -391,10 +414,10 @@ const carriedStatus = (
   // afresh from the values of the change, still without any `get`.
   if (old.children === undefined || !sameViews || old.inputs.store !== update.from) {
     const incoming = old.inputs.incoming === undefined ? undefined : incomingIn(memo, update.to, metamodel);
-    return statusOfInputs({ ...old.inputs, store: update.to, incoming }, read);
+    return statusOfInputs({ ...old.inputs, store: update.to, incoming, rules }, read);
   }
   const incoming = incomingIn(memo, update.to, metamodel);
-  const inputs: StatusInputs = { ...old.inputs, store: update.to, incoming };
+  const inputs: StatusInputs = { ...old.inputs, store: update.to, incoming, rules };
   const children = childRulesOf({ ...inputs, incoming });
   return keptOver(old, update, { inputs, source: old.source, children, versionsOfChanged: false }, read);
 };
@@ -417,20 +440,31 @@ interface Next {
 
 /**
  * The status `next` from `old`, which has children, keeping what the change `reach` cannot reach
- * (see `carriedStatus`): the records of `reach.ids` in both stores and the volatile records, with
- * their ancestors in both stores, lose their walks and results, and the old records among them
- * their versions (the volatile ones always, those of `ids` unless `versionsOfChanged`).
+ * (see `carriedStatus`): the records of `reach.ids` in both stores, the elements their rule items
+ * name in that store (`ruleTargetsOf`) and the volatile records, with their ancestors in both stores,
+ * lose their walks and results, and the old records among them their versions (the volatile ones
+ * always, those of `ids` unless `versionsOfChanged`).
  */
 const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReader): StateStatus => {
   const keys = derivationKinds(next.inputs.metamodel, "evidence.status").map((kind) => kind.key);
   const { versions, walked, volatile } = old.caches;
   const ofIds = (store: ElementStore): ElementRecord[] =>
     [...reach.ids].flatMap((id) => store.byId.get(id) ?? []);
-  const before = [...ofIds(reach.from), ...volatile];
+  const { metamodel } = next.inputs;
+  const targetsIn = (store: ElementStore, changed: readonly ElementRecord[]): ElementRecord[] =>
+    ruleTargetsOf({ store, metamodel }, changed);
+  const changedBefore = ofIds(reach.from);
+  const before = [...changedBefore, ...volatile];
   const affected = new Set<string>();
-  upwardsFrom(reach.from, before, keys, affected);
+  upwardsFrom(reach.from, [...before, ...targetsIn(reach.from, changedBefore)], keys, affected);
   if (reach.to !== reach.from) {
-    upwardsFrom(reach.to, [...ofIds(reach.to), ...volatile], keys, affected);
+    const changedAfter = ofIds(reach.to);
+    upwardsFrom(
+      reach.to,
+      [...changedAfter, ...volatile, ...targetsIn(reach.to, changedAfter)],
+      keys,
+      affected,
+    );
   }
   const dropped = new Set(next.versionsOfChanged ? volatile : before);
   const keptVersions = new Map<ElementRecord, string | undefined>();
@@ -447,13 +481,15 @@ const keptOver = (old: StateStatus, reach: Reach, next: Next, read: VersionReade
   }
   const evaluate = old.evaluate;
   const { source, children } = next;
+  const scope = ruleScope(next.inputs.rules);
   const status = statusWith(
     source,
     old.variants,
     children,
     read,
+    scope,
     { versions: keptVersions, walked: keptWalked, volatile: new Set(), batches: old.caches.batches },
-    (currentOf) => carriedEvaluator(evaluate, source, children, currentOf, affected),
+    (currentOf) => carriedEvaluator(evaluate, source, children, currentOf, affected, scope),
   );
   return { ...status, inputs: next.inputs };
 };
@@ -511,8 +547,9 @@ const carryStore = carryStoreUpdate((value: Promise<StateStatus>, update, worksp
   if (memo.get(update.to) === undefined) {
     return undefined;
   }
+  const ruleMemo = workspace.get(viewRuleIndexState);
   const read = readerOf(workspace);
-  return value.then((old) => carriedStatus(old, update, memo, read));
+  return value.then((old) => carriedStatus(old, update, memo, ruleMemo, read));
 });
 
 /**
@@ -555,7 +592,8 @@ export const verificationState = defineWorkspaceState(
     const valid = metamodel.valid;
     const index = valid ? await workspace.get(evidenceIndexState) : undefined;
     const incoming = valid ? incomingFor(workspace, store, metamodel) : undefined;
-    return statusOfInputs({ metamodel, layout, store, index, incoming }, readerOf(workspace));
+    const rules = viewRuleIndexOf(workspace, store, metamodel);
+    return statusOfInputs({ metamodel, layout, store, index, incoming, rules }, readerOf(workspace));
   },
   {
     dependsOn: [metamodelState, elementStoreState, evidenceIndexState, incomingState, workspaceLayoutState],

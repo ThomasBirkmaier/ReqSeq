@@ -9,7 +9,9 @@
 // 2. Counted children: the derivation children (`ChildRules.childrenOf`: the trace block's
 //    `childrenOf`, so a child named only by an ambiguous relation is none), each once, whose type has
 //    the meaning `requirement` (#526 Q2), whose status the metamodel does not mark invalid (AK3,
-//    D-044) and that apply in the view (`appliesIn`, SR-040).
+//    D-044) and that the view holds (`ViewScope`: the view rule, `viewRuleOf`; SR-040, SR-041 AK5,
+//    SR-043 AK7): a core requirement a variant excludes or replaces is no child there, and its own
+//    children count where their validity puts them, never under the replacement.
 // 3. No counted child: `open`, no `missingChildren` (#526 Q3).
 // 4. Every counted child `verified` or `indirect` (each measured in the same view against its own
 //    current version, recursively): `indirect` (AK1).
@@ -26,13 +28,13 @@
 //    children are not walked (#591 Q2, Q3). As a child it is then open, so its parent names it (rule 5).
 //
 // Cost (#698): the views share their work. Besides the core and the variants the evaluator keeps one
-// internal neutral view: the applicability of the core (`appliesIn` in the core: no validity) and no
-// record that holds. In a variant `v` the result of an element whose subtree (the element and its
-// candidate children, recursively: requirements that count, whatever their validity; none below an
-// emergent element) holds no seed of `v` is the neutral result: a seed of `v` is a requirement whose
-// validity names `v` (repository and UUID, as `appliesIn`) or an element with a verification record
-// for `v` (its UUID, as `holdsIn`). Below such an element `appliesIn` and `holdsIn` give in `v` what
-// they give in the neutral view, and no rule reads anything else per view, so every variant reuses
+// internal neutral view: the view of the core (no validity) and no record that holds. In a variant
+// `v` the result of an element whose subtree (the element and its candidate children, recursively:
+// requirements that count, whatever their validity; none below an emergent element) holds no seed
+// of `v` is the neutral result: a seed of `v` is a requirement whose validity names `v` (repository
+// and UUID, as `appliesIn`), an element with a verification record for `v` (its UUID, as `holdsIn`)
+// or a core requirement the rule of `v` may remove (`removersOf`). Below such an element the view
+// and `holdsIn` give in `v` what they give in the neutral view, and no rule reads anything else per view, so every variant reuses
 // the one neutral walk and walks itself only through the elements above its seeds. The seeds below
 // each element (`seedsBelow`) are found by one walk over its subtree, exact also on cycles (a
 // fixpoint over the elements of the walk). At N-036 with 100 variants this replaces 101 walks below
@@ -43,7 +45,8 @@ import type { ElementRecord } from "../model/index.js";
 import type { TraceContext } from "../trace/index.js";
 import { childrenOf, derivationGraph } from "../trace/index.js";
 import type { View } from "../variants/index.js";
-import { appliesIn, validityEntries, validityTarget } from "../variants/index.js";
+import type { Validity, ViewRuleIndex } from "../variants/index.js";
+import { appliesIn, removersOf, validityEntries, validityTarget, viewRuleIn } from "../variants/index.js";
 import type { StatusSource } from "./status.js";
 import { verificationStatusOf } from "./status.js";
 
@@ -74,6 +77,26 @@ export const childRulesOf = (context: TraceContext): ChildRules | undefined => {
     counts: (element) => !invalid.has(String(element.data["status"])),
   };
 };
+
+/** Which elements a view holds, and the variants that may remove an element (the seeds of the file comment). */
+export interface ViewScope {
+  /** Whether `view` holds an element; asked once per view. */
+  readonly includesIn: (view: View) => (element: ElementRecord) => boolean;
+  /** The variants whose view may leave the element out beyond its validity, as `repository\0UUID`. */
+  readonly removersOf: (element: ElementRecord) => readonly string[];
+}
+
+/** The views by validity alone (`appliesIn`): no variant removes anything. */
+export const validityScope = (validity: Validity | undefined): ViewScope => ({
+  includesIn: (view) => (element) => appliesIn(validity, element, view),
+  removersOf: () => NONE,
+});
+
+/** The views of the view rule of one store (`viewRuleIn`, `removersOf`). */
+export const ruleScope = (index: ViewRuleIndex): ViewScope => ({
+  includesIn: (view) => viewRuleIn(index, view).includes,
+  removersOf: (element) => removersOf(index, element),
+});
 
 /** The verification of a requirement in one view (`data-export.schema.json#/$defs/element` `verification[]`). */
 export interface VerificationResult {
@@ -185,6 +208,8 @@ interface ViewRules {
 const validitySeed = (target: Pick<ElementRecord, "id" | "repository">): string => `v${nodeKey(target)}`;
 /** The seed of a variant named by a record: its UUID (`holdsIn` compares the UUID only). */
 const recordSeed = (variantId: string): string => `r${variantId}`;
+/** The seed of a variant whose rule may remove the element: repository and UUID (`removersOf`). */
+const ruleSeed = (key: string): string => `x${key}`;
 
 /**
  * What an evaluator has found so far, by element (candidate children, seeds below) and by view and
@@ -208,13 +233,15 @@ const cachesOf = new WeakMap<VerificationEvaluator, EvaluatorCaches>();
  * nor the records of `source` may change while it lives: the own views of each UUID are kept with
  * `source` (`ownViewsOf`) and every result built on them in the memos. The evidence block builds a
  * new source and evaluator per records state (review of #714, S1), and one per store, or carries
- * this one over a store change with `carriedEvaluator`.
+ * this one over a store change with `carriedEvaluator`. `scope` gives the views (`ruleScope` of the
+ * store's view rule; `validityScope` only where no rule applies).
  */
 export const verificationEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
-): VerificationEvaluator => evaluatorWith(source, children, currentOf, undefined);
+  scope: ViewScope,
+): VerificationEvaluator => evaluatorWith(source, children, currentOf, scope, undefined);
 
 /** A copy of `map` without the entries whose key `drop` names. */
 const without = <K, V>(map: ReadonlyMap<K, V>, drop: (key: K) => boolean): Map<K, V> => {
@@ -232,8 +259,9 @@ const without = <K, V>(map: ReadonlyMap<K, V>, drop: (key: K) => boolean): Map<K
  * before it with the same `source` (ADR-0008, #698): it keeps what `old` found for every element
  * whose repository and UUID (`nodeKey`) `affected` does not name. `affected` must name every element
  * whose candidate children, seeds below or results may differ in the new store: the changed ones and
- * their ancestors before and after the change (`carriedStatus` in `verification.ts`). `old` is not
- * changed; a command that still holds it keeps a consistent view.
+ * their ancestors before and after the change, and the core requirements a changed rule item names
+ * (`carriedStatus` in `verification.ts`). `old` is not changed; a command that still holds it keeps a
+ * consistent view. `scope` gives the views of the new store.
  */
 export const carriedEvaluator = (
   old: VerificationEvaluator,
@@ -241,14 +269,15 @@ export const carriedEvaluator = (
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
   affected: ReadonlySet<string>,
+  scope: ViewScope,
 ): VerificationEvaluator => {
   const caches = cachesOf.get(old);
   if (caches === undefined) {
-    return verificationEvaluator(source, children, currentOf);
+    return verificationEvaluator(source, children, currentOf, scope);
   }
   const dropKey = (key: string): boolean => affected.has(key);
   const dropElement = (element: ElementRecord): boolean => affected.has(nodeKey(element));
-  return evaluatorWith(source, children, currentOf, {
+  return evaluatorWith(source, children, currentOf, scope, {
     candidatesOf: without(caches.candidatesOf, dropElement),
     seeds: without(caches.seeds, dropElement),
     core: without(caches.core, dropKey),
@@ -261,6 +290,7 @@ const evaluatorWith = (
   source: StatusSource,
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
+  scope: ViewScope,
   carried: EvaluatorCaches | undefined,
 ): VerificationEvaluator => {
   const caches: EvaluatorCaches = carried ?? {
@@ -296,7 +326,10 @@ const evaluatorWith = (
     return known;
   };
 
-  /** The seeds of the element itself: the variants its validity names, the variants of its records. */
+  /**
+   * The seeds of the element itself: the variants its validity names, the variants of its records,
+   * the variants whose rule may remove it.
+   */
   const ownSeeds = (element: ElementRecord): ReadonlySet<string> => {
     let seeds: Set<string> | undefined;
     for (const entry of validityEntries(source.validity, element)) {
@@ -307,6 +340,9 @@ const evaluatorWith = (
     }
     for (const variant of ownViewsOf(source, element.id).variants) {
       (seeds ??= new Set()).add(recordSeed(variant));
+    }
+    for (const variant of scope.removersOf(element)) {
+      (seeds ??= new Set()).add(ruleSeed(variant));
     }
     return seeds ?? NO_SEEDS;
   };
@@ -396,7 +432,7 @@ const evaluatorWith = (
   const coreRules: ViewRules = {
     view: CORE,
     memo: caches.core,
-    applies: (element) => appliesIn(source.validity, element, CORE),
+    applies: scope.includesIn(CORE),
     holds: (element) => ownViewsOf(source, element.id).core,
     clean: () => false,
   };
@@ -418,6 +454,7 @@ const evaluatorWith = (
     if (rules === undefined) {
       const byValidity = validitySeed(variant);
       const byRecord = recordSeed(variant.id);
+      const byRule = ruleSeed(key);
       let memo = caches.variants.get(key);
       if (memo === undefined) {
         memo = new Map();
@@ -426,11 +463,11 @@ const evaluatorWith = (
       rules = {
         view,
         memo,
-        applies: (element) => appliesIn(source.validity, element, view),
+        applies: scope.includesIn(view),
         holds: (element) => ownViewsOf(source, element.id).variants.has(variant.id),
         clean: (element) => {
           const below = seedsBelow(element);
-          return !below.has(byValidity) && !below.has(byRecord);
+          return !below.has(byValidity) && !below.has(byRecord) && !below.has(byRule);
         },
       };
       variantRules.set(key, rules);

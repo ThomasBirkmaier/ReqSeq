@@ -22,5 +22,15 @@ export {
   targetNotCoreProblemsOf,
   targetNotCoreProblemsState,
 } from "./target-not-core.js";
-export { viewRuleIn, viewRuleIndexOf, viewRuleOf } from "./view-rule.js";
-export type { ViewRule } from "./view-rule.js";
+export {
+  removersOf,
+  ruleTargetsOf,
+  viewIncomplete,
+  viewRuleIn,
+  viewRuleIndexIn,
+  viewRuleIndexOf,
+  viewRuleIndexState,
+  viewRuleOf,
+  viewsInclude,
+} from "./view-rule.js";
+export type { ViewRule, ViewRuleIndex } from "./view-rule.js";
