@@ -30,7 +30,9 @@
 //   confirmed, D-042; every other hint, for example an unknown property, has no hint ID and goes
 //   away when its cause is fixed; spec question #299), and for the IDs of a file the writer cannot
 //   change in place (a version held by a YAML alias or anchor): that file is not written, the
-//   others are; `hint.not-found` (warning, exit code 0) for an ID of that form that no open hint has
+//   others are. A core requirement changed or new since a variant's baseline (SR-103 AK5) has no
+//   hint ID; `kind` naming its code, or an ID starting with it, is `hint.not-confirmable` naming the
+//   reason: only a new baseline of the variant settles it (D-042). `hint.not-found` (warning, exit code 0) for an ID of that form that no open hint has
 //   (confirmed already, the target changed again, the relation or the file is gone).
 // - All hints of one element (#310): `ref` selects the open hints its file stores, `target` those
 //   on relations and inline references that point at it (its sources from the incoming index, so
@@ -77,6 +79,7 @@ import type { HintTarget } from "./hint-id.js";
 import { hintIdOf, parseHintId } from "./hint-id.js";
 import type { Candidate, ShownContext } from "./outdated.js";
 import { outdatedOfShown } from "./outdated.js";
+import { SINCE_BASELINE_CODES } from "./since-baseline.js";
 
 const COMMAND: CommandName = "hint.confirm";
 
@@ -129,6 +132,25 @@ const notConfirmable = (
   message: reason,
   hintId: id,
 });
+
+/** The refusal of a since-baseline code (SR-103 AK5), given as `kind` or as the start of an ID. */
+const sinceBaselineRefusal = (given: string, code: string): Problem => ({
+  code: "hint.not-confirmable",
+  severity: "error",
+  message: `${given} is not confirmed: a ${code} hint is settled only by a new baseline of its variant (baseline.create with the view of the variant), not by confirming it (D-042)`,
+});
+
+/** The refusal of `kind` for each since-baseline code it names. */
+const kindRefusals = (kind: readonly string[] = []): Problem[] =>
+  [...new Set(kind)]
+    .filter((code) => SINCE_BASELINE_CODES.has(code))
+    .map((code) => sinceBaselineRefusal(`kind ${code}`, code));
+
+/** The refusal of `id`, which has no hint ID form: of a since-baseline code when it starts with one. */
+const refusalOf = (id: string): Problem => {
+  const code = [...SINCE_BASELINE_CODES].find((c) => id === c || id.startsWith(`${c}/`));
+  return code === undefined ? notConfirmable(id) : { ...sinceBaselineRefusal(id, code), hintId: id };
+};
 
 const notFound = (id: string, target: HintTarget): Problem => ({
   code: "hint.not-found",
@@ -529,10 +551,11 @@ export const confirmHints = async (workspace: Workspace, input: ConfirmInput): P
     return known;
   };
   const { ids, problems } = await idsToConfirm(context, input, openOf);
+  problems.push(...kindRefusals(input.kind));
   for (const id of ids) {
     const target = parseHintId(id);
     if (target === undefined) {
-      problems.push(notConfirmable(id));
+      problems.push(refusalOf(id));
       continue;
     }
     const canonical = hintIdOf(target);

@@ -17,6 +17,10 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 - `incomplete`: the repository of the folder is not on this machine (SR-006 AK2). A location in a repository the workspace file does not list gives nothing (the layout reports it).
 - `baselinesContaining(baselines, id, version)`: the names of the baselines that contain the version, in file order, each name once.
 
+## The newest baseline of a group
+
+`newestBaselines(workspace, groupOf)` (`newest.ts`, SR-103 AK4, ADR-0018 "Which baseline"): for each group `groupOf` names for a candidate (`repository`, `file`, `header`), the valid baseline with the latest `date` instant, at the same instant the last in file order; a faulty newest gives way to the next. Candidates are read by their header only (`baselineHeader` of the first `HEADER_BYTES`); a longer or hand-edited header is read in full (`readKeptFile`). `baselineHeadersState` keeps headers by `changeStamp`; only the newest of each group is read in full. Used by the hints block for the variants' since-baseline hints.
+
 ## Kept between calls
 
 `baselineFilesState` (reset with the workspace layout) keeps what each file gave with its size and modification time, including the parsed file (`data`) for `baseline.get` and `baseline.compare`: in a running server about the size of the files themselves, noticeable at 20 baselines of 50,000 entries. `workspaceBaselines(workspace)` lists the folder on every call and parses again only a file that is new or whose size or time changed, and drops files that are gone. So a baseline committed by another person counts as soon as the working copy has it, also in a running server or the app, and a baseline of 50,000 elements is parsed once (N-036).

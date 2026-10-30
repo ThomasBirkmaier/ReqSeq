@@ -2,6 +2,8 @@
 // (D-042). Stage 2: outdated relations and inline references (SR-025) with their stable hint IDs,
 // which `hint.confirm` (SR-027) resolves, and outdated evidence (SR-025 AK4), whose records stage 4
 // reads; the list of all open hints (`hint.list`, SR-026) and the hints at one element in its view.
+// Stage 5: the changed core requirements at their replacements (SR-045) and at a variant since its
+// newest baseline (SR-103), which are not confirmed but go with a new baseline.
 export type { EvidenceVersion } from "./evidence.js";
 export { outdatedEvidenceFindings, outdatedEvidenceProblemsState } from "./evidence.js";
 export type { ConfirmableCode, HintTarget } from "./hint-id.js";
@@ -29,5 +31,12 @@ export {
 export type { ConfirmedHints } from "./confirm.js";
 export { confirmHints } from "./confirm.js";
 export { elementHints } from "./element.js";
+export type { SinceBaselineContext } from "./since-baseline.js";
+export {
+  CHANGED_SINCE_BASELINE_CODE,
+  NEW_SINCE_BASELINE_CODE,
+  SINCE_BASELINE_CODES,
+  sinceBaselineProblems,
+} from "./since-baseline.js";
 export type { HintFilter } from "./list.js";
 export { HINT_STATES, hintsOf, isHint, listHints, resolveHintFilter } from "./list.js";

@@ -9,7 +9,9 @@
 // - the replacements and exclusions that name no core requirement (SR-041 AK8);
 // - the cycle of derivations the element lies in (SR-090, `elementCycleFindings`);
 // - its outdated evidence (SR-025 AK4, `elementEvidenceFindings`);
-// - its outdated relations and inline references (SR-025, `outdatedOfShown`).
+// - its outdated relations and inline references (SR-025, `outdatedOfShown`);
+// - at a variant, the core requirements changed or new since its newest baseline (SR-103,
+//   `sinceBaselineFindingsOf`).
 //
 // So every hint `hint.list` lists for an element is shown at it. Each is computed for this element
 // alone unless the whole-workspace state is built already (ADR-0008). The messages of outdated
@@ -26,13 +28,15 @@ import {
 } from "../variants/index.js";
 import { elementEvidenceFindings } from "./evidence.js";
 import { datedProblems, outdatedOfShown } from "./outdated.js";
+import { sinceBaselineFindingsOf } from "./since-baseline.js";
 
 /** The hints of `record` from the variants, trace and hints blocks, before their lines are known (`ElementHints`). */
 export const elementHints: ElementHints = async (context, record, withDate) => {
-  const [cycles, evidence, outdated] = await Promise.all([
+  const [cycles, evidence, outdated, sinceBaseline] = await Promise.all([
     elementCycleFindings(context, record),
     elementEvidenceFindings(context, record),
     outdatedOfShown(context, record),
+    sinceBaselineFindingsOf(context, record),
   ]);
   const dated = withDate
     ? await datedProblems(
@@ -53,6 +57,7 @@ export const elementHints: ElementHints = async (context, record, withDate) => {
     ...targetNotCoreFindingsOf(context, record),
     ...cycles,
     ...evidence,
+    ...sinceBaseline,
     ...hints,
   ];
 };

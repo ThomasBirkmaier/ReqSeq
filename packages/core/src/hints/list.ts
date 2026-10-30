@@ -10,7 +10,10 @@
 //   no element (`file.yaml-warning`, `file.skipped`, `metamodel.meaning-unassigned`) are not hints.
 //   The outdated relations include the changed core requirements at their replacements
 //   (`variant.core-changed`, SR-045), which the `variant` filter lists for the variants of the
-//   replacement's validity.
+//   replacement's validity. The core requirements changed or new since a variant's newest baseline
+//   (SR-103, `since-baseline.ts`) follow the states, before the outdated relations; they are at the
+//   variant, which every view holds (SR-043 AK10), so the `variant` filter lists them only for that
+//   variant, and computes only that variant's.
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
 //   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310, added by
 //   `invoke` to every problem that names an element, #315), the target
@@ -54,7 +57,7 @@ import {
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { derivationCycleProblemsState } from "../trace/index.js";
-import type { View, ViewRule } from "../variants/index.js";
+import type { ResolvedView, ViewRule } from "../variants/index.js";
 import {
   nestedVariantsState,
   resolveView,
@@ -66,6 +69,7 @@ import {
 } from "../variants/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
 import { outdatedEvidenceProblemsState } from "./evidence.js";
+import { SINCE_BASELINE_CODES, sinceBaselineProblems } from "./since-baseline.js";
 import type { OutdatedFinding } from "./outdated.js";
 import { datedProblems, outdatedRelationsState } from "./outdated.js";
 
@@ -108,7 +112,7 @@ export interface HintFilter {
   readonly types?: readonly string[];
   /** The package, and the property with the meaning `packages` (undefined when it holds no relations: no element lists a package). */
   readonly package?: { readonly element: ElementRecord; readonly key: PackagesKey | undefined };
-  readonly variant?: View;
+  readonly variant?: ResolvedView;
   readonly ref?: ElementRecord;
 }
 
@@ -221,6 +225,11 @@ export const hintsOf = async (
   const passes = (problem: Problem): problem is Problem & { readonly elementId: string } =>
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
+    (filter.variant === undefined ||
+      !SINCE_BASELINE_CODES.has(problem.code) ||
+      (filter.variant.kind === "variant" &&
+        problem.elementId === filter.variant.variant.id &&
+        problem.repository === filter.variant.variant.repository)) &&
     (!byElement || elementMatches(problemElement(context.store, problem), filter, context, view));
   const hints: Problem[] = [];
   for (const problem of problems) {
@@ -259,6 +268,16 @@ export const listHints = async (
   const problems: Problem[] = [];
   for (const state of HINT_STATES) {
     for (const problem of await workspace.get(state)) {
+      problems.push(problem);
+    }
+  }
+  const variant = filter.variant;
+  if (variant?.kind !== "core") {
+    const only = variant?.variant;
+    for (const problem of await sinceBaselineProblems(
+      { workspace, layout, metamodel, store, shortIds },
+      only,
+    )) {
       problems.push(problem);
     }
   }
