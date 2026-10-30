@@ -89,12 +89,12 @@ describe("validity as a list of variants (SR-040)", () => {
       "utf8",
     );
     const relation =
-      "  - key: validity\n    name: Validity\n    kind: relation\n    many: true\n    target-types: [variant]\n";
+      "    kind: relation\n    many: true\n    target-types: [variant]\n    content: true\n    meaning: validity\n";
     expect(model).toContain(relation);
     const opened = await open({
       "metamodel/standard-model.yaml": model.replace(
         relation,
-        "  - key: validity\n    name: Validity\n    kind: text\n",
+        "    kind: text\n    content: true\n    meaning: validity\n",
       ),
     });
     expect(validityOf(opened.metamodel)).toBeUndefined();

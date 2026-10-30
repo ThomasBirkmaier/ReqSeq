@@ -176,6 +176,7 @@ describe("error classes", () => {
       "element.read-only",
       "metamodel.meaning-unassigned",
       "baseline.uncommitted-changes",
+      "baseline.exists",
       "file.changed-on-disk",
       "file.faulty",
       "file.read-only",
