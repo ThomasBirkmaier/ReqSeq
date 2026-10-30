@@ -1,7 +1,7 @@
 import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type { CommandListing } from "../shared/protocol.js";
-import type { ActionContext, Choice, Prompt } from "./actions.js";
+import type { ActionContext, Choice, ElementControls, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
 import {
@@ -274,6 +274,22 @@ describe("catalog commands in the command prompt", () => {
         ),
       },
     ]);
+  });
+
+  it("[SR-050/AK1] fills in the package of a package page for a selection: Create baseline asks only the name", async () => {
+    const { context, asked, call } = setup([shown], { "baseline.create": () => ({ files: [] }) });
+    // An element buffer that is no package page gives no selection, a package page its package.
+    expect(catalogItems(context, [command("baseline.create")], [])).toEqual([]);
+    const page = { ...context, element: { members: true } as ElementControls };
+    expect(fits(page, command("baseline.create"))).toBe(true);
+    start(page, "baseline.create");
+    expect((await last(asked)).label).toBe("Create baseline · name:");
+    await answer(asked, "Release 1");
+    await flush();
+    expect(call).toHaveBeenCalledWith("baseline.create", {
+      name: "Release 1",
+      selection: { package: "uuid-1" },
+    });
   });
 
   it("runs a command without required arguments at once and shows its output in a result buffer", async () => {
@@ -714,6 +730,24 @@ describe("catalog commands in the command prompt", () => {
     await pick(broken.asked);
     await pick(broken.asked, "view");
     expect((await last(broken.asked)).label).toBe("No metamodel · Chain SR-1 · view:");
+  });
+
+  it("offers the baselines of the workspace by name (baseline.list), or says why it cannot", async () => {
+    const { context, asked, call } = setup([shown], {
+      "baseline.list": () => ({
+        baselines: [
+          { name: "Release 1", file: "b/r.yaml", repository: "spec", date: "2026-11-02", elements: 2 },
+        ],
+      }),
+    });
+    start(context, "baseline.get");
+    expect(await names(asked)).toEqual(["Release 1"]);
+    await pick(asked, "Release 1");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("baseline.get", { baseline: "Release 1" });
+    const broken = setup([shown], { "baseline.list": () => new Error("No baselines folder") });
+    start(broken.context, "baseline.get");
+    expect((await last(broken.asked)).label).toBe("No baselines folder · Show baseline · baseline:");
   });
 
   const numbers = {

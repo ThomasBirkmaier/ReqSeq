@@ -126,6 +126,17 @@ const pairOf = (
   return first === undefined || second === undefined ? undefined : { first, second, key };
 };
 
+/**
+ * The element a record names by its `id` (`names`), in the record's own `repository` when it gives one (a
+ * UUID in two repositories, SR-088); undefined when `id` names none.
+ */
+const entryOf = (value: Rec, names: Names): Element | undefined => {
+  const id = str(value["id"]);
+  const named = id === undefined ? undefined : names.get(id);
+  const repository = str(value["repository"]);
+  return named === undefined || repository === undefined ? named : { ...named, repository };
+};
+
 const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): ResultLine => {
   const { first, second, key } = pair;
   return {
@@ -178,6 +189,24 @@ const linesOf = (value: unknown, depth: number, label: string, sink: Sink, names
   }
   if (isProblem(value)) {
     emit(sink, () => problemLine(value, depth, label));
+    return;
+  }
+  outlineLines(value, depth, label, sink, names);
+};
+
+/**
+ * Any other record as an outline: under its label, or, as an item of a list whose `id` `names` names, under
+ * the row of that element, with its other fields.
+ */
+const outlineLines = (value: Rec, depth: number, label: string, sink: Sink, names: Names): void => {
+  const entry = label === "" ? entryOf(value, names) : undefined;
+  if (entry !== undefined) {
+    emit(sink, () => elementLine(entry, depth));
+    for (const [key, item] of Object.entries(value)) {
+      if (key !== "id") {
+        linesOf(item, depth + 1, key, sink, names);
+      }
+    }
     return;
   }
   const inner = label === "" ? depth : depth + 1;
