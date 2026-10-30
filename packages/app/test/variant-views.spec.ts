@@ -74,10 +74,10 @@ test.describe("the view of a variant in the app", () => {
     const { window } = running;
     await chooseView(window, `${A} Coast`);
     await expect.poll(() => shownRequirements(window)).toContain("SR-0000b1");
-    expect(await shownRequirements(window)).not.toContain("SR-0000a1");
+    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000a1");
     await chooseView(window, B);
     await expect.poll(() => shownRequirements(window)).toContain("SR-0000a1");
-    expect(await shownRequirements(window)).not.toContain("SR-0000b1");
+    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000b1");
   });
 
   test("[SR-042/AK6] in the view of A, variant.exclude with undo still offers the excluded K2, and K2 is back in the list", async () => {
