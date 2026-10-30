@@ -21,14 +21,40 @@ import type { ElementRecord } from "../model/index.js";
 import { invalidStatuses } from "../model/index.js";
 import { isCoreRequirement, validityEntries, validityOf } from "../variants/index.js";
 
+/** What the predicate reads of a metamodel, built once per metamodel. */
+interface Scope {
+  readonly replacement: ReadonlySet<string>;
+  readonly validity: ReturnType<typeof validityOf>;
+  readonly invalid: ReadonlyMap<string, unknown>;
+}
+
+const scopes = new WeakMap<Metamodel, Scope>();
+
+const scopeOf = (metamodel: Metamodel): Scope => {
+  let scope = scopes.get(metamodel);
+  if (scope === undefined) {
+    scope = {
+      replacement: new Set(relationKindsWithMeaning(metamodel, "replacement").map((kind) => kind.key)),
+      validity: validityOf(metamodel),
+      invalid: invalidStatuses(metamodel),
+    };
+    scopes.set(metamodel, scope);
+  }
+  return scope;
+};
+
 /** Whether an outdated item under `key` of `source` onto `target` reports a changed core requirement (see the file comment). */
 export const isCoreChange = (
   metamodel: Metamodel,
   source: ElementRecord,
   key: string,
   target: ElementRecord,
-): boolean =>
-  relationKindsWithMeaning(metamodel, "replacement").some((kind) => kind.key === key) &&
-  validityEntries(validityOf(metamodel), source).length > 0 &&
-  isCoreRequirement({ metamodel }, target) &&
-  !invalidStatuses(metamodel).has(String(target.data["status"]));
+): boolean => {
+  const scope = scopeOf(metamodel);
+  return (
+    scope.replacement.has(key) &&
+    validityEntries(scope.validity, source).length > 0 &&
+    isCoreRequirement({ metamodel }, target) &&
+    !scope.invalid.has(String(target.data["status"]))
+  );
+};

@@ -133,6 +133,13 @@ describe("bufferView", () => {
       "1 hint",
     ]);
     expect(parts([cycle, superseded])).toEqual(["SR-000001 · system-requirement · draft", "2 hints"]);
+    // A changed core requirement at its replacement is an outdated relation too (SR-045).
+    const coreChanged = { ...relation, code: "variant.core-changed" };
+    expect(parts([coreChanged, cycle])).toEqual([
+      "SR-000001 · system-requirement · draft",
+      "1 outdated",
+      "1 hint",
+    ]);
     // Nothing without hints, whatever a relation of another command's output would say.
     expect(
       parts([], {

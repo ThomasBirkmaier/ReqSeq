@@ -420,6 +420,18 @@ describe("the version at an outdated reference (#702, #665)", () => {
     expect(outdatedRelation(element, unnamed)).toBeDefined();
   });
 
+  it("marks a replaces item with a changed core requirement (variant.core-changed, SR-045) and asks for its dates", () => {
+    // `hint` types its code as `relation.outdated`; `extra` puts the new code in its place.
+    const changed = hint("replaces", {
+      code: "variant.core-changed",
+      hintId: `variant.core-changed/spec/f.md/26a0b000-0000-4000-8000-0000000000b1/replaces/${TARGET}?version=n1:aa`,
+    });
+    const stored = relation({ kind: "replaces", id: TARGET, storedVersion: "n1:aa", repository: "spec" });
+    expect(undatedHints(elementOf([changed]))).toBe(`${changed.hintId} n1:bb`);
+    const element = withHintDates(elementOf([changed]), [dated(changed)]);
+    expect(outdatedRelation(element, stored)?.word).toBe("outdated · version of 2026-03-04");
+  });
+
   it("marks no relation that the hint does not name: kind, target, stored version, repository, direction", () => {
     const stored = relation({ kind: "derives-from", id: TARGET, storedVersion: "n1:aa", repository: "spec" });
     const element = elementOf([

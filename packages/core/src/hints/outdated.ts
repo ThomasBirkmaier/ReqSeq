@@ -414,8 +414,8 @@ export const outdatedOfShown = async (
 
 /**
  * The elements of `elements` that store at least one outdated relation, relation property or inline
- * reference, by the rule of `outdatedOfShown` (the `relation.outdated` hints of element.get, which
- * the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
+ * reference, by the rule of `outdatedOfShown` (the `relation.outdated` and `variant.core-changed`
+ * hints of element.get, which the modeline counts): for the marks of trace.graph (SR-111 AK4). One `currentVersionsOf` for the
  * targets of all of them; no finding, message or hint ID is built.
  */
 export const outdatedAmong = async (
