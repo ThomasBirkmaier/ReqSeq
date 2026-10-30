@@ -47,11 +47,11 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 <rect class="box u" x="644.8" y="134" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="153">electron (ubuntu-24.04)</text><text class="s" x="654.8" y="169">job electron</text>
 <rect class="req" x="887.6" y="127" width="52" height="14" rx="7"/><text class="reqt" x="913.6" y="137.5" text-anchor="middle">required</text>
 <rect class="lane m" x="274" y="370" width="1044.4" height="140" rx="8"/>
-<text class="lh m" x="286" y="387">MACOS-14</text>
-<rect class="box m" x="286" y="396" width="302.8" height="46" rx="5"/><text class="n" x="296" y="415">checks (macos-14)</text><text class="s" x="296" y="431">job checks-platform</text>
+<text class="lh m" x="286" y="387">MACOS-26</text>
+<rect class="box m" x="286" y="396" width="302.8" height="46" rx="5"/><text class="n" x="296" y="415">checks (macos-26)</text><text class="s" x="296" y="431">job checks-platform</text>
 <rect class="req" x="528.8" y="389" width="52" height="14" rx="7"/><text class="reqt" x="554.8" y="399.5" text-anchor="middle">required</text>
 <path class="arr" d="M244,419 L286,419" marker-end="url(#ah)"/>
-<rect class="box m" x="286" y="452" width="302.8" height="46" rx="5"/><text class="n" x="296" y="471">electron (macos-14)</text><text class="s" x="296" y="487">job electron-platform</text>
+<rect class="box m" x="286" y="452" width="302.8" height="46" rx="5"/><text class="n" x="296" y="471">electron (macos-26)</text><text class="s" x="296" y="487">job electron-platform</text>
 <rect class="req" x="528.8" y="445" width="52" height="14" rx="7"/><text class="reqt" x="554.8" y="455.5" text-anchor="middle">required</text>
 <path class="arr" d="M244,475 L286,475" marker-end="url(#ah)"/>
 <rect class="lane w" x="274" y="520" width="1044.4" height="196" rx="8"/>
@@ -134,8 +134,8 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(
 <path class="arr" d="M244,1545 L286,1545" marker-end="url(#ah)"/>
 <rect class="box u" x="644.8" y="1522" width="302.8" height="46" rx="5"/><text class="n" x="654.8" y="1541">release</text><text class="s" x="654.8" y="1557">job release</text>
 <rect class="lane m" x="274" y="1590" width="1044.4" height="84" rx="8"/>
-<text class="lh m" x="286" y="1607">MACOS-14</text>
-<rect class="box m" x="286" y="1616" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1635">build (macos-14)</text><text class="s" x="296" y="1651">job build</text>
+<text class="lh m" x="286" y="1607">MACOS-26</text>
+<rect class="box m" x="286" y="1616" width="302.8" height="46" rx="5"/><text class="n" x="296" y="1635">build (macos-26)</text><text class="s" x="296" y="1651">job build</text>
 <path class="arr" d="M244,1639 L286,1639" marker-end="url(#ah)"/>
 <rect class="lane w" x="274" y="1684" width="1044.4" height="84" rx="8"/>
 <text class="lh w" x="286" y="1701">WINDOWS-2025</text>
