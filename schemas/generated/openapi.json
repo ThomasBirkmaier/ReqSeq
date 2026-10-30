@@ -9134,7 +9134,7 @@
                   "undo": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone."
+                    "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone."
                   }
                 },
                 "additionalProperties": false,
@@ -9323,7 +9323,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
+                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter (spec question #440); file.faulty when the baselines folder cannot be listed (details.repository, details.file). The baseline is never replaced afterwards.",
                   "properties": {
                     "files": {
                       "type": "array",

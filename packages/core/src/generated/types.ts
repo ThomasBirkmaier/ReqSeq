@@ -2654,7 +2654,7 @@ export interface VariantExcludeInput {
   readonly variant: ElementRef;
   /** The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: "not-core"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7). */
   readonly refs: readonly ElementRef[];
-  /** Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone. */
+  /** Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone. */
   readonly undo: boolean;
 }
 

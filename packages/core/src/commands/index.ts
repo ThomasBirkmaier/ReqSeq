@@ -6,6 +6,7 @@
 // the list (keep both sorted by name).
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
+import baselineCreate from "./baseline/create.js";
 import dataExport from "./data/export.js";
 import dataStore from "./data/store.js";
 import elementAddAttachment from "./element/addAttachment.js";
@@ -41,6 +42,7 @@ import traceMatrix from "./trace/matrix.js";
 import traceNeighbourhood from "./trace/neighbourhood.js";
 import traceRelated from "./trace/related.js";
 import variantDiff from "./variant/diff.js";
+import variantExclude from "./variant/exclude.js";
 import workspaceActivity from "./workspace/activity.js";
 import workspaceCheck from "./workspace/check.js";
 import workspaceInit from "./workspace/init.js";
@@ -48,6 +50,7 @@ import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
 export const commands: readonly AnyCommand[] = [
+  baselineCreate,
   dataExport,
   dataStore,
   elementAddAttachment,
@@ -83,6 +86,7 @@ export const commands: readonly AnyCommand[] = [
   traceNeighbourhood,
   traceRelated,
   variantDiff,
+  variantExclude,
   workspaceActivity,
   workspaceCheck,
   workspaceInit,

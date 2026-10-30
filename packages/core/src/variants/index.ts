@@ -10,6 +10,7 @@ export {
   variantsOf,
 } from "./views.js";
 export type { Validity, ValidityEntry, ValidityTarget, View } from "./views.js";
+export { nestedVariantCheck, nestedVariantFindingsOf, nestedVariantsState } from "./nested.js";
 export {
   supersededValidityFindings,
   supersededValidityFindingsOf,

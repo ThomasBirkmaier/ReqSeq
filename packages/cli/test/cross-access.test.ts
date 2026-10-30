@@ -138,6 +138,9 @@ const TYPE_AND_ID = [
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** A metamodel in which the type Variant has a validity; B's validity names A by hand, C relates to A (SR-039). */
+const NESTED: FixtureOptions = { fixture: "SR-039/nested", git: true };
+const NESTED_A = "39039039-0000-4000-8000-0000000000a1";
 /** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
 const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
@@ -271,6 +274,25 @@ const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sens
 
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
+  // The date of the baseline is checked to lie within each call and then masked (`withoutDate`).
+  "baseline.create": [
+    {
+      name: "a baseline file of a package with the commit and the elements (SR-050 AK1)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "Release 2", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK1]",
+      expect: "output",
+    },
+    {
+      name: "a name a baseline has, nothing written (SR-050 AK6)",
+      fixture: EXPORT,
+      root: "system",
+      input: { name: "release 1", selection: { package: "PKG-0000d1" } },
+      tag: "[SR-050/AK6]",
+      expect: "error",
+    },
+  ],
   "data.export": [
     {
       name: "the whole workspace with record files",
@@ -335,6 +357,31 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.bulkUpdate": [
     {
+      name: "a variant is not given validity entries: the preview names it, the confirmation is refused",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+      },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
+    {
+      name: "a confirmation that would give a variant validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: {
+        selection: { ids: ["VAR-0000c3"] },
+        property: "validity",
+        operation: "add",
+        value: { id: NESTED_A },
+        confirm: true,
+      },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
       name: "a preview: the number of affected elements and the skipped ones, nothing written (SR-071 AK2, AK3)",
       fixture: FILTER,
       input: { selection: {}, property: "priority", operation: "set", value: 4 },
@@ -385,6 +432,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.create": [
+    {
+      name: "a variant is an element file of type variant in the workspace of the core",
+      fixture: { fixture: "SR-040/validity", git: true },
+      input: { type: "variant", title: "Valley" },
+      tag: "[SR-039/AK1]",
+      expect: "output",
+      newElement: true,
+    },
+    {
+      name: "a variant with validity entries is refused (variant.nested)",
+      fixture: NESTED,
+      input: { type: "variant", title: "South coast", properties: { validity: [{ id: NESTED_A }] } },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
     {
       name: "new element in a new folder",
       input: {
@@ -911,6 +973,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.update": [
+    {
+      name: "a variant whose validity names a variant is refused (variant.nested)",
+      fixture: NESTED,
+      input: { ref: "VAR-0000b2", title: "North" },
+      tag: "[SR-039/AK2]",
+      expect: "error",
+    },
+    {
+      name: "a relation between variants is allowed",
+      fixture: NESTED,
+      input: { ref: "VAR-0000c3", title: "Mountains" },
+      tag: "[SR-039/AK2]",
+      expect: "output",
+    },
     {
       name: "update a superseded element with a successor: same view with the successor relation everywhere (consistency, SR-072 AK3)",
       fixture: {
@@ -1788,6 +1864,37 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
     { name: "no variant", fixture: VARIANT_VIEWS, input: { variant: "SR-0000a1" }, expect: "error" },
   ],
+  "variant.exclude": [
+    {
+      tag: "[SR-042/AK1]",
+      name: "variant.exclude writes the exclusion of K3 into the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a3"] },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[] } }).output;
+        expect(output.files).toEqual(["variants/VAR-0000000000c1.md"]);
+      },
+    },
+    {
+      tag: "[SR-042/AK6]",
+      name: "variant.exclude with undo removes the exclusion of K2 from the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a2"], undo: true },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[]; problems: unknown[] } })
+          .output;
+        expect([output.files, output.problems]).toEqual([["variants/VAR-0000000000c1.md"], []]);
+      },
+    },
+    {
+      name: "a requirement with validity is refused (SR-042 AK4)",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000b2"] },
+      expect: "error",
+    },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [
@@ -2310,6 +2417,20 @@ const withoutGenerated = (access: string, outcome: Outcome, start: number, end: 
   return { output: { ...rest, generated: "<generated>" } };
 };
 
+/**
+ * `result` of baseline.create with the date of the baseline (output and file) replaced by `<date>`, after
+ * checking it lies between `start` and `end` (ms); an error is left as it is.
+ */
+const withoutDate = (access: string, result: Result, start: number, end: number): Result => {
+  const date = (result.outcome as { output?: { baseline?: { date?: string } } }).output?.baseline?.date;
+  if (date === undefined) {
+    return result;
+  }
+  const time = Date.parse(date);
+  expect([access, time >= Math.floor(start / 1000) * 1000 && time <= end]).toEqual([access, true]);
+  return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
+};
+
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
   readonly outcome: Outcome;
@@ -2346,7 +2467,7 @@ const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<s
     const outcome = GENERATED_AT_TOP.has(entry.name) ? withoutGenerated(access, called, start, end) : called;
     // A data file of data.store holds no time of the call (#319): its bytes are compared as they are.
     const files = await filesOf(top);
-    const result = normalized({ outcome, files }, top) as Result;
+    const result = withoutDate(access, normalized({ outcome, files }, top) as Result, start, end);
     if (untouched !== undefined) {
       expect([access, result.files]).toEqual([access, untouched]);
     }

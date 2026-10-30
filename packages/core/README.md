@@ -107,7 +107,7 @@ One file per block, so you read only the area you work on. Update the file of th
 - [Query block (`src/query/`)](docs/query.md)
 - [Hints block (`src/hints/`)](docs/hints.md)
 - Evidence block (`src/evidence/`): [records, folders, state, index](docs/evidence-records.md), [status and degree](docs/evidence-status.md), [views and export](docs/evidence-views.md)
-- [Baselines block (`src/baselines/`): reading baseline files](docs/baselines.md)
+- [Baselines block (`src/baselines/`): reading and creating baseline files](docs/baselines.md)
 - [Git reader (`src/git/reader.ts`)](docs/git.md)
 - [Version date (`src/model/version-date.ts`)](docs/version-date.md)
 
