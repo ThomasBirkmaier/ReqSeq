@@ -12,8 +12,8 @@
 //   current version is unknown (`CurrentVersion` `unknown`, #276) has no record of it: `outdated`
 //   with records, `open` without.
 // - Only elements whose type has the meaning `requirement` have a verification status (D-012: "Ein
-//   Nachweis verweist immer auf ein Requirement"), in the core and each variant they apply in
-//   (`appliesIn`, SR-040). While the metamodel is not valid the records are not compared (the
+//   Nachweis verweist immer auf ein Requirement"), in the core and each variant whose view holds
+//   them (the view rule, SR-040, SR-043; `ViewScope` of `indirect.ts`). While the metamodel is not valid the records are not compared (the
 //   versions follow the metamodel): every requirement is `open`, as without records.
 // The validation status (SR-038, `validationStatusOf`) follows the same record rule for the records of
 // kind `validation` of the core.

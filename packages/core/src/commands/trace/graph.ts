@@ -2,8 +2,8 @@
 // and inline reference (or the chosen ones), up and down to a depth, each element one node with its
 // level and marks, each link between two nodes one edge (trace/element-graph.ts). Without `maxDepth`
 // the direct neighbours; the whole chain comes with `allLevels`; at most `limit` nodes, the nearest
-// first. `view` keeps the elements that apply in the core or a variant by their validity (`appliesIn`,
-// SR-040).
+// first. `view` keeps the elements the view of the core or a variant holds (`viewRuleOf`,
+// SR-040, SR-041, SR-043); a variant's view is `incomplete` while a repository is not here.
 //
 // The marks (SR-111 AK4; assumptions of spec question #478) are the rules of the hints and the chain,
 // so the graph says what element.get and trace.chain say:
@@ -32,7 +32,7 @@ import {
   neighbourhoodContext,
   traceContext,
 } from "../../trace/index.js";
-import { appliesIn, resolveView, validityOf } from "../../variants/index.js";
+import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 /** The meanings the `no-evidence` mark needs. */
@@ -109,9 +109,10 @@ export default defineCommand({
       input.view === undefined
         ? undefined
         : resolveView({ metamodel, store, shortIds }, input.view, "trace.graph");
-    const validity = validityOf(metamodel);
     const includes =
-      view === undefined ? undefined : (element: ElementRecord) => appliesIn(validity, element, view);
+      view === undefined
+        ? undefined
+        : viewRuleOf({ workspace: ctx.workspace, store, metamodel }, view).includes;
     const context = neighbourhoodContext(base, {
       ...(input.kinds === undefined ? {} : { kinds: input.kinds }),
       ...(input.meanings === undefined ? {} : { meanings: input.meanings }),
@@ -127,6 +128,10 @@ export default defineCommand({
       currentVersionLookup(ctx.workspace),
       await marksOf(ctx.workspace, base, includes),
     );
-    return { ...output, problems: problemsOf(metamodel) };
+    return {
+      ...output,
+      ...(viewIncomplete(base.layout, view) ? { incomplete: true } : {}),
+      problems: problemsOf(metamodel),
+    };
   },
 });
