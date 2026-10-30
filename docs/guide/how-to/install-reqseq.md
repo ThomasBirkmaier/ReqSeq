@@ -13,7 +13,7 @@ Each GitHub release has these files; `<version>` is the version of the release.
 
 | System | Download |
 |---|---|
-| macOS 14 or newer, Apple silicon | `ReqSeq-<version>-mac-arm64.zip` |
+| macOS 26 or newer, Apple silicon | `ReqSeq-<version>-mac-arm64.zip` |
 | Linux x64, Ubuntu 24.04 | `ReqSeq-<version>-linux-x64.tar.gz` |
 | Windows 11 x64 | `ReqSeq-<version>-win-x64.zip` |
 | Pipelines with Node 22 | `reqseq-cli-<version>.tgz`, the command line and the MCP server only |

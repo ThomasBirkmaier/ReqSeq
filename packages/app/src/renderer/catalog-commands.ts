@@ -38,12 +38,14 @@
 // `value` the choices of the property, elements of its target types, else text; `relationTarget` elements
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
-// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285).
-// `filter` stays typed text.
+// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285);
+// `baseline` the baselines by name (`baseline.list`), by file name where two share a name. `filter` stays
+// typed text. A `selection` is never asked: it is the shown list's, or on a package page its package
+// (`selection.package`), for every command with a selection, reads and writes alike.
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
-import { findElements } from "./actions.js";
+import { findElements, packagePage } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveringAction } from "./command-entry.js";
 import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
@@ -212,24 +214,29 @@ const follows = (entry: Entry, arg: Argument): boolean =>
 const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
 
-/** The shown list's selection, for a `selection` argument (it is never asked). */
+/** A list or a package page is shown: it gives the selection of a `selection` argument. */
+const givesSelection = (context: ActionContext): boolean =>
+  context.buffers[0]?.kind === "list" || packagePage(context) !== undefined;
+
+/**
+ * The selection a `selection` argument takes (it is never asked): the shown list's, or on a package page its
+ * package (`selection.package`, SR-050 AK1: "Create baseline" on a package page asks only the name).
+ */
 const shownSelection = (context: ActionContext): object | undefined => {
   const shown = context.buffers[0];
-  return shown?.kind === "list" ? shown.selection : undefined;
+  const page = packagePage(context);
+  return shown?.kind === "list" ? shown.selection : page === undefined ? undefined : { package: page.id };
 };
 
-/** A command that needs the selection of a list is offered only while a list is shown. */
+/** A command that needs a selection is offered only while a list or a package page is shown. */
 const offered = (context: ActionContext, command: CommandListing): boolean =>
   command.arguments.every(
-    (arg) =>
-      arg.complete !== "selection" ||
-      !askedOf(command).includes(arg.field) ||
-      context.buffers[0]?.kind === "list",
+    (arg) => arg.complete !== "selection" || !askedOf(command).includes(arg.field) || givesSelection(context),
   );
 
 /**
- * Whether the command fits the shown view (SR-133 AK1): the view gives one of its arguments. A list gives
- * its selection; an element buffer or a neighbourhood gives its element to a required element argument,
+ * Whether the command fits the shown view (SR-133 AK1): the view gives one of its arguments. A list or a
+ * package page gives its selection; an element buffer or a neighbourhood gives its element to a required element argument,
  * which the prompt offers first for it. A selection counts even when it is optional, because `inputOf`
  * fills it in from the list without asking, so the command runs on what the list shows. An optional
  * element argument does not count: it is asked only after Ctrl/Cmd+Enter and the command runs without
@@ -240,7 +247,7 @@ export const fits = (context: ActionContext, command: CommandListing): boolean =
   const required = askedOf(command);
   return command.arguments.some((arg) =>
     arg.complete === "selection"
-      ? shown === "list"
+      ? givesSelection(context)
       : arg.complete === "element" &&
         required.includes(arg.field) &&
         (shown === "element" || shown === "neighbourhood"),
@@ -468,8 +475,21 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
       : await asText(),
   // No command asks a saved filter by name yet; typed text.
   filter: asText,
-  // baseline.list is not implemented yet; typed text until the app offers the baselines (stage 5).
-  baseline: asText,
+  // The baselines of the workspace by name (`baseline.list`).
+  // A name two files share (ignoring case and Unicode normal form, as core finds it) is ambiguous: such a
+  // baseline is given by its file name and shows it.
+  baseline: async ({ context }) =>
+    listOf(await context.call("baseline.list", {}), (output) => {
+      const fold = (name: string): string => name.normalize("NFC").toLowerCase();
+      const shared = (name: string): boolean =>
+        output.baselines.filter((other) => fold(other.name) === fold(name)).length > 1;
+      return output.baselines.map((baseline) => {
+        const file = baseline.file.slice(baseline.file.lastIndexOf("/") + 1);
+        return shared(baseline.name)
+          ? { value: file, name: `${baseline.name} · ${file}` }
+          : { value: baseline.name, name: baseline.name };
+      });
+    }),
   // `core` and the variants of the workspace, as "Choose view" offers them (#285).
   view: async ({ context }) => {
     const views = await viewsOf(context.call);
