@@ -32,6 +32,14 @@ const GUSTS = "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c";
 /** Input of one call of a write command, run on SR-001/two-elements plus a `new/` folder with an image and a JUnit file. */
 type Scenario = Readonly<Record<string, unknown>>;
 
+/** A variant, in the fixture of variant.exclude only. */
+const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
+const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "variant.exclude": {
+    "variants/VAR-cccccccccccc.md": `---\nid: ${VARIANT}\ntype: variant\nstatus: draft\ntitle: Coast\n---\n`,
+  },
+};
+
 /** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3; baseline.create, SR-050 AK7). */
 const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create", "data.store"]);
 
@@ -124,6 +132,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { source: GUSTS, kind: "derives-from", target: WIND },
     { source: GUSTS, kind: "nope", target: WIND },
   ],
+  "variant.exclude": [
+    { variant: VARIANT, refs: [WIND] },
+    { variant: VARIANT, refs: [WIND], undo: true },
+    { variant: WIND, refs: [GUSTS] },
+  ],
   "workspace.init": [
     { path: "new", name: "New" },
     { path: ".", name: "Again" },
@@ -170,6 +183,7 @@ describe("no delete of an element (SR-099, D-045)", () => {
           "new/layout.png": "an image",
           "new/results.xml":
             '<testsuites><testsuite name="s"><testcase name="[SR-e88fb3] wind"/></testsuite></testsuites>\n',
+          ...EXTRA_FILES[name],
         },
         ...(GIT_COMMANDS.has(name) ? { git: true } : {}),
       });

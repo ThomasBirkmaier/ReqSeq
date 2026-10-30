@@ -1824,6 +1824,37 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "variant.exclude": [
+    {
+      tag: "[SR-042/AK1]",
+      name: "variant.exclude writes the exclusion of K3 into the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a3"] },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[] } }).output;
+        expect(output.files).toEqual(["variants/VAR-0000000000c1.md"]);
+      },
+    },
+    {
+      tag: "[SR-042/AK6]",
+      name: "variant.exclude with undo removes the exclusion of K2 from the file of A",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000a2"], undo: true },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { files: string[]; problems: unknown[] } })
+          .output;
+        expect([output.files, output.problems]).toEqual([["variants/VAR-0000000000c1.md"], []]);
+      },
+    },
+    {
+      name: "a requirement with validity is refused (SR-042 AK4)",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1", refs: ["SR-0000b2"] },
+      expect: "error",
+    },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [

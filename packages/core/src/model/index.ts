@@ -200,8 +200,23 @@ export type {
   WorkspaceChangeListener,
   WorkspaceWatcher,
 } from "./watch.js";
-export { addRelation, removeRelation } from "./relation-write.js";
-export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
+export {
+  addRelation,
+  itemsUnder,
+  notFoundProblem,
+  relationStateOf,
+  removalEdits,
+  removalMatch,
+  removeRelation,
+  writeSourceEdits,
+} from "./relation-write.js";
+export type {
+  AddedRelation,
+  RelationInput,
+  RelationState,
+  RemovedRelation,
+  RemoveRelationInput,
+} from "./relation-write.js";
 export { addAttachment, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
 export {
   assertElementWritable,

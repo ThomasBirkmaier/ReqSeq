@@ -32,6 +32,9 @@ const OBSOLETE = "0b7c6e1a-1111-4222-8333-444455556666";
 const APPROVED = "0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa";
 const RETIRED = "0b7c6e1a-1111-4222-8333-bbbbbbbbbbbb";
 
+/** A variant, so variant.exclude writes. */
+const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
+const VARIANT_FILE = "variants/VAR-cccccccccccc.md";
 /** A relation to an outdated version of WIND, as SR-001/two-elements has one from GUSTS, so `hint.confirm` writes. */
 const OUTDATED = `derives-from:\n  - { id: ${WIND}, version: n1:0000000000000000 }\n`;
 
@@ -73,6 +76,7 @@ const FILES: Readonly<Record<string, string>> = {
   "needs/N-bbbbbbbbbbbb.md": `---\nid: ${RETIRED}\ntype: need\nstatus:   retired   # unknown to the metamodel\ntitle: Retired need\n${OUTDATED}---\n`,
   "new/.keep": "",
   "new/layout.png": "an image",
+  [VARIANT_FILE]: `---\nid: ${VARIANT}\ntype: variant\nstatus: approved\ntitle: Coast\n---\n`,
 };
 
 /** The `status` line of every element file, and null for the evidence record, by file (relative, `/`), as written on disk. */
@@ -83,6 +87,7 @@ const STATUS_LINES: Readonly<Record<string, string | null>> = {
   "requirements/SR-1d2e3f4a5b6c.md": "status: draft",
   "requirements/SR-444455556666.md": "status: obsolete",
   "requirements/SR-6328cee88fb3.md": "status: draft",
+  [VARIANT_FILE]: "status: approved",
 };
 
 type Scenario = Readonly<Record<string, unknown>>;
@@ -285,6 +290,11 @@ const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
     { refs: ["SR-ffffff"], direction: "children" },
   ],
   "workspace.activity": [{}, { extra: true }],
+  "variant.exclude": [
+    { variant: VARIANT, refs: [WIND] },
+    { variant: VARIANT, refs: [WIND, OBSOLETE], undo: true },
+    { variant: VARIANT, refs: [APPROVED] },
+  ],
   "workspace.check": [
     {},
     { severity: "error" },
