@@ -91,7 +91,7 @@ describe("the key after the prefix", () => {
     expect(prefixStep(press("д", { code: "KeyL" }), false)).toEqual(l);
   });
 
-  it("does not take a letter with Shift, with Alt, or with the physical Ctrl key on macOS", () => {
+  it("[SR-145/AK1] does not take a letter with Shift, with Alt, or with the physical Ctrl key on macOS", () => {
     expect(prefixStep(press("L", { shiftKey: true }), false)).toEqual({
       kind: "unbound",
       label: "Ctrl+K Shift+L",

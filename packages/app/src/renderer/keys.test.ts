@@ -124,7 +124,7 @@ describe("keys", () => {
     ).toBe(false);
   });
 
-  it("[SR-115/AK5] [SR-145/AK2] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
+  it("[SR-115/AK5] writes Alt+N as Linux and Windows do and as ⌥N on macOS", () => {
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "n" }, false)).toBe("Alt+N");
     expect(shortcutLabel({ mod: false, shift: false, alt: true, key: "p" }, true)).toBe("⌥P");
   });
@@ -135,7 +135,7 @@ describe("keys", () => {
     expect(isMac("Win32")).toBe(false);
   });
 
-  it("[SR-132/AK1] [SR-145/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
+  it("[SR-132/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
     const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
     expect(isModClick({ ...click, ctrlKey: true }, false)).toBe(true);
     expect(isModClick({ ...click, metaKey: true }, false)).toBe(true);
@@ -256,7 +256,7 @@ describe("keys", () => {
 });
 
 describe("historyStep", () => {
-  it("[SR-105/AK2] takes Ctrl/Cmd+Z as undo and Ctrl/Cmd+Shift+Z as redo, Ctrl+Y as redo outside macOS", () => {
+  it("[SR-105/AK2] [SR-145/AK1] takes Ctrl/Cmd+Z as undo and Ctrl/Cmd+Shift+Z as redo, Ctrl+Y as redo outside macOS", () => {
     expect(historyStep(press("z", { ctrlKey: true }), false)).toBe("undo");
     expect(historyStep(press("Z", { ctrlKey: true, shiftKey: true }), false)).toBe("redo");
     expect(historyStep(press("y", { ctrlKey: true }), false)).toBe("redo");

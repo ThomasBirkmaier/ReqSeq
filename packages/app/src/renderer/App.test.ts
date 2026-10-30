@@ -822,7 +822,7 @@ describe("App", () => {
   });
 
   it.each(["MacIntel", "Win32", "Linux x86_64"])(
-    "[SR-122/AK2] on %s, Ctrl+N and Ctrl+P in an open prompt only move the selection",
+    "[SR-122/AK2] [SR-145/AK3] on %s, Ctrl+N and Ctrl+P in an open prompt only move the selection",
     async (platform) => {
       vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
       const { bridge } = fakeBridge(workspace());

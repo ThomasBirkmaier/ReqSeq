@@ -1143,7 +1143,7 @@ describe("save element and edit text", () => {
     expect(controls.follow).toHaveBeenCalledTimes(1);
   });
 
-  it("[SR-132/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
+  it("[SR-132/AK1] [SR-145/AK1] List elements with this value runs the controls with Ctrl/Cmd+Shift+Enter, on every element with a loaded text", () => {
     const controls = {
       save: vi.fn(),
       edit: vi.fn(),
