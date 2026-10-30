@@ -1,9 +1,10 @@
 // One page per catalog command and an index of all of them (SR-139 AK1, AK4). Every text comes from the catalog
 // and the adapters; internal references in it (SR, D, ADR, #nnn) are the tool's own text and stay as they are.
-import type { CatalogEntry, JsonSchema } from "@reqseq/core";
+import type { CatalogEntry } from "@reqseq/core";
 import type { CommandAccess } from "./access.js";
-import { cell, codeBlock, inline, table } from "./markdown.js";
-import { fieldRows } from "./schema-fields.js";
+import { codeBlock, inline } from "./markdown.js";
+import type { SchemaContext } from "./schema-fields.js";
+import { fieldTable } from "./schema-fields.js";
 
 /** The folder of the command pages below the content folder. */
 export const COMMANDS_FOLDER = "reference/commands";
@@ -17,21 +18,6 @@ export const commandSlug = (name: string): string =>
     .replaceAll(".", "-")
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase();
-
-const fields = (schema: JsonSchema, schemas: readonly JsonSchema[], none: string): string => {
-  const rows = fieldRows(schema, schemas);
-  return rows.length === 0
-    ? none
-    : table(
-        ["Field", "Type", "Required", "Description"],
-        rows.map((row) => [
-          `\`${row.field}\``,
-          cell(row.type),
-          row.required ? "yes" : "no",
-          cell(row.description),
-        ]),
-      );
-};
 
 const behaviour = (entry: CatalogEntry): string => {
   if (entry.effect === "read") {
@@ -61,7 +47,7 @@ const appSection = (access: CommandAccess): string => {
 export function commandPage(
   entry: CatalogEntry,
   access: CommandAccess,
-  schemas: readonly JsonSchema[],
+  context: SchemaContext,
   order: number,
 ): string {
   const notYet = access.implemented ? [] : ["This version does not implement the command yet.", ""];
@@ -80,11 +66,11 @@ export function commandPage(
     ...notYet,
     "## Input",
     "",
-    fields(entry.input, schemas, "No input."),
+    fieldTable(entry.input, context, "No input."),
     "",
     "## Output",
     "",
-    fields(entry.output, schemas, "No output fields."),
+    fieldTable(entry.output, context, "No output fields."),
     "",
     "## App",
     "",

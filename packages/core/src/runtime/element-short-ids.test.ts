@@ -492,7 +492,7 @@ describe("every problem of every output schema is located (#319)", () => {
     expect(nowhere).toEqual(NOT_LOCATED);
     // Every problem reference the outputs reach: catalog.json and data-export.schema.json. A new
     // one changes this number on purpose.
-    expect(found).toBe(37);
+    expect(found).toBe(38);
   });
 });
 

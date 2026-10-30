@@ -382,7 +382,7 @@ describe("element.list (SR-069)", () => {
     ]);
   });
 
-  it("selects a package as a selection: exactly its elements (SR-048 AK3)", async () => {
+  it("selects a package as a selection: exactly its elements (SR-112 AK1)", async () => {
     const ws = await open();
     expect(ids(await list(ws, { selection: { package: "PKG-0000d2" } }))).toEqual([B2, B4]);
     const notPackage = await failure(ws, { selection: { package: "VAR-0000c1" } });
