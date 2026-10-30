@@ -419,6 +419,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
+  # TEMPORARY (#420, removed before the merge): three more runs of the macOS Electron job with two apps at a time, to
+  # check its stability.
+  electron-trial:
+    name: electron trial (${{ matrix.os }}, ${{ matrix.attempt }})
+    timeout-minutes: 30
+    if: >-
+      ${{ github.event_name == 'pull_request' && github.event.action != 'closed' && !github.event.pull_request.draft }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14]
+        attempt: [1, 2, 3]
+    runs-on: ${{ matrix.os }}
+    steps: *electron-steps
+
   # Windows runs Electron slowest (about 16 minutes in one job), so in two shards like Ubuntu (#412); `electron
   # (windows-2025)` below is green when both are.
   electron-windows-shard:
