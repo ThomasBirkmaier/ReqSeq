@@ -60,11 +60,21 @@ test.describe("variants on a fixture workspace", () => {
 const names = (window: Page) => window.locator('.candidates [role="option"] .name');
 const label = (window: Page) => window.locator("label.prompt-label");
 
-/** Picks the first candidate after typing `text`, once it is `name`. */
-const pick = async (window: Page, text: string, name: string): Promise<void> => {
+/** Waits until the prompt asks for `next` (an argument, or "more arguments"). */
+const asks = async (window: Page, next: string): Promise<void> => {
+  await expect(label(window)).toHaveText(new RegExp(`· ${next}:$`, "u"));
+};
+
+/**
+ * Picks the first candidate after typing `text`, once it is `name`, and waits for the prompt of `next`:
+ * an Enter on the hits of an older text waits for the answer to the typed one, and typing before that
+ * answer cancels the Enter (SR-119), so the next text must not be typed until the prompt moved on.
+ */
+const pick = async (window: Page, text: string, name: string, next: string): Promise<void> => {
   await window.keyboard.type(text);
   await expect(names(window).first()).toHaveText(name);
   await window.keyboard.press("Enter");
+  await asks(window, next);
 };
 
 /** Runs "Record evidence" of a passed test of `title` (`ref`) for the variant Coast from the command prompt. */
@@ -75,17 +85,23 @@ const recordForCoast = async (window: Page, ref: string, title: string): Promise
   await expect(names(window).first()).toHaveText("Record evidence");
   // Ctrl/Cmd+Enter offers the optional arguments after the required ones.
   await window.keyboard.press("ControlOrMeta+Enter");
-  await pick(window, title, `${ref} ${title}`);
-  await pick(window, "verification", "verification");
-  await pick(window, "passed", "passed");
-  await pick(window, "method", "method");
-  await pick(window, "test", "test");
-  await pick(window, "item", "item");
+  await asks(window, "ref");
+  await pick(window, title, `${ref} ${title}`, "kind");
+  await pick(window, "verification", "verification", "result");
+  await pick(window, "passed", "passed", "more arguments");
+  await pick(window, "method", "method", "method");
+  await pick(window, "test", "test", "more arguments");
+  await pick(window, "item", "item", "item");
   await window.keyboard.type("build-47");
   await window.keyboard.press("Enter");
-  await pick(window, "variant", "variant");
-  await pick(window, "Coast", "VAR-0000c1 Coast");
-  await pick(window, "Run", "Run");
+  await asks(window, "more arguments");
+  await pick(window, "variant", "variant", "variant");
+  await window.keyboard.type("Coast");
+  await expect(names(window).first()).toHaveText("VAR-0000c1 Coast");
+  await window.keyboard.press("Enter");
+  await asks(window, "more arguments");
+  // Run: the refusal asks the variant again, with core's message in front.
+  await pick(window, "Run", "Run", "variant");
 };
 
 const WORKSPACE =
