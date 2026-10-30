@@ -137,13 +137,15 @@ export const viewRuleIndexState = defineWorkspaceState(
   (): WeakMap<ElementStore, ViewRuleIndex> => new WeakMap(),
 );
 
-/** The index of `store` with `metamodel`, built when the workspace has none for both. Synchronous. */
-export const viewRuleIndexOf = (
-  workspace: Workspace,
+/**
+ * The index of `store` with `metamodel` from a memo of `viewRuleIndexState`, built when it has none
+ * for both. Synchronous and without loading any state, so a carry hook can call it.
+ */
+export const viewRuleIndexIn = (
+  memo: WeakMap<ElementStore, ViewRuleIndex>,
   store: ElementStore,
   metamodel: Metamodel,
 ): ViewRuleIndex => {
-  const memo = workspace.get(viewRuleIndexState);
   let index = memo.get(store);
   if (index?.metamodel !== metamodel) {
     index = buildViewRuleIndex(store, metamodel);
@@ -151,6 +153,13 @@ export const viewRuleIndexOf = (
   }
   return index;
 };
+
+/** The index of `store` with `metamodel` in `workspace` (`viewRuleIndexIn`). Synchronous. */
+export const viewRuleIndexOf = (
+  workspace: Workspace,
+  store: ElementStore,
+  metamodel: Metamodel,
+): ViewRuleIndex => viewRuleIndexIn(workspace.get(viewRuleIndexState), store, metamodel);
 
 /** The element `item` names in `context.store`, when it resolves to exactly one (`resolveTarget`). */
 export const ruleTarget = (
@@ -262,3 +271,72 @@ export const viewRuleOf = (
   context: { readonly workspace: Workspace; readonly store: ElementStore; readonly metamodel: Metamodel },
   view: View,
 ): ViewRule => viewRuleIn(viewRuleIndexOf(context.workspace, context.store, context.metamodel), view);
+
+/** Whether every view of `views` holds `element`; undefined for no view (every element). */
+export const viewsInclude = (
+  context: { readonly workspace: Workspace; readonly store: ElementStore; readonly metamodel: Metamodel },
+  views: readonly View[],
+): ((element: ElementRecord) => boolean) | undefined => {
+  if (views.length === 0) {
+    return undefined;
+  }
+  const rules = views.map((view) => viewRuleOf(context, view).includes);
+  return (element) => rules.every((includes) => includes(element));
+};
+
+/**
+ * Whether a result in `view` may miss a part (SR-006 AK2): `view` is a variant and the workspace file
+ * lists a repository that is not on this machine, which may hold a replacement or an exclusion.
+ */
+export const viewIncomplete = (
+  layout: { readonly repositories: readonly { readonly available: boolean }[] },
+  view: View | undefined,
+): boolean => view?.kind === "variant" && layout.repositories.some((r) => !r.available);
+
+/** The variants that may remove each element, by element (`removersOf`), built once per index. */
+const removersByIndex = new WeakMap<ViewRuleIndex, ReadonlyMap<ElementRecord, readonly string[]>>();
+
+const NO_REMOVERS: readonly string[] = Object.freeze([]);
+
+/**
+ * The variants whose rule may remove `element`, each as `repository\0UUID`: the variant of an
+ * exclusion item and every variant the validity of a replacement item's source names, for an item
+ * that acts on `element` (a superset of the views that leave it out, for the seeds of `indirect.ts`).
+ */
+export const removersOf = (index: ViewRuleIndex, element: ElementRecord): readonly string[] => {
+  let byElement = removersByIndex.get(index);
+  if (byElement === undefined) {
+    const validity = validityOf(index.metamodel);
+    const found = new Map<ElementRecord, string[]>();
+    for (const item of index.items) {
+      const target = actingTarget(index, item);
+      if (target === undefined) {
+        continue;
+      }
+      const variants =
+        item.meaning === "exclusion"
+          ? [item.source]
+          : validityEntries(validity, item.source).flatMap((e) => validityTarget(e.value, item.source) ?? []);
+      const list = found.get(target) ?? [];
+      list.push(...variants.map((v) => `${v.repository}\0${v.id}`));
+      found.set(target, list);
+    }
+    byElement = found;
+    removersByIndex.set(index, byElement);
+  }
+  return byElement.get(element) ?? NO_REMOVERS;
+};
+
+/**
+ * The elements the rule items of `sources` name in `context.store` (`ruleTarget`): whose views a
+ * change of these sources may change (the carry of `evidence/verification.ts`).
+ */
+export const ruleTargetsOf = (
+  context: { readonly store: ElementStore; readonly metamodel: Metamodel },
+  sources: readonly ElementRecord[],
+): ElementRecord[] => {
+  const scope = scopeOf(context.metamodel);
+  return sources.flatMap((source) =>
+    itemsOf(scope, source).flatMap((item) => ruleTarget(context, item) ?? []),
+  );
+};

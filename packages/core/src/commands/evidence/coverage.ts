@@ -10,6 +10,7 @@ import { coverageOf, coverageRules, evidenceIndexState, evidenceReadState } from
 import { namesField, namesOfRecords } from "../../model/index.js";
 import { resolveSelection } from "../../query/index.js";
 import { derivationGraph, traceContext } from "../../trace/index.js";
+import { viewsInclude } from "../../variants/index.js";
 
 export default defineCommand({
   name: "evidence.coverage",
@@ -19,7 +20,8 @@ export default defineCommand({
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
     const index = await ctx.workspace.get(evidenceIndexState);
     const read = await ctx.workspace.get(evidenceReadState);
-    const levels = coverageOf(selected.elements, coverageRules(graph, index, selected.views));
+    const includes = viewsInclude({ workspace: ctx.workspace, ...selected }, selected.views);
+    const levels = coverageOf(selected.elements, coverageRules(graph, index, selected.views, includes));
     const listed = new Set(
       levels.flatMap((level) => [...level.elements.withChildren, ...level.elements.withoutChildren]),
     );

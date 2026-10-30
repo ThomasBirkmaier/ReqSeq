@@ -37,7 +37,7 @@ import {
   traceContext,
 } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
-import { appliesIn, validityOf } from "../../variants/index.js";
+import { viewsInclude } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 const CORE: View = Object.freeze({ kind: "core" });
@@ -83,15 +83,12 @@ export default defineCommand({
     checkRelationKinds(base.metamodel, input.kinds, command);
     const selected = await resolveSelection(ctx.workspace, input.selection ?? {}, command);
     const sorted = orderedSelection(selected, command, input.sort);
-    const { views } = selected;
-    const validity = validityOf(selected.metamodel);
+    const includes = viewsInclude({ workspace: ctx.workspace, ...selected }, selected.views);
     const context = matrixContext(base, {
       shortIds: selected.shortIds,
       kinds: input.kinds,
-      // A row applies in every view of the selection (the selection's and the saved filter's), so does the other end of a link.
-      ...(views.length === 0
-        ? {}
-        : { includes: (element) => views.every((view) => appliesIn(validity, element, view)) }),
+      // A row is in every view of the selection (the selection's and the saved filter's), so is the other end of a link.
+      ...(includes === undefined ? {} : { includes }),
     });
     const total = selected.elements.length;
     const columns = matrixColumns(context, selected.elements);

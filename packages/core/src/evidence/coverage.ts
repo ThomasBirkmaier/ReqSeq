@@ -8,8 +8,10 @@
 //   „Ungültige Elemente zählen weder für die Abdeckung ...“).
 // - Children: the derivation children of the trace block (`childrenOf`: incoming relations of a kind
 //   with the meaning `derivation`, in any repository; one named only by an ambiguous relation, SR-088,
-//   is none) whose status is not marked invalid (D-044) and that apply in every view of the selection
-//   (as the chain and the matrix narrow them); without a view, every one.
+//   is none) whose status is not marked invalid (D-044) and that every view of the selection holds
+//   (`viewsInclude`: the view rule, so a child of a replaced or excluded core requirement counts only
+//   where its own validity puts it, and the replaced one is no child in the variant, SR-041 AK5,
+//   SR-043 AK5; as the chain and the matrix narrow them); without a view, every one.
 // - Evidence, only for a type with the meaning `requirement` (D-012: „Ein Nachweis verweist immer auf
 //   ein Requirement“): `hasVerificationRecord` of the index in the selection's view, the core without
 //   one (as the filter condition `verification`). Any version and any result count (spec question
@@ -24,7 +26,6 @@ import { invalidStatuses } from "../model/index.js";
 import type { DerivationGraph } from "../trace/index.js";
 import { childrenOf } from "../trace/index.js";
 import type { View } from "../variants/index.js";
-import { appliesIn, validityOf } from "../variants/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { hasVerificationRecord } from "./by-element.js";
 
@@ -56,16 +57,17 @@ const levelTypes = (metamodel: Metamodel): ReadonlyMap<string, boolean> => {
 
 /**
  * The rules of the coverage on `graph` and the evidence `index`, for the selection's `views` (its own
- * view first, then the saved filter's; none: every child counts, evidence of the core).
+ * view first, then the saved filter's; none: evidence of the core) and `includes`, whether every one
+ * of them holds an element (`viewsInclude`; undefined: every child counts).
  */
 export const coverageRules = (
   graph: DerivationGraph,
   index: EvidenceIndex,
   views: readonly View[],
+  includes: ((element: ElementRecord) => boolean) | undefined,
 ): CoverageRules => {
   const { metamodel } = graph;
   const invalid = invalidStatuses(metamodel);
-  const validity = validityOf(metamodel);
   const counts = (element: ElementRecord): boolean => !invalid.has(String(element.data["status"]));
   const evidenceView: View = views[0] ?? { kind: "core" };
   return {
@@ -73,7 +75,7 @@ export const coverageRules = (
     counts,
     hasChild: (element) =>
       childrenOf(graph, element).steps.some(
-        ({ to }) => counts(to) && views.every((view) => appliesIn(validity, to, view)),
+        ({ to }) => counts(to) && (includes === undefined || includes(to)),
       ),
     hasEvidence: (element) => hasVerificationRecord(index, element.id, evidenceView),
   };
