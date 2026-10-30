@@ -2,8 +2,9 @@
 // (baselines/show.ts). This file resolves the stored selection of the file as it selects now
 // (query/selection.ts, ADR-0018 "selection"), which the baselines block cannot import:
 //
-// - `ids` items: a UUID is the copy in the repository of the file, else its only copy; `{ id,
-//   repository }` that copy; a short ID or identifier as every command resolves it. `package` and
+// - `ids` items by the copy rule of the entries (`copyOf`): a UUID is the copy in the repository
+//   of the file, else its only copy; `{ id, repository }` that copy; a short ID or identifier as
+//   every command resolves it. `package` and
 //   `view` by their UUID or the text written, `filter` by name as it is now, `where` as written.
 // - Without stored selection nothing is added or removed (`selectionKnown: false`, AK2, AK3).
 // - A stored selection that cannot be resolved now (an element of it in a repository that is not
@@ -13,7 +14,7 @@
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import type { Baseline } from "../../baselines/index.js";
-import { namedBaseline, showBaseline } from "../../baselines/index.js";
+import { copyOf, namedBaseline, showBaseline } from "../../baselines/index.js";
 import type {
   BaselineStoredRef,
   BaselineStoredSelection,
@@ -22,7 +23,7 @@ import type {
 } from "../../generated/types.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { ElementRecord } from "../../model/index.js";
-import { elementStoreState, isUuid, resolveRef, shortIdState } from "../../model/index.js";
+import { elementStoreState, isUuid, resolveRef } from "../../model/index.js";
 import type { Selected } from "../../query/index.js";
 import { resolveSelection } from "../../query/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
@@ -38,7 +39,7 @@ const selectedNow = async (
   workspace: Workspace,
   baseline: Baseline,
   stored: BaselineStoredSelection,
-): Promise<Pick<Selected, "elements" | "views" | "incomplete">> => {
+): Promise<Pick<Selected, "elements" | "views" | "incomplete" | "store">> => {
   const { ids, package: inPackage, view, ...rest } = stored;
   const selection: ElementSelection = {
     ...rest,
@@ -49,16 +50,20 @@ const selectedNow = async (
   if (ids === undefined) {
     return selected;
   }
-  const store = await workspace.get(elementStoreState);
-  const shortIds = await workspace.get(shortIdState);
+  const { store, shortIds } = selected;
   const named = new Set(
     ids.map((item): ElementRecord => {
-      if (typeof item !== "string") {
-        return resolveRef(store, shortIds, item.id, { repository: item.repository });
-      }
-      const copies = isUuid(item.toLowerCase()) ? (store.byId.get(item.toLowerCase()) ?? []) : [];
-      const home = copies.find((r) => r.repository === baseline.repository);
-      return home ?? (copies.length === 1 ? copies[0] : undefined) ?? resolveRef(store, shortIds, item);
+      // The copy rule of the entries (`copyOf`); resolveRef names what it does not find.
+      const entry = typeof item === "string" ? { id: item.toLowerCase() } : item;
+      const copy = isUuid(entry.id) ? copyOf(store.byId, baseline, entry) : undefined;
+      return typeof copy === "object"
+        ? copy
+        : resolveRef(
+            store,
+            shortIds,
+            entry.id,
+            typeof item === "string" ? {} : { repository: item.repository },
+          );
     }),
   );
   return { ...selected, elements: selected.elements.filter((e) => named.has(e)) };
@@ -81,7 +86,7 @@ export default defineCommand({
     const layout = await workspace.get(workspaceLayoutState);
     const metamodel = await workspace.get(metamodelState);
     const problems: Problem[] = [];
-    let selected: Pick<Selected, "elements" | "views" | "incomplete"> | undefined;
+    let selected: Pick<Selected, "elements" | "views" | "incomplete" | "store"> | undefined;
     if (baseline.data.selection !== undefined) {
       try {
         selected = await selectedNow(workspace, baseline, baseline.data.selection);
@@ -102,6 +107,7 @@ export default defineCommand({
     return showBaseline(workspace, {
       baseline,
       metamodel,
+      store: selected?.store ?? (await workspace.get(elementStoreState)),
       selected: selected?.elements,
       view: view?.kind === "variant" ? view.variant.id : undefined,
       incomplete: layout.repositories.some((r) => !r.available) || selected?.incomplete === true,

@@ -3,9 +3,10 @@
 //
 // - The commit is resolved in the repository; one it does not have is `no-commit`.
 // - The path at the commit: the file itself when Git lists no change of it since; otherwise the
-//   files changed since (`changedPaths`, which names a moved file at its old and its new path) are
-//   read at the commit through one object reader, and the one whose frontmatter has the UUID is
-//   its old path, the file itself first. No rename detection, no `ls-tree`.
+//   file is read at the commit; only when it did not hold the UUID there, the files changed since
+//   (`changedPaths`, which names a moved file at its old and its new path) are read through one
+//   object reader, and the one whose frontmatter has the UUID is its old path. No rename
+//   detection, no `ls-tree`.
 // - Uncommitted: the file differs from HEAD (staged, not staged or untracked), or it is gone.
 import type { GitUnknown } from "../git/reader.js";
 import { changedPaths, headCommit, isGitPath, openObjectReader, resolveCommit } from "../git/reader.js";
@@ -87,13 +88,21 @@ export const fileSince = async (
   const now = file === undefined ? undefined : nfc(file);
   let before: string | undefined | GitUnknown = file;
   if (now === undefined || changed.some((p) => nfc(p) === now)) {
-    const others = changed.filter((p) => nfc(p) !== now);
-    before = await holderAt(folder, resolved.commit, file === undefined ? others : [file, ...others], id);
+    // The file itself first: the other changed files are read only when it did not hold the element.
+    const held = file === undefined ? undefined : await holderAt(folder, resolved.commit, [file], id);
+    before =
+      held ??
+      (await holderAt(
+        folder,
+        resolved.commit,
+        changed.filter((p) => nfc(p) !== now),
+        id,
+      ));
     if (typeof before === "object") {
       return before;
     }
   }
-  const uncommitted = await changedPaths(folder, head.commit);
+  const uncommitted = resolved.commit === head.commit ? since : await changedPaths(folder, head.commit);
   if (!uncommitted.known) {
     return uncommitted;
   }

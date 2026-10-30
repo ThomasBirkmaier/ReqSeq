@@ -21,7 +21,7 @@ export {
 } from "./read.js";
 export type { Baseline, BaselineFiles, Baselines, FoundBaseline } from "./read.js";
 export { baselineHeader, scanBaseline } from "./scan.js";
-export { showBaseline } from "./show.js";
+export { copyOf, showBaseline } from "./show.js";
 export type { ShowRequest } from "./show.js";
 export { compareBaseline } from "./compare.js";
 export type { BaselineHeader } from "./scan.js";

@@ -4,26 +4,28 @@
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
 import { workspaceBaselines } from "../../baselines/index.js";
-import { elementStoreState, resolveRef, shortIdState } from "../../model/index.js";
+import { metamodelState } from "../../metamodel/index.js";
+import { elementStoreState, shortIdState } from "../../model/index.js";
+import { resolveView } from "../../variants/index.js";
 
 export default defineCommand({
   name: "baseline.list",
   run: async ({ workspace }): Promise<CommandOutput<"baseline.list">> => {
     const found = await workspaceBaselines(workspace);
     /**
-     * The UUID of the variant a stored view names, or undefined (the core, or no element here). The
-     * store is read only for a view written by hand as a short ID or identifier.
+     * The UUID of the variant a stored view names, in any form (`{ id, title }` or a reference),
+     * resolved as every view is (`resolveView`); undefined for the core or no variant here. The
+     * states are read only when a baseline stores only a view.
      */
     const variantOf = async (view: string | { readonly id: string }): Promise<string | undefined> => {
-      if (typeof view !== "string") {
-        return view.id;
-      }
-      if (view.toLowerCase() === "core") {
-        return undefined;
-      }
-      const store = await workspace.get(elementStoreState);
+      const context = {
+        metamodel: await workspace.get(metamodelState),
+        store: await workspace.get(elementStoreState),
+        shortIds: await workspace.get(shortIdState),
+      };
       try {
-        return resolveRef(store, await workspace.get(shortIdState), view).id;
+        const shown = resolveView(context, typeof view === "string" ? view : view.id, "baseline.list");
+        return shown.kind === "variant" ? shown.variant.id : undefined;
       } catch {
         return undefined;
       }

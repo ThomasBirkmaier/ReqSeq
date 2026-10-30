@@ -5,7 +5,7 @@
 // The fixture's own `release-1.yaml` stores no selection. CLI end to end: baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandName, CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -45,7 +45,6 @@ const baselineText = (name: string, selection: string[], commits: string[], elem
   ].join("\n");
 
 const edit = async (ws: FixtureWorkspace, file: string, from: string, to: string): Promise<void> => {
-  const { readFile } = await import("node:fs/promises");
   await ws.write(`system/${file}`, (await readFile(ws.path(`system/${file}`), "utf8")).replace(from, to));
 };
 
@@ -223,7 +222,12 @@ describe("baseline.get", () => {
           [b1],
         ),
       "Gone.yaml": (first) =>
-        baselineText("Gone", ["  ids:", `    - ${ID}ff`, "  package: PKG-0000d1"], commit(first), [b1]),
+        baselineText(
+          "Gone",
+          ["  ids:", `    - { id: ${ID}ff, repository: sensor }`, "  package: PKG-0000d1"],
+          commit(first),
+          [b1],
+        ),
       "Nope.yaml": (first) => baselineText("Nope", ["  filter: nope"], commit(first), [b1]),
     });
     // A value that counts and has no normal form: SR-0000b4 has no current version (ADR-0005).
@@ -245,6 +249,13 @@ describe("baseline.get", () => {
       ["e1", "added"],
     ]);
     expect(byId(ids.elements)["b4"]).not.toHaveProperty("current");
+    expect(ids.problems).toEqual([
+      expect.objectContaining({
+        code: "file.faulty",
+        severity: "warning",
+        file: "requirements/SR-0000000000b4.md",
+      }),
+    ]);
     expect((await call(ws, "baseline.get", { baseline: "Nope" })).problems?.[0]?.code).toBe(
       "baseline.invalid",
     );
@@ -293,6 +304,8 @@ describe("baseline.list", () => {
       "Lost.yaml": (first) => baselineText("Lost", ["  view: VAR-0000ff"], commit(first), []),
       "Mountain.yaml": (first) =>
         baselineText("Mountain", [`  view: { id: ${ID}c2, title: Mountain }`], commit(first), []),
+      "Need.yaml": (first) =>
+        baselineText("Need", [`  view: { id: ${ID}a1, title: Need }`], commit(first), []),
     });
     const out = await call(ws, "baseline.list", {});
     expect(out.baselines.map((b) => [b.name, b.view, b.elements])).toEqual([
@@ -300,10 +313,11 @@ describe("baseline.list", () => {
       ["Core", undefined, 0],
       ["Lost", undefined, 0],
       ["Mountain", `${ID}c2`, 0],
+      ["Need", undefined, 0],
       ["Release 2", undefined, 5],
       ["Release 1", undefined, 4],
     ]);
-    expect(out.baselines[4]).toMatchObject({
+    expect(out.baselines[5]).toMatchObject({
       file: "baselines/Release-2.yaml",
       repository: "system",
       date: "2026-11-02T13:00:00Z",
@@ -315,6 +329,80 @@ describe("baseline.list", () => {
       "baselines/broken.yaml",
     ]);
     expect(out).not.toHaveProperty("incomplete");
+  });
+});
+
+describe("copies of one UUID in several repositories (SR-088)", () => {
+  /** `made()` plus a repository `extra`, SR-0000f1 in sensor and extra, and a copy of SR-0000b1 in sensor. */
+  const withCopies = async (): Promise<Made & { readonly sensor: string }> => {
+    const base = await made();
+    const { ws } = base;
+    await edit(ws, "reqseq-workspace.yaml", "metamodel:", '  - { name: extra, url: "x" }\nmetamodel:');
+    const f1 = (await readFile(ws.path("sensor/requirements/SR-0000000000e1.md"), "utf8")).replace(
+      `${ID}e1`,
+      `${ID}f1`,
+    );
+    await ws.write("sensor/requirements/SR-0000000000f1.md", f1);
+    await ws.write("extra/requirements/SR-0000000000f1.md", f1);
+    await ws.write(
+      "sensor/requirements/SR-b1.md",
+      await readFile(ws.path("system/requirements/SR-0000000000b1.md")),
+    );
+    const sensor = await ws.commit("sensor", "copies");
+    const commits = [
+      `  - { name: system, commit: ${base.second} }`,
+      `  - { name: sensor, commit: ${sensor} }`,
+    ];
+    const text = (name: string, elements: string[]): string => baselineText(name, [], commits, elements);
+    const e1 = `  - { id: ${ID}e1, version: n1:31d60ac7c791e279`;
+    await ws.write(
+      "system/baselines/Dup.yaml",
+      text("Dup", [`${e1} }`, `${e1}, repository: sensor }`, `  - { id: ${ID}f1, version: ${V.b1} }`]),
+    );
+    const b1 = `  - { id: ${ID}b1, version: ${V.b1}`;
+    await ws.write("system/baselines/Twins.yaml", text("Twins", [`${b1} }`, `${b1}, repository: sensor }`]));
+    await ws.write("system/baselines/Sensor.yaml", text("Sensor", [`${b1}, repository: sensor }`]));
+    return { ...base, sensor };
+  };
+
+  it("shows one row per copy and warns of an entry listed twice or naming no copy", async () => {
+    const { ws } = await withCopies();
+    const out = await call(ws, "baseline.get", { baseline: "Dup" });
+    expect(out.elements.map((r) => [r.id.slice(-2), r.state])).toEqual([
+      ["e1", "unchanged"],
+      ["f1", "missing"],
+    ]);
+    expect(out.total).toBe(2);
+    expect(
+      out.problems?.map((p) => [p.code, p.severity, p.message.includes(`${ID}e1`) ? "e1" : "f1"]),
+    ).toEqual([
+      ["baseline.invalid", "warning", "e1"],
+      ["baseline.invalid", "warning", "f1"],
+    ]);
+  });
+
+  it("compares the one copy the baseline lists and names the repositories when it lists several", async () => {
+    const { ws, sensor } = await withCopies();
+    expect(await call(ws, "baseline.compare", { baseline: "Sensor", ref: "SR-0000b1" })).toMatchObject({
+      repository: "sensor",
+      from: sensor,
+      file: "requirements/SR-b1.md",
+      command: ["git", "-C", "../sensor", "diff", sensor, sensor, "--", "requirements/SR-b1.md"],
+    });
+    const twins = await failure(ws, "baseline.compare", { baseline: "Twins", ref: "SR-0000b1" });
+    expect([twins.code, twins.details]).toEqual([
+      "ref.ambiguous",
+      { ref: "SR-0000b1", repositories: ["system", "sensor"] },
+    ]);
+    const f1 = await failure(ws, "baseline.compare", { baseline: "Dup", ref: `${ID}f1` });
+    expect(f1.message).toContain("without repository");
+    // The listed copy's file is gone while system still holds SR-0000b1: the listed copy, at its old path.
+    await ws.git(["rm", "-q", "requirements/SR-b1.md"], "sensor");
+    expect(await call(ws, "baseline.compare", { baseline: "Sensor", ref: "SR-0000b1" })).toMatchObject({
+      repository: "sensor",
+      to: null,
+      file: "requirements/SR-b1.md",
+    });
   });
 });
 

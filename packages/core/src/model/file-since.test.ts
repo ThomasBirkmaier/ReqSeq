@@ -27,10 +27,11 @@ describe("fileSince", () => {
       git: true,
     });
     onTestFinished(() => ws.cleanup());
-    const head = await ws.head();
+    const first = await ws.head();
     await ws.git(["mv", "a.md", "b.md"]);
-    const since = (): ReturnType<typeof fileSince> => fileSince(ws.root, head, "b.md", ID);
-    expect(await since()).toEqual({ known: true, kind: "found", head, before: "a.md", uncommitted: true });
+    const head = await ws.commit(".", "move");
+    const since = (): ReturnType<typeof fileSince> => fileSince(ws.root, first, "b.md", ID);
+    expect(await since()).toEqual({ known: true, kind: "found", head, before: "a.md", uncommitted: false });
     vi.mocked(reader.resolveCommit).mockResolvedValueOnce(UNKNOWN);
     expect(await since()).toBe(UNKNOWN);
     vi.mocked(reader.headCommit).mockResolvedValueOnce(UNKNOWN);

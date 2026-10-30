@@ -4,12 +4,14 @@
 // this block) and passes the elements it selects now.
 //
 // - The copy of an entry: the one its `repository` names, else the copy in the repository of the
-//   file, else the only copy (ADR-0018 "elements"); none, or several elsewhere: `missing`. The answer is `incomplete` while a repository is not on
+//   file, else the only copy (ADR-0018 "elements"); none: `missing`; several elsewhere: `missing` with
+//   a `baseline.invalid` warning; a second entry of the same copy: no row, a warning. The answer is `incomplete` while a repository is not on
 //   this machine (SR-006): its entries are `missing` and its elements are not seen.
 // - State, first that holds (AK2, AK3):
 //   `missing`; `superseded` when its status is invalid now (D-044), also when it changed;
 //   `removed` when the file stores a selection that no longer selects it, also when it changed;
-//   `changed` when its current version differs; else `unchanged`. `current` is the current version
+//   `changed` when its current version differs or cannot be computed (a `file.faulty` warning says
+//   so); else `unchanged`. `current` is the current version
 //   whenever it differs. Without stored selection there is no `removed` and no `added`
 //   (`selectionKnown: false`).
 // - `added`: the elements selected now that the file does not list, in store order, after the
@@ -19,14 +21,8 @@
 //   old version is never read: Git shows it (D-033, `baseline.compare`).
 import type { CommandOutput } from "../catalog.js";
 import type { Problem } from "../generated/types.js";
-import type { ElementRecord } from "../model/index.js";
-import {
-  currentVersionsOf,
-  elementStoreState,
-  invalidStatuses,
-  namesOfRecords,
-  shortIdState,
-} from "../model/index.js";
+import type { ElementRecord, ElementStore } from "../model/index.js";
+import { currentVersionsOf, invalidStatuses, namesOfRecords, shortIdState } from "../model/index.js";
 import { versionDates } from "../model/version-date.js";
 import type { Workspace } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
@@ -40,6 +36,8 @@ type State = Row["state"];
 export interface ShowRequest {
   readonly baseline: Baseline;
   readonly metamodel: Parameters<typeof invalidStatuses>[0];
+  /** The store the selection was resolved in. */
+  readonly store: ElementStore;
   /** The elements the stored selection selects now; undefined without stored selection. */
   readonly selected: readonly ElementRecord[] | undefined;
   /** The UUID of the variant of the stored selection's view; undefined for the core or no view. */
@@ -51,30 +49,83 @@ export interface ShowRequest {
   readonly offset: number;
 }
 
-/** The copy an entry of `baseline` names (see the file comment), or undefined. */
+/**
+ * The copy an entry of `baseline` (or a stored `ids` item) names (see the file comment): undefined
+ * for none, `ambiguous` for an entry without `repository` whose UUID has several copies elsewhere.
+ */
 export const copyOf = (
   byId: ReadonlyMap<string, readonly ElementRecord[]>,
-  baseline: Baseline,
-  entry: Baseline["data"]["elements"][number],
-): ElementRecord | undefined => {
+  baseline: Pick<Baseline, "repository">,
+  entry: { readonly id: string; readonly repository?: string },
+): ElementRecord | "ambiguous" | undefined => {
   const copies = byId.get(entry.id) ?? [];
   const home = copies.find((r) => r.repository === (entry.repository ?? baseline.repository));
-  return home !== undefined || entry.repository !== undefined || copies.length !== 1 ? home : copies[0];
+  if (home !== undefined || entry.repository !== undefined) {
+    return home;
+  }
+  return copies.length < 2 ? copies[0] : "ambiguous";
 };
+
+/** A `baseline.invalid` warning of the file of `baseline`. */
+const warningIn = (baseline: Baseline, message: string): Problem => ({
+  code: "baseline.invalid",
+  severity: "warning",
+  repository: baseline.repository,
+  file: baseline.file,
+  message: `${baseline.file}: ${message}`,
+});
 
 /** `current` of a row: the current version when it differs from the one in the baseline. */
 const currentField = (current: string | undefined, version?: string): { readonly current?: string } =>
   current === undefined || current === version ? {} : { current };
 
+/** The entries of `baseline` with their copies, one per copy; the warnings go into `problems`. */
+const entriesOf = (
+  store: ElementStore,
+  baseline: Baseline,
+  problems: Problem[],
+): {
+  readonly entries: Baseline["data"]["elements"][number][];
+  readonly copies: (ElementRecord | undefined)[];
+  readonly listed: ReadonlySet<ElementRecord>;
+} => {
+  const listed = new Set<ElementRecord>();
+  const entries: Baseline["data"]["elements"][number][] = [];
+  const copies: (ElementRecord | undefined)[] = [];
+  for (const entry of baseline.data.elements) {
+    const copy = copyOf(store.byId, baseline, entry);
+    if (copy === "ambiguous") {
+      problems.push(
+        warningIn(
+          baseline,
+          `${entry.id} names no repository and has copies in several; it is shown as missing, add its repository`,
+        ),
+      );
+    } else if (copy !== undefined && listed.has(copy)) {
+      problems.push(
+        warningIn(
+          baseline,
+          `${entry.id} is listed twice for the copy in ${copy.repository}; the first entry is shown`,
+        ),
+      );
+      continue;
+    }
+    entries.push(entry);
+    copies.push(copy === "ambiguous" ? undefined : copy);
+    if (copy !== undefined && copy !== "ambiguous") {
+      listed.add(copy);
+    }
+  }
+  return { entries, copies, listed };
+};
+
 /** The baseline with its entries and what became of them (see the file comment). */
 export const showBaseline = async (workspace: Workspace, request: ShowRequest): Promise<Output> => {
-  const { baseline, metamodel } = request;
+  const { baseline, metamodel, store } = request;
   const layout = await workspace.get(workspaceLayoutState);
-  const store = await workspace.get(elementStoreState);
   const shortIds = await workspace.get(shortIdState);
-  const entries = baseline.data.elements;
-  const copies = entries.map((entry) => copyOf(store.byId, baseline, entry));
-  const listed = new Set(copies);
+  const problems = [...request.problems];
+  const { entries, copies, listed } = entriesOf(store, baseline, problems);
   const selected = request.selected;
   const now = selected === undefined ? undefined : new Set(selected);
   const added = selected?.filter((r) => !listed.has(r)) ?? [];
@@ -84,6 +135,15 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
   ]);
   const currentOf = (record: ElementRecord): string | undefined => {
     const entry = versions.get(record);
+    if (entry?.kind === "unknown") {
+      problems.push({
+        code: "file.faulty",
+        severity: "warning",
+        repository: record.repository,
+        file: record.file,
+        message: `${shortIds.of(record)} has no current version (${entry.message}); it cannot be compared with the baseline, so it counts as changed unless superseded or removed`,
+      });
+    }
     return entry?.kind === "version" ? entry.version : undefined;
   };
   const invalid = invalidStatuses(metamodel);
@@ -159,7 +219,7 @@ export const showBaseline = async (workspace: Workspace, request: ShowRequest): 
       // The view was resolved in this store.
       ...(request.view === undefined ? [] : (store.byId.get(request.view) as ElementRecord[])),
     ]),
-    ...(request.problems.length === 0 ? {} : { problems: request.problems }),
+    ...(problems.length === 0 ? {} : { problems }),
     ...(request.incomplete ? { incomplete: true } : {}),
   };
 };

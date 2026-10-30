@@ -2,13 +2,17 @@
 // "Git"): the two commits and the Git command that shows the difference. ReqSeq runs no diff and
 // shows no old content (D-033); Git is only read (D-036, `fileSince`).
 //
-// - The element: `ref` as every command resolves it; a UUID that no file holds now but the baseline
-//   lists is taken from the baseline. The baseline must list that copy (as `showBaseline` finds
-//   it), else `input.invalid` with `reason: not-in-baseline`.
+// - The element: the copy `ref` resolves to when the baseline lists it (as `showBaseline` finds
+//   copies); else the one copy of that UUID the baseline lists, also when `ref` names several copies
+//   (SR-088) or the listed copy's file is gone. None listed: `input.invalid` with `reason:
+//   not-in-baseline`; several listed and `ref` names none of them: `ref.ambiguous`, naming their
+//   repositories (the input has no `repository` yet).
 // - `from`: the commit the baseline names for the element's repository; `git.commit-not-found`
 //   when the file names none or the repository does not have it. `to`: HEAD, `null` when the file
 //   differs from HEAD or is gone, so the command compares with the working copy.
-// - `file` and `oldFile`: the path now and, when the file moved since `from`, the path then.
+// - `file` and `oldFile`: the path now and, when the file moved since `from`, the path then. A file
+//   moved to a path Git does not track: `git diff` does not show untracked files, so the command
+//   shows only the deletion until the new path is added to Git (`git add -N`); ReqSeq never stages.
 // - `command`: `git -C <repository folder> diff <from> [<to>] -- [<oldFile>] <file>`, the folder
 //   relative to the workspace root (`.` for the main repository), `/` as separator, to run in the
 //   workspace root; the same on every access.
@@ -37,28 +41,57 @@ const notInBaseline = (baseline: Baseline, ref: string): CommandError =>
     reason: "not-in-baseline",
   });
 
-/** The element `ref` names: its record now, or the copy a listed UUID names when no file holds it. */
-const elementOf = (
-  store: ElementStore,
-  shortIds: ShortIds,
-  baseline: Baseline,
-  ref: string,
-): { readonly id: string; readonly repository: string; readonly file: string | undefined } => {
-  let record: ElementRecord;
+/** Where an element file is now: its record, or the repository of a listed copy no file holds. */
+interface Element {
+  readonly id: string;
+  readonly repository: string;
+  readonly file: string | undefined;
+}
+
+/** The UUIDs a failed `resolveRef` of `ref` stood for: a UUID nothing holds, or the candidates. */
+const uuidsOf = (error: CommandError, ref: string): ReadonlySet<string> => {
+  if (error.code === "ref.ambiguous") {
+    const { candidates } = error.details as { candidates: readonly { id: string }[] };
+    return new Set(candidates.map((c) => c.id));
+  }
+  return new Set(isUuid(ref.toLowerCase()) ? [ref.toLowerCase()] : []);
+};
+
+/**
+ * The copy `ref` names that the baseline lists (see the file comment): the copy `ref` resolves to,
+ * else the one listed copy of a UUID `ref` stands for, also when no file holds it now. Several
+ * listed copies that `ref` does not resolve to stay `ref.ambiguous`, naming their repositories.
+ */
+const elementOf = (store: ElementStore, shortIds: ShortIds, baseline: Baseline, ref: string): Element => {
+  let record: ElementRecord | undefined;
+  let ids: ReadonlySet<string>;
+  let failed: CommandError | undefined;
   try {
     record = resolveRef(store, shortIds, ref);
+    ids = new Set([record.id]);
   } catch (error) {
-    const id = ref.toLowerCase();
-    const entry = isUuid(id) ? baseline.data.elements.find((e) => e.id === id) : undefined;
-    if ((error as CommandError).code !== "ref.unknown" || entry === undefined) {
-      throw error;
-    }
-    return { id, repository: entry.repository ?? baseline.repository, file: undefined };
+    failed = error as CommandError;
+    ids = uuidsOf(failed, ref);
   }
-  if (!baseline.data.elements.some((e) => e.id === record.id && copyOf(store.byId, baseline, e) === record)) {
-    throw notInBaseline(baseline, ref);
+  const entries = baseline.data.elements.filter((e) => ids.has(e.id));
+  const copies = entries.map((e) => copyOf(store.byId, baseline, e));
+  if (record !== undefined && copies.includes(record)) {
+    return record;
   }
-  return record;
+  const [entry, other] = entries;
+  if (entry === undefined) {
+    throw failed ?? notInBaseline(baseline, ref);
+  }
+  const [copy] = copies;
+  if (other === undefined && copy !== "ambiguous") {
+    return copy ?? { id: entry.id, repository: entry.repository ?? baseline.repository, file: undefined };
+  }
+  const repositories = entries.map((e) => e.repository ?? baseline.repository);
+  throw new CommandError(
+    "ref.ambiguous",
+    `ref: the baseline ${baseline.name} lists ${ref} ${other === undefined ? "without repository, and it has copies in several" : `in the repositories ${repositories.join(", ")}`}; baseline.compare cannot choose one of them`,
+    { ref, repositories },
+  );
 };
 
 /** The output for the element file `file` in `folder` (relative to the workspace root), moved from `oldFile`. */
