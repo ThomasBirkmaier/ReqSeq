@@ -283,7 +283,7 @@ export type CoreMessage =
       readonly type: "ready";
       readonly root: string;
       readonly key: string;
-      /** The workspace is recorded in the list of recent workspaces (a folder without one is not). */
+      /** The workspace belongs in the list of recent workspaces; it is recorded there in the background (a folder without one is not). */
       readonly listed: boolean;
     }
   | ({ readonly type: "file"; readonly id: number } & FileAnswer);
