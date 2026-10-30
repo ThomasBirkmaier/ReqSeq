@@ -8,7 +8,7 @@ import { defineConfig } from "@playwright/test";
 // unset or empty runs all files. Playwright's own --shard cuts the sorted list into blocks, and the slow files sort
 // first (about 340 s against 190 s for two shards); every <total>-th file per shard evens that out (about 255 s
 // against 280 s).
-function shardFiles(value: string): string[] {
+function shardFiles(value: string): RegExp[] {
   const match = /^(\d+)\/(\d+)$/.exec(value);
   const shard = Number(match?.[1]);
   const total = Number(match?.[2]);
@@ -19,7 +19,14 @@ function shardFiles(value: string): string[] {
     .filter((file) => file.endsWith(".spec.ts"))
     .sort()
     .filter((_, index) => index % total === shard - 1)
-    .map((file) => join(import.meta.dirname, file));
+    .map((file) => exactPath(join(import.meta.dirname, file)));
+}
+
+// A glob would read the backslashes of a Windows path as escapes and match nothing (#412), so each file becomes a
+// pattern of its whole path that accepts either separator.
+function exactPath(file: string): RegExp {
+  const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\\|\//g, "[\\\\/]");
+  return new RegExp(`^${escaped}$`);
 }
 
 const shard = process.env["ELECTRON_SHARD"];
