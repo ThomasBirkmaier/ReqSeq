@@ -2108,7 +2108,7 @@ const templates = new Map<FixtureOptions, FixtureWorkspace>();
 const copies: string[] = [];
 let cache: string;
 
-// Building the templates spawns `git` four times per repository. On Windows runners that can take seconds.
+// Building the templates spawns `git` three times per repository. On Windows runners that can take seconds.
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
@@ -2122,13 +2122,23 @@ afterAll(async () => {
   await fs.rm(cacheHome, { recursive: true, force: true });
 });
 
+/**
+ * Templates built at the same time. Each one waits mostly for `git` to start; one after the other, the 70 of
+ * them took over 120 s on a loaded windows-2025 runner (#423).
+ */
+const BUILD_CONCURRENCY = 8;
+
 beforeAll(async () => {
   cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-"));
-  for (const options of FIXTURES) {
-    const template = await createFixtureWorkspace(options);
-    await TEMPLATE_SETUP.get(options)?.(template);
-    templates.set(options, template);
-  }
+  const queue = FIXTURES.values();
+  const worker = async (): Promise<void> => {
+    for (const options of queue) {
+      const template = await createFixtureWorkspace(options);
+      templates.set(options, template);
+      await TEMPLATE_SETUP.get(options)?.(template);
+    }
+  };
+  await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
 // Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
@@ -2142,10 +2152,6 @@ afterAll(async () => {
     ),
   );
 }, 120_000);
-
-/** The sample hooks of `git init`: half the files of a fixture, and no Git command of ReqSeq runs hooks. */
-const isSampleHooks = (source: string): boolean =>
-  path.basename(source) === "hooks" && path.basename(path.dirname(source)) === ".git";
 
 /** A copy of a fixture: its top folder, and the workspace root in it. */
 interface Copy {
@@ -2166,7 +2172,8 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-copy-")));
   copies.push(base);
   const top = path.join(base, "workspace");
-  await fs.cp(template.root, top, { recursive: true, filter: (source) => !isSampleHooks(source) });
+  // The templates have no sample hooks: the testkit runs `git init` without its template folder.
+  await fs.cp(template.root, top, { recursive: true });
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
 

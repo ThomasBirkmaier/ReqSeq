@@ -612,6 +612,49 @@ const standardModel = async (): Promise<Metamodel> => {
   return open(ws.root).get(metamodelState);
 };
 
+/** A change of an element's file: its ID, and its new content from the current one. */
+type Change = readonly [id: string, change: (text: string) => string];
+
+/**
+ * Commits `onMain` on main, then `inRequest` on a new branch merge-request that is checked out, in every
+ * repository a change touches; the others stay on main, which is the merge request's state there too. The
+ * contents are made in memory and committed with one `git fast-import` per repository: `git add` after each
+ * change rescanned the 1,000 files, which took minutes on a windows-2025 runner (#423).
+ */
+const commitMergeRequest = async (
+  fx: LargeFixtureWorkspace,
+  onMain: readonly Change[],
+  inRequest: readonly Change[],
+): Promise<void> => {
+  const { generated } = fx;
+  const content = new Map(generated.files);
+  const commits = new Map<string, [Record<string, string>, Record<string, string>]>();
+  for (const [i, changes] of [onMain, inRequest].entries()) {
+    for (const [id, change] of changes) {
+      const element = generated.elements.find((e) => e.id === id);
+      const folder = generated.repositories.find((r) => r.name === element?.repository)?.folder ?? "";
+      const inFolder = element?.file ?? "";
+      const text = change(content.get(`${folder}/${inFolder}`) ?? "");
+      content.set(`${folder}/${inFolder}`, text);
+      const pair = commits.get(folder) ?? [{}, {}];
+      pair[i === 0 ? 0 : 1][inFolder] = text;
+      commits.set(folder, pair);
+    }
+  }
+  for (const [folder, [main, request]] of commits) {
+    const made = await fx.commitHistory(
+      [
+        { name: "findings on main", parents: [await fx.head(folder)], files: main },
+        { name: "the merge request", files: request },
+      ],
+      { repository: folder, branch: "merge-request" },
+    );
+    // Without --force, git writes and compares only the files that differ from main; then main moves.
+    await fx.git(["checkout", "--quiet", "merge-request"], folder);
+    await fx.git(["update-ref", "refs/heads/main", made["findings on main"]?.id ?? ""], folder);
+  }
+};
+
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 /** The targets a file names: relation items (`{ id: … }`) and inline references (`reqseq:…`). */
 const TARGET = new RegExp(`\\{ id: (${UUID})|\\(reqseq:(${UUID})`, "g");
@@ -659,29 +702,18 @@ describe("SR-092 AK1 on a generated workspace", () => {
       tree.elements.find(
         (e) => !selectedIds.has(e.id) && ![...(targets.get(e.id) ?? [])].some((t) => changed.includes(t)),
       )?.id ?? "";
+    const odd =
+      (n: number) =>
+      (text: string): string =>
+        text.replace(/\ntitle: /, `\nodd-key: ${String(n)}\ntitle: `);
     // On main: T and U each get an unknown property and a new text (their incoming relations are outdated).
-    const odd = async (id: string, text: string): Promise<void> => {
-      const file = fx.path(fileOf(id));
-      const content = await fs.readFile(file, "utf8");
-      await fs.writeFile(file, `${content.replace(/\ntitle: /, "\nodd-key: 1\ntitle: ")}${text}\n`);
-    };
-    await odd(T, "Changed on main.");
-    await odd(U, "Changed on main.");
-    for (const repository of tree.repositories) {
-      await fx.commit(repository.folder, "findings on main");
-      await fx.git(["checkout", "--quiet", "-b", "merge-request"], repository.folder);
-    }
-    // The merge request changes three elements.
-    for (const id of changed) {
-      await fs.appendFile(fx.path(fileOf(id)), "Changed in the merge request.\n");
-    }
-    await fs.writeFile(
-      fx.path(fileOf(X2)),
-      (await fs.readFile(fx.path(fileOf(X2)), "utf8")).replace(/\ntitle: /, "\nodd-key: 2\ntitle: "),
-    );
-    for (const repository of tree.repositories) {
-      await fx.commit(repository.folder, "the merge request");
-    }
+    const onMain = [T, U].map((id): Change => [id, (text) => `${odd(1)(text)}Changed on main.\n`]);
+    // The merge request changes three elements, X2 with an unknown property too.
+    const inRequest = [
+      ...changed.map((id): Change => [id, (text) => `${text}Changed in the merge request.\n`]),
+      [X2, odd(2)] satisfies Change,
+    ];
+    await commitMergeRequest(fx, onMain, inRequest);
 
     const workspace = open(fx.workspaceRoot);
     const full = await check(workspace);

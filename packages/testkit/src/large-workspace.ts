@@ -10,7 +10,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FixtureWorkspace } from "./fixture-workspace.js";
-import { createFixtureWorkspace } from "./fixture-workspace.js";
+import { createFixtureWorkspace, initRepository } from "./fixture-workspace.js";
 
 /** The standard model as shipped (`schemas/examples/metamodel/standard-model.yaml`). */
 export const defaultStandardModelFile: string = fileURLToPath(
@@ -690,22 +690,40 @@ export async function writeLargeWorkspace(
     options.tempDir === undefined ? {} : { tempDir: options.tempDir },
   );
   try {
-    const folders = new Set([...generated.files.keys()].map((file) => path.posix.dirname(file)));
+    const repositories = options.git === true ? generated.repositories : [];
+    const inRepository = (file: string): GeneratedRepository | undefined =>
+      repositories.find((r) => file.startsWith(`${r.folder}/`));
+    // Git writes the files of its repositories itself (below); the others are written here.
+    const own = [...generated.files].filter(([file]) => inRepository(file) === undefined);
+    const folders = new Set(own.map(([file]) => path.posix.dirname(file)));
     for (const folder of folders) {
       await fs.mkdir(fixture.path(folder), { recursive: true });
     }
-    const queue = generated.files.entries();
+    const queue = own.values();
     const worker = async (): Promise<void> => {
       for (const [file, content] of queue) {
         await fs.writeFile(fixture.path(file), content);
       }
     };
     await Promise.all(Array.from({ length: WRITE_CONCURRENCY }, worker));
-    if (options.git === true) {
-      for (const repository of generated.repositories) {
-        await fixture.git(["init", "--quiet", "--initial-branch=main"], repository.folder);
-        await fixture.commit(repository.folder, "generated");
-      }
+    // One commit per repository in one `git fast-import` (a single pack), then one checkout that writes the
+    // work tree and the index. `git add` wrote one loose object per file instead, so twice as many files,
+    // and on a windows-2025 runner every new file costs a virus scan (#423).
+    for (const repository of repositories) {
+      const prefix = `${repository.folder}/`;
+      const files = Object.fromEntries(
+        [...generated.files]
+          .filter(([file]) => inRepository(file) === repository)
+          .map(([file, content]) => [file.slice(prefix.length), content]),
+      );
+      await fs.mkdir(fixture.path(repository.folder), { recursive: true });
+      await initRepository(fixture, repository.folder);
+      await fixture.commitHistory([{ name: "generated", files }], {
+        repository: repository.folder,
+        branch: "main",
+      });
+      // `checkout.workers=0`: one worker per processor writes the files.
+      await fixture.git(["-c", "checkout.workers=0", "reset", "--hard", "--quiet"], repository.folder);
     }
   } catch (error) {
     await fixture.cleanup();
