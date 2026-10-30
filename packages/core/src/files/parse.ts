@@ -147,11 +147,18 @@ const parseYaml = (file: string, yaml: string, place: YamlPlace): YamlOutcome =>
 type Decoded = { readonly kind: "text"; readonly text: string; readonly bom: boolean } | Failed;
 
 /** UTF-8 (strict), byte order mark removed, conflict markers refused. */
-const decode = (file: string, bytes: Uint8Array): Decoded => {
-  let text: string;
+/** The text of `bytes`, a BOM kept, or undefined when they are not UTF-8. */
+export const utf8Text = (bytes: Uint8Array): string | undefined => {
   try {
-    text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
+    return undefined;
+  }
+};
+
+const decode = (file: string, bytes: Uint8Array): Decoded => {
+  let text = utf8Text(bytes);
+  if (text === undefined) {
     return failed(fileProblem("file.unreadable", file, "File is not valid UTF-8 text"));
   }
   const bom = text.startsWith(BOM);
