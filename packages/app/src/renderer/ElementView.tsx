@@ -30,6 +30,7 @@
 // and the elements of a package page (`PackageSummary.tsx`, `PackageMembers.tsx`) and a block "On disk"
 // (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
@@ -127,7 +128,7 @@ import {
 import type { OutsideChanges } from "./outside-marks.js";
 import { NO_CHANGES, fieldTexts, marksOnRead, touchedSince } from "./outside-marks.js";
 import { useOutsideMarks } from "./use-outside-marks.js";
-import { ctrlStep, historyStep, isMac } from "./keys.js";
+import { ctrlStep, historyStep, isMac, isModClick } from "./keys.js";
 import type { TextBoxProps } from "./TextBox.js";
 import type { TitleBoxProps } from "./TitleBox.js";
 import { ParentsRow, useParents } from "./ParentsLine.js";
@@ -160,12 +161,45 @@ import { NO_HISTORY, record, redo, undo } from "./value-history.js";
 import type { ListableValue, Pointer } from "./value-list.js";
 import {
   NO_POINTER,
+  clickedValue,
   listableValues,
   pointedValue,
   valueKeyOf,
   valueSignature,
   valuesPrompt,
 } from "./value-list.js";
+
+/**
+ * The field whose value a click on `target` is in (SR-132 AK1): not the key of a box, and not the label of
+ * a reference, which a press already follows.
+ */
+const clickedBox = (target: Element): string | undefined => {
+  const field = target.closest<HTMLElement>("[data-field]");
+  const value = target.closest(".value");
+  return field !== null && value !== null && field.contains(value) && target.closest(".cm-lr-ref") === null
+    ? field.dataset["field"]
+    : undefined;
+};
+
+/** What a click on `target` in the box `key` points at: a target link, a line of a text or choice box, else the box. */
+const clickedIn = (key: string, target: Element): Pointer => {
+  const link = target.closest<HTMLElement>('[role="link"][data-target-id]');
+  if (link !== null) {
+    return {
+      kind: "box",
+      key,
+      target: { id: link.dataset["targetId"] ?? "", repository: link.dataset["targetRepository"] ?? "" },
+    };
+  }
+  const editorLine = target.closest<HTMLElement>(".cm-line");
+  const editor = editorLine?.closest<HTMLElement>(".cm-editor");
+  const view = editor === null || editor === undefined ? null : EditorView.findFromDOM(editor);
+  if (editorLine !== null && view !== null) {
+    return { kind: "box", key, line: view.state.doc.lineAt(view.posAtDOM(editorLine)).text };
+  }
+  const line = target.closest(".line");
+  return line === null ? { kind: "box", key } : { kind: "box", key, line: line.textContent };
+};
 
 export interface ElementViewProps {
   readonly call: Call;
@@ -1484,11 +1518,18 @@ export const ElementView = ({
         }
       : { kind: "box", key: label };
   };
-  // The list of the elements with the value the cursor is on (SR-132): the input is saved first, so the value
-  // typed is the one listed (the list reads the files); then `element.facets` of the element says which
-  // values can be listed. One value opens its list, several ask in the minibuffer.
-  const listValue = async (): Promise<void> => {
-    const pointer = document.activeElement?.id === PROMPT_INPUT ? pointed.current : pointerNow();
+  // What a click on `target` points at (SR-132 AK1): a value of a property box, or nothing.
+  const clickPointer = (target: Element): Pointer => {
+    const label = clickedBox(target);
+    return label === undefined || !now.current.boxKeys.includes(label)
+      ? NO_POINTER
+      : clickedIn(label, target);
+  };
+  // The list of the elements with the value the cursor is on, or the value `clicked` (SR-132): the input is
+  // saved first, so the value typed is the one listed (the list reads the files); then `element.facets` of
+  // the element says which values can be listed. One value opens its list, several ask in the minibuffer.
+  const listValue = async (clicked?: Pointer): Promise<void> => {
+    const pointer = clicked ?? (document.activeElement?.id === PROMPT_INPUT ? pointed.current : pointerNow());
     // A save that did not happen (a change on disk, a read-only element) leaves the stored values, which
     // are what the list reads; the modeline already says why it was not saved.
     if (inputDocs().size > 0) {
@@ -1509,7 +1550,7 @@ export const ElementView = ({
     const open = (value: ListableValue): void => {
       dispatch({ type: "open", buffer: filteredList([value.step]) });
     };
-    const found = pointedValue(
+    const found = (clicked === undefined ? pointedValue : clickedValue)(
       listableValues(answer.output, now.current.boxKeys),
       pointer,
       element.relations,
@@ -1518,6 +1559,8 @@ export const ElementView = ({
       open(found.value);
     } else if (found.kind === "ask") {
       onAsk(valuesPrompt(found.values, open));
+    } else if (clicked?.kind === "box") {
+      now.current.onEcho(`No value of ${clicked.key} lists elements`);
     } else {
       now.current.onEcho(`No value of ${now.current.buffer.name} lists elements`);
     }
@@ -1535,6 +1578,7 @@ export const ElementView = ({
     inputGoing,
     flush,
     pointerNow,
+    clickPointer,
     listValue,
   });
   api.current = {
@@ -1549,6 +1593,7 @@ export const ElementView = ({
     inputGoing,
     flush,
     pointerNow,
+    clickPointer,
     listValue,
   };
 
@@ -1699,6 +1744,20 @@ export const ElementView = ({
         }
       }}
       onKeyDown={onBufferKey}
+      onClickCapture={(event) => {
+        // Ctrl/Cmd+click on a value of a property box lists the elements with it (SR-132 AK1), before the
+        // link of a relation target opens it.
+        if (!isModClick(event, isMac(navigator.platform)) || !(event.target instanceof Element)) {
+          return;
+        }
+        const pointer = api.current.clickPointer(event.target);
+        if (pointer.kind === "none") {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        void api.current.listValue(pointer);
+      }}
     >
       <div className="column">
         {view.status === "error" ? <p className="quiet">{view.message}</p> : null}

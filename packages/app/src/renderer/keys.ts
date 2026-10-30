@@ -67,6 +67,19 @@ export const matches = (event: KeyPress, shortcut: Shortcut, mac: boolean): bool
 /** Whether `platform` (`navigator.platform`) is macOS. */
 export const isMac = (platform: string): boolean => platform.startsWith("Mac");
 
+/**
+ * Whether `event` is Ctrl/Cmd+click with the main button, without Shift or Alt (SR-132 AK1). Under macOS,
+ * as for the keys (`matches`), only Cmd counts: the physical Ctrl+click is the context menu there.
+ */
+export const isModClick = (
+  event: Pick<KeyPress, "ctrlKey" | "metaKey" | "altKey" | "shiftKey"> & { readonly button: number },
+  mac: boolean,
+): boolean =>
+  event.button === 0 &&
+  !event.altKey &&
+  !event.shiftKey &&
+  (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey || event.metaKey);
+
 /** Whether `platform` (`navigator.platform`) is Windows. */
 export const isWindows = (platform: string): boolean => platform.startsWith("Win");
 

@@ -3,6 +3,7 @@ import {
   ctrlStep,
   historyStep,
   isMac,
+  isModClick,
   listStep,
   matches,
   rowStep,
@@ -132,6 +133,19 @@ describe("keys", () => {
     expect(isMac("MacIntel")).toBe(true);
     expect(isMac("Linux x86_64")).toBe(false);
     expect(isMac("Win32")).toBe(false);
+  });
+
+  it("[SR-132/AK1] knows Ctrl/Cmd+click with the main button; under macOS only Cmd", () => {
+    const click = { button: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
+    expect(isModClick({ ...click, ctrlKey: true }, false)).toBe(true);
+    expect(isModClick({ ...click, metaKey: true }, false)).toBe(true);
+    expect(isModClick({ ...click, metaKey: true }, true)).toBe(true);
+    expect(isModClick({ ...click, ctrlKey: true }, true)).toBe(false);
+    expect(isModClick({ ...click, ctrlKey: true, metaKey: true }, true)).toBe(false);
+    expect(isModClick(click, false)).toBe(false);
+    expect(isModClick({ ...click, ctrlKey: true, shiftKey: true }, false)).toBe(false);
+    expect(isModClick({ ...click, ctrlKey: true, altKey: true }, false)).toBe(false);
+    expect(isModClick({ ...click, ctrlKey: true, button: 1 }, false)).toBe(false);
   });
 
   it("writes a shortcut the way the platform does", () => {
