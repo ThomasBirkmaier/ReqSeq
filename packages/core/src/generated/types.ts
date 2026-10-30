@@ -2501,7 +2501,7 @@ export interface EvidenceStatusOutput {
  * Schema: `schemas/commands/catalog.json evidence.coverage input`.
  */
 export interface EvidenceCoverageInput {
-  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
+  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter, else the core, SR-036 AK5) narrows the counted elements and their children to those it holds (SR-043: no core requirement the variant excludes or replaces), and evidence records count for that view, as the filter condition `verification` does. */
   readonly selection?: ElementSelection;
 }
 
