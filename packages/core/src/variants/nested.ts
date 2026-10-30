@@ -15,7 +15,7 @@
 import type { CommandName, Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { Metamodel } from "../metamodel/index.js";
-import { metamodelState } from "../metamodel/index.js";
+import { metamodelState, typesWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, LocatableFinding, SupersededContext, WriteCheck } from "../model/index.js";
 import {
   elementLabel,
@@ -28,20 +28,31 @@ import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { Validity } from "./views.js";
-import { validityEntries, validityOf, validityTarget, variantTypes } from "./views.js";
+import { validityEntries, validityOf, validityTarget } from "./views.js";
 
-/** The validity and the variant types. */
+/** The validity and the variant types that have it. */
 interface Scope {
   readonly validity: Validity;
   readonly types: ReadonlySet<string>;
 }
 
-/** Undefined when nothing has a validity, or the metamodel is not valid. */
+/**
+ * Undefined when no type with the meaning `variant` has the validity (the standard model: a
+ * `validity` key written by hand on a variant there is an unknown property, SR-016), or the metamodel
+ * is not valid.
+ */
 const scopeOf = (metamodel: Metamodel): Scope | undefined => {
   const validity = validityOf(metamodel);
-  const types = variantTypes(metamodel);
   // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
-  return !metamodel.valid || validity === undefined ? undefined : { validity, types };
+  if (!metamodel.valid || validity === undefined) {
+    return undefined;
+  }
+  const types = new Set(
+    typesWithMeaning(metamodel, "variant")
+      .filter((t) => t.properties.includes(validity.key))
+      .map((t) => t.key),
+  );
+  return types.size === 0 ? undefined : { validity, types };
 };
 
 /** One hint per validity entry of `record` when its type has the meaning `variant`, before their lines are known. */
@@ -82,9 +93,9 @@ export const nestedVariantFindingsOf = (
 /**
  * The write check of `element.create`, `element.update` and `element.bulkUpdate` (SR-039 AK2): a
  * variant is not written with validity entries. The refusal `variant.nested` names each refused
- * variant and what its entries name; `details.elements` holds the UUIDs of those already stored. Undefined when the metamodel
- * has no validity or is not valid; in the standard model the variant type has no validity, so it
- * finds nothing.
+ * variant and what its entries name; `details.elements` holds the UUIDs of those already stored. Undefined when no variant type
+ * has the validity (the standard model) or the metamodel is not valid. The short IDs the message
+ * needs are read only when a variant is written (N-036).
  */
 export const nestedVariantCheck = async (
   workspace: Workspace,
@@ -95,23 +106,18 @@ export const nestedVariantCheck = async (
   if (scope === undefined) {
     return undefined;
   }
-  const context = {
-    metamodel,
-    store: await workspace.get(elementStoreState),
-    shortIds: await workspace.get(shortIdState),
-  };
+  const store = await workspace.get(elementStoreState);
   return {
     types: scope.types,
-    findings: (record) => findingsOf(context, scope, record),
+    findings: async (record) =>
+      findingsOf({ metamodel, store, shortIds: await workspace.get(shortIdState) }, scope, record),
     refusal: (findings) =>
       new CommandError(
         "variant.nested",
         `Not written: ${findings.map((f) => f.problem.message).join("; ")}. Write the variant without validity entries; a relation between variants is allowed`,
         {
           command,
-          elements: [...new Set(findings.map((f) => f.element.id))].filter((id) =>
-            context.store.byId.has(id),
-          ),
+          elements: [...new Set(findings.map((f) => f.element.id))].filter((id) => store.byId.has(id)),
         },
       ),
   };

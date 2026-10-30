@@ -391,16 +391,12 @@ export const bulkUpdateElements = async (
     );
   }
   // The write check sees each element as it would be written: a confirmation is refused as a whole.
-  const checked = planned.flatMap((p) => {
-    const found = checkedBefore(
-      check,
-      p.repository.name,
-      p.bytes,
-      p.current.file.snapshot,
-      p.current.record.type,
-    );
-    return found === undefined ? [] : [found];
-  });
+  const found = await Promise.all(
+    planned.map((p) =>
+      checkedBefore(check, p.repository.name, p.bytes, p.current.file.snapshot, p.current.record.type),
+    ),
+  );
+  const checked = found.filter((c) => c !== undefined);
   const refused = checked.flatMap((c) => c.findings);
   if (input.confirm && check !== undefined && refused.length > 0) {
     throw check.refusal(refused);

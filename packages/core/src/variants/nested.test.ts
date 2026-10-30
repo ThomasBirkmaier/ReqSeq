@@ -103,6 +103,14 @@ describe("a variant as an element (SR-039)", () => {
     expect(await failure(opened, "element.update", { ref: B, title: "North" })).toEqual(
       refused(NESTED_B, "element.update", [B]),
     );
+    // element.update that gives C a validity entry is refused too.
+    expect(await failure(opened, "element.update", { ref: C, set: { validity: [{ id: A }] } })).toEqual(
+      refused(
+        "Property Validity (validity) of Variant VAR-0000c3 names Variant VAR-0000a1, but a variant builds only on the core (D-020)",
+        "element.update",
+        [C],
+      ),
+    );
     // element.bulkUpdate: the preview names the element at the line of the entry, the confirmation is refused.
     const bulk = { selection: { ids: [C] }, property: "validity", operation: "add", value: { id: A } };
     const preview = await run(opened, "element.bulkUpdate", bulk);
@@ -128,6 +136,13 @@ describe("a variant as an element (SR-039)", () => {
       ),
     );
     expect(await Promise.all([FILE_B, FILE_C].map((f) => read(opened, f)))).toEqual(before);
+    // A requirement valid for A is no variant: written, without the hint.
+    const requirement = await run(opened, "element.create", {
+      type: "system-requirement",
+      title: "Warn of storms",
+      properties: { validity: [{ id: A }] },
+    });
+    expect(requirement.problems.filter((p) => p.code === "variant.nested")).toEqual([]);
     // Only the validity decides: C relates to A and is written; B without its validity is too.
     expect((await run(opened, "element.update", { ref: C, title: "Mountains" })).files).toEqual([FILE_C]);
     const fixed = await run(opened, "element.update", { ref: B, unset: ["validity"] });
@@ -135,7 +150,21 @@ describe("a variant as an element (SR-039)", () => {
   });
 
   it("[SR-039/AK2] in the standard model a variant has no validity, so the case does not arise", async () => {
-    const opened = await open({ fixture: "SR-040/validity" });
+    // A validity key written by hand on a variant is an unknown property there (SR-016): kept, not refused.
+    const opened = await open({
+      fixture: "SR-040/validity",
+      files: {
+        "variants/VAR-b2b2b2b2b2b2.md":
+          "---\nid: 40a0e000-0000-4000-8000-b2b2b2b2b2b2\ntype: variant\nstatus: draft\ntitle: Mountain\nvalidity:\n  - { id: 40a0e000-0000-4000-8000-a1a1a1a1a1a1 }\n---\n",
+      },
+    });
+    const updated = await run(opened, "element.update", {
+      ref: "40a0e000-0000-4000-8000-b2b2b2b2b2b2",
+      title: "Alps",
+    });
+    expect(updated.files).toEqual(["variants/VAR-b2b2b2b2b2b2.md"]);
+    const checked = await run(opened, "workspace.check", {});
+    expect(checked.problems.filter((p) => p.code === "variant.nested")).toEqual([]);
     expect(
       await failure(opened, "element.create", { type: "variant", title: "x", properties: { validity: [] } }),
     ).toMatchObject({ code: "input.invalid" });

@@ -332,7 +332,7 @@ export const writtenElement = (
  */
 export interface WriteCheck {
   readonly types: ReadonlySet<string>;
-  readonly findings: (record: ElementRecord) => readonly LocatableFinding[];
+  readonly findings: (record: ElementRecord) => Promise<readonly LocatableFinding[]>;
   readonly refusal: (findings: readonly LocatableFinding[]) => CommandError;
 }
 
@@ -340,33 +340,33 @@ export interface WriteCheck {
  * The element the bytes of a planned write read back as, with the findings of `check` on it;
  * undefined without a check or for a type it does not ask for.
  */
-export const checkedBefore = (
+export const checkedBefore = async (
   check: WriteCheck | undefined,
   repository: string,
   bytes: Uint8Array,
   snapshot: FileSnapshot,
   type: string,
-): { readonly element: ReadElement; readonly findings: readonly LocatableFinding[] } | undefined => {
+): Promise<{ readonly element: ReadElement; readonly findings: readonly LocatableFinding[] } | undefined> => {
   // Only the types the check asks for are parsed (N-036).
   if (check?.types.has(type) !== true) {
     return undefined;
   }
   const element = writtenElement(repository, bytes, snapshot);
-  return { element, findings: check.findings(element.record) };
+  return { element, findings: await check.findings(element.record) };
 };
 
 /** Throws the refusal of `check` when it has findings on the element `bytes` would be. */
-const refuseByCheck = (
+const refuseByCheck = async (
   check: WriteCheck | undefined,
   repository: string,
   bytes: Uint8Array,
   snapshot: FileSnapshot,
   type: string,
-): void => {
+): Promise<void> => {
   if (check === undefined) {
     return;
   }
-  const findings = checkedBefore(check, repository, bytes, snapshot, type)?.findings ?? [];
+  const findings = (await checkedBefore(check, repository, bytes, snapshot, type))?.findings ?? [];
   if (findings.length > 0) {
     throw check.refusal(findings);
   }
@@ -679,7 +679,7 @@ export const createElement = async (
     body: bodyForText(EMPTY_FILE.body, text),
     keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
   });
-  refuseByCheck(
+  await refuseByCheck(
     check,
     repository.name,
     bytes,
@@ -1036,7 +1036,7 @@ export const updateElement = async (
     for (const titled of withCurrentTitles(context, [{ repository, current, bytes }])) {
       ({ bytes } = titled);
     }
-    refuseByCheck(check, repository.name, bytes, current.file.snapshot, record.type);
+    await refuseByCheck(check, repository.name, bytes, current.file.snapshot, record.type);
     const before: Before = {
       // The record of the store: its own relations to itself are no affected element.
       record,
