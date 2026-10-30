@@ -2,8 +2,20 @@
 // Mirrors the repository's issues into the GitHub project "ReqSeq" (Projects v2).
 // Labels are the source of truth; this script only derives project fields from them.
 // Runs in GitHub Actions with PROJECT_TOKEN (classic PAT, scopes repo + project).
-// Usage: node scripts/project-sync/sync.mjs [issue-number]   (no number: all issues)
+// Every run reconciles all issues and writes only differences (#480): the workflow keeps one pending
+// run, and dropping the others is harmless, because the last run catches up on every change.
+// Usage: node scripts/project-sync/sync.mjs
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
+import {
+  FIELDS,
+  TransientError,
+  itemValues,
+  plan,
+  transientGraphqlErrors,
+  transientStatus,
+  withRetry,
+} from "./sync-lib.mjs";
 
 const token = process.env.PROJECT_TOKEN;
 const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "ThomasBirkmaier/ReqSeq").split("/");
@@ -13,47 +25,49 @@ if (!token) {
   process.exit(0);
 }
 
-const TOPICS = {
-  "ablage-und-repositories": "Ablage und Repositories",
-  "metamodell-und-typen": "Metamodell und Typen",
-  "traceability-und-ketten": "Traceability und Ketten",
-  "nachweis-und-abdeckung": "Nachweis und Abdeckung",
-  varianten: "Varianten",
-  "pakete-und-baselines": "Pakete und Baselines",
-  "import-und-export": "Import und Export",
-  "anbindung-und-auswertung": "Anbindung und Auswertung",
-  "bearbeiten-und-finden": "Bearbeiten und Finden",
-  "betrieb-und-leistung": "Betrieb und Leistung",
-};
-const FIELDS = {
-  Stage: ["0", "1", "2", "3", "4", "5", "6", "Querschnitt", "Später"],
-  Kind: ["Epic", "SR", "Enabler", "Bug", "Spec question", "Other"],
-  "Agent state": ["Ready", "Working", "Blocked", "Needs human", "Done"],
-  Thema: Object.values(TOPICS),
-  SR: null, // text
-};
-
-async function gql(query, variables = {}) {
-  const res = await fetch("https://api.github.com/graphql", {
-    method: "POST",
-    headers: { authorization: `bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = await res.json();
-  if (json.errors) {
-    throw new Error(JSON.stringify(json.errors));
+/** One request; a network error, server error or rate limit becomes a TransientError. */
+async function request(url, init) {
+  let res;
+  try {
+    res = await fetch(url, init);
+  } catch (e) {
+    throw new TransientError(`${url}: ${e.message}`);
   }
-  return json.data;
-}
-
-async function rest(path) {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/${path}`, {
-    headers: { authorization: `bearer ${token}`, accept: "application/vnd.github+json" },
-  });
   if (!res.ok) {
-    throw new Error(`${path}: ${res.status} ${await res.text()}`);
+    const body = await res.text();
+    const retryAfter = res.headers.get("retry-after");
+    const message = `${url}: ${res.status} ${body}`;
+    if (transientStatus(res.status, body, retryAfter)) {
+      throw new TransientError(message, Number(retryAfter ?? 0));
+    }
+    throw new Error(message);
   }
   return res.json();
+}
+
+const retry = (fn) => withRetry(fn, { sleep, log: console.log });
+
+function gql(query, variables = {}) {
+  return retry(async () => {
+    const json = await request("https://api.github.com/graphql", {
+      method: "POST",
+      headers: { authorization: `bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (json.errors) {
+      const message = JSON.stringify(json.errors);
+      throw transientGraphqlErrors(json.errors) ? new TransientError(message) : new Error(message);
+    }
+    return json.data;
+  });
+}
+
+function rest(path) {
+  return retry(() =>
+    request(`https://api.github.com/repos/${owner}/${repo}/${path}`, {
+      headers: { authorization: `bearer ${token}`, accept: "application/vnd.github+json" },
+    }),
+  );
 }
 
 async function ensureProject() {
@@ -109,97 +123,71 @@ async function ensureFields(projectId) {
   return Object.fromEntries(fields.map((f) => [f.name, f]));
 }
 
-function kindOf(issue, has) {
-  if ((issue.body ?? "").includes("<!-- epic:")) {
-    return "Epic";
-  }
-  const kinds = [
-    ["sr", "SR"],
-    ["enabler", "Enabler"],
-    ["bug", "Bug"],
-    ["spec-frage", "Spec question"],
-  ];
-  return kinds.find(([label]) => has(label))?.[1] ?? "Other";
-}
-
-function agentStateOf(issue, has) {
-  if (issue.state === "closed") {
-    return "Done";
-  }
-  if (has("needs-human")) {
-    return "Needs human";
-  }
-  if (has("blocked") || has("spec-frage")) {
-    return "Blocked";
-  }
-  return has("agent:working") ? "Working" : "Ready";
-}
-
-function derive(issue) {
-  const labels = issue.labels.map((l) => (typeof l === "string" ? l : l.name));
-  const has = (l) => labels.includes(l);
-  const stageLabel = labels.find((l) => l.startsWith("stage:"))?.slice(6);
-  const stage = has("querschnitt") ? "Querschnitt" : stageLabel === "later" ? "Später" : stageLabel;
-  const topic = TOPICS[labels.find((l) => l.startsWith("thema:"))?.slice(6)];
-  const sr = issue.title.match(/^SR-\d{3}/)?.[0];
-  return {
-    Stage: stage,
-    Kind: kindOf(issue, has),
-    "Agent state": agentStateOf(issue, has),
-    Thema: topic,
-    SR: sr,
-  };
-}
-
-async function syncIssue(project, fields, issue) {
-  const item = (
-    await gql(
-      `mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }`,
-      { p: project.id, c: issue.node_id },
-    )
-  ).addProjectV2ItemById.item.id;
-  for (const [name, value] of Object.entries(derive(issue))) {
-    const f = fields[name];
-    if (!f) {
-      continue;
-    }
-    if (value === undefined) {
+/** The board items of this repository's issues: issue number → { id, values }. */
+async function loadItems(projectId) {
+  const items = new Map();
+  const full = `${owner}/${repo}`.toLowerCase();
+  for (let after = null; ;) {
+    const page = (
       await gql(
-        `mutation($p:ID!,$i:ID!,$f:ID!){ clearProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f}){ clientMutationId } }`,
-        { p: project.id, i: item, f: f.id },
-      );
-      continue;
+        `query($p:ID!,$a:String){ node(id:$p){ ... on ProjectV2 { items(first:100, after:$a){
+        pageInfo{ hasNextPage endCursor }
+        nodes{ id content{ ... on Issue { number repository{ nameWithOwner } } }
+          fieldValues(first:20){ nodes{
+            ... on ProjectV2ItemFieldSingleSelectValue { name field{ ... on ProjectV2FieldCommon { name } } }
+            ... on ProjectV2ItemFieldTextValue { text field{ ... on ProjectV2FieldCommon { name } } } } } } } } } }`,
+        { p: projectId, a: after },
+      )
+    ).node.items;
+    for (const n of page.nodes) {
+      if (n.content?.repository?.nameWithOwner.toLowerCase() === full) {
+        items.set(n.content.number, { id: n.id, values: itemValues(n.fieldValues.nodes) });
+      }
     }
-    const v = f.options
-      ? { singleSelectOptionId: f.options.find((o) => o.name === value)?.id }
-      : { text: value };
-    if (f.options && !v.singleSelectOptionId) {
-      continue;
+    if (!page.pageInfo.hasNextPage) {
+      return items;
     }
-    await gql(
-      `mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
-        updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }`,
-      { p: project.id, i: item, f: f.id, v },
-    );
+    after = page.pageInfo.endCursor;
+  }
+}
+
+async function loadIssues() {
+  const issues = [];
+  for (let page = 1; ; page++) {
+    const batch = await rest(`issues?state=all&per_page=100&page=${page}`);
+    issues.push(...batch.filter((i) => !i.pull_request));
+    if (batch.length < 100) {
+      return issues;
+    }
   }
 }
 
 const project = await ensureProject();
 const fields = await ensureFields(project.id);
-const one = process.argv[2];
-let issues = [];
-if (one) {
-  issues = [await rest(`issues/${one}`)];
-} else {
-  for (let page = 1; ; page++) {
-    const batch = await rest(`issues?state=all&per_page=100&page=${page}`);
-    issues.push(...batch.filter((i) => !i.pull_request));
-    if (batch.length < 100) {
-      break;
-    }
+const [issues, items] = await Promise.all([loadIssues(), loadItems(project.id)]);
+const ops = plan(issues, items, fields);
+const itemIds = new Map([...items].map(([number, item]) => [number, item.id]));
+for (const o of ops) {
+  if (o.op === "add") {
+    const added = await gql(
+      `mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }`,
+      { p: project.id, c: o.issue.node_id },
+    );
+    itemIds.set(o.issue.number, added.addProjectV2ItemById.item.id);
+  } else if (o.op === "clear") {
+    await gql(
+      `mutation($p:ID!,$i:ID!,$f:ID!){ clearProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f}){ clientMutationId } }`,
+      { p: project.id, i: itemIds.get(o.number), f: o.field },
+    );
+  } else {
+    await gql(
+      `mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
+        updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }`,
+      { p: project.id, i: itemIds.get(o.number), f: o.field, v: o.value },
+    );
   }
 }
-for (const issue of issues) {
-  await syncIssue(project, fields, issue);
-}
-console.log(`synced ${issues.length} issue(s) into project #${project.number}`);
+console.log(
+  `reconciled ${issues.length} issue(s) with project #${project.number}: ` +
+    `${ops.filter((o) => o.op === "add").length} added, ${ops.filter((o) => o.op !== "add").length} field write(s)`,
+);

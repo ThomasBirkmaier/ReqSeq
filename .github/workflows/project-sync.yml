@@ -1,6 +1,8 @@
 name: Project sync
 
 # Mirrors issues into the GitHub project "ReqSeq". Labels stay the source of truth.
+# Every run reconciles all issues and writes only differences (#480). GitHub keeps one pending run in
+# the group and cancels older pending ones, which is harmless: the last run catches up on everything.
 # Needs the repository secret PROJECT_TOKEN (classic PAT, scopes repo + project);
 # without it the job skips.
 
@@ -21,6 +23,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,5 +32,4 @@ jobs:
       - name: Sync
         env:
           PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ISSUE: ${{ github.event.issue.number }}
-        run: node scripts/project-sync/sync.mjs $ISSUE
+        run: node scripts/project-sync/sync.mjs
