@@ -15,11 +15,14 @@
 // candidate (prefix changed since, #275).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
+import { withReplacedExcluded } from "../../data/index.js";
 import { withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import { metamodelState } from "../../metamodel/index.js";
 import type { ElementCopy } from "../../model/index.js";
-import { getElement, shortIdState } from "../../model/index.js";
+import { elementStoreState, getElement, shortIdState } from "../../model/index.js";
 import type { Workspace } from "../../runtime/workspace.js";
 import { elementHints } from "../../hints/index.js";
+import { replacedExcludedOf } from "../../variants/index.js";
 import { NORMAL_FORM } from "../../version/version.js";
 
 /**
@@ -88,11 +91,15 @@ export default defineCommand({
     const copy = { repository: input.repository, file: input.file };
     try {
       const shown = await getElement(ctx.workspace, input.ref, elementHints, input.versionDate, copy);
-      // With its verification and validation status, as element.get shows it (SR-031, SR-034, SR-038).
-      const element = withEvidenceStatus(
-        await workspaceStatus(ctx.workspace, [shown.record]),
-        shown.record,
-        shown.element,
+      // With its verification and validation status and the variants that replace or exclude it,
+      // as element.get shows it (SR-031, SR-034, SR-038, SR-046 AK3).
+      const [store, metamodel] = await Promise.all([
+        ctx.workspace.get(elementStoreState),
+        ctx.workspace.get(metamodelState),
+      ]);
+      const element = withReplacedExcluded(
+        replacedExcludedOf({ workspace: ctx.workspace, store, metamodel }, shown.record),
+        withEvidenceStatus(await workspaceStatus(ctx.workspace, [shown.record]), shown.record, shown.element),
       );
       return { element, current: currentOf(version, element.version) };
     } catch (error) {

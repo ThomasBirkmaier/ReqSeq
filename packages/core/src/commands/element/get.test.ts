@@ -740,3 +740,43 @@ describe("element.get hintDates (#702)", () => {
     expect(await get(opened, { ref: WIND.id, hintDates: true })).toEqual(await get(opened, { ref: WIND.id }));
   });
 });
+
+describe("element.get names the variants that replace or exclude a core requirement (SR-046)", () => {
+  const P = "43043043-0000-4000-8000-0000000000";
+  /** fixtures/SR-043/example, where A (Coast) replaces K1 by A1, with B (Mountain) excluding K1. */
+  const EXAMPLE: FixtureOptions = {
+    fixture: "SR-043/example",
+    files: {
+      "variants/VAR-0000000000c2.md": `---\nid: ${P}c2\ntype: variant\nstatus: draft\ntitle: Mountain\nexcludes: [{ id: ${P}a1 }]\n---\n`,
+    },
+  };
+  const output = async (opened: Opened, ref: string): Promise<CommandOutput<"element.get">> =>
+    (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
+
+  it("[SR-046/AK3] element.get names A as replacing and B as excluding variant", async () => {
+    const opened = await open(EXAMPLE);
+    const k1 = await output(opened, "SR-0000a1");
+    expect([k1.element.replacedBy, k1.element.excludedBy]).toEqual([
+      [{ variant: `${P}c1`, replacement: `${P}b1` }],
+      [`${P}c2`],
+    ]);
+    // The views of `verification` follow (SR-047 AK3, A6), so only the first three are asserted.
+    expect(k1.names?.slice(0, 3).map((n) => [n.shortId, n.title])).toEqual([
+      ["VAR-0000c1", "Coast"],
+      ["VAR-0000c2", "Mountain"],
+      ["SR-0000b1", "Response time at most 20 ms"],
+    ]);
+    expect(k1).not.toHaveProperty("incomplete");
+    const k3 = await output(opened, "SR-0000a3");
+    expect([k3.element.replacedBy, k3.element.excludedBy]).toEqual([undefined, undefined]);
+  });
+
+  it("names the variants of the validity, and a missing repository makes it incomplete", async () => {
+    const opened = await open(EXAMPLE);
+    const a1 = await output(opened, "SR-0000b1");
+    expect(a1.names?.map((n) => n.shortId)).toEqual(["VAR-0000c1"]);
+    expect(a1.element).not.toHaveProperty("replacedBy");
+    const missing = await open({ fixture: "SR-089/missing-targets" }, "system");
+    expect(await output(missing, "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d")).toHaveProperty("incomplete", true);
+  });
+});

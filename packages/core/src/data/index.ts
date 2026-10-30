@@ -8,6 +8,8 @@ export {
   exportTime,
   exportedElement,
   exportedProperties,
+  targetIds,
+  withReplacedExcluded,
   withRelationVersions,
 } from "./export.js";
 export type { ExportOptions, ExportWithProblems, ExportedProperties } from "./export.js";

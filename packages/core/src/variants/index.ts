@@ -34,3 +34,5 @@ export {
   viewsInclude,
 } from "./view-rule.js";
 export type { ViewRule, ViewRuleIndex } from "./view-rule.js";
+export { replacedExcludedOf } from "./replaced-excluded.js";
+export type { ReplacedExcluded } from "./replaced-excluded.js";

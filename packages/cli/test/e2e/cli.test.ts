@@ -234,8 +234,8 @@ describe("reqseq binary", () => {
     const shown = await run("element", "get", "sr-036");
     expect([shown.code, shown.stderr]).toEqual([0, ""]);
     expect(shown.stdout.split("\n")[0]).toBe(
-      // SR-037 derives from it and has no record: the child that is missing (SR-034 AK2), by UUID.
-      "SR-0b0036 (SR-036)  draft  Accept identifiers as references  [verification: core open (missing 30500000-0000-4000-8000-0000000b0037)]",
+      // SR-037 derives from it and has no record: the child that is missing (SR-034 AK2), named from `names`.
+      "SR-0b0036 (SR-036)  draft  Accept identifiers as references  [verification: core open (missing SR-0b0037 (SR-037))]",
     );
     expect(shown.stdout).toContain(
       "    - -> derives-from  N-0a0001 (N-001)  Name elements by their spec ID\n",
