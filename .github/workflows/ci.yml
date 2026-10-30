@@ -356,6 +356,8 @@ jobs:
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
         env:
           ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
+          # macOS is not sharded (five macOS jobs at a time), so it runs two apps at a time on its runner (#420).
+          ELECTRON_WORKERS: ${{ runner.os == 'macOS' && '2' || '' }}
         run: pnpm --filter @reqseq/app test:electron
       - name: Upload JUnit results (evidence, D-050)
         if: always()
@@ -405,8 +407,8 @@ jobs:
 
   electron-platform:
     name: electron (${{ matrix.os }})
-    # A normal run takes 14-16 minutes (one app at a time); the bound ends a hang. macOS is not sharded: GitHub runs at
-    # most five macOS jobs at a time, and more of them would only wait.
+    # A normal run took 14-16 minutes with one app at a time; with two at a time (#420) about 8. The bound ends a hang.
+    # macOS is not sharded: GitHub runs at most five macOS jobs at a time, and more of them would only wait.
     timeout-minutes: 30
     if: >-
       ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}

@@ -33,11 +33,18 @@ const shard = process.env["ELECTRON_SHARD"];
 // Absolute paths, so that a file name never also matches a file of the same name in another folder.
 const testMatch = shard === undefined || shard === "" ? "**/*.spec.ts" : shardFiles(shard);
 
+// ELECTRON_WORKERS=<n> runs n apps at a time (#420: two on macOS, which is not sharded); unset or empty, one.
+const workersValue = process.env["ELECTRON_WORKERS"];
+const workers = workersValue === undefined || workersValue === "" ? 1 : Number(workersValue);
+if (!Number.isInteger(workers) || workers < 1) {
+  throw new Error(`ELECTRON_WORKERS must be a whole number of at least 1, got "${String(workersValue)}"`);
+}
+
 export default defineConfig({
   testDir: ".",
   testMatch,
-  // One app at a time: each test starts its own Electron with its own workspace and cache folder.
-  workers: 1,
+  // Each test starts its own Electron with its own workspace and cache folder, so tests do not share an app.
+  workers,
   fullyParallel: false,
   forbidOnly: process.env["CI"] !== undefined,
   retries: 0,
