@@ -4,6 +4,10 @@ name: PR text
 # job runs the same check; this workflow runs it for edits of the title or body and for the labels that trace-check
 # reads. It is a workflow of its own (#372): a CI run of these events would be the newest CI run of the head commit,
 # and GitHub reads the required checks from that run, where the platform jobs show no system in their names.
+# When this check passes and the required job `static` of the head commit's CI run failed only in its Trace check step
+# (a label `enabler` or a PR text fixed after that step), this workflow re-runs that job once its run has completed:
+# a green check here is no required check, and agents cannot re-run jobs themselves (product owner decision,
+# 2026-10-30).
 
 on:
   pull_request:
@@ -29,7 +33,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: read # Write PR body
+      actions: write # Re-run static
     runs-on: ubuntu-24.04
+    # The check takes about a minute; the rest is the wait for the CI run before re-running `static`.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,3 +68,38 @@ jobs:
       - name: Report
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Re-run static
+        # A pull request from a fork gets no write token. A later event cancels this wait (concurrency) and waits
+        # itself; a push supersedes the CI run, whose new run reads the PR text itself.
+        if: success() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const deadline = Date.now() + 40 * 60 * 1000;
+            let run;
+            for (;;) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: "ci.yml", event: "pull_request", head_sha: process.env.HEAD_SHA, per_page: 20,
+              });
+              // The newest run of the head commit is the one GitHub reads the required checks from.
+              run = data.workflow_runs.sort((a, b) => b.run_number - a.run_number)[0];
+              if (!run) return core.info("No CI run of the head commit");
+              // GitHub re-runs a job only once its whole run has completed.
+              if (run.status === "completed") break;
+              if (Date.now() > deadline) return core.warning(`CI run ${run.html_url} did not complete in time`);
+              await new Promise((resolve) => setTimeout(resolve, 30 * 1000));
+            }
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: run.id, filter: "latest", per_page: 100,
+            });
+            const job = jobs.find((j) => j.name === "static");
+            if (!job || job.conclusion !== "failure") return core.info(`static: ${job?.conclusion ?? "missing"}`);
+            const failed = job.steps.filter((step) => step.conclusion === "failure").map((step) => step.name);
+            if (failed.length === 0 || failed.some((name) => name !== "Trace check")) {
+              return core.info(`static failed in ${failed.join(", ") || "no step"}, not only in Trace check`);
+            }
+            await github.rest.actions.reRunJobForWorkflowRun({ owner, repo, job_id: job.id });
+            core.info(`Re-running ${job.html_url}`);

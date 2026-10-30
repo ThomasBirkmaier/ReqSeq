@@ -26,7 +26,7 @@ ReqSeq is an offline requirements tool (core, CLI, API, MCP server, Electron app
 
 ## Traceability (D-049, D-050)
 
-- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR. Label the PR right when you open it: the required check `static` reads the label when it runs, and after a later label it stays red until its failed jobs are re-run (`merge.md`).
+- One issue per system requirement. Work without its own SR is labelled `enabler`, on the issue and on the PR. Label the PR right when you open it: the required check `static` reads the label when it runs, and after a later label it stays red until `trace-check (PR text)` re-runs it once the CI run has completed (`merge.md`).
 - Branch `sr-036-short-slug` or `enabler-<issue>-short-slug`. Commits follow Conventional Commits; the body ends with `Implements: SR-036` (one line per SR) and `Refs #<issue>`. The PR title starts with the SR ID, and the body has `Closes #<issue>` and a "Verification" section.
 - Each acceptance criterion with method Test has a test named `[SR-036/AK2] ...` (AK counted from 1 in the order of the spec file). Other methods get a record in `verification/SR-036.md`, which a person confirms at stage acceptance.
 - `pnpm trace-check` must pass. A PR text must not name an SR ID that is not in `spec/` yet.
