@@ -141,7 +141,7 @@ describe("trace.graph (SR-111)", () => {
       ["S1", "N1", "relation", "derives-from", "derivation", false],
       ["S1", "D1", "relation", "based-on", "-", false],
       ["S1", "PKG", "relation", "packages", "-", false],
-      ["S1", "O1", "relation", "supersedes", "replacement", false],
+      ["S1", "O1", "relation", "supersedes", "succession", false],
       ["S1", "D2", "reference", "-", "reference", true],
       ["D1", "S1", "reference", "-", "reference", false],
       ["D2", "C1", "reference", "-", "reference", false],

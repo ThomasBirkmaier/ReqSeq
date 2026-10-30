@@ -1,6 +1,6 @@
 // The successors of a superseded element (SR-072 AK3, D-045): the element view names them, and the
 // superseded element has no relation to them. A successor is the source of a relation of a kind
-// with the meaning `replacement` (D-059) to an element whose status the metamodel marks invalid
+// with the meaning `succession` (D-059) to an element whose status the metamodel marks invalid
 // (D-044, ADR-0004), whichever command or person set that status. The relations are read where
 // they are stored, in the successors' files, the way the element view reads its own relations
 // (`relationItems`, `hasId`, `isUuid`), so a target without a version or with another key still
@@ -34,11 +34,11 @@ export interface Succession {
   readonly item: TargetItem;
 }
 
-/** The relations with the meaning `replacement` of one element store, by the target they name. */
+/** The relations with the meaning `succession` of one element store, by the target they name. */
 export interface SuccessionIndex {
   /** The store the index was built from. */
   readonly store: ElementStore;
-  /** The metamodel it was built with: its relation kinds with the meaning `replacement`. */
+  /** The metamodel it was built with: its relation kinds with the meaning `succession`. */
   readonly metamodel: Metamodel;
   /** By `targetKey` of the target's repository and UUID, in store order, then relation kind, then item. */
   readonly byTarget: ReadonlyMap<string, readonly Succession[]>;
@@ -49,12 +49,12 @@ const targetKey = (repository: string, id: string): string => `${repository}\0${
 const placeOf = (record: ElementRecord): string => `${record.repository}\0${record.file}`;
 
 /**
- * Every item with a UUID under a relation kind with the meaning `replacement`, by the repository it
+ * Every item with a UUID under a relation kind with the meaning `succession`, by the repository it
  * names (the source's own when it names none; an item whose `repository` is not text names none)
  * and its UUID. One pass over the store: about 4 relation kinds' keys per element, no schema check.
  */
 export const buildSuccessionIndex = (store: ElementStore, metamodel: Metamodel): SuccessionIndex => {
-  const kinds = relationKindsWithMeaning(metamodel, "replacement");
+  const kinds = relationKindsWithMeaning(metamodel, "succession");
   const byTarget = new Map<string, Succession[]>();
   for (const source of store.elements) {
     for (const kind of kinds) {
@@ -118,10 +118,10 @@ const othersThan = (record: ElementRecord, successions: readonly Succession[]): 
 };
 
 /**
- * The relations with the meaning `replacement` among the incoming relations of `record`'s
+ * The relations with the meaning `succession` among the incoming relations of `record`'s
  * repository and UUID in `incoming`, as `buildSuccessionIndex` collects them: in store order, then
  * relation kind (metamodel order), then item. Undefined when the index cannot tell: it holds the
- * items of a replacement kind's key only when that key is a list of relations (`relationKey`; keys
+ * items of a succession kind's key only when that key is a list of relations (`relationKey`; keys
  * are unique across properties and relation kinds, ADR-0004).
  */
 const fromIncoming = (
@@ -176,7 +176,7 @@ export const successionsFor = (
   const incoming = workspace.peek(incomingState)?.get(store);
   if (incoming?.metamodel === metamodel) {
     const found = succeeds(store, metamodel, record)
-      ? fromIncoming(incoming, relationKindsWithMeaning(metamodel, "replacement"), record)
+      ? fromIncoming(incoming, relationKindsWithMeaning(metamodel, "succession"), record)
       : [];
     if (found !== undefined) {
       return othersThan(record, found);

@@ -362,8 +362,8 @@ export type ValidationStatus = "open" | "validated" | "failed" | "outdated";
  * Schema: `schemas/data-export.schema.json#`.
  */
 export interface DataExportFile {
-  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). */
-  readonly "reqseq-data": 2;
+  /** The version of this format. 2: with `commit` and `dirty` at the top level and the JSON Lines form (`$defs/line`). 3: a successor's relation has the meaning `succession` instead of `replacement` (D-059). */
+  readonly "reqseq-data": 3;
   /** The commit of the state: HEAD of the main repository (the one with the workspace file), after which data.store names its file; left out when Git cannot tell. */
   readonly commit?: Commit;
   /** `false` only when every available repository has a known commit and is known clean (see `repositories[].dirty`), the rule by which data.store adds `-dirty` to the name of its file. */
@@ -419,7 +419,7 @@ export interface DataExportElement {
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
@@ -460,14 +460,14 @@ export interface DataExportLine {
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
   /** SR-038: the Validierungsstatus from the validation records of the core (no `variant`) against the element's current version; the newest record of that version decides, only records of older versions give `outdated`. Given for every element whose type has the meaning `need` (`open` without record) and for every other element with a validation record; left out otherwise (assumption, spec question #534). Never inherited from children; never the element's `status` (D-030). */
   readonly validation?: ValidationStatus;
   readonly problems?: readonly Problem[];
-  readonly "reqseq-data": 2;
+  readonly "reqseq-data": 3;
   /** As `commit` of the JSON form. */
   readonly commit?: Commit;
   /** As `dirty` of the JSON form. */
@@ -506,7 +506,7 @@ export interface DataExportElementFields {
   readonly emergent?: boolean;
   /** All other properties by key, unknown ones included. */
   readonly properties: Readonly<Record<string, unknown>>;
-  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `replacement` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
+  /** The element's own relations, then the targets of its properties of kind `relation` (`property: true`), then the incoming relations (`direction: in`); in stage 1 only the relations with the meaning `succession` from the successors of an element with a status marked invalid (SR-072 AK3). The targets of `validity` and `packages` also appear in `validity` and `packages` in data.export. `currentVersion` and `outdated` are given by data.export and trace.matrix. */
   readonly relations: readonly DataExportRelation[];
   /** Verification status per view: core and each variant the element is valid for (SR-047 AK3). */
   readonly verification?: readonly DataExportVerificationEntry[];
@@ -523,7 +523,7 @@ export interface DataExportRelation {
   /** `kind` is the key of a property of kind `relation`, not of a relation kind (ADR-0004). Left out for relation kinds. */
   readonly property?: true;
   /** `reference` = inline link in the text (SR-066). */
-  readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference" | null;
+  readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference" | null;
   readonly direction: "out" | "in";
   readonly id: Uuid;
   /** Workspace name of the repository of the other end (#416): the one the relation names, the source's own when it names none; for `direction: in` the source's (the other end: a successor, or the source of any incoming relation). Given in every `targetState`, as the name it stores for `inaccessible` and `unknown-repository`; left out only when the stored `repository` is not text. With `id` it names the target (`element.get` with `ref` and `repository`, SR-088; an `ambiguous` target also needs `file`; for `unknown-repository` the name is not a repository of the workspace). */
@@ -806,7 +806,7 @@ export interface FilterRelationCondition {
     /** A relation kind or a property of kind relation (validity, packages); with `meaning`, the kind must have it. */
     readonly kind?: Key;
     /** Every relation kind with this meaning. Neither `kind` nor `meaning`: every relation kind. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion";
     /** `up` = outgoing (to parents), `down` = incoming (from children), `evidence` = verification records pointing at the element in the view of the selection, else in the core (a record without variant holds for the core, one with a variant for that variant), of any version and result; validation records do not count (D-007); no `kind`, `meaning` or `to`. Absent: up or down. */
     readonly direction?: "up" | "down" | "evidence";
     /** Condition the other end must meet. */
@@ -974,10 +974,10 @@ export interface MetamodelRelationKind {
 }
 
 /**
- * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target, either for the variants in the source's validity (D-020) or, when the target has an invalid status, as its successor (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
+ * Built-in meaning (D-012, D-059). `derivation`: source is child, target is parent (chain, coverage, indirect verification). `replacement`: source replaces target core requirement for the variants in the source's validity (D-020). `succession`: source is the successor that supersedes target (D-045, SR-072). `exclusion`: source variant excludes target core requirement, written in the variant file (SR-042, D-059). Without meaning a relation has no traceability semantics.
  * Schema: `schemas/metamodel.schema.json#/$defs/relationMeaning`.
  */
-export type MetamodelRelationMeaning = "derivation" | "replacement" | "exclusion";
+export type MetamodelRelationMeaning = "derivation" | "replacement" | "succession" | "exclusion";
 
 /**
  * Status value (D-030).
@@ -1582,7 +1582,7 @@ export interface ElementSetStatusOutput {
 }
 
 /**
- * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Input of `element.supersede` as `run` gets it: validated, properties with a `default` filled in. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede input`.
  */
 export interface ElementSupersedeInput {
@@ -1590,12 +1590,12 @@ export interface ElementSupersedeInput {
   /** Key or display name of a status of the metamodel, in any case; the key is written. It must be a status of the element's type that the metamodel marks invalid (#306). */
   readonly status: KeyOrName;
   readonly successor?: ElementRef;
-  /** Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
+  /** Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them. */
   readonly relation?: Key;
 }
 
 /**
- * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).
+ * Output of `element.supersede`. Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).
  * Schema: `schemas/commands/catalog.json element.supersede output`.
  */
 export interface ElementSupersedeOutput {
@@ -1926,7 +1926,7 @@ export interface TraceNeighbourhoodInput {
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
-  readonly meanings?: readonly ("derivation" | "replacement" | "exclusion" | "reference")[];
+  readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
   /** Nodes of the page; total counts all. */
   readonly limit: number;
@@ -1978,7 +1978,7 @@ export interface TraceNeighbourhoodOutput {
     /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The walk it belongs to. */
     readonly direction: "up" | "down";
     /** Both ends lie in one cycle of the walk. */
@@ -2022,7 +2022,7 @@ export interface TraceMatrixOutput {
     /** `kind` is the key of a property of kind `relation`, not of a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion";
     /** `out`: the relations the row element's file stores. `in`: the relations of other elements that point at it. */
     readonly direction: "out" | "in";
     /** For `out`, the `name` of the kind (e.g. Derives from); for `in`, its `inverse-name` (e.g. Derived by), the `name` when it has none. A name can be the same for both directions (Distinct from): `direction` tells them apart. */
@@ -2095,7 +2095,7 @@ export interface TraceGraphInput {
   /** Keys of relation kinds or of properties of kind `relation` (such as `packages`) to follow. An unknown key is `input.invalid`. See `meanings` for the filter rule. */
   readonly kinds?: readonly Key[];
   /** Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing. */
-  readonly meanings?: readonly ("derivation" | "replacement" | "exclusion" | "reference")[];
+  readonly meanings?: readonly ("derivation" | "replacement" | "succession" | "exclusion" | "reference")[];
   readonly view?: View;
   /** The most nodes, the element included; the nearest levels first (`truncated` says when more exist). */
   readonly limit: number;
@@ -2143,7 +2143,7 @@ export interface TraceGraphOutput {
     /** The key is a property of kind `relation` (such as `packages`), not a relation kind. */
     readonly property?: true;
     /** The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property. */
-    readonly meaning?: "derivation" | "replacement" | "exclusion" | "reference";
+    readonly meaning?: "derivation" | "replacement" | "succession" | "exclusion" | "reference";
     /** The link stores a version of normal form 1, its target has a current version, and the two differ (SR-025). */
     readonly outdated: boolean;
   }[];

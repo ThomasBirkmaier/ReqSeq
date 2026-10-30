@@ -50,7 +50,7 @@ const successions = async (opened: Opened): Promise<unknown[]> => {
 };
 
 describe("successors of a superseded element (SR-072 AK3)", () => {
-  it("[SR-072/AK3] reads every item with a UUID under a replacement kind that names the element, as the view reads relations", async () => {
+  it("[SR-072/AK3] reads every item with a UUID under a succession kind that names the element, as the view reads relations", async () => {
     const opened = await open({
       // Its own relation to itself is no successor.
       "needs/N-a1b2c3d4e5f6.md": element(
@@ -220,21 +220,26 @@ describe("successors of a superseded element from the incoming index (#272)", ()
 
   it("names the successors the succession index names, in its order, without building it", async () => {
     const opened = await open({
+      // A second kind with the meaning succession, after `supersedes` in metamodel order.
+      "metamodel/succession.yaml":
+        "reqseq-metamodel: 1\nrelations:\n  - { key: obsoletes, name: Obsoletes, meaning: succession }\n",
       "needs/N-a1b2c3d4e5f6.md": element(
         N_OLD,
         "need",
         "obsolete",
         `supersedes:\n  - { id: ${N_OLD}, version: ${V} }\n`,
       ),
-      // `replaces` before `supersedes` in the file; the metamodel lists `supersedes` first.
+      // `obsoletes` before `supersedes` in the file; the metamodel lists `supersedes` first. A
+      // relation Replaces (meaning replacement, D-020) names no successor (D-059).
       "needs/N-b2c3d4e5f6a7.md": element(
         N_NEW,
         "need",
         "draft",
         [
-          "replaces:",
+          "obsoletes:",
           `  - { id: ${N_OLD}, version: ${V} }`,
           `  - { id: ${N_OLD} }`,
+          `replaces:\n  - { id: ${N_OLD}, version: ${V} }`,
           "supersedes:",
           "  - just text",
           `  - { id: ${N_OLD}, version: ${V}, repository: elsewhere }`,
@@ -261,8 +266,8 @@ describe("successors of a superseded element from the incoming index (#272)", ()
     expect(indexed).toEqual([
       [OTHER, "supersedes", { id: N_OLD, version: V }],
       [N_NEW, "supersedes", { id: N_OLD, title: "See the wind" }],
-      [N_NEW, "replaces", { id: N_OLD, version: V }],
-      [N_NEW, "replaces", { id: N_OLD }],
+      [N_NEW, "obsoletes", { id: N_OLD, version: V }],
+      [N_NEW, "obsoletes", { id: N_OLD }],
     ]);
     expect(workspace.peek(successionIndexState)).toBeUndefined();
   });
@@ -286,7 +291,7 @@ describe("successors of a superseded element from the incoming index (#272)", ()
     expect(opened.workspace.peek(successionIndexState)).toBeUndefined();
   });
 
-  it("uses the succession index when the incoming index has another metamodel or cannot hold a replacement kind", async () => {
+  it("uses the succession index when the incoming index has another metamodel or cannot hold a succession kind", async () => {
     const opened = await open({
       "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
       "needs/N-b2c3d4e5f6a7.md": element(
@@ -304,7 +309,7 @@ describe("successors of a superseded element from the incoming index (#272)", ()
     memo.set(store, buildIncomingIndex(store, { ...metamodel }));
     expect(successionsFor(workspace, store, metamodel, record).map((s) => s.source.id)).toEqual([N_NEW]);
     expect(workspace.peek(successionIndexState)?.get(store)?.metamodel).toBe(metamodel);
-    // A property with the key of a replacement kind (the loader refuses it, ADR-0004): the incoming
+    // A property with the key of a succession kind (the loader refuses it, ADR-0004): the incoming
     // index holds no relations under it, the succession index does.
     const shadowed = {
       ...metamodel,

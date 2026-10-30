@@ -770,8 +770,16 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
     {
-      name: "several replacement kinds fit (relation-ambiguous)",
-      fixture: { fixture: "SR-072/supersede", git: true },
+      name: "several succession kinds fit (relation-ambiguous)",
+      fixture: {
+        fixture: "SR-072/supersede",
+        git: true,
+        // A second kind with the meaning succession next to `supersedes`.
+        files: {
+          "metamodel/succession.yaml":
+            "reqseq-metamodel: 1\nrelations:\n  - { key: obsoletes, name: Obsoletes, meaning: succession }\n",
+        },
+      },
       input: { ref: "SR-f6a7b8", status: "obsolete", successor: "SR-a7b8c9" },
       expect: "error",
     },

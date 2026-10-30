@@ -1,7 +1,7 @@
 ---
 id: 6ad3a4c6-cb89-4fc6-acdf-ff0c8aad33ed
 type: need
-status: draft
+status: approved
 title: "Hinweis bei Änderung im Kern"
 spec-id: "N-022"
 topic: "Varianten"

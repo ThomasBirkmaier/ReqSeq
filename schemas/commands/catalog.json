@@ -1018,7 +1018,7 @@
     {
       "name": "element.supersede",
       "title": "Supersede element",
-      "summary": "Supersede an element: set an invalid status of its type and optionally let a successor replace it (relation with meaning replacement, written into the successor's file). There is no delete (D-045).",
+      "summary": "Supersede an element: set an invalid status of its type and optionally name a successor (relation with meaning succession, written into the successor's file). There is no delete (D-045).",
       "effect": "write-files",
       "whileReadOnly": "refuse",
       "whileReadOnlyReason": "Sets an invalid status of the metamodel, and no change can be checked against a missing or faulty metamodel.",
@@ -1045,7 +1045,7 @@
           },
           "relation": {
             "$ref": "../common.schema.json#/$defs/key",
-            "description": "Relation kind with meaning replacement to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
+            "description": "Relation kind with meaning succession to write from the successor; needed only when more than one fits the types and the successor does not already have the relation under exactly one of them."
           }
         },
         "additionalProperties": false,
@@ -1951,7 +1951,7 @@
           "meanings": {
             "type": "array",
             "uniqueItems": true,
-            "items": { "enum": ["derivation", "replacement", "exclusion", "reference"] },
+            "items": { "enum": ["derivation", "replacement", "succession", "exclusion", "reference"] },
             "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
           },
           "view": { "$ref": "../common.schema.json#/$defs/view" },
@@ -2051,7 +2051,7 @@
                   "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
                 },
                 "meaning": {
-                  "enum": ["derivation", "replacement", "exclusion", "reference"],
+                  "enum": ["derivation", "replacement", "succession", "exclusion", "reference"],
                   "description": "The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property."
                 },
                 "direction": { "enum": ["up", "down"], "description": "The walk it belongs to." },
@@ -2159,7 +2159,7 @@
                   "description": "`kind` is the key of a property of kind `relation`, not of a relation kind."
                 },
                 "meaning": {
-                  "enum": ["derivation", "replacement", "exclusion"],
+                  "enum": ["derivation", "replacement", "succession", "exclusion"],
                   "description": "The meaning of the relation kind; left out for a kind without a meaning and for a property."
                 },
                 "direction": {
@@ -2405,7 +2405,7 @@
             "type": "array",
             "uniqueItems": true,
             "items": {
-              "enum": ["derivation", "replacement", "exclusion", "reference"]
+              "enum": ["derivation", "replacement", "succession", "exclusion", "reference"]
             },
             "description": "Relation kinds with these meanings are followed; `reference` stands for inline references. Without `kinds` and `meanings` every relation and reference is followed. Otherwise a link is followed when its key is in `kinds` or its meaning is in `meanings`; an empty list follows nothing."
           },
@@ -2527,7 +2527,7 @@
                   "description": "The key is a property of kind `relation` (such as `packages`), not a relation kind."
                 },
                 "meaning": {
-                  "enum": ["derivation", "replacement", "exclusion", "reference"],
+                  "enum": ["derivation", "replacement", "succession", "exclusion", "reference"],
                   "description": "The meaning of the relation kind, `reference` for an inline reference; left out for a kind without a meaning and for a property."
                 },
                 "outdated": {
