@@ -566,6 +566,9 @@ class Watcher implements WorkspaceWatcher {
   }
 
   async #process(batch: Batch): Promise<void> {
+    // A write command of this process puts its files into the store itself (`recordWrites`); looked
+    // at before, they would be reported as changed from outside (#432).
+    await this.#workspace.writesSettled();
     if (this.#closed) {
       return;
     }

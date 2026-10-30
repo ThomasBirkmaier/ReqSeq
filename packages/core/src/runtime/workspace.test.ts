@@ -262,6 +262,40 @@ describe("Workspace", () => {
   });
 });
 
+describe("Workspace.writesSettled (#432)", () => {
+  it("waits for the write commands that run, and not for other commands", async () => {
+    const ws = new Workspace("/w");
+    await ws.writesSettled();
+    let endRead: () => void = () => undefined;
+    const read = ws.runCommand(() => new Promise<void>((resolve) => (endRead = resolve)));
+    await ws.writesSettled();
+    const ends: (() => void)[] = [];
+    const write = (): Promise<void> =>
+      ws.runCommand(() => new Promise<void>((resolve) => ends.push(resolve)), { writes: true });
+    const writes = [write(), write()];
+    let settled = false;
+    const waiting = ws.writesSettled().then(() => (settled = true));
+    ends[0]?.();
+    await writes[0];
+    expect(settled).toBe(false);
+    ends[1]?.();
+    await waiting;
+    expect(settled).toBe(true);
+    expect(ws.busy).toBe(true);
+    endRead();
+    await read;
+    expect(ws.busy).toBe(false);
+  });
+
+  it("counts a write that fails as ended", async () => {
+    const ws = new Workspace("/w");
+    await expect(ws.runCommand(() => Promise.reject(new Error("full")), { writes: true })).rejects.toThrow(
+      "full",
+    );
+    await ws.writesSettled();
+  });
+});
+
 describe("Workspace.peek and Workspace.replace (SR-007)", () => {
   it("peeks without building", () => {
     const create = vi.fn(() => 1);

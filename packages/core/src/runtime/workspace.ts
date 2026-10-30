@@ -125,6 +125,9 @@ export class Workspace {
   #closed = false;
   /** Commands that run on this workspace now (`invoke`). */
   #commands = 0;
+  /** Write commands among them, and who waits for none to be left (`writesSettled`). */
+  #writes = 0;
+  readonly #writeWaiters: (() => void)[] = [];
 
   /** Creates the object only; nothing is read until a command asks for state. */
   constructor(root: string, options: WorkspaceOptions = {}) {
@@ -145,14 +148,42 @@ export class Workspace {
     return this.#commands > 0;
   }
 
-  /** Runs `command` as a command on this workspace: `busy` while it runs (`invoke`). */
-  async runCommand<T>(command: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `command` as a command on this workspace: `busy` while it runs (`invoke`). With `writes`
+   * (a `write-files` command), `writesSettled` waits for it too.
+   */
+  async runCommand<T>(command: () => Promise<T>, options: { readonly writes?: boolean } = {}): Promise<T> {
+    const writes = options.writes === true;
     this.#commands += 1;
+    if (writes) {
+      this.#writes += 1;
+    }
     try {
       return await command();
     } finally {
       this.#commands -= 1;
+      if (writes) {
+        this.#writes -= 1;
+        if (this.#writes === 0) {
+          for (const resolve of this.#writeWaiters.splice(0)) {
+            resolve();
+          }
+        }
+      }
     }
+  }
+
+  /**
+   * Resolves once no write command runs on this workspace. The watcher waits for it before it looks
+   * at a batch, so a file a command of this process is writing counts as that command's, which puts
+   * it into the element store itself (`recordWrites`), and not as a change from outside (#432).
+   */
+  writesSettled(): Promise<void> {
+    return this.#writes === 0
+      ? Promise.resolve()
+      : new Promise((resolve) => {
+          this.#writeWaiters.push(resolve);
+        });
   }
 
   /** The state of this workspace for `key`, created on first use and kept until `reset` or `close`. */
