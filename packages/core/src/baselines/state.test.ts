@@ -89,13 +89,13 @@ describe("refuseUncommitted", () => {
     await ws.write("system/metamodel/extra.yaml", "x: 1\n");
     const head = await ws.commit("system");
     const committed = commits.map((c) => (c.repository.name === "system" ? { ...c, commit: head } : c));
-    const [b1] = elements("b1");
+    const b1 = elements("b1");
     const embeds = new Map([
       [
         "system",
         new Map([
-          ["requirements/wind.png", [b1 as ElementRecord]],
-          ["requirements/calm.png", [b1 as ElementRecord]],
+          ["requirements/wind.png", b1],
+          ["requirements/calm.png", b1],
         ]),
       ],
     ]);
