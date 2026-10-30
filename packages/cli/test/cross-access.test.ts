@@ -252,6 +252,14 @@ const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
 /** The example of SR-043: variant A (VAR-0000c1) replaces K1 by A1, excludes K2 and adds A2. */
 const VARIANT_VIEWS: FixtureOptions = { fixture: "SR-043/example", git: true };
+/** SR-A (SR-0000b1, validity [VAR-0000c1]) replaces the core requirement SR-K (SR-0000a1), whose content changed (SR-045). */
+const CORE_CHANGED: FixtureOptions = {
+  fixture: "SR-045/core-changed",
+  git: true,
+  files: {
+    "requirements/SR-0000000000a1.md": `---\nid: 45045045-0000-4000-8000-0000000000a1\ntype: system-requirement\nstatus: draft\ntitle: Response time at most 10 ms\nrequirement-type: functional\nacceptance-criteria:\n  - Given a request, when it is sent, then the answer comes within 12 ms.\n---\n\nThe station answers within 12 ms.\n`,
+  },
+};
 
 /** SR-004/one-repository with an image to attach, whose name ReqSeq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
@@ -1376,6 +1384,22 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     { name: "no package", fixture: HINTS, input: { package: "VAR-0000c1" }, expect: "error" },
+    {
+      tag: "[SR-045/AK1]",
+      name: "a changed core requirement is one hint at its replacement, listed for the variant",
+      fixture: CORE_CHANGED,
+      input: { variant: "VAR-0000c1", kind: ["variant.core-changed", "relation.outdated"] },
+      expect: "output",
+      check: (results) => {
+        const output = (
+          results["core"]?.outcome as { output: { hints: { code: string; elementShortId: string }[] } }
+        ).output;
+        expect(output.hints.map((h) => [h.code, h.elementShortId])).toEqual([
+          ["variant.core-changed", "SR-0000b1"],
+          ["relation.outdated", "SR-0000b2"],
+        ]);
+      },
+    },
   ],
   "hint.confirm": [
     {

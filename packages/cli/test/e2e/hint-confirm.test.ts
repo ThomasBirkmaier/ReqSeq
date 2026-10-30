@@ -1,6 +1,7 @@
 // `reqseq hint confirm` end to end (SR-027, ADR-0009): the built binary with the product commands on
 // fixtures/SR-025/outdated, its exit code, its JSON and the files it writes. Confirming in the app
 // comes with the app in stage 3 (#127 option 1); core and this test cover the function now.
+// fixtures/SR-045/core-changed for confirming a changed core requirement (SR-045 AK2).
 // Run after `pnpm build` with `pnpm test:e2e`.
 import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@reqseq/testkit";
@@ -134,5 +135,28 @@ describe("reqseq hint confirm (SR-027)", () => {
       `-  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.storedVersion ?? ""}, title: See the wind }`,
       `+  - { id: 5e025a7d-2b4f-4c61-9d08-0a0000000001, version: ${derives?.currentVersion ?? ""}, title: See the wind }`,
     ]);
+  });
+});
+
+describe("reqseq hint confirm of a changed core requirement (SR-045)", () => {
+  it("[SR-045/AK2] writes the current version and title of SR-K into replaces, and the hint is gone", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-045/core-changed", git: true });
+    fixtures.push(ws);
+    const file = ws.path("requirements/SR-0000000000a1.md");
+    const k = await fs.readFile(file, "utf8");
+    await fs.writeFile(file, k.replaceAll("10 ms", "12 ms"));
+    await ws.commit();
+    const list = async (): Promise<Hint[]> => {
+      const out = await reqseq(["hint", "list", "--kind", "variant.core-changed", "--json"], ws.root);
+      return (JSON.parse(out.stdout) as { readonly hints: Hint[] }).hints;
+    };
+    const [hint] = await list();
+    const out = await reqseq(["hint", "confirm", "--hint-ids", String(hint?.hintId), "--json"], ws.root);
+    expect([out.code, out.stderr]).toEqual([0, ""]);
+    expect((JSON.parse(out.stdout) as Confirmed).confirmed).toEqual([hint?.hintId]);
+    expect(await list()).toEqual([]);
+    expect(await fs.readFile(ws.path("requirements/SR-0000000000b1.md"), "utf8")).toContain(
+      `version: ${String(hint?.currentVersion)}, title: Response time at most 12 ms }`,
+    );
   });
 });
