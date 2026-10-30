@@ -48,7 +48,7 @@ export const VALIDATION_VARIANT_REASON =
   "a validation record names no variant, it holds for the core (D-007, SR-038 AK4)";
 
 /** What a violation says, with the reason of SR-038 AK4 for a validation record with `variant`. */
-const describe = (violation: SchemaViolation): string =>
+const violationText = (violation: SchemaViolation): string =>
   violation.keyword === "false schema" && violation.path === "/variant"
     ? `/variant: ${VALIDATION_VARIANT_REASON}`
     : describeViolations([violation]);
@@ -120,7 +120,7 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
             code: "evidence.invalid-record",
             severity: "error",
             line,
-            message: `Invalid evidence record, not counted: ${describe(violation)}`,
+            message: `Invalid evidence record, not counted: ${violationText(violation)}`,
           }
         : {
             code: "evidence.invalid-record",

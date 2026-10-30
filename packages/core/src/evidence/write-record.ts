@@ -401,7 +401,8 @@ interface Prepared {
 
 /**
  * The variant of rule 1: its UUID, undefined for the core; `input.invalid` for a validation record
- * (SR-038 AK4), or when the element does not apply in it (SR-040), or when the variant's view leaves it out: excluded, or replaced (SR-047 AK4).
+ * (SR-038 AK4), when the element does not apply in it (SR-040), or when the variant's view leaves it
+ * out: excluded, or replaced (SR-047 AK4).
  * Every refusal names the element and the variant by short ID (the app gives UUIDs) and gives
  * `details.variant`, the UUID of the variant or `core`.
  */

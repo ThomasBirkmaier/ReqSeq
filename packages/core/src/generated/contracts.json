@@ -1490,6 +1490,9 @@
       "allOf": [
         {
           "if": {
+            "required": [
+              "kind"
+            ],
             "properties": {
               "kind": {
                 "const": "verification"
@@ -1505,6 +1508,9 @@
         },
         {
           "if": {
+            "required": [
+              "kind"
+            ],
             "properties": {
               "kind": {
                 "const": "validation"

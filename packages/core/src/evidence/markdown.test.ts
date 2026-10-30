@@ -286,6 +286,19 @@ describe("SR-028 reading Markdown records", () => {
     ]);
   });
 
+  it("a record without kind names only the missing kind, not a rule of one kind", () => {
+    const text = record()
+      .replace("kind: verification\n", "")
+      .replace("---\n\nText", `variant: ${B}\n---\n\nText`);
+    expect(read(text).problems?.map((p) => [p.line, p.message])).toEqual([
+      [1, "Invalid evidence record, not counted: (root) must have required property 'kind'"],
+    ]);
+    const bare = text.replace("method: analysis\n", "").replace("item: model v3\n", "");
+    expect(read(bare).problems?.map((p) => p.message)).toEqual([
+      "Invalid evidence record, not counted: (root) must have required property 'kind'",
+    ]);
+  });
+
   it("a key the format does not know gives a warning and the record counts", () => {
     const out = read(record("tool: pytest-reqseq\nrun:\n  id: 7"));
     expect(out.records).toHaveLength(1);

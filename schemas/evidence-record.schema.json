@@ -38,11 +38,11 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "kind": { "const": "verification" } } },
+      "if": { "required": ["kind"], "properties": { "kind": { "const": "verification" } } },
       "then": { "required": ["method", "item"] }
     },
     {
-      "if": { "properties": { "kind": { "const": "validation" } } },
+      "if": { "required": ["kind"], "properties": { "kind": { "const": "validation" } } },
       "then": { "properties": { "variant": false } }
     }
   ],
