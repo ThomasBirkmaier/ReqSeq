@@ -110,7 +110,7 @@ const readLines = (file: string): Line[] => {
 /** The lines `data` gives: its state, then each element (SR-062 AK1, #319). */
 const linesOf = (data: Data): Line[] =>
   data.elements.map((element) => ({
-    "reqseq-data": 2,
+    "reqseq-data": 3,
     ...(data.commit === undefined ? {} : { commit: data.commit }),
     dirty: data.dirty,
     ...element,
@@ -162,7 +162,7 @@ describe("data.store: the data of a state as a file named after its commit (SR-0
     expect(lines).toHaveLength(exported.elements.length);
     expect(lines).toEqual(linesOf(exported));
     for (const line of text.slice(0, -1).split("\n")) {
-      expect(line.startsWith(`{"reqseq-data":2,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
+      expect(line.startsWith(`{"reqseq-data":3,"commit":"${commit}","dirty":false,"id":`)).toBe(true);
     }
   });
 

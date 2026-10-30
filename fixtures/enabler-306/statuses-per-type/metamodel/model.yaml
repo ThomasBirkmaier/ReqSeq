@@ -42,7 +42,7 @@ relations:
     meaning: derivation
   - key: supersedes
     name: Supersedes
-    meaning: replacement
+    meaning: succession
 
 statuses:
   - { key: draft, name: Draft, initial: true }

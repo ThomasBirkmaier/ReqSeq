@@ -15,7 +15,7 @@ properties:
   - { key: spec-id, name: Spec ID, kind: text, meaning: identifier }
 relations:
   - { key: derives-from, name: Derives from, inverse-name: Derived by, meaning: derivation }
-  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: replacement }
+  - { key: supersedes, name: Supersedes, inverse-name: Superseded by, meaning: succession }
 statuses:
   - { key: draft, name: Draft, initial: true }
   - { key: obsolete, name: Obsolete, invalid: true }

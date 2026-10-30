@@ -124,7 +124,7 @@ The reference machine of the performance SRs has 4 cores, 16 GB and an SSD; comp
 | save one element with the current versions built (element.update of its text, versions carried) | SR-082 AK3, ADR-0008 (#184, #259: the saved element gets its version again) | 0.3 s |  | no threshold |
 | current versions right after the save | SR-020 (ADR-0008, #259) | 0.0 s |  | no threshold |
 | hints on the relations to one element (as element.supersede and element.setStatus ask) | SR-072 AK2, ADR-0008 (open an element: 200 ms) | 0.1 s | 0.2 s | within |
-| succession index: every relation with the meaning replacement, by target (once per store) | SR-072 AK3, ADR-0008 (open an element: 200 ms) | 0.0 s | 0.2 s | within |
+| succession index: every relation with the meaning succession, by target (once per store) | SR-072 AK3, ADR-0008 (open an element: 200 ms) | 0.0 s | 0.2 s | within |
 | successors of one superseded element (lookup in the index) | SR-072 AK3 (a map lookup per view) | 0.0 s | 0.0 s | within |
 | autosave: element.update of the text with expectedFileSha256 (median of 21) | SR-105 AK1 (one write per pause; ADR-0008) | 0.2 s |  | no threshold |
 | autosave: element.get of the saved element (the reload `written` brings, median of 21) | SR-105, ADR-0008 (open an element: 200 ms) | 0.0 s | 0.2 s | within |
