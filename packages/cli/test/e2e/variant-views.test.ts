@@ -64,4 +64,17 @@ describe("variant views (SR-041, SR-043)", () => {
       "SR-0000b2",
     ]);
   });
+
+  it("[SR-041/AK8] workspace check names a replaces onto a need at the line of the entry", async () => {
+    const ws = await workspace({
+      "requirements/SR-0000000000b3.md":
+        "---\nid: 43043043-0000-4000-8000-0000000000b3\ntype: system-requirement\nstatus: draft\ntitle: R\n" +
+        "validity: [{ id: 43043043-0000-4000-8000-0000000000c1 }]\n" +
+        "replaces: [{ id: 43043043-0000-4000-8000-0000000000d1 }]\n---\n",
+    });
+    const result = await run(["workspace", "check"], { cwd: ws.root });
+    expect(result.stdout).toContain(
+      "warning  variant.target-not-core  system:requirements/SR-0000000000b3.md:7  System Requirement SR-0000b3 replaces Need N-0000d1",
+    );
+  });
 });

@@ -133,11 +133,37 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(await check(ws, "variant.")).toEqual([]);
   });
 
-  it("[SR-041/AK8] a replaces from SR-A onto a requirement with validity, a need or a free name changes no view", async () => {
+  it("[SR-041/AK8] a replaces from SR-A onto a requirement with validity or a need changes no view and gives variant.target-not-core at the entry's line", async () => {
     const ws = await open(
       requirement("b3", `validity: [${A}]\nreplaces:\n  - ${to("b2")}\n  - ${to("d1")}\n  - Coast\n`),
     );
     expect(await list(ws, "VAR-0000c1")).toEqual([...VIEW_A.slice(0, 7), "b3", ...VARIANTS]);
+    const problems = await check(ws, "variant.target-not-core");
+    expect(problems.map((p) => [p.file, p.line, name(p.targetId ?? ""), p.severity])).toEqual([
+      ["requirements/SR-0000000000b3.md", 8, "A2", "warning"],
+      ["requirements/SR-0000000000b3.md", 9, "N1", "warning"],
+    ]);
+    expect(problems[1]?.message).toBe(
+      "System Requirement SR-0000b3 replaces Need N-0000d1, which is no core requirement (it has a validity or its type has no validity property); this changes no view",
+    );
+    // At the element too, and in hint.list for the variant whose view holds it.
+    const shown = (await invoke(
+      "element.get",
+      { ref: "SR-0000b3" },
+      { workspace: ws },
+    )) as CommandOutput<"element.get">;
+    expect((shown.element.problems ?? []).filter((p) => p.code === "variant.target-not-core")).toHaveLength(
+      2,
+    );
+    const hints = async (variant: string): Promise<number> =>
+      (
+        (await invoke(
+          "hint.list",
+          { variant, kind: ["variant.target-not-core"] },
+          { workspace: ws },
+        )) as CommandOutput<"hint.list">
+      ).hints.length;
+    expect([await hints("VAR-0000c1"), await hints("VAR-0000c2")]).toEqual([2, 0]);
   });
 
   it("[SR-041/AK9] a replacing requirement with an invalid status still replaces", async () => {
@@ -259,7 +285,7 @@ describe("the view rule (SR-041, SR-043)", () => {
     ).toEqual([true, false]);
   });
 
-  it("a target in a repository that is not here acts in no view, and the list is incomplete", async () => {
+  it("a target in a repository that is not here acts in no view and gives no hint, and the list is incomplete", async () => {
     const ws = await open({
       "reqseq-workspace.yaml":
         'reqseq-workspace: 1\nname: Weather station\nrepositories:\n  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n  - { name: away, url: "git@git.example.com:ws/away.git" }\nmetamodel: { repository: system, path: metamodel }\n',
@@ -274,5 +300,25 @@ describe("the view rule (SR-041, SR-043)", () => {
       { workspace: ws },
     )) as CommandOutput<"element.list">;
     expect([out.incomplete, out.elements.map((e) => name(e.id)).includes("K3")]).toEqual([true, true]);
+    expect(await check(ws, "variant.target-not-core")).toEqual([]);
+  });
+
+  it("gives no variant.target-not-core while the metamodel is not valid", async () => {
+    const ws = await open({
+      ...requirement("b3", `validity: [${A}]\nreplaces: [${to("d1")}]\n`),
+      "metamodel/broken.yaml": "reqseq-metamodel: 1\ntypes: nope\n",
+    });
+    expect(await check(ws, "variant.target-not-core")).toEqual([]);
+  });
+
+  it("an exclusion of a requirement with validity changes no view and gives variant.target-not-core", async () => {
+    const ws = await open({
+      "variants/VAR-0000000000c1.md": `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes: [${to("a2")}, ${to("b2")}]\n---\n`,
+    });
+    expect(await list(ws, "VAR-0000c1")).toEqual(VIEW_A);
+    const problems = await check(ws, "variant.target-not-core");
+    expect(problems.map((p) => p.message.split(",")[0])).toEqual([
+      "Variant VAR-0000c1 excludes System Requirement SR-0000b2",
+    ]);
   });
 });
