@@ -2263,7 +2263,7 @@ export interface HintListOutput {
 export interface HintConfirmInput {
   /** IDs of hints to confirm (`hintId` of hint.list). */
   readonly hintIds?: readonly string[];
-  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. */
+  /** Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. A variant with open `variant.core-changed-since-baseline` or `variant.core-new-since-baseline` hints, without `kind`, gives `hint.not-confirmable` for them, since a new baseline of the variant settles them (SR-103 AK5). */
   readonly ref?: ElementRef;
   /** Confirm the open confirmable hints on relations and inline references that point at this element, for example after it changed. */
   readonly target?: ElementRef;

@@ -6383,7 +6383,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Give `hintIds`, `ref`, `target` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (those with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `kind` narrows only that selection and needs `ref` or `target`. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): each once, `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning.",
+                "description": "Give `hintIds`, `ref`, `target` or several of them; none is `input.invalid`. `ref` and `target` select the open confirmable hints (those with a `hintId`, as hint.list gives them) about `ref` and pointing at `target`, both when both are given; `kind` narrows only that selection and needs `ref` or `target`. The selected hints and `hintIds` are confirmed together, as one set (SR-027 AK2): each once, `confirmed` names `hintIds` first, then the selected IDs. A selection without an open confirmable hint is a `hint.not-found` warning, left out when the call already gives `hint.not-confirmable` for the since-baseline hints (SR-103 AK5).",
                 "properties": {
                   "hintIds": {
                     "type": "array",
@@ -6394,7 +6394,7 @@
                   },
                   "ref": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",
-                    "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement."
+                    "description": "Confirm the open confirmable hints about this element: the outdated relations and inline references (in the text and in properties marked `markdown`) its file stores, and its `replaces` items onto a changed core requirement. A variant with open `variant.core-changed-since-baseline` or `variant.core-new-since-baseline` hints, without `kind`, gives `hint.not-confirmable` for them, since a new baseline of the variant settles them (SR-103 AK5)."
                   },
                   "target": {
                     "$ref": "#/components/schemas/common/$defs/elementRef",

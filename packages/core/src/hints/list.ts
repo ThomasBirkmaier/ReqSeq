@@ -13,7 +13,7 @@
 //   replacement's validity. The core requirements changed or new since a variant's newest baseline
 //   (SR-103, `since-baseline.ts`) follow the states, before the outdated relations; they are at the
 //   variant, which every view holds (SR-043 AK10), so the `variant` filter lists them only for that
-//   variant, and computes only that variant's.
+//   variant. Only the variants whose hints can pass the filters are computed (`sinceBaselineVariants`).
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
 //   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310, added by
 //   `invoke` to every problem that names an element, #315), the target
@@ -65,6 +65,7 @@ import {
   targetNotCoreProblemsState,
   validityEntries,
   validityTarget,
+  variantsOf,
   viewRuleOf,
 } from "../variants/index.js";
 import { availableRepositories, workspaceLayoutState } from "../workspace/index.js";
@@ -200,6 +201,32 @@ const elementMatches = (
   );
 };
 
+/**
+ * The variants whose since-baseline hints can pass `filter` (SR-103): none when `kind` names neither
+ * code or the view is the core; else the variant of `variant`, the element of `ref` or every variant,
+ * as far as they pass the element filters. A since-baseline hint is at its variant, which every view
+ * holds (SR-043 AK10), so `variant` lists only that variant's.
+ */
+const sinceBaselineVariants = (
+  context: { readonly metamodel: Metamodel; readonly store: ElementStore },
+  filter: HintFilter,
+): readonly ElementRecord[] => {
+  const { kinds, variant, ref } = filter;
+  if (
+    variant?.kind === "core" ||
+    (kinds !== undefined && ![...SINCE_BASELINE_CODES].some((c) => kinds.has(c)))
+  ) {
+    return [];
+  }
+  const candidates =
+    variant !== undefined
+      ? [variant.variant]
+      : ref !== undefined
+        ? [ref]
+        : variantsOf(context.store, context.metamodel);
+  return candidates.filter((candidate) => elementMatches(candidate, filter, context, undefined));
+};
+
 /** Whether `filter` has a filter on the element of a hint. */
 const filtersElements = (filter: HintFilter): boolean =>
   filter.types !== undefined ||
@@ -225,11 +252,6 @@ export const hintsOf = async (
   const passes = (problem: Problem): problem is Problem & { readonly elementId: string } =>
     isHint(problem) &&
     (filter.kinds === undefined || filter.kinds.has(problem.code)) &&
-    (filter.variant === undefined ||
-      !SINCE_BASELINE_CODES.has(problem.code) ||
-      (filter.variant.kind === "variant" &&
-        problem.elementId === filter.variant.variant.id &&
-        problem.repository === filter.variant.variant.repository)) &&
     (!byElement || elementMatches(problemElement(context.store, problem), filter, context, view));
   const hints: Problem[] = [];
   for (const problem of problems) {
@@ -271,12 +293,11 @@ export const listHints = async (
       problems.push(problem);
     }
   }
-  const variant = filter.variant;
-  if (variant?.kind !== "core") {
-    const only = variant?.variant;
+  const variants = sinceBaselineVariants({ metamodel, store }, filter);
+  if (variants.length > 0) {
     for (const problem of await sinceBaselineProblems(
       { workspace, layout, metamodel, store, shortIds },
-      only,
+      variants,
     )) {
       problems.push(problem);
     }

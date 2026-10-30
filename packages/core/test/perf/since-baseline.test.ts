@@ -7,9 +7,25 @@
 // - `hint.list --variant A`: A's hints with the baseline files not read yet (a new workspace on the
 //   loaded model: the headers of 118 files, the newest of A in full), ≤ 1 s.
 // - `workspace.check`: the since-baseline part for every variant, files not read yet, ≤ 10 s.
-// - `element.get` of A in a running server (files kept), ≤ 200 ms (SR-082 AK3).
+// - `element.get` of A in a running server (files kept), ≤ 200 ms (SR-082 AK3), also right after
+//   one changed file elsewhere; `element.update` of A at most 75 ms above the save of a variant
+//   without a baseline (median of 5 each).
+// - `hint.list` by `ref` of a core requirement (≤ 200 ms, SR-026 AK3) and by type (≤ 500 ms,
+//   SR-026 AK2) with these baselines present: neither computes since-baseline hints.
+//
+// Method: in process, on a workspace with the model loaded and the current versions built
+// (`loaded()`), unlike ADR-0018's "one new CLI process per call". `hint.list` and `workspace.check`
+// build the versions anyway, so the since-baseline part is measured after them. A cold CLI process
+// (or the app before its background versions build ends) first waits for that build when it asks
+// for the hints of a variant with a baseline, 4–5 s at N-036 (#259, `hints.md` "Cost").
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
-import { generateLargeWorkspace, measure, thresholdMessage, writeLargeWorkspace } from "@reqseq/testkit";
+import {
+  generateLargeWorkspace,
+  measure,
+  measureMedian,
+  thresholdMessage,
+  writeLargeWorkspace,
+} from "@reqseq/testkit";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -35,6 +51,9 @@ const CHANGED_IN_A = 5000;
 const LIST_MS = 1000;
 const CHECK_MS = 10_000;
 const GET_MS = 200;
+const SAVE_EXTRA_MS = 75;
+const SAVES = 5;
+const TYPE_MS = 500;
 const BASIS = "ADR-0018 performance bounds, SR-103, N-036";
 
 describe("hints since a variant's newest baseline with 50,000 elements (SR-103, N-036)", () => {
@@ -42,6 +61,8 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
   let cacheFolder = "";
   const opened: Workspace[] = [];
   let a: ElementRecord;
+  let core: ElementRecord;
+  let elsewhere: ElementRecord;
 
   /** A workspace on the fixture with the model loaded and the current versions built, baselines not read (no search index in the background, as in a CLI process). */
   const loaded = async (): Promise<{
@@ -80,6 +101,10 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     const cores = store.elements.filter((e) => isCoreRequirement(context, e));
     const variants = store.elements.filter((e) => e.type === "variant").slice(0, WITH_BASELINE);
     [a] = variants as [ElementRecord];
+    [core] = cores as [ElementRecord];
+    [elsewhere] = store.elements.filter((e) => e.type !== "variant" && !isCoreRequirement(context, e)) as [
+      ElementRecord,
+    ];
     const folder = path.join(fixture.workspaceRoot, "baselines");
     await fs.mkdir(folder, { recursive: true });
     const write = async (
@@ -127,7 +152,7 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
     const { context } = await loaded();
     const { result, measurement } = await measure(
       "hint.list --variant A: since-baseline part, 118 baseline headers, the newest of A in full",
-      () => sinceBaselineProblems(context, a),
+      () => sinceBaselineProblems(context, [a]),
       { basis: BASIS, thresholdMs: LIST_MS },
     );
     expect(result).toHaveLength(CHANGED_IN_A);
@@ -158,5 +183,70 @@ describe("hints since a variant's newest baseline with 50,000 elements (SR-103, 
       result.element.problems?.filter((p) => p.code === "variant.core-changed-since-baseline"),
     ).toHaveLength(CHANGED_IN_A);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(GET_MS);
+  });
+
+  it("keeps element.get of A within 200 ms after a save elsewhere, and saves A at most 75 ms slower than a variant without a baseline", async () => {
+    const { workspace, context } = await loaded();
+    const [other] = context.store.elements.filter((e) => e.type === "variant").slice(WITH_BASELINE) as [
+      ElementRecord,
+    ];
+    const get = async (): Promise<CommandOutput<"element.get">> =>
+      (await invoke("element.get", { ref: a.id }, { workspace })) as CommandOutput<"element.get">;
+    await get();
+    await invoke("element.update", { ref: elsewhere.id, title: "Saved elsewhere" }, { workspace });
+    const { result, measurement } = await measure("element.get of A after one changed file", get, {
+      basis: BASIS,
+      thresholdMs: GET_MS,
+    });
+    expect(
+      result.element.problems?.filter((p) => p.code === "variant.core-changed-since-baseline"),
+    ).toHaveLength(CHANGED_IN_A);
+    expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(GET_MS);
+    // A save of any variant here takes some 150 ms without these hints (the store, the view rules);
+    // the bound is on what A's baseline adds: its hints carried over and shown again.
+    let n = 0;
+    const save = (ref: string) => async (): Promise<unknown> => {
+      n += 1;
+      return invoke("element.update", { ref, title: `Saved ${String(n)}` }, { workspace });
+    };
+    const plain = await measureMedian(
+      "element.update of a variant without a baseline (title)",
+      save(other.id),
+      {
+        basis: BASIS,
+        runs: SAVES,
+      },
+    );
+    const saved = await measureMedian("element.update of A (title)", save(a.id), {
+      basis: BASIS,
+      thresholdMs: plain.measurement.ms + SAVE_EXTRA_MS,
+      runs: SAVES,
+    });
+    expect(saved.measurement.ms, thresholdMessage(saved.measurement)).toBeLessThanOrEqual(
+      plain.measurement.ms + SAVE_EXTRA_MS,
+    );
+  });
+
+  it("lists the hints of a core requirement or a type without computing these hints (SR-026)", async () => {
+    const { workspace } = await loaded();
+    const list = async (input: Record<string, unknown>): Promise<CommandOutput<"hint.list">> =>
+      (await invoke("hint.list", input, { workspace })) as CommandOutput<"hint.list">;
+    // States and outdated relations first, as a running server has them.
+    await list({ kind: ["relation.outdated"] });
+    const own = await measure(
+      "hint.list --ref <core requirement>, baselines present",
+      () => list({ ref: core.id }),
+      {
+        basis: "SR-026 AK3, SR-103",
+        thresholdMs: GET_MS,
+      },
+    );
+    expect(own.measurement.ms, thresholdMessage(own.measurement)).toBeLessThanOrEqual(GET_MS);
+    const typed = await measure(
+      `hint.list --type ${core.type}, baselines present`,
+      () => list({ type: [core.type] }),
+      { basis: "SR-026 AK2, SR-103", thresholdMs: TYPE_MS },
+    );
+    expect(typed.measurement.ms, thresholdMessage(typed.measurement)).toBeLessThanOrEqual(TYPE_MS);
   });
 });

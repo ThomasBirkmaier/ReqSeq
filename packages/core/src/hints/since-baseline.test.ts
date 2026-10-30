@@ -7,7 +7,8 @@ import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput, Problem } from "../catalog.js";
-import { HEADER_BYTES } from "../baselines/index.js";
+import { baselineHeadersState, HEADER_BYTES } from "../baselines/index.js";
+import { currentVersionsState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 
@@ -216,7 +217,9 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       { workspace },
     )) as CommandOutput<"hint.confirm">;
     expect([confirmed.confirmed, confirmed.files]).toEqual([[], []]);
-    const refused = (confirmed.problems ?? []).filter((p) => p.code === "hint.not-confirmable");
+    // No `hint.not-found` beside the refusal: it would say there is no open hint.
+    const refused = confirmed.problems ?? [];
+    expect(refused.map((p) => p.code)).toEqual(["hint.not-confirmable", "hint.not-confirmable"]);
     expect(refused.map((p) => [p.hintId, p.message])).toEqual([
       [
         undefined,
@@ -228,6 +231,28 @@ describe("core requirements changed since a variant's newest baseline (SR-103)",
       ],
     ]);
     expect(rows(await listed(workspace))).toHaveLength(1);
+  });
+
+  it("[SR-103/AK5] hint.confirm of the hints of A is refused with the reason, and confirms nothing else", async () => {
+    const { workspace } = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    const confirm = async (ref: string): Promise<CommandOutput<"hint.confirm">> =>
+      (await invoke("hint.confirm", { ref }, { workspace })) as CommandOutput<"hint.confirm">;
+    const refused = await confirm("VAR-0000c1");
+    expect([refused.confirmed, refused.files]).toEqual([[], []]);
+    expect(refused.problems?.map((p) => [p.code, p.severity, p.message])).toEqual([
+      [
+        "hint.not-confirmable",
+        "error",
+        "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant (baseline.create with the view of the variant), not by confirming them (D-042)",
+      ],
+    ]);
+    // A variant without such hints, and another element: the usual warning.
+    for (const ref of ["VAR-0000c2", "SR-0000a2"]) {
+      expect((await confirm(ref)).problems?.map((p) => p.code)).toEqual(["hint.not-found"]);
+    }
   });
 
   it("[SR-103/AK6] excluded or replaced core requirements give no hint here", async () => {
@@ -329,6 +354,12 @@ describe("reading the newest baseline (baselines/newest.ts)", () => {
     // Kept by stamp; a file that cannot be looked at is read again.
     vi.spyOn(fs, "lstat").mockRejectedValueOnce(new Error("gone"));
     expect(await targets()).toEqual([[K1, true]]);
+    // The header of a removed file is dropped.
+    const headers = workspace.get(baselineHeadersState);
+    expect([...headers.keys()].some((key) => key.endsWith("baselines/A.yaml"))).toBe(true);
+    await fs.rm(fixture.path("baselines/A.yaml"));
+    expect(await targets()).toEqual([[K1, true]]);
+    expect([...headers.keys()].some((key) => key.endsWith("baselines/A.yaml"))).toBe(false);
   });
 
   it("finds no baseline in a folder that is not here or cannot be read", async () => {
@@ -362,6 +393,120 @@ describe("a workspace without variants", () => {
     });
     expect(await listed(workspace)).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("what hint.list computes (N-036)", () => {
+  it("reads no baseline when the filters admit no since-baseline hint", async () => {
+    const { workspace } = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    // The states and the outdated relations first, so that only these hints could read files.
+    await listed(workspace);
+    const spy = vi.spyOn(fs, "open");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const inputs = [
+      { ref: "SR-0000a1" },
+      { type: ["system-requirement"] },
+      { kind: ["relation.outdated"] },
+      { variant: "VAR-0000c1", ref: "VAR-0000c2" },
+    ];
+    for (const input of inputs) {
+      expect(await listed(workspace, input)).toEqual([]);
+    }
+    expect(spy).not.toHaveBeenCalled();
+    expect(
+      rows(
+        await listed(workspace, {
+          type: ["variant"],
+          kind: ["variant.core-new-since-baseline", "variant.core-changed-since-baseline"],
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("copies of a core requirement in two repositories (SR-088)", () => {
+  it("names the copy the baseline does not list, though another copy has its version", async () => {
+    const workspaceFile = (await fs.readFile(path.join(FIXTURE, "reqseq-workspace.yaml"), "utf8")).replace(
+      "metamodel:",
+      '  - { name: sensor, url: "git@git.example.com:ws/sensor.git", path: sensor }\nmetamodel:',
+    );
+    const { workspace } = await open({
+      "reqseq-workspace.yaml": workspaceFile,
+      // The same content as K1 of the baseline, so the same version, in another repository.
+      [`sensor/${fileOf(String(K1))}`]: await fs.readFile(path.join(FIXTURE, fileOf(String(K1))), "utf8"),
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+    });
+    const hints = await listed(workspace);
+    expect(hints.map((h) => [h.code, h.targetId, h.currentVersion])).toEqual([
+      ["variant.core-new-since-baseline", K1, VERSIONS[String(K1)]],
+    ]);
+  });
+});
+
+describe("kept between calls", () => {
+  it("carries the hints of a variant over a change elsewhere and gives what a new workspace gives", async () => {
+    const { workspace, fixture } = await open({
+      "baselines/R1.yaml": baseline("R1", "2026-11-02T10:00:00Z", OF_COAST),
+      [fileOf(String(K1))]: await changedK1(),
+    });
+    // The baseline file read is kept only once it is no longer racy (`changeStamp`).
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now + 60_000);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const fresh = async (): Promise<unknown[]> => rows(await listed(reopened(fixture)));
+    const step = async (change: () => Promise<unknown>): Promise<unknown[]> => {
+      await change();
+      const now = rows(await listed(workspace));
+      expect(now).toEqual(await fresh());
+      // element.get of the variant agrees.
+      const shown = (await invoke(
+        "element.get",
+        { ref: COAST },
+        { workspace },
+      )) as CommandOutput<"element.get">;
+      expect(rows(shown.element.problems ?? [])).toEqual(now);
+      return now;
+    };
+    const changed = "variant.core-changed-since-baseline";
+    const update = (ref: string, input: Record<string, unknown>): Promise<unknown> =>
+      invoke("element.update", { ref, ...input }, { workspace });
+    expect(await step(() => Promise.resolve(undefined))).toEqual([[changed, COAST, K1]]);
+    // A core requirement changes: only its hit is computed again.
+    expect(
+      await step(() => update(String(K2), { text: "The station reports the temperature twice a minute.\n" })),
+    ).toEqual([
+      [changed, COAST, K1],
+      [changed, COAST, K2],
+    ]);
+    // The variant and a replacement change, their rules do not; then a core requirement changes back.
+    await step(() => update(String(COAST), { title: "Coast station" }));
+    await step(() => update(String(B1), { text: "At the coast the rain every minute.\n" }));
+    expect(
+      await step(() => update(String(K2), { text: "The station reports the temperature every minute.\n" })),
+    ).toEqual([[changed, COAST, K1]]);
+    // A rule changes, a new core requirement, a core requirement gets a validity: computed again.
+    expect(
+      await step(() => invoke("variant.exclude", { variant: COAST, refs: ["SR-0000a1"] }, { workspace })),
+    ).toEqual([]);
+    expect(
+      await step(() =>
+        invoke(
+          "element.create",
+          { type: "system-requirement", title: "Pressure", text: "Pressure.\n" },
+          { workspace },
+        ),
+      ),
+    ).toHaveLength(1);
+    await step(() => update(String(K2), { set: { validity: [{ id: String(MOUNTAIN) }] } }));
+    // The versions built again, on the same store.
+    await step(() => workspace.reset(currentVersionsState));
   });
 });
 

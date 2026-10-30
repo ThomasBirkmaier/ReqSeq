@@ -19,7 +19,7 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 
 ## The newest baseline of a group
 
-`newestBaselines(workspace, groupOf)` (`newest.ts`, SR-103 AK4, ADR-0018 "Which baseline"): for each group `groupOf` names for a candidate (`repository`, `file`, `header`), the valid baseline with the latest `date` instant, at the same instant the last in file order; a faulty newest gives way to the next. Candidates are read by their header only (`baselineHeader` of the first `HEADER_BYTES`); a longer or hand-edited header is read in full (`readKeptFile`). `baselineHeadersState` keeps headers by `changeStamp`; only the newest of each group is read in full. Used by the hints block for the variants' since-baseline hints.
+`newestBaselines(workspace, groupOf)` (`newest.ts`, SR-103 AK4, ADR-0018 "Which baseline"): for each group `groupOf` names for a candidate (`repository`, `file`, `header`), the valid baseline with the latest `date` instant, at the same instant the last in file order; a faulty newest gives way to the next. Candidates are read by their header only (`baselineHeader` of the first 4 KiB, else of the first `HEADER_BYTES`); a longer or hand-edited header is read in full (`readKeptFile`). `baselineHeadersState` keeps headers by `changeStamp` and drops those of removed files; only the newest of each group is read in full and kept in `baselineFilesState`. A leap-second `date` (`…:60Z`) cannot be compared and falls back to file order. Used by the hints block for the variants' since-baseline hints.
 
 ## Kept between calls
 

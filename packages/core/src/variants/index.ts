@@ -24,6 +24,7 @@ export {
 } from "./target-not-core.js";
 export {
   removersOf,
+  ruleItemsOf,
   ruleTargetsOf,
   viewIncomplete,
   viewRuleIn,

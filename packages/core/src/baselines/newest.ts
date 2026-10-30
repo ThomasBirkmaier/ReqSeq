@@ -3,16 +3,17 @@
 //
 // - Candidates: the `*.yaml` files of the baselines folder, as `readBaselines` lists them (no
 //   `.yml`), each by its header (`baselineHeader`, the lines before `repositories:`) read from the
-//   first `HEADER_BYTES` of the file. A file whose header is longer, or not in the layout ReqSeq
-//   writes, is read in full (`readKeptFile`); a faulty one (also the workspace file in a folder at
-//   the root) is no candidate.
+//   first 4 KiB of the file, else from the first `HEADER_BYTES`. A file whose header is longer, or
+//   not in the layout ReqSeq writes, is read in full (`readKeptFile`); a faulty one (also the
+//   workspace file in a folder at the root) is no candidate.
 // - `groupOf` names the group of a candidate (SR-103: the variant its selection names), or none.
-// - The newest of a group: the latest `date` instant (date and time, spec question #403), at the same
+// - The newest of a group: the latest `date` instant (date and time, SR-103 AK4), at the same
 //   instant the last in file order. Only that file is read in full; when it is no valid baseline, the
 //   next newest is taken.
-// - Cost (N-036): per file one `lstat` and at most `HEADER_BYTES` read, plus one full read per group.
-//   Headers are kept by `changeStamp` (`baselineHeadersState`) and full reads in `baselineFilesState`,
-//   so a running server reads a file again only when it changed.
+// - Cost (N-036): per file one `lstat` and 4 KiB read (at most `HEADER_BYTES`), plus one full read
+//   per group. Headers are kept by `changeStamp` (`baselineHeadersState`, entries of removed files
+//   dropped) and full reads in `baselineFilesState`, so a running server reads a file again only
+//   when it changed.
 import type { BigIntStats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -52,15 +53,18 @@ export const baselineHeadersState = defineWorkspaceState(
   { dependsOn: [workspaceLayoutState] },
 );
 
-/** The first `HEADER_BYTES` of `absolute` as text, or undefined when it cannot be read. */
-const prefixOf = async (absolute: string): Promise<string | undefined> => {
+/** The bytes read for a header, the first enough for a header with `view` alone. */
+const PREFIX_BYTES = [4096, HEADER_BYTES] as const;
+
+/** The first `bytes` of `absolute` as text, or undefined when it cannot be read. */
+const prefixOf = async (absolute: string, bytes: number): Promise<string | undefined> => {
   const handle = await fs.open(absolute, "r").catch(() => undefined);
   if (handle === undefined) {
     return undefined;
   }
   try {
-    const buffer = Buffer.alloc(HEADER_BYTES);
-    const { bytesRead } = await handle.read(buffer, 0, HEADER_BYTES, 0);
+    const buffer = Buffer.alloc(bytes);
+    const { bytesRead } = await handle.read(buffer, 0, bytes, 0);
     return new TextDecoder().decode(buffer.subarray(0, bytesRead));
   } finally {
     await handle.close();
@@ -85,19 +89,31 @@ const fullRead = async (place: Place): Promise<Baseline | undefined> => {
 };
 
 /** The header of the file of `place` (see the file comment), kept by its stamp in `kept`. */
-const headerOf = async (place: Place, kept: Map<string, KeptHeader>): Promise<BaselineHeader | undefined> => {
+const headerOf = async (
+  place: Place,
+  kept: Map<string, KeptHeader>,
+  seen: Set<string>,
+): Promise<BaselineHeader | undefined> => {
   const readAt = Date.now();
   const stat: BigIntStats | undefined = await fs
     .lstat(place.absolute, { bigint: true })
     .catch(() => undefined);
   const stamp = stat === undefined ? undefined : changeStamp(stat, readAt);
   const key = `${place.repository.name}\n${place.file}`;
+  seen.add(key);
   const before = kept.get(key);
   if (stamp !== undefined && before?.stamp === stamp) {
     return before.header;
   }
-  const prefix = await prefixOf(place.absolute);
-  const header = (prefix === undefined ? undefined : baselineHeader(prefix)) ?? (await fullRead(place))?.data;
+  let header: BaselineHeader | undefined;
+  for (const bytes of PREFIX_BYTES) {
+    const prefix = await prefixOf(place.absolute, bytes);
+    header = prefix === undefined ? undefined : baselineHeader(prefix);
+    if (header !== undefined) {
+      break;
+    }
+  }
+  header ??= (await fullRead(place))?.data;
   if (stamp !== undefined) {
     kept.set(key, { stamp, header });
   }
@@ -123,6 +139,7 @@ export const newestBaselines = async (
   const folder = path.relative(repository.folder, absolute).split(path.sep).join("/");
   const kept = workspace.get(baselineHeadersState);
   const groups = new Map<string, { place: Place; at: number }[]>();
+  const seen = new Set<string>();
   for (const name of listing.names) {
     // The workspace file in a baselines folder at the root has no baseline header and is no candidate.
     if (!name.endsWith(BASELINE_FILE_EXTENSION)) {
@@ -131,13 +148,17 @@ export const newestBaselines = async (
     const file = path.posix.join(folder, name);
     const shown = workspacePath(layout, repository, file);
     const place: Place = { workspace, repository, absolute: path.join(absolute, name), file, shown };
-    const header = await headerOf(place, kept);
+    const header = await headerOf(place, kept, seen);
     const group = header === undefined ? undefined : groupOf({ repository: repository.name, file, header });
     if (header !== undefined && group !== undefined) {
       const list = groups.get(group) ?? [];
+      // A leap second (`…:60Z`) parses as NaN; its comparisons then fall back to file order.
       list.push({ place, at: Date.parse(header.date) });
       groups.set(group, list);
     }
+  }
+  for (const key of [...kept.keys()].filter((k) => !seen.has(k))) {
+    kept.delete(key);
   }
   for (const [group, candidates] of groups) {
     // Latest instant first; at the same instant the later file first (`listing.names` is sorted).

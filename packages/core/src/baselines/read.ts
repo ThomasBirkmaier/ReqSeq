@@ -233,10 +233,10 @@ const stampStat = async (absolute: string): Promise<BigIntStats | null | undefin
     .catch((error: unknown) => ((error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : null));
 
 /**
- * What the baseline file `file` (at `absolute`) gives now (also for `newest.ts`): as kept when its `changeStamp` (size,
- * modification time, inode, change time) is that of the last read and was not racy then, else read
- * again; undefined when it is gone since the folder was listed. A file that cannot be looked at is
- * read, so its problem is reported, and not kept. Its key goes into `seen`.
+ * What the baseline file `file` (at `absolute`) gives now (also for `newest.ts`): as kept when its
+ * `changeStamp` (size, modification time, inode, change time) is that of the last read and was not
+ * racy then, else read again; undefined when it is gone since the folder was listed. A file that
+ * cannot be looked at is read, so its problem is reported, and not kept. Its key goes into `seen`.
  */
 export const readKeptFile = async (
   repository: RepositoryLocation,

@@ -73,7 +73,7 @@ problems:
     cause: The relation existed without a valid stored version; the target's current version was stored now.
     remedy: None needed.
   hint.not-confirmable:
-    cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place. The hints on a core requirement changed or new since a variant's baseline (`variant.core-changed-since-baseline`, `variant.core-new-since-baseline`) are refused when `kind` names them, since a new baseline of the variant settles them (SR-103 AK5).
+    cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place. The hints on a core requirement changed or new since a variant's baseline (`variant.core-changed-since-baseline`, `variant.core-new-since-baseline`) are refused when `kind` names them or `ref` names a variant that has them, since a new baseline of the variant settles them (SR-103 AK5).
     remedy: Other hints go away when what they report is fixed. For a file the message names, correct it by hand.
   hint.not-found:
     cause: No open hint has the given ID. It was confirmed already, or the relation, its target or the file changed since.

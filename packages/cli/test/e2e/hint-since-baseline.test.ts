@@ -93,6 +93,14 @@ describe("reqseq hints since a variant's newest baseline (SR-103)", () => {
     expect(`${refused.stdout}${refused.stderr}`).toContain(
       `kind ${CHANGED} is not confirmed: a ${CHANGED} hint is settled only by a new baseline of its variant`,
     );
+    expect(`${refused.stdout}${refused.stderr}`).not.toContain("No open hint");
+    // The hints of A, by `--ref` alone: refused with the reason too.
+    const all = await reqseq(["hint", "confirm", "--ref", "VAR-0000c1"], ws.root);
+    expect(all.code).toBe(1);
+    expect(`${all.stdout}${all.stderr}`).toContain(
+      "1 open hints at VAR-0000c1 (variant.core-changed-since-baseline) are not confirmed: they are settled only by a new baseline of the variant",
+    );
+    expect(`${all.stdout}${all.stderr}`).not.toContain("No open hint");
     expect(await fs.readFile(ws.path("variants/VAR-0000000000c1.md"), "utf8")).toBe(before);
     expect(await hintsOf(ws)).toHaveLength(1);
   });
