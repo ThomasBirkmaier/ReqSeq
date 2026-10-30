@@ -72,13 +72,17 @@ export const VariantLines = ({ output, onOpenRelation }: VariantLinesProps): Rea
     <>
       <Line parts={lines.use} label="Replaced or excluded" onOpen={onOpenRelation} />
       <Line parts={lines.verification} label="Verification" onOpen={onOpenRelation} />
-      {lines.sinceBaseline.map((message, at) => (
-        <Line
-          key={at}
-          parts={[{ text: message }]}
-          label="Since the newest baseline"
-          onOpen={onOpenRelation}
-        />
+      {lines.sinceBaseline.map((hint) => (
+        <p
+          key={hint.message}
+          className="variant-line since-baseline"
+          role="group"
+          aria-label={
+            hint.kind === "new" ? "New since the newest baseline" : "Changed since the newest baseline"
+          }
+        >
+          {hint.message}
+        </p>
       ))}
     </>
   );

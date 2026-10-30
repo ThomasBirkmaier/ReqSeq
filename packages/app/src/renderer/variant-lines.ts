@@ -6,7 +6,7 @@
 // requirement). Variants and replacements are named by `names`; one `names` lacks is named by its UUID.
 // On the page of a variant, one line per hint about a core requirement since its newest baseline (SR-103:
 // changed, or new in its view), with core's message as `element.get` and the CLI give it (SR-080).
-import type { ElementGetOutput, ElementName } from "@reqseq/core";
+import type { ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
 import { CORE_VIEW } from "./views.js";
@@ -20,12 +20,18 @@ export interface VariantLines {
   readonly use: readonly LinePart[] | undefined;
   /** Its verification status per view; undefined when `element.get` gives none (not a requirement). */
   readonly verification: readonly LinePart[] | undefined;
-  /** The messages of the variant's hints since its newest baseline (SR-103), in core's order. */
-  readonly sinceBaseline: readonly string[];
+  /** The variant's hints since its newest baseline (SR-103), in core's order: whether new, and core's message. */
+  readonly sinceBaseline: readonly SinceBaseline[];
+}
+
+/** A hint at a variant since its newest baseline: a core requirement changed since then, or new in its view. */
+export interface SinceBaseline {
+  readonly kind: "changed" | "new";
+  readonly message: string;
 }
 
 /** The codes of the hints at a variant since its newest baseline (SR-103 AK1, AK7). Display only. */
-export const SINCE_BASELINE_CODES: ReadonlySet<string> = new Set([
+export const SINCE_BASELINE_CODES: ReadonlySet<ProblemCode> = new Set<ProblemCode>([
   "variant.core-changed-since-baseline",
   "variant.core-new-since-baseline",
 ]);
@@ -85,6 +91,9 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
         : [{ text: "Verification — " }, ...joined(verification)],
     sinceBaseline: (element.problems ?? [])
       .filter((problem) => SINCE_BASELINE_CODES.has(problem.code))
-      .map((problem) => problem.message),
+      .map((problem) => ({
+        kind: problem.code === "variant.core-new-since-baseline" ? "new" : "changed",
+        message: problem.message,
+      })),
   };
 };

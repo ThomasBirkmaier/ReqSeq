@@ -88,8 +88,8 @@ describe("the lines of a requirement's variants", () => {
       }),
     );
     expect(lines.sinceBaseline).toEqual([
-      "SR-0000a1 has changed since R1",
-      "SR-0000a5 has come into the view since R1",
+      { kind: "changed", message: "SR-0000a1 has changed since R1" },
+      { kind: "new", message: "SR-0000a5 has come into the view since R1" },
     ]);
     expect(variantLines(output({})).sinceBaseline).toEqual([]);
   });

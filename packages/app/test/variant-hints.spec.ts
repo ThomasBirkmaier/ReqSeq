@@ -254,8 +254,8 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await running.close();
   });
 
-  const sinceBaseline = (window: Page): Locator =>
-    window.locator("article").getByRole("group", { name: "Since the newest baseline", exact: true });
+  /** The lines of the hints since the newest baseline on the page shown. */
+  const sinceBaseline = (window: Page): Locator => window.locator("article .since-baseline");
 
   test("[SR-103/AK1] the page of A names the adopted core requirement changed since its newest baseline with both versions", async () => {
     const { window } = running;
@@ -270,7 +270,11 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
       hints.map((h) => h.message),
     );
     await open(window, "Coast");
-    await expect(sinceBaseline(window).first()).toHaveText(changed?.message ?? "-");
+    await expect(
+      window
+        .locator("article")
+        .getByRole("group", { name: "Changed since the newest baseline", exact: true }),
+    ).toHaveText(changed?.message ?? "-");
     await expect(window.getByLabel("Modeline")).toContainText("2 hints");
   });
 
@@ -281,7 +285,9 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     expect(added?.storedVersion).toBeUndefined();
     expect(added?.message).toContain(`version ${added?.currentVersion ?? "-"} now`);
     await open(window, "Coast");
-    await expect(sinceBaseline(window).nth(1)).toHaveText(added?.message ?? "-");
+    await expect(
+      window.locator("article").getByRole("group", { name: "New since the newest baseline", exact: true }),
+    ).toHaveText(added?.message ?? "-");
   });
 
   test("[SR-103/AK3] the page of a variant without baseline shows no such hint", async () => {
@@ -294,15 +300,39 @@ test.describe("the hints at a variant since its newest baseline (SR-103)", () =>
     await expect(sinceBaseline(window)).toHaveCount(0);
   });
 
-  test("[SR-103/AK2] after a new baseline of A the page of A shows the hints no more", async () => {
+  test("[SR-103/AK2] after a new baseline of A the open page of A shows the hints no more", async () => {
     const { window } = running;
     await open(window, "Coast");
     await expect(sinceBaseline(window)).toHaveCount(2);
-    await cliJson(running, ["baseline", "create", "R2", "--input", '{"selection":{"view":"VAR-0000c1"}}']);
+    // A core requirement changed from outside shows on the open page, the modeline's count too.
+    const k2 = path.join(ws.root, "requirements", "SR-0000000000a2.md");
+    await fs.writeFile(k2, `${await fs.readFile(k2, "utf8")}Also at night.\n`);
+    await ws.git(["commit", "--quiet", "--no-verify", "--all", "-m", "K2"]);
+    const changed = await elementHints(running, "VAR-0000c1", SINCE_BASELINE);
+    expect(changed).toHaveLength(3);
+    await expect(sinceBaseline(window)).toHaveText(changed.map((h) => h.message));
+    await expect(window.getByLabel("Modeline")).toContainText("3 hints");
+    // R2 of the view of Coast, made in the app from the list in that view beside the open page of Coast.
+    await command(window, "Choose view");
+    await window.keyboard.type("Coast");
+    await expect(names(window).first()).toHaveText("VAR-0000c1 Coast");
+    await window.keyboard.press("Enter");
+    await command(window, "List all elements");
+    await expect(window.locator(".list")).toBeVisible();
+    await command(window, "Split window");
+    const page = window.locator('[data-area="right"]');
+    await expect(page.locator("article h1")).toHaveText("Coast");
+    await expect(page.locator(".since-baseline")).toHaveCount(3);
+    await command(window, "Create baseline");
+    await expect(label(window)).toContainText("Create baseline");
+    await window.keyboard.type("R2");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".result")).toContainText("R2");
+    const r2 = await fs.readFile(path.join(ws.root, "baselines", "R2.yaml"), "utf8");
+    expect(r2).toContain(COAST);
     expect(await elementHints(running, "VAR-0000c1", SINCE_BASELINE)).toEqual([]);
-    await open(window, "Mountain");
-    await open(window, "Coast");
-    await expect(sinceBaseline(window)).toHaveCount(0);
+    // The page of Coast, open beside it all the time, shows none.
+    await expect(page.locator(".since-baseline")).toHaveCount(0);
   });
 
   test("[SR-103/AK5] Confirm hints on A offers none of them and shows core's refusal with its reason", async () => {
