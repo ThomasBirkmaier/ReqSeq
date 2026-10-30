@@ -133,6 +133,24 @@ describe("variant.exclude (SR-042)", () => {
     expect(await requirementsIn(workspace, A)).toEqual(["a2", "a3", "a4", "b1", "b2"]);
   });
 
+  it("[SR-042/AK7] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
+    const { workspace } = await open({
+      [A_FILE]:
+        `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n` +
+        `  - { id: ${P}a2 }\n  - { id: ${P}b2 }\n  - { id: ${P}f1 }\n---\n`,
+    });
+    expect(await requirementsIn(workspace, A)).toEqual(["a3", "a4", "b1", "b2"]);
+    const checked = (await invoke("workspace.check", {}, { workspace })) as CommandOutput<"workspace.check">;
+    expect(
+      checked.problems
+        .filter((p) => p.code === "variant.target-not-core")
+        .map((p) => [p.file, p.line, p.severity, p.targetId?.slice(-2)]),
+    ).toEqual([
+      [A_FILE, 8, "warning", "b2"],
+      [A_FILE, 9, "warning", "f1"],
+    ]);
+  });
+
   it("undo removes an entry by UUID, also one of no core requirement, and checks short IDs before a write", async () => {
     const { fixture, workspace } = await open({
       [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes: [{ id: ${P}a2 }, { id: ${P}d1 }]\n---\n`,

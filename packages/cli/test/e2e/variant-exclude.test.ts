@@ -19,8 +19,8 @@ beforeAll(() => {
 
 const A_FILE = "variants/VAR-0000000000c1.md";
 
-const workspace = async (): Promise<FixtureWorkspace> => {
-  const ws = await createFixtureWorkspace({ fixture: "SR-043/example" });
+const workspace = async (files: Readonly<Record<string, string>> = {}): Promise<FixtureWorkspace> => {
+  const ws = await createFixtureWorkspace({ fixture: "SR-043/example", files });
   fixtures.push(ws);
   return ws;
 };
@@ -102,5 +102,26 @@ describe("variant exclude (SR-042)", () => {
     expect([result.code, result.stderr]).toEqual([0, ""]);
     expect(await read(ws, A_FILE)).not.toContain("excludes");
     expect(await requirementsIn(ws, "VAR-0000c1")).toContain("SR-0000a2");
+  });
+
+  it("[SR-042/AK7] a hand-written exclusion of a requirement with validity or a package changes no view and gives variant.target-not-core at the entry's line", async () => {
+    const P = "43043043-0000-4000-8000-0000000000";
+    const ws = await workspace({
+      [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}b2 }\n  - { id: ${P}f1 }\n---\n`,
+    });
+    expect(await requirementsIn(ws, "VAR-0000c1")).toEqual([
+      "SR-0000a2",
+      "SR-0000a3",
+      "SR-0000a4",
+      "SR-0000b1",
+      "SR-0000b2",
+    ]);
+    const result = await run(["workspace", "check"], { cwd: ws.root });
+    expect(result.stdout).toContain(
+      `warning  variant.target-not-core  system:${A_FILE}:7  Variant VAR-0000c1 excludes System Requirement SR-0000b2`,
+    );
+    expect(result.stdout).toContain(
+      `warning  variant.target-not-core  system:${A_FILE}:8  Variant VAR-0000c1 excludes Package`,
+    );
   });
 });
