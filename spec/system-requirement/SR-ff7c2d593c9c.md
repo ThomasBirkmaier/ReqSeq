@@ -14,6 +14,7 @@ acceptance-criteria:
   - "Gegeben ein Requirement ohne Gültigkeit mit der Beziehung ersetzt auf SR-K, wenn eine Sicht berechnet wird, dann bleibt SR-K in jeder Sicht: Ersetzen wirkt nur in den Varianten der Gültigkeit des ersetzenden Requirements. Soll ein Kern-Requirement für alle durch ein anderes abgelöst werden, geschieht das mit Ablösen (SR-072)."
   - Gegeben SR-A1 und SR-A2 haben beide die Gültigkeit [A] und ersetzen SR-K, wenn die Sicht von A berechnet wird, dann erscheinen SR-A1 und SR-A2 statt SR-K, und das Tool gibt dazu keinen Hinweis.
   - Gegeben SR-A mit Gültigkeit [A] hat die Beziehung ersetzt auf ein Requirement mit Gültigkeit oder auf ein Element ohne Property mit der Bedeutung Gültigkeit, zum Beispiel einen Need oder ein Paket, wenn eine Sicht berechnet wird oder `workspace.check` läuft, dann ändert sich keine Sicht, das Tool meldet einen Hinweis an der Zeile des Eintrags (wie SR-039 AK3), und im Unterschied von A zum Kern (SR-044) steht SR-A bei den ergänzten Requirements.
+  - "Gegeben SR-A mit Gültigkeit [A] ersetzt SR-K, und der Status von SR-A wird auf einen ungültigen Wert gesetzt (zum Beispiel abgelöst), wenn die Sicht von A berechnet wird, dann ersetzt SR-A das Kern-Requirement SR-K weiter: Der Status ändert die Sicht nicht; sie ändert sich erst, wenn die Beziehung „ersetzt“ oder die Gültigkeit entfernt wird oder ein Nachfolger SR-K ersetzt (Entscheidung des Produktverantwortlichen, 2026-10-30)."
 verification-method: test
 topic: "Varianten"
 packages:
