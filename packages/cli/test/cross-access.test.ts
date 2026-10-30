@@ -17,7 +17,12 @@ import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
-import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@reqseq/core";
+import type {
+  CatalogEntry,
+  CommandName,
+  MetamodelGetOutput as MetamodelOutput,
+  VariantDiffOutput,
+} from "@reqseq/core";
 import {
   CommandError,
   Workspace,
@@ -1823,6 +1828,41 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { source: "SR-b0000000003", kind: "nope", target: "SR-b0000000001" },
       expect: "error",
     },
+  ],
+  "variant.diff": [
+    {
+      tag: "[SR-044/AK1]",
+      name: "A adds A2, replaces K1 by A1 and excludes K2",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: VariantDiffOutput }).output;
+        const tail = (id: string): string => id.slice(-2);
+        expect([
+          output.added.map(tail),
+          output.replaced.map((row) => [tail(row.core), tail(row.replacement)]),
+          output.excluded.map(tail),
+        ]).toEqual([["b2"], [["a1", "b1"]], ["a2"]]);
+      },
+    },
+    {
+      tag: "[SR-044/AK3]",
+      name: "the replaced row names the IDs of core requirement and replacement",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { replaced: unknown } }).output;
+        expect(output.replaced).toEqual([
+          {
+            core: "43043043-0000-4000-8000-0000000000a1",
+            replacement: "43043043-0000-4000-8000-0000000000b1",
+          },
+        ]);
+      },
+    },
+    { name: "no variant", fixture: VARIANT_VIEWS, input: { variant: "SR-0000a1" }, expect: "error" },
   ],
   "variant.exclude": [
     {

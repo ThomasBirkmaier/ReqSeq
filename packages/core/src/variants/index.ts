@@ -17,7 +17,11 @@ export {
   supersededValidityProblemsState,
 } from "./superseded-validity.js";
 export { isCoreRequirement } from "./core.js";
-export { targetNotCoreFindingsOf, targetNotCoreProblemsState } from "./target-not-core.js";
+export {
+  targetNotCoreFindingsOf,
+  targetNotCoreProblemsOf,
+  targetNotCoreProblemsState,
+} from "./target-not-core.js";
 export {
   removersOf,
   ruleTargetsOf,

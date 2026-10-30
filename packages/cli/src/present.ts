@@ -23,7 +23,8 @@
 //   every access, spec question #592 Q3): `share: 60 %`.
 // - `names` (the elements an output gives elsewhere by UUID only, `common.schema.json#/$defs/elementName`,
 //   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
-//   value printed as YAML (the lists of evidence.coverage, a variant `view`), `SHORT-ID (IDENTIFIER)` in
+//   value printed as YAML (the lists of evidence.coverage, a variant `view`) and in a list of UUIDs one per
+//   line (the lists of variant.diff), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line. A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
@@ -313,7 +314,7 @@ const valueLines = (
       return [`${key}:`, ...indent(value.map(findingLine))];
     }
     if (value.every((item) => typeof item === "string")) {
-      return [`${key}:`, ...indent(value)];
+      return [`${key}:`, ...indent(value.map((item) => text(withNames(item, names))))];
     }
   }
   return yamlLines({ [key]: withNames(withPercent(value), names) });

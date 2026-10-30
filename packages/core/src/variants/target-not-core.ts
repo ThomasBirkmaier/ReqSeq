@@ -9,6 +9,7 @@ import type { Problem } from "../catalog.js";
 import { metamodelState } from "../metamodel/index.js";
 import type { ElementRecord, LocatableFinding, SupersededContext } from "../model/index.js";
 import { elementLabel, elementStoreState, locateFindings, shortIdState } from "../model/index.js";
+import type { Workspace } from "../runtime/workspace.js";
 import { defineWorkspaceState } from "../runtime/workspace.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { isCoreRequirement } from "./core.js";
@@ -42,26 +43,38 @@ export const targetNotCoreFindingsOf = (
   ruleItemsOf(context.metamodel, source).flatMap((item) => findingOf(context, item));
 
 /**
- * Every such hint of the workspace with repository, file, line, element and target ID, for
+ * The hints of `items` (rule items of `workspace`'s current store) with repository, file, line,
+ * element and target ID, in item order; none against a metamodel that is not valid, whose errors are
+ * the findings (#208, #220). `variant.diff` passes the items that act in one variant.
+ */
+export const targetNotCoreProblemsOf = async (
+  workspace: Workspace,
+  items: readonly RuleItem[],
+): Promise<readonly Problem[]> => {
+  const layout = await workspace.get(workspaceLayoutState);
+  const store = await workspace.get(elementStoreState);
+  const metamodel = await workspace.get(metamodelState);
+  if (!metamodel.valid) {
+    return [];
+  }
+  const context = { store, metamodel, shortIds: await workspace.get(shortIdState) };
+  return locateFindings(
+    layout,
+    items.flatMap((item) => findingOf(context, item)),
+  );
+};
+
+/**
+ * Every such hint of the workspace (`targetNotCoreProblemsOf` of every rule item), for
  * `workspace.check` and `hint.list`, in store order of the sources, then entry order. Kept until
  * the element store or the metamodel is reset.
  */
 export const targetNotCoreProblemsState = defineWorkspaceState(
   "target-not-core",
   async (workspace): Promise<readonly Problem[]> => {
-    const layout = await workspace.get(workspaceLayoutState);
     const store = await workspace.get(elementStoreState);
     const metamodel = await workspace.get(metamodelState);
-    // Nothing against a metamodel that is not valid: its errors are the findings (#208, #220).
-    if (!metamodel.valid) {
-      return [];
-    }
-    const context = { store, metamodel, shortIds: await workspace.get(shortIdState) };
-    const { items } = viewRuleIndexOf(workspace, store, metamodel);
-    return locateFindings(
-      layout,
-      items.flatMap((item) => findingOf(context, item)),
-    );
+    return targetNotCoreProblemsOf(workspace, viewRuleIndexOf(workspace, store, metamodel).items);
   },
   { dependsOn: [elementStoreState, metamodelState, shortIdState] },
 );
