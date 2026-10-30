@@ -13,19 +13,10 @@ import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
-import {
-  currentVersionsOf,
-  elementStoreState,
-  NO_COMMIT_TEXT,
-  relativeIn,
-  repositoryCommit,
-  shortIdState,
-  uncommittedFiles,
-  workspacePath,
-} from "../model/index.js";
+import { currentVersionsOf, elementStoreState, workspacePath } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
-import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
-import { WORKSPACE_FILE, locate, workspaceLayoutState } from "../workspace/index.js";
+import type { RepositoryLocation } from "../workspace/index.js";
+import { locate, workspaceLayoutState } from "../workspace/index.js";
 import { foldName, workspaceBaselines } from "./read.js";
 import { baselineText } from "./text.js";
 import type { Checked } from "./state.js";
