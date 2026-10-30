@@ -18,7 +18,7 @@ Product owner decision, 2026-10-28, confirmed on a decision card the same day: t
 
 Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with bundled dependencies) for pipelines that already have Node 22.
 
-**Names.** Every artifact and launcher name is defined here and, in the build, in one configuration entry of `toolchain/packaging/` that all build scripts, tests and the release workflow read: in the build, a rename of the product changes only that entry. The delivery docs (`docs/delivery/`) follow this table and are changed with it. The names also decide where user data lives (last two rows); a rename moves those folders, so the renamed version must take the old data over once. `<version>` is the version of the root `package.json`, which `reqseq --version` also reports.
+**Names.** Every artifact and launcher name is defined here and, in the build, in one configuration entry of `toolchain/packaging/` that all build scripts, tests and the release workflow read: in the build, a rename of the product changes only that entry. The install guide (`docs/guide/how-to/install-reqseq.md`) follows this table and is changed with it. The names also decide where user data lives (last two rows); a rename moves those folders, so the renamed version must take the old data over once. `<version>` is the version of the root `package.json`, which `reqseq --version` also reports.
 
 | What | Name |
 |---|---|
@@ -37,7 +37,7 @@ Additionally the CLI is published as a tarball (`npm pack` of `@reqseq/cli` with
 
 - the app: `app.asar` with the electron-vite output and the app's production dependencies;
 - the CLI and the MCP server as a plain folder `resources/cli` outside the asar, with a flat production `node_modules`. They run on the bundled Electron binary with `ELECTRON_RUN_AS_NODE=1` through the launcher, so no separate Node installation is needed, and they start no Chromium: they need neither a display nor the Linux sandbox step below;
-- the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([docs/delivery/README.md](../delivery/README.md));
+- the launchers in a `bin` folder. Windows matches names case-insensitively and tries `.EXE` before `.CMD`, so `reqseq.cmd` next to `ReqSeq.exe` would lose to the GUI app on the PATH; with `bin` on the PATH only the launcher is found. Adding `bin` to the PATH is one documented line ([Install ReqSeq](../guide/how-to/install-reqseq.md#cli));
 - `resources/THIRD_PARTY_NOTICES.txt` with the production dependencies of app and CLI and their licences, naming `@dagrejs/dagre` and `@dagrejs/graphlib` (ADR-0015);
 - the guide for connecting a test tool, `toolchain/junit/README.md` with its examples, as `resources/docs/junit/` (SR-063 AK2 „mitgelieferte Beschreibung“; spec question #600 Q3, assumption);
 - Electron's licence and Chromium's notices.
@@ -55,7 +55,7 @@ Everything is in the artifact; nothing is downloaded at install or run time (SR-
 | `EnableNodeOptionsEnvironmentVariable` | off | no `NODE_OPTIONS` injection into app or CLI (a bigger heap would be passed by the launcher itself) |
 | `OnlyLoadAppFromAsar` | on | the app loads only `app.asar` |
 
-**Signing.** Not part of the basic scope. macOS builds get an ad-hoc signature, the minimum Apple silicon runs; Windows builds are unsigned. [docs/delivery/unsigned-builds.md](../delivery/unsigned-builds.md) says how to open them. Signing and notarisation come later.
+**Signing.** Not part of the basic scope. macOS builds get an ad-hoc signature, the minimum Apple silicon runs; Windows builds are unsigned. [Install ReqSeq](../guide/how-to/install-reqseq.md#app) says how to open them. Signing and notarisation come later.
 
 **Release.** `.github/workflows/release.yml` builds the delivery only on a `v*` tag or a manual run, never on pull requests or pushes, so that CI time of pull requests does not change. macOS, Linux and Windows build on GitHub's hosted runners (`macos-14`, `ubuntu-24.04`, `windows-2025`); the assets are attached to the GitHub release of a tag on `main` whose name is `v<version>`, or `v<major>.<minor>` when the patch is 0 (the stage tags: `v0.<n>` on version `0.<n>.0`). The delivery tests run there (ADR-0011). The release text lists the changes since the previous release tag, from the Conventional Commit subjects on `main` grouped into new functions, fixes, specification and other changes (`scripts/package/stage.mjs --release-notes`, #346); a manual run only shows them in its job summary. electron-builder is a dev tool in its own package `toolchain/packaging/` with its own lockfile, installed and audited only by the release workflow, so pull requests never install it (exception to ADR-0001).
 

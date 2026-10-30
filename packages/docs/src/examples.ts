@@ -1,10 +1,11 @@
 // Tested examples (SR-140 AK2): every `reqseq` command in a ```sh (or bash, shell, zsh) block of a guide page,
 // indented ones in list items too, runs, in page order, in a fresh empty folder, with the command line of this build;
-// a ```text title="Output" block right after it is the expected output of the block's last command. A failing or
-// hanging example, and a `reqseq` command in any other block, stop `docs:generate` and fail the docs test.
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+// a ```text title="Output" block right after it is the expected output of the block's last command, and any other
+// block with a title (```xml title="results.xml") is a file the page writes at that point. A failing or hanging
+// example, and a `reqseq` command in any other block, stop `docs:generate` and fail the docs test.
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { Readable } from "node:stream";
 import { runCli } from "@reqseq/cli";
 
@@ -20,6 +21,18 @@ export interface Step {
   readonly argv: readonly string[];
   readonly expected?: readonly string[];
 }
+
+/** A file an example writes: its line in the page, its path relative to the folder of the page, and its lines. */
+export interface FileStep {
+  readonly line: number;
+  readonly file: string;
+  readonly content: readonly string[];
+}
+
+/** What the examples of a page do, in order: run a command or write a file. */
+export type ExampleStep = Step | FileStep;
+
+const isFile = (step: ExampleStep): step is FileStep => "file" in step;
 
 /** What a command printed and its exit code. */
 export interface CliResult {
@@ -118,22 +131,43 @@ export function commandWords(line: string): string[] {
 
 const isOutput = (block: Block): boolean => block.lang === "text" && /\btitle="Output"/.test(block.meta);
 
+/** The file a titled block writes, or undefined for a block without a title; refuses a path outside the folder. */
+function fileOf(page: GuidePage, block: Block): string | undefined {
+  const title = /\btitle="([^"]*)"/.exec(block.meta)?.[1];
+  if (title === undefined) {
+    return undefined;
+  }
+  if (!/^[\w.-]+(\/[\w.-]+)*$/.test(title) || title.split("/").some((part) => /^\.+$/.test(part))) {
+    throw new Error(
+      `${page.path}:${String(block.line)}: the file "${title}" of a block must be a relative path inside the folder of the page, with \`/\``,
+    );
+  }
+  return title;
+}
+
 /** The languages of the blocks whose `reqseq` commands run. */
 export const EXAMPLE_LANGUAGES: readonly string[] = ["sh", "bash", "shell", "zsh"];
 
 /** A `reqseq` command, also after a prompt (`$`, `>`, `%`, `PS>`). */
 const PROMPTED = /^(?:(?:\$|>|%|PS>)\s*)?reqseq(?:\s|$)/;
 
-/** The steps of a page: the commands of its example blocks that start with `reqseq`, in order. */
-export function pageSteps(page: GuidePage): Step[] {
+/** The steps of a page: the commands of its example blocks that start with `reqseq` and its files, in order. */
+export function pageSteps(page: GuidePage): ExampleStep[] {
   const found = blocks(page.text);
-  const steps: Step[] = [];
+  const steps: ExampleStep[] = [];
   for (const [index, block] of found.entries()) {
     if (!EXAMPLE_LANGUAGES.includes(block.lang)) {
-      if (!isOutput(block) && block.lines.some((line) => PROMPTED.test(line.trim()))) {
+      if (isOutput(block)) {
+        continue;
+      }
+      if (block.lines.some((line) => PROMPTED.test(line.trim()))) {
         throw new Error(
           `${page.path}:${String(block.line)}: a \`reqseq\` command in a \`${block.lang}\` block would not run; write examples in a \`sh\` block`,
         );
+      }
+      const file = fileOf(page, block);
+      if (file !== undefined) {
+        steps.push({ line: block.line, file, content: block.lines });
       }
       continue;
     }
@@ -258,14 +292,22 @@ async function runWithin(
 /** Runs the steps of one page in `cwd`, in order, and returns what failed (empty when all passed). */
 export async function runSteps(
   path: string,
-  steps: readonly Step[],
+  steps: readonly ExampleStep[],
   cwd: string,
   run: CliRun,
   timeoutMs = COMMAND_TIMEOUT_MS,
 ): Promise<string[]> {
   let ids = new Map<string, string>();
+  const withIds = (text: string): string => text.replace(ID, (sample) => ids.get(sample) ?? sample);
   for (const step of steps) {
-    const argv = step.argv.map((arg) => arg.replace(ID, (sample) => ids.get(sample) ?? sample));
+    if (isFile(step)) {
+      // The sample IDs in the file stand for the IDs of the run, as in a command.
+      const target = join(cwd, ...step.file.split("/"));
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, step.content.map(withIds).join("\n") + "\n");
+      continue;
+    }
+    const argv = step.argv.map(withIds);
     const shown = `${path}:${String(step.line)}: reqseq ${argv.join(" ")}`;
     const result = await runWithin(run, argv, cwd, timeoutMs);
     if (result === undefined) {
@@ -310,10 +352,11 @@ export async function checkExamples(
   let count = 0;
   for (const page of pages) {
     const steps = pageSteps(page);
-    if (steps.length === 0) {
+    const commands = steps.filter((step) => !isFile(step)).length;
+    if (commands === 0) {
       continue;
     }
-    count += steps.length;
+    count += commands;
     const cwd = await mkdtemp(join(tmpdir(), "reqseq-docs-"));
     try {
       failures.push(...(await runSteps(page.path, steps, cwd, run, timeoutMs)));

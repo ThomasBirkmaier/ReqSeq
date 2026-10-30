@@ -93,7 +93,7 @@ const until = async <T>(probe: () => Promise<T | undefined>, ms: number): Promis
 const userNamespaces = (): boolean => spawnSync("unshare", ["-r", "true"]).status === 0;
 
 /**
- * The documented one-time admin step on Linux (docs/delivery/README.md), where the system needs it:
+ * The documented one-time admin step on Linux (docs/guide/how-to/install-reqseq.md), where the system needs it:
  * `chrome-sandbox` owned by root with mode 4755. Done with `sudo -n`, as an administrator would; never
  * `--no-sandbox`. Gives which sandbox the app uses, for the record.
  */
