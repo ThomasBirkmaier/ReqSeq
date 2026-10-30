@@ -3,8 +3,8 @@
 // status does not matter (`element.supersede`, `element.setStatus` or an edit by hand). Every
 // relation of a relation kind of the metamodel whose target is such an element gets one hint
 // `relation.target-superseded` (a `warning`: it blocks nothing and changes no status), also the
-// successor's own relation with the meaning `replacement` (assumption, spec question #192). The
-// hint names the successors: the sources of `replacement` relations to the same element.
+// successor's own relation with the meaning `succession` (assumption, spec question #192). The
+// hint names the successors: the sources of `succession` relations to the same element.
 // Relation-valued properties (validity, packages) and inline references are not counted here; a
 // superseded variant in a validity is `variant.superseded-in-validity` (SR-040 AK3,
 // variants/superseded-validity.ts).
@@ -126,14 +126,14 @@ export const elementLabel = (
   `${findType(context.metamodel, record.type)?.name ?? record.type} ${context.shortIds.of(record)}`;
 
 /**
- * The successors of each superseded target, by its place: the sources of the `replacement` hits
+ * The successors of each superseded target, by its place: the sources of the `succession` hits
  * among `hits`, each element (place) once, in the order of the hits.
  */
 const successorsOf = (hits: readonly Hit[]): ReadonlyMap<string, readonly ElementRecord[]> => {
   const successors = new Map<string, ElementRecord[]>();
   for (const hit of hits) {
     // An element that replaces itself is no successor of itself, as in the view (`successionsOf`).
-    if (hit.kind.meaning === "replacement" && placeOf(hit.source) !== placeOf(hit.target)) {
+    if (hit.kind.meaning === "succession" && placeOf(hit.source) !== placeOf(hit.target)) {
       const place = placeOf(hit.target);
       const known = successors.get(place) ?? [];
       if (!known.some((s) => placeOf(s) === placeOf(hit.source))) {
@@ -228,7 +228,7 @@ const sourcesFromIndex = (
  * The hints on the relations of one element (SR-072 AK2), in the order of its keys and items, for
  * a command about one element (`elementView`: `element.create`, `element.update`, `element.get`),
  * like `unknownFindings`. `source` need not be in the store as it is (a new or just written
- * element): the successors are the sources of `replacement` relations in the store to the same
+ * element): the successors are the sources of `succession` relations in the store to the same
  * targets, with `source` in place of the store's copy of it. They are looked up with `successionsOfTarget`
  * (`successionsFor` on the same store) in the succession index, not by a walk over the store
  * (N-036, ADR-0008: 200 ms to open an element).
@@ -244,7 +244,7 @@ export const supersededFindingsOf = (
 
 /**
  * The successors of each target of `own` by its place: the elements of the store with a
- * `replacement` relation to it (`successionsOfTarget`, from the succession index), each once, in
+ * `succession` relation to it (`successionsOfTarget`, from the succession index), each once, in
  * store order. Only items that are complete relation targets count, as in `hitsOf`; the index also
  * keeps items without a version, which the view lists as successors (SR-072 AK3). `findingsOf`
  * leaves out the hit's own source, so `source` itself needs no special case.

@@ -5,7 +5,12 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandOutput, Problem } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
 import { metamodelState } from "../../metamodel/index.js";
-import { currentTarget, elementStoreState, supersededTargetProblemsState } from "../../model/index.js";
+import {
+  currentTarget,
+  elementStoreState,
+  incomingFor,
+  supersededTargetProblemsState,
+} from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
@@ -20,6 +25,23 @@ const SR_NEW = { id: "7a1e0c2b-4d3f-4a5b-8c6d-d4e5f6a7b8c9", file: "requirements
 const SR_CHILD = { id: "7a1e0c2b-4d3f-4a5b-8c6d-e5f6a7b8c9d0", file: "requirements/SR-e5f6a7b8c9d0.md" };
 const FILES = [N_OLD.file, N_NEW.file, SR_OLD.file, SR_NEW.file, SR_CHILD.file];
 const MODEL = "metamodel/standard-model.yaml";
+/**
+ * A second relation kind with the meaning succession, from a system requirement to one, next to
+ * `supersedes` of the standard model (after it in metamodel order: the file name sorts later).
+ */
+const OBSOLETES = {
+  "metamodel/succession.yaml": [
+    "reqseq-metamodel: 1",
+    "relations:",
+    "  - key: obsoletes",
+    "    name: Obsoletes",
+    "    inverse-name: Obsoleted by",
+    "    source-types: [system-requirement]",
+    "    target-types: [system-requirement]",
+    "    meaning: succession",
+    "",
+  ].join("\n"),
+};
 
 /** An element of a type the metamodel does not know (SR-016 AK3). */
 const GADGET = { id: "7a1e0c2b-4d3f-4a5b-8c6d-f6a7b8c9d0e1", file: "requirements/X-f6a7b8c9d0e1.md" };
@@ -118,7 +140,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(Object.keys(target)).toEqual(["id", "version", "title"]);
     expect([target["id"], target["title"]]).toEqual([N_OLD.id, "See the wind"]);
     expect(target["version"]).toMatch(/^n1:[0-9a-f]{16}$/);
-    // Only `supersedes` goes from a need to a need; `replaces` is for system requirements.
+    // `supersedes` is the only relation kind with the meaning succession in the standard model.
     const out = await supersede(opened, { ref: N_OLD.id, status: "obsolete", successor: "N-e5f6a7" });
     expect(out.files).toEqual([N_OLD.file, N_NEW.file]);
     expect(await read(opened, N_NEW.file)).toBe(
@@ -133,7 +155,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
   });
 
   it("[SR-072/AK1] uses the relation kind the caller names when several fit", async () => {
-    const opened = await open();
+    const opened = await open({ files: OBSOLETES });
     const before = await readAll(opened);
     const error = await supersedeError(opened, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
     expect([error.code, error.details]).toEqual([
@@ -142,64 +164,76 @@ describe("element.supersede sets the chosen invalid status and on request a rela
         sourceType: "system-requirement",
         targetType: "system-requirement",
         reason: "relation-ambiguous",
-        candidates: ["supersedes", "replaces"],
+        candidates: ["supersedes", "obsoletes"],
       },
     ]);
     expect(error.message).toBe(
-      "More than one relation kind with the meaning replacement fits from System Requirement to System Requirement: supersedes, replaces; name one as relation",
+      "More than one relation kind with the meaning succession fits from System Requirement to System Requirement: supersedes, obsoletes; name one as relation",
     );
     expect(await readAll(opened)).toEqual(before);
     const out = await supersede(opened, {
       ref: SR_OLD.id,
       status: "obsolete",
       successor: SR_NEW.id,
-      relation: "replaces",
+      relation: "obsoletes",
     });
     expect(out.files).toEqual([SR_OLD.file, SR_NEW.file]);
     expect(await read(opened, SR_NEW.file)).toMatch(
       new RegExp(
-        `\\nreplaces:\\n {2}- \\{ id: ${SR_OLD.id}, version: n1:[0-9a-f]{16}, title: Show wind speed \\}\\n---\\n`,
+        `\\nobsoletes:\\n {2}- \\{ id: ${SR_OLD.id}, version: n1:[0-9a-f]{16}, title: Show wind speed \\}\\n---\\n`,
       ),
     );
   });
 
-  it("[SR-072/AK1] refuses a relation kind that has no meaning replacement or does not fit the types", async () => {
-    const opened = await open();
+  it("[SR-072/AK1] refuses a relation kind that has no meaning succession or does not fit the types", async () => {
+    const opened = await open({ files: OBSOLETES });
     const before = await readAll(opened);
-    const notReplacement = await supersedeError(opened, {
+    const notSuccession = await supersedeError(opened, {
       ref: SR_OLD.id,
       status: "obsolete",
       successor: SR_NEW.id,
       relation: "derives-from",
     });
-    expect([notReplacement.code, notReplacement.details]).toEqual([
+    expect([notSuccession.code, notSuccession.message, notSuccession.details]).toEqual([
       "input.invalid",
-      { relation: "derives-from", reason: "not-a-replacement", allowed: ["supersedes", "replaces"] },
+      "derives-from is no relation kind with the meaning succession; these are: supersedes, obsoletes",
+      { relation: "derives-from", reason: "not-a-succession", allowed: ["supersedes", "obsoletes"] },
+    ]);
+    // A variant replaces a core requirement (meaning replacement, D-020); it supersedes nothing (D-059).
+    const replaces = await supersedeError(opened, {
+      ref: SR_OLD.id,
+      status: "obsolete",
+      successor: SR_NEW.id,
+      relation: "replaces",
+    });
+    expect([replaces.code, replaces.details]).toEqual([
+      "input.invalid",
+      { relation: "replaces", reason: "not-a-succession", allowed: ["supersedes", "obsoletes"] },
     ]);
     const notAllowed = await supersedeError(opened, {
       ref: SR_OLD.id,
       status: "obsolete",
       successor: N_NEW.id,
-      relation: "replaces",
+      relation: "obsoletes",
     });
     expect([notAllowed.code, notAllowed.message, notAllowed.details]).toEqual([
       "relation.not-allowed",
-      "Relation Replaces (replaces) from Need to System Requirement is not allowed",
-      { relation: "replaces", sourceType: "need", targetType: "system-requirement" },
+      "Relation Obsoletes (obsoletes) from Need to System Requirement is not allowed",
+      { relation: "obsoletes", sourceType: "need", targetType: "system-requirement" },
     ]);
     const relationOnly = await supersedeError(opened, {
       ref: SR_OLD.id,
       status: "obsolete",
-      relation: "replaces",
+      relation: "supersedes",
     });
     expect([relationOnly.code, relationOnly.details]).toEqual([
       "input.invalid",
-      { relation: "replaces", reason: "relation-without-successor" },
+      { relation: "supersedes", reason: "relation-without-successor" },
     ]);
     expect(await readAll(opened)).toEqual(before);
   });
 
-  it("[SR-072/AK1] refuses when no relation kind with the meaning replacement fits or none has it", async () => {
+  it("[SR-072/AK1] refuses when no relation kind with the meaning succession fits or none has it", async () => {
     const restricted = await open({
       files: {
         [MODEL]: await changedModel((text) =>
@@ -214,13 +248,13 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     const none = await supersedeError(restricted, { ref: N_OLD.id, status: "obsolete", successor: N_NEW.id });
     expect([none.code, none.message, none.details]).toEqual([
       "relation.not-allowed",
-      "No relation kind with the meaning replacement may go from Need to Need",
+      "No relation kind with the meaning succession may go from Need to Need",
       { sourceType: "need", targetType: "need", candidates: [] },
     ]);
     expect(await readAll(restricted)).toEqual(before);
 
     const unassigned = await open({
-      files: { [MODEL]: await changedModel((text) => text.replaceAll("    meaning: replacement\n", "")) },
+      files: { [MODEL]: await changedModel((text) => text.replaceAll("    meaning: succession\n", "")) },
     });
     const error = await supersedeError(unassigned, {
       ref: N_OLD.id,
@@ -229,7 +263,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     });
     expect([error.code, error.details]).toEqual([
       "metamodel.meaning-unassigned",
-      { meaning: "replacement", list: "relations", command: "element.supersede" },
+      { meaning: "succession", list: "relations", command: "element.supersede" },
     ]);
     // Without a successor no relation kind is needed.
     expect((await supersede(unassigned, { ref: N_OLD.id, status: "obsolete" })).files).toEqual([N_OLD.file]);
@@ -262,15 +296,17 @@ describe("element.supersede sets the chosen invalid status and on request a rela
       `${key}:\n  - { id: ${SR_OLD.id}, version: n1:3333333333333333, title: Old title }\n`;
     const successor = (keys: readonly string[]): string =>
       `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: New\n${keys.map(stored).join("")}---\n`;
-    // Both `supersedes` and `replaces` fit from a system requirement to one; the successor has `replaces`.
-    const opened = await open({ files: { [SR_NEW.file]: successor(["replaces"]) } });
+    // Both `supersedes` and `obsoletes` fit from a system requirement to one; the successor has `obsoletes`.
+    const opened = await open({ files: { ...OBSOLETES, [SR_NEW.file]: successor(["obsoletes"]) } });
     const out = await supersede(opened, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
     expect(out.files).toEqual([SR_OLD.file]);
-    expect(await read(opened, SR_NEW.file)).toBe(successor(["replaces"]));
+    expect(await read(opened, SR_NEW.file)).toBe(successor(["obsoletes"]));
     expect((out.problems ?? []).map((p) => [p.file, p.line])).toContainEqual([SR_NEW.file, 7]);
 
     // Under both kinds, the caller still has to name one.
-    const both = await open({ files: { [SR_NEW.file]: successor(["supersedes", "replaces"]) } });
+    const both = await open({
+      files: { ...OBSOLETES, [SR_NEW.file]: successor(["supersedes", "obsoletes"]) },
+    });
     const before = await readAll(both);
     const error = await supersedeError(both, { ref: SR_OLD.id, status: "obsolete", successor: SR_NEW.id });
     expect([error.code, error.details?.["reason"]]).toEqual(["input.invalid", "relation-ambiguous"]);
@@ -352,7 +388,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(opened)).toEqual(before);
 
     const noInvalid = await open({
-      files: { [MODEL]: await changedModel((text) => text.replace(", invalid: true", "")) },
+      files: { [MODEL]: await changedModel((text) => text.replace("      invalid: true,\n", "")) },
     });
     const error = await supersedeError(noInvalid, { ref: N_OLD.id, status: "obsolete" });
     expect([error.message, error.details]).toEqual([
@@ -455,18 +491,18 @@ describe("relations to a superseded element get a hint each (SR-072 AK2)", () =>
   });
 
   it("[SR-072/AK2] gives a hint for every relation kind and every relation to the element", async () => {
-    const opened = await open();
+    const opened = await open({ files: OBSOLETES });
     const out = await supersede(opened, {
       ref: SR_OLD.id,
       status: "obsolete",
       successor: SR_NEW.id,
-      relation: "replaces",
+      relation: "obsoletes",
     });
     expect((out.problems ?? []).map((p) => [p.file, p.line, p.message])).toEqual([
       [
         SR_NEW.file,
         10,
-        "Relation Replaces (replaces) from System Requirement SR-a7b8c9 points to System Requirement SR-f6a7b8, which is superseded (status Obsolete)",
+        "Relation Obsoletes (obsoletes) from System Requirement SR-a7b8c9 points to System Requirement SR-f6a7b8, which is superseded (status Obsolete)",
       ],
       [
         SR_CHILD.file,
@@ -565,7 +601,7 @@ describe("a superseded element names its successor without a relation of its own
     repository = "system",
   ): Relation => ({
     kind,
-    meaning: "replacement",
+    meaning: "succession",
     direction: "in",
     id: source.id,
     repository,
@@ -618,18 +654,19 @@ describe("a superseded element names its successor without a relation of its own
     ]);
   });
 
-  it("[SR-072/AK3] names every successor under every relation kind with the meaning replacement, after the element's own relations", async () => {
+  it("[SR-072/AK3] names every successor under every relation kind with the meaning succession, after the element's own relations", async () => {
     const target = `{ id: ${SR_OLD.id}, version: n1:2222222222222222, title: Show wind speed }`;
     const other = { id: "7a1e0c2b-4d3f-4a5b-8c6d-0a0a0a0a0a0a", file: "needs/N-0a0a0a0a0a0a.md" };
     const opened = await open({
       files: {
+        ...OBSOLETES,
         [SR_OLD.file]: (
           await fs.readFile(
             new URL(`../../../../../fixtures/SR-072/supersede/${SR_OLD.file}`, import.meta.url),
             "utf8",
           )
         ).replace("status: approved", "status: obsolete"),
-        [SR_NEW.file]: `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed and gusts\nrequirement-type: functional\nacceptance-criteria:\n  - Given wind, then gusts.\nsupersedes:\n  - ${target}\nreplaces:\n  - ${target}\n---\n`,
+        [SR_NEW.file]: `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed and gusts\nrequirement-type: functional\nacceptance-criteria:\n  - Given wind, then gusts.\nsupersedes:\n  - ${target}\nobsoletes:\n  - ${target}\n---\n`,
         // A successor without a title is named by its short ID; a target without a version has no
         // storedVersion (its shape is SR-085's) and still names the successor.
         [other.file]: `---\nid: ${other.id}\ntype: need\nstatus: draft\nsupersedes:\n  - { id: ${SR_OLD.id}, title: Show wind speed }\n---\n`,
@@ -640,12 +677,12 @@ describe("a superseded element names its successor without a relation of its own
       ["out", "derives-from", "N-d4e5f6"],
       ["in", "supersedes", "N-0a0a0a"],
       ["in", "supersedes", "SR-a7b8c9"],
-      ["in", "replaces", "SR-a7b8c9"],
+      ["in", "obsoletes", "SR-a7b8c9"],
     ]);
     expect(element.relations.slice(1)).toEqual([
       {
         kind: "supersedes",
-        meaning: "replacement",
+        meaning: "succession",
         direction: "in",
         id: other.id,
         repository: "system",
@@ -654,7 +691,49 @@ describe("a superseded element names its successor without a relation of its own
         targetState: "available",
       },
       successor(SR_NEW, "supersedes", "SR-a7b8c9", "Show wind speed and gusts"),
-      successor(SR_NEW, "replaces", "SR-a7b8c9", "Show wind speed and gusts"),
+      successor(SR_NEW, "obsoletes", "SR-a7b8c9", "Show wind speed and gusts"),
+    ]);
+  });
+
+  it("[SR-072/AK3] names no successor for a relation Replaces to a superseded element: a variant replacement is no succession (D-020, D-059)", async () => {
+    const target = `{ id: ${SR_OLD.id}, version: n1:2222222222222222, title: Show wind speed }`;
+    const opened = await open({
+      files: {
+        [SR_OLD.file]: (
+          await fs.readFile(
+            new URL(`../../../../../fixtures/SR-072/supersede/${SR_OLD.file}`, import.meta.url),
+            "utf8",
+          )
+        ).replace("status: approved", "status: obsolete"),
+        [SR_NEW.file]: `---\nid: ${SR_NEW.id}\ntype: system-requirement\nstatus: draft\ntitle: Show wind speed and gusts\nreplaces:\n  - ${target}\n---\n`,
+      },
+    });
+    const get = async (ref: string): Promise<CommandOutput<"element.get">> =>
+      (await invoke("element.get", { ref }, { workspace: opened.workspace })) as CommandOutput<"element.get">;
+    const superseded = "is superseded (status Obsolete)";
+    const hints = (problems: readonly Problem[]): string[] =>
+      problems.filter((p) => p.code === "relation.target-superseded").map((p) => p.message);
+    // From the succession index, and from the incoming index once a chain built it (`successionsFor`).
+    expect((await get(SR_OLD.id)).element.relations.map((r) => [r.direction, r.kind])).toEqual([
+      ["out", "derives-from"],
+    ]);
+    incomingFor(
+      opened.workspace,
+      await opened.workspace.get(elementStoreState),
+      await opened.workspace.get(metamodelState),
+    );
+    expect((await get(SR_OLD.id)).element.relations.map((r) => [r.direction, r.kind])).toEqual([
+      ["out", "derives-from"],
+    ]);
+    // The hints of one element (`supersededFindingsOf`) and of the workspace (`supersededTargetFindings`).
+    expect(hints((await get(SR_CHILD.id)).element.problems ?? [])).toEqual([
+      `Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to System Requirement SR-f6a7b8, which ${superseded}`,
+      `Relation Refines (refines) from System Requirement SR-b8c9d0 points to System Requirement SR-f6a7b8, which ${superseded}`,
+    ]);
+    expect(hints(await opened.workspace.get(supersededTargetProblemsState))).toEqual([
+      `Relation Replaces (replaces) from System Requirement SR-a7b8c9 points to System Requirement SR-f6a7b8, which ${superseded}`,
+      `Relation Derives from (derives-from) from System Requirement SR-b8c9d0 points to System Requirement SR-f6a7b8, which ${superseded}`,
+      `Relation Refines (refines) from System Requirement SR-b8c9d0 points to System Requirement SR-f6a7b8, which ${superseded}`,
     ]);
   });
 
@@ -670,7 +749,7 @@ describe("a superseded element names its successor without a relation of its own
     });
     const ambiguous: Relation = {
       kind: "supersedes",
-      meaning: "replacement",
+      meaning: "succession",
       direction: "in",
       id: N_NEW.id,
       repository: "system",

@@ -1,8 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { getCommandRuntime } from "@reqseq/core";
 import { assembleContent, contentPaths } from "./assemble.js";
+import { readProblemCodes } from "./codes.js";
 import { checkExamples, readGuidePages, runReqseq, wordWarnings } from "./examples.js";
-import { commandReference, readGeneratedContracts } from "./reference.js";
+import { readExamples } from "./formats.js";
+import { readGeneratedContracts, referencePages } from "./reference.js";
+import { readStandardModel } from "./standard-model.js";
 
 // `pnpm docs:generate`: runs the examples of the guide (SR-140 AK2), warns on pages above the word budget, and
 // fills packages/docs/site/src/content/docs/ before the site is built (ADR-0017). A failing example rejects, so
@@ -15,8 +18,16 @@ for (const warning of wordWarnings(guide)) {
   process.stderr.write(`docs: warning: ${warning}\n`);
 }
 const examples = await checkExamples(guide, runReqseq);
-const pages = await commandReference(getCommandRuntime(), await readGeneratedContracts(paths.repoRoot), base);
-const files = await assembleContent(paths, pages, base);
+const runtime = getCommandRuntime();
+const sources = {
+  runtime,
+  schemas: runtime.contracts.schemas,
+  examples: await readExamples(paths.repoRoot),
+  generated: await readGeneratedContracts(paths.repoRoot),
+  codes: await readProblemCodes(paths.repoRoot),
+  standardModel: await readStandardModel(paths.repoRoot),
+};
+const files = await assembleContent(paths, await referencePages(sources, base), base);
 process.stdout.write(
   `docs: ${String(examples)} example commands passed, ${String(files.length)} files in the content folder\n`,
 );

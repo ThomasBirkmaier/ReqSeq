@@ -48,6 +48,7 @@ export const DEPTH_KEYS = "+ / -";
 const MEANING_NAMES: Readonly<Record<string, string>> = {
   derivation: "Derivations",
   replacement: "Replacements",
+  succession: "Successions",
   exclusion: "Exclusions",
   reference: "Inline references",
 };

@@ -65,6 +65,7 @@ export const MEANINGS: { readonly [M in Meaning]: MeaningList<M> } = {
   identifier: "properties",
   derivation: "relations",
   replacement: "relations",
+  succession: "relations",
   exclusion: "relations",
 };
 

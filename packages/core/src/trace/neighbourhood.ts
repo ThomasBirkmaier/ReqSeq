@@ -61,7 +61,7 @@ import type { Expansion, Step, WalkEdge, WalkResult } from "./walk.js";
 import { walk } from "./walk.js";
 
 /** The meaning of an edge in the output (`data-export#/$defs/relation` `meaning`). */
-export type NeighbourhoodMeaning = "derivation" | "replacement" | "exclusion" | "reference";
+export type NeighbourhoodMeaning = "derivation" | "replacement" | "succession" | "exclusion" | "reference";
 
 /** Which links the neighbourhood follows (see the file comment). */
 export interface NeighbourhoodFilter {

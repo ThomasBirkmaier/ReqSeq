@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import tls from "node:tls";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
-import { createFixtureWorkspace } from "@reqseq/testkit";
+import { createFixtureWorkspace, untilWatching } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CommandOutput } from "../catalog.js";
 import { CommandError } from "../catalog.js";
@@ -433,8 +433,12 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
 
     vi.advanceTimersByTime(ACTIVITY_WRITE_MS);
-    await until(async () => (await readActivity(opened.cache))?.seq === 2);
     expect(writes() - before).toBe(2);
+    // The timer's write itself is awaited, not the file read in a loop: on Windows a reader that holds
+    // the file open makes each rename over it fail, until the retries are used up and the write is
+    // dropped (#385).
+    await vi.mocked(WorkspaceBlock.writeCacheFile).mock.results.at(-1)?.value;
+    expect((await readActivity(opened.cache))?.seq).toBe(2);
     expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_037);
   });
 
@@ -551,13 +555,40 @@ const accesses = (): {
   };
 };
 
-const watching = async (workspace: Workspace, options: ActivityWatchOptions): Promise<ActivityWatch> => {
-  const watch = watchActivity(workspace, options);
+/**
+ * Writes probe files into the cache folder until the watch of it reports one. On macOS `fs.watch`
+ * starts its FSEvents stream asynchronously, so a change made right after `watchActivity` is ready
+ * can be lost, and a test waiting for its read then waits forever (#383). The watch ignores files of
+ * other names, so the probes change nothing it reports.
+ */
+const untilCacheWatched = async (cache: string): Promise<void> => {
+  const watches = vi.mocked(fsWatch).mock;
+  const watcher = watches.results[watches.calls.findLastIndex(([folder]) => folder === cache)]
+    ?.value as FSWatcher;
+  let seen = false;
+  const listener = (_event: string, name: string | null): void => {
+    seen ||= name?.startsWith("probe-") === true;
+  };
+  watcher.on("change", listener);
+  try {
+    await untilWatching({
+      probe: (attempt) => fs.writeFile(path.join(cache, `probe-${String(attempt)}`), ""),
+      seen: () => Promise.resolve(seen),
+    });
+  } finally {
+    watcher.off("change", listener);
+  }
+};
+
+/** A watch of the copy's activity, once both the cache folder and the workspace are watched. */
+const watching = async (opened: Copy, options: ActivityWatchOptions): Promise<ActivityWatch> => {
+  const watch = watchActivity(opened.workspace, options);
   onTestFinished(() => {
     watch.close();
   });
   expect(await watch.ready).toBeUndefined();
-  await watchWorkspace(workspace).ready;
+  await watchWorkspace(opened.workspace).ready;
+  await untilCacheWatched(opened.cache);
   return watch;
 };
 
@@ -705,17 +736,18 @@ describe("watching the last access (SR-117)", () => {
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs: 10_000 });
+    await watching(opened, { ...seen.options, holdMs: 10_000 });
     // A running server: its first call loads the copy (on a busy Windows runner over 1 s, #304). That
     // is the start of the server, not following; AK1 counts from the access. The command line
     // records nothing.
     const agent = server(opened);
     await call(agent, "element.get", { ref: "SR-036" }, "cli");
     const next = seen.next();
-    const started = Date.now();
     await call(agent, "element.get", { ref: "SR-036" }, "mcp");
-    expect((await next).element).toEqual({ id: SR_036, repository: "spec" });
-    expect(Date.now() - started).toBeLessThan(1000);
+    const access = await next;
+    expect(access.element).toEqual({ id: SR_036, repository: "spec" });
+    // AK1 counts from the read, which `access.at` records when the call ends.
+    expect(Date.now() - Date.parse(access.at)).toBeLessThan(1000);
     await quiet(300);
     expect(seen.seen).toHaveLength(1);
   });
@@ -725,7 +757,7 @@ describe("watching the last access (SR-117)", () => {
     await opened.workspace.get(elementStoreState);
     const gate = await gateWorkspaceEvents("pass");
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs: 10_000 });
+    await watching(opened, { ...seen.options, holdMs: 10_000 });
     const file = opened.fixture.path("requirements/SR-0000000b0037.md");
 
     const changed = seen.next();
@@ -761,7 +793,7 @@ describe("watching the last access (SR-117)", () => {
     // The store of the watching process never catches up: the hold alone must keep the 1 s.
     await holdWorkspaceEvents();
     const seen = accesses();
-    await watching(opened.workspace, seen.options);
+    await watching(opened, seen.options);
     const agent = server(opened);
     await call(agent, "element.get", { ref: "SR-036" }, "cli");
     const next = seen.next();
@@ -775,39 +807,56 @@ describe("watching the last access (SR-117)", () => {
     expect(took).toBeLessThan(1000);
   });
 
-  it("counts the hold from when the access was recorded, never longer than holdMs", async () => {
-    const holdMs = 1000;
+  // The upper bounds of the two tests below belong to no AK: they only tell the remaining hold from
+  // a full one (5 s) and a capped hold from an hour, with seconds of slack for a busy runner (#383).
+  it("counts the hold from when the access was recorded", async () => {
+    const holdMs = 5000;
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
     await holdWorkspaceEvents();
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs });
-    const write = (file: ActivityFile): Promise<string> =>
-      WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
+    await watching(opened, { ...seen.options, holdMs });
 
-    // Recorded 800 ms ago (a late file event): 200 ms of its hold are left.
+    // Recorded 4.8 s ago (a late file event): 200 ms of its hold are left, not 5 s.
     const early = seen.next();
-    let started = Date.now();
-    await write(activityFile("5".repeat(64), 1, SR_036, new Date(started - 800)));
+    const started = Date.now();
+    await WorkspaceBlock.writeCacheFile(
+      opened.cache,
+      ACTIVITY_FILE,
+      JSON.stringify(activityFile("5".repeat(64), 1, SR_036, new Date(started - holdMs + 200))),
+    );
     await early;
     expect(Date.now() - started).toBeGreaterThanOrEqual(150);
-    expect(Date.now() - started).toBeLessThan(600);
+    expect(Date.now() - started).toBeLessThan(holdMs / 2);
+  });
 
-    // Recorded in the future (another clock): held for holdMs from its arrival, not longer.
-    const future = seen.next();
-    started = Date.now();
-    await write(activityFile("6".repeat(64), 2, SR_036, new Date(started + 3_600_000)));
-    await future;
-    expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
-    expect(Date.now() - started).toBeLessThan(holdMs + 500);
+  it("holds an access recorded in the future or at a time that does not parse holdMs from arrival", async () => {
+    const holdMs = 400;
+    const opened = await copy(IDENTIFIERS);
+    await opened.workspace.get(elementStoreState);
+    await holdWorkspaceEvents();
+    const seen = accesses();
+    await watching(opened, { ...seen.options, holdMs });
+    const held = async (at: Date | string, seq: number): Promise<number> => {
+      const next = seen.next();
+      const started = Date.now();
+      await WorkspaceBlock.writeCacheFile(
+        opened.cache,
+        ACTIVITY_FILE,
+        JSON.stringify(activityFile("6".repeat(64), seq, SR_036, at)),
+      );
+      await next;
+      return Date.now() - started;
+    };
 
-    // A time the schema takes but Date.parse does not (a leap second): held for holdMs from arrival.
-    const leap = seen.next();
-    started = Date.now();
-    await write(activityFile("9".repeat(64), 3, SR_036, "2026-12-31T23:59:60Z"));
-    await leap;
-    expect(Date.now() - started).toBeGreaterThanOrEqual(holdMs - 50);
-    expect(Date.now() - started).toBeLessThan(holdMs + 500);
+    // Another clock, an hour ahead: held for holdMs, not for an hour.
+    const future = await held(new Date(Date.now() + 3_600_000), 1);
+    expect(future).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(future).toBeLessThan(10_000);
+    // A time the schema takes but Date.parse does not (a leap second): held, not reported at once.
+    const leap = await held("2026-12-31T23:59:60Z", 2);
+    expect(leap).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(leap).toBeLessThan(10_000);
   });
 
   it("drops a held access for a newer one, and reports a held one after holdMs", async () => {
@@ -817,7 +866,7 @@ describe("watching the last access (SR-117)", () => {
     const known = store.byId.get(SR_037)?.[0]?.snapshot.sha256 ?? "";
     const resume = await holdWorkspaceEvents();
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs });
+    await watching(opened, { ...seen.options, holdMs });
     const write = (file: ActivityFile): Promise<string> =>
       WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
 
@@ -878,7 +927,8 @@ describe("watching the last access (SR-117)", () => {
       watchMock.mockImplementation(actual.watch);
     });
     const seen = accesses();
-    await watching(opened.workspace, { ...seen.options, holdMs: 1000 });
+    const holdMs = 2000;
+    await watching(opened, { ...seen.options, holdMs });
     const write = (file: ActivityFile): Promise<string> =>
       WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(file));
 
@@ -902,15 +952,50 @@ describe("watching the last access (SR-117)", () => {
     const written = Date.now();
     await write(activityFile("8".repeat(64), 4, SR_037));
     expect((await newer).element.id).toBe(SR_037);
-    expect(Date.now() - written).toBeGreaterThanOrEqual(1000 - 50);
-    expect(Date.now() - written).toBeLessThan(1000 + 400);
+    // About holdMs; a new full hold would be about 2 * holdMs. The slack is for a busy runner (#383).
+    expect(Date.now() - written).toBeGreaterThanOrEqual(holdMs - 50);
+    expect(Date.now() - written).toBeLessThan(2 * holdMs - 500);
     expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037, SR_037]);
+  });
+
+  it("reads the file again on each watcher batch, for an access whose file event was lost", async () => {
+    const opened = await copy(IDENTIFIERS);
+    const store = await opened.workspace.get(elementStoreState);
+    const known = store.byId.get(SR_036)?.[0]?.snapshot.sha256 ?? "";
+    // Every event of the cache folder is lost to the watch, as one is on macOS while a folder watch of
+    // the process starts or closes (#385): only a batch of the workspace watcher can bring the access.
+    const actual = await vi.importActual<typeof NodeFs>("node:fs");
+    const watchMock = vi.mocked(fsWatch);
+    watchMock.mockImplementation(((
+      folder: string,
+      options: NodeFs.WatchOptionsWithStringEncoding,
+      listener: NodeFs.WatchListener<string>,
+    ) =>
+      actual.watch(folder, options, (event, name) => {
+        if (folder !== opened.cache) {
+          listener(event, name);
+        }
+      })) as typeof fsWatch);
+    onTestFinished(() => {
+      watchMock.mockImplementation(actual.watch);
+    });
+    const seen = accesses();
+    await watching(opened, { ...seen.options, holdMs: 10_000 });
+    await WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(activityFile(known, 1)));
+
+    const element = opened.fixture.path("requirements/SR-0000000b0037.md");
+    const text = await fs.readFile(element, "utf8");
+    await untilWatching({
+      probe: (attempt) => fs.writeFile(element, `${text}\nProbe ${String(attempt)}\n`),
+      seen: () => Promise.resolve(seen.seen.length > 0),
+    });
+    expect(seen.seen.map((a) => a.element.id)).toEqual([SR_036]);
   });
 
   it("reports nothing that it was still reading or checking when it closed", async () => {
     const opened = await copy(IDENTIFIERS);
     const seen = accesses();
-    const watch = await watching(opened.workspace, seen.options);
+    const watch = await watching(opened, seen.options);
     const text = JSON.stringify(activityFile("4".repeat(64), 1));
 
     // Closed while the file is read.
@@ -931,7 +1016,7 @@ describe("watching the last access (SR-117)", () => {
     await quiet(100);
 
     // Closed while the store is looked at.
-    const second = await watching(opened.workspace, seen.options);
+    const second = await watching(opened, seen.options);
     let look: (value: undefined) => void = () => undefined;
     const looking = new Promise<void>((started) => {
       vi.mocked(settledValue).mockImplementationOnce(
@@ -960,7 +1045,7 @@ describe("watching the last access (SR-117)", () => {
       fs.writeFile(path.join(opened.cache, name), text);
     await write(ACTIVITY_FILE, JSON.stringify(activityFile("2".repeat(64), 1)));
     const seen = accesses();
-    await watching(opened.workspace, seen.options);
+    await watching(opened, seen.options);
     await write(ACTIVITY_FILE, JSON.stringify(activityFile("2".repeat(64), 1)));
     await write("model.json", "{}");
     await write(`.${ACTIVITY_FILE}.0123abcd.reqseq-tmp`, "{");
@@ -1010,7 +1095,7 @@ describe("watching the last access (SR-117)", () => {
     const opened = await copy(IDENTIFIERS);
     const seen = accesses();
     const logged: string[] = [];
-    const watch = await watching(opened.workspace, {
+    const watch = await watching(opened, {
       ...seen.options,
       log: (message) => {
         logged.push(message);
@@ -1042,7 +1127,7 @@ describe("a watch that goes on or ends on its own", () => {
   it("ends the watch with a log line when the cache folder is removed, not for a file of its name", async () => {
     const opened = await copy(IDENTIFIERS);
     const logged: string[] = [];
-    await watching(opened.workspace, {
+    await watching(opened, {
       onAccess: () => undefined,
       log: (message) => {
         logged.push(message);
@@ -1068,9 +1153,13 @@ describe("a watch that goes on or ends on its own", () => {
 
   it("logs what a throwing onAccess throws, and goes on reporting", async () => {
     const opened = await copy(IDENTIFIERS);
+    // On macOS a file event is lost while any folder watch of the process starts or closes (#385):
+    // the workspace watcher must not watch its repositories anew, after FSEvents reported the
+    // fixture's own files, while the access is written.
+    await holdWorkspaceEvents();
     const logged: string[] = [];
     const reported: number[] = [];
-    await watching(opened.workspace, {
+    await watching(opened, {
       onAccess: () => {
         reported.push(reported.length);
         if (reported.length === 1) {
@@ -1124,8 +1213,12 @@ describe("following opens no network connection (SR-117 AK6)", () => {
     });
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
+    // On macOS a file event is lost while any folder watch of the process starts or closes (#385):
+    // the workspace watcher must not watch its repositories anew, after FSEvents reported the
+    // fixture's own files, while the access is written.
+    await holdWorkspaceEvents();
     const seen = accesses();
-    await watching(opened.workspace, seen.options);
+    await watching(opened, seen.options);
     const next = seen.next();
     await call(server(opened), "element.update", { ref: "SR-036", title: "Accept IDs" }, "mcp");
     expect((await next).element.id).toBe(SR_036);

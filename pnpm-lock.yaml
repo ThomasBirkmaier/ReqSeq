@@ -197,6 +197,9 @@ importers:
       '@reqseq/mcp':
         specifier: workspace:*
         version: link:../mcp
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
     devDependencies:
       micromark:
         specifier: 4.0.3
