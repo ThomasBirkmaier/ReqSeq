@@ -2,10 +2,14 @@ import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { checkExamples, pageSteps, readGuidePages, runReqseq, runSteps } from "./examples.js";
+import { ACCESSES, accessNames, checkHowTos, howToProblems } from "./how-to.js";
+import { readGeneratedContracts } from "./reference.js";
 
 const guideDir = fileURLToPath(new URL("../../../docs/guide/", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 describe("guide", () => {
   it("[SR-140/AK1] the steps of Get started, run in order, create a workspace, a first element and a first chain", async () => {
@@ -46,5 +50,20 @@ describe("guide", () => {
       text: '```sh\nreqseq workspace init . W\n```\n\n```text title="Output"\nNo files.\n```',
     };
     await expect(checkExamples([changed], runReqseq)).rejects.toThrow("the output differs from the page");
+  });
+
+  it("[SR-140/AK3] every how-to shows its task in the app, the CLI, the API and MCP, with names that exist", async () => {
+    const pages = await readGuidePages(guideDir);
+    const names = accessNames(getCommandRuntime().contracts.commands, await readGeneratedContracts(repoRoot));
+    expect(checkHowTos(pages, names)).toBeGreaterThanOrEqual(4);
+    const howTo = pages.find((page) => page.path === "how-to/trace-a-requirement.md");
+    expect(howTo).toBeDefined();
+    const text = howTo?.text ?? "";
+    for (const access of ACCESSES) {
+      const without = { path: howTo?.path ?? "", text: text.replace(`\n## ${access}\n`, "\n## Other\n") };
+      expect(howToProblems(without, names)).toEqual([
+        `how-to/trace-a-requirement.md: no section "## ${access}" with its steps, or why it is not possible there`,
+      ]);
+    }
   });
 });
