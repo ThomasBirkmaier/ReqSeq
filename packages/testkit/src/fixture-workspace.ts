@@ -132,9 +132,11 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
     await fs.mkdtemp(path.join(options.tempDir ?? os.tmpdir(), "reqseq-fixture-")),
   );
   const root = path.join(base, "workspace");
-  // An empty global config: user settings (signing, autocrlf, hooks, templates) must not leak in.
+  // A global config of its own: user settings (signing, autocrlf, hooks, templates) must not leak in.
+  // No automatic gc or maintenance: Git would start it in the background after a commit and change
+  // `.git` while a test reads or removes the folder (ENOENT on macOS, #434).
   const gitconfig = path.join(base, "gitconfig");
-  await fs.writeFile(gitconfig, "");
+  await fs.writeFile(gitconfig, "[gc]\n\tauto = 0\n[maintenance]\n\tauto = false\n");
   await fs.mkdir(root);
   let commitCount = 0;
   let historyCount = 0;
