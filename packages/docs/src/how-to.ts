@@ -58,21 +58,35 @@ function sections(text: string): Map<string, string[]> {
   return found;
 }
 
-/** The fenced blocks of `lang` in the lines of a section, each as its text. */
+/**
+ * The fenced blocks of `lang` in the lines of a section, each as its text. The fence may be longer than three
+ * characters or use `~`, and attributes may follow the language (`title="..."`), so no such block is passed over.
+ */
 function fenced(lines: readonly string[], lang: string): string[] {
   const found: string[] = [];
-  let open: string[] | undefined;
+  let open: { fence: string; lines: string[] } | undefined;
   for (const line of lines) {
+    const text = line.trim();
     if (open === undefined) {
-      open = line.trim() === `\`\`\`${lang}` ? [] : undefined;
-    } else if (line.trim() === "```") {
-      found.push(open.join("\n"));
+      const fence = new RegExp(`^(\`{3,}|~{3,})${lang}(?:\\s.*)?$`).exec(text)?.[1];
+      open = fence === undefined ? undefined : { fence, lines: [] };
+    } else if (text === open.fence) {
+      found.push(open.lines.join("\n"));
       open = undefined;
     } else {
-      open.push(line);
+      open.lines.push(line);
     }
   }
   return found;
+}
+
+/** The JSON of a block, or the problem that it is no JSON. */
+function parseJson(where: string, text: string): { value: unknown } | { problem: string } {
+  try {
+    return { value: JSON.parse(text) as unknown };
+  } catch (error) {
+    return { problem: `${where}: no valid JSON: ${(error as Error).message}` };
+  }
 }
 
 /** The problems of the fields of an input object for `command`. */
@@ -101,7 +115,8 @@ function requestProblems(where: string, block: string, names: AccessNames): stri
           .slice(blank + 1)
           .join("\n")
           .trim();
-  return fieldProblems(where, command, body === "" ? {} : (JSON.parse(body) as unknown), names);
+  const input = parseJson(where, body === "" ? "{}" : body);
+  return "problem" in input ? [input.problem] : fieldProblems(where, command, input.value, names);
 }
 
 /**
@@ -109,7 +124,11 @@ function requestProblems(where: string, block: string, names: AccessNames): stri
  * block, such as a client configuration, has no `name` and is no call.
  */
 function toolCallProblems(where: string, block: string, names: AccessNames): string[] {
-  const call = JSON.parse(block) as { name?: unknown; arguments?: unknown };
+  const parsed = parseJson(where, block);
+  if ("problem" in parsed) {
+    return [parsed.problem];
+  }
+  const call = (parsed.value ?? {}) as { name?: unknown; arguments?: unknown };
   if (call.name === undefined) {
     return [];
   }

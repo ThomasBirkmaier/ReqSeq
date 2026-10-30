@@ -91,6 +91,38 @@ describe("howToProblems", () => {
   });
 });
 
+describe("howToProblems blocks", () => {
+  it("checks API and MCP blocks with a longer or ~ fence and attributes after the language", () => {
+    expect(
+      howToProblems(
+        page({
+          ...complete,
+          API: '````http title="Request"\nPOST /v1/commands/trace.graph\n````',
+          MCP: '~~~json \n{ "name": "trace_chain", "arguments": { "depth": 1 } }\n~~~\n```jsonc\n{ "name": "x" }\n```\n```json\nnull\n```',
+        }),
+        names,
+      ),
+    ).toEqual([
+      "how-to/x.md: ## API: no command trace.graph in the API and MCP",
+      "how-to/x.md: ## MCP: trace.chain has no input depth",
+    ]);
+  });
+
+  it("reports a block that is no valid JSON", () => {
+    const problems = howToProblems(
+      page({
+        ...complete,
+        API: "```http\nPOST /v1/commands/trace.chain\n\n{ ref: 1 }\n```",
+        MCP: '```json\n{ "name": "trace_chain", }\n```',
+      }),
+      names,
+    );
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toMatch(/^how-to\/x\.md: ## API: no valid JSON: /);
+    expect(problems[1]).toMatch(/^how-to\/x\.md: ## MCP: no valid JSON: /);
+  });
+});
+
 describe("checkHowTos", () => {
   it("checks the pages of the how-to folder only and throws with every problem", () => {
     const other = { path: "start/get-started.md", text: "No sections." };
