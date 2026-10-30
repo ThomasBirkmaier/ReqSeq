@@ -226,4 +226,5 @@ export type {
   ReadElement,
   UpdateElementInput,
   UpdateElementResult,
+  WriteCheck,
 } from "./write.js";
