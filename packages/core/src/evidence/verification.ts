@@ -66,7 +66,6 @@ import {
   hasOwnRecordIn,
   nodeKey,
   ruleScope,
-  validityScope,
   verificationEvaluator,
 } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
@@ -145,15 +144,15 @@ export type VersionReader = (
 /**
  * The verification status of `source` with the variants, the child rules (undefined: no element has
  * children) and a reader of current versions. The versions read are kept for its life, so build one
- * per state of store, metamodel and records (`verificationState`). `scope` gives the views (default:
- * the validity alone).
+ * per state of store, metamodel and records (`verificationState`). `scope` gives the views
+ * (`ruleScope`).
  */
 export const workspaceStatusOf = (
   source: StatusSource,
   variants: readonly ElementRecord[],
   children: ChildRules | undefined,
   read: VersionReader,
-  scope: ViewScope = validityScope(source.validity),
+  scope: ViewScope,
 ): WorkspaceStatus =>
   statusWith(source, variants, children, read, scope, freshCaches(), freshEvaluator(source, children, scope));
 

@@ -42,7 +42,7 @@ export default defineCommand({
     const view = input.view === undefined ? CORE : resolveView(selected, input.view, command);
     const status = await ctx.workspace.get(verificationState);
     const inView = viewRuleOf({ workspace: ctx.workspace, ...selected }, view).includes;
-    const listed = withoutPassedTest(status.source, selected.elements.filter(inView), view);
+    const listed = withoutPassedTest(status.source, selected.elements, view, inView);
     const sorted = sortElements({ ...selected, command }, listed, BY_TYPE_AND_IDENTIFIER).elements;
     const page = sorted.slice(input.offset, input.offset + input.limit);
     const shown = await workspaceStatus(ctx.workspace, page);

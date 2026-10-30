@@ -24,9 +24,10 @@
 //
 // Cost (N-036): the index is one pass over the store, without file reads and without any other
 // state, memoised per store and metamodel (`viewRuleIndexState`, a WeakMap like the succession
-// index). The rule of a variant is built on demand from the items, O(replacements + exclusions),
-// and kept in the index; then `includes` is O(1) beyond `appliesIn` (the types with the validity
-// property are one set, built with the index).
+// index). Which variants remove which core requirement is one map per index, built on first use
+// from the items, O(replacements + exclusions) (`removalOf`); `includes` of every view reads it, so
+// a new store costs one pass, not one per variant (N-036, SR-082 AK3). The lists of a variant's rule
+// (`replacedBy`, `addedOf`, ...) are built only when asked.
 import type { Metamodel } from "../metamodel/index.js";
 import { relationKindsWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
@@ -187,8 +188,45 @@ const appliesInView = (
 const inStoreOrder = (index: ViewRuleIndex, wanted: (e: ElementRecord) => boolean): ElementRecord[] =>
   index.store.elements.filter(wanted);
 
-/** The rule of the variant `variant` (see the file comment). */
-const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "variant" }): ViewRule => {
+/** The variants that may remove each element, by element (`removersOf`), built once per index. */
+const removersByIndex = new WeakMap<ViewRuleIndex, ReadonlyMap<ElementRecord, readonly string[]>>();
+
+const NO_REMOVERS: readonly string[] = Object.freeze([]);
+
+const removalOf = (index: ViewRuleIndex): ReadonlyMap<ElementRecord, readonly string[]> => {
+  let byElement = removersByIndex.get(index);
+  if (byElement === undefined) {
+    const validity = validityOf(index.metamodel);
+    const found = new Map<ElementRecord, string[]>();
+    for (const item of index.items) {
+      const target = actingTarget(index, item);
+      if (target === undefined) {
+        continue;
+      }
+      const variants =
+        item.meaning === "exclusion"
+          ? [item.source]
+          : validityEntries(validity, item.source).flatMap((e) => validityTarget(e.value, item.source) ?? []);
+      const list = found.get(target) ?? [];
+      list.push(...variants.map((v) => `${v.repository}\0${v.id}`));
+      found.set(target, list);
+    }
+    byElement = found;
+    removersByIndex.set(index, byElement);
+  }
+  return byElement;
+};
+
+/**
+ * The variants whose rule removes `element`, each as `repository\0UUID`: the variant of an acting
+ * exclusion item and every variant the validity of an acting replacement's source names. Exactly the
+ * views that leave it out beyond its validity ("exclusion wins" changes only `replacedBy`).
+ */
+export const removersOf = (index: ViewRuleIndex, element: ElementRecord): readonly string[] =>
+  removalOf(index).get(element) ?? NO_REMOVERS;
+
+/** What a variant's rule lists beyond `includes`: built only when asked (see the file comment). */
+const variantDetails = (index: ViewRuleIndex, view: View & { readonly kind: "variant" }) => {
   const validity = validityOf(index.metamodel);
   const { variant } = view;
   const own = (item: RuleItem): boolean =>
@@ -214,26 +252,48 @@ const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "varian
       replacing.add(item.source);
     }
   }
-  const replacedBy = (e: ElementRecord): readonly ElementRecord[] => replaced.get(e) ?? [];
+  return { validity, excluded, replaced, replacing };
+};
+
+/**
+ * The rule of the variant `variant` (see the file comment). `includes` reads only the removal map
+ * of the index (`removalOf`, one pass over the items per index); the lists are built on first use.
+ */
+const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "variant" }): ViewRule => {
+  const validity = validityOf(index.metamodel);
+  const key = `${view.variant.repository}\0${view.variant.id}`;
+  let removal: ReadonlyMap<ElementRecord, readonly string[]> | undefined;
+  let details: ReturnType<typeof variantDetails> | undefined;
+  const detailsOf = () => (details ??= variantDetails(index, view));
+  const replacedBy = (e: ElementRecord): readonly ElementRecord[] => detailsOf().replaced.get(e) ?? [];
   return {
     view,
-    includes: (e) => appliesInView(index, validity, e, view) && !excluded.has(e) && !replaced.has(e),
+    includes: (e) =>
+      appliesInView(index, validity, e, view) &&
+      !((removal ??= removalOf(index)).get(e) ?? NO_REMOVERS).includes(key),
     replacedBy,
-    excludes: (e) => excluded.has(e),
-    addedOf: () =>
-      inStoreOrder(
+    excludes: (e) => detailsOf().excluded.has(e),
+    addedOf: () => {
+      const { replacing } = detailsOf();
+      return inStoreOrder(
         index,
         (e) =>
           index.validityTypes.has(e.type) &&
           validityEntries(validity, e).length > 0 &&
           appliesIn(validity, e, view) &&
           !replacing.has(e),
-      ),
-    replacedOf: () =>
-      inStoreOrder(index, (e) => replaced.has(e)).flatMap((core) =>
+      );
+    },
+    replacedOf: () => {
+      const { replaced } = detailsOf();
+      return inStoreOrder(index, (e) => replaced.has(e)).flatMap((core) =>
         replacedBy(core).map((replacement) => ({ core, replacement })),
-      ),
-    excludedOf: () => inStoreOrder(index, (e) => excluded.has(e)),
+      );
+    },
+    excludedOf: () => {
+      const { excluded } = detailsOf();
+      return inStoreOrder(index, (e) => excluded.has(e));
+    },
   };
 };
 
@@ -292,40 +352,6 @@ export const viewIncomplete = (
   layout: { readonly repositories: readonly { readonly available: boolean }[] },
   view: View | undefined,
 ): boolean => view?.kind === "variant" && layout.repositories.some((r) => !r.available);
-
-/** The variants that may remove each element, by element (`removersOf`), built once per index. */
-const removersByIndex = new WeakMap<ViewRuleIndex, ReadonlyMap<ElementRecord, readonly string[]>>();
-
-const NO_REMOVERS: readonly string[] = Object.freeze([]);
-
-/**
- * The variants whose rule may remove `element`, each as `repository\0UUID`: the variant of an
- * exclusion item and every variant the validity of a replacement item's source names, for an item
- * that acts on `element` (a superset of the views that leave it out, for the seeds of `indirect.ts`).
- */
-export const removersOf = (index: ViewRuleIndex, element: ElementRecord): readonly string[] => {
-  let byElement = removersByIndex.get(index);
-  if (byElement === undefined) {
-    const validity = validityOf(index.metamodel);
-    const found = new Map<ElementRecord, string[]>();
-    for (const item of index.items) {
-      const target = actingTarget(index, item);
-      if (target === undefined) {
-        continue;
-      }
-      const variants =
-        item.meaning === "exclusion"
-          ? [item.source]
-          : validityEntries(validity, item.source).flatMap((e) => validityTarget(e.value, item.source) ?? []);
-      const list = found.get(target) ?? [];
-      list.push(...variants.map((v) => `${v.repository}\0${v.id}`));
-      found.set(target, list);
-    }
-    byElement = found;
-    removersByIndex.set(index, byElement);
-  }
-  return byElement.get(element) ?? NO_REMOVERS;
-};
 
 /**
  * The elements the rule items of `sources` name in `context.store` (`ruleTarget`): whose views a

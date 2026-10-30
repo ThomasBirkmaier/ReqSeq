@@ -233,14 +233,14 @@ const cachesOf = new WeakMap<VerificationEvaluator, EvaluatorCaches>();
  * nor the records of `source` may change while it lives: the own views of each UUID are kept with
  * `source` (`ownViewsOf`) and every result built on them in the memos. The evidence block builds a
  * new source and evaluator per records state (review of #714, S1), and one per store, or carries
- * this one over a store change with `carriedEvaluator`. `scope` gives the views (default: the
- * validity alone).
+ * this one over a store change with `carriedEvaluator`. `scope` gives the views (`ruleScope` of the
+ * store's view rule; `validityScope` only where no rule applies).
  */
 export const verificationEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
-  scope: ViewScope = validityScope(source.validity),
+  scope: ViewScope,
 ): VerificationEvaluator => evaluatorWith(source, children, currentOf, scope, undefined);
 
 /** A copy of `map` without the entries whose key `drop` names. */
@@ -261,7 +261,7 @@ const without = <K, V>(map: ReadonlyMap<K, V>, drop: (key: K) => boolean): Map<K
  * whose candidate children, seeds below or results may differ in the new store: the changed ones and
  * their ancestors before and after the change, and the core requirements a changed rule item names
  * (`carriedStatus` in `verification.ts`). `old` is not changed; a command that still holds it keeps a
- * consistent view. `scope` gives the views of the new store (default: the validity alone).
+ * consistent view. `scope` gives the views of the new store.
  */
 export const carriedEvaluator = (
   old: VerificationEvaluator,
@@ -269,7 +269,7 @@ export const carriedEvaluator = (
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
   affected: ReadonlySet<string>,
-  scope: ViewScope = validityScope(source.validity),
+  scope: ViewScope,
 ): VerificationEvaluator => {
   const caches = cachesOf.get(old);
   if (caches === undefined) {
