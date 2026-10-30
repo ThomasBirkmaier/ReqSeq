@@ -147,7 +147,7 @@ describe("baseline.create", () => {
     expect((await create(ws, "Allowed", PACKAGE)).baseline.elements).toBe(2);
   });
 
-  it("refuses a view that differs from the saved filter's view and stores the same view once", async () => {
+  it("[SR-050/AK8] refuses a view that differs from the saved filter's view and stores the same view once", async () => {
     const ws = await fixture();
     await ws.write(
       "system/filters/coast.yaml",
