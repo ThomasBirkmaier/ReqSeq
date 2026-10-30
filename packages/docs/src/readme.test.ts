@@ -24,7 +24,7 @@ describe("README", () => {
 
   it("has the commands of Get started as its quick start", async () => {
     const steps = async (path: string): Promise<(readonly string[])[]> =>
-      pageSteps({ path, text: await read(path) }).map((step) => step.argv);
+      pageSteps({ path, text: await read(path) }).flatMap((step) => ("argv" in step ? [step.argv] : []));
     const readme = await steps("README.md");
     expect(readme.length).toBeGreaterThanOrEqual(6);
     expect(readme).toEqual(await steps("docs/guide/start/get-started.md"));

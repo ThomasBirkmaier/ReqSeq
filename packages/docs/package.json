@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Generator of the user documentation site (ADR-0017): assembles the content folder of the Starlight site in site/, with the reference generated from the catalog. Never shipped with the product.",
+  "description": "Generator of the user documentation site (ADR-0017): assembles the content folder of the Starlight site in site/, with the reference generated from the catalog, and the architecture pictures of docs/architecture/. Never shipped with the product.",
   "type": "module",
   "scripts": {
     "build": "tsc -b"
