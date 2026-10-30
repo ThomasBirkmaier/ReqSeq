@@ -6,7 +6,7 @@ name: PR text
 # and GitHub reads the required checks from that run, where the platform jobs show no system in their names.
 # When this check passes and the required job `static` of the head commit's CI run failed only in its Trace check step
 # (a label `enabler` or a PR text fixed after that step), this workflow re-runs that job once its run has completed:
-# a green check here is no required check, and agents cannot re-run jobs themselves (product owner decision,
+# this check is not required, and agents cannot re-run jobs themselves (product owner decision,
 # 2026-10-30).
 
 on:
@@ -69,9 +69,12 @@ jobs:
         if: always()
         run: cat trace-report.md >> "$GITHUB_STEP_SUMMARY" || true
       - name: Re-run static
-        # A pull request from a fork gets no write token. A later event cancels this wait (concurrency) and waits
-        # itself; a push supersedes the CI run, whose new run reads the PR text itself.
-        if: success() && github.event.pull_request.head.repo.full_name == github.repository
+        # A pull request from a fork or by Dependabot gets no write token. A later event cancels this wait (concurrency) and waits
+        # itself. A push makes a new CI run that reads the PR text itself, so the old run is never re-run: its
+        # re-run would join the pull request's CI group and cancel the new run.
+        if: >-
+          success() && github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.user.login != 'dependabot[bot]'
         uses: actions/github-script@v7
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -101,5 +104,7 @@ jobs:
             if (failed.length === 0 || failed.some((name) => name !== "Trace check")) {
               return core.info(`static failed in ${failed.join(", ") || "no step"}, not only in Trace check`);
             }
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: context.issue.number });
+            if (pr.head.sha !== process.env.HEAD_SHA) return core.info("The head commit changed; its own run checks");
             await github.rest.actions.reRunJobForWorkflowRun({ owner, repo, job_id: job.id });
             core.info(`Re-running ${job.html_url}`);
