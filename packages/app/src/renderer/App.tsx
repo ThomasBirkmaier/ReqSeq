@@ -512,7 +512,8 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     mac: isMac(navigator.platform),
     theme,
-    call: viewCall,
+    call,
+    shownCall: viewCall,
     dispatch,
     ask,
     echo: setEcho,
@@ -872,6 +873,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     overview,
     element: (buffer) => ({
       onGone: forgetName,
+      searchCall: call,
       onCopy: copy,
       onOpenTarget: openTarget,
       onOpenRelation: openRelation,

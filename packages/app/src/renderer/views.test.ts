@@ -1,6 +1,37 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { Call } from "./call.js";
-import { CORE_VIEW, inView, viewMark, viewName, viewsOf, withView } from "./views.js";
+import {
+  AS_FIELD,
+  CORE_VIEW,
+  IN_SELECTION,
+  inView,
+  selectionInView,
+  viewMark,
+  viewName,
+  viewsOf,
+  withView,
+} from "./views.js";
+
+interface CatalogCommand {
+  readonly name: string;
+  readonly effect: string;
+  readonly arguments: readonly { readonly field: string; readonly complete: string }[];
+}
+
+/** The read commands of `catalog.json` whose argument has the source `source`. */
+const readsWith = (source: string): string[] => {
+  const catalog = JSON.parse(
+    readFileSync(join(import.meta.dirname, "../../../../schemas/commands/catalog.json"), "utf8"),
+  ) as { readonly commands: readonly CatalogCommand[] };
+  return catalog.commands
+    .filter(
+      (command) => command.effect === "read" && command.arguments.some((arg) => arg.complete === source),
+    )
+    .map((command) => command.name)
+    .sort();
+};
 
 const COAST = { view: "43043043-0000-4000-8000-0000000000c1", title: "Coast", shortId: "VAR-0000c1" };
 
@@ -45,6 +76,20 @@ describe("the view the window shows (SR-043 AK1)", () => {
     });
     expect(withView("element.get", { ref: "SR-1" }, "A")).toEqual({ ref: "SR-1" });
     expect(withView("element.bulkUpdate", { selection: {} }, "A")).toEqual({ selection: {} });
+  });
+
+  it("takes every read command of the catalog with a selection or a view, but element.get", () => {
+    expect(readsWith("selection")).toEqual([...IN_SELECTION].sort());
+    expect(readsWith("view")).toEqual([...AS_FIELD, "element.get"].sort());
+  });
+
+  it("gives a selection the view unless it names one or ids", () => {
+    const where = { where: { type: ["need"] } };
+    expect(selectionInView(where, "A")).toEqual({ ...where, view: "A" });
+    expect(selectionInView(undefined, "A")).toEqual({ view: "A" });
+    const named = { view: "core" };
+    const ids = { ids: ["SR-1"] };
+    expect([selectionInView(named, "A"), selectionInView(ids, "A")]).toEqual([named, ids]);
   });
 
   it("calls in the view shown, and without one as it is", async () => {

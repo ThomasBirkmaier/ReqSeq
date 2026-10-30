@@ -25,8 +25,11 @@ export const viewName = (shown: ShownView): string =>
 export const viewMark = (shown: ShownView | undefined): string | undefined =>
   shown === undefined ? undefined : `view: ${shown.title}`;
 
-/** The reads that take the view in their selection (`selection.view`). */
-const IN_SELECTION: ReadonlySet<string> = new Set([
+/**
+ * The reads that take the view in their selection (`selection.view`): every read command of the catalog
+ * with a `selection` argument (`views.test.ts` checks the list against `catalog.json`).
+ */
+export const IN_SELECTION: ReadonlySet<string> = new Set([
   "element.list",
   "element.search",
   "element.facets",
@@ -37,8 +40,11 @@ const IN_SELECTION: ReadonlySet<string> = new Set([
   "data.export",
 ]);
 
-/** The reads that take the view as a field of their own (`view`). */
-const AS_FIELD: ReadonlySet<string> = new Set([
+/**
+ * The reads that take the view as a field of their own (`view`): every read command of the catalog with a
+ * `view` argument but `element.get`, which refuses one (an element is read in every view).
+ */
+export const AS_FIELD: ReadonlySet<string> = new Set([
   "trace.chain",
   "trace.related",
   "trace.neighbourhood",
@@ -52,6 +58,17 @@ type Input = Readonly<Record<string, unknown>>;
 const isRecord = (value: unknown): value is Input => typeof value === "object" && value !== null;
 
 /**
+ * The selection in the view: a selection that names a view keeps it, and one by `ids` names elements
+ * rather than a set to show (the values of one element, the names of buffers), so it reads them in every
+ * view. Also a selection taken from the shown list into a write (`element.bulkUpdate`, `data.store`,
+ * `baseline.create`): the command acts on the set the list shows.
+ */
+export const selectionInView = (selection: object | undefined, view: string): Input => {
+  const given = (selection ?? {}) as Input;
+  return given["view"] !== undefined || given["ids"] !== undefined ? given : { ...given, view };
+};
+
+/**
  * The input with `view` where the command takes it. An input that names a view keeps it, and a selection
  * by `ids` names elements rather than a set to show (the values of one element, the names of buffers), so
  * it reads them in every view. Every other command, writes and `element.get` among them, is left as it is.
@@ -63,10 +80,9 @@ export const withView = (name: string, input: Input, view: string): Input => {
   if (!IN_SELECTION.has(name)) {
     return input;
   }
-  const selection = isRecord(input["selection"]) ? input["selection"] : {};
-  return selection["view"] !== undefined || selection["ids"] !== undefined
-    ? input
-    : { ...input, selection: { ...selection, view } };
+  const selection = isRecord(input["selection"]) ? input["selection"] : undefined;
+  const viewed = selectionInView(selection, view);
+  return viewed === selection ? input : { ...input, selection: viewed };
 };
 
 /** `call` in the view `shown`; without one, `call` itself (all elements). */

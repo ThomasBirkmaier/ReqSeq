@@ -61,7 +61,10 @@ test.describe("the view of a variant in the app", () => {
     expect(await shownRequirements(window)).toEqual(await cliView(running, A));
     await chooseView(window, "Core");
     await expect(modeline).toContainText("view: Core");
-    await expect.poll(() => shownRequirements(window)).toEqual(await cliView(running, "core"));
+    await expect
+      .poll(() => shownRequirements(window))
+      .toEqual(["SR-0000a1", "SR-0000a2", "SR-0000a3", "SR-0000a4"]);
+    expect(await shownRequirements(window)).toEqual(await cliView(running, "core"));
     await chooseView(window, "All elements");
     await expect(modeline).not.toContainText("view:");
     await expect.poll(() => shownRequirements(window)).toContain("SR-0000a2");
@@ -75,5 +78,40 @@ test.describe("the view of a variant in the app", () => {
     await chooseView(window, B);
     await expect.poll(() => shownRequirements(window)).toContain("SR-0000a1");
     expect(await shownRequirements(window)).not.toContain("SR-0000b1");
+  });
+
+  test("[SR-042/AK6] in the view of A, variant.exclude with undo still offers the excluded K2, and K2 is back in the list", async () => {
+    const { window } = running;
+    const names = window.locator('.candidates [role="option"] .name');
+    const label = window.locator("label.prompt-label");
+    const title = "Exclude requirements from variant";
+    await chooseView(window, `${A} Coast`);
+    await expect.poll(() => shownRequirements(window)).not.toContain("SR-0000a2");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type(title);
+    await expect(names.first()).toHaveText(title);
+    await window.keyboard.press("Enter");
+    await window.keyboard.type("Coast");
+    await expect(names.first()).toHaveText(`${A} Coast`);
+    await window.keyboard.press("Enter");
+    await expect(label).toHaveText(`${title} ${A} · refs:`);
+    // The offer searches all elements: K2 is not in the view of A, but it is excluded there.
+    await window.keyboard.type("Measure the wind");
+    await expect(names.first()).toHaveText("SR-0000a2 Measure the wind");
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("ControlOrMeta+Enter");
+    await expect(names).toHaveText(["Run", "undo"]);
+    await window.keyboard.press("ArrowDown");
+    await window.keyboard.press("Enter");
+    await expect(names).toHaveText(["yes", "no"]);
+    await window.keyboard.press("Enter");
+    await window.keyboard.press("Enter");
+    await expect(window.locator(".result")).toContainText("variants/VAR-0000000000c1.md");
+    expect(await cliView(running, A)).toContain("SR-0000a2");
+    await window.keyboard.press("ControlOrMeta+Shift+P");
+    await window.keyboard.type("List all elements");
+    await window.keyboard.press("Enter");
+    await expect.poll(() => shownRequirements(window)).toContain("SR-0000a2");
+    await expect(window.getByLabel("Modeline")).toContainText("view: Coast");
   });
 });

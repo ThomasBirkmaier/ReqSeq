@@ -190,7 +190,13 @@ export interface ActionContext {
   readonly mac: boolean;
   /** Light and dark (SR-113). */
   readonly theme: Theme;
+  /** Calls core in no view: the element offers of every prompt ("Go to", arguments, relation targets, references). */
   readonly call: Call;
+  /**
+   * Calls core in the view the window shows (`views.ts`, SR-043 AK1): the facets of the shown list and the
+   * run of a catalog command. Absent: `call`.
+   */
+  readonly shownCall?: Call;
   readonly dispatch: (action: BufferAction) => void;
   readonly ask: (prompt: Prompt) => void;
   readonly echo: (message: string) => void;
@@ -558,7 +564,7 @@ const filterBy = (by: FilterBy): Action => ({
   title: by.title,
   available: by.available ?? isList,
   run: onList((context, list) => {
-    void by.names(context.call, list).then((found) => {
+    void by.names(context.shownCall ?? context.call, list).then((found) => {
       if (!found.ok) {
         context.echo(found.message);
       } else if (found.names.length === 0) {
@@ -783,7 +789,7 @@ export const ACTIONS: readonly Action[] = [
     title: "Filter list by property",
     available: isList,
     run: onList((context, list) => {
-      void facetsOf(context.call, list).then((answer) => {
+      void facetsOf(context.shownCall ?? context.call, list).then((answer) => {
         if (!answer.ok) {
           context.echo(answer.message);
           return;

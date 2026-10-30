@@ -1814,3 +1814,54 @@ describe("the arguments a command expects, completed with the values of the meta
     expect((await last(gone.asked)).label).toBe("No such element · Remove relation SR-1 · kind:");
   });
 });
+
+describe("a view the window shows (SR-043 AK1)", () => {
+  const list = listBuffer("type: need", { where: { type: ["need"] } });
+  const coast = { view: "u-coast", title: "Coast", shortId: "VAR-1" };
+
+  /** The context of `setup` in the view of Coast: `shownCall` records apart from the call in no view. */
+  const inCoast = (buffers: Buffers, answers: Record<string, () => unknown>) => {
+    const base = setup(buffers, answers);
+    const shownCall = vi.fn((name: string, input: Record<string, unknown>) => base.call(name, input));
+    const context: CatalogContext = {
+      ...base.context,
+      shownCall: shownCall as unknown as Call,
+      views: { shown: coast, choose: () => undefined },
+    };
+    return { ...base, context, shownCall };
+  };
+
+  it("searches all elements for an element argument of a write, and runs the command in the shown call", async () => {
+    const { context, asked, shownCall } = inCoast([list], {
+      "element.search": () => ({ hits: [hit(2)], total: 1 }),
+      "variant.exclude": () => ({ file: "variants/VAR-1.md" }),
+    });
+    start(context, "variant.exclude");
+    await (await last(asked)).find?.("coast");
+    // The offer goes through the call in no view: an excluded core requirement is still found (SR-042 AK6).
+    expect(shownCall).not.toHaveBeenCalled();
+    (await (await last(asked)).find?.("coast"))?.[0]?.run();
+    (await (await last(asked)).find?.("wind"))?.[0]?.run();
+    (await last(asked)).empty?.(false);
+    await flush();
+    expect(shownCall).toHaveBeenLastCalledWith("variant.exclude", { variant: "uuid-2", refs: ["uuid-2"] });
+  });
+
+  it("gives the selection of the shown list the view, unless it names a view or ids (B2)", async () => {
+    const answers = { "element.bulkUpdate": () => ({ total: 0, changes: [] }) };
+    const bulk = {
+      ...command("element.bulkUpdate"),
+      arguments: [{ field: "selection", complete: "selection" as const }],
+    };
+    const shownList = inCoast([list], answers);
+    catalogItems(shownList.context, [bulk], [])[0]?.run();
+    await flush();
+    expect(shownList.shownCall).toHaveBeenLastCalledWith("element.bulkUpdate", {
+      selection: { where: { type: ["need"] }, view: "u-coast" },
+    });
+    const byIds = inCoast([listBuffer("ids", { ids: ["SR-1"] })], answers);
+    catalogItems(byIds.context, [bulk], [])[0]?.run();
+    await flush();
+    expect(byIds.shownCall).toHaveBeenLastCalledWith("element.bulkUpdate", { selection: { ids: ["SR-1"] } });
+  });
+});

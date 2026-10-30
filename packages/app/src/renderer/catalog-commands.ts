@@ -52,7 +52,7 @@ import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { choiceItems } from "./property-edit.js";
 import type { Row } from "./rows.js";
-import { viewName, viewsOf } from "./views.js";
+import { selectionInView, viewName, viewsOf } from "./views.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -213,7 +213,7 @@ const isListField = (command: CommandListing, field: string): boolean =>
   schemaOf(command, field).type === "array";
 
 /** The shown list's selection, for a `selection` argument (it is never asked). */
-const shownSelection = (context: ActionContext): unknown => {
+const shownSelection = (context: ActionContext): object | undefined => {
   const shown = context.buffers[0];
   return shown?.kind === "list" ? shown.selection : undefined;
 };
@@ -527,10 +527,16 @@ const answersOf = (entry: Entry): { readonly key: string; readonly value: Proper
       : [{ key: given.property, value: given.value as PropertyAnswer }],
   );
 
-/** The input the given values make, with the shown list's selection for a `selection` argument. */
+/**
+ * The input the given values make, with the shown list's selection for a `selection` argument, in the view
+ * the window shows (`selectionInView`): a write on the list acts on the set the list shows.
+ */
 const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> => {
   const input: Record<string, unknown> = {};
-  const selection = shownSelection(context);
+  const listed = shownSelection(context);
+  const shown = context.views?.shown;
+  const selection =
+    listed === undefined || shown === undefined ? listed : selectionInView(listed, shown.view);
   for (const arg of entry.command.arguments) {
     const values = ordered(entry.given)
       .filter((given) => given.field === arg.field && given.skipped !== true)
@@ -588,7 +594,7 @@ const execute = async (context: CatalogContext, entry: Entry): Promise<void> => 
   }
   // The revision the command reads: a change while it runs makes the result view ask again.
   const revision = context.revision();
-  const answer = await context.call(name, input);
+  const answer = await (context.shownCall ?? context.call)(name, input);
   if (answer.ok && name === CREATE_COMMAND) {
     const created = answer.output as CommandTypes[typeof CREATE_COMMAND]["output"];
     context.dispatch({ type: "open", buffer: elementBufferOf(created.element) });
