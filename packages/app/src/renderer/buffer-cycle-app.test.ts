@@ -203,7 +203,7 @@ describe("App, Next buffer and Previous buffer (SR-115 AK5)", () => {
     expect(document.activeElement).toBe(query("[data-buffer]"));
   });
 
-  it("[SR-115/AK5] Option+N and Option+P in the text editor switch buffers by the physical key; the key is taken and the editor loses the focus", async () => {
+  it("[SR-145/AK2] Option+N and Option+P in the text editor switch buffers by the physical key; the key is taken and the editor loses the focus", async () => {
     await render();
     await runCommand("List all elements");
     await press(query('[role="listbox"]'), { key: "Enter" });

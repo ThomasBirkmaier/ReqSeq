@@ -271,7 +271,7 @@ test.describe("the key under macOS", () => {
     await running.close();
   });
 
-  test("[SR-132/AK1] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
+  test("[SR-132/AK1] [SR-145/AK1] under macOS Cmd+Shift+Enter opens the list; the physical Ctrl+Shift+Enter does not", async () => {
     const { window } = running;
     await openElement(window, "Measure the rain");
     // Cmd+Shift+Enter on the rationale asks: the facets of the element are answered and kept from here on.

@@ -114,7 +114,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test("[SR-122/AK5] with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it", async () => {
+  test("[SR-122/AK5] [SR-145/AK3] with a row selected Ctrl+P only moves the selection, also on the first row; Cmd does not move it", async () => {
     const { window } = running;
     await listAll(window);
     await window.keyboard.press("Control+N");
@@ -145,7 +145,7 @@ test.describe("Ctrl+N and Ctrl+P in the lists of the main window", () => {
     await expect(promptLabel(window)).toHaveCount(0);
   });
 
-  test('[SR-122/AK5] with no row selected Ctrl+P is still "Go to" on Linux and Windows (Cmd+P on macOS): after the start, and on a package page outside its list', async () => {
+  test('[SR-122/AK5] [SR-145/AK1] with no row selected Ctrl+P is still "Go to" on Linux and Windows (Cmd+P on macOS): after the start, and on a package page outside its list', async () => {
     const { window } = running;
     // macOS: the physical Ctrl+P is never "Go to" (see the test of macOS below); Cmd+P is.
     const goTo = process.platform === "darwin" ? "Meta+P" : "Control+P";
@@ -226,7 +226,7 @@ test.describe("the physical Ctrl key under macOS", () => {
     await running.close();
   });
 
-  test('[SR-122/AK5] under macOS Ctrl+P on an element and in its text editor is not "Go to": the editor moves the caret a line up; Cmd+P jumps', async () => {
+  test('[SR-145/AK1] under macOS Ctrl+P on an element and in its text editor is not "Go to": the editor moves the caret a line up; Cmd+P jumps', async () => {
     const { window } = running;
     await window.keyboard.press("Meta+P");
     await expect(promptLabel(window)).toHaveText("Go to");

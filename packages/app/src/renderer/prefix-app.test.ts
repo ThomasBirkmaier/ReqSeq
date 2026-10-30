@@ -237,7 +237,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     ]);
   });
 
-  it("[SR-109/AK3] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
+  it("[SR-109/AK3] [SR-145/AK1] after Cmd+K on macOS and half a second, shows the next keys, the echo written as on macOS", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     vi.useFakeTimers();
@@ -395,7 +395,7 @@ describe("the prefix key Ctrl/Cmd+K", () => {
     expect(echo()).not.toBe("Ctrl+K-");
   });
 
-  it("leaves a prevented Ctrl+K alone: on macOS the physical Ctrl+K stays the editor's", async () => {
+  it("[SR-145/AK1] leaves a prevented Ctrl+K alone: on macOS the physical Ctrl+K stays the editor's", async () => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     await onElement();
     const view = editorOf(".cm-editor");
