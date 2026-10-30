@@ -1748,6 +1748,40 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "error",
     },
   ],
+  "variant.diff": [
+    {
+      tag: "[SR-044/AK1]",
+      name: "A adds A2, replaces K1 by A1 and excludes K2",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { added: string[]; excluded: string[] } })
+          .output;
+        expect([output.added.map((id) => id.slice(-2)), output.excluded.map((id) => id.slice(-2))]).toEqual([
+          ["b2"],
+          ["a2"],
+        ]);
+      },
+    },
+    {
+      tag: "[SR-044/AK3]",
+      name: "the replaced row names the IDs of core requirement and replacement",
+      fixture: VARIANT_VIEWS,
+      input: { variant: "VAR-0000c1" },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { replaced: unknown } }).output;
+        expect(output.replaced).toEqual([
+          {
+            core: "43043043-0000-4000-8000-0000000000a1",
+            replacement: "43043043-0000-4000-8000-0000000000b1",
+          },
+        ]);
+      },
+    },
+    { name: "no variant", fixture: VARIANT_VIEWS, input: { variant: "SR-0000a1" }, expect: "error" },
+  ],
   // `path` is a localPath: the CLI makes it absolute from its current folder (the root here), API and MCP
   // take it relative to the root, so all four write into the same folder of their copy.
   "workspace.init": [
