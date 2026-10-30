@@ -13,7 +13,7 @@ import type { CommandOutput } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
 import type * as Reader from "../git/reader.js";
 import type { GitUnknown, ObjectInfos, ObjectReader } from "../git/reader.js";
-import { fileHistory, headCommit, headFiles, openObjectReader } from "../git/reader.js";
+import { fileHistory, fileMoves, headCommit, headFiles, openObjectReader } from "../git/reader.js";
 import { metamodelState } from "../metamodel/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
@@ -32,6 +32,7 @@ vi.mock("../git/reader.js", async (importOriginal) => {
     headCommit: vi.fn(original.headCommit),
     headFiles: vi.fn(original.headFiles),
     fileHistory: vi.fn(original.fileHistory),
+    fileMoves: vi.fn(original.fileMoves),
     openObjectReader: vi.fn(original.openObjectReader),
   };
 });
@@ -361,6 +362,60 @@ describe("version date", () => {
         await dates(repo.workspace, [{ version: await versionOf(repo.workspace, element("One.")) }]),
       ).toEqual([at(repo, "one")]);
     }
+  });
+
+  it("follows moves of the file to the commit that started its version (#460)", async () => {
+    const OLDEST = "drafts/SR-111111111111.md";
+    const OLD = "old/SR-111111111111.md";
+    // Git cannot take a path with a leading space on a line, so that move is not followed.
+    const SPACE = " lead/SR-222222222222.md";
+    const repo = await repository([
+      { name: "one", files: { [OLDEST]: element("One."), [SPACE]: element("Second.", "", OTHER) } },
+      { name: "two", files: { [OLDEST]: element("Two.") } },
+      { name: "moved", deleted: [OLDEST], files: { [OLD]: element("Two.") } },
+      // A move that also changed the title, which is not part of the version.
+      {
+        name: "again",
+        deleted: [OLD, SPACE],
+        files: { [FILE]: element("Two.", "", ID, "Gust"), [FILE2]: element("Second.", "", OTHER) },
+      },
+      { name: "other", files: { "notes.md": "no element\n" } },
+    ]);
+    const shown = await get(repo.workspace);
+    expect([shown.title, shown.versionDate]).toEqual(["Gust", at(repo, "two")]);
+    expect(
+      await dates(repo.workspace, [
+        // A version from before the moves.
+        { version: await versionOf(repo.workspace, element("One.")) },
+        { file: FILE2, id: OTHER, version: await versionOf(repo.workspace, element("Second.")) },
+      ]),
+    ).toEqual([at(repo, "one"), at(repo, "again")]);
+    // Moves are looked up only where a file may have come from elsewhere, each commit once:
+    // `again`, `moved`, then `one` (the moves of `again` are known for the second file).
+    expect(vi.mocked(fileMoves).mock.calls.map(([, commits]) => commits)).toEqual(
+      ["again", "moved", "one"].map((name) => [repo.made[name]?.id]),
+    );
+  });
+
+  it("follows a move to a path that held another element before", async () => {
+    const OLD = "old/SR-111111111111.md";
+    const repo = await repository([
+      { name: "one", files: { [OLD]: element("One."), [FILE]: element("Else.", "", OTHER) } },
+      { name: "gone", deleted: [FILE] },
+      { name: "moved", deleted: [OLD], files: { [FILE]: element("One.") } },
+    ]);
+    expect((await get(repo.workspace)).versionDate).toBe(at(repo, "one"));
+  });
+
+  it("is null when git cannot look up a move, and looks again next time", async () => {
+    const repo = await repository([
+      { name: "one", files: { "old/SR-111111111111.md": element("One.") } },
+      { name: "moved", deleted: ["old/SR-111111111111.md"], files: { [FILE]: element("One.") } },
+    ]);
+    const version = await versionOf(repo.workspace, element("One."));
+    vi.mocked(fileMoves).mockResolvedValueOnce(TIMEOUT);
+    expect(await dates(repo.workspace, [{ version }])).toEqual([null]);
+    expect(await dates(repo.workspace, [{ version }])).toEqual([at(repo, "one")]);
   });
 
   it("reads the file only at the commits that changed it, and at a merge whose sides differ for it", async () => {
