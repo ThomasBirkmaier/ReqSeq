@@ -1,6 +1,6 @@
 // The views of variants end to end (SR-041, SR-043): the built binary on fixtures/SR-043/example,
 // where variant A (VAR-0000c1) replaces K1 (SR-0000a1) by A1 (SR-0000b1), excludes K2 (SR-0000a2)
-// and adds A2 (SR-0000b2). Run after `pnpm build` with `pnpm test:e2e`.
+// and adds A2 (SR-0000b2); SR-046 lets B (VAR-0000c2) exclude K1. Run after `pnpm build` with `pnpm test:e2e`.
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -75,6 +75,20 @@ describe("variant views (SR-041, SR-043)", () => {
     const result = await run(["workspace", "check"], { cwd: ws.root });
     expect(result.stdout).toContain(
       "warning  variant.target-not-core  system:requirements/SR-0000000000b3.md:7  System Requirement SR-0000b3 replaces Need N-0000d1",
+    );
+  });
+
+  it("[SR-046/AK3] element get names A as replacing and B as excluding variant", async () => {
+    const ws = await workspace({
+      "variants/VAR-0000000000c2.md":
+        "---\nid: 43043043-0000-4000-8000-0000000000c2\ntype: variant\nstatus: draft\ntitle: Mountain\n" +
+        "excludes: [{ id: 43043043-0000-4000-8000-0000000000a1 }]\n---\n",
+    });
+    const result = await run(["element", "get", "SR-0000a1"], { cwd: ws.root });
+    expect([result.code, result.stderr]).toEqual([0, ""]);
+    expect(result.stdout).toContain(
+      "  replacedBy:\n    - variant: VAR-0000c1  Coast\n      replacement: SR-0000b1  Response time at most 20 ms\n" +
+        "  excludedBy:\n    - VAR-0000c2  Mountain\n",
     );
   });
 });

@@ -23,7 +23,7 @@
 //   every access, spec question #592 Q3): `share: 60 %`.
 // - `names` (the elements an output gives elsewhere by UUID only, `common.schema.json#/$defs/elementName`,
 //   #588) is not printed: those UUIDs print as the element instead, `SHORT-ID (IDENTIFIER)  title` in a
-//   value printed as YAML (the lists of evidence.coverage, a variant `view`), `SHORT-ID (IDENTIFIER)` in
+//   value printed as YAML (the lists of evidence.coverage, a variant `view`, the details of an element), `SHORT-ID (IDENTIFIER)` in
 //   the verification status of an element line. A UUID that `names` leaves out stays as it is.
 // - Every other value stays YAML. Problems come last, each once: those of the output and the hints
 //   at an element it shows; then `No problems.`, or how many findings the output left out (`hidden`).
@@ -233,9 +233,10 @@ const relationLine = (r: Rec): string => {
 
 /**
  * The details of an element below its line: what the line does not show, type and file first, the
- * relations one line each, the text last.
+ * relations one line each, the text last. The UUIDs of `names` in the values other than the
+ * properties (shown as stored) print as the elements they name (`replacedBy`, `excludedBy`, SR-046 AK3).
  */
-const elementDetails = (element: Rec): string[] => {
+const elementDetails = (element: Rec, names: Names): string[] => {
   const {
     id,
     shortId: _shortId,
@@ -256,7 +257,12 @@ const elementDetails = (element: Rec): string[] => {
     id,
     type: rest["type"],
     file: `${text(repository)}:${text(file)}`,
-    ...rest,
+    ...Object.fromEntries(
+      Object.entries(rest).map(([key, value]) => [
+        key,
+        key === "properties" ? value : withNames(value, names),
+      ]),
+    ),
     relations: (Array.isArray(relations) ? relations : []).filter(isRecord).map(relationLine),
     text: body,
   };
@@ -297,7 +303,7 @@ const valueLines = (
     lifted.push(...listOf(value["problems"]));
     return [
       elementLine(value, namerOf([]), viewNamerOf([], names)),
-      ...(details ? elementDetails(value) : []),
+      ...(details ? elementDetails(value, names) : []),
     ];
   }
   if (Array.isArray(value)) {

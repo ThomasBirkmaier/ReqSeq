@@ -458,6 +458,29 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   ],
   "element.get": [
     {
+      tag: "[SR-046/AK3]",
+      name: "element.get names A as replacing and B as excluding variant",
+      fixture: {
+        ...VARIANT_VIEWS,
+        files: {
+          "variants/VAR-0000000000c2.md":
+            "---\nid: 43043043-0000-4000-8000-0000000000c2\ntype: variant\nstatus: draft\ntitle: Mountain\n" +
+            "excludes: [{ id: 43043043-0000-4000-8000-0000000000a1 }]\n---\n",
+        },
+      },
+      input: { ref: "SR-0000a1" },
+      expect: "output",
+      check: (results) => {
+        const { element } = (results["core"]?.outcome as { output: { element: Record<string, unknown> } })
+          .output;
+        const P = "43043043-0000-4000-8000-0000000000";
+        expect([element["replacedBy"], element["excludedBy"]]).toEqual([
+          [{ variant: `${P}c1`, replacement: `${P}b1` }],
+          [`${P}c2`],
+        ]);
+      },
+    },
+    {
       name: "an element with a reference in an acceptance criterion: its outdated hint (SR-127 AK3)",
       fixture: IN_CRITERIA,
       input: { ref: "SR-0000b1" },
