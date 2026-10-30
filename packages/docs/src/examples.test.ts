@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -133,6 +133,30 @@ describe("pageSteps", () => {
     expect(pageSteps(page('```text title="Output"\nreqseq-workspace.yaml\n```'))).toEqual([]);
   });
 
+  it("takes a block with a title as a file the page writes, and refuses a path outside its folder", () => {
+    const text = [
+      "```sh",
+      "reqseq a",
+      "```",
+      '```yaml title="reqseq-workspace.yaml"',
+      "name: W",
+      "```",
+      '```xml title="evidence/ci/r-1.xml"',
+      "<x/>",
+      "```",
+    ].join("\n");
+    expect(pageSteps(page(text))).toEqual([
+      { line: 2, argv: ["a"] },
+      { line: 4, file: "reqseq-workspace.yaml", content: ["name: W"] },
+      { line: 7, file: "evidence/ci/r-1.xml", content: ["<x/>"] },
+    ]);
+    for (const title of ["/etc/x", "../x", "a/../../x", "C:\\x", "a b", ""]) {
+      expect(() => pageSteps(page(`\`\`\`xml title="${title}"\n<x/>\n\`\`\``, "how-to/x.md")), title).toThrow(
+        `how-to/x.md:1: the file "${title}" of a block must be a relative path inside the folder of the page`,
+      );
+    }
+  });
+
   it("refuses a block that mixes reqseq with other commands", () => {
     expect(() => pageSteps(page("```sh\nreqseq a\ncd b\n```", "start/x.md"))).toThrow(
       "start/x.md:1: a block with `reqseq` commands has other commands too",
@@ -195,6 +219,36 @@ describe("runSteps", () => {
     expect(await differs(["N-7fe707 N-7fe707"], "N-aaaaaa N-bbbbbb\n")).toHaveLength(1);
     expect(await differs(["N-7fe707"], "SR-aaaaaa\n")).toHaveLength(1);
     expect(await differs([], "")).toEqual([]);
+  });
+});
+
+describe("runSteps files", () => {
+  it("writes a file in the folder of the page, with the IDs of the run, before the commands after it", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "reqseq-files-"));
+    try {
+      const run = vi.fn<CliRun>(async (_argv, folder) =>
+        ok(
+          (await readFile(join(folder, "evidence", "r.xml"), "utf8")) === '<x n="[SR-abc123]"/>\n'
+            ? ""
+            : "no",
+        ),
+      );
+      const steps = [
+        { line: 1, argv: ["create"], expected: ["SR-c67baa"] },
+        { line: 2, file: "evidence/r.xml", content: ['<x n="[SR-c67baa]"/>'] },
+        { line: 3, argv: ["enrich"], expected: [] },
+      ];
+      const first = vi.fn<CliRun>(() => ok("SR-abc123\n"));
+      expect(
+        await runSteps("p.md", steps, cwd, (argv, folder, signal) =>
+          argv[0] === "create" ? first(argv, folder, signal) : run(argv, folder, signal),
+        ),
+      ).toEqual([]);
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(await checkExamples([page('```xml title="a.xml"\n<x/>\n```')], run)).toBe(0);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 });
 

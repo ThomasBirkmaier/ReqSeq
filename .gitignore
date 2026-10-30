@@ -6,7 +6,8 @@ coverage/
 .DS_Store
 scripts/spec-export/raw/
 issue-backup-*.json
-trace-*.md
+# Reports of trace-check (--report) at the root only; docs/guide has pages named trace-*.md
+/trace-*.md
 test-results/
 .claude/worktrees/
 

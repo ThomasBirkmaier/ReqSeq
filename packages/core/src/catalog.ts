@@ -87,6 +87,7 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "relation.not-allowed": "input",
   "variant.nested": "input",
   "baseline.uncommitted-changes": "conflict",
+  "baseline.exists": "conflict",
   "reqif.invalid": "input",
   "reqif.unmapped": "input",
   "git.unavailable": "unavailable",

@@ -313,15 +313,15 @@ describe("invoke (product runtime)", () => {
     onTestFinished(() => fixture.cleanup());
     const ws = new Workspace(fixture.root);
     expect(fs.existsSync(fixture.path("reqseq-workspace.yaml"))).toBe(true);
-    // baseline.list is a stage 5 command: in the catalog, not implemented yet.
-    const err = await rejection(invoke("baseline.list", {}, { workspace: ws }));
+    // reqif.analyze is a stage 6 command: in the catalog, not implemented yet.
+    const err = await rejection(invoke("reqif.analyze", {}, { workspace: ws }));
     expect(err.toJSON()).toEqual({
       code: "command.not-implemented",
-      message: "Command baseline.list is not implemented yet",
-      details: { command: "baseline.list" },
+      message: "Command reqif.analyze is not implemented yet",
+      details: { command: "reqif.analyze" },
     });
     // The default runtime is created once and reused.
-    expect((await rejection(invoke("baseline.list", {}, { workspace: ws }))).code).toBe(
+    expect((await rejection(invoke("reqif.analyze", {}, { workspace: ws }))).code).toBe(
       "command.not-implemented",
     );
   });

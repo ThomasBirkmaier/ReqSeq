@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 966 740" width="966" height="740" role="img" aria-label="ReqSeq workspace packages">
+<style>
+svg { --bg: #ffffff; --fg: #18202b; --muted: #5a6575; --line: #c6ced9; --u: #c4521b; --m: #5d6c84; --w: #1c6db0; --o: #7a4fb0; --req: #0d8257; --req-fg: #ffffff; }
+@media (prefers-color-scheme: dark) { svg { --bg: #0d1117; --fg: #e2e7ee; --muted: #98a3b3; --line: #344050; --u: #ee7c45; --m: #a7b4c8; --w: #5ea8e8; --o: #b79cf0; --req: #3cc68e; --req-fg: #0c1a14; } }
+text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--fg); font-size: 10.5px; }
+.bg { fill: var(--bg); }
+.n { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12.5px; font-weight: 600; }
+.h { font-size: 15px; font-weight: 600; }
+.s { fill: var(--muted); }
+.box { fill: var(--bg); stroke-width: 1.6; }
+.trig { fill: var(--bg); stroke: var(--fg); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.lane { stroke: var(--line); stroke-width: 1; fill-opacity: 0.07; }
+.lh { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 600; letter-spacing: 0.08em; }
+.u { stroke: var(--u); } .m { stroke: var(--m); } .w { stroke: var(--w); } .o { stroke: var(--o); }
+.lane.u { fill: var(--u); } .lane.m { fill: var(--m); } .lane.w { fill: var(--w); } .lane.o { fill: var(--o); }
+.lh.u { fill: var(--u); } .lh.m { fill: var(--m); } .lh.w { fill: var(--w); } .lh.o { fill: var(--o); }
+.sep { stroke: var(--line); stroke-width: 1; }
+.arr { fill: none; stroke: var(--fg); stroke-width: 1.3; }
+.arr.dev { stroke-dasharray: 5 4; }
+.ah { fill: var(--fg); }
+.req { fill: var(--req); } .reqt { fill: var(--req-fg); font-size: 9.5px; font-weight: 700; }
+</style>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" width="966" height="740"/>
+<text class="h" x="20" y="34">ReqSeq workspace packages and their dependencies</text>
+<text class="s" x="20" y="52">Generated from packages/*/package.json by pnpm docs:diagrams. An arrow points to a dependency;</text>
+<text class="s" x="20" y="66">dashed: devDependency only. Dependencies implied through another package have no arrow.</text>
+<path class="arr" d="M165,376 L483,530" marker-end="url(#ah)"/>
+<path class="arr" d="M483,474 L483,530" marker-end="url(#ah)"/>
+<path class="arr" d="M465,260 L165,316" marker-end="url(#ah)"/>
+<path class="arr dev" d="M483,260 L483,316" marker-end="url(#ah)"/>
+<path class="arr" d="M501,260 L801,316" marker-end="url(#ah)"/>
+<path class="arr dev" d="M483,604 L483,660" marker-end="url(#ah)"/>
+<path class="arr" d="M483,144 L483,200" marker-end="url(#ah)"/>
+<path class="arr" d="M801,376 L483,530" marker-end="url(#ah)"/>
+<rect class="box w" x="20" y="316" width="290" height="60" rx="5"/><text class="n" x="30" y="335">@reqseq/api</text><text class="s" x="30" y="351">uses core</text><text class="s" x="30" y="365">external: none</text>
+<rect class="box w" x="338" y="316" width="290" height="158" rx="5"/><text class="n" x="348" y="335">@reqseq/app</text><text class="s" x="348" y="351">uses core, testkit (dev)</text><text class="s" x="348" y="365">external: @codemirror/autocomplete,</text><text class="s" x="348" y="379">@codemirror/commands,</text><text class="s" x="348" y="393">@codemirror/lang-markdown,</text><text class="s" x="348" y="407">@codemirror/language, @codemirror/state,</text><text class="s" x="348" y="421">@codemirror/view, @dagrejs/dagre,</text><text class="s" x="348" y="435">@leeoniya/ufuzzy, @lezer/common,</text><text class="s" x="348" y="449">@lezer/highlight, @lezer/markdown,</text><text class="s" x="348" y="463">katex, mermaid, react, react-dom</text>
+<rect class="box w" x="338" y="200" width="290" height="60" rx="5"/><text class="n" x="348" y="219">@reqseq/cli</text><text class="s" x="348" y="235">uses api, app (dev), core, mcp, testkit (dev)</text><text class="s" x="348" y="249">external: commander, yaml</text>
+<rect class="box w" x="338" y="530" width="290" height="74" rx="5"/><text class="n" x="348" y="549">@reqseq/core</text><text class="s" x="348" y="565">uses testkit (dev)</text><text class="s" x="348" y="579">external: ajv, ajv-formats, minisearch,</text><text class="s" x="348" y="593">yaml</text>
+<rect class="box w" x="338" y="84" width="290" height="60" rx="5"/><text class="n" x="348" y="103">@reqseq/docs</text><text class="s" x="348" y="119">uses api, app, cli, core, mcp</text><text class="s" x="348" y="133">external: yaml</text>
+<rect class="box w" x="656" y="316" width="290" height="60" rx="5"/><text class="n" x="666" y="335">@reqseq/mcp</text><text class="s" x="666" y="351">uses core</text><text class="s" x="666" y="365">external: @modelcontextprotocol/server</text>
+<rect class="box w" x="338" y="660" width="290" height="60" rx="5"/><text class="n" x="348" y="679">@reqseq/testkit</text><text class="s" x="348" y="695">uses no workspace package</text><text class="s" x="348" y="709">external: none</text>
+</svg>
