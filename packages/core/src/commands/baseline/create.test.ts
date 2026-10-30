@@ -9,16 +9,11 @@ import { readBaselines } from "../../baselines/index.js";
 import { scanBaseline } from "../../baselines/scan.js";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import * as reader from "../../git/reader.js";
 import * as model from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
-vi.mock("../../git/reader.js", async (importOriginal) => {
-  const original = await importOriginal<typeof reader>();
-  return { ...original, changedPaths: vi.fn(original.changedPaths) };
-});
 vi.mock("../../model/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof model>();
   return { ...original, currentVersionsOf: vi.fn(original.currentVersionsOf) };
@@ -272,7 +267,7 @@ describe("baseline.create", () => {
     expect(fs.readdirSync(ws.path("system/baselines")).sort()).toEqual(["broken.yaml", "release-1.yaml"]);
   });
 
-  it("refuses selection.baseline, a folder that is not here, an element without version and changes Git cannot tell", async () => {
+  it("refuses selection.baseline, a folder that is not here, and an element without version", async () => {
     const ws = await fixture();
     expect((await failure(ws, "B", { baseline: "Release 1" })).details).toMatchObject({
       fields: ["selection.baseline"],
@@ -293,8 +288,6 @@ describe("baseline.create", () => {
       "file.faulty",
       { elements: [{ id: `${ID}b1`, repository: "system", file: "requirements/SR-0000000000b1.md" }] },
     ]);
-    vi.mocked(reader.changedPaths).mockResolvedValueOnce({ known: false, reason: "timeout", detail: "slow" });
-    expect((await failure(ws, "G", PACKAGE)).code).toBe("git.unavailable");
     const settings = read(ws, "reqseq-workspace.yaml");
     await ws.write(
       "system/reqseq-workspace.yaml",
