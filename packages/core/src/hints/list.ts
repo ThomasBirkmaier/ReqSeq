@@ -8,7 +8,7 @@
 //   `HINT_STATES`, then the outdated relations and inline references (SR-025). Errors (a faulty file,
 //   a duplicate UUID, a missing target: the SRs do not call them "Hinweis"), info and warnings about
 //   no element (`file.yaml-warning`, `file.skipped`, `metamodel.meaning-unassigned`) are not hints.
-//   The hints of a core change (`variant.core-changed`, SR-045, SR-103) join in stage 5.
+//   The hints of a changed core requirement at a replacement (`variant.core-changed`, SR-045) join in stage 5.
 // - Each hint is the problem as the check gives it (AK1): kind (`code`), the element (`elementId`,
 //   `repository`, `file`, `line`, and its short ID `elementShortId` for display, #310, added by
 //   `invoke` to every problem that names an element, #315), the target

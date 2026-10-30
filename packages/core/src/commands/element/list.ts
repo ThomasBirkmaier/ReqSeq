@@ -1,4 +1,4 @@
-// element.list (SR-069, SR-101, SR-048 AK3, SR-043 with the validity of SR-040, SR-075, SR-070): the
+// element.list (SR-069, SR-101, SR-112 AK1, SR-043 with the validity of SR-040, SR-075, SR-070): the
 // elements of a selection (query/selection.ts), sorted (query/sort.ts; without `sort`, by the sort of
 // the saved filter the selection names), as list commands give them
 // (model/list.ts), one page at a time; `total` counts every match and `incomplete` follows SR-006
