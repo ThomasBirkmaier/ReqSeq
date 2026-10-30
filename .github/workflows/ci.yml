@@ -66,7 +66,8 @@ jobs:
         shell: bash
         run: |
           lines="$(git diff --numstat -M HEAD^1 HEAD -- . ':(exclude)schemas/generated' \
-            ':(exclude)packages/core/src/generated' ':(exclude)pnpm-lock.yaml' |
+            ':(exclude)packages/core/src/generated' ':(exclude)pnpm-lock.yaml' \
+            ':(exclude)docs/architecture/*.svg' |
             awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')"
           echo "Changed lines without generated files: $lines" >> "$GITHUB_STEP_SUMMARY"
           if [ "$lines" -gt 800 ]; then
