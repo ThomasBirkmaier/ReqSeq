@@ -732,8 +732,8 @@ describe("element.update: directly affected elements (SR-024)", () => {
 
   it("[SR-024/AK2] counts a save of an element whose old version had no normal form as a change", async () => {
     const model = STANDARD.replace(
-      "  - { key: topic, name: Topic, kind: text }",
-      "  - { key: topic, name: Topic, kind: text }\n  - { key: weight, name: Weight, kind: number, content: true }",
+      "\nrelations:",
+      "  - { key: weight, name: Weight, kind: number, content: true }\n\nrelations:",
     ).replace("        topic,\n      ]", "        topic,\n        weight,\n      ]");
     const opened = await open({ ...AFFECTED, files: { "metamodel/standard-model.yaml": model } });
     const file = "requirements/SR-00000000b001.md";

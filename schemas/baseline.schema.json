@@ -70,7 +70,10 @@
         },
         "where": { "$ref": "filter.schema.json#/$defs/condition" },
         "package": { "$ref": "#/$defs/storedRef" },
-        "view": { "anyOf": [{ "const": "core" }, { "$ref": "#/$defs/storedRef" }] }
+        "view": {
+          "description": "`core` (a reference like any other, so not a separate constituent), or the variant as `{ id, title }` or a hand-written reference.",
+          "$ref": "#/$defs/storedRef"
+        }
       },
       "additionalProperties": false
     },

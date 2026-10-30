@@ -1,6 +1,7 @@
-// The stable ID of a hint on an outdated relation or inline reference (SR-025, D-042): what
-// `hint.confirm` (SR-027) takes to find the relation items or references whose stored version it
-// writes. An ID names the place of the relation, not a line, so it stays the same while the file
+// The stable ID of a confirmable hint (D-042): an outdated relation or inline reference (SR-025),
+// or a changed core requirement at the `replaces` item of a variant requirement (SR-045). It is
+// what `hint.confirm` (SR-027) takes to find the relation items or references whose stored version
+// it writes. An ID names the place of the relation, not a line, so it stays the same while the file
 // changes elsewhere, and in every access (SR-080):
 //
 // - an item of a relation kind or of a relation-valued property (ADR-0004: validity, packages):
@@ -15,6 +16,10 @@
 //   same parameters; `n` counts over all values of that property (a list is one text). The key is
 //   behind a colon, as a key can be `text`, so `@<key>` would clash with `@text`.
 //
+// - a `replaces` item onto a changed core requirement (SR-045): `variant.core-changed/<repository>/
+//   <file>/<source>/<key>/<target>?version=<stored>[&repository=<name>]`, with the place rules of a
+//   relation item; only relation items, so `@text` places are refused.
+//
 // `<repository>` and `<file>` are the workspace name of the source's repository and the source
 // file relative to it, so that two files that share a UUID (SR-088) have different IDs. They and a
 // target repository name are percent-encoded (`encodeURIComponent`, so `/` in the file becomes
@@ -28,8 +33,17 @@
 
 import { isVersion } from "../model/is-version.js";
 
-/** The code of the hints the IDs name (`common.schema.json#/$defs/problemCode`). */
+/** The code of the hints on outdated relations and references (`common.schema.json#/$defs/problemCode`). */
 export const OUTDATED_CODE = "relation.outdated";
+
+/** The code of the hints on a changed core requirement that a variant requirement replaces (SR-045). */
+export const CORE_CHANGED_CODE = "variant.core-changed";
+
+/** The codes of the confirmable hints, the only ones with a hint ID and the first segment of it. */
+export const CONFIRMABLE_CODES = [OUTDATED_CODE, CORE_CHANGED_CODE] as const;
+
+/** The code of a confirmable hint. */
+export type ConfirmableCode = (typeof CONFIRMABLE_CODES)[number];
 
 /** The segment that names the text of the source instead of a key. */
 export const TEXT_SEGMENT = "@text";
@@ -55,6 +69,8 @@ interface SourcePlace {
 export type HintTarget =
   | (SourcePlace & {
       readonly kind: "relation";
+      /** The code of the hint. */
+      readonly code: ConfirmableCode;
       /** The key of the relation kind or relation-valued property. */
       readonly key: string;
       /** The repository the items name, undefined when they name none (the source's own, D-058). */
@@ -62,6 +78,8 @@ export type HintTarget =
     })
   | (SourcePlace & {
       readonly kind: "reference";
+      /** The code of the hint: only outdated references are named by place in a text. */
+      readonly code: typeof OUTDATED_CODE;
       /** The `repository` of the link as written, undefined when it has none. */
       readonly repository?: string;
       /** The place of the link among the links of the text with the same target, repository and version, from 1. */
@@ -87,7 +105,7 @@ export const hintIdOf = (target: HintTarget): string => {
     target.repository === undefined ? "" : `&repository=${encodeURIComponent(target.repository)}`;
   const occurrence = target.kind === "reference" ? `&n=${String(target.occurrence)}` : "";
   const source = `${encodeURIComponent(target.sourceRepository)}/${encodeURIComponent(target.file)}/${target.source}`;
-  return `${OUTDATED_CODE}/${source}/${place}/${target.target}?version=${target.version}${repository}${occurrence}`;
+  return `${target.code}/${source}/${place}/${target.target}?version=${target.version}${repository}${occurrence}`;
 };
 
 /** `text` decoded, or undefined when it cannot be decoded. */
@@ -124,11 +142,21 @@ const split = (id: string): { segments: string[]; parameters: string[] } | undef
 /** The source, place and target of the segments, when they have the form of a hint ID. */
 const placeOf = (
   segments: readonly string[],
-): { sourceRepository: string; file: string; source: string; place: string; target: string } | undefined => {
+):
+  | {
+      code: ConfirmableCode;
+      sourceRepository: string;
+      file: string;
+      source: string;
+      place: string;
+      target: string;
+    }
+  | undefined => {
   const [code, repository, file, source, place, target, ...rest] = segments;
+  const known = CONFIRMABLE_CODES.find((c) => c === code);
   const sourceRepository = decoded(repository ?? "");
   const sourceFile = decoded(file ?? "");
-  return code === OUTDATED_CODE &&
+  return known !== undefined &&
     sourceRepository !== undefined &&
     sourceRepository !== "" &&
     sourceFile !== undefined &&
@@ -139,7 +167,7 @@ const placeOf = (
     rest.length === 0 &&
     UUID.test(source) &&
     UUID.test(target)
-    ? { sourceRepository, file: sourceFile, source, place, target }
+    ? { code: known, sourceRepository, file: sourceFile, source, place, target }
     : undefined;
 };
 
@@ -153,7 +181,7 @@ const referencePlace = (place: string): { readonly property?: string } | undefin
 };
 
 /**
- * What the hint ID `id` names, or undefined when `id` is not a hint ID of this format. Only the
+ * What the hint ID `id` names, with its code, or undefined when `id` is not a hint ID of this format. Only the
  * form is checked: whether the source still has that relation with that stored version, and
  * whether it is still outdated, is up to the caller (`hint.confirm` reports a stale ID).
  */
@@ -163,7 +191,7 @@ export const parseHintId = (id: string): HintTarget | undefined => {
   if (parts === undefined || named === undefined) {
     return undefined;
   }
-  const { place, ...where } = named;
+  const { place, code, ...where } = named;
   const version = parameter(parts.parameters, "version");
   const repository = parameter(parts.parameters, "repository");
   const occurrence = parameter(parts.parameters, "n");
@@ -173,11 +201,19 @@ export const parseHintId = (id: string): HintTarget | undefined => {
   const target = repository === undefined ? {} : { repository };
   const reference = referencePlace(place);
   if (reference !== undefined) {
-    return typeof occurrence === "string" && OCCURRENCE.test(occurrence)
-      ? { kind: "reference", ...where, ...target, version, occurrence: Number(occurrence), ...reference }
+    return code === OUTDATED_CODE && typeof occurrence === "string" && OCCURRENCE.test(occurrence)
+      ? {
+          kind: "reference",
+          code,
+          ...where,
+          ...target,
+          version,
+          occurrence: Number(occurrence),
+          ...reference,
+        }
       : undefined;
   }
   return KEY.test(place) && occurrence === undefined
-    ? { kind: "relation", ...where, key: place, ...target, version }
+    ? { kind: "relation", code, ...where, key: place, ...target, version }
     : undefined;
 };

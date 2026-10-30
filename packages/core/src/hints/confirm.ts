@@ -118,7 +118,7 @@ interface Source {
 type NewVersions = ReadonlyMap<ElementRecord, string>;
 
 const NOT_CONFIRMABLE =
-  "only a hint on a changed version (relation.outdated, with its hintId in hint.list) is confirmed, by writing the current version (D-042); other hints go away when what they report is changed";
+  "only a hint on a changed version (relation.outdated or variant.core-changed, with its hintId in hint.list) is confirmed, by writing the current version (D-042); other hints go away when what they report is changed";
 
 const notConfirmable = (
   id: string,
