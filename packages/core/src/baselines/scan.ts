@@ -42,7 +42,7 @@ const ELEMENT_LINE = new RegExp(
 const ID_LINE = new RegExp(`^    - (?:(${UUID})|\\{ id: (${UUID}), repository: (${NAME}) \\})$`);
 
 /** Plain scalars that YAML 1.2 (core schema) reads as no string: booleans, null, numbers. */
-const NOT_A_STRING = /^(?:true|false|null|[0-9]+(?:\.[0-9]*)?(?:e[-+]?[0-9]+)?|0o[0-7]+|0x[0-9a-f]+)$/;
+export const NOT_A_STRING = /^(?:true|false|null|[0-9]+(?:\.[0-9]*)?(?:e[-+]?[0-9]+)?|0o[0-7]+|0x[0-9a-f]+)$/;
 
 const encoder = new TextEncoder();
 

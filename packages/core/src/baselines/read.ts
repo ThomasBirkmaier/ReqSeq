@@ -334,7 +334,7 @@ export type FoundBaseline =
   | { readonly kind: "none" };
 
 /** A name as names compare (ignoring case and Unicode normal form), as saved filters compare theirs. */
-const fold = (text: string): string => text.normalize("NFC").toLowerCase();
+export const foldName = (text: string): string => text.normalize("NFC").toLowerCase();
 
 /** Whether `text` names the file `file` in the baselines folder, with or without `.yaml`. */
 const namesFile = (file: string, text: string): boolean => {
@@ -344,8 +344,8 @@ const namesFile = (file: string, text: string): boolean => {
 
 /** The baseline `text` names in `baselines` (see the file comment). */
 export const findBaseline = (baselines: Baselines, text: string): FoundBaseline => {
-  const key = fold(text);
-  const named = baselines.baselines.filter((b) => fold(b.name) === key);
+  const key = foldName(text);
+  const named = baselines.baselines.filter((b) => foldName(b.name) === key);
   const [first, ...others] =
     named.length > 0 ? named : baselines.baselines.filter((b) => namesFile(b.file, text));
   if (first !== undefined) {

@@ -38,13 +38,13 @@ import type { FileSnapshot } from "../files/index.js";
 import type { JsonLinesSpec } from "../files/index.js";
 import { createFolder, jsonLines, readJsonlSnapshot, writeFileAtomic } from "../files/index.js";
 import type { DataStoreOutput, ElementSelection } from "../generated/types.js";
-import { refuseUnlisted, repositoryCommit } from "../model/index.js";
+import { NO_COMMIT_TEXT, refuseUnlisted, repositoryCommit } from "../model/index.js";
 import type { Selected } from "../query/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { refuseGit, shownPath, workspaceLayoutState } from "../workspace/index.js";
 import type { ExportOptions, ExportWithProblems } from "./export.js";
-import { NO_COMMIT_TEXT, exportDataWithProblems } from "./export.js";
+import { exportDataWithProblems } from "./export.js";
 
 /** The name of the data file of `commit`: `<commit>.jsonl`, `<commit>-dirty.jsonl` when not clean. */
 export const dataFileName = (commit: string, clean: boolean): string =>

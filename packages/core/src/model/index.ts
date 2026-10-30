@@ -7,6 +7,7 @@ export {
   listFiles,
   listMarkdownFiles,
   listsFile,
+  windowsChanges,
 } from "./discover.js";
 export { classifyFile, isUuid, keyLinesOf } from "./elements.js";
 export { FILE_NAME_DIGITS, fileNameFor } from "./file-name.js";
@@ -169,7 +170,7 @@ export {
   relationPath,
 } from "./incoming.js";
 export { changedFiles, restrictTo, treeAt } from "./changed.js";
-export { repositoryCommit } from "./repository-commit.js";
+export { NO_COMMIT_TEXT, repositoryCommit } from "./repository-commit.js";
 export type { NoCommitReason, RepositoryCommit } from "./repository-commit.js";
 export {
   DEFAULT_STATE_READER,
@@ -178,9 +179,11 @@ export {
   repositoryState,
   stateFiles,
   stateRules,
+  relativeIn,
+  uncommittedFiles,
   uncommittedStateFiles,
 } from "./uncommitted.js";
-export type { RepositoryState, StateReader, StateRules } from "./uncommitted.js";
+export type { RepositoryState, StateReader, StateRules, UncommittedFiles } from "./uncommitted.js";
 export type { ChangedFiles, ChangedInput, Changes, Restriction, RestrictionContext } from "./changed.js";
 export type { IncomingIndex, IncomingLink, IncomingReference, IncomingRelation } from "./incoming.js";
 export { directLinks, directlyAffectedCount } from "./affected.js";
@@ -197,8 +200,23 @@ export type {
   WorkspaceChangeListener,
   WorkspaceWatcher,
 } from "./watch.js";
-export { addRelation, removeRelation } from "./relation-write.js";
-export type { AddedRelation, RelationInput, RemovedRelation, RemoveRelationInput } from "./relation-write.js";
+export {
+  addRelation,
+  itemsUnder,
+  notFoundProblem,
+  relationStateOf,
+  removalEdits,
+  removalMatch,
+  removeRelation,
+  writeSourceEdits,
+} from "./relation-write.js";
+export type {
+  AddedRelation,
+  RelationInput,
+  RelationState,
+  RemovedRelation,
+  RemoveRelationInput,
+} from "./relation-write.js";
 export { addAttachment, clashKey, IMAGE_EXTENSIONS, portableName } from "./attachment.js";
 export {
   assertElementWritable,
@@ -223,4 +241,5 @@ export type {
   ReadElement,
   UpdateElementInput,
   UpdateElementResult,
+  WriteCheck,
 } from "./write.js";

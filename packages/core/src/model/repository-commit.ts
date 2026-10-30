@@ -22,6 +22,16 @@ import { treeAt } from "./changed.js";
 /** Why a repository has no commit (see the file comment). */
 export type NoCommitReason = "no-git" | "refused" | "timeout" | "not-a-repository" | "no-commit" | "no-tree";
 
+/** Why there is no commit, in words (`NoCommitReason`). */
+export const NO_COMMIT_TEXT: Readonly<Record<NoCommitReason, string>> = {
+  "no-git": "Git is not installed or not on PATH",
+  refused: "Git refuses to read it because another user owns it, see git config safe.directory",
+  timeout: "Git did not answer in time",
+  "not-a-repository": "it is in no Git repository",
+  "no-commit": "its Git repository has no commit yet",
+  "no-tree": "its commit holds nothing at this folder",
+};
+
 /**
  * The commit of a repository when Git tells it; else why not (`unknown`), and a problem when that is
  * worth telling.
