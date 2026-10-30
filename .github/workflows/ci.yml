@@ -73,7 +73,7 @@ jobs:
           if [ "$lines" -gt 800 ]; then
             echo "::warning title=Pull request size::$lines changed lines without generated files (over 800): split the pull request unless its change is inseparable (merge.md)."
           fi
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -157,7 +157,7 @@ jobs:
           # A pull request's merge commit and its parents: the first parent is the base branch (changed files).
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -293,7 +293,7 @@ jobs:
           tests="$(git diff --name-only --no-renames HEAD^1 HEAD | bash <(git show HEAD^1:.github/scripts/tests-needed.sh))"
           echo "tests=$tests" >> "$GITHUB_OUTPUT"
           echo "Electron tests needed: \`$tests\`" >> "$GITHUB_STEP_SUMMARY"
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.changes.outputs.tests != 'false'
       - uses: actions/setup-node@v4
         if: steps.changes.outputs.tests != 'false'
