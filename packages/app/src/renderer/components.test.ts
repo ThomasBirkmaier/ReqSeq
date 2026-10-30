@@ -17,6 +17,7 @@ import {
   filteredList,
   listBuffer,
   overviewBuffer,
+  readOnlyBuffer,
   reduceBuffers,
   searchBuffer,
 } from "./buffers.js";
@@ -2758,6 +2759,22 @@ describe("ElementView", () => {
     expect(query(".cm-content").getAttribute("contenteditable")).toBe("true");
     await mount(asCall(fakeCall({ "element.get": () => ({ element: read({ readOnly: true }) }) })));
     expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+  });
+
+  it("[SR-044/AK2] shows an element read-only in a buffer shown read-only, and tells the modeline so", async () => {
+    const buffer = readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-036 Measure wind"));
+    const { data } = await mount(
+      asCall(fakeCall({ "element.get": () => ({ element: read() }) })),
+      0,
+      undefined,
+      {
+        buffer,
+      },
+    );
+    expect(query(".cm-content").getAttribute("contenteditable")).toBe("false");
+    const [key, loaded] = data.at(-1) ?? [];
+    expect(key).toBe(buffer.key);
+    expect(loaded?.kind === "element" && loaded.element.readOnly).toBe(true);
   });
 
   it("keeps the text typed as a draft for the app, and drops it when the text is the saved one again", async () => {

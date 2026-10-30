@@ -842,8 +842,10 @@ export const ElementView = ({
     onFile.current = { ...onFile.current, values: back.values };
     setValues(back.values);
   };
-  // An answer of `element.get` for the shown element.
-  const apply = (element: DataExportElement, sha: string, changedJustNow: boolean): void => {
+  // An answer of `element.get` for the shown element. A buffer shown read-only (SR-044 AK2) shows it as a
+  // read-only element: no editor takes input, and the modeline says `read-only`.
+  const apply = (answered: DataExportElement, sha: string, changedJustNow: boolean): void => {
+    const element = now.current.buffer.readOnly === true ? { ...answered, readOnly: true } : answered;
     const loaded = element.text ?? "";
     const docs = storedDocs(fieldBoxes(element, now.current.properties));
     // A save that runs sets the baseline itself with its answer.

@@ -4,7 +4,14 @@ import type { CommandListing } from "../shared/protocol.js";
 import type { ActionContext, Choice, Prompt } from "./actions.js";
 import { ACTIONS, commandPrompt } from "./actions.js";
 import type { BufferAction, Buffers } from "./buffers.js";
-import { elementBuffer, listBuffer, neighbourhoodBuffer, overviewBuffer, resultBuffer } from "./buffers.js";
+import {
+  elementBuffer,
+  listBuffer,
+  neighbourhoodBuffer,
+  overviewBuffer,
+  readOnlyBuffer,
+  resultBuffer,
+} from "./buffers.js";
 import type { Call } from "./call.js";
 import type { CatalogContext } from "./catalog-commands.js";
 import { PREFIX_BINDINGS } from "./bindings.js";
@@ -1473,6 +1480,16 @@ describe("the arguments a command expects, completed with the values of the meta
     item(status.items, "Decided").run();
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.setStatus", { refs: ["uuid-1"], status: "decided" });
+  });
+
+  it("[SR-044/AK2] offers an element shown read-only first to a read command, never to a write command", async () => {
+    const readOnly = readOnlyBuffer(shown);
+    const write = setup([readOnly], { "metamodel.get": () => FIXTURE_METAMODEL });
+    start(write.context, "element.setStatus");
+    expect((await last(write.asked)).items.map((i) => i.name)).toEqual([]);
+    const read = setup([readOnly], {});
+    start(read.context, "trace.affected");
+    expect((await last(read.asked)).items.map((i) => i.name)).toEqual(["SR-1 Title 1 · read-only"]);
   });
 
   it("offers every status of the metamodel without an element, and says why an element cannot be read", async () => {
