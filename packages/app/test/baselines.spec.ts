@@ -46,8 +46,16 @@ const withGit = async (fixture: string, repositories: readonly string[]): Promis
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith("GIT_")),
   );
+  // An empty global config of its own: Git on Windows cannot read `os.devNull` (`\\.\nul`) as one.
+  const configDir = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-gitconfig-"));
+  const gitconfig = path.join(configDir, "gitconfig");
+  await fs.writeFile(gitconfig, "");
   const ws: GitWorkspace = {
     ...copy,
+    cleanup: async () => {
+      await fs.rm(configDir, { recursive: true, force: true });
+      await copy.cleanup();
+    },
     path: (relative) => path.join(copy.root, ...relative.split("/")),
     git: async (args, repository) =>
       (
@@ -64,7 +72,7 @@ const withGit = async (fixture: string, repositories: readonly string[]): Promis
           ],
           {
             cwd: ws.path(repository),
-            env: { ...env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull },
+            env: { ...env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: gitconfig },
           },
         )
       ).stdout,
