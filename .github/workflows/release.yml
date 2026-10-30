@@ -4,7 +4,7 @@ name: Release
 # it (ADR-0011), and publishes it as a GitHub release. Only on a stage tag (`v*`) or by hand, never on pull requests
 # or pushes (product owner decision, 2026-10-28: the delivery must not slow down PR CI). The tag releases only when
 # it is `v<version>` of the root package.json (`v<major>.<minor>` for a patch of 0) and on `main`.
-# Each system is built and tested on GitHub's runner of SR-076's reference system (macOS 14, Ubuntu 24.04,
+# Each system is built and tested on GitHub's runner of SR-076's reference system (macOS 26, Ubuntu 24.04,
 # Windows), so the delivery tests of a run are the evidence for SR-076 AK1 and AK2.
 # Every product, artifact and launcher name comes from toolchain/packaging/names.json.
 on:
@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-26
             target: --mac
           - os: ubuntu-24.04
             target: --linux
