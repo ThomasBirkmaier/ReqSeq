@@ -295,7 +295,7 @@ describe("baseline.create", () => {
     );
     const unreadable = await failure(ws, "U", PACKAGE);
     expect([unreadable.code, unreadable.details]).toEqual([
-      "file.unreadable",
+      "file.faulty",
       { repository: "system", file: "requirements/SR-0000000000b1.md" },
     ]);
     await ws.write(

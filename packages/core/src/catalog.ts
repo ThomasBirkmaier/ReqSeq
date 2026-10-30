@@ -94,7 +94,6 @@ export const COMMAND_ERROR_CLASSES: Readonly<Record<CommandErrorCode, CommandErr
   "git.commit-not-found": "not-found",
   "file.changed-on-disk": "conflict",
   "file.faulty": "conflict",
-  "file.unreadable": "conflict",
   "file.read-only": "conflict",
   "file.not-regular": "conflict",
   "file.folder-missing": "not-found",

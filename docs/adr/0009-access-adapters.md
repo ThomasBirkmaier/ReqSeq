@@ -74,7 +74,7 @@ The CLI starts both servers (`reqseq serve api`, `reqseq mcp`); they are its onl
 |---|---|---|---|
 | `input` | `input.invalid`, `ref.ambiguous`, `relation.not-allowed`, `variant.nested`, `reqif.invalid`, `reqif.unmapped` | 2 | 400 |
 | `not-found` | `ref.unknown`, `element.not-found`, `workspace.not-found`, `file.folder-missing`, `git.commit-not-found` (exit code 4 by `EXIT_BY_CODE`) | 2 | 404 |
-| `conflict` | `workspace.read-only`, `element.read-only`, `file.read-only`, `file.changed-on-disk`, `file.faulty`, `file.unreadable`, `file.not-regular`, `baseline.uncommitted-changes`, `baseline.exists`, `metamodel.meaning-unassigned` | 2 | 409 |
+| `conflict` | `workspace.read-only`, `element.read-only`, `file.read-only`, `file.changed-on-disk`, `file.faulty`, `file.not-regular`, `baseline.uncommitted-changes`, `baseline.exists`, `metamodel.meaning-unassigned` | 2 | 409 |
 | `unavailable` | `git.unavailable` | 2 | 503 |
 | `not-implemented` | `command.not-implemented` (a catalog command this version does not implement yet) | 2 | 501 |
 | `internal` | `internal` | 3 | 500 |

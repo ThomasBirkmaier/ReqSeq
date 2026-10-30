@@ -94,7 +94,7 @@ export const createBaseline = async (
   const unreadable = baselines.problems.find((p) => p.code === "file.unreadable");
   if (unreadable !== undefined) {
     throw new CommandError(
-      "file.unreadable",
+      "file.faulty",
       `Not created: ${unreadable.message}, so the names of its baselines are not known`,
       { repository: unreadable.repository, file: unreadable.file },
     );
