@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assembleContent, contentPaths, withBase } from "./assemble.js";
+import { assembleContent, contentPaths, imageProblems, withBase } from "./assemble.js";
 
 describe("contentPaths", () => {
   it("reads docs/guide of the repository and writes the content folder of the site", () => {
@@ -81,9 +81,56 @@ describe("assembleContent", () => {
     );
   });
 
+  it("copies the images of the guide, and refuses a page whose image is not there", async () => {
+    await mkdir(join(paths.guideDir, "images"));
+    await writeFile(join(paths.guideDir, "images", "app-overview.png"), "png");
+    await writeFile(
+      join(paths.guideDir, "start", "first.md"),
+      "![The overview](../images/app-overview.png)\n",
+    );
+    expect(await assembleContent(paths)).toEqual(["images/app-overview.png", "index.md", "start/first.md"]);
+    await writeFile(join(paths.guideDir, "index.md"), "![The list](images/app-list.png)\n");
+    await writeFile(join(paths.guideDir, "images", "notes.md"), "# Notes\n");
+    await expect(assembleContent(paths)).rejects.toThrow("docs/guide: images/notes.md not in a section");
+    await rm(join(paths.guideDir, "images", "notes.md"));
+    await expect(assembleContent(paths)).rejects.toThrow(
+      "docs/guide: index.md: the image images/app-list.png is no file of the guide relative to the page",
+    );
+  });
+
   it("fails when the guide folder is missing", async () => {
     await rm(paths.guideDir, { recursive: true });
     await expect(assembleContent(paths)).rejects.toThrow(/ENOENT/);
+  });
+});
+
+describe("imageProblems", () => {
+  const files = new Set(["images/app-overview.png", "start/first.md"]);
+
+  it("accepts an image relative to the page, with alt text and a title, and skips code", () => {
+    const text = [
+      '![The overview of the app](../images/app-overview.png "Overview")',
+      "`![](gone.png)`",
+      "```md",
+      "![](gone.png)",
+      "```",
+    ].join("\n");
+    expect(imageProblems("start/first.md", text, files)).toEqual([]);
+  });
+
+  it("names an image without alt text, a missing one, and one of another site or with a site path", () => {
+    const text = [
+      "![ ](../images/app-overview.png)",
+      "![Gone](../images/app-gone.png)",
+      "![Web](https://example.org/x.png)",
+      "![Site](/images/app-overview.png)",
+    ].join("\n");
+    expect(imageProblems("start/first.md", text, files)).toEqual([
+      "start/first.md: the image ../images/app-overview.png has no alt text",
+      "start/first.md: the image ../images/app-gone.png is no file of the guide relative to the page",
+      "start/first.md: the image https://example.org/x.png is no file of the guide relative to the page",
+      "start/first.md: the image /images/app-overview.png is no file of the guide relative to the page",
+    ]);
   });
 });
 

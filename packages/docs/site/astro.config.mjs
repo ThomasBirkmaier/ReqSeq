@@ -2,7 +2,7 @@
 import { existsSync } from "node:fs";
 import { URL } from "node:url";
 import starlight from "@astrojs/starlight";
-import { defineConfig } from "astro/config";
+import { defineConfig, passthroughImageService } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
 
 // The sections of the hand-written pages (D-067), each a folder of docs/guide/. packages/docs/src/assemble.ts
@@ -17,6 +17,9 @@ export default defineConfig({
   site: "https://thomasbirkmaier.github.io",
   // `/ReqSeq` for GitHub Pages; the offline build that ships with a delivery sets `/` (SR-141, ADR-0017).
   base: process.env.REQSEQ_DOCS_BASE ?? "/ReqSeq",
+  // The screenshots of docs/guide/images/ are served as they are: Astro's default service needs Sharp, a native
+  // package that the site's install (--ignore-scripts) does not build. A missing image still fails the build.
+  image: { service: passthroughImageService() },
   integrations: [
     starlight({
       title: "ReqSeq",

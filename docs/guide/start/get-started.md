@@ -32,6 +32,10 @@ ReqSeq reads Git but never commits. Put the folder under Git yourself when you w
 
 In the app: open the command prompt with Ctrl+Shift+P (⌘⇧P on macOS) and run **Initialise workspace**. The reference has the details of [workspace.init](/reference/commands/workspace-init/).
 
+![The app on a workspace with two needs and three system requirements: the overview counts the elements per type, and the modeline at the bottom names the view and the workspace.](../images/app-overview.png)
+
+![The command prompt over an open requirement, filtered by the word "show": a list of commands, some with their keys.](../images/app-command-prompt.png)
+
 ## Write a first need
 
 A need says what someone wants, in their own words. Each element is one Markdown file in the workspace.
@@ -85,6 +89,8 @@ The relation is stored in the file of the requirement, with the version of the n
 
 In the app: **Create relation**. Reference: [relation.add](/reference/commands/relation-add/).
 
+![The requirement "Show the wind speed" open in the app: its text, its requirement type and acceptance criteria, and below them the need it derives from.](../images/app-element.png)
+
 ## Look at the chain
 
 ```sh
@@ -101,7 +107,9 @@ No problems.
 
 The chain runs from the need down to its requirements and on to their evidence. The gap says that no test or other evidence shows the requirement yet.
 
-In the app: **Show trace chain**. Reference: [trace.chain](/reference/commands/trace-chain/).
+In the app: **Show trace chain**, or **Show neighbourhood** (Ctrl+J) on the need. Reference: [trace.chain](/reference/commands/trace-chain/).
+
+![The neighbourhood of the need "See the wind speed": its two child requirements with their status.](../images/app-neighbourhood.png)
 
 ## Check the workspace
 

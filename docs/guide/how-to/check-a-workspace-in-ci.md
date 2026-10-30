@@ -11,6 +11,8 @@ sidebar:
 
 Not possible in the app: a pipeline runs without one. To see the same findings while you work, run **Check workspace** in the command prompt (Ctrl+Shift+P, ⌘⇧P on macOS).
 
+![The command prompt of the app: type a part of a command's name to narrow the list.](../images/app-command-prompt.png)
+
 ## CLI
 
 The commands start from a new workspace; in a pipeline, run them in the checkout of yours.
