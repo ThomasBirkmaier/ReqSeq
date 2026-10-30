@@ -7,11 +7,11 @@ import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { CommandInput, CommandOutput } from "../../catalog.js";
-
-type Input = Omit<CommandInput<"variant.exclude">, "undo"> & { readonly undo?: boolean };
 import { CommandError } from "../../catalog.js";
 import { invoke } from "../../runtime/invoke.js";
 import { Workspace } from "../../runtime/workspace.js";
+
+type Input = Omit<CommandInput<"variant.exclude">, "undo"> & { readonly undo?: boolean };
 
 const P = "43043043-0000-4000-8000-0000000000";
 const A = "VAR-0000c1";
@@ -162,6 +162,59 @@ describe("variant.exclude (SR-042)", () => {
       problems: [],
     });
     expect(await read(fixture, A_FILE)).toContain(`excludes:\n  - { id: ${P}a2 }\n---\n`);
+  });
+
+  it("undo of a valid and an ambiguous ref leaves the variant file unchanged", async () => {
+    const { fixture, workspace } = await open({
+      [A_FILE]:
+        `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}a2 }\n` +
+        `  - { id: ${P}a3 }\n  - { id: ${P}a3, repository: away }\n---\n`,
+    });
+    const before = await read(fixture, A_FILE);
+    const error = await refused(workspace, { variant: A, refs: ["SR-0000a2", `${P}a3`], undo: true });
+    expect(error.code).toBe("ref.ambiguous");
+    expect(await read(fixture, A_FILE)).toBe(before);
+  });
+
+  it("takes a ref once per element, by short ID or UUID, and writes once in item order", async () => {
+    const { fixture, workspace } = await open({
+      [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes:\n  - { id: ${P}a2 }\n---\n`,
+    });
+    expect(await exclude(workspace, { variant: A, refs: ["SR-0000a4", `${P}a4`, "SR-0000a3"] })).toEqual({
+      files: [A_FILE],
+      problems: [],
+    });
+    expect((await read(fixture, A_FILE)).match(/id: \S+a\d/g)).toEqual([
+      `id: ${P}a2`,
+      `id: ${P}a4`,
+      `id: ${P}a3`,
+    ]);
+    // Undo of a2 by short ID and UUID, and of a4 named after a3: one write, no relation.not-found.
+    expect(
+      await exclude(workspace, {
+        variant: A,
+        refs: ["SR-0000a3", "SR-0000a2", `${P}a2`, "SR-0000a4"],
+        undo: true,
+      }),
+    ).toEqual({ files: [A_FILE], problems: [] });
+    expect(await read(fixture, A_FILE)).not.toContain("excludes");
+  });
+
+  it("keeps an exclusion that is there under another kind with the meaning exclusion", async () => {
+    const { fixture, workspace } = await open({
+      "metamodel/omits.yaml":
+        "reqseq-metamodel: 1\nrelations:\n  - { key: omits, name: Omits, inverse-name: Omitted by, source-types: [variant], target-types: [system-requirement], meaning: exclusion }\n",
+      [A_FILE]: `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nomits: [{ id: ${P}a3 }]\n---\n`,
+    });
+    const before = await read(fixture, A_FILE);
+    expect(await exclude(workspace, { variant: A, refs: ["SR-0000a3"] })).toEqual({
+      files: [],
+      problems: [],
+    });
+    expect(await read(fixture, A_FILE)).toBe(before);
+    // Undo finds it there.
+    await exclude(workspace, { variant: A, refs: ["SR-0000a3"], undo: true });
+    expect(await read(fixture, A_FILE)).not.toContain("omits");
   });
 
   it("refuses an element that is no variant", async () => {

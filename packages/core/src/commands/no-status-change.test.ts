@@ -32,9 +32,10 @@ const OBSOLETE = "0b7c6e1a-1111-4222-8333-444455556666";
 const APPROVED = "0b7c6e1a-1111-4222-8333-aaaaaaaaaaaa";
 const RETIRED = "0b7c6e1a-1111-4222-8333-bbbbbbbbbbbb";
 
-/** A relation to an outdated version of WIND, as SR-001/two-elements has one from GUSTS, so `hint.confirm` writes. */
+/** A variant, so variant.exclude writes. */
 const VARIANT = "0b7c6e1a-1111-4222-8333-cccccccccccc";
 const VARIANT_FILE = "variants/VAR-cccccccccccc.md";
+/** A relation to an outdated version of WIND, as SR-001/two-elements has one from GUSTS, so `hint.confirm` writes. */
 const OUTDATED = `derives-from:\n  - { id: ${WIND}, version: n1:0000000000000000 }\n`;
 
 /** The hint ID of the outdated derivation of `source` in `file` (hints/hint-id.ts). */
