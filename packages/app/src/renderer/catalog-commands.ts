@@ -38,7 +38,8 @@
 // `value` the choices of the property, elements of its target types, else text; `relationTarget` elements
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
-// that can be confirmed (`hint.list`). `filter` and a `view` (variants, stage 5, #737) stay typed text.
+// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285).
+// `filter` stays typed text.
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
@@ -51,6 +52,7 @@ import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
 import { choiceItems } from "./property-edit.js";
 import type { Row } from "./rows.js";
+import { viewName, viewsOf } from "./views.js";
 
 type Argument = CommandListing["arguments"][number];
 type Source = Argument["complete"];
@@ -468,6 +470,13 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   filter: asText,
   // baseline.list is not implemented yet; typed text until the app offers the baselines (stage 5).
   baseline: asText,
+  // `core` and the variants of the workspace, as "Choose view" offers them (#285).
+  view: async ({ context }) => {
+    const views = await viewsOf(context.call);
+    return views.ok
+      ? { kind: "list", values: views.views.map((shown) => ({ value: shown.view, name: viewName(shown) })) }
+      : { kind: "failed", message: views.message };
+  },
 };
 
 /** What the argument at `at` offers, or why its values cannot be read. */

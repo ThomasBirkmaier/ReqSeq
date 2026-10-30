@@ -59,6 +59,8 @@ import { searchRows } from "./rows.js";
 import type { Row } from "./rows.js";
 import type { Theme } from "./theme.js";
 import type { PromptUse } from "./usage.js";
+import type { ShownView } from "./views.js";
+import { viewName, viewsOf } from "./views.js";
 import type { WorkspaceControls } from "./workspaces.js";
 import { workspacePrompt } from "./workspaces.js";
 
@@ -228,6 +230,15 @@ export interface ActionContext {
   readonly workspaces?: WorkspaceControls;
   /** "Split window" and its areas (SR-115 AK3), where the window offers them. */
   readonly layout?: LayoutControls;
+  /** The view the window shows and "Choose view" (SR-043 AK1), where the window offers them. */
+  readonly views?: ViewControls;
+}
+
+/** The view of the workspace the window shows (`views.ts`): display state, like the areas. */
+export interface ViewControls {
+  /** Undefined while all elements are shown. */
+  readonly shown: ShownView | undefined;
+  readonly choose: (next: ShownView | undefined) => void;
 }
 
 export interface Action {
@@ -667,6 +678,40 @@ const cycleBuffer = (context: ActionContext, step: 1 | -1): void => {
 /** The facets of the shown list: what its elements have, from the core (`element.facets`). */
 const facetsOf = (call: Call, list: ListBuffer): Promise<Answer<"element.facets">> =>
   call("element.facets", list.selection === undefined ? {} : { selection: list.selection });
+
+/** "All elements" ends a view; the window shows no view at the start. */
+const ALL_VIEWS = "All elements";
+
+/**
+ * The prompt "View" of "Choose view" (SR-043 AK1): all elements, the core and each variant of the
+ * workspace (`viewsOf`), the one shown marked. It opens at once and takes keys while core reads them.
+ */
+const viewPrompt = (context: ActionContext, views: ViewControls): Prompt => {
+  const choice = (id: string, name: string, next: ShownView | undefined): Choice => ({
+    id,
+    name,
+    ...(views.shown?.view === next?.view ? { hint: "shown" } : {}),
+    run: () => {
+      views.choose(next);
+      context.echo(next === undefined ? "Showing all elements" : `Showing the view ${viewName(next)}`);
+    },
+  });
+  return {
+    label: "View",
+    items: [],
+    fill: viewsOf(context.call).then((read): PromptFill => {
+      if (!read.ok) {
+        context.echo(read.message);
+      }
+      return {
+        items: [
+          choice("view:all", ALL_VIEWS, undefined),
+          ...(read.ok ? read.views : []).map((shown) => choice(`view:${shown.view}`, viewName(shown), shown)),
+        ],
+      };
+    }),
+  };
+};
 
 /** The line of "Show element ID and version": the UUID and the date of the version (D-013). */
 const versionLine = (element: DataExportElement): string =>
@@ -1169,6 +1214,17 @@ export const ACTIONS: readonly Action[] = [
     shortcut: METAMODEL_SHORTCUT,
     available: (context: ActionContext): boolean => metamodelIn(context, "text") !== undefined,
     run: switchMetamodel("text", "graph"),
+  },
+  {
+    id: "choose-view",
+    title: "Choose view",
+    available: (context: ActionContext): boolean => context.workspace && context.views !== undefined,
+    run: (context: ActionContext): void => {
+      const { views } = context;
+      if (views !== undefined) {
+        context.ask(viewPrompt(context, views));
+      }
+    },
   },
   {
     id: "toggle-dark-mode",

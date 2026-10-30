@@ -491,7 +491,7 @@
       ],
       "arguments": [
         { "field": "ref", "complete": "element" },
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "versionDate", "complete": "boolean" },
         { "field": "hintDates", "complete": "boolean" },
         { "field": "repository", "complete": "repository" },
@@ -1437,7 +1437,7 @@
       "arguments": [
         { "field": "ref", "complete": "element" },
         { "field": "direction", "complete": "choice" },
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "maxDepth", "complete": "number" },
         { "field": "limit", "complete": "number" },
         { "field": "offset", "complete": "number" }
@@ -1720,7 +1720,7 @@
         { "field": "refs", "complete": "element" },
         { "field": "direction", "complete": "choice" },
         { "field": "maxDepth", "complete": "number" },
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "limit", "complete": "number" },
         { "field": "offset", "complete": "number" }
       ],
@@ -1924,7 +1924,7 @@
         { "field": "allLevels", "complete": "boolean" },
         { "field": "kinds", "complete": "relationKind", "of": "ref" },
         { "field": "meanings", "complete": "choice" },
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "limit", "complete": "number" },
         { "field": "offset", "complete": "number" }
       ],
@@ -2375,7 +2375,7 @@
         },
         {
           "field": "view",
-          "complete": "text"
+          "complete": "view"
         },
         {
           "field": "limit",
@@ -2901,7 +2901,7 @@
         { "field": "name", "complete": "text" },
         { "field": "where", "complete": "json" },
         { "field": "description", "complete": "text" },
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "sort", "complete": "json" }
       ],
       "input": {
@@ -2961,7 +2961,7 @@
       "implements": ["SR-028", "SR-032", "SR-033", "SR-093"],
       "arguments": [
         { "field": "ref", "complete": "element" },
-        { "field": "view", "complete": "text" }
+        { "field": "view", "complete": "view" }
       ],
       "input": {
         "type": "object",
@@ -3394,7 +3394,7 @@
       "stage": 4,
       "implements": ["SR-120"],
       "arguments": [
-        { "field": "view", "complete": "text" },
+        { "field": "view", "complete": "view" },
         { "field": "limit", "complete": "number" },
         { "field": "offset", "complete": "number" }
       ],

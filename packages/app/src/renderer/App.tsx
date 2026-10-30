@@ -28,6 +28,8 @@ import type { AreaViews } from "./BufferArea.js";
 import { BufferArea } from "./BufferArea.js";
 import type { Call } from "./call.js";
 import { callOn } from "./call.js";
+import type { ShownView } from "./views.js";
+import { inView, viewMark } from "./views.js";
 import type { PropertyModel } from "./element-view.js";
 import { propertyModel } from "./element-view.js";
 import type { GraphFilterChoice } from "./graph-choices.js";
@@ -222,6 +224,10 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         ? Promise.resolve({ ok: false, code: "workspace.not-found", message: STOPPED })
         : run(name, input);
   }, [bridge]);
+  // The view the window shows (SR-043 AK1, `views.ts`): display state, all elements at the start and
+  // after another workspace opens. The views of the buffers read in it; saves and single elements do not.
+  const [shownView, setShownView] = useState<ShownView | undefined>(undefined);
+  const viewCall = useMemo(() => inView(call, shownView), [call, shownView]);
   // The titles of reference targets in other repositories (D-058), for the workspace that is open.
   const titles = useMemo(() => referenceTitles(call), [call]);
   const titlesRef = useRef(titles);
@@ -370,6 +376,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
           opened += 1;
           // Nothing is stored until the buffers of the workspace now opened are restored.
           setSession(undefined);
+          setShownView(undefined);
           resetDrafts();
           memories.current.clear();
           openPrompt.current = undefined;
@@ -505,7 +512,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     },
     mac: isMac(navigator.platform),
     theme,
-    call,
+    call: viewCall,
     dispatch,
     ask,
     echo: setEcho,
@@ -547,6 +554,14 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
       },
       unsplit: () => {
         dispatch({ type: "unsplit" });
+      },
+    },
+    // "Choose view" (SR-043 AK1): the shown buffers read again in the chosen view.
+    views: {
+      shown: shownView,
+      choose: (next) => {
+        setShownView(next);
+        setRevision((count) => count + 1);
       },
     },
     // "Open workspace" (SR-131): main lists the workspaces opened last and opens one in this window.
@@ -805,7 +820,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
   };
 
   const overview = useOverview(
-    call,
+    viewCall,
     seen,
     recent,
     shownAreas.some((area) => area.buffer.kind === "overview"),
@@ -846,7 +861,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
     dispatch({ type: "switch", key });
   };
   const views: AreaViews = {
-    call,
+    call: viewCall,
     revision,
     seen,
     outside,
@@ -895,6 +910,7 @@ export const App = ({ bridge }: { readonly bridge: ReqSeqBridge }): React.JSX.El
         view={view}
         stopped={stopped}
         follow={follow.mark}
+        shown={viewMark(shownView)}
         element={shownElement(current, loaded)}
         onCopy={copy}
         notice={notice}

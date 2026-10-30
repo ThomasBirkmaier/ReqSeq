@@ -672,18 +672,41 @@ describe("catalog commands in the command prompt", () => {
     expect(await names(asked)).toEqual(["yes", "no"]);
     await pick(asked, "yes", true);
     await pick(asked, "view");
-    await answer(asked, "brief", true);
+    // A metamodel without a variant type has the core alone (#285).
+    expect(await names(asked)).toEqual(["Core"]);
+    await pick(asked, "Core", true);
     await pick(asked, "Run");
     await flush();
     expect(call).toHaveBeenLastCalledWith("element.get", {
       ref: "uuid-1",
       repository: "spec",
       versionDate: true,
-      view: "brief",
+      view: "core",
     });
     catalogItems(context, [{ ...command("hint.list"), title: "Hints" }], [])[0]?.more?.();
     await pick(asked, "type");
     expect(await names(asked)).toEqual(["Need"]);
+  });
+
+  it("offers the core and the variants of the workspace for a view, or says why it cannot (#285)", async () => {
+    const variants = setup([shown], {
+      "metamodel.get": () => ({ types: [{ key: "variant", name: "Variant", meaning: "variant" }] }),
+      "element.list": () => ({ elements: [{ id: "u-coast", shortId: "VAR-1", title: "Coast" }] }),
+    });
+    const chain = { ...command("trace.chain"), title: "Chain" };
+    catalogItems(variants.context, [chain], [])[0]?.more?.();
+    await pick(variants.asked);
+    await pick(variants.asked, "view");
+    expect(await names(variants.asked)).toEqual(["Core", "VAR-1 Coast"]);
+    await pick(variants.asked, "VAR-1 Coast", true);
+    await pick(variants.asked, "Run");
+    await flush();
+    expect(variants.call).toHaveBeenLastCalledWith("trace.chain", { ref: "uuid-1", view: "u-coast" });
+    const broken = setup([shown], { "metamodel.get": () => new Error("No metamodel") });
+    catalogItems(broken.context, [chain], [])[0]?.more?.();
+    await pick(broken.asked);
+    await pick(broken.asked, "view");
+    expect((await last(broken.asked)).label).toBe("No metamodel · Chain SR-1 · view:");
   });
 
   const numbers = {
