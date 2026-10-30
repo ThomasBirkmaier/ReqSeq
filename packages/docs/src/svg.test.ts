@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { arrow, box, boxHeight, escapeXml, family, svgDocument, text, wrap } from "./svg.js";
+import {
+  arrow,
+  box,
+  compareCodeUnits,
+  num,
+  boxHeight,
+  escapeXml,
+  family,
+  svgDocument,
+  text,
+  wrap,
+} from "./svg.js";
 
 describe("svg", () => {
   it("escapes text for XML", () => {
@@ -48,5 +59,10 @@ describe("svg", () => {
     expect(doc).toContain('viewBox="0 0 11 20"');
     expect(doc).toContain('aria-label="A &amp; B"');
     expect(doc).toContain("prefers-color-scheme: dark");
+  });
+
+  it("rounds coordinates to two decimals and compares by code units", () => {
+    expect([num(1318.3999999999999), num(2.006), num(3)]).toEqual(["1318.4", "2.01", "3"]);
+    expect(["b", "B", "a", "b"].sort(compareCodeUnits)).toEqual(["B", "a", "b", "b"]);
   });
 });

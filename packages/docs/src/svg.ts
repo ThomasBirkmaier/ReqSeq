@@ -4,6 +4,12 @@
 /** The colour family of a box or lane: Ubuntu, macOS, Windows, or anything else. */
 export type Family = "u" | "m" | "w" | "o";
 
+/** A coordinate rounded to two decimals, without trailing zeros, so the output has no float noise. */
+export const num = (value: number): string => String(Math.round(value * 100) / 100);
+
+/** Compares by UTF-16 code units, the same in every locale (unlike `localeCompare`). */
+export const compareCodeUnits = (a: string, b: string): number => Number(a > b) - Number(a < b);
+
 export const escapeXml = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
@@ -77,14 +83,14 @@ export function svgDocument(width: number, height: number, label: string, parts:
 }
 
 export const text = (x: number, y: number, content: string, cls: string, anchor = "start"): string =>
-  `<text class="${cls}" x="${String(x)}" y="${String(y)}"${anchor === "start" ? "" : ` text-anchor="${anchor}"`}>${escapeXml(content)}</text>`;
+  `<text class="${cls}" x="${num(x)}" y="${num(y)}"${anchor === "start" ? "" : ` text-anchor="${anchor}"`}>${escapeXml(content)}</text>`;
 
 export const rect = (x: number, y: number, w: number, h: number, cls: string, radius = 5): string =>
-  `<rect class="${cls}" x="${String(x)}" y="${String(y)}" width="${String(w)}" height="${String(h)}" rx="${String(radius)}"/>`;
+  `<rect class="${cls}" x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" rx="${num(radius)}"/>`;
 
 /** A polyline through `points`, with an arrow head at its end unless `head` is false. */
 export function arrow(points: readonly (readonly [number, number])[], cls = "arr", head = true): string {
-  const d = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${String(x)},${String(y)}`).join(" ");
+  const d = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${num(x)},${num(y)}`).join(" ");
   return `<path class="${cls}" d="${d}"${head ? ' marker-end="url(#ah)"' : ""}/>`;
 }
 

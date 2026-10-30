@@ -2,7 +2,7 @@
 // layers (a package stands above every package it depends on) and their dependencies on each other.
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { arrow, box, boxHeight, svgDocument, text, textWidth, wrap } from "./svg.js";
+import { arrow, compareCodeUnits, box, boxHeight, svgDocument, text, textWidth, wrap } from "./svg.js";
 
 export interface WorkspacePackage {
   readonly dir: string;
@@ -33,7 +33,7 @@ export function workspacePackages(
       uses: [
         ...runtime.filter((name) => names.has(name)).map((name) => ({ name, dev: false })),
         ...dev.filter((name) => names.has(name)).map((name) => ({ name, dev: true })),
-      ].sort((a, b) => a.name.localeCompare(b.name)),
+      ].sort((a, b) => compareCodeUnits(a.name, b.name)),
       external: runtime.filter((name) => !names.has(name)).sort(),
     };
   });
@@ -49,7 +49,7 @@ export async function readPackages(repoRoot: string): Promise<WorkspacePackage[]
       return text === undefined ? [] : [{ dir, manifest: JSON.parse(text) as Manifest }];
     }),
   );
-  return workspacePackages(manifests.flat().sort((a, b) => a.dir.localeCompare(b.dir)));
+  return workspacePackages(manifests.flat().sort((a, b) => compareCodeUnits(a.dir, b.dir)));
 }
 
 const PAD = 20;

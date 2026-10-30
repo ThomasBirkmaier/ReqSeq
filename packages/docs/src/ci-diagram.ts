@@ -6,6 +6,8 @@ import YAML from "yaml";
 import {
   arrow,
   box,
+  compareCodeUnits,
+  num,
   boxHeight,
   family,
   rect,
@@ -163,7 +165,8 @@ export async function readWorkflows(repoRoot: string): Promise<Workflow[]> {
 }
 
 const ORDER = { u: 0, m: 1, w: 2, o: 3 } as const;
-const laneOrder = (a: string, b: string): number => ORDER[family(a)] - ORDER[family(b)] || a.localeCompare(b);
+const laneOrder = (a: string, b: string): number =>
+  ORDER[family(a)] - ORDER[family(b)] || compareCodeUnits(a, b);
 const subLine = (run: JobRun): string =>
   run.runsOn.startsWith("calls ")
     ? run.runsOn
@@ -204,9 +207,7 @@ export function ciDiagram(
   ];
   let y = PAD + 52;
   for (const workflow of workflows) {
-    parts.push(
-      `<line class="sep" x1="${String(PAD)}" y1="${String(y)}" x2="${String(width - PAD)}" y2="${String(y)}"/>`,
-    );
+    parts.push(`<line class="sep" x1="${num(PAD)}" y1="${num(y)}" x2="${num(width - PAD)}" y2="${num(y)}"/>`);
     parts.push(text(PAD, y + 22, `${workflow.name} · ${workflow.file}`, "h"));
     const top = y + 36;
     const centers: number[] = [];
