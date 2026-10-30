@@ -163,13 +163,21 @@ const leafLine = (value: unknown, depth: number, label: string, names: Names): R
   return label === "" ? row : { ...row, label: `${label}: ${row.label}` };
 };
 
-const linesOf = (value: unknown, depth: number, label: string, sink: Sink, names: Names): void => {
+/** `item`: the value is an item of a list (an entry whose `id` names an element is that element's row). */
+const linesOf = (
+  value: unknown,
+  depth: number,
+  label: string,
+  sink: Sink,
+  names: Names,
+  item = false,
+): void => {
   if (Array.isArray(value)) {
     if (label !== "") {
       emit(sink, () => ({ kind: "text", depth, label, text: String(value.length) }));
     }
-    for (const item of value as readonly unknown[]) {
-      linesOf(item, label === "" ? depth : depth + 1, "", sink, names);
+    for (const each of value as readonly unknown[]) {
+      linesOf(each, label === "" ? depth : depth + 1, "", sink, names, true);
     }
     return;
   }
@@ -191,15 +199,22 @@ const linesOf = (value: unknown, depth: number, label: string, sink: Sink, names
     emit(sink, () => problemLine(value, depth, label));
     return;
   }
-  outlineLines(value, depth, label, sink, names);
+  outlineLines(value, depth, label, sink, names, item);
 };
 
 /**
  * Any other record as an outline: under its label, or, as an item of a list whose `id` `names` names, under
  * the row of that element, with its other fields.
  */
-const outlineLines = (value: Rec, depth: number, label: string, sink: Sink, names: Names): void => {
-  const entry = label === "" ? entryOf(value, names) : undefined;
+const outlineLines = (
+  value: Rec,
+  depth: number,
+  label: string,
+  sink: Sink,
+  names: Names,
+  item: boolean,
+): void => {
+  const entry = item ? entryOf(value, names) : undefined;
   if (entry !== undefined) {
     emit(sink, () => elementLine(entry, depth));
     for (const [key, item] of Object.entries(value)) {

@@ -292,6 +292,18 @@ describe("catalog commands in the command prompt", () => {
     });
   });
 
+  it("fills in the package of a package page for every selection, an optional one too, and offers Bulk update there", async () => {
+    const { context, call } = setup([shown], { "element.facets": () => ({ total: 1 }) });
+    const page = { ...context, element: { members: true } as ElementControls };
+    expect(catalogItems(context, [command("element.bulkUpdate")], [])).toEqual([]);
+    expect(catalogItems(page, [command("element.bulkUpdate")], [])).toHaveLength(1);
+    expect(fits(page, command("element.bulkUpdate"))).toBe(true);
+    expect(fits(page, command("element.facets"))).toBe(true);
+    start(page, "element.facets");
+    await flush();
+    expect(call).toHaveBeenLastCalledWith("element.facets", { selection: { package: "uuid-1" } });
+  });
+
   it("runs a command without required arguments at once and shows its output in a result buffer", async () => {
     const { context, dispatched, asked } = setup([shown], { "filter.list": () => ({ filters: [] }) });
     start(context, "filter.list");
@@ -745,6 +757,31 @@ describe("catalog commands in the command prompt", () => {
     await pick(asked, "Release 1");
     await flush();
     expect(call).toHaveBeenLastCalledWith("baseline.get", { baseline: "Release 1" });
+    // Two baselines that share a name (ignoring case) are offered, and given, by their file names.
+    const shared = setup([shown], {
+      "baseline.list": () => ({
+        baselines: [
+          {
+            name: "Release 1",
+            file: "b/release-1.yaml",
+            repository: "spec",
+            date: "2026-11-02",
+            elements: 2,
+          },
+          { name: "RELEASE 1", file: "b/r1.yaml", repository: "spec", date: "2026-11-03", elements: 2 },
+          { name: "Release 2", file: "b/r2.yaml", repository: "spec", date: "2026-11-04", elements: 2 },
+        ],
+      }),
+    });
+    start(shared.context, "baseline.get");
+    expect(await names(shared.asked)).toEqual([
+      "Release 1 · release-1.yaml",
+      "RELEASE 1 · r1.yaml",
+      "Release 2",
+    ]);
+    await pick(shared.asked, "RELEASE 1 · r1.yaml");
+    await flush();
+    expect(shared.call).toHaveBeenLastCalledWith("baseline.get", { baseline: "r1.yaml" });
     const broken = setup([shown], { "baseline.list": () => new Error("No baselines folder") });
     start(broken.context, "baseline.get");
     expect((await last(broken.asked)).label).toBe("No baselines folder · Show baseline · baseline:");

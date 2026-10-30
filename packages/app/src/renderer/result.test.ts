@@ -165,6 +165,10 @@ describe("result lines", () => {
     ]);
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-1", "sensor", "SR-000001 Title 1"));
     expect(lines[6]?.open).toEqual(elementBuffer("uuid-2", "spec", "SR-000002 Title 2"));
+    // A top-level output with an `id` is no list item: an outline.
+    expect(
+      resultLines({ id: "uuid-1", state: "changed", names: [element(1)] }).map((line) => line.label),
+    ).toEqual(["id: SR-000001", "state"]);
   });
 
   it("takes the total of the whole answer for the modeline", () => {

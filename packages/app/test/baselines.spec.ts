@@ -30,6 +30,16 @@ interface GitWorkspace extends FixtureWorkspace {
   commit(repository: string): Promise<string>;
 }
 
+/** Runs `steps` on the copy; when they fail, removes the copy first, since no app owns it yet. */
+const settled = async <T>(ws: FixtureWorkspace, steps: () => Promise<T>): Promise<T> => {
+  try {
+    return await steps();
+  } catch (error) {
+    await ws.cleanup();
+    throw error;
+  }
+};
+
 const withGit = async (fixture: string, repositories: readonly string[]): Promise<GitWorkspace> => {
   const copy = await copyFixture({ fixture });
   // Inherited GIT_* variables (in a Git hook) would redirect the commands.
@@ -64,10 +74,12 @@ const withGit = async (fixture: string, repositories: readonly string[]): Promis
       return (await ws.git(["rev-parse", "HEAD"], repository)).trim();
     },
   };
-  for (const repository of repositories) {
-    await ws.git(["init", "--quiet", "--template=", "--initial-branch=main"], repository);
-    await ws.commit(repository);
-  }
+  await settled(ws, async () => {
+    for (const repository of repositories) {
+      await ws.git(["init", "--quiet", "--template=", "--initial-branch=main"], repository);
+      await ws.commit(repository);
+    }
+  });
   return ws;
 };
 
@@ -83,41 +95,48 @@ const launchIn = async (ws: GitWorkspace, root: string): Promise<RunningApp> => 
 
 const edit = async (ws: GitWorkspace, file: string, from: string, to: string): Promise<void> => {
   const at = ws.path(`system/${file}`);
-  await fs.writeFile(at, (await fs.readFile(at, "utf8")).replace(from, to));
+  const text = await fs.readFile(at, "utf8");
+  // A reworded fixture must fail here, not commit nothing.
+  if (!text.includes(from)) {
+    throw new Error(`${file} has no ${JSON.stringify(from)}`);
+  }
+  await fs.writeFile(at, text.replace(from, to));
 };
 
 /** fixtures/SR-061/export with „Release 2“ and the changes of the file comment, committed; the commits of `system`. */
 const changedSince = async (): Promise<{ ws: GitWorkspace; first: string; second: string }> => {
   const ws = await withGit("SR-061/export", ["system", "sensor"]);
-  const first = (await ws.git(["rev-parse", "HEAD"], "system")).trim();
-  await fs.writeFile(
-    ws.path("system/baselines/Release-2.yaml"),
-    [
-      "reqseq-baseline: 1",
-      "name: Release 2",
-      "date: 2026-11-02T13:00:00Z",
-      "selection:",
-      `  package: { id: ${ID}d1, title: Display }`,
-      "repositories:",
-      `  - { name: system, commit: ${first} }`,
-      "elements:",
-      `  - { id: ${ID}a1, version: n1:9d97d0ccf9b75591 }`,
-      `  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }`,
-      `  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }`,
-      "",
-    ].join("\n"),
-  );
-  await edit(ws, "requirements/SR-0000000000b1.md", "shows the speed.", "shows the speed in knots.");
-  await edit(ws, "requirements/SR-0000000000b2.md", "status: draft", "status: obsolete");
-  await edit(
-    ws,
-    "requirements/SR-0000000000b3.md",
-    "validity:",
-    `packages:\n  - { id: ${ID}d1, version: n1:5862e4d618683af6 }\nvalidity:`,
-  );
-  await edit(ws, "needs/N-0000000000a1.md", "a1: the need", "a1: the changed need");
-  const second = await ws.commit("system");
-  return { ws, first, second };
+  return settled(ws, async () => {
+    const first = (await ws.git(["rev-parse", "HEAD"], "system")).trim();
+    await fs.writeFile(
+      ws.path("system/baselines/Release-2.yaml"),
+      [
+        "reqseq-baseline: 1",
+        "name: Release 2",
+        "date: 2026-11-02T13:00:00Z",
+        "selection:",
+        `  package: { id: ${ID}d1, title: Display }`,
+        "repositories:",
+        `  - { name: system, commit: ${first} }`,
+        "elements:",
+        `  - { id: ${ID}a1, version: n1:9d97d0ccf9b75591 }`,
+        `  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }`,
+        `  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }`,
+        "",
+      ].join("\n"),
+    );
+    await edit(ws, "requirements/SR-0000000000b1.md", "shows the speed.", "shows the speed in knots.");
+    await edit(ws, "requirements/SR-0000000000b2.md", "status: draft", "status: obsolete");
+    await edit(
+      ws,
+      "requirements/SR-0000000000b3.md",
+      "validity:",
+      `packages:\n  - { id: ${ID}d1, version: n1:5862e4d618683af6 }\nvalidity:`,
+    );
+    await edit(ws, "needs/N-0000000000a1.md", "a1: the need", "a1: the changed need");
+    const second = await ws.commit("system");
+    return { ws, first, second };
+  });
 };
 
 const candidates = (window: Page): Locator => window.locator('.candidates [role="option"] .name');
@@ -219,7 +238,21 @@ test.describe("baselines in the app", () => {
     expect(file).toContain(`  - { name: system, commit: ${head} }\n`);
     expect(file).toContain(`  - { id: ${ID}b1, version: n1:697a2ad17ed49170 }\n`);
     expect(file).toContain(`  - { id: ${ID}b2, version: n1:077d46fbf1a6a93d }\n`);
-    // The CLI reads the same baseline back, with both elements unchanged (SR-080).
+    // The CLI writes the same file for the same selection, apart from name and date (SR-080).
+    const cli = await running.cli([
+      "baseline",
+      "create",
+      "Release 4",
+      "--input",
+      JSON.stringify({ selection: { package: `${ID}d1` } }),
+    ]);
+    expect(cli.code, cli.stderr).toBe(0);
+    const unnamed = (text: string): string =>
+      text.replace(/^name: .*$/mu, "name: -").replace(/^date: .*$/mu, "date: -");
+    expect(unnamed(await fs.readFile(ws.path("system/baselines/Release-4.yaml"), "utf8"))).toBe(
+      unnamed(file),
+    );
+    // The CLI reads the baseline of the app back, with both elements unchanged.
     const shown = await cliGet(running, ["Release 3"]);
     expect(shown.elements.map((element) => [element.id, element.state])).toEqual([
       [`${ID}b1`, "unchanged"],

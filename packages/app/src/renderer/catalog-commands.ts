@@ -38,8 +38,10 @@
 // `value` the choices of the property, elements of its target types, else text; `relationTarget` elements
 // of the target types of the kind (`relation.options` from the source, else the metamodel); `relation` the
 // kinds of the element's outgoing relations, then the targets of that kind; `hint` the hints of the element
-// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285).
-// `filter` stays typed text.
+// that can be confirmed (`hint.list`); `view` the core and the variants of the workspace (`views.ts`, #285);
+// `baseline` the baselines by name (`baseline.list`), by file name where two share a name. `filter` stays
+// typed text. A `selection` is never asked: it is the shown list's, or on a package page its package
+// (`selection.package`), for every command with a selection, reads and writes alike.
 import type { CommandTypes } from "@reqseq/core";
 import type { CommandListing } from "../shared/protocol.js";
 import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./actions.js";
@@ -474,10 +476,20 @@ const OFFERS: Readonly<Record<Source, (asked: Asked) => Promise<Offer | Failed>>
   // No command asks a saved filter by name yet; typed text.
   filter: asText,
   // The baselines of the workspace by name (`baseline.list`).
+  // A name two files share (ignoring case and Unicode normal form, as core finds it) is ambiguous: such a
+  // baseline is given by its file name and shows it.
   baseline: async ({ context }) =>
-    listOf(await context.call("baseline.list", {}), (output) =>
-      output.baselines.map((baseline) => ({ value: baseline.name, name: baseline.name })),
-    ),
+    listOf(await context.call("baseline.list", {}), (output) => {
+      const fold = (name: string): string => name.normalize("NFC").toLowerCase();
+      const shared = (name: string): boolean =>
+        output.baselines.filter((other) => fold(other.name) === fold(name)).length > 1;
+      return output.baselines.map((baseline) => {
+        const file = baseline.file.slice(baseline.file.lastIndexOf("/") + 1);
+        return shared(baseline.name)
+          ? { value: file, name: `${baseline.name} · ${file}` }
+          : { value: baseline.name, name: baseline.name };
+      });
+    }),
   // `core` and the variants of the workspace, as "Choose view" offers them (#285).
   view: async ({ context }) => {
     const views = await viewsOf(context.call);
