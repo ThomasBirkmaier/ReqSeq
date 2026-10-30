@@ -763,8 +763,8 @@ describe("element.get names the variants that replace or exclude a core requirem
     // The views of `verification` follow (SR-047 AK3, A6), so only the first three are asserted.
     expect(k1.names?.slice(0, 3).map((n) => [n.shortId, n.title])).toEqual([
       ["VAR-0000c1", "Coast"],
-      ["SR-0000b1", "Response time at most 20 ms"],
       ["VAR-0000c2", "Mountain"],
+      ["SR-0000b1", "Response time at most 20 ms"],
     ]);
     expect(k1).not.toHaveProperty("incomplete");
     const k3 = await output(opened, "SR-0000a3");

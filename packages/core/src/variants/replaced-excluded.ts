@@ -48,19 +48,20 @@ const itemsByTarget = (index: ViewRuleIndex): Map<ElementRecord, RuleItem[]> => 
   return map;
 };
 
+/** What `variantsNamedBy` reads of the index, computed once per call of `replacedExcludedOf`. */
+interface Named {
+  readonly store: ElementStore;
+  readonly validity: ReturnType<typeof validityOf>;
+  readonly types: ReadonlySet<string>;
+}
+
 /** The variants the validity of `source` names, each resolved to one element of a variant type. */
-const variantsNamedBy = (
-  metamodel: Metamodel,
-  store: ElementStore,
-  source: ElementRecord,
-): ElementRecord[] => {
-  const types = variantTypes(metamodel);
-  return validityEntries(validityOf(metamodel), source).flatMap((entry) => {
+const variantsNamedBy = (named: Named, source: ElementRecord): ElementRecord[] =>
+  validityEntries(named.validity, source).flatMap((entry) => {
     const target = validityTarget(entry.value, source);
-    const match = target === undefined ? undefined : resolveTarget(store, source.repository, target);
-    return match?.kind === "found" && types.has(match.element.type) ? [match.element] : [];
+    const match = target === undefined ? undefined : resolveTarget(named.store, source.repository, target);
+    return match?.kind === "found" && named.types.has(match.element.type) ? [match.element] : [];
   });
-};
 
 /**
  * The variants that replace or exclude `record` (see the file comment), for its copy in
@@ -79,13 +80,16 @@ export const replacedExcludedOf = (
     return NONE;
   }
   const index = viewRuleIndexOf(context.workspace, context.store, context.metamodel);
+  const named: Named = {
+    store: index.store,
+    validity: validityOf(index.metamodel),
+    types: variantTypes(index.metamodel),
+  };
   const variants = new Set<ElementRecord>();
   for (const item of itemsByTarget(index).get(element) ?? []) {
-    const named =
-      item.meaning === "exclusion"
-        ? [item.source]
-        : variantsNamedBy(index.metamodel, index.store, item.source);
-    for (const variant of named) {
+    for (const variant of item.meaning === "exclusion"
+      ? [item.source]
+      : variantsNamedBy(named, item.source)) {
       variants.add(variant);
     }
   }

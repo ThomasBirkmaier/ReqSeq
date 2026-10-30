@@ -12,13 +12,14 @@
 // their targets, and nothing when the element has none. A core requirement names the variants that
 // replace it (with the replacement) and those that exclude it (`replacedBy`, `excludedBy`, SR-046
 // AK3), by the view rule over the store (`replacedExcludedOf`). `names` names the variants of its
-// validity, those and the replacements, and the views of `verification`, so the app and the CLI
+// validity, `replacedBy` and `excludedBy`, then the replacements, then the views and missing
+// children of `verification` (`verificationNameIds`), each once, so the app and the CLI
 // show titles (SR-046 AK1/AK2, #588). `incomplete`: a repository of the workspace is not here, so
 // replacements, exclusions and records stored there are missing (SR-006 AK2).
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError, defineCommand } from "../../catalog.js";
 import { exportedProperties, targetIds, withReplacedExcluded } from "../../data/index.js";
-import { variantIdsOf, withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
+import { verificationNameIds, withEvidenceStatus, workspaceStatus } from "../../evidence/index.js";
 import { metamodelState } from "../../metamodel/index.js";
 import type { ElementHints } from "../../model/index.js";
 import { elementStoreState, getElement, namesField, namesOf, shortIdState } from "../../model/index.js";
@@ -63,9 +64,10 @@ export default defineCommand({
     const validity = exportedProperties(metamodel).validity;
     const named = [
       ...(validity === undefined ? [] : targetIds(validity, record)),
-      ...uses.replacedBy.flatMap((u) => [u.variant.id, u.replacement.id]),
+      ...uses.replacedBy.map((u) => u.variant.id),
       ...uses.excludedBy.map((v) => v.id),
-      ...(shown.verification ?? []).flatMap((entry) => variantIdsOf(entry.view)),
+      ...uses.replacedBy.map((u) => u.replacement.id),
+      ...verificationNameIds(shown.verification ?? []),
     ];
     return {
       element: shown,
