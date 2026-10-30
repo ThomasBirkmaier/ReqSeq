@@ -26,7 +26,7 @@ import type * as CurrentVersionsModule from "../model/current-versions.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { EvidenceIndex } from "./by-element.js";
 import { evidenceIndexState } from "./by-element.js";
-import { carriedEvaluator, verificationEvaluator } from "./indirect.js";
+import { carriedEvaluator, validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import { evidenceReadState, evidenceRecordsState, readEvidence, registerInsertion } from "./state.js";
 import { withRecord } from "./write-record.js";
@@ -1094,13 +1094,15 @@ describe("carriedEvaluator (#698)", () => {
     const opened = await open(698, { count: 5 });
     const store = await opened.workspace.get(elementStoreState);
     const source = statusSource(await opened.workspace.get(metamodelState), undefined);
-    const fresh = verificationEvaluator(source, undefined, () => undefined);
+    const scope = validityScope(source.validity);
+    const fresh = verificationEvaluator(source, undefined, () => undefined, scope);
     const carried = carriedEvaluator(
       () => undefined,
       source,
       undefined,
       () => undefined,
       new Set(),
+      scope,
     );
     for (const element of store.elements) {
       expect(carried(element, { kind: "core" })).toEqual(fresh(element, { kind: "core" }));

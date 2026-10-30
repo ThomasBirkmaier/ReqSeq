@@ -6,10 +6,15 @@ import type { CurrentVersion, ElementRecord } from "../model/index.js";
 import { isEmergent } from "../model/index.js";
 import { evidenceIndex } from "./by-element.js";
 import type { ChildRules } from "./indirect.js";
+import { validityScope } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
 import type { VersionReader } from "./verification.js";
-import { verificationOf, workspaceStatusOf } from "./verification.js";
+import { verificationOf, workspaceStatusOf as statusOf } from "./verification.js";
+
+/** The status with the views of the validity alone (these tests have no replacement or exclusion). */
+const workspaceStatusOf = (...args: [StatusSource, ElementRecord[], ChildRules | undefined, VersionReader]) =>
+  statusOf(...args, validityScope(args[0].validity));
 
 const P = "34343434-3434-4434-8434-0000000";
 const V = `${P}0c001`;

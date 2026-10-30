@@ -4209,7 +4209,7 @@
                     },
                     "nodes": {
                       "type": "array",
-                      "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
+                      "description": "Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -4453,7 +4453,7 @@
                     },
                     "incomplete": {
                       "$ref": "#/components/schemas/common/$defs/incomplete",
-                      "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen."
+                      "description": "True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen."
                     },
                     "problems": {
                       "type": "array",
@@ -5154,7 +5154,7 @@
                     },
                     "nodes": {
                       "type": "array",
-                      "description": "Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all.",
+                      "description": "Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -5441,7 +5441,7 @@
                 "properties": {
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection",
-                    "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk."
+                    "description": "The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk."
                   },
                   "sort": {
                     "type": "array",
@@ -5916,7 +5916,7 @@
                     },
                     "nodes": {
                       "type": "array",
-                      "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements that apply in it (SR-040); the element always. At most `limit` nodes.",
+                      "description": "Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes.",
                       "items": {
                         "type": "object",
                         "properties": {
@@ -8020,7 +8020,7 @@
                 "properties": {
                   "selection": {
                     "$ref": "#/components/schemas/common/$defs/selection",
-                    "description": "The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those that apply in it, as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does."
+                    "description": "The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does."
                   }
                 },
                 "additionalProperties": false
@@ -8417,7 +8417,7 @@
                 "properties": {
                   "view": {
                     "$ref": "#/components/schemas/common/$defs/view",
-                    "description": "Default: the core. A variant: only records for it count, and only requirements that apply in it (SR-047)."
+                    "description": "Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043)."
                   },
                   "limit": {
                     "type": "integer",
@@ -9134,7 +9134,7 @@
                   "undo": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone."
+                    "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone."
                   }
                 },
                 "additionalProperties": false,
@@ -9323,7 +9323,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
+                  "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline, and for selection.view when it names another view than the saved filter (spec question #440); file.faulty when the baselines folder cannot be listed (details.repository, details.file). The baseline is never replaced afterwards.",
                   "properties": {
                     "files": {
                       "type": "array",

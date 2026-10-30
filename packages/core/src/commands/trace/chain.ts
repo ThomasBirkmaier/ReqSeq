@@ -1,9 +1,10 @@
 // trace.chain (SR-006, SR-022, SR-033): the chain of one element up to the top parents and down to
 // the evidence, with depth, gaps, cycles and `incomplete` (trace/chain.ts). The relation kinds come
 // from the meaning `derivation` (SR-013 AK1, AK3); `view` keeps the elements that apply in the core
-// or a variant by their validity (`appliesIn`, SR-040; the full views come in stage 5). The walk is
-// always complete; the output is one page of `limit` nodes from `offset` with `total` (SR-082 AK4,
-// spec-frage #290), as `trace.related` and `trace.affected` give theirs.
+// or a variant holds (`viewRuleOf`: the validity, SR-040, less what a variant excludes or replaces,
+// SR-041 AK5, SR-043 AK4). The walk is always complete; the output is one page of `limit` nodes from
+// `offset` with `total` (SR-082 AK4, spec-frage #290), as `trace.related` and `trace.affected` give
+// theirs. A variant's view is `incomplete` while a repository is not here (`viewIncomplete`).
 //
 // Evidence (SR-022 AK1, AK3; SR-033), only when the chain goes down: the evidence index decides the
 // `no-evidence` gap of every element (`hasVerificationRecord` in the view, the core without one; any
@@ -22,7 +23,7 @@ import {
 import { resolveRef, shortIdState } from "../../model/index.js";
 import { chainOutput, derivationGraph, traceChain, traceContext } from "../../trace/index.js";
 import type { View } from "../../variants/index.js";
-import { appliesIn, resolveView, validityOf } from "../../variants/index.js";
+import { resolveView, viewIncomplete, viewRuleOf } from "../../variants/index.js";
 
 const CORE: View = { kind: "core" };
 
@@ -37,7 +38,6 @@ export default defineCommand({
       input.view === undefined
         ? undefined
         : resolveView({ metamodel, store, shortIds }, input.view, "trace.chain");
-    const validity = validityOf(metamodel);
     const down = input.direction !== "up";
     const index = down ? await ctx.workspace.get(evidenceIndexState) : undefined;
     const read = down ? await ctx.workspace.get(evidenceReadState) : undefined;
@@ -45,7 +45,9 @@ export default defineCommand({
     const chain = traceChain(graph, root, {
       direction: input.direction,
       ...(input.maxDepth === undefined ? {} : { maxDepth: input.maxDepth }),
-      ...(view === undefined ? {} : { includes: (element) => appliesIn(validity, element, view) }),
+      ...(view === undefined
+        ? {}
+        : { includes: viewRuleOf({ workspace: ctx.workspace, store, metamodel }, view).includes }),
       ...(index === undefined
         ? {}
         : { hasEvidence: (element) => hasVerificationRecord(index, element.id, gapView) }),
@@ -59,6 +61,8 @@ export default defineCommand({
       },
       { limit: input.limit, offset: input.offset },
     );
-    return read?.incomplete === true ? { ...output, incomplete: true } : output;
+    return read?.incomplete === true || viewIncomplete(graph.layout, view)
+      ? { ...output, incomplete: true }
+      : output;
   },
 });

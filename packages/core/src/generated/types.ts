@@ -1833,7 +1833,7 @@ export interface TraceChainInput {
  */
 export interface TraceChainOutput {
   readonly root: Uuid;
-  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements that apply in it (SR-040); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
+  /** Every element of the chain once per direction, at its shortest depth (SR-022 AK1, AK2): the root first, then the parents level by level, then the children level by level. An element reached again (a diamond, a cycle) is not repeated; its edge is in `edges` (SR-022 AK4). In a view, only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces, nor what hangs only below it); the root always. An element is named by its UUID and `repository` (D-058); two files of one repository with the same UUID (SR-088) are two nodes, told apart only by `file`, and edges and gaps name both the same way. Only the page of `limit` nodes from `offset` (in this order) is listed; `total` counts every node. A chain can be large (in a workspace of 50,000 elements and 200,000 relations up to about 42,000 nodes): a client asks for the first page and further ones as needed (SR-082 AK4, spec-frage #290), or shows it step by step with `maxDepth` 1 and asks again below an element that is not `expanded`. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -1905,7 +1905,7 @@ export interface TraceChainOutput {
     /** As in `data-export.schema.json#/$defs/relation`; downwards always `ambiguous` (the element the child points at). */
     readonly targetState: "inaccessible" | "missing" | "ambiguous" | "unknown-repository";
   }[];
-  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), or, when the chain goes down, an evidence location does: evidence there is not seen. */
+  /** True when a part of the chain lies in a repository that is not on this machine (SR-006 AK2), in the view of a variant while a repository of the workspace is not on this machine (it may hold a replacement or an exclusion), or, when the chain goes down, an evidence location does: evidence there is not seen. */
   readonly incomplete: Incomplete;
   /** Hints: `trace.cycle` once per cycle of derivations in the chain, naming its elements (SR-022 AK4); `metamodel.meaning-unassigned` when no type has the meaning `need` or `requirement`, so those gaps cannot be found (SR-013 AK3). The hints are those of the whole chain, on every page. */
   readonly problems: readonly Problem[];
@@ -2014,7 +2014,7 @@ export interface TraceNeighbourhoodInput {
  */
 export interface TraceNeighbourhoodOutput {
   readonly root: Uuid;
-  /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements that apply in it (SR-040); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
+  /** Every element reached once per walk, at its shortest depth: the root, then the up walk, then the down walk, each level by level. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the root always. Only the page of `limit` nodes from `offset` is listed; `total` counts all. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -2070,7 +2070,7 @@ export interface TraceNeighbourhoodOutput {
  * Schema: `schemas/commands/catalog.json trace.matrix input`.
  */
 export interface TraceMatrixInput {
-  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end does not apply in the view is left out of the cells and the counts (SR-040), as `trace.neighbourhood` leaves it out of its walk. */
+  /** The rows: every element the selection selects, as `element.list` selects them (every part given must hold, SR-101 AK2). In a variant view (`selection.view`, or the view of the saved filter) a link whose other end the view does not hold (SR-040, SR-043: also a core requirement the variant excludes or replaces) is left out of the cells and the counts, as `trace.neighbourhood` leaves it out of its walk. */
   readonly selection?: ElementSelection;
   /** As in `element.list`: the rows are in the order `element.list` gives for the same `selection` and `sort` (SR-125 AK1). Without `sort`, the sort of the saved filter in `selection.filter`. `hierarchy` first makes the rows the derivation tree and gives each row its `depth`. */
   readonly sort?: readonly FilterSortKeyWithDefaults[];
@@ -2181,7 +2181,7 @@ export interface TraceGraphInput {
  */
 export interface TraceGraphOutput {
   readonly root: Uuid;
-  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements that apply in it (SR-040); the element always. At most `limit` nodes. */
+  /** Every element of the graph once: the element first, then level by level from the nearest (for each distance the elements above, then those below, each in the order the links were followed). An element reached both ways is one node at its smaller distance, above on a tie. In a view only the elements the view holds (SR-040, SR-043: not a core requirement the variant excludes or replaces); the element always. At most `limit` nodes. */
   readonly nodes: readonly {
     readonly id: Uuid;
     readonly shortId: ShortId;
@@ -2500,7 +2500,7 @@ export interface EvidenceStatusOutput {
  * Schema: `schemas/commands/catalog.json evidence.coverage input`.
  */
 export interface EvidenceCoverageInput {
-  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those that apply in it, as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
+  /** The elements to cover, as `element.list` takes them; every part given must hold (SR-101 AK2). Its view (else the view of its saved filter) narrows the children to those it holds (SR-043: no core requirement the variant excludes or replaces), as the chain does; evidence records count for that view, else for the core, as the filter condition `verification` does. */
   readonly selection?: ElementSelection;
 }
 
@@ -2558,7 +2558,7 @@ export interface EvidenceDegreeOutput {
  * Schema: `schemas/commands/catalog.json evidence.withoutPassedTest input`.
  */
 export interface EvidenceWithoutPassedTestInput {
-  /** Default: the core. A variant: only records for it count, and only requirements that apply in it (SR-047). */
+  /** Default: the core. A variant: only records for it count, and only requirements its view holds (SR-047, SR-043). */
   readonly view?: View;
   readonly limit: number;
   readonly offset: number;
@@ -2654,7 +2654,7 @@ export interface VariantExcludeInput {
   readonly variant: ElementRef;
   /** The core requirements to exclude, or with `undo` whose exclusion to remove. Adding an exclusion of a requirement with a validity, a need or a package is refused (SR-042 AK4): `input.invalid` with `details.reason: "not-core"` and `details.refs` (the refused refs); nothing is written. With `undo` every exclusion entry that is there is removed, also one of no core requirement (SR-042 AK7). */
   readonly refs: readonly ElementRef[];
-  /** Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone. */
+  /** Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone. */
   readonly undo: boolean;
 }
 

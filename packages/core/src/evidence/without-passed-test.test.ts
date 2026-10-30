@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { ElementRecord } from "../model/index.js";
 import type { View } from "../variants/index.js";
+import { appliesIn } from "../variants/index.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
 import { isPassedTest, withoutPassedTest } from "./without-passed-test.js";
@@ -58,9 +59,15 @@ const sourceOf = (records: readonly EvidenceRecord[]): StatusSource => ({
   emergent: () => false,
 });
 
+/** The views by validity alone, as the view rule without replacements and exclusions. */
+const byValidity =
+  (view: View) =>
+  (e: ElementRecord): boolean =>
+    appliesIn({ key: "validity", many: true }, e, view);
+
 /** Whether `of` is listed with `records` in `view`. */
 const listed = (of: ElementRecord, records: readonly EvidenceRecord[], view: View = CORE): boolean =>
-  withoutPassedTest(sourceOf(records), [of], view).includes(of);
+  withoutPassedTest(sourceOf(records), [of], view, byValidity(view)).includes(of);
 
 describe("withoutPassedTest (SR-120)", () => {
   it("[SR-120/AK2] a requirement with at least one passed test execution is not in the list", () => {
@@ -119,8 +126,10 @@ describe("withoutPassedTest (SR-120)", () => {
     const onlyV = element({ validity: [{ id: V }] });
     const plain = element();
     const elements = [plain, need, obsolete, onlyV, sub];
-    expect(withoutPassedTest(sourceOf([]), elements, CORE)).toEqual([plain, sub]);
-    expect(withoutPassedTest(sourceOf([]), elements, IN_V)).toEqual([plain, onlyV, sub]);
+    expect(withoutPassedTest(sourceOf([]), elements, CORE, byValidity(CORE))).toEqual([plain, sub]);
+    expect(withoutPassedTest(sourceOf([]), elements, IN_V, byValidity(IN_V))).toEqual([plain, onlyV, sub]);
+    // The view decides, not the validity: one the view holds with a stray validity is listed (SR-043 AK10).
+    expect(withoutPassedTest(sourceOf([]), [onlyV], CORE, () => true)).toEqual([onlyV]);
   });
 
   it("isPassedTest asks kind, method, result and view", () => {

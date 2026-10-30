@@ -12,7 +12,7 @@ import { elementStoreState } from "../model/index.js";
 import { invoke } from "../runtime/invoke.js";
 import { Workspace } from "../runtime/workspace.js";
 import { isCoreRequirement } from "./core.js";
-import { viewRuleIndexOf, viewRuleOf } from "./view-rule.js";
+import { removersOf, ruleTargetsOf, viewRuleIndexOf, viewRuleOf } from "./view-rule.js";
 
 const P = "43043043-0000-4000-8000-0000000000";
 const NAMES: Readonly<Record<string, string>> = {
@@ -252,6 +252,22 @@ describe("the view rule (SR-041, SR-043)", () => {
     const core = viewRuleOf({ workspace: ws, store, metamodel }, { kind: "core" });
     expect(k2 && [core.includes(k2), core.excludes(k2), core.replacedBy(k2)]).toEqual([true, false, []]);
     expect([core.addedOf(), core.replacedOf(), core.excludedOf()]).toEqual([[], [], []]);
+  });
+
+  it("removersOf names the variants that may remove a core requirement, and none for a target that is not core", async () => {
+    const ws = await open(
+      requirement("b3", `validity: [${B}, free]\nreplaces: [${to("a3")}, ${to("d1")}, ${to("ff")}]\n`),
+    );
+    const store = await ws.get(elementStoreState);
+    const index = viewRuleIndexOf(ws, store, await ws.get(metamodelState));
+    const of = (tail: string): string[] => {
+      const [element] = store.byId.get(`${P}${tail}`) ?? [];
+      return element === undefined ? ["?"] : removersOf(index, element).map((key) => name(key.slice(-36)));
+    };
+    expect([of("a1"), of("a2"), of("a3"), of("d1"), of("a4")]).toEqual([["A"], ["A"], ["B"], [], []]);
+    // What a change of b3 reaches: the targets that resolve, core or not.
+    const sources = store.byId.get(`${P}b3`) ?? [];
+    expect(ruleTargetsOf(index, sources).map((e) => name(e.id))).toEqual(["K3", "N1"]);
   });
 
   it("reads replacement and exclusion by meaning, whatever their keys, and a value of the wrong shape is not core", async () => {

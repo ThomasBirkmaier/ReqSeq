@@ -1,8 +1,10 @@
 // The indirect verification (SR-034) with the views sharing their work (#698) against the evaluator
 // before #698 as the reference, copied below verbatim (only renamed): for every element and view of
 // seeded random workspaces (derivation cycles and self-loops, twins, emergent elements, invalid
-// statuses, validities of every shape, records in the core and per variant) and of a small generated
-// workspace of the performance suite, the result is the same, in any order of first evaluation. Plus
+// statuses, validities of every shape, records in the core and per variant, random removals of the
+// view rule as a `ViewScope`) and of a small generated workspace of the performance suite (its
+// exclusions through `ruleScope`), the result is the same, in any order of first evaluation. The
+// reference asks the scope where it asked `appliesIn` (SR-043: the view rule). Plus
 // the work the shared views save, counted, never timed (ADR-0011).
 import type { CurrentVersion } from "../model/index.js";
 import { generateLargeWorkspace, withEvidenceRecords, writeLargeWorkspace } from "@reqseq/testkit";
@@ -13,10 +15,10 @@ import { currentVersionsOf, elementStoreState, isEmergent } from "../model/index
 import { Workspace } from "../runtime/workspace.js";
 import { traceContext } from "../trace/index.js";
 import type { View } from "../variants/index.js";
-import { appliesIn, variantsOf } from "../variants/index.js";
+import { appliesIn, variantsOf, viewRuleIndexOf } from "../variants/index.js";
 import { evidenceIndex, evidenceIndexState } from "./by-element.js";
-import type { ChildRules, VerificationEvaluator, VerificationResult } from "./indirect.js";
-import { childRulesOf, verificationEvaluator } from "./indirect.js";
+import type { ChildRules, VerificationEvaluator, VerificationResult, ViewScope } from "./indirect.js";
+import { childRulesOf, ruleScope, validityScope, verificationEvaluator } from "./indirect.js";
 import type { EvidenceRecord } from "./record.js";
 import type { StatusSource } from "./status.js";
 import { holdsIn, statusSource, verificationStatusOf } from "./status.js";
@@ -52,6 +54,7 @@ const referenceEvaluator = (
   source: StatusSource,
   children: ChildRules | undefined,
   currentOf: (element: ElementRecord) => string | undefined,
+  scope: ViewScope,
 ): VerificationEvaluator => {
   const memos = new Map<string, Map<string, VerificationResult>>();
   const memoOf = (view: View): Map<string, VerificationResult> => {
@@ -74,7 +77,7 @@ const referenceEvaluator = (
         !seen.has(child) &&
         source.requirements.has(child.type) &&
         children.counts(child) &&
-        appliesIn(source.validity, child, view);
+        scope.includesIn(view)(child);
       seen.add(child);
       return counts;
     });
@@ -139,7 +142,7 @@ const referenceEvaluator = (
   };
 
   return (element, view, shown) => {
-    if (!source.requirements.has(element.type) || !appliesIn(source.validity, element, view)) {
+    if (!source.requirements.has(element.type) || !scope.includesIn(view)(element)) {
       return undefined;
     }
     if (referenceHasOwn(source, element, view)) {
@@ -203,6 +206,8 @@ interface Generated {
   readonly elements: readonly ElementRecord[];
   readonly views: readonly View[];
   readonly currentOf: (element: ElementRecord) => string | undefined;
+  /** The validity with random removals per variant, as the view rule removes core requirements. */
+  readonly scope: ViewScope;
 }
 
 type Random = ReturnType<typeof randomOf>;
@@ -315,7 +320,22 @@ const generate = (seed: number): Generated => {
     { kind: "variant", variant: { id: second ?? first ?? "", repository: "system" } },
     { kind: "variant", variant: { id: unknownVariant, repository: "system" } },
   ];
+  // Drawn last, so the workspaces of a seed stay as they were.
+  const keyOf = (v: View): string =>
+    v.kind === "core" ? "" : `${v.variant.repository}\u0000${v.variant.id}`;
+  const keys = views.flatMap((v) => (v.kind === "core" ? [] : [keyOf(v)]));
+  const removed = new Map(
+    elements.flatMap((e) =>
+      random.chance(0.2) ? [[e, keys.filter(() => random.chance(0.3))] as const] : [],
+    ),
+  );
+  const scope: ViewScope = {
+    includesIn: (view) => (e) =>
+      appliesIn(source.validity, e, view) && !(removed.get(e) ?? []).includes(keyOf(view)),
+    removersOf: (e) => removed.get(e) ?? [],
+  };
   return {
+    scope,
     source,
     children: {
       childrenOf: (e) => children.get(e) ?? [],
@@ -347,49 +367,60 @@ const sorted = (results: Map<string, VerificationResult | undefined>) =>
 describe("the shared views give the results of the evaluator before #698", () => {
   it("in every view of seeded random workspaces, in any order of first evaluation", () => {
     for (let seed = 1; seed <= 60; seed += 1) {
-      const { source, children, elements, views, currentOf } = generate(seed);
+      const { source, children, elements, views, currentOf, scope } = generate(seed);
       const random = randomOf(seed * 7);
       const pairs = elements.flatMap((e) => views.map((v) => [e, v] as const));
-      const expected = resultsOf(referenceEvaluator(source, children, currentOf), random.shuffled(pairs));
+      const expected = resultsOf(
+        referenceEvaluator(source, children, currentOf, scope),
+        random.shuffled(pairs),
+      );
       // The reference itself does not depend on the order (rule 6).
       expect(
-        sorted(resultsOf(referenceEvaluator(source, children, currentOf), random.shuffled(pairs))),
+        sorted(resultsOf(referenceEvaluator(source, children, currentOf, scope), random.shuffled(pairs))),
       ).toEqual(sorted(expected));
-      const actual = resultsOf(verificationEvaluator(source, children, currentOf), random.shuffled(pairs));
+      const actual = resultsOf(
+        verificationEvaluator(source, children, currentOf, scope),
+        random.shuffled(pairs),
+      );
       expect(sorted(actual), `seed ${String(seed)}`).toEqual(sorted(expected));
       // Variant views first, then the core: the neutral results are built from another side.
       const variantsFirst = [...pairs].sort(
         ([, a], [, b]) => Number(a.kind === "core") - Number(b.kind === "core"),
       );
-      expect(sorted(resultsOf(verificationEvaluator(source, children, currentOf), variantsFirst))).toEqual(
-        sorted(expected),
-      );
+      expect(
+        sorted(resultsOf(verificationEvaluator(source, children, currentOf, scope), variantsFirst)),
+      ).toEqual(sorted(expected));
     }
   });
 
   it("without child rules (no derivation meaning, or an invalid metamodel)", () => {
-    const { source, elements, views, currentOf } = generate(3);
+    const { source, elements, views, currentOf, scope } = generate(3);
     const pairs = elements.flatMap((e) => views.map((v) => [e, v] as const));
-    expect(sorted(resultsOf(verificationEvaluator(source, undefined, currentOf), pairs))).toEqual(
-      sorted(resultsOf(referenceEvaluator(source, undefined, currentOf), pairs)),
+    expect(sorted(resultsOf(verificationEvaluator(source, undefined, currentOf, scope), pairs))).toEqual(
+      sorted(resultsOf(referenceEvaluator(source, undefined, currentOf, scope), pairs)),
     );
   });
 
   it("with the versions read by prepare between the evaluations (workspaceStatusOf)", async () => {
     for (let seed = 1; seed <= 15; seed += 1) {
-      const { source, children, elements, views, currentOf } = generate(seed);
+      const { source, children, elements, views, currentOf, scope } = generate(seed);
       const variants = views.flatMap((v) => (v.kind === "variant" ? [v.variant as ElementRecord] : []));
-      const status = workspaceStatusOf(source, variants.slice(0, 6), children, (records) =>
-        Promise.resolve(
-          new Map(
-            records.flatMap((r): [ElementRecord, CurrentVersion][] => {
-              const version = currentOf(r);
-              return version === undefined ? [] : [[r, { kind: "version", version, images: [] }]];
-            }),
+      const status = workspaceStatusOf(
+        source,
+        variants.slice(0, 6),
+        children,
+        (records) =>
+          Promise.resolve(
+            new Map(
+              records.flatMap((r): [ElementRecord, CurrentVersion][] => {
+                const version = currentOf(r);
+                return version === undefined ? [] : [[r, { kind: "version", version, images: [] }]];
+              }),
+            ),
           ),
-        ),
+        scope,
       );
-      const reference = referenceEvaluator(source, children, currentOf);
+      const reference = referenceEvaluator(source, children, currentOf, scope);
       const random = randomOf(seed);
       for (const element of random.shuffled(elements)) {
         await status.prepare([element], { own: true });
@@ -451,12 +482,14 @@ describe("the shared views give the results of the evaluator before #698", () =>
     const source = statusSource(metamodel, index);
     const children = childRulesOf(await traceContext(workspace));
     const views: View[] = [CORE, ...variants.map((variant): View => ({ kind: "variant", variant }))];
+    const scope = ruleScope(viewRuleIndexOf(workspace, store, metamodel));
+    expect(store.elements.some((e) => scope.removersOf(e).length > 0)).toBe(true);
     const requirements = store.elements.filter((e) => source.requirements.has(e.type));
     const pairs = requirements.flatMap((e) => views.map((v) => [e, v] as const));
-    const expected = resultsOf(referenceEvaluator(source, children, currentOf), pairs);
+    const expected = resultsOf(referenceEvaluator(source, children, currentOf, scope), pairs);
     expect([...expected.values()].some((r) => r?.status === "indirect")).toBe(true);
     expect(
-      sorted(resultsOf(verificationEvaluator(source, children, currentOf), random.shuffled(pairs))),
+      sorted(resultsOf(verificationEvaluator(source, children, currentOf, scope), random.shuffled(pairs))),
     ).toEqual(sorted(expected));
   }, 60_000);
 });
@@ -523,10 +556,12 @@ describe("the work the shared views save (#698)", () => {
     const all = (evaluate: VerificationEvaluator): (VerificationResult | undefined)[] =>
       views.map((view) => evaluate(root, view));
     reads = 0;
-    const before = all(referenceEvaluator(source, rules, () => CURRENT));
+    const before = all(referenceEvaluator(source, rules, () => CURRENT, validityScope(source.validity)));
     const referenceReads = reads;
     reads = 0;
-    expect(all(verificationEvaluator(source, rules, () => CURRENT))).toEqual(before);
+    expect(all(verificationEvaluator(source, rules, () => CURRENT, validityScope(source.validity)))).toEqual(
+      before,
+    );
     // The reference walks the 340 elements in each of the 20 variants; the shared views about three
     // times (core, neutral, the seeds below each element) and the path above the one seed.
     expect(referenceReads).toBeGreaterThan(20 * 340);

@@ -29,8 +29,10 @@ import { CommandError } from "../catalog.js";
 import type { FrontmatterEdit } from "../files/index.js";
 import { editElementFile } from "../files/index.js";
 import type { MetamodelRelationKind } from "../generated/types.js";
+import type { Metamodel } from "../metamodel/index.js";
 import { metamodelState, relationKindFor } from "../metamodel/index.js";
 import type { Workspace } from "../runtime/workspace.js";
+import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { ElementRecord } from "./elements.js";
 import { isVersion } from "./is-version.js";
@@ -38,7 +40,9 @@ import { locateFindings } from "./locate.js";
 import { hasId } from "./relation-keys.js";
 import { relationTypeFindings } from "./relation-types.js";
 import { resolveRef } from "./resolve.js";
+import type { ShortIds } from "./short-id.js";
 import { shortIdState } from "./short-id.js";
+import type { ElementStore } from "./store.js";
 import { elementStoreState } from "./store.js";
 import { elementLabel } from "./superseded.js";
 import { currentTarget } from "./targets.js";
@@ -85,7 +89,7 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
   new CommandError("input.invalid", message, details);
 
 /** The items under a relation kind's key: a list (ADR-0004); an absent key holds none. */
-const itemsUnder = (source: ElementRecord, key: string): readonly unknown[] => {
+export const itemsUnder = (source: ElementRecord, key: string): readonly unknown[] => {
   const value = source.data[key];
   if (value === undefined || value === null) {
     return [];
@@ -104,13 +108,44 @@ const itemsUnder = (source: ElementRecord, key: string): readonly unknown[] => {
 const repositoryOf = (item: Readonly<Record<string, unknown>>, sourceRepository: string): unknown =>
   item["repository"] ?? sourceRepository;
 
-/** What the commands read: layout, metamodel, store and short IDs as they are now. */
-const stateOf = async (workspace: Workspace) => ({
+/** What the relation writes read: layout, metamodel, store and short IDs as they are now. */
+export interface RelationState {
+  readonly layout: WorkspaceLayout;
+  readonly metamodel: Metamodel;
+  readonly store: ElementStore;
+  readonly shortIds: ShortIds;
+}
+
+/** The `RelationState` of `workspace` now. */
+export const relationStateOf = async (workspace: Workspace): Promise<RelationState> => ({
   layout: await workspace.get(workspaceLayoutState),
   metamodel: await workspace.get(metamodelState),
   store: await workspace.get(elementStoreState),
   shortIds: await workspace.get(shortIdState),
 });
+
+/**
+ * Writes `edits` into the file of `source`, once, through the write path of every element file
+ * (`writeElementFiles`: checked against the file as the store read it, stored titles refreshed).
+ */
+export const writeSourceEdits = async (
+  workspace: Workspace,
+  state: RelationState,
+  source: ElementRecord,
+  edits: readonly FrontmatterEdit[],
+  keyOrder?: readonly string[],
+): Promise<{ readonly files: readonly string[]; readonly sources: readonly ElementRecord[] }> => {
+  const { layout, metamodel, store } = state;
+  const unchanged = await readUnchanged(workspace, layout, source);
+  const { bytes } = editElementFile(unchanged.current.file, {
+    edits: [...edits],
+    ...(keyOrder === undefined ? {} : { keyOrder: [...keyOrder] }),
+  });
+  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }], {
+    titles: { metamodel, store },
+  });
+  return { files: written.map((w) => w.file), sources: written.map((w) => w.written.record) };
+};
 
 /**
  * `relation.add`: a relation of kind `input.kind` from `input.source` to `input.target`, written
@@ -119,7 +154,8 @@ const stateOf = async (workspace: Workspace) => ({
  * types (`relation.not-allowed`) and that the file is as the store read it (`file.changed-on-disk`).
  */
 export const addRelation = async (workspace: Workspace, input: RelationInput): Promise<AddedRelation> => {
-  const { layout, metamodel, store, shortIds } = await stateOf(workspace);
+  const state = await relationStateOf(workspace);
+  const { layout, metamodel, store, shortIds } = state;
   const source = resolveRef(store, shortIds, input.source);
   const sourceType = assertElementWritable(metamodel, source);
   const kind = relationKindFor(metamodel, input.kind, sourceType.key);
@@ -149,21 +185,20 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
       targetType: target.type,
     });
   }
-  const unchanged = await readUnchanged(workspace, layout, source);
   // A relation target is a flow mapping of strings on one line (ADR-0004).
   const value = { ...stored };
-  const { bytes } = editElementFile(unchanged.current.file, {
-    edits: [
+  const written = await writeSourceEdits(
+    workspace,
+    state,
+    source,
+    [
       unversioned < 0
         ? { kind: "append-item", key: kind.key, value }
         : { kind: "replace-item", key: kind.key, index: unversioned, value },
     ],
-    keyOrder: sourceType.properties,
-  });
-  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }], {
-    titles: { metamodel, store },
-  });
-  const sources = written.map((w) => w.written.record);
+    sourceType.properties,
+  );
+  const { sources } = written;
   const index = unversioned < 0 ? items.length : unversioned;
   const added: Problem = {
     code: "relation.version-added",
@@ -176,7 +211,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
     currentVersion: stored.version,
   };
   return {
-    files: written.map((w) => w.file),
+    files: written.files,
     kind,
     sources,
     index,
@@ -196,7 +231,7 @@ export const addRelation = async (workspace: Workspace, input: RelationInput): P
  * matched in its repository (`repository`, when given, must be that one: `input.invalid`).
  */
 const removalTarget = (
-  state: Awaited<ReturnType<typeof stateOf>>,
+  state: RelationState,
   ref: string,
   repository: string | undefined,
 ): { readonly id: string; readonly repository?: string } => {
@@ -218,22 +253,23 @@ const removalTarget = (
 };
 
 /**
- * `relation.remove`: removes the relation of kind `input.kind` from `input.source` to
- * `input.target` from the source file (see the file comment). A UUID whose relations under the
- * kind point into several repositories, one of which may hold an element with that UUID (it has
- * one, is not on this machine or is not in the workspace file), is `ref.ambiguous`; give the short
- * ID or `repository`.
+ * The items of `kind` in `source` that a removal of `ref` takes (see the file comment), with the
+ * target and all items under the key. A UUID whose items point into several repositories, one of
+ * which may hold an element with that UUID, is `ref.ambiguous`.
  */
-export const removeRelation = async (
-  workspace: Workspace,
-  input: RemoveRelationInput,
-): Promise<RemovedRelation> => {
-  const state = await stateOf(workspace);
-  const { layout, metamodel, store, shortIds } = state;
-  const source = resolveRef(store, shortIds, input.source);
-  const sourceType = assertElementWritable(metamodel, source);
-  const kind = relationKindFor(metamodel, input.kind, sourceType.key);
-  const target = removalTarget(state, input.target, input.repository);
+export const removalMatch = (
+  state: RelationState,
+  source: ElementRecord,
+  kind: MetamodelRelationKind,
+  ref: string,
+  repository: string | undefined,
+): {
+  readonly target: { readonly id: string; readonly repository?: string };
+  readonly indexes: readonly number[];
+  readonly items: readonly unknown[];
+} => {
+  const { layout, store } = state;
+  const target = removalTarget(state, ref, repository);
   const items = itemsUnder(source, kind.key);
   const indexes: number[] = [];
   const repositories = new Set<unknown>();
@@ -254,31 +290,61 @@ export const removeRelation = async (
   if (repositories.size > 1 && [...repositories].some(mayHold)) {
     throw new CommandError(
       "ref.ambiguous",
-      `${input.target} names relations ${kind.key} into more than one repository (${[...repositories].map(String).join(", ")}); give the short ID of the target or repository`,
-      { ref: input.target, repositories: [...repositories] },
+      `${ref} names relations ${kind.key} into more than one repository (${[...repositories].map(String).join(", ")}); give the short ID of the target or repository`,
+      { ref, repositories: [...repositories] },
     );
   }
+  return { target, indexes, items };
+};
+
+/** The `info` problem `relation.not-found` of a removal that found nothing. */
+export const notFoundProblem = (
+  state: RelationState,
+  source: ElementRecord,
+  kind: MetamodelRelationKind,
+  ref: string,
+  targetId: string,
+): Problem => ({
+  code: "relation.not-found",
+  severity: "info",
+  message: `${elementLabel(state, source)} has no relation ${kind.name} (${kind.key}) to ${ref}; nothing removed`,
+  repository: source.repository,
+  file: source.file,
+  elementId: source.id,
+  targetId,
+});
+
+/** The edits that remove the items at `indexes` of `count` under `key`: from the last, the key with its last item. */
+export const removalEdits = (key: string, indexes: readonly number[], count: number): FrontmatterEdit[] =>
+  indexes.length === count
+    ? [{ kind: "remove", key }]
+    : indexes.toReversed().map((index) => ({ kind: "remove-item", key, index }));
+
+/**
+ * `relation.remove`: removes the relation of kind `input.kind` from `input.source` to
+ * `input.target` from the source file (see the file comment). A UUID whose relations under the
+ * kind point into several repositories, one of which may hold an element with that UUID (it has
+ * one, is not on this machine or is not in the workspace file), is `ref.ambiguous`; give the short
+ * ID or `repository`.
+ */
+export const removeRelation = async (
+  workspace: Workspace,
+  input: RemoveRelationInput,
+): Promise<RemovedRelation> => {
+  const state = await relationStateOf(workspace);
+  const { metamodel, store, shortIds } = state;
+  const source = resolveRef(store, shortIds, input.source);
+  const sourceType = assertElementWritable(metamodel, source);
+  const kind = relationKindFor(metamodel, input.kind, sourceType.key);
+  const { target, indexes, items } = removalMatch(state, source, kind, input.target, input.repository);
   if (indexes.length === 0) {
-    const problem: Problem = {
-      code: "relation.not-found",
-      severity: "info",
-      message: `${elementLabel({ metamodel, shortIds }, source)} has no relation ${kind.name} (${kind.key}) to ${input.target}; nothing removed`,
-      repository: source.repository,
-      file: source.file,
-      elementId: source.id,
-      targetId: target.id,
-    };
-    return { files: [], problems: [problem] };
+    return { files: [], problems: [notFoundProblem(state, source, kind, input.target, target.id)] };
   }
-  const unchanged = await readUnchanged(workspace, layout, source);
-  // Items from the last, so each index still names its item; the key goes with its last item.
-  const edits: FrontmatterEdit[] =
-    indexes.length === items.length
-      ? [{ kind: "remove", key: kind.key }]
-      : indexes.toReversed().map((index) => ({ kind: "remove-item", key: kind.key, index }));
-  const { bytes } = editElementFile(unchanged.current.file, { edits });
-  const written = await writeElementFiles(workspace, layout, [{ ...unchanged, bytes }], {
-    titles: { metamodel, store },
-  });
-  return { files: written.map((w) => w.file), problems: [] };
+  const written = await writeSourceEdits(
+    workspace,
+    state,
+    source,
+    removalEdits(kind.key, indexes, items.length),
+  );
+  return { files: written.files, problems: [] };
 };
