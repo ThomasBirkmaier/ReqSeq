@@ -4,7 +4,7 @@ Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `basel
 
 ## Reading
 
-The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr/0018-baseline-file.md).
+The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr/0018-baseline-file.md). A file in the layout ReqSeq writes is read by the line scanner (`scan.ts`: `scanBaseline`, and `baselineHeader` for the lines before `repositories:`, with the `selection.ids` lines scanned too), through `readYamlFileFast` of the files block; any other layout (a comment, a blank line, CRLF, a BOM, entries out of order) falls back to YAML and the schema, with the same baseline or the same problems. On both paths an element copy or a repository listed twice is `baseline.invalid` at the line of the second one.
 
 `readBaselines(layout, kept?)` → `{ location, baselines, problems, faulty, incomplete }`:
 

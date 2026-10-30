@@ -7,7 +7,14 @@ import fs from "node:fs/promises";
 import type { Problem } from "../catalog.js";
 import { CommandError } from "../catalog.js";
 import type { ParsedContent, ParsedYaml } from "./parse.js";
-import { elementBody, elementFrontmatter, fileProblem, parseFileBytes, parseYamlFileBytes } from "./parse.js";
+import {
+  elementBody,
+  elementFrontmatter,
+  fileProblem,
+  parseFileBytes,
+  parseYamlFileBytes,
+  utf8Text,
+} from "./parse.js";
 import { errorCode, folderInsideRoot, folderInsideRootSync, resolveInRoot } from "./paths.js";
 import type { FileSnapshot } from "./snapshot.js";
 import { makeSnapshot, sha256 } from "./snapshot.js";
@@ -362,9 +369,8 @@ export type YamlReadResult =
   | { readonly kind: "parsed"; readonly file: YamlFile }
   | { readonly kind: "problem"; readonly problem: Problem };
 
-/** Reads one YAML file below `root`; faulty files become a problem with file, line and reason. */
-export const readYamlFile = async (root: string, relativePath: string): Promise<YamlReadResult> => {
-  const raw = await readBytes(root, relativePath);
+/** The YAML document of a file read, or its problem. */
+const yamlFileOf = (raw: RawFile): YamlReadResult => {
   if (raw.kind === "problem") {
     return { kind: "problem", problem: raw.problem };
   }
@@ -381,6 +387,26 @@ export const readYamlFile = async (root: string, relativePath: string): Promise<
       snapshot: makeSnapshot(file, bytes.byteLength, mtimeMs, sha256(bytes)),
     },
   };
+};
+
+/** Reads one YAML file below `root`; faulty files become a problem with file, line and reason. */
+export const readYamlFile = async (root: string, relativePath: string): Promise<YamlReadResult> =>
+  yamlFileOf(await readBytes(root, relativePath));
+
+/**
+ * Reads one YAML file below `root` for a reader with a fast path over a layout of its own (the
+ * baseline file, ADR-0018): `fast` gets the text of a file that is UTF-8 without BOM and gives its
+ * value, or undefined to have the file parsed as `readYamlFile` does, with the same problems.
+ */
+export const readYamlFileFast = async <T>(
+  root: string,
+  relativePath: string,
+  fast: (text: string) => T | undefined,
+): Promise<{ readonly kind: "fast"; readonly value: T } | YamlReadResult> => {
+  const raw = await readBytes(root, relativePath);
+  const text = raw.kind === "bytes" ? utf8Text(raw.bytes) : undefined;
+  const value = text === undefined || text.startsWith("\uFEFF") ? undefined : fast(text);
+  return value === undefined ? yamlFileOf(raw) : { kind: "fast", value };
 };
 
 export interface ReadFilesOptions {
