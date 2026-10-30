@@ -4,8 +4,9 @@
 //   Replacements and exclusions never touch it (SR-041 AK3).
 // - The view of a variant v holds the elements that apply in v by their validity (`appliesIn`),
 //   less the core requirements (`isCoreRequirement`) that v excludes or that a replacement valid in
-//   v replaces (SR-041 AK1, AK4, SR-043 AK1). Elements of a type without the validity property are in
-//   every view (SR-043 AK10).
+//   v replaces (SR-041 AK1, AK4, SR-043 AK1).
+// - Elements of a type without the validity property among its effective properties are in every
+//   view and added in none, even with a stray validity entry (SR-043 AK10; SR-016 reports the key).
 // - Rule items are the items of every relation kind with the meaning `replacement` or `exclusion`,
 //   read by meaning, never by key: exclusions only from elements of a type with the meaning
 //   `variant` (they act in that variant), replacements only from elements with a validity entry
@@ -23,7 +24,8 @@
 // Cost (N-036): the index is one pass over the store, without file reads and without any other
 // state, memoised per store and metamodel (`viewRuleIndexState`, a WeakMap like the succession
 // index). The rule of a variant is built on demand from the items, O(replacements + exclusions),
-// and kept in the index; then `includes` is O(1) beyond `appliesIn`.
+// and kept in the index; then `includes` is O(1) beyond `appliesIn` (the types with the validity
+// property are one set, built with the index).
 import type { Metamodel } from "../metamodel/index.js";
 import { relationKindsWithMeaning } from "../metamodel/index.js";
 import type { ElementRecord, ElementStore } from "../model/index.js";
@@ -64,6 +66,8 @@ export interface ViewRule {
 export interface ViewRuleIndex {
   readonly store: ElementStore;
   readonly metamodel: Metamodel;
+  /** The effective type keys whose properties hold the validity property (SR-043 AK10). */
+  readonly validityTypes: ReadonlySet<string>;
   /** Every rule item, in store order of the sources, then relation kind (metamodel order), then item. */
   readonly items: readonly RuleItem[];
   /** The rules of the variants built so far, by repository and UUID of the variant. */
@@ -109,7 +113,17 @@ const itemsOf = (scope: Scope, source: ElementRecord): readonly RuleItem[] => {
 /** The rule items of `store` read with `metamodel`: one pass, no file read, no other state. */
 export const buildViewRuleIndex = (store: ElementStore, metamodel: Metamodel): ViewRuleIndex => {
   const scope = scopeOf(metamodel);
-  return { store, metamodel, items: store.elements.flatMap((e) => itemsOf(scope, e)), rules: new Map() };
+  const key = scope.validity?.key;
+  const validityTypes = new Set(
+    metamodel.effectiveTypes.filter((t) => key !== undefined && t.properties.includes(key)).map((t) => t.key),
+  );
+  return {
+    store,
+    metamodel,
+    validityTypes,
+    items: store.elements.flatMap((e) => itemsOf(scope, e)),
+    rules: new Map(),
+  };
 };
 
 /** The view rule indexes of a workspace, by the store each was built from (dropped with the store). */
@@ -148,6 +162,14 @@ const actingTarget = (index: ViewRuleIndex, item: RuleItem): ElementRecord | und
   return target !== undefined && isCoreRequirement(index, target) ? target : undefined;
 };
 
+/** Whether `element` applies in `view`: always for a type without the validity property (SR-043 AK10). */
+const appliesInView = (
+  index: ViewRuleIndex,
+  validity: ReturnType<typeof validityOf>,
+  element: ElementRecord,
+  view: View,
+): boolean => !index.validityTypes.has(element.type) || appliesIn(validity, element, view);
+
 const inStoreOrder = (index: ViewRuleIndex, wanted: (e: ElementRecord) => boolean): ElementRecord[] =>
   index.store.elements.filter(wanted);
 
@@ -181,13 +203,17 @@ const variantRule = (index: ViewRuleIndex, view: View & { readonly kind: "varian
   const replacedBy = (e: ElementRecord): readonly ElementRecord[] => replaced.get(e) ?? [];
   return {
     view,
-    includes: (e) => appliesIn(validity, e, view) && !excluded.has(e) && !replaced.has(e),
+    includes: (e) => appliesInView(index, validity, e, view) && !excluded.has(e) && !replaced.has(e),
     replacedBy,
     excludes: (e) => excluded.has(e),
     addedOf: () =>
       inStoreOrder(
         index,
-        (e) => validityEntries(validity, e).length > 0 && appliesIn(validity, e, view) && !replacing.has(e),
+        (e) =>
+          index.validityTypes.has(e.type) &&
+          validityEntries(validity, e).length > 0 &&
+          appliesIn(validity, e, view) &&
+          !replacing.has(e),
       ),
     replacedOf: () =>
       inStoreOrder(index, (e) => replaced.has(e)).flatMap((core) =>
@@ -203,7 +229,7 @@ const coreRule = (index: ViewRuleIndex): ViewRule => {
   const view: View = { kind: "core" };
   return {
     view,
-    includes: (e) => appliesIn(validity, e, view),
+    includes: (e) => appliesInView(index, validity, e, view),
     replacedBy: () => [],
     excludes: () => false,
     addedOf: () => [],

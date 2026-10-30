@@ -142,7 +142,12 @@ describe("the view rule (SR-041, SR-043)", () => {
 
   it("[SR-041/AK9] a replacing requirement with an invalid status still replaces", async () => {
     const ws = await open();
-    await invoke("element.setStatus", { refs: ["SR-0000b1"], status: "obsolete" }, { workspace: ws });
+    const out = (await invoke(
+      "element.setStatus",
+      { refs: ["SR-0000b1"], status: "obsolete" },
+      { workspace: ws },
+    )) as CommandOutput<"element.setStatus">;
+    expect([out.files, out.problems ?? []]).toEqual([["requirements/SR-0000000000b1.md"], []]);
     expect(await list(ws, "VAR-0000c1")).toEqual(VIEW_A);
   });
 
@@ -189,6 +194,20 @@ describe("the view rule (SR-041, SR-043)", () => {
     for (const view of ["core", "VAR-0000c1", "VAR-0000c2", "VAR-0000c3"]) {
       expect((await list(ws, view)).slice(0, 3)).toEqual(OTHERS);
     }
+  });
+
+  it("[SR-043/AK10] a need with a stray validity entry is in every view and added in none", async () => {
+    const ws = await open({
+      "needs/N-0000000000d1.md": `---\nid: ${P}d1\ntype: need\nstatus: draft\ntitle: See the weather\nvalidity: [${A}]\n---\n`,
+    });
+    for (const view of ["core", "VAR-0000c1", "VAR-0000c2", "VAR-0000c3"]) {
+      expect((await list(ws, view)).slice(0, 3)).toEqual(OTHERS);
+    }
+    const rule = viewRuleOf(
+      { workspace: ws, store: await ws.get(elementStoreState), metamodel: await ws.get(metamodelState) },
+      { kind: "variant", variant: { id: `${P}c1`, repository: "system" } },
+    );
+    expect(rule.addedOf().map((e) => name(e.id))).toEqual(["A2"]);
   });
 
   it("an excluded and replaced core requirement is excluded only, and its replacement is added", async () => {
