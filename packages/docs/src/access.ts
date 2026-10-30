@@ -11,7 +11,12 @@ import { toolName } from "@reqseq/mcp";
 /** The parts of `schemas/generated/openapi.json` and `mcp-tools.json` the pages read. */
 export interface GeneratedContracts {
   readonly openapi: { readonly paths: Readonly<Record<string, Readonly<Record<string, unknown>>>> };
-  readonly mcpTools: { readonly tools: readonly { readonly name: string }[] };
+  readonly mcpTools: {
+    readonly tools: readonly {
+      readonly name: string;
+      readonly inputSchema?: { readonly properties?: Readonly<Record<string, unknown>> };
+    }[];
+  };
 }
 
 export interface CommandAccess {
