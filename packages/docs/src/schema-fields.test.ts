@@ -2,13 +2,13 @@ import { contractsBundle } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { fieldRows, refName, resolveRef, typeText } from "./schema-fields.js";
 
-const schemas = contractsBundle.schemas;
+const context = { schemas: contractsBundle.schemas };
 
 describe("schema fields", () => {
   it("resolves a $ref of the catalog to its definition or its file", () => {
-    expect(resolveRef("../common.schema.json#/$defs/uuid", schemas)?.["type"]).toBe("string");
-    expect(resolveRef("../reqif-mapping.schema.json", schemas)?.["$id"]).toMatch(/reqif-mapping/);
-    expect(resolveRef("../common.schema.json#/$defs/none", schemas)).toBeUndefined();
+    expect(resolveRef("../common.schema.json#/$defs/uuid", context)?.["type"]).toBe("string");
+    expect(resolveRef("../reqif-mapping.schema.json", context)?.["$id"]).toMatch(/reqif-mapping/);
+    expect(resolveRef("../common.schema.json#/$defs/none", context)).toBeUndefined();
     expect(refName("../common.schema.json#/$defs/uuid")).toBe("uuid");
     expect(refName("../data-export.schema.json")).toBe("data-export");
   });
@@ -45,7 +45,7 @@ describe("schema fields", () => {
         odd: true,
       },
     };
-    const rows = fieldRows(schema, schemas);
+    const rows = fieldRows(schema, context);
     expect(rows.map((row) => row.field)).toEqual([
       "id",
       "limit",
@@ -62,6 +62,6 @@ describe("schema fields", () => {
     expect(rows[1]?.description).toBe("Default: `10`.");
     expect(rows[2]?.description).toBe('A note. Default: `""`.');
     expect(rows[8]).toMatchObject({ type: "`any`", required: false, description: "" });
-    expect(fieldRows({ type: "object" }, schemas)).toEqual([]);
+    expect(fieldRows({ type: "object" }, context)).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import type { Page } from "./reference.js";
 
@@ -25,16 +25,41 @@ export function contentPaths(packageDir: string): ContentPaths {
 }
 
 /**
- * Replaces the content folder of the site with a copy of the hand-written pages plus the generated `pages`, and
- * returns its files, relative and with `/`, sorted. A copy, not a symbolic link, so the build reads the same files
- * on every system. A generated page never replaces a hand-written one.
+ * A hand-written page with its site links (`](/start/get-started/)`, `[name]: /reference/`) prefixed with the base
+ * path, so the pages name no base and build for Pages (`/ReqSeq`) and offline (`/`) alike. Links to other sites
+ * (`//host`) and code spans stay as they are.
+ */
+export function withBase(text: string, base: string): string {
+  const prefix = base.replace(/\/$/, "");
+  return text
+    .split(/(`[^`\n]*`)/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part.replace(
+            /(\]\(|^\[[^\]\n]+\]:[ \t]*)\/(?!\/)/gm,
+            (_link, start: string) => `${start}${prefix}/`,
+          ),
+    )
+    .join("");
+}
+
+/**
+ * Replaces the content folder of the site with a copy of the hand-written pages (their site links with `base`) plus
+ * the generated `pages`, and returns its files, relative and with `/`, sorted. A copy, not a symbolic link, so the
+ * build reads the same files on every system. A generated page never replaces a hand-written one.
  */
 export async function assembleContent(
   paths: ContentPaths,
   pages: readonly Page[] = [],
+  base = "/",
 ): Promise<readonly string[]> {
   await rm(paths.contentDir, { recursive: true, force: true });
   await cp(paths.guideDir, paths.contentDir, { recursive: true });
+  for (const file of (await files(paths.contentDir)).filter((name) => name.endsWith(".md"))) {
+    const path = join(paths.contentDir, ...file.split("/"));
+    await writeFile(path, withBase(await readFile(path, "utf8"), base));
+  }
   const outside = (await files(paths.contentDir)).filter(
     (file) =>
       file !== "index.md" &&

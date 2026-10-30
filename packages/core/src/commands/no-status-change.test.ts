@@ -500,7 +500,10 @@ describe("no status change by itself (SR-087, D-030, ADR-0002 rule 6)", () => {
     // The metamodel is saved without `approved` (SR-015); the tool picks it up (bounded loosely for slow runners).
     const model = "metamodel/standard-model.yaml";
     const text = fs.readFileSync(fixture.path(model), "utf8");
-    const changed = text.replace("  - { key: approved, name: Approved }\n", "");
+    const changed = text.replace(
+      '  - { key: approved, name: Approved, description: "Agreed and valid." }\n',
+      "",
+    );
     expect(changed).not.toBe(text);
     await fixture.write(model, changed);
     const deadline = performance.now() + 10_000;
