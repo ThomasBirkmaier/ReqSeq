@@ -367,12 +367,18 @@ jobs:
             test-results/electron/
           if-no-files-found: ignore
 
-  # The one Ubuntu Electron result that the platform lane and merge.md read: green when both shards are.
+  # The one Ubuntu Electron result that merge.md and the ruleset read: green when both shards are. A matrix of one
+  # (#412): a job with `needs` gets its check run only when it starts, and until then GitHub would read an older
+  # skipped run of the same name on the head commit (from a `closed` or a cancelled run) as passed. A skipped matrix
+  # job shows its name without the system instead.
   electron:
-    name: electron (ubuntu-24.04)
+    name: electron (${{ matrix.os }})
     needs: electron-shard
     timeout-minutes: 2
     if: ${{ !cancelled() && github.event.action != 'closed' }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
     runs-on: ubuntu-24.04
     steps:
       - name: Both shards passed
@@ -428,7 +434,7 @@ jobs:
     steps: *electron-steps
 
   electron-windows:
-    # A matrix of one, so that a skipped job shows its name without the system, as the other platform jobs do.
+    # A matrix of one, like `electron (ubuntu-24.04)`: a skipped job shows its name without the system.
     name: electron (${{ matrix.os }})
     needs: electron-windows-shard
     timeout-minutes: 2
