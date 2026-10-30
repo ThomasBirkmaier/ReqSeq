@@ -5,6 +5,7 @@
 // renderer takes (ADR-0010); the Electron tests (packages/app/test) run it in the app itself. New catalog
 // commands join automatically with a default scenario (input `{}`); add explicit scenarios below when a
 // command is implemented.
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -13,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { PassThrough, Readable } from "node:stream";
 import type { MessagePort } from "node:worker_threads";
+import { promisify } from "node:util";
 import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
@@ -69,8 +71,9 @@ interface Scenario {
    */
   readonly newElement?: boolean;
   /**
-   * Prepares state outside the copy before each access, with the same result every time (the list of
-   * recent workspaces in the OS cache folder, SR-131).
+   * Prepares state before each access, with the same result every time (the list of recent
+   * workspaces in the OS cache folder, SR-131; a commit after a baseline, SR-051). A read command's
+   * shared copy is prepared once more before its files are taken, so the preparation must be idempotent.
    */
   readonly prepare?: (copy: Copy) => Promise<void>;
   /** More checks on the results of all accesses, after they compared equal. */
@@ -272,9 +275,89 @@ const MATRIX_EVIDENCE: FixtureOptions = { fixture: "SR-126/matrix", git: true };
 /** Two repositories with Markdown and JUnit records, variants, a package, a saved filter and baselines (SR-061). */
 const EXPORT: FixtureOptions = { fixture: "SR-061/export", git: ["system", "sensor"] };
 
+const execFileAsync = promisify(execFile);
+
+/**
+ * In `system` of an EXPORT copy: the baseline „Release 2“ of SR-0000b1 at HEAD, then a commit that
+ * changes SR-0000b1, with fixed author and dates, so every copy gets the same commits; once (SR-051 AK4).
+ */
+const changedSinceBaseline = async ({ root }: Copy): Promise<void> => {
+  const date = "2026-11-03T10:00:00Z";
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "t",
+    GIT_AUTHOR_EMAIL: "t@example.com",
+    GIT_COMMITTER_NAME: "t",
+  };
+  const git = (args: readonly string[]): Promise<{ stdout: string }> =>
+    execFileAsync("git", args, {
+      cwd: root,
+      env: { ...env, GIT_COMMITTER_EMAIL: "t@example.com", GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+    });
+  const file = path.join(root, "baselines", "Release-2.yaml");
+  if (
+    await fs.stat(file).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    return;
+  }
+  const head = (await git(["rev-parse", "HEAD"])).stdout.trim();
+  await fs.writeFile(
+    file,
+    "reqseq-baseline: 1\nname: Release 2\ndate: 2026-11-02T13:00:00Z\nrepositories:\n" +
+      `  - { name: system, commit: ${head} }\nelements:\n` +
+      "  - { id: 61061061-0000-4000-8000-0000000000b1, version: n1:697a2ad17ed49170 }\n",
+  );
+  const b1 = path.join(root, "requirements", "SR-0000000000b1.md");
+  await fs.writeFile(
+    b1,
+    (await fs.readFile(b1, "utf8")).replace("shows the speed.", "shows the speed in knots."),
+  );
+  await git(["commit", "-qam", "change"]);
+};
+
 /** Explicit scenarios per command, in addition to the default one with input `{}`. */
 const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
   // The date of the baseline is checked to lie within each call and then masked (`withoutDate`).
+  "baseline.compare": [
+    {
+      name: "the two commits and the Git command for a changed element (SR-051 AK4)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "Release 2", ref: "SR-0000b1" },
+      tag: "[SR-051/AK4]",
+      expect: "output",
+      prepare: changedSinceBaseline,
+    },
+    {
+      name: "a baseline whose commit is not here",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1", ref: "SR-0000b1" },
+      expect: "error",
+    },
+  ],
+  "baseline.get": [
+    {
+      name: "a baseline with the version and its date of each element (SR-051 AK1)",
+      fixture: EXPORT,
+      root: "system",
+      input: { baseline: "release-1" },
+      tag: "[SR-051/AK1]",
+      expect: "output",
+    },
+  ],
+  "baseline.list": [
+    {
+      name: "the valid baselines and the problems of a faulty file",
+      fixture: EXPORT,
+      root: "system",
+      input: {},
+      expect: "output",
+    },
+  ],
   "baseline.create": [
     {
       name: "a baseline file of a package with the commit and the elements (SR-050 AK1)",
@@ -2431,6 +2514,13 @@ const withoutDate = (access: string, result: Result, start: number, end: number)
   return JSON.parse(JSON.stringify(result).split(date).join("<date>")) as Result;
 };
 
+/** A fresh copy of the scenario's fixture, prepared. */
+const preparedCopy = async (scenario: Scenario): Promise<Copy> => {
+  const made = await copy(scenario);
+  await scenario.prepare?.(made);
+  return made;
+};
+
 /** The result of one access: its outcome, and the files of its copy afterwards. */
 interface Result {
   readonly outcome: Outcome;
@@ -2444,8 +2534,8 @@ interface Result {
  */
 const runAll = async (entry: CatalogEntry, scenario: Scenario): Promise<Record<string, Result>> => {
   const unchanging = entry.effect === "read" || !runtime.commands.has(entry.name);
-  const shared = unchanging ? await copy(scenario) : undefined;
-  // The files of the untouched template: a read changes none of them, not even the same way on every access.
+  const shared = unchanging ? await preparedCopy(scenario) : undefined;
+  // The files of the prepared template: a read changes none of them, not even the same way on every access.
   const untouched = shared === undefined ? undefined : normalized(await filesOf(shared.top), shared.top);
   const results: Record<string, Result> = {};
   for (const access of ACCESSES) {

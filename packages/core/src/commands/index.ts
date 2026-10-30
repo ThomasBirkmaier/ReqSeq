@@ -6,7 +6,10 @@
 // the list (keep both sorted by name).
 // commands/registry.test.ts checks that files, this list and the catalog agree.
 import type { AnyCommand } from "../catalog.js";
+import baselineCompare from "./baseline/compare.js";
 import baselineCreate from "./baseline/create.js";
+import baselineGet from "./baseline/get.js";
+import baselineList from "./baseline/list.js";
 import dataExport from "./data/export.js";
 import dataStore from "./data/store.js";
 import elementAddAttachment from "./element/addAttachment.js";
@@ -50,7 +53,10 @@ import workspaceRecent from "./workspace/recent.js";
 import workspaceStatus from "./workspace/status.js";
 
 export const commands: readonly AnyCommand[] = [
+  baselineCompare,
   baselineCreate,
+  baselineGet,
+  baselineList,
   dataExport,
   dataStore,
   elementAddAttachment,

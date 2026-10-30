@@ -170,6 +170,8 @@ export {
   relationPath,
 } from "./incoming.js";
 export { changedFiles, restrictTo, treeAt } from "./changed.js";
+export { fileSince } from "./file-since.js";
+export type { FileSince } from "./file-since.js";
 export { NO_COMMIT_TEXT, repositoryCommit } from "./repository-commit.js";
 export type { NoCommitReason, RepositoryCommit } from "./repository-commit.js";
 export {

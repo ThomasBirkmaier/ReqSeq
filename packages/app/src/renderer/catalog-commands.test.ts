@@ -153,7 +153,7 @@ describe("catalog commands in the command prompt", () => {
     // Covered commands are not listed twice, the unimplemented ones not yet.
     expect(offered.has("Get element")).toBe(false);
     expect(offered.has("Update element")).toBe(false);
-    expect(offered.has("Show baseline")).toBe(false);
+    expect(offered.has("Analyse ReqIF file")).toBe(false);
     expect(offered.has("Show relation options")).toBe(true);
   });
 

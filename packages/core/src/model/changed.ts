@@ -163,7 +163,7 @@ const unavailable = (repository: string, reason: string): CommandError =>
   );
 
 /** The UUID in the frontmatter of `bytes`, if it has one. */
-const idIn = (file: string, bytes: Buffer): string[] => {
+export const idIn = (file: string, bytes: Buffer): string[] => {
   const parsed = parseFileBytes(file, bytes);
   const data: unknown = parsed.kind === "parsed" ? parsed.content.data : undefined;
   const id = typeof data === "object" && data !== null ? (data as Record<string, unknown>)["id"] : undefined;
