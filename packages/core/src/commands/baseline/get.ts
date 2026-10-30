@@ -1,6 +1,7 @@
 // baseline.get (SR-051 AK1–AK3, SR-094): a baseline with its entries and what became of them since
-// (baselines/show.ts), with their evidence on request. This file resolves the stored selection of the file as it selects now
-// (query/selection.ts, ADR-0018 "selection"), which the baselines block cannot import:
+// (baselines/show.ts), with their evidence on request. This file resolves the stored selection of
+// the file as it selects now (query/selection.ts, ADR-0018 "selection"), which the baselines block
+// cannot import:
 //
 // - `ids` items by the copy rule of the entries (`copyOf`): a UUID is the copy in the repository
 //   of the file, else its only copy; `{ id, repository }` that copy; a short ID or identifier as

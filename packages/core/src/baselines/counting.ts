@@ -2,9 +2,10 @@
 // baseline, compared by date and time; when either date has no time, by day, so a record of the
 // baseline's day counts. The day of a date is its date as written (ADR-0018 "date": the baseline's
 // UTC day), never converted to another time zone. A date that cannot be read counts as before all
-// others, as `instantOf` of the evidence block orders it.
+// others. `instant` is the twin of `instantOf` (evidence/by-element.ts), which this block cannot
+// import (the evidence block lies above it); change both together.
 // Valid baseline and record files always carry a time (`common.schema.json#/$defs/dateTime`); the
-// day rule holds for records given otherwise (spec question on SR-094 AK2, see the PR).
+// day rule holds for records given otherwise (assumption of spec question #471).
 
 /** A calendar date without time (RFC 3339 full-date). */
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

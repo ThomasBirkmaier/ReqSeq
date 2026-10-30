@@ -1,6 +1,6 @@
 // baseline.get with withEvidence (SR-094) on fixtures/SR-094/baseline; its README lists the
 // elements, the baselines „Release 1“ (core) and „Alpine 1“ (view Alpine), both dated
-// 2026-11-02T14:00:00Z, and the records. CLI end to end: packages/cli/test/baseline-get.test.ts.
+// 2026-11-02T14:00:00Z, and the records. CLI end to end: packages/cli/test/e2e/baseline-get.test.ts.
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -21,7 +21,7 @@ type Verification = Output["elements"][number]["verification"];
 
 const P = "94094094-0000-4000-8000-0000000000";
 const ALPINE = `${P}c1`;
-const V = { b1: "n1:8e4ad117d2db675a", b3: "n1:9ef6067b7d2e918b" };
+const V = { b1: "n1:8e4ad117d2db675a", b3: "n1:9ef6067b7d2e918b", olderB2: "n1:2222222222222222" };
 
 const opened = async (): Promise<{ readonly fixture: FixtureWorkspace; readonly workspace: Workspace }> => {
   const fixture = await createFixtureWorkspace({ fixture: "SR-094/baseline" });
@@ -56,7 +56,7 @@ const baselineText = (name: string, selection: readonly string[], ids: readonly 
 
 describe("baseline.get withEvidence", () => {
   it("[SR-094/AK1] baseline.get withEvidence gives each requirement's status for its baseline version", async () => {
-    const { workspace } = await opened();
+    const { fixture, workspace } = await opened();
     const out = await get(workspace, "Release 1");
     expect(statusOf(out)).toEqual({
       a1: undefined, // a need: no verification status
@@ -67,6 +67,17 @@ describe("baseline.get withEvidence", () => {
       b6: core("verified"),
     });
     expect(statusOf(await get(workspace, "Release 1", false))["b1"]).toBeUndefined();
+    // SR-0000b2 at an older version: its record of that version decides, not the current version's.
+    await fixture.write(
+      "baselines/older.yaml",
+      baselineText("Older", [], []).replace(
+        "elements:\n",
+        `elements:\n  - { id: ${P}b2, version: ${V.olderB2} }\n`,
+      ),
+    );
+    const older = await get(workspace, "Older");
+    expect(older.elements[0]).toMatchObject({ state: "changed", version: V.olderB2 });
+    expect(statusOf(older)["b2"]).toEqual(core("verified"));
   });
 
   it("[SR-094/AK2] records are compared to the baseline by date and time, by day when one has no time", async () => {

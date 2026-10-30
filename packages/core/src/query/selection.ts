@@ -22,8 +22,8 @@
 //   they are now (`Baseline.selects`, baselines/read.ts; assumption A1 of #530 Q2/Q4). It is found by
 //   name, then by file name (`findBaseline`): none is `input.invalid`, a name two files share too,
 //   a text that names only a faulty file `file.faulty`. Every other command refuses it with
-//   `input.invalid` naming itself and stage 5, where SR-050, SR-051 and SR-094 decide what a
-//   baseline means for it; so no caller takes every element for a narrower selection.
+//   `input.invalid` naming itself and stage 5 until #530 Q4 decides what a baseline means for it;
+//   so no caller takes every element for a narrower selection.
 // - Order: the order of the store, by repository as the workspace file lists them, then by file
 //   path (code units), whatever order `ids` names them in; `sortElements` (sort.ts, SR-075) sorts.
 // - `incomplete` (SR-006 AK2): the workspace file lists a repository that is not on this machine,
