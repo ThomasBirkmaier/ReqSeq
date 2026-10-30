@@ -9,8 +9,10 @@
 //   AK8) and the source of a replaces onto a core requirement the variant excludes (SR-042 AK5).
 // - `replaced`: one row per core requirement and replacement, with both UUIDs (AK3); an excluded core
 //   requirement is only in `excluded` (exclusion wins, SR-042 AK5).
-// - `problems`: the `variant.target-not-core` hints (at their lines) of the variant's own exclusion
-//   entries and of the replacement entries of requirements valid in it.
+// - `problems`: the `variant.target-not-core` hints (at their lines) of the entries that act in the
+//   variant: its own exclusion entries and the replacement entries of requirements valid in it, not
+//   those of a nested variant's own validity. A replaces onto a missing target is added with no
+//   hint here (that is another check, SR-089).
 // - `names` names every element the lists give, each once, in order first named (#588).
 // - `incomplete` (SR-006 AK2): a repository of the workspace file is not on this machine.
 import type { CommandOutput } from "../../catalog.js";
@@ -25,15 +27,13 @@ import {
 } from "../../model/index.js";
 import {
   appliesIn,
-  targetNotCoreProblemsState,
+  targetNotCoreProblemsOf,
   validityOf,
   variantTypes,
   viewRuleIndexOf,
   viewRuleIn,
 } from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
-
-const key = (repository?: string, id?: string): string => [repository, id].join("\0");
 
 export default defineCommand({
   name: "variant.diff",
@@ -60,16 +60,13 @@ export default defineCommand({
     const replaced = rule.replacedOf();
     const excluded = rule.excludedOf();
     const validity = validityOf(metamodel);
-    const sources = new Set(
-      index.items
-        .filter((item) =>
-          item.meaning === "exclusion" ? item.source === variant : appliesIn(validity, item.source, view),
-        )
-        .map((item) => key(item.source.repository, item.source.id)),
+    // The entries that act in the variant: its own exclusions and the replacements valid in it.
+    const acting = index.items.filter((item) =>
+      item.meaning === "exclusion"
+        ? item.source.id === variant.id && item.source.repository === variant.repository
+        : appliesIn(validity, item.source, view),
     );
-    const problems = (await ctx.workspace.get(targetNotCoreProblemsState)).filter((p) =>
-      sources.has(key(p.repository, p.elementId)),
-    );
+    const problems = await targetNotCoreProblemsOf(ctx.workspace, acting);
     const names = namesOfRecords({ metamodel, store, shortIds }, [
       ...added,
       ...replaced.flatMap((row) => [row.core, row.replacement]),

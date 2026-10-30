@@ -17,7 +17,12 @@ import { MessageChannel } from "node:worker_threads";
 import { startApiServer } from "@reqseq/api";
 import type { Channel, IpcRendererLike } from "@reqseq/app";
 import { SAVE_CHANNEL, WORKSPACE_CHANNEL, createBridge, createCoreHost } from "@reqseq/app";
-import type { CatalogEntry, CommandName, MetamodelGetOutput as MetamodelOutput } from "@reqseq/core";
+import type {
+  CatalogEntry,
+  CommandName,
+  MetamodelGetOutput as MetamodelOutput,
+  VariantDiffOutput,
+} from "@reqseq/core";
 import {
   CommandError,
   Workspace,
@@ -1756,12 +1761,13 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { variant: "VAR-0000c1" },
       expect: "output",
       check: (results) => {
-        const output = (results["core"]?.outcome as { output: { added: string[]; excluded: string[] } })
-          .output;
-        expect([output.added.map((id) => id.slice(-2)), output.excluded.map((id) => id.slice(-2))]).toEqual([
-          ["b2"],
-          ["a2"],
-        ]);
+        const output = (results["core"]?.outcome as { output: VariantDiffOutput }).output;
+        const tail = (id: string): string => id.slice(-2);
+        expect([
+          output.added.map(tail),
+          output.replaced.map((row) => [tail(row.core), tail(row.replacement)]),
+          output.excluded.map(tail),
+        ]).toEqual([["b2"], [["a1", "b1"]], ["a2"]]);
       },
     },
     {

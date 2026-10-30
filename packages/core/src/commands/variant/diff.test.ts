@@ -74,6 +74,17 @@ describe("variant.diff (SR-044)", () => {
     ]);
   });
 
+  it("gives only the hints of entries that act in the variant, not of a nested variant's own replaces", async () => {
+    // A (nested, SR-039) has validity [B] and replaces the need N1: that entry acts only in B.
+    const ws = await open({
+      "variants/VAR-0000000000c1.md": `---\nid: ${P}c1\ntype: variant\nstatus: draft\ntitle: Coast\nexcludes: [{ id: ${P}a2 }]\nvalidity: [{ id: ${P}c2 }]\nreplaces: [{ id: ${P}d1 }]\n---\n`,
+    });
+    expect((await diff(ws)).problems).toBeUndefined();
+    expect((await diff(ws, "VAR-0000c2")).problems?.map((p) => [name(p.elementId ?? ""), p.line])).toEqual([
+      ["c1", 8],
+    ]);
+  });
+
   it("[SR-042/AK5] an excluded and replaced core requirement is listed only as excluded, and the replacing requirement under added", async () => {
     // b3 [A] replaces K2, which A excludes.
     const out = await diff(await open(requirement("b3", `validity: [${A}]\nreplaces: [{ id: ${P}a2 }]\n`)));
