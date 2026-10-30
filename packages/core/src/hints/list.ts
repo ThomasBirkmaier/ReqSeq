@@ -56,6 +56,7 @@ import type { View, ViewRule } from "../variants/index.js";
 import {
   resolveView,
   supersededValidityProblemsState,
+  targetNotCoreProblemsState,
   validityEntries,
   validityTarget,
   viewRuleOf,
@@ -79,6 +80,7 @@ export const HINT_STATES = [
   statusProblemsState, // #306
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
+  targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
   duplicateIdentifierProblemsState, // #305
