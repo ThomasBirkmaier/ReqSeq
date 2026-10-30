@@ -14,9 +14,10 @@ The tests name only the ID, never the version. When a requirement changes, the t
 
 ## What you need
 
-- **The `reqseq` command line.** It comes with the ReqSeq delivery. Until the installers exist, build it from a checkout of this repository (Node.js 22.12 or newer, pnpm 10):
+- **The `reqseq` command line.** It comes with the ReqSeq delivery. Until the installers exist, build it from a checkout of this repository (Node.js 22.12 or newer, pnpm 12; corepack up to 0.34 cannot start pnpm 12, so install it with npm):
 
   ```sh
+  npm install -g pnpm@12.14.0 --force
   pnpm install && pnpm build
   chmod +x packages/cli/dist/bin.js
   ln -s "$PWD/packages/cli/dist/bin.js" /usr/local/bin/reqseq

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { licenseProblems } from "./check.mjs";
+import { licenseProblems, packagePath, productionClosure, productionListing } from "./check.mjs";
 
 const MIT = "The MIT License (MIT)\n\nPermission is hereby granted ...\n";
 const ANY_SHA = "0".repeat(64);
@@ -89,6 +89,152 @@ describe("licenses:check (ADR-0015)", () => {
       licenseProblems({}, { "gone@1.0.0": { license: "MIT", file: "license", sha256: ANY_SHA } }),
     ).toEqual([
       "verified license file of gone@1.0.0 is not used by any production package: remove the entry",
+    ]);
+  });
+});
+
+const LOCK = `---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.14.0
+        version: 12.14.0
+
+packages:
+
+  pnpm@12.14.0:
+    resolution: {integrity: sha512-x}
+
+snapshots:
+
+  pnpm@12.14.0: {}
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    devDependencies:
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5
+
+  packages/app:
+    dependencies:
+      '@reqseq/core':
+        specifier: workspace:*
+        version: link:../core
+      dompurify:
+        specifier: 3.4.17
+        version: 3.4.17
+      plugin:
+        specifier: 1.0.0
+        version: 1.0.0(dompurify@3.4.17)
+    optionalDependencies:
+      direct-optional:
+        specifier: 1.0.0
+        version: 1.0.0
+
+packages:
+
+  native-linux@1.0.0:
+    resolution: {integrity: sha512-x}
+    os: [linux]
+
+snapshots:
+
+  dompurify@3.4.17:
+    optionalDependencies:
+      gpl-optional: 2.0.0
+      native-linux: 1.0.0
+
+  plugin@1.0.0(dompurify@3.4.17):
+    dependencies:
+      dompurify: 3.4.17
+      string-width-cjs: string-width@4.2.3
+
+  direct-optional@1.0.0: {}
+
+  gpl-optional@2.0.0: {}
+
+  native-linux@1.0.0: {}
+
+  string-width@4.2.3: {}
+
+  vitest@5.0.5:
+    dependencies:
+      caniuse-lite: 1.0.30001819
+`;
+
+describe("licenses:check production closure (ADR-0015, pnpm 12)", () => {
+  it("takes dependencies and optional dependencies of every project, transitively, without dev dependencies", () => {
+    const closure = productionClosure(LOCK);
+    expect([...closure.ids].sort()).toEqual([
+      "direct-optional@1.0.0",
+      "dompurify@3.4.17",
+      "gpl-optional@2.0.0",
+      "native-linux@1.0.0",
+      "plugin@1.0.0",
+      "string-width@4.2.3",
+    ]);
+    expect([...closure.platform]).toEqual(["native-linux@1.0.0"]);
+  });
+
+  it("rejects a disallowed optional dependency of a production package, and ignores dev-only packages", () => {
+    const listing = productionListing(
+      {
+        MIT: [
+          { name: "dompurify", versions: ["3.4.17"], paths: ["/d"] },
+          { name: "plugin", versions: ["1.0.0"], paths: ["/p"] },
+          { name: "direct-optional", versions: ["1.0.0"], paths: ["/o"] },
+          { name: "string-width", versions: ["4.2.3", "5.1.2"], paths: ["/s4", "/s5"] },
+        ],
+        "GPL-3.0": [{ name: "gpl-optional", versions: ["2.0.0"], paths: ["/g"] }],
+        "CC-BY-4.0": [{ name: "caniuse-lite", versions: ["1.0.30001819"], paths: ["/c"] }],
+      },
+      productionClosure(LOCK),
+    );
+    expect(listing.problems).toEqual([]);
+    expect(listing.byLicense.MIT.find((p) => p.name === "string-width").versions).toEqual(["4.2.3"]);
+    expect(listing.byLicense["CC-BY-4.0"]).toBeUndefined();
+    expect(licenseProblems(listing.byLicense, {})).toEqual([
+      "license not allowed (ADR-0015): gpl-optional@2.0.0: GPL-3.0",
+    ]);
+  });
+
+  it("fails when a production package of the lockfile is missing from the listing (not one for other systems)", () => {
+    const listing = productionListing(
+      { MIT: [{ name: "dompurify", versions: ["3.4.17"], paths: ["/d"] }] },
+      productionClosure(LOCK),
+    );
+    expect(listing.problems.sort()).toEqual([
+      "production package direct-optional@1.0.0 of pnpm-lock.yaml is missing from pnpm licenses list",
+      "production package gpl-optional@2.0.0 of pnpm-lock.yaml is missing from pnpm licenses list",
+      "production package plugin@1.0.0 of pnpm-lock.yaml is missing from pnpm licenses list",
+      "production package string-width@4.2.3 of pnpm-lock.yaml is missing from pnpm licenses list",
+    ]);
+  });
+
+  it("reads the license file of the right version when pnpm lists the paths in another order", () => {
+    const store = pkg(undefined);
+    const v1 = path.join(store, ".pnpm", "@scope+khroma@2.1.0", "node_modules", "@scope", "khroma");
+    const v2 = path.join(store, ".pnpm", "@scope+khroma@2.2.0_peer", "node_modules", "@scope", "khroma");
+    fs.mkdirSync(v1, { recursive: true });
+    fs.mkdirSync(v2, { recursive: true });
+    fs.writeFileSync(path.join(v1, "license"), MIT);
+    fs.writeFileSync(path.join(v2, "license"), "Other text\n");
+    const p = { name: "@scope/khroma", versions: ["2.1.0", "2.2.0"], paths: [v2, v1] };
+    expect(packagePath(p, "2.1.0")).toBe(v1);
+    expect(packagePath(p, "2.2.0")).toBe(v2);
+    expect(packagePath(p, "3.0.0")).toBeUndefined();
+    const verified = { "@scope/khroma@2.1.0": { license: "MIT", file: "license", sha256: shaOf(MIT) } };
+    expect(licenseProblems({ Unknown: [{ ...p, versions: ["2.1.0"] }] }, verified)).toEqual([]);
+    expect(licenseProblems({ Unknown: [{ ...p, versions: ["2.1.0"], paths: [v2] }] }, verified)).toEqual([
+      "license file of @scope/khroma@2.1.0 is not the verified MIT text (ADR-0015): license sha256 missing",
     ]);
   });
 });
