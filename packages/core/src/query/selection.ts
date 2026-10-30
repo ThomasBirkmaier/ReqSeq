@@ -6,7 +6,7 @@
 //   - `ids`: exactly the elements named (AK3), each resolved with `resolveRef` (any case, #309;
 //     `ref.unknown`, `ref.ambiguous`); an element named twice is selected once.
 //   - `where`: the condition (condition.ts, SR-069).
-//   - `package`: the elements assigned to the package (SR-048 AK3), as the condition `package`.
+//   - `package`: the elements assigned to the package (SR-112 AK1), as the condition `package`.
 //   - `view`: the elements that apply in the core or a variant by their validity (`appliesIn`,
 //     SR-040); replacement and exclusion narrow a view in stage 5 (SR-041, SR-042). It is also the
 //     view of `verification` without `variant` (SR-047).

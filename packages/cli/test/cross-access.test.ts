@@ -127,6 +127,8 @@ const TYPE_AND_ID = [
 ];
 /** Derivations with a diamond, choices, numbers and titles to sort by (SR-075). */
 const SORT: FixtureOptions = { fixture: "SR-075/sort", git: true };
+/** Packages P1 and P2; R1 in both, R2 in P1, R3 in none (SR-048, SR-049). */
+const PACKAGES: FixtureOptions = { fixture: "SR-048/packages", git: true };
 /** Identifiers in natural order, a lower-case one and elements without one (#418). */
 const NATURAL: FixtureOptions = { fixture: "enabler-418/natural", git: true };
 /** Needs, requirements and their derivations (SR-023), shared so the fixture is built once. */
@@ -407,6 +409,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
     },
     {
+      name: "a package is an element file of type package",
+      input: { type: "package", title: "Release 3" },
+      tag: "[SR-048/AK1]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        const file = "package/PKG-<tail12>.md";
+        expect(output.files).toEqual([file]);
+        expect(results["core"]?.files[file]).toBe(
+          "---\nid: <id>\ntype: package\nstatus: draft\ntitle: Release 3\n---\n",
+        );
+      },
+    },
+    {
       name: "choice values by display name, in any case, written as keys (#309)",
       input: {
         type: "system-requirement",
@@ -568,6 +585,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
       expect: "output",
     },
+    ...[
+      { pkg: "PKG-0000d1", members: ["SR-0000b1", "SR-0000b2"] },
+      { pkg: "PKG-0000d2", members: ["SR-0000b1"] },
+    ].map(({ pkg, members }) => ({
+      name: `a requirement in P1 and P2 appears in both: the elements of ${pkg}`,
+      tag: "[SR-049/AK1]",
+      fixture: PACKAGES,
+      input: { selection: { package: pkg } },
+      expect: "output" as const,
+      check: (results: Readonly<Record<string, Result>>) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        expect(output.elements.map((e) => e.shortId)).toEqual(members);
+      },
+    })),
     {
       name: "the condition emergent (SR-035)",
       fixture: EMERGENT,
