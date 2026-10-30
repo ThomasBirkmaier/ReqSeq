@@ -147,6 +147,20 @@ export const pointedValue = (
   return match === undefined ? { kind: "ask", values: own } : { kind: "open", value: match };
 };
 
+/**
+ * What Ctrl/Cmd+click on a value of a box does (SR-132 AK1): the value clicked, else, like the key, the
+ * only value of the box or the prompt among its values. A box whose values list nothing (long free text,
+ * AK4) and no box at all give nothing: a click never asks among the values of other boxes.
+ */
+export const clickedValue = (
+  values: readonly ListableValue[],
+  pointer: Pointer,
+  relations: readonly DataExportRelation[],
+): Pointed => {
+  const own = pointer.kind === "box" ? values.filter((value) => value.key === pointer.key) : [];
+  return own.length === 0 ? { kind: "none" } : pointedValue(own, pointer, relations);
+};
+
 /** The prompt "Elements with": the values to choose from; taking one opens its list. */
 export const valuesPrompt = (
   values: readonly ListableValue[],

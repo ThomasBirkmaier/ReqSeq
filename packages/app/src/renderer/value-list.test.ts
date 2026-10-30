@@ -4,6 +4,7 @@ import { exactTypeStep, propertyStep, statusStep } from "./list-filters.js";
 import type { ListableValue, Pointer } from "./value-list.js";
 import {
   NO_POINTER,
+  clickedValue,
   listableValues,
   pointedValue,
   valueKeyOf,
@@ -252,6 +253,34 @@ describe("what the key and the command do at the cursor (SR-132)", () => {
 
   it("gives nothing when the element has no value to list", () => {
     expect(pointedValue([], box("topic"), relations)).toEqual({ kind: "none" });
+  });
+});
+
+describe("what Ctrl/Cmd+click does on a value (SR-132)", () => {
+  const relations = [relation()];
+
+  it("[SR-132/AK1] a click on a line of the topic box or on a package target opens the list of that value", () => {
+    expect(clickedValue(values, box("topic", { line: "Bearbeiten und Finden" }), relations)).toEqual({
+      kind: "open",
+      value: named("topic: Bearbeiten und Finden"),
+    });
+    const pointer = box("packages", { target: { id: "uuid-p", repository: "spec" } });
+    expect(clickedValue(values, pointer, relations)).toEqual({
+      kind: "open",
+      value: named("packages: Stufe-3 Stufe 3: Oberfläche"),
+    });
+  });
+
+  it("[SR-132/AK1] a click on a box without a value line asks only among the values of that box", () => {
+    expect(clickedValue(values, box("labels"), relations)).toEqual({
+      kind: "ask",
+      values: [named("labels: Timing"), named("labels: Safety")],
+    });
+  });
+
+  it("[SR-132/AK4] a click on a free-text box or on no box offers no list, not even the other values", () => {
+    expect(clickedValue(values, box("rationale", { line: "Weil" }), relations)).toEqual({ kind: "none" });
+    expect(clickedValue(values, NO_POINTER, relations)).toEqual({ kind: "none" });
   });
 });
 
