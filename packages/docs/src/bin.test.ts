@@ -3,6 +3,7 @@ import { getCommandRuntime } from "@reqseq/core";
 import { describe, expect, it, vi } from "vitest";
 import type * as Assemble from "./assemble.js";
 import type * as Codes from "./codes.js";
+import type * as Formats from "./formats.js";
 import type * as Reference from "./reference.js";
 
 const assembleContent = vi.fn(() => Promise.resolve(["index.md"]));
@@ -11,6 +12,8 @@ const generated = { openapi: { paths: {} }, mcpTools: { tools: [] } };
 const readGeneratedContracts = vi.fn(() => Promise.resolve(generated));
 const codes = { problems: {}, errors: {} };
 const readProblemCodes = vi.fn(() => Promise.resolve(codes));
+const examples = { workspace: [] };
+const readExamples = vi.fn(() => Promise.resolve(examples));
 vi.mock("./assemble.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Assemble>()),
   assembleContent,
@@ -19,6 +22,10 @@ vi.mock("./reference.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Reference>()),
   referencePages,
   readGeneratedContracts,
+}));
+vi.mock("./formats.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof Formats>()),
+  readExamples,
 }));
 vi.mock("./codes.js", async (importOriginal) => ({
   ...(await importOriginal<typeof Codes>()),
@@ -34,7 +41,16 @@ describe("bin", () => {
     const paths = contentPaths(fileURLToPath(new URL("../", import.meta.url)));
     expect(readGeneratedContracts).toHaveBeenCalledWith(paths.repoRoot);
     expect(readProblemCodes).toHaveBeenCalledWith(paths.repoRoot);
-    expect(referencePages).toHaveBeenCalledWith({ runtime: getCommandRuntime(), generated, codes }, "/base");
+    expect(referencePages).toHaveBeenCalledWith(
+      {
+        runtime: getCommandRuntime(),
+        schemas: getCommandRuntime().contracts.schemas,
+        examples,
+        generated,
+        codes,
+      },
+      "/base",
+    );
     expect(assembleContent).toHaveBeenCalledWith(paths, [{ path: "reference/commands/index.md", text: "" }]);
     expect(write).toHaveBeenCalledWith("docs: 1 files in the content folder\n");
     vi.unstubAllEnvs();
