@@ -12,7 +12,7 @@ The filter applies this list and never downgrades a finding on it. Blocking find
 
 ## Conflicts and stacked PRs
 
-No stacked PRs (#412): branch every PR from `main`, never from another PR's branch. A squash merge of the lower PR forces every PR above it to merge `main` and run the whole CI again; on 2026-10-29 such runs were a third of all macOS and Windows runs. Work that builds on an open PR waits for its merge, or goes into the same PR.
+No stacked PRs (#412): branch every PR from `main`, never from another PR's branch. A squash merge of the lower PR forces every PR above it to merge `main` and run the whole CI again; on 2026-10-29 runs that only merged `main`, mostly in stacked PRs, were a third of all macOS and Windows runs. Work that builds on an open PR waits for its merge, or goes into the same PR.
 
 Merge `main` into a PR only when GitHub reports a conflict, or after a change of its base branch (below). The ruleset does not require an up-to-date branch, so merging `main` without a conflict only starts a full run. Merge it with `pnpm merge:main`, which regenerates conflicting generated files. A conflict resolved by hand needs a look at that diff before the merge. If the two sides cannot both be kept, label the PR `needs-human` and give the product owner the options.
 
