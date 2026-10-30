@@ -340,6 +340,23 @@ mark {
   font-size: 13px;
 }
 
+/* The lines of a requirement's variants and verification status under its boxes (SR-046, SR-047). */
+.element .variant-line {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.element .variant-line [role="link"] {
+  cursor: pointer;
+}
+
+.element .variant-line [role="link"]:hover,
+.element .variant-line [role="link"]:focus-visible {
+  text-decoration: underline;
+}
+
 /* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
    comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
 .element h1 .editor {

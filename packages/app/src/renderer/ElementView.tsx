@@ -26,14 +26,15 @@
 // file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
 // and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
 // the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
-// (`RelationLink.tsx`), the line and the elements of a package page (`PackageSummary.tsx`,
-// `PackageMembers.tsx`) and a block "On disk" (`OnDisk.tsx`).
+// (`RelationLink.tsx`), the lines of its variants and verification status (`VariantLines.tsx`), the line
+// and the elements of a package page (`PackageSummary.tsx`, `PackageMembers.tsx`) and a block "On disk"
+// (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
-import type { DataExportElement } from "@reqseq/core";
+import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
@@ -112,6 +113,7 @@ import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
+import { VariantLines } from "./VariantLines.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
   TEXT_FIELD,
@@ -322,6 +324,9 @@ export const ElementView = ({
   active: inArea,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
+  // The last answer of `element.get`, for the lines of the variants and the verification status (SR-046,
+  // SR-047): a save answers without them, so they stay until the element is read again.
+  const [got, setGot] = useState<Pick<ElementGetOutput, "element" | "names"> | undefined>(undefined);
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
@@ -900,6 +905,7 @@ export const ElementView = ({
         return;
       }
       if (answer.ok) {
+        setGot(answer.output);
         apply(answer.output.element, answer.output.fileSha256, changedJustNow);
       } else {
         // An "Edit text" that waited for this element is void: it must not act when a later load succeeds.
@@ -1132,6 +1138,7 @@ export const ElementView = ({
     }
     const next = checkStep(answer.output.fileSha256, expected, refused);
     if (next.kind === "apply") {
+      setGot(answer.output);
       apply(answer.output.element, answer.output.fileSha256, false);
       // Read after `apply`, which may have found a conflict or kept input.
       return diskState.current.conflict === undefined && inputDocs().size === 0;
@@ -1810,6 +1817,7 @@ export const ElementView = ({
                 />
               );
             })}
+            {got === undefined ? null : <VariantLines output={got} onOpenRelation={onOpenRelation} />}
             <RelationGroups
               element={dated(view.element)}
               onCopy={copy}
