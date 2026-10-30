@@ -7,7 +7,8 @@
 //    requirement (by the meaning of the element's type); anything else is `input.invalid`. A given
 //    `variant` must be a variant the element applies in (SR-040), else the record would count nowhere;
 //    for a core requirement the variant excludes or replaces (the view rule) the refusal names the
-//    exclusion or the replacing requirements (SR-047 AK4).
+//    exclusion or the replacing requirements (SR-047 AK4). A validation record takes no variant
+//    (SR-038 AK4, D-007); `core` is none.
 // 2. ID and current version (AK1): the UUID and `currentVersionsOf` (one file read in a fresh process,
 //    N-036); neither is an input. No current version: `file.faulty`, nothing written.
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
@@ -51,7 +52,7 @@ import type { Workspace } from "../runtime/workspace.js";
 import { appliesIn, resolveView, validityOf, viewRuleOf } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
-import { readMarkdownRecord, RECORD_KEY } from "./markdown.js";
+import { readMarkdownRecord, RECORD_KEY, VALIDATION_VARIANT_REASON } from "./markdown.js";
 import type { EvidenceRecord } from "./record.js";
 import type { EvidenceRead } from "./state.js";
 import { evidenceReadState, evidenceRecordsState, registerInsertion } from "./state.js";
@@ -399,8 +400,9 @@ interface Prepared {
 }
 
 /**
- * The variant of rule 1: its UUID, undefined for the core; `input.invalid` when the element does not
- * apply in it (SR-040), or when the variant's view leaves it out: excluded, or replaced (SR-047 AK4).
+ * The variant of rule 1: its UUID, undefined for the core; `input.invalid` for a validation record
+ * (SR-038 AK4), when the element does not apply in it (SR-040), or when the variant's view leaves it
+ * out: excluded, or replaced (SR-047 AK4).
  * Every refusal names the element and the variant by short ID (the app gives UUIDs) and gives
  * `details.variant`, the UUID of the variant or `core`.
  */
@@ -413,6 +415,13 @@ const variantOf = (
     return undefined;
   }
   const view = resolveView(context, input.variant, COMMAND, "variant", false);
+  if (input.kind === "validation" && view.kind === "variant") {
+    throw invalid(`Not written: ${VALIDATION_VARIANT_REASON}`, {
+      fields: ["variant"],
+      reason: "validation-with-variant",
+      variant: view.variant.id,
+    });
+  }
   const { shortIds } = context;
   const ref = shortIds.of(element);
   const [variant, id] =

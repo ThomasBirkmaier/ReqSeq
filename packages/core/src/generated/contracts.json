@@ -1463,7 +1463,7 @@
         },
         "variant": {
           "$ref": "common.schema.json#/$defs/uuid",
-          "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2)."
+          "description": "Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4)."
         },
         "item": {
           "type": "string",
@@ -1490,6 +1490,9 @@
       "allOf": [
         {
           "if": {
+            "required": [
+              "kind"
+            ],
             "properties": {
               "kind": {
                 "const": "verification"
@@ -1501,6 +1504,23 @@
               "method",
               "item"
             ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "validation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "variant": false
+            }
           }
         }
       ],
@@ -6910,7 +6930,7 @@
             },
             "variant": {
               "$ref": "../common.schema.json#/$defs/elementRef",
-              "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
+              "description": "A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4)."
             },
             "date": {
               "$ref": "../common.schema.json#/$defs/dateTime",

@@ -1428,6 +1428,19 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       tag: "[SR-047/AK4]",
       expect: "error",
     },
+    {
+      name: "a validation record with a variant is refused (SR-038 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a3",
+        kind: "validation",
+        result: "passed",
+        variant: "VAR-0000c1",
+        date: "2026-10-27T10:00:00Z",
+      },
+      tag: "[SR-038/AK4]",
+      expect: "error",
+    },
   ],
   "evidence.status": [
     {

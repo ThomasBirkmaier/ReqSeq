@@ -148,52 +148,56 @@ describe("validation status in element.get, element.resolve, evidence.status and
     });
   });
 
-  it("a need whose only validation record has a variant is open, and the record stays visible in its hint (#534 Q2)", async () => {
-    const record = [
-      "---",
-      "reqseq-record: 1",
-      "kind: validation",
-      `element: ${N4}`,
-      "version: n1:0000000000000000",
-      `variant: ${U("c001")}`,
-      "result: passed",
-      "date: 2026-10-27T10:00:00Z",
-      "---",
-      "",
-    ].join("\n");
-    const ws = await open({ ...VALIDATION, files: { "evidence/2026-10-27-N-00a004-validation.md": record } });
-    const out = (await get(ws, N4)).element;
-    expect(out.validation).toBe("open");
-    expect(out.problems?.map((p) => p.code)).toEqual(["evidence.outdated"]);
-  });
-
-  it("a need whose only validation record of the current version has a variant is open, has no hint, and evidence.list lists the record (#534 Q2)", async () => {
+  it("[SR-038/AK4] a validation record with a variant is refused when read, names the reason and counts for no status", async () => {
     const plain = await open();
     const current = String((await get(plain, N4)).element.version);
-    const record = [
-      "---",
-      "reqseq-record: 1",
-      "kind: validation",
-      `element: ${N4}`,
-      `version: ${current}`,
-      `variant: ${U("c001")}`,
-      "result: passed",
-      "date: 2026-10-27T10:00:00Z",
-      "---",
-      "",
-    ].join("\n");
-    const ws = await open({ ...VALIDATION, files: { "evidence/2026-10-27-N-00a004-validation.md": record } });
+    const record = (version: string): string =>
+      [
+        "---",
+        "reqseq-record: 1",
+        "kind: validation",
+        `element: ${N4}`,
+        `version: ${version}`,
+        `variant: ${U("c001")}`,
+        "result: passed",
+        "date: 2026-10-27T10:00:00Z",
+        "---",
+        "",
+      ].join("\n");
+    const ws = await open({
+      ...VALIDATION,
+      files: {
+        "evidence/2026-10-27-N-00a004-validation.md": record(current),
+        "evidence/2026-10-26-N-00a004-validation.md": record("n1:0000000000000000"),
+      },
+    });
+    // Neither record counts: N4 stays open, no hint names the older one, evidence.list lists neither.
     const out = (await get(ws, N4)).element;
-    expect(out.validation).toBe("open");
-    expect(out.problems ?? []).toEqual([]);
+    expect([out.validation, out.problems ?? []]).toEqual(["open", []]);
     const listed = (await invoke(
       "evidence.list",
       { ref: N4 },
       { workspace: ws },
     )) as CommandOutput<"evidence.list">;
-    expect(listed.records.map((r) => [r.element, r.kind, r.version, r.variant])).toEqual([
-      [N4, "validation", current, U("c001")],
-    ]);
+    expect(listed.records).toEqual([]);
+    // workspace.check names each file and the reason.
+    const checked = (await invoke(
+      "workspace.check",
+      {},
+      { workspace: ws },
+    )) as CommandOutput<"workspace.check">;
+    expect(
+      checked.problems
+        .filter((p) => p.code === "evidence.invalid-record")
+        .map((p) => [p.severity, p.file, p.line, p.message]),
+    ).toEqual(
+      ["2026-10-26", "2026-10-27"].map((day) => [
+        "error",
+        `evidence/${day}-N-00a004-validation.md`,
+        6,
+        "Invalid evidence record, not counted: /variant: a validation record names no variant, it holds for the core (D-007, SR-038 AK4)",
+      ]),
+    );
   });
 
   it("compares nothing while the metamodel is not valid: every need is open, no other element has a validation status", async () => {

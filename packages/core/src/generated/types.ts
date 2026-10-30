@@ -749,7 +749,7 @@ export interface EvidenceRecordFile {
   readonly version: Version;
   /** Required for verification (D-026). */
   readonly method?: "test" | "analysis" | "inspection" | "demonstration";
-  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). */
+  /** Variant the record holds for. Absent: the core (D-026, SR-047 AK2). Verification only: a validation record with a variant is refused and counts for no status (D-007, SR-038 AK4). */
   readonly variant?: Uuid;
   /** Prüfling: the concrete build or sample that was checked. Required for verification, optional for validation (D-007). */
   readonly item?: string;
@@ -2413,7 +2413,7 @@ export interface EvidenceRecordInput {
   readonly result: "passed" | "failed";
   /** The item under test (Prüfling), for example the build or sample. Required for verification. No white space at either end and no control characters other than tab, line feed and carriage return. */
   readonly item?: Item;
-  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
+  /** A variant the element applies in (an element whose type has the meaning variant); the record holds for it. Absent: the core. Verification only: a variant with `kind` validation is `input.invalid` with `details.reason` `validation-with-variant` (SR-038 AK4, D-007); `core` is allowed. A variant the element is not in is `input.invalid` with `details.reason` `not-valid-in-variant`, or `excluded-in-variant` or `replaced-in-variant` when the variant excludes or replaces the requirement (SR-047 AK4). */
   readonly variant?: ElementRef;
   /** When the check was done. Default: the time of the call, UTC, whole seconds. Its first ten characters (the day in its own offset) start the file name. */
   readonly date?: IsoDateTime;
