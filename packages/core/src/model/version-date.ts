@@ -23,14 +23,7 @@
 import { createHash } from "node:crypto";
 import { CommandError } from "../catalog.js";
 import { parseFileBytes } from "../files/index.js";
-import type {
-  FileMove,
-  GitUnknown,
-  HeadFiles,
-  HistoryCommit,
-  ObjectInfo,
-  ObjectReader,
-} from "../git/reader.js";
+import type { GitUnknown, HeadFiles, HistoryCommit, ObjectInfo, ObjectReader } from "../git/reader.js";
 import {
   fileHistory,
   fileMoves,
@@ -128,8 +121,8 @@ interface Facts {
   readonly versions: Map<string, string | undefined>;
   /** The commits whose moves were looked up. */
   readonly movesAsked: Set<string>;
-  /** The files each of them moved, where it moved any. */
-  readonly moves: Map<string, readonly FileMove[]>;
+  /** The old paths of the files each of them moved, by NFC of the new path; where it moved any. */
+  readonly moves: Map<string, Map<string, string[]>>;
 }
 
 /** The walks of one repository at one HEAD, by `walkKey`. */
@@ -311,7 +304,11 @@ const lookUpMoves = async (
     }
   } else {
     for (const [commit, moves] of found.moves) {
-      facts.moves.set(commit, moves);
+      const byTarget = new Map<string, string[]>();
+      for (const { from, to } of moves) {
+        pushTo(byTarget, to.normalize("NFC"), from);
+      }
+      facts.moves.set(commit, byTarget);
     }
   }
   for (const commit of unasked) {
@@ -326,14 +323,21 @@ const lookUpMoves = async (
 const addOldNames = (walk: FileWalk, commits: readonly HistoryCommit[], facts: Facts): boolean => {
   const { names, tracked } = walk.walked;
   const known = new Set(names.map((n) => n.normalize("NFC")));
-  const moves = commits.flatMap(({ commit }) => facts.moves.get(commit) ?? []);
   const before = names.length;
-  // A path git cannot take on a line is not followed.
-  for (const { from, to } of moves) {
-    if (known.has(to.normalize("NFC")) && !known.has(from.normalize("NFC")) && isGitPath(from)) {
-      names.push(from);
-      known.add(from.normalize("NFC"));
-      tracked.add(from.normalize("NFC"));
+  // Each commit's moves are found by the new path, so a commit that moved many files costs one
+  // look-up per name, not one per move (N-036).
+  for (const { commit } of commits) {
+    const byTarget = facts.moves.get(commit);
+    // A name added here may be the target of another move of the same commit.
+    for (let i = 0; byTarget !== undefined && i < names.length; i++) {
+      for (const from of byTarget.get(String(names[i]).normalize("NFC")) ?? []) {
+        // A path git cannot take on a line is not followed.
+        if (!known.has(from.normalize("NFC")) && isGitPath(from)) {
+          names.push(from);
+          known.add(from.normalize("NFC"));
+          tracked.add(from.normalize("NFC"));
+        }
+      }
     }
   }
   return names.length > before;
@@ -508,57 +512,86 @@ const readAll = async (
   return read.objects;
 };
 
+/** Tracks the image paths `held` embeds in `walk`; whether one was new. */
+const trackImages = (walk: FileWalk, held: Held | undefined): boolean => {
+  const before = walk.walked.tracked.size;
+  for (const link of held?.links.filter((l) => !l.missing) ?? []) {
+    walk.walked.tracked.add(imagePath(link).normalize("NFC"));
+  }
+  return walk.walked.tracked.size > before;
+};
+
+/** One text a round reads: a name of the file at a commit. */
+interface TextAt {
+  readonly walk: FileWalk;
+  readonly commit: string;
+  /** Index into the names of the walk. */
+  readonly index: number;
+}
+
+/** The text blob of `text` and the key of what it held; undefined where the commit has none. */
+const textOf = (
+  facts: Facts,
+  { walk, commit, index }: TextAt,
+): { blob: ObjectInfo; key: string; name: string } | undefined => {
+  const name = String(walk.walked.names[index]);
+  const blob = blobAt(facts, forms(name), commit);
+  return blob === undefined ? undefined : { blob, key: heldKey(walk, name, blob), name };
+};
+
 /**
  * Reads and parses the texts of the walked files at `at` that are not parsed yet (each blob once)
- * and tracks the image paths they embed; returns the walks whose tracked paths grew.
+ * and tracks the image paths they embed; returns the walks whose tracked paths grew. The names of a
+ * file are asked in turn, each only where no name before it held the element, so a commit where
+ * the current path holds it costs one name (Git finds a path in a large folder slowly).
  */
 const readTexts = async (
   round: Round,
   at: readonly { walk: FileWalk; commit: string }[],
 ): Promise<FileWalk[]> => {
   const { facts } = round.walks;
-  await ask(
-    round,
-    at.flatMap(({ walk, commit }) =>
-      walk.walked.names.flatMap(forms).map((form) => objectName(commit, form)),
-    ),
-  );
-  // Each blob is read once, and parsed once for each walk and name that has it.
-  const unread = new Map<string, Map<string, { walk: FileWalk; name: string }>>();
-  for (const { walk, commit } of at) {
-    for (const { name, blob } of textsAt(facts, walk, commit)) {
-      const key = heldKey(walk, name, blob);
-      if (!facts.held.has(key)) {
-        unread.set(
-          blob.id,
-          (unread.get(blob.id) ?? new Map<string, { walk: FileWalk; name: string }>()).set(key, {
-            walk,
-            name,
-          }),
-        );
+  const grown = new Set<FileWalk>();
+  for (let open: TextAt[] = at.map((a) => ({ ...a, index: 0 })); open.length > 0;) {
+    await ask(
+      round,
+      open.flatMap((text) =>
+        forms(String(text.walk.walked.names[text.index])).map((form) => objectName(text.commit, form)),
+      ),
+    );
+    // Each blob is read once, and parsed once for each walk and name that has it.
+    const unread = new Map<string, Map<string, { walk: FileWalk; name: string }>>();
+    for (const text of open) {
+      const found = textOf(facts, text);
+      if (found !== undefined && !facts.held.has(found.key)) {
+        const holders = unread.get(found.blob.id) ?? new Map<string, { walk: FileWalk; name: string }>();
+        unread.set(found.blob.id, holders.set(found.key, { walk: text.walk, name: found.name }));
       }
     }
-  }
-  const texts = [...unread].map(([id, holders]) => ({ id, holders, chunks: [] as Buffer[] }));
-  await readAll(
-    round,
-    texts.map((t) => t.id),
-    texts.map((t) => (chunk) => t.chunks.push(chunk)),
-  );
-  const grown = new Set<FileWalk>();
-  for (const { holders, chunks } of texts) {
-    const bytes = Buffer.concat(chunks);
-    for (const [key, { walk, name }] of holders) {
-      const held = heldElement(name, walk.walked.id, bytes, round.source.ignored);
-      facts.held.set(key, held);
-      for (const link of held?.links.filter((l) => !l.missing) ?? []) {
-        const tracked = imagePath(link).normalize("NFC");
-        if (!walk.walked.tracked.has(tracked)) {
-          walk.walked.tracked.add(tracked);
+    const texts = [...unread].map(([id, holders]) => ({ id, holders, chunks: [] as Buffer[] }));
+    await readAll(
+      round,
+      texts.map((t) => t.id),
+      texts.map((t) => (chunk) => t.chunks.push(chunk)),
+    );
+    for (const { holders, chunks } of texts) {
+      const bytes = Buffer.concat(chunks);
+      for (const [key, { walk, name }] of holders) {
+        const held = heldElement(name, walk.walked.id, bytes, round.source.ignored);
+        facts.held.set(key, held);
+        if (trackImages(walk, held)) {
           grown.add(walk);
         }
       }
     }
+    open = open
+      .filter((text) => {
+        const found = textOf(facts, text);
+        return (
+          (found === undefined || facts.held.get(found.key) === undefined) &&
+          text.index + 1 < text.walk.walked.names.length
+        );
+      })
+      .map((text) => ({ ...text, index: text.index + 1 }));
   }
   return [...grown];
 };

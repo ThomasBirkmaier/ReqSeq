@@ -20,6 +20,24 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 
+/** The command line of `moves` with rename detection at `similarity`. */
+const movesCommand = (similarity: "50%" | "100%"): readonly string[] => [
+  "-c",
+  "log.showRoot=false",
+  "log",
+  "--no-show-signature",
+  "--no-walk",
+  "--relative",
+  `--find-renames=${similarity}`,
+  "-l1000",
+  "--diff-filter=R",
+  "--raw",
+  "--no-abbrev",
+  "-z",
+  "--format=%H",
+  "--stdin",
+];
+
 /** Every command line ReqSeq runs, after the fixed options of `run`. Read-only, no network. */
 const COMMANDS = {
   /**
@@ -66,22 +84,12 @@ const COMMANDS = {
    * do not change it: at least 50 % similar, and at most 1,000 files compared by content (an
    * unchanged file is always found).
    */
-  moves: [
-    "-c",
-    "log.showRoot=false",
-    "log",
-    "--no-show-signature",
-    "--no-walk",
-    "--relative",
-    "--find-renames=50%",
-    "-l1000",
-    "--diff-filter=R",
-    "--raw",
-    "--no-abbrev",
-    "-z",
-    "--format=%H",
-    "--stdin",
-  ],
+  moves: movesCommand("50%"),
+  /**
+   * The same with unchanged files only (100 %), which needs no blob: for a partial clone, where
+   * comparing contents would need blobs that are not there, and git ends at the first one.
+   */
+  exactMoves: movesCommand("100%"),
   /**
    * Commands on standard input (git 2.36 and newer): `info <name>` prints ID, type and size of an
    * object, `contents <name>` also its bytes as Git stores them (no checkout filters); `flush`
@@ -649,9 +657,36 @@ const parseMoves = (output: string): Map<string, FileMove[]> => {
 };
 
 /**
+ * Whether the repository of `folder` is a partial clone, as its config file says, as git reads it:
+ * a remote with `promisor = true` (which `clone --filter` sets) or `partialClone` in `[extensions]`
+ * (older git); also where the files of its Git folder cannot tell
+ * (`headFiles`), so that a lookup never needs a blob it may not have.
+ */
+const partialClone = async (folder: string): Promise<boolean> => {
+  const git = await gitFolders(folder);
+  if (git === undefined) {
+    return true;
+  }
+  let section = "";
+  for (const line of (await readSmall(path.join(git.commonDir, "config")))?.split(/\r?\n/) ?? []) {
+    const header = /^\s*\[\s*([^\]\s]+)/.exec(line);
+    if (header !== null) {
+      section = String(header[1]).toLowerCase();
+    }
+    if (
+      (section === "extensions" && /^\s*partialclone\s*=/i.test(line)) ||
+      (section === "remote" && /^\s*promisor\s*(?:=\s*(?:true|yes|on|1)\s*)?$/i.test(line))
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
  * The files each of `commits` moved within `folder` (the top level of its work tree or a folder
  * below it): Git's rename detection against the commit's parent, at least 50 % similar (an
- * unchanged file always counts), paths relative to `folder` as Git stores them. A merge, a first
+ * unchanged file always counts; in a partial clone only an unchanged file, `partialClone`), paths relative to `folder` as Git stores them. A merge, a first
  * commit and a commit that moved nothing have no entry; neither has a file moved into the folder
  * from outside it. One process for all commits. Unknown when git fails. A programming error when a
  * commit is not an object ID.
@@ -669,7 +704,8 @@ export const fileMoves = async (
     // `log --no-walk` without revisions would show HEAD.
     return { known: true, moves: new Map() };
   }
-  const result = await run(folder, "moves", { ...options, input: `${commits.join("\n")}\n` });
+  const command = (await partialClone(folder)) ? "exactMoves" : "moves";
+  const result = await run(folder, command, { ...options, input: `${commits.join("\n")}\n` });
   if (!result.ok) {
     return unknown(result);
   }

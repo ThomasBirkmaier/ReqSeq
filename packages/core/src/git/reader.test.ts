@@ -641,6 +641,49 @@ describe("file moves", () => {
     ]);
   });
 
+  it("finds only unchanged moves in a partial clone, or where the Git folder cannot tell, as it needs no blob there", async () => {
+    const ws = await createFixtureWorkspace();
+    onTestFinished(() => ws.cleanup());
+    await ws.git(["init", "--quiet", "--initial-branch=main"]);
+    const made = await ws.commitHistory(
+      [
+        { name: "first", files: { "a.md": "a\nline\n", "b.md": "b\n" } },
+        { name: "moved", deleted: ["a.md", "b.md"], files: { "c.md": "a\nline\nmore\n", "d.md": "b\n" } },
+      ],
+      { branch: "main" },
+    );
+    await ws.git(["reset", "--hard", "--quiet"]);
+    await ws.git(["config", "uploadpack.allowFilter", "true"]);
+    const moved = String(made["moved"]?.id);
+    const both = new Map([
+      [
+        moved,
+        [
+          { from: "a.md", to: "c.md" },
+          { from: "b.md", to: "d.md" },
+        ],
+      ],
+    ]);
+    const unchanged = new Map([[moved, [{ from: "b.md", to: "d.md" }]]]);
+    // A blobless clone: comparing `a.md` with `c.md` would need a blob it must not fetch.
+    await ws.git(["clone", "--quiet", "--filter=blob:none", pathToFileURL(ws.root).href, "partial"]);
+    expect(await fileMoves(ws.path("partial"), [moved])).toEqual({ known: true, moves: unchanged });
+    expect(mock.calls.at(-1)?.args).toContain("--find-renames=100%");
+    // Without a config file, a repository is no partial clone.
+    await fs.rm(path.join(ws.root, ".git", "config"));
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: both });
+    // A reftable repository: only git can read its HEAD, so it counts as a partial clone.
+    await fs.mkdir(path.join(ws.root, ".git", "reftable"));
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: unchanged });
+    // A partial clone as older git marks it.
+    await fs.rm(path.join(ws.root, ".git", "reftable"), { recursive: true });
+    await fs.writeFile(
+      path.join(ws.root, ".git", "config"),
+      "[core]\n\tbare = false\n[extensions]\n\tpartialClone = origin\n",
+    );
+    expect(await fileMoves(ws.root, [moved])).toEqual({ known: true, moves: unchanged });
+  });
+
   it("runs no git for no commits, refuses what is no commit ID, and is unknown when git fails or prints something else", async () => {
     const ws = await fixture();
     expect(await fileMoves(ws.path("plain"), [])).toEqual({ known: true, moves: new Map() });
