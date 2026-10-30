@@ -5,7 +5,8 @@
 // (`degreePercent`, one decimal rounded down, #592 Q3). A UUID the output names in `names` (#588) is the row
 // of its element, and `names` itself is not shown. A record of exactly two named UUIDs, such as a replaced
 // row of `variant.diff` (`core`, `replacement`), is one line that opens both side by side, read-only
-// (SR-044 AK2). Layout only: nothing here knows a command (ADR-0002).
+// (SR-044 AK2); a row with a third field would be an outline again. A UUID in two repositories (SR-088)
+// opens in the repository `names` gives first. Layout only: nothing here knows a command (ADR-0002).
 import { degreePercent, degreeShareOf } from "@reqseq/core/verification-degree";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBuffer, elementBufferOf, readOnlyBuffer } from "./buffers.js";
@@ -137,12 +138,18 @@ const pairLine = (pair: NonNullable<ReturnType<typeof pairOf>>, depth: number): 
   };
 };
 
-/** A value that is no list and no record: the row of the element a named UUID is, else its text. */
+/**
+ * A value that is no list and no record: its text, or the row of the element a named UUID is. Under a key
+ * (`view`, `id`) the row keeps it in its label ("view: VAR-1"); an item of a list has its key on the count
+ * line above.
+ */
 const leafLine = (value: unknown, depth: number, label: string, names: Names): ResultLine => {
   const named = typeof value === "string" ? names.get(value) : undefined;
-  return named === undefined
-    ? { kind: "text", depth, label, text: scalar(value) }
-    : elementLine(named, depth);
+  if (named === undefined) {
+    return { kind: "text", depth, label, text: scalar(value) };
+  }
+  const row = elementLine(named, depth);
+  return label === "" ? row : { ...row, label: `${label}: ${row.label}` };
 };
 
 const linesOf = (value: unknown, depth: number, label: string, sink: Sink, names: Names): void => {

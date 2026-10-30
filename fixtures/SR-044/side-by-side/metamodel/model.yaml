@@ -1,6 +1,6 @@
-# The example of SR-043 (rationale), with text and acceptance criteria for K1 and its replacement A1
-# (SR-044 AK2): core requirements K1 to K4; variant A replaces K1 by A1 (validity [A]), excludes K2 and
-# adds A2 (validity [A]). Variants B and C change nothing.
+# The example of SR-043 (rationale), cut down to K1, K2, A1, A2 and variant A, with text and acceptance
+# criteria for K1 and its replacement A1 (SR-044 AK2), which the example of SR-043 does not have: variant A
+# replaces K1 by A1 (validity [A]), excludes K2 and adds A2 (validity [A]).
 reqseq-metamodel: 1
 types:
   - { key: need, name: Need, prefix: N, meaning: need, properties: [title] }

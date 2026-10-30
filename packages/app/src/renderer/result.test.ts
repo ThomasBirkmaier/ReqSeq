@@ -107,6 +107,7 @@ describe("result lines", () => {
       replaced: [{ core: "uuid-1", replacement: "uuid-2" }],
       excluded: ["uuid-4", "uuid-9"],
       other: { core: "uuid-1", replacement: "uuid-9" },
+      view: "uuid-4",
       names: [element(1, { identifier: "SR-1" }), element(2), element(3), element(4), element(1), "x"],
     });
     expect(lines.map((line) => [line.kind, line.depth, line.label, line.text])).toEqual([
@@ -118,9 +119,12 @@ describe("result lines", () => {
       ["element", 1, "SR-000004", "Title 4"],
       ["text", 1, "", "uuid-9"],
       ["text", 0, "other", ""],
-      ["element", 1, "SR-1", "Title 1"],
+      ["element", 1, "core: SR-1", "Title 1"],
       ["text", 1, "replacement", "uuid-9"],
+      // A named UUID under a key keeps the key; it opens like any element row.
+      ["element", 0, "view: SR-000004", "Title 4"],
     ]);
+    expect(lines.at(-1)?.open).toEqual(elementBuffer("uuid-4", "spec", "SR-000004 Title 4"));
     expect(lines[1]?.open).toEqual(elementBuffer("uuid-3", "spec", "SR-000003 Title 3"));
     expect(lines[3]?.open).toEqual(readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Title 1")));
     expect(lines[3]?.beside).toEqual(readOnlyBuffer(elementBuffer("uuid-2", "spec", "SR-000002 Title 2")));

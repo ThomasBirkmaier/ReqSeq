@@ -1,19 +1,32 @@
-// The difference of a variant to the core on the built app (SR-044 AK2) on fixtures/SR-044/side-by-side:
-// core requirements K1 (SR-0000a1) and K2 (SR-0000a2); variant A „Coast“ (VAR-0000c1) replaces K1 by A1
-// (SR-0000b1), excludes K2 and adds A2 (SR-0000b2). K1 and A1 have a text and an acceptance criterion.
-// "Show variant difference" in the command prompt runs `variant.diff` into the result buffer; Enter on the
-// replaced row shows K1 and A1 side by side, read-only. Keys use ControlOrMeta, so the same test runs on
-// Linux and macOS.
+// The difference of a variant to the core on the built app (SR-044 AK1, AK2) on
+// fixtures/SR-044/side-by-side: core requirements K1 (SR-0000a1) and K2 (SR-0000a2); variant A „Coast“
+// (VAR-0000c1) replaces K1 by A1 (SR-0000b1), excludes K2 and adds A2 (SR-0000b2). K1 and A1 have a text
+// and an acceptance criterion. "Show variant difference" in the command prompt runs `variant.diff` into the
+// result buffer; Enter on the replaced row shows K1 and A1 side by side, read-only. Keys use
+// ControlOrMeta, so the same tests run on Linux and macOS.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
 import { launchApp } from "./support/app.js";
 
 const TITLE = "Show variant difference";
 const K1 = "Response time at most 10 ms";
 const A1 = "Response time at most 20 ms";
+
+/** Runs "Show variant difference" for A from the command prompt. */
+const showDifference = async (window: Page): Promise<Locator> => {
+  const names = window.locator('.candidates [role="option"] .name');
+  await window.keyboard.press("ControlOrMeta+Shift+P");
+  await window.keyboard.type(TITLE);
+  await expect(names.first()).toHaveText(TITLE);
+  await window.keyboard.press("Enter");
+  await window.keyboard.type("Coast");
+  await expect(names.first()).toHaveText("VAR-0000c1 Coast");
+  await window.keyboard.press("Enter");
+  return window.locator(".result");
+};
 
 test.describe("the difference of a variant in the app", () => {
   let running: RunningApp;
@@ -39,18 +52,8 @@ test.describe("the difference of a variant in the app", () => {
     }
   };
 
-  test("[SR-044/AK2] Enter on a replaced row shows K1 and A1 read-only side by side in the split window", async () => {
-    const { window } = running;
-    const names = window.locator('.candidates [role="option"] .name');
-    await window.keyboard.press("ControlOrMeta+Shift+P");
-    await window.keyboard.type(TITLE);
-    await expect(names.first()).toHaveText(TITLE);
-    await window.keyboard.press("Enter");
-    await window.keyboard.type("Coast");
-    await expect(names.first()).toHaveText("VAR-0000c1 Coast");
-    await window.keyboard.press("Enter");
-    // The three lists, as the CLI gives them (SR-044 AK1, SR-080).
-    const result = window.locator(".result");
+  test("[SR-044/AK1] variant.diff of A lists added A2, replaced K1 by A1 and excluded K2 in the app", async () => {
+    const result = await showDifference(running.window);
     await expect(result.locator(".line")).toHaveText([
       "added1",
       "SR-0000b2Warn of storms",
@@ -60,6 +63,21 @@ test.describe("the difference of a variant in the app", () => {
       "SR-0000a2Measure the wind",
       "incompletefalse",
     ]);
+    // The same lists as the CLI gives (SR-080).
+    const cli = await running.cli(["variant", "diff", "VAR-0000c1", "--json"]);
+    expect(JSON.parse(cli.stdout)).toMatchObject({
+      added: ["43043043-0000-4000-8000-0000000000b2"],
+      replaced: [
+        { core: "43043043-0000-4000-8000-0000000000a1", replacement: "43043043-0000-4000-8000-0000000000b1" },
+      ],
+      excluded: ["43043043-0000-4000-8000-0000000000a2"],
+    });
+  });
+
+  test("[SR-044/AK2] Enter on a replaced row shows K1 and A1 read-only side by side in the split window", async () => {
+    const { window } = running;
+    const result = await showDifference(window);
+    await expect(result.locator(".line.pair")).toBeVisible();
     const [k1Before, a1Before] = [await file("SR-0000000000a1.md"), await file("SR-0000000000b1.md")];
     // Down to the replaced row, then Enter.
     await result.focus();
@@ -75,14 +93,20 @@ test.describe("the difference of a variant in the app", () => {
     const modeline = window.getByLabel("Modeline");
     await expect(modeline).toContainText("SR-0000a1");
     await expect(modeline).toContainText("read-only");
-    // Typing into either buffer changes nothing.
+    // Typing into either buffer changes nothing, and "Save element" says it is read-only.
+    const echo = window.getByLabel("Minibuffer");
     await left.locator(".cm-content").first().click();
-    await window.keyboard.insertText("X");
+    await window.keyboard.insertText("QX");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(echo).toContainText(/SR-0000a1 .*is read-only/u);
     await right.locator(".cm-content").first().click();
     await expect(modeline).toContainText("SR-0000b1");
     await expect(modeline).toContainText("read-only");
-    await window.keyboard.insertText("Y");
-    await expect(left.locator("article h1")).toHaveText(K1);
+    await window.keyboard.insertText("QY");
+    await window.keyboard.press("ControlOrMeta+S");
+    await expect(echo).toContainText(/SR-0000b1 .*is read-only/u);
+    await expect(left.locator("article")).not.toContainText("QX");
+    await expect(right.locator("article")).not.toContainText("QY");
     expect(await file("SR-0000000000a1.md")).toBe(k1Before);
     expect(await file("SR-0000000000b1.md")).toBe(a1Before);
   });

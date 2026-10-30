@@ -1,8 +1,9 @@
 // The result buffer (SR-073 AK2): the output of a catalog command run from the command prompt that no
 // other buffer shows, as lines laid out by its shape (`result.ts`). Up and Down, Ctrl+N and Ctrl+P select
 // a line (none is selected at first, SR-122), Enter or a click opens the element of an element row or of
-// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). When the workspace changed, it asks the command again with the same input (ADR-0002: the
-// app runs commands and shows what they give); the output of a write command stays as it came (#85).
+// a problem, and the two elements of a pair line side by side, read-only (SR-044 AK2). When the
+// workspace changed, it asks the command again with the same input (ADR-0002: the app runs commands and
+// shows what they give); the output of a write command stays as it came (#85).
 import { useEffect, useMemo } from "react";
 import { useIdScope } from "./area-scope.js";
 import type { ResultBuffer } from "./buffers.js";

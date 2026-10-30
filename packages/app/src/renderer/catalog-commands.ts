@@ -46,7 +46,7 @@ import type { Action, ActionContext, Choice, Prompt, PromptFill } from "./action
 import { findElements } from "./actions.js";
 import { bindingLabel } from "./bindings.js";
 import { coveringAction } from "./command-entry.js";
-import type { Buffer } from "./buffers.js";
+import type { Buffer, ElementBuffer, NeighbourhoodBuffer } from "./buffers.js";
 import { bufferName, elementBufferOf, resultBuffer } from "./buffers.js";
 import type { PropertyAnswer, RequiredProperty } from "./create-element.js";
 import { CREATE_COMMAND, creatableTypes, createdEcho, propertiesInput } from "./create-element.js";
@@ -723,6 +723,22 @@ const askAgain = (context: CatalogContext, answered: Entry, at: number): void =>
   ask(context, { ...rest, given, ...(keeps ? { collecting: again.field } : {}) }, arg, index);
 };
 
+/**
+ * The element an element argument offers first: the element shown, else the selected row of the shown
+ * list. An element shown read-only (SR-044 AK2) is not offered to a write command, so that buffer stays
+ * one a write never starts from by Enter alone; the write can still name it.
+ */
+const firstOffered = (
+  context: CatalogContext,
+  entry: Entry,
+): ElementBuffer | NeighbourhoodBuffer | undefined => {
+  const shown = context.buffers[0];
+  if (shown?.kind === "element" && shown.readOnly === true && isWrite(entry.command)) {
+    return undefined;
+  }
+  return shown?.kind === "element" || shown?.kind === "neighbourhood" ? shown : context.row;
+};
+
 /** One argument back: the value given last is asked again; before the first, the command prompt. */
 const back = (context: CatalogContext, entry: Entry): void => {
   askAgain(context, entry, entry.given.length - 1);
@@ -939,13 +955,7 @@ const ask = (context: CatalogContext, entry: Entry, arg: Argument, at: number): 
         const picked = (row: Row): unknown => (offer.target === true ? relationTargetOf(row) : row.open.id);
         // The element shown, else the selected row of the shown list, comes first, so Enter takes it; not
         // among target types, which it may not have.
-        const shown = context.buffers[0];
-        const first =
-          offer.types !== undefined
-            ? undefined
-            : shown?.kind === "element" || shown?.kind === "neighbourhood"
-              ? shown
-              : context.row;
+        const first = offer.types !== undefined ? undefined : firstOffered(context, entry);
         return {
           items:
             first === undefined
