@@ -247,6 +247,14 @@ describe("the view rule (SR-041, SR-043)", () => {
     expect(rule.addedOf().map((e) => name(e.id))).toEqual(["A2", "b3"]);
     const [k2] = store.byId.get(`${P}a2`) ?? [];
     expect(k2 && [rule.excludes(k2), rule.replacedBy(k2)]).toEqual([true, []]);
+    // A record read again from its file (element.get) is looked up by repository and UUID.
+    const [k1] = store.byId.get(`${P}a1`) ?? [];
+    const again = k1 && { ...k1 };
+    expect(again && [rule.includes(again), rule.replacedBy(again).map((e) => name(e.id))]).toEqual([
+      false,
+      ["A1"],
+    ]);
+    expect(k2 && rule.excludes({ ...k2 })).toBe(true);
     // The rule and the index are kept per store and metamodel; the core rule changes nothing.
     expect(viewRuleIndexOf(ws, store, metamodel)).toBe(viewRuleIndexOf(ws, store, metamodel));
     const core = viewRuleOf({ workspace: ws, store, metamodel }, { kind: "core" });
