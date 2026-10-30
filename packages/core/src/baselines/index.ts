@@ -3,6 +3,8 @@
 // text of new baseline files; creating them is SR-050, comparing SR-051. Core blocks and commands
 // import it relatively; it never imports `commands`. Block doc: docs/baselines.md.
 export { baselineStem, baselineText } from "./text.js";
+export { elementNames, involvedCommits, refuseUncommitted } from "./state.js";
+export type { ChangedFile, Checked } from "./state.js";
 export { writeNewBaseline } from "./write.js";
 export {
   BASELINE_FILE_EXTENSION,
