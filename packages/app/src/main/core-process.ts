@@ -42,6 +42,8 @@ interface Running {
   readonly exact: boolean;
   /** The key of the open workspace in the list of recent workspaces, from the core process's `ready`. */
   key: string | undefined;
+  /** Its root, when it belongs in that list (`ready` with `listed`). */
+  listedRoot: string | undefined;
   readonly files: Map<number, (answer: FileAnswer) => void>;
   readonly exited: Promise<void>;
   stopping: boolean;
@@ -73,6 +75,14 @@ export class CoreProcess {
    */
   get key(): string | undefined {
     return this.#running?.key;
+  }
+
+  /**
+   * The root of the open workspace when it belongs in the list of recent workspaces; the core process
+   * writes it there in the background, so the stored list can lack it for a while (#423).
+   */
+  get listedRoot(): string | undefined {
+    return this.#running?.listedRoot;
   }
 
   /**
@@ -152,12 +162,22 @@ export class CoreProcess {
         }
       });
     });
-    const running: Running = { child, folder, exact, key: undefined, files, exited, stopping: false };
+    const running: Running = {
+      child,
+      folder,
+      exact,
+      key: undefined,
+      listedRoot: undefined,
+      files,
+      exited,
+      stopping: false,
+    };
     this.#running = running;
     child.on("message", (data) => {
       const message = coreMessage(data);
       if (message?.type === "ready") {
         running.key = message.key;
+        running.listedRoot = message.listed ? message.root : undefined;
         return;
       }
       if (message?.type !== "file") {

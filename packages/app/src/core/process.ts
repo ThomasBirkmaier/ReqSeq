@@ -112,7 +112,8 @@ export const serveCoreProcess = (options: CoreProcessOptions): void => {
     // A cold load can take up to 30 s at 50,000 elements (SR-082 AK2); the first command waits for it.
     void warmWorkspace(workspace);
     const key = workspaceKey(root);
-    parentPort.postMessage({ type: "ready", root, key });
+    // `listed`: the workspace goes into the list of recent workspaces (`record` below, in the background).
+    parentPort.postMessage({ type: "ready", root, key, listed: found !== undefined });
     // A folder without a workspace (opened for `workspace.init`) is no recent workspace. The record is a
     // convenience: nothing waits for it but `stop`, and a failure is a log line.
     if (found !== undefined) {

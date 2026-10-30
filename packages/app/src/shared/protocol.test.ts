@@ -102,6 +102,13 @@ describe("coreMessage: what the core process sends the main process", () => {
       type: "ready",
       root: "/w",
       key: "/real/w",
+      listed: false,
+    });
+    expect(coreMessage({ type: "ready", root: "/w", key: "/real/w", listed: true })).toEqual({
+      type: "ready",
+      root: "/w",
+      key: "/real/w",
+      listed: true,
     });
     expect(coreMessage({ type: "ready", root: "/w" })).toBeUndefined();
     expect(coreMessage({ type: "ready", key: "/w" })).toBeUndefined();

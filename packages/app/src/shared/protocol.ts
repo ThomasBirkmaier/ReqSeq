@@ -279,7 +279,13 @@ export type FileAnswer =
 /** Core process to main, over the parent port. */
 export type CoreMessage =
   /** The workspace is open: its root, and its key in the list of recent workspaces (`workspaceKey`). */
-  | { readonly type: "ready"; readonly root: string; readonly key: string }
+  | {
+      readonly type: "ready";
+      readonly root: string;
+      readonly key: string;
+      /** The workspace is recorded in the list of recent workspaces (a folder without one is not). */
+      readonly listed: boolean;
+    }
   | ({ readonly type: "file"; readonly id: number } & FileAnswer);
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -327,7 +333,7 @@ export const coreMessage = (value: unknown): CoreMessage | undefined => {
   }
   if (value["type"] === "ready") {
     return typeof value["root"] === "string" && typeof value["key"] === "string"
-      ? { type: "ready", root: value["root"], key: value["key"] }
+      ? { type: "ready", root: value["root"], key: value["key"], listed: value["listed"] === true }
       : undefined;
   }
   if (value["type"] !== "file" || typeof value["id"] !== "number") {
