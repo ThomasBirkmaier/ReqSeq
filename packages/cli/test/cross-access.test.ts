@@ -82,6 +82,12 @@ interface Written {
     readonly message: string;
   }[];
 }
+/** A level of evidence.coverage, as far as the SR-112 scenario reads it. */
+interface CoverageLevel {
+  readonly type: string;
+  readonly total: number;
+  readonly withEvidence?: number;
+}
 /** The key a message of element.missing-required names: "Required property Title (title) of type …". */
 const requiredKey = (message: string): string | undefined =>
   /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
@@ -957,6 +963,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a package page counts 8 of 10 requirements with evidence, not its need",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        const { levels } = (results["core"]?.outcome as { output: { levels: readonly CoverageLevel[] } })
+          .output;
+        expect(levels.map(({ type, total, withEvidence }) => [type, total, withEvidence])).toEqual([
+          ["need", 1, undefined],
+          ["system-requirement", 10, 8],
+        ]);
+      },
+    },
+    {
       name: "an unknown package gives the same error (#535 fixture)",
       fixture: EVIDENCE,
       input: { selection: { package: "PKG-ffffff" } },
@@ -987,6 +1008,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: DEGREE,
       input: { selection: { package: "PKG-00d002" } },
       expect: "output",
+    },
+    {
+      name: "a package page counts 6 verified, 1 failed, 1 outdated and 2 open",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        expect((results["core"]?.outcome as { output: { degree: unknown } }).output.degree).toEqual({
+          share: 0.6,
+          total: 10,
+          counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+        });
+      },
     },
     {
       name: "a package with obsolete requirements in the core view (SR-037 AK3)",

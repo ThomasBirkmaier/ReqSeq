@@ -10,6 +10,7 @@ import { EditorView } from "@codemirror/view";
 import type { CommandListing, InvokeResult, ReqSeqBridge, WorkspaceChange } from "../shared/protocol.js";
 import { App } from "./App.js";
 import { graphEdge, graphNode, graphOutput } from "./graph-test-data.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -140,7 +141,7 @@ const listeners = new Set<(change: WorkspaceChange) => void>();
 
 const bridge: ReqSeqBridge = {
   invoke: (name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
-    Promise.resolve(HANDLERS[name]?.(input)).then((output) => ({ ok: true, output })),
+    Promise.resolve((HANDLERS[name] ?? NO_SUMMARY[name])?.(input)).then((output) => ({ ok: true, output })),
   commands: () => Promise.resolve([FILTER_LIST]),
   on: (event: string, listener: (data: never) => void) => {
     if (event !== "workspace-changed") {

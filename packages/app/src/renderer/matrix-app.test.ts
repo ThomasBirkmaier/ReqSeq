@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InvokeResult, ReqSeqBridge } from "../shared/protocol.js";
 import { App } from "./App.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -162,7 +163,7 @@ const bridge = () => {
     }),
   };
   const invoke = vi.fn((name: string, input: Record<string, unknown> = {}): Promise<InvokeResult> =>
-    Promise.resolve({ ok: true, output: handlers[name]?.(input) }),
+    Promise.resolve({ ok: true, output: (handlers[name] ?? NO_SUMMARY[name])?.(input) }),
   );
   return {
     invoke,
