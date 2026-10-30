@@ -237,14 +237,13 @@ describe("SR-028 reading Markdown records", () => {
       .replace("kind: verification", "kind: validation")
       .replace("method: analysis\n", "")
       .replace("item: model v3\n", "");
-    const extra = `variant: ${B}\nevidence: ../belege/a.pdf\ntest-case: TC-7`;
+    const extra = "evidence: ../belege/a.pdf\ntest-case: TC-7";
     expect(read(text.replace("---\n\nText", `${extra}\n---\n\nText`))).toEqual({
       records: [
         {
           element: A,
           version: A_VERSION,
           kind: "validation",
-          variant: B,
           result: "failed",
           date: "2026-10-22T08:15:00+02:00",
           evidence: "../belege/a.pdf",

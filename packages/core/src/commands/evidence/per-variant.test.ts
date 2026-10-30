@@ -154,14 +154,14 @@ describe("verification status per variant (SR-047)", () => {
         replacedBy: [`${P}b1`],
       },
     ]);
-    // A validation record is refused the same way (#534 Q2 writes one only for a variant the element is in).
+    // A validation record names no variant at all (SR-038 AK4).
     const validations = [
       await refused(fixture, workspace, "SR-0000a2", "VAR-0000c1", "validation"),
       await refused(fixture, workspace, "SR-0000a1", "VAR-0000c1", "validation"),
     ];
     expect(validations.map((e) => [e.code, e.details?.["reason"]])).toEqual([
-      ["input.invalid", "excluded-in-variant"],
-      ["input.invalid", "replaced-in-variant"],
+      ["input.invalid", "validation-with-variant"],
+      ["input.invalid", "validation-with-variant"],
     ]);
     // In B, where K1 and K2 are, a record is written.
     const written = (await invoke(

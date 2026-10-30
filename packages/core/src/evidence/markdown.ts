@@ -11,7 +11,9 @@
 // - A key the format does not know is read with a warning `evidence.invalid-record` naming it, and
 //   the record counts (spec question #533 Q1, assumption: as D-012 does for elements). Every other
 //   violation of the schema is an error `evidence.invalid-record` at the line of the failing key,
-//   and the file gives no record.
+//   and the file gives no record. So is a validation record with `variant` (SR-038 AK4: „... weist
+//   das Tool ihn ab, nennt den Grund und er zählt für keinen Status“; D-007 names only the item
+//   under test for a validation), whose message gives that reason.
 // - The record is `$defs/evidenceRecord` of `data-export.schema.json`: the frontmatter without
 //   `reqseq-record`, `test-case` as `testCase`, and where it lies (`source: markdown`, line 1).
 import type { Problem } from "../catalog.js";
@@ -40,6 +42,16 @@ const unknownKey = (violation: SchemaViolation): string | undefined => {
   const name = violation.params["additionalProperty"];
   return violation.keyword === "additionalProperties" && typeof name === "string" ? name : undefined;
 };
+
+/** Why a validation record must not name a variant (SR-038 AK4), for the `false` subschema of `variant`. */
+export const VALIDATION_VARIANT_REASON =
+  "a validation record names no variant, it holds for the core (D-007, SR-038 AK4)";
+
+/** What a violation says, with the reason of SR-038 AK4 for a validation record with `variant`. */
+const describe = (violation: SchemaViolation): string =>
+  violation.keyword === "false schema" && violation.path === "/variant"
+    ? `/variant: ${VALIDATION_VARIANT_REASON}`
+    : describeViolations([violation]);
 
 /**
  * The top-level key a violation is about: the unknown key it names, or the key of its path (the
@@ -108,7 +120,7 @@ export const readMarkdownRecord = (file: EvidenceFile, bytes: Uint8Array): Evide
             code: "evidence.invalid-record",
             severity: "error",
             line,
-            message: `Invalid evidence record, not counted: ${describeViolations([violation])}`,
+            message: `Invalid evidence record, not counted: ${describe(violation)}`,
           }
         : {
             code: "evidence.invalid-record",
