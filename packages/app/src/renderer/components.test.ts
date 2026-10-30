@@ -5485,21 +5485,23 @@ describe("ElementView", () => {
         expect(targets).toEqual(["element:spec:p1"]);
       });
 
+      /** Clicks `element`, by default with Ctrl, and waits until the list or the echo is there. */
+      const modClick = async (
+        element: Element | null | undefined,
+        init: MouseEventInit = { ctrlKey: true },
+      ) => {
+        const click = new MouseEvent("click", { bubbles: true, cancelable: true, ...init });
+        await act(async () => {
+          element?.dispatchEvent(click);
+          await Promise.resolve();
+        });
+        await flush();
+        await flush();
+        return click;
+      };
+
       it("[SR-132/AK1] Ctrl/Cmd+click on a value opens its list: a line of a text box, a choice, a package target", async () => {
-        const { dispatched, targets, asked, echoed } = await mountListing();
-        const modClick = async (
-          element: Element | null | undefined,
-          init: MouseEventInit = { ctrlKey: true },
-        ) => {
-          const click = new MouseEvent("click", { bubbles: true, cancelable: true, ...init });
-          await act(async () => {
-            element?.dispatchEvent(click);
-            await Promise.resolve();
-          });
-          await flush();
-          await flush();
-          return click;
-        };
+        const { dispatched, targets } = await mountListing();
         await modClick(container.querySelectorAll('[data-field="synonyms"] .cm-line')[1]);
         expect(dispatched.at(-1)).toEqual(opened("synonyms", "breeze", "breeze"));
         await modClick(container.querySelector('[data-field="area"] .value .line'));
@@ -5515,9 +5517,13 @@ describe("ElementView", () => {
         expect(targets).toEqual(["element:spec:p2"]);
         await modClick(container.querySelector('[data-field="topic"] .key'));
         expect(dispatched).toHaveLength(count);
-        // Long free text offers no list on a click (AK4), not even the prompt among the other values.
+        blurAll();
+      });
+
+      it("[SR-132/AK4] Ctrl/Cmd+click on the acceptance criteria offers no list, not even the prompt among the other values", async () => {
+        const { dispatched, asked, echoed } = await mountListing();
         await modClick(container.querySelector(`[data-field="${KEY}"] .cm-line`));
-        expect(dispatched).toHaveLength(count);
+        expect(dispatched).toEqual([]);
         expect(asked).toEqual([]);
         expect(echoed.at(-1)).toBe(`No value of ${KEY} lists elements`);
         blurAll();

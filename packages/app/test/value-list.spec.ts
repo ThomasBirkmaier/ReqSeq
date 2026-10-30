@@ -221,6 +221,16 @@ test.describe.serial("the list of the elements with a value", () => {
     await expect(promptLabel(window)).toHaveText("Elements with");
     expect((await optionNames(window)).some((name) => name.startsWith("acceptance"))).toBe(false);
     await window.keyboard.press("Escape");
+    // A Ctrl/Cmd+click on them offers no list either, and no prompt among the other values.
+    for (const key of ["rationale", "acceptance-criteria"]) {
+      await window
+        .locator(`[data-field="${key}"] .cm-line`)
+        .first()
+        .click({ modifiers: [await modifier(window)] });
+      await expect(window.getByLabel("Minibuffer")).toContainText(`No value of ${key} lists elements`);
+      await expect(window.locator(".candidates")).toHaveCount(0);
+      await expect(window.locator("article h1")).toHaveText("Measure the rain");
+    }
   });
 
   test("[SR-132/AK5] a further filter narrows the list of a value as the CLI does", async () => {
