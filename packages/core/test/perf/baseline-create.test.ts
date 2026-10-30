@@ -1,9 +1,6 @@
-// Performance suite (ADR-0011): `baseline.create` (SR-050) through the catalog on the generated
-// workspace of N-036 with 50,000 elements and 200,000 relations, every repository a Git repository
-// with one commit, the store warmed as at a start (`warmWorkspace`). The whole workspace is selected,
-// so the versions, the check for uncommitted changes (`uncommittedFiles`, AK2) and the file of about
-// 4 MB are measured. ADR-0018 bounds it by 3 s; SR-050 names no time, so the bound is recorded
-// (`thresholdMs`) and not asserted. The file is read back by the line scanner.
+// Performance suite (ADR-0011): `baseline.create` (SR-050) of the whole generated workspace of N-036
+// (50,000 elements, Git repositories, store warmed). ADR-0018 bounds it by 3 s; SR-050 names no time,
+// so the bound is recorded (`thresholdMs`), not asserted.
 import fs from "node:fs";
 import path from "node:path";
 import type { LargeFixtureWorkspace } from "@reqseq/testkit";
