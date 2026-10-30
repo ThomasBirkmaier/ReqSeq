@@ -40,11 +40,16 @@ const EXTRA_FILES: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   },
 };
 
-/** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3). */
-const GIT_COMMANDS: ReadonlySet<string> = new Set(["data.store"]);
+/** Commands that write only with Git, so their fixture is a Git repository (data.store, SR-062 K3; baseline.create, SR-050 AK7). */
+const GIT_COMMANDS: ReadonlySet<string> = new Set(["baseline.create", "data.store"]);
 
 /** Every implemented write command, with calls that succeed and calls that fail. */
 const SCENARIOS: Readonly<Record<string, readonly Scenario[]>> = {
+  "baseline.create": [
+    { name: "Release 1", selection: {} },
+    { name: "release 1", selection: { ids: [WIND] } },
+    { name: "Other", selection: { baseline: "Release 1" } },
+  ],
   "element.addAttachment": [
     { ref: WIND, sourcePath: "new/layout.png" },
     { ref: WIND, sourcePath: "new/layout.png" },

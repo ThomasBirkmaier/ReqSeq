@@ -26,6 +26,7 @@ import {
   readElementFile,
   readElementFiles,
   resolveInRoot,
+  sha256,
   writeFileAtomic,
 } from "../files/index.js";
 import type {
@@ -69,6 +70,7 @@ import { successionsFor } from "./successors.js";
 import type { TitleContext } from "./relation-titles.js";
 import { withCurrentTitles } from "./relation-titles.js";
 import type { ElementHints } from "./get.js";
+import type { LocatableFinding } from "./locate.js";
 import { elementContent, elementView, titleKeyOf } from "./view.js";
 
 /** What `element.create` and `element.update` return. */
@@ -319,6 +321,55 @@ export const writtenElement = (
     throw notAnElement();
   }
   return { file, record: classified.element };
+};
+
+/**
+ * A check of a block above the model on the elements a write is about to write, passed by the
+ * command (the variants block refuses a variant with validity entries, SR-039 AK2; the block layers keep
+ * that rule above the model). `findings` gives why an element as it would be written may not be
+ * written, before their lines are known (none: it may); `refusal` the error thrown for them before
+ * anything is written. Only elements of `types` are asked, so the others are not parsed for it.
+ */
+export interface WriteCheck {
+  readonly types: ReadonlySet<string>;
+  readonly findings: (record: ElementRecord) => Promise<readonly LocatableFinding[]>;
+  readonly refusal: (findings: readonly LocatableFinding[]) => CommandError;
+}
+
+/**
+ * The element the bytes of a planned write read back as, with the findings of `check` on it;
+ * undefined without a check or for a type it does not ask for.
+ */
+export const checkedBefore = async (
+  check: WriteCheck | undefined,
+  repository: string,
+  bytes: Uint8Array,
+  snapshot: FileSnapshot,
+  type: string,
+): Promise<{ readonly element: ReadElement; readonly findings: readonly LocatableFinding[] } | undefined> => {
+  // Only the types the check asks for are parsed (N-036).
+  if (check?.types.has(type) !== true) {
+    return undefined;
+  }
+  const element = writtenElement(repository, bytes, snapshot);
+  return { element, findings: await check.findings(element.record) };
+};
+
+/** Throws the refusal of `check` when it has findings on the element `bytes` would be. */
+const refuseByCheck = async (
+  check: WriteCheck | undefined,
+  repository: string,
+  bytes: Uint8Array,
+  snapshot: FileSnapshot,
+  type: string,
+): Promise<void> => {
+  if (check === undefined) {
+    return;
+  }
+  const findings = (await checkedBefore(check, repository, bytes, snapshot, type))?.findings ?? [];
+  if (findings.length > 0) {
+    throw check.refusal(findings);
+  }
 };
 
 /** Keeps a byte order mark as a character, so that writing the string writes it again (ADR-0007). */
@@ -575,6 +626,7 @@ export const createElement = async (
   workspace: Workspace,
   input: CreateElementInput,
   extraFindings?: ElementHints,
+  check?: WriteCheck,
 ): Promise<ElementWriteResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
@@ -627,6 +679,13 @@ export const createElement = async (
     body: bodyForText(EMPTY_FILE.body, text),
     keyOrder: [...STRUCTURAL_KEYS, titleKey, ...type.properties],
   });
+  await refuseByCheck(
+    check,
+    repository.name,
+    bytes,
+    { path: file, size: bytes.length, mtimeMs: 0, sha256: sha256(bytes) },
+    type.key,
+  );
   // Every check is done and the bytes are verified before the folder is created, so only a failing
   // write itself (a clash with an existing file, a disk error) or a folder changed by someone else
   // meanwhile can leave a new, empty folder. With every folder there now, the rules of the walk are
@@ -939,6 +998,7 @@ export const updateElement = async (
   workspace: Workspace,
   input: UpdateElementInput,
   extraFindings?: ElementHints,
+  check?: WriteCheck,
 ): Promise<UpdateElementResult> => {
   const context = await contextOf(workspace);
   const { layout, metamodel, store } = context;
@@ -976,6 +1036,7 @@ export const updateElement = async (
     for (const titled of withCurrentTitles(context, [{ repository, current, bytes }])) {
       ({ bytes } = titled);
     }
+    await refuseByCheck(check, repository.name, bytes, current.file.snapshot, record.type);
     const before: Before = {
       // The record of the store: its own relations to itself are no affected element.
       record,
