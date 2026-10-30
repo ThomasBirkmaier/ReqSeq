@@ -93,7 +93,6 @@ const within = async (limitMs: number, condition: () => Promise<boolean>): Promi
   }
 };
 
-// 200 writes and a few Git calls: several seconds on slow CI machines (Windows).
 /**
  * Every file below `folder`, without descending into `.git`: Git may change it meanwhile (a `gc
  * --auto` after a commit removes folders of `.git/objects`), and a recursive `readdir` that walks
@@ -112,6 +111,7 @@ const filesOutsideGit = async (folder: string): Promise<string[]> => {
   return files;
 };
 
+// 200 writes and a few Git calls: several seconds on slow CI machines (Windows).
 describe("separate copies merged with Git (SR-081)", { timeout: 60_000 }, () => {
   it("[SR-081/AK3] two copies create 100 elements each; after a Git merge the check finds no duplicate IDs", async () => {
     const { origin, clones } = await copies(2);
