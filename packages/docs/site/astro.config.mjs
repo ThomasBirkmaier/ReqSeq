@@ -24,6 +24,8 @@ export default defineConfig({
     starlight({
       title: "ReqSeq",
       description: "User documentation of ReqSeq.",
+      // A link only; the site loads nothing from it.
+      social: [{ icon: "github", label: "GitHub", href: "https://github.com/ThomasBirkmaier/ReqSeq" }],
       customCss: ["./src/styles/theme.css"],
       sidebar: [
         { label: "Overview", slug: "index" },

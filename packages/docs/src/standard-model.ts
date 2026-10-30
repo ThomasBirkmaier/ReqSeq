@@ -39,6 +39,13 @@ export interface StandardModel {
 /** The page below the content folder. */
 export const STANDARD_MODEL_PAGE = "reference/standard-model.md";
 
+/**
+ * The alt text of the screenshot of the standard model in the app (Show metamodel), which the Electron spec
+ * `packages/app/test/guide-screenshots.spec.ts` writes to docs/guide/images/ (ADR-0017).
+ */
+export const STANDARD_MODEL_IMAGE_ALT =
+  "The standard model in the metamodel graph of the app: its types with their properties and the relation kinds between them.";
+
 /** The anchor of an entry: `type-need`, `property-title`, `relation-refines`, `status-draft`. */
 export const modelAnchor = (part: "type" | "property" | "relation" | "status", key: string): string =>
   `${part}-${key}`;
@@ -75,6 +82,8 @@ export function standardModelPage(model: StandardModel): string {
     "---",
     "",
     "The metamodel that `workspace.init` writes into a new workspace. A workspace can change it; keys never change.",
+    "",
+    `![${STANDARD_MODEL_IMAGE_ALT}](../images/app-standard-model.png)`,
     "",
     "## Types",
     "",

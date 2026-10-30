@@ -98,6 +98,16 @@ describe("assembleContent", () => {
     );
   });
 
+  it("lets a generated page show an image of the guide, and refuses one whose image is not there", async () => {
+    await mkdir(join(paths.guideDir, "images"));
+    await writeFile(join(paths.guideDir, "images", "app-model.png"), "png");
+    const page = { path: "reference/model.md", text: "![The model](../images/app-model.png)\n" };
+    expect(await assembleContent(paths, [page])).toContain("reference/model.md");
+    await expect(
+      assembleContent(paths, [{ path: "reference/model.md", text: "![The model](../images/gone.png)\n" }]),
+    ).rejects.toThrow("docs/guide: reference/model.md: the image ../images/gone.png is no file of the guide");
+  });
+
   it("fails when the guide folder is missing", async () => {
     await rm(paths.guideDir, { recursive: true });
     await expect(assembleContent(paths)).rejects.toThrow(/ENOENT/);

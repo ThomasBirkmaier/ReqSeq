@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inline } from "./markdown.js";
-import { modelAnchor, standardModelPage } from "./standard-model.js";
+import { modelAnchor, STANDARD_MODEL_IMAGE_ALT, standardModelPage } from "./standard-model.js";
 
 describe("standardModelPage", () => {
   it("renders every part with its anchor, description and the facts it has", () => {
@@ -49,6 +49,7 @@ describe("standardModelPage", () => {
         { key: "rejected", name: "Rejected", invalid: true },
       ],
     });
+    expect(page).toContain(`![${STANDARD_MODEL_IMAGE_ALT}](../images/app-standard-model.png)\n\n## Types`);
     expect(page).toContain(
       `<a id="type-need"></a>\n\n### Need (\`need\`)\n\n${inline("A need of <users>.")}\n\n- Short ID prefix: \`N\`\n- Meaning: Stakeholder need.\n- Properties: \`title\`\n- Required: \`title\`\n`,
     );
