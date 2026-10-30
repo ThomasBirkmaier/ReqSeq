@@ -142,7 +142,7 @@ describe("a variant as an element (SR-039)", () => {
       title: "Warn of storms",
       properties: { validity: [{ id: A }] },
     });
-    expect(requirement.problems.filter((p) => p.code === "variant.nested")).toEqual([]);
+    expect((requirement.problems ?? []).filter((p) => p.code === "variant.nested")).toEqual([]);
     // Only the validity decides: C relates to A and is written; B without its validity is too.
     expect((await run(opened, "element.update", { ref: C, title: "Mountains" })).files).toEqual([FILE_C]);
     const fixed = await run(opened, "element.update", { ref: B, unset: ["validity"] });
