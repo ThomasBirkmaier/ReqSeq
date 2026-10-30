@@ -6594,7 +6594,7 @@
           "undo": {
             "type": "boolean",
             "default": false,
-            "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is a `relation.not-found` warning in `problems`, as relation.remove gives it; the other refs are undone."
+            "description": "Remove the exclusions of `refs` instead. An exclusion that is not there is an `info` problem `relation.not-found` in `problems`, as relation.remove gives it; the other refs are undone."
           }
         },
         "additionalProperties": false,
