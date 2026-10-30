@@ -4,7 +4,7 @@ Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `basel
 
 ## Reading
 
-The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr/0018-baseline-file.md).
+The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr/0018-baseline-file.md). A file in the layout ReqSeq writes is read by the line scanner (`scan.ts`: `scanBaseline`, and `baselineHeader` for the lines before `repositories:`, with the `selection.ids` lines scanned too), through `readYamlFileFast` of the files block; any other layout (a comment, a blank line, CRLF, a BOM, entries out of order) falls back to YAML and the schema, with the same baseline or the same problems. On both paths an element copy or a repository listed twice is `baseline.invalid` at the line of the second one.
 
 `readBaselines(layout, kept?)` → `{ location, baselines, problems, faulty, incomplete }`:
 
@@ -19,3 +19,7 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 ## Kept between calls
 
 `baselineFilesState` (reset with the workspace layout) keeps what each file gave with its size and modification time. `workspaceBaselines(workspace)` lists the folder on every call and parses again only a file that is new or whose size or time changed, and drops files that are gone. So a baseline committed by another person counts as soon as the working copy has it, also in a running server or the app, and a baseline of 50,000 elements is parsed once (N-036).
+
+## Text of a new file
+
+`baselineText(data)` (`text.ts`) writes the layout of ADR-0018 that `scanBaseline` reads: the header in block style with `package`, `view` and `ids` items as flow mappings and lists of plain values in `where` on one line, then one flow mapping per line for `repositories` and `elements` (`elements: []` when empty); a repository name YAML would read as no string is quoted. `baselineStem(name)` is the file name without extension: `portableName` with `baseline` when nothing is left, `-baseline` after a Windows device name. `writeNewBaseline(repository, folder, name, text)` (`write.ts`) creates the file under the first free name (`-2`, `-3`, … for a name the folder has in any case or normal form), through the create path of `writeFileAtomic`, so nothing is ever replaced; the folder is created when missing. `involvedCommits(layout, elements)` (`state.ts`) gives the HEAD commit of the repositories of the elements, the main and the metamodel's, in workspace order, and refuses one without commit (`git.unavailable`, the reason in words); `refuseUncommitted(workspace, commits, checked)` refuses with `baseline.uncommitted-changes` while the files of the selected elements, the files they embed, the metamodel's YAML files or the workspace file differ from the commit (`uncommittedFiles`), naming the elements and the other files.

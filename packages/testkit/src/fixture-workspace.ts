@@ -116,6 +116,14 @@ const cleanEnv = (): NodeJS.ProcessEnv =>
   Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith("GIT_")));
 
 /**
+ * `git init` without the template folder: the template holds a dozen sample hooks and other files that
+ * no test reads, and on Windows runners every file written costs a virus scan (#423).
+ */
+export const initRepository = async (workspace: FixtureWorkspace, repository = "."): Promise<void> => {
+  await workspace.git(["init", "--quiet", "--template=", "--initial-branch=main"], repository);
+};
+
+/**
  * Build a temporary workspace: copy a fixture case, write extra files, optionally make Git repositories.
  * Every call gets its own folder; nothing is shared between tests.
  */
@@ -157,6 +165,13 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       : [Buffer.from(`M 160000 ${content.submodule} ${file}\n`)];
   };
 
+  /** Stage and commit everything in a repository, without asking for the new commit's ID. */
+  const commitAll = async (repository: string, message: string): Promise<void> => {
+    commitCount++;
+    await workspace.git(["add", "--all"], repository);
+    await workspace.git(["commit", "--quiet", "--allow-empty", "--no-verify", "-m", message], repository);
+  };
+
   const workspace: FixtureWorkspace = {
     root,
     path: (relativePath) => resolveInside(root, relativePath),
@@ -189,9 +204,7 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
       return stdout;
     },
     async commit(repository = ".", message = "fixture") {
-      commitCount++;
-      await workspace.git(["add", "--all"], repository);
-      await workspace.git(["commit", "--quiet", "--allow-empty", "--no-verify", "-m", message], repository);
+      await commitAll(repository, message);
       return workspace.head(repository);
     },
     async commitFiles(files, options = {}) {
@@ -294,8 +307,9 @@ export async function createFixtureWorkspace(options: FixtureOptions = {}): Prom
     const repositories = options.git === true ? ["."] : (options.git ?? []);
     for (const repository of repositories) {
       await fs.mkdir(resolveInside(root, repository), { recursive: true });
-      await workspace.git(["init", "--quiet", "--initial-branch=main"], repository);
-      await workspace.commit(repository);
+      await initRepository(workspace, repository);
+      // Three processes per repository: on a loaded windows-2025 runner each start can take a second (#423).
+      await commitAll(repository, "fixture");
     }
   } catch (error) {
     await workspace.cleanup();
@@ -317,7 +331,7 @@ export async function cloneFixtureWorkspace(
 ): Promise<FixtureWorkspace> {
   const clone = await createFixtureWorkspace(options);
   try {
-    await clone.git(["clone", "--quiet", "--no-hardlinks", origin.path(repository), "."]);
+    await clone.git(["clone", "--quiet", "--template=", "--no-hardlinks", origin.path(repository), "."]);
   } catch (error) {
     await clone.cleanup();
     throw error;

@@ -59,7 +59,11 @@ import {
 } from "../../model/index.js";
 import { datedProblems, outdatedEvidenceProblemsState, outdatedRelationsState } from "../../hints/index.js";
 import { derivationCycleProblemsState } from "../../trace/index.js";
-import { nestedVariantsState, supersededValidityProblemsState } from "../../variants/index.js";
+import {
+  nestedVariantsState,
+  supersededValidityProblemsState,
+  targetNotCoreProblemsState,
+} from "../../variants/index.js";
 import { workspaceLayoutState } from "../../workspace/index.js";
 
 type Severity = Problem["severity"];
@@ -78,6 +82,7 @@ export const FINDING_STATES = [
   supersededTargetProblemsState, // SR-072
   supersededValidityProblemsState, // SR-040
   nestedVariantsState, // SR-039
+  targetNotCoreProblemsState, // SR-041 AK8
   valueKindProblemsState, // SR-085
   relationTypeProblemsState, // SR-086
   duplicateIdProblemsState, // SR-088

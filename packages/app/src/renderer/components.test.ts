@@ -43,6 +43,7 @@ import { FIXTURE_METAMODEL } from "./metamodel-test-data.js";
 import type { Draft, ShownFile } from "./drafts.js";
 import { GONE_CONFIRM_MS } from "./outside-change.js";
 import type { BufferData } from "./modeline.js";
+import { NO_SUMMARY } from "./package-summary-test-data.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -91,7 +92,7 @@ const alone = (input: Record<string, unknown>): unknown => ({
  */
 const fakeCall = (handlers: Record<string, (input: Record<string, unknown>) => unknown>) =>
   vi.fn((name: string, input: Record<string, unknown>) => {
-    const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : undefined))?.(input);
+    const output = (handlers[name] ?? (name === "trace.neighbourhood" ? alone : NO_SUMMARY[name]))?.(input);
     return Promise.resolve(
       output instanceof Error
         ? { ok: false, code: "code" in output ? String(output.code) : "x.failed", message: output.message }

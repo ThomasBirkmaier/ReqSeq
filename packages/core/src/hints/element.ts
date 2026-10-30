@@ -6,6 +6,7 @@
 //
 // - the validity entries that name a superseded variant (SR-040 AK3);
 // - the validity entries of a variant (SR-039 AK3);
+// - the replacements and exclusions that name no core requirement (SR-041 AK8);
 // - the cycle of derivations the element lies in (SR-090, `elementCycleFindings`);
 // - its outdated evidence (SR-025 AK4, `elementEvidenceFindings`);
 // - its outdated relations and inline references (SR-025, `outdatedOfShown`).
@@ -18,7 +19,11 @@
 // opening an element stays fast (SR-082 AK3). `hint.list` always gives the dates.
 import type { ElementHints, LocatableFinding } from "../model/index.js";
 import { elementCycleFindings } from "../trace/index.js";
-import { nestedVariantFindingsOf, supersededValidityFindingsOf } from "../variants/index.js";
+import {
+  nestedVariantFindingsOf,
+  supersededValidityFindingsOf,
+  targetNotCoreFindingsOf,
+} from "../variants/index.js";
 import { elementEvidenceFindings } from "./evidence.js";
 import { datedProblems, outdatedOfShown } from "./outdated.js";
 
@@ -45,6 +50,7 @@ export const elementHints: ElementHints = async (context, record, withDate) => {
   return [
     ...supersededValidityFindingsOf(context, record),
     ...nestedVariantFindingsOf(context, record),
+    ...targetNotCoreFindingsOf(context, record),
     ...cycles,
     ...evidence,
     ...hints,

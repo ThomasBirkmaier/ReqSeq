@@ -13,8 +13,9 @@
 //   (they act in the variants it names; one without validity replaces in no view, SR-041 AK6). An
 //   item names the UUID in the repository it names, else in its source's (D-058, `validityTarget`).
 // - Only items whose target resolves to one core requirement act (`resolveTarget`); the others
-//   change no view (SR-041 AK8). A target in a repository that is not here acts in no view; the
-//   selection says `incomplete` (SR-006 AK2).
+//   change no view and are `variant.target-not-core` (target-not-core.ts, SR-041 AK8). A target in
+//   a repository that is not here acts in no view and gives no hint; the selection says
+//   `incomplete` (SR-006 AK2).
 // - Exclusion wins: a replacement of a target v excludes is no replacement in v (SR-042 AK5), and
 //   its source counts as added. Several replacements of one target are all listed (SR-041 AK7).
 // - The status is not read: a superseded replacement still replaces until its relation or its
@@ -109,6 +110,10 @@ const itemsOf = (scope: Scope, source: ElementRecord): readonly RuleItem[] => {
     ),
   );
 };
+
+/** The rule items of `source` (see the file comment), in relation kind order, then item order. */
+export const ruleItemsOf = (metamodel: Metamodel, source: ElementRecord): readonly RuleItem[] =>
+  itemsOf(scopeOf(metamodel), source);
 
 /** The rule items of `store` read with `metamodel`: one pass, no file read, no other state. */
 export const buildViewRuleIndex = (store: ElementStore, metamodel: Metamodel): ViewRuleIndex => {

@@ -56,9 +56,10 @@ const invalid = (message: string, details: Record<string, unknown>): CommandErro
 /**
  * `text` as a portable name: compatibility decomposition (NFKD) with the combining marks dropped
  * (`Ä` becomes `A`), every run of other characters than ASCII letters, digits, `_` and `-` one
- * `-`, no `-` at either end, at most 64 characters; `image` when nothing is left.
+ * `-`, no `-` at either end, at most 64 characters; `fallback` when nothing is left (baseline
+ * files, ADR-0018, take this name too).
  */
-export const portableName = (text: string): string => {
+export const portableName = (text: string, fallback = "image"): string => {
   const ascii = text
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
@@ -67,7 +68,7 @@ export const portableName = (text: string): string => {
     .replace(/^-+|-+$/g, "")
     .slice(0, MAX_NAME)
     .replace(/-+$/, "");
-  return name === "" ? "image" : name;
+  return name === "" ? fallback : name;
 };
 
 /** A source image as read. */

@@ -141,7 +141,9 @@ describe("serveCoreProcess", () => {
     await waitUntil(() => received.length === 1);
     expect(core.started).toBe(true);
     expect(received[0]).toMatchObject({ id: 1, result: { ok: true, output: { name: "Weather station" } } });
-    expect(parent.sent).toEqual([{ type: "ready", root: fixture.root, key: workspaceKey(fixture.root) }]);
+    expect(parent.sent).toEqual([
+      { type: "ready", root: fixture.root, key: workspaceKey(fixture.root), listed: true },
+    ]);
     parent.send({ type: "file", id: 5, url: "reqseq-file://workspace/system/images/dot.png" });
     await waitUntil(() => parent.sent.length === 2);
     expect(parent.sent[1]).toEqual({
@@ -182,7 +184,9 @@ describe("serveCoreProcess", () => {
       }, record);
       parent.send({ type: "open", folder });
       await waitUntil(() => parent.sent.length === 1);
-      expect(parent.sent).toEqual([{ type: "ready", root: folder, key: workspaceKey(folder) }]);
+      expect(parent.sent).toEqual([
+        { type: "ready", root: folder, key: workspaceKey(folder), listed: false },
+      ]);
       expect(opened).toEqual([folder]);
       // Without a workspace file no agent can be followed; the log says why, and the process serves on.
       await waitUntil(() => log.mock.calls.length === 1);
@@ -245,7 +249,7 @@ describe("serveCoreProcess", () => {
     opened.parent.send({ type: "open", folder: fixture.root, exact: true });
     await waitUntil(() => opened.parent.sent.length === 1);
     expect(opened.parent.sent).toEqual([
-      { type: "ready", root: fixture.root, key: workspaceKey(fixture.root) },
+      { type: "ready", root: fixture.root, key: workspaceKey(fixture.root), listed: true },
     ]);
     opened.parent.send({ type: "stop" });
     await waitUntil(() => opened.exit.mock.calls.length === 1);

@@ -1,6 +1,7 @@
 // The rules of the state files and the dirty check of a repository (SR-062 K2, model/uncommitted.ts):
 // each rule without files, Git's blob hash against `git hash-object` (SHA-1 and SHA-256), and the
-// branches of `repositoryState` through its reader seam. The command: commands/data/store.test.ts.
+// branches of `repositoryState` and of `uncommittedFiles` (the check on a given set of files, as
+// `baseline.create` asks it, SR-050 AK2) through its reader seam. The command: commands/data/store.test.ts.
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -16,6 +17,7 @@ import {
   repositoryState,
   stateFiles,
   stateRules,
+  uncommittedFiles,
   uncommittedStateFiles,
   workingBlobId,
 } from "./uncommitted.js";
@@ -266,6 +268,48 @@ describe("repositoryState", () => {
     expect(await repositoryState(inRepo, ["a.md"], unknownObjects)).toEqual({
       commit,
       dirtyUnknown: "timeout",
+    });
+  });
+});
+
+describe("uncommittedFiles", () => {
+  it("names the changed files of a given set: edited, never committed, embedded; not a touched but equal file or one outside the set", async () => {
+    const ws = await fixture({
+      files: { "a.md": "# A\n", "b.md": "# B\n", "img.png": "png", "m/model.yaml": "x: 1\n" },
+      git: true,
+    });
+    const commit = await ws.head();
+    const files = ["a.md", "img.png", "new.md", "m/model.yaml"];
+    const counts = (file: string): boolean => files.includes(file) || file.startsWith("m/");
+    expect(await uncommittedFiles(ws.root, commit, files, counts)).toEqual({ known: true, files: [] });
+    await ws.write("a.md", "# A\n");
+    await ws.write("b.md", "# B changed\n");
+    expect(await uncommittedFiles(ws.root, commit, files, counts)).toEqual({ known: true, files: [] });
+    await ws.write("img.png", "changed");
+    await ws.write("new.md", "# New\n");
+    await fs.promises.rm(ws.path("m/model.yaml"));
+    await ws.write("m/more.yaml", "y: 2\n");
+    const found = await uncommittedFiles(ws.root, commit, [...files, " odd.md"], counts);
+    expect(found.known && [...found.files].sort()).toEqual([
+      " odd.md",
+      "img.png",
+      "m/model.yaml",
+      "m/more.yaml",
+      "new.md",
+    ]);
+  });
+
+  it("says when Git cannot tell", async () => {
+    const ws = await fixture({ files: { "a.md": "# A\n" }, git: true });
+    const commit = await ws.head();
+    const none = (): boolean => false;
+    const unknownPaths: StateReader = {
+      ...DEFAULT_STATE_READER,
+      changedPaths: () => Promise.resolve({ known: false, reason: "no-git", detail: "x" }),
+    };
+    expect(await uncommittedFiles(ws.root, commit, ["a.md"], none, unknownPaths)).toEqual({
+      known: false,
+      reason: "no-git",
     });
   });
 });

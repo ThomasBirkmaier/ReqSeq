@@ -82,6 +82,12 @@ interface Written {
     readonly message: string;
   }[];
 }
+/** A level of evidence.coverage, as far as the SR-112 scenario reads it. */
+interface CoverageLevel {
+  readonly type: string;
+  readonly total: number;
+  readonly withEvidence?: number;
+}
 /** The key a message of element.missing-required names: "Required property Title (title) of type …". */
 const requiredKey = (message: string): string | undefined =>
   /^Required property .+? \(([a-z-]+)\) of type /.exec(message)?.[1];
@@ -1044,6 +1050,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       expect: "output",
     },
     {
+      name: "a package page counts 8 of 10 requirements with evidence, not its need",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        const { levels } = (results["core"]?.outcome as { output: { levels: readonly CoverageLevel[] } })
+          .output;
+        expect(levels.map(({ type, total, withEvidence }) => [type, total, withEvidence])).toEqual([
+          ["need", 1, undefined],
+          ["system-requirement", 10, 8],
+        ]);
+      },
+    },
+    {
       name: "an unknown package gives the same error (#535 fixture)",
       fixture: EVIDENCE,
       input: { selection: { package: "PKG-ffffff" } },
@@ -1074,6 +1095,20 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       fixture: DEGREE,
       input: { selection: { package: "PKG-00d002" } },
       expect: "output",
+    },
+    {
+      name: "a package page counts 6 verified, 1 failed, 1 outdated and 2 open",
+      fixture: DEGREE,
+      input: { selection: { package: "PKG-00d003" } },
+      tag: "[SR-112/AK3]",
+      expect: "output",
+      check: (results) => {
+        expect((results["core"]?.outcome as { output: { degree: unknown } }).output.degree).toEqual({
+          share: 0.6,
+          total: 10,
+          counts: { open: 2, verified: 6, indirect: 0, failed: 1, outdated: 1 },
+        });
+      },
     },
     {
       name: "a package with obsolete requirements in the core view (SR-037 AK3)",
@@ -2195,7 +2230,7 @@ const templates = new Map<FixtureOptions, FixtureWorkspace>();
 const copies: string[] = [];
 let cache: string;
 
-// Building the templates spawns `git` four times per repository. On Windows runners that can take seconds.
+// Building the templates spawns `git` three times per repository. On Windows runners that can take seconds.
 // The OS cache folder (the model cache of every CLI command, SR-082) lies in a temporary folder on every OS.
 let cacheHome = "";
 beforeAll(async () => {
@@ -2209,13 +2244,23 @@ afterAll(async () => {
   await fs.rm(cacheHome, { recursive: true, force: true });
 });
 
+/**
+ * Templates built at the same time. Each one waits mostly for `git` to start; one after the other, the 70 of
+ * them took over 120 s on a loaded windows-2025 runner (#423).
+ */
+const BUILD_CONCURRENCY = 8;
+
 beforeAll(async () => {
   cache = await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-"));
-  for (const options of FIXTURES) {
-    const template = await createFixtureWorkspace(options);
-    await TEMPLATE_SETUP.get(options)?.(template);
-    templates.set(options, template);
-  }
+  const queue = FIXTURES.values();
+  const worker = async (): Promise<void> => {
+    for (const options of queue) {
+      const template = await createFixtureWorkspace(options);
+      templates.set(options, template);
+      await TEMPLATE_SETUP.get(options)?.(template);
+    }
+  };
+  await Promise.all(Array.from({ length: BUILD_CONCURRENCY }, worker));
 }, 120_000);
 
 // Removes the templates and one copy per scenario (over 250 Git work trees): on Windows that takes longer
@@ -2229,10 +2274,6 @@ afterAll(async () => {
     ),
   );
 }, 120_000);
-
-/** The sample hooks of `git init`: half the files of a fixture, and no Git command of ReqSeq runs hooks. */
-const isSampleHooks = (source: string): boolean =>
-  path.basename(source) === "hooks" && path.basename(path.dirname(source)) === ".git";
 
 /** A copy of a fixture: its top folder, and the workspace root in it. */
 interface Copy {
@@ -2253,7 +2294,8 @@ const copy = async (scenario: Scenario): Promise<Copy> => {
   const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "reqseq-cross-access-copy-")));
   copies.push(base);
   const top = path.join(base, "workspace");
-  await fs.cp(template.root, top, { recursive: true, filter: (source) => !isSampleHooks(source) });
+  // The templates have no sample hooks: the testkit runs `git init` without its template folder.
+  await fs.cp(template.root, top, { recursive: true });
   return { top, root: scenario.root === undefined ? top : path.join(top, ...scenario.root.split("/")) };
 };
 
