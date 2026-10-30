@@ -18,10 +18,13 @@ export {
   foldName,
   namedBaseline,
   readBaselines,
+  versionKey,
   workspaceBaselines,
 } from "./read.js";
 export type { Baseline, BaselineFiles, Baselines, FoundBaseline } from "./read.js";
 export { baselineHeader, scanBaseline } from "./scan.js";
+export { HEADER_BYTES, baselineHeadersState, newestBaselines } from "./newest.js";
+export type { BaselineCandidate } from "./newest.js";
 export { copyOf, showBaseline } from "./show.js";
 export type { ShowRequest } from "./show.js";
 export { compareBaseline } from "./compare.js";

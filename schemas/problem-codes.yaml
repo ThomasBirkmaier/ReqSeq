@@ -73,7 +73,7 @@ problems:
     cause: The relation existed without a valid stored version; the target's current version was stored now.
     remedy: None needed.
   hint.not-confirmable:
-    cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place.
+    cause: Only `relation.outdated` and `variant.core-changed` can be confirmed; other hints carry no `hintId`, and the ID names another hint or none. Also, a file whose version is held by a YAML alias or anchor cannot be changed in place. The hints on a core requirement changed or new since a variant's baseline (`variant.core-changed-since-baseline`, `variant.core-new-since-baseline`) are refused when `kind` names them or `ref` names a variant that has them, since a new baseline of the variant settles them (SR-103 AK5).
     remedy: Other hints go away when what they report is fixed. For a file the message names, correct it by hand.
   hint.not-found:
     cause: No open hint has the given ID. It was confirmed already, or the relation, its target or the file changed since.
@@ -94,10 +94,10 @@ problems:
     cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view (SR-041 AK8, SR-042 AK7).
     remedy: Point the entry at a core requirement, or remove it; to retire an element for everyone, supersede it (SR-072).
   variant.core-changed-since-baseline:
-    cause: A core requirement that the variant adopts has changed since the variant's newest baseline (SR-103 AK1). The hint is at the variant and gives the version in the baseline and the current one. This version does not raise it yet.
+    cause: A core requirement that the variant adopts has changed since the variant's newest baseline (SR-103 AK1). The hint is at the variant and gives the version in the baseline and the current one.
     remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed (D-042).
   variant.core-new-since-baseline:
-    cause: A core requirement has come into the view of the variant since its newest baseline, because it is new, its exclusion was undone or its replacement removed (SR-103 AK7). The hint gives its current version. This version does not raise it yet.
+    cause: A core requirement has come into the view of the variant since its newest baseline, because it is new, its exclusion was undone or its replacement removed (SR-103 AK7). The hint gives its current version.
     remedy: Check the variant against the change; the hint goes when a new baseline of the variant is created. It cannot be confirmed (D-042).
   evidence.unknown-element:
     cause: An evidence record or a test case names an element that the workspace does not have.

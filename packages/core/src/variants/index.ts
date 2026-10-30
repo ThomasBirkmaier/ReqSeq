@@ -9,7 +9,7 @@ export {
   variantTypes,
   variantsOf,
 } from "./views.js";
-export type { Validity, ValidityEntry, ValidityTarget, View } from "./views.js";
+export type { ResolvedView, Validity, ValidityEntry, ValidityTarget, View } from "./views.js";
 export { nestedVariantCheck, nestedVariantFindingsOf, nestedVariantsState } from "./nested.js";
 export {
   supersededValidityFindings,
@@ -24,6 +24,7 @@ export {
 } from "./target-not-core.js";
 export {
   removersOf,
+  ruleItemsOf,
   ruleTargetsOf,
   viewIncomplete,
   viewRuleIn,
