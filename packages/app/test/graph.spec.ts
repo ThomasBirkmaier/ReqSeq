@@ -208,17 +208,26 @@ const expectElementPlaced = async (
   };
 };
 
-/** Sets the size of the window's content (before a graph opens: the view opens on the element then). */
+/**
+ * Sets the size of the window's content (before a graph opens: the view opens on the element then), at most the
+ * work area of the screen: macOS keeps a window inside it, and the screen of GitHub's macos-26 runner is lower than
+ * 800 px (#490).
+ */
 const resize = async (running: RunningApp, width: number, height: number): Promise<void> => {
-  await running.app.evaluate(
-    ({ BrowserWindow }, size) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(size.width, size.height);
+  const fitted = await running.app.evaluate(
+    ({ BrowserWindow, screen }, size) => {
+      const area = screen.getPrimaryDisplay().workArea;
+      const fit = [Math.min(size.width, area.width), Math.min(size.height, area.height)] as const;
+      const shown = BrowserWindow.getAllWindows()[0];
+      shown?.setPosition(area.x, area.y);
+      shown?.setContentSize(...fit);
+      return fit;
     },
     { width, height },
   );
   await expect
     .poll(() => running.window.evaluate(() => [window.innerWidth, window.innerHeight]))
-    .toEqual([width, height]);
+    .toEqual(fitted);
 };
 
 /** `+` until the graph shows the whole chain, with the nodes the CLI gives for it. */
