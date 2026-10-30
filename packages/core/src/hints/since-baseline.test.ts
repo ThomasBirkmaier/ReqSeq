@@ -505,8 +505,54 @@ describe("kept between calls", () => {
       ),
     ).toHaveLength(1);
     await step(() => update(String(K2), { set: { validity: [{ id: String(MOUNTAIN) }] } }));
+    // A replacement's validity moves from Coast to Mountain: K4 comes into the view of Coast.
+    expect(
+      await step(() => update(String(B1), { set: { validity: [{ id: String(MOUNTAIN) }] } })),
+    ).toContainEqual(["variant.core-new-since-baseline", COAST, K4]);
     // The versions built again, on the same store.
     await step(() => workspace.reset(currentVersionsState));
+  });
+
+  it("sees a changed embedded image of a core requirement on kept and carried hits", async () => {
+    const svg = (body: string): string => `<svg xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+    const { workspace, fixture } = await open(
+      {
+        [fileOf(String(K2))]:
+          `${(await fs.readFile(path.join(FIXTURE, fileOf(String(K2))), "utf8")).trimEnd()}\n\n![x](../img/x.svg)\n`,
+        "img/x.svg": svg(""),
+      },
+      true,
+    );
+    for (const view of ["VAR-0000c1", "VAR-0000c2"]) {
+      await invoke("baseline.create", { name: view, selection: { view } }, { workspace });
+    }
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now + 60_000);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const shown = async (): Promise<unknown[]> =>
+      rows(
+        ((await invoke("element.get", { ref: COAST }, { workspace })) as CommandOutput<"element.get">).element
+          .problems ?? [],
+      );
+    expect(rows(await listed(workspace))).toEqual([]);
+    expect(await shown()).toEqual([]);
+    const changed = "variant.core-changed-since-baseline";
+    // The image changes, the store does not: element.get checks it as before.
+    await fs.writeFile(fixture.path("img/x.svg"), svg("<g/>"));
+    expect(await shown()).toEqual([[changed, COAST, K2]]);
+    // A save elsewhere: the carried hits keep it, and hint.list gives what a new workspace gives.
+    await fs.writeFile(fixture.path("img/x.svg"), svg("<g><g/></g>"));
+    await invoke("element.update", { ref: K1, text: "Every 30 seconds.\n" }, { workspace });
+    const warm = rows(await listed(workspace));
+    expect(warm).toEqual(rows(await listed(reopened(fixture))));
+    expect(warm).toEqual([
+      [changed, COAST, K1],
+      [changed, COAST, K2],
+      [changed, MOUNTAIN, K1],
+      [changed, MOUNTAIN, K2],
+    ]);
   });
 });
 

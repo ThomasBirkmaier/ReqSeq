@@ -26,11 +26,12 @@
 //   variant the hits (`Memo`) with the chosen `Baseline` object, the store, the metamodel and the
 //   value of `currentVersionsState` they came from; a new or changed baseline file gives a new
 //   object, so a memo never outlives its baseline. Over a store change the hits are carried
-//   (`carried`) when each changed UUID keeps one copy in the same file, its rule items and whether it
-//   is a core requirement: only a changed core requirement is looked at again, with its own file.
-//   Anything else (a rule, a new or removed element, the versions built again) is the full pass. A
-//   changed embedded image of an unchanged core requirement shows once the versions are checked
-//   again (`hint.list`, `workspace.check` call `currentVersions`).
+//   (`carried`) when each changed UUID keeps one copy in the same file, its rule items (with a
+//   replacement item also its validity, which says where it acts) and whether it is a core
+//   requirement: only a changed core requirement is looked at again, with its own file. Kept or
+//   carried, the core requirements with images or without a version (`checked`) get their version
+//   again on each call, as `currentVersionsOf` checks them, so a changed image is seen. Anything
+//   else (a rule, a new or removed element, the versions built again) is the full pass.
 // - Cost (N-036): the headers of the baseline files and one full read per variant with a baseline
 //   (`newestBaselines`), then for a memo the changed UUIDs (`storeUpdate`), else the full pass: the
 //   core requirements once per store, their current versions (`currentVersionsOf`: the whole store,
@@ -64,6 +65,9 @@ import {
   isCoreRequirement,
   removersOf,
   ruleItemsOf,
+  validityEntries,
+  validityOf,
+  validityTarget,
   variantTypes,
   variantsOf,
   viewRuleIndexOf,
@@ -195,6 +199,8 @@ interface Memo {
   /** The place of each core requirement of the full pass, by `keyOf`. */
   readonly places: ReadonlyMap<string, number>;
   readonly hits: readonly Hit[];
+  /** The core requirements whose version is to be checked again on each call: with images, or without a version. */
+  readonly checked: readonly ElementRecord[];
 }
 
 /** The memo of each variant, by `keyOf`. */
@@ -233,9 +239,32 @@ const unchanged = (
     ? baseline.containsKey(key)
     : current !== undefined && storedOf(store, baseline, core) === current;
 
-/** The rule items of `record` as data: what a change of it may change in the views. */
-const rulesOf = (metamodel: Metamodel, record: ElementRecord): unknown =>
-  ruleItemsOf(metamodel, record).map(({ meaning, path, target }) => ({ meaning, path, target }));
+/**
+ * The rule items of `record` as data, what a change of it may change in the views: with a
+ * replacement item also its validity, which names the variants the replacement acts in
+ * (`removersOf`).
+ */
+const rulesOf = (metamodel: Metamodel, record: ElementRecord): unknown => {
+  const items = ruleItemsOf(metamodel, record).map(({ meaning, path, target }) => ({
+    meaning,
+    path,
+    target,
+  }));
+  const where = items.some((item) => item.meaning === "replacement")
+    ? validityEntries(validityOf(metamodel), record).map((entry) => validityTarget(entry.value, record))
+    : [];
+  return { items, where };
+};
+
+/** Whether the version of a record is to be checked on each call, as `currentVersionsOf` checks it: with images, or none. */
+const checkedAgain = (entry: CurrentVersion | undefined): boolean =>
+  entry?.kind !== "version" || entry.images.length > 0;
+
+/** What `carried` gives: the hits and the core requirements to check on the next call. */
+interface Carried {
+  readonly hits: Hit[];
+  readonly checked: readonly ElementRecord[];
+}
 
 const NONE: readonly ElementRecord[] = [];
 
@@ -243,15 +272,14 @@ const NONE: readonly ElementRecord[] = [];
 const copiesIn = (store: ElementStore, id: string): readonly ElementRecord[] => store.byId.get(id) ?? NONE;
 
 /**
- * The hits of `memo` carried to the store of `context`, or undefined when they must be computed
- * again: each changed UUID keeps one copy in the same file, its rule items and whether it is a core
- * requirement; a changed core requirement gets its hit again from its file.
+ * The UUIDs changed from the store of `memo` to that of `context` that are core requirements, or
+ * undefined when the hits must be computed again: each changed UUID keeps one copy in the same
+ * file, its rule items and whether it is a core requirement.
  */
-const carried = async (
-  context: SinceBaselineContext,
-  memo: Memo,
-  variantKey: string,
-): Promise<Hit[] | undefined> => {
+const changedCores = (context: SinceBaselineContext, memo: Memo): ElementRecord[] | undefined => {
+  if (memo.store === context.store) {
+    return [];
+  }
   const update = storeUpdate(memo.store, context.store);
   /* v8 ignore next 3 -- undefined only when the repositories differ, which a new workspace layout
      makes, and with it a new metamodel, which `findingsOf` checks before it asks for this. */
@@ -278,12 +306,34 @@ const carried = async (
       changed.push(after);
     }
   }
+  return changed;
+};
+
+/**
+ * The hits of `memo` for the store of `context` (see the file comment, "Kept"), or undefined when
+ * they must be computed again (`changedCores`). The changed core requirements and those whose
+ * version is checked on each call (`checked`: images, or no version) get their hit again.
+ */
+const carried = async (
+  context: SinceBaselineContext,
+  memo: Memo,
+  variantKey: string,
+): Promise<Carried | undefined> => {
+  const changed = changedCores(context, memo);
+  if (changed === undefined) {
+    return undefined;
+  }
   const ids = new Set(changed.map((core) => core.id));
-  const hits = memo.hits.filter((hit) => !ids.has(hit.core.id));
-  const versions = await currentVersionsOf(context.workspace, changed);
-  for (const core of changed) {
+  const again = [...changed, ...memo.checked.filter((core) => !ids.has(core.id))];
+  if (again.length === 0) {
+    return { hits: [...memo.hits], checked: memo.checked };
+  }
+  const records = new Set(again);
+  const hits = memo.hits.filter((hit) => !ids.has(hit.core.id) && !records.has(hit.core));
+  const versions = await currentVersionsOf(context.workspace, again);
+  for (const core of again) {
     const current = versionOf(versions.get(core));
-    // Each changed core requirement was one in the full pass: carrying keeps whether it is one.
+    // Each of them was a core requirement in the full pass: carrying keeps whether it is one.
     const at = Number(memo.places.get(keyOf(core)));
     if (
       !removersOf(memo.index, core).includes(variantKey) &&
@@ -292,7 +342,10 @@ const carried = async (
       hits.push({ core, at, stored: storedOf(context.store, memo.baseline, core), current });
     }
   }
-  return hits.sort((a, b) => a.at - b.at);
+  return {
+    hits: hits.sort((a, b) => a.at - b.at),
+    checked: again.filter((core) => checkedAgain(versions.get(core))),
+  };
 };
 
 /** A variant with its newest baseline. */
@@ -362,6 +415,7 @@ const fullPass = async (
   const currents = cores.map((core) => versionOf(versions.get(core)));
   const keys = cores.map((core, i) => keyFor(core, currents[i]));
   const removers = removersOfCores(index, cores);
+  const checked = cores.filter((core) => checkedAgain(versions.get(core)));
   const state = context.workspace.peek(currentVersionsState);
   // One pass per variant, which reads one baseline at a time (measured: several times faster).
   for (const item of pending) {
@@ -381,6 +435,7 @@ const fullPass = async (
       index,
       places: placesIn(cores),
       hits,
+      checked,
     });
     item.hits = hits;
   }
@@ -408,23 +463,22 @@ const findingsOf = async (
   const pending: Pending[] = [];
   for (const at of against) {
     const memo = memos.get(at.key);
+    // The same store with versions built again (`checkImages` replaced them, or a reset): the full pass.
     const kept =
-      memo?.baseline !== at.baseline || memo.metamodel !== context.metamodel
+      memo?.baseline !== at.baseline ||
+      memo.metamodel !== context.metamodel ||
+      (memo.store === context.store && memo.versions !== state)
         ? undefined
-        : memo.store === context.store
-          ? memo.versions === state
-            ? memo.hits
-            : undefined
-          : await carried(context, memo, at.key);
-    if (kept !== undefined && memo !== undefined && memo.store !== context.store) {
+        : await carried(context, memo, at.key);
+    if (kept !== undefined && memo !== undefined) {
       memos.set(at.key, {
         ...memo,
         store: context.store,
         versions: context.workspace.peek(currentVersionsState),
-        hits: kept,
+        ...kept,
       });
     }
-    pending.push({ at, hits: kept ?? [], full: kept === undefined });
+    pending.push({ at, hits: kept?.hits ?? [], full: kept === undefined });
   }
   const full = pending.filter((p) => p.full);
   if (full.length > 0) {
