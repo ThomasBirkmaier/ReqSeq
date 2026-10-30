@@ -494,14 +494,30 @@ describe("evidence.record variants (SR-030, SR-040)", () => {
 
   it("refuses a variant the element does not apply in, and an element that is no variant", async () => {
     const { fixture, workspace } = await variants();
+    // Given by UUID, as the app gives it: the message names short IDs, the details the variant (SR-047 AK4).
     const desert = await refusedLeavingNothing(
       fixture,
-      () => record(workspace, { ref: "SR-000ab2", ...TEST, variant: "VAR-c3c3c3" }),
+      () =>
+        record(workspace, {
+          ref: "40a0e000-0000-4000-8000-000000000ab2",
+          ...TEST,
+          variant: "40a0e000-0000-4000-8000-c3c3c3c3c3c3",
+        }),
       "not-valid-in-variant",
     );
-    expect(desert.message).toBe(
+    expect([desert.message, desert.details?.["variant"]]).toEqual([
       "SR-000ab2 does not apply in VAR-c3c3c3, so a record for it there would count nowhere (SR-040)",
+      "40a0e000-0000-4000-8000-c3c3c3c3c3c3",
+    ]);
+    const core = await refusedLeavingNothing(
+      fixture,
+      () => record(workspace, { ref: "SR-000ab2", ...TEST, variant: "core" }),
+      "not-valid-in-variant",
     );
+    expect([core.message, core.details?.["variant"]]).toEqual([
+      "SR-000ab2 does not apply in core, so a record for it there would count nowhere (SR-040)",
+      "core",
+    ]);
     const error = await refusedLeavingNothing(fixture, () =>
       record(workspace, { ref: "SR-000ab2", ...TEST, variant: "SR-000a11" }),
     );

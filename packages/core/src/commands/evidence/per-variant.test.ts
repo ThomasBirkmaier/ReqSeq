@@ -70,15 +70,19 @@ const getRows = async (workspace: Workspace, ref: string): Promise<Rows | undefi
     (await invoke("element.get", { ref }, { workspace })) as CommandOutput<"element.get">
   ).element.verification?.map(({ view, status }) => ({ view, status }));
 
-/** The refusal of `evidence.record` for `ref` in `variant`; the evidence folder is unchanged. */
+/** The refusal of `evidence.record` of `kind` for `ref` in `variant`; the evidence folder is unchanged. */
 const refused = async (
   fixture: FixtureWorkspace,
   workspace: Workspace,
   ref: string,
   variant: string,
+  kind: "verification" | "validation" = "verification",
 ): Promise<CommandError> => {
   const before = await fs.readdir(path.join(fixture.root, "evidence"));
-  const input = { ref, kind: "verification", method: "test", item: "build-47", result: "passed", variant };
+  const input =
+    kind === "verification"
+      ? { ref, kind, method: "test", item: "build-47", result: "passed", variant }
+      : { ref, kind, result: "passed", variant };
   const error = await invoke("evidence.record", input, { workspace }).then(
     () => undefined,
     (e: unknown) => e,
@@ -149,6 +153,15 @@ describe("verification status per variant (SR-047)", () => {
         variant: A,
         replacedBy: [`${P}b1`],
       },
+    ]);
+    // A validation record is refused the same way (#534 Q2 writes one only for a variant the element is in).
+    const validations = [
+      await refused(fixture, workspace, "SR-0000a2", "VAR-0000c1", "validation"),
+      await refused(fixture, workspace, "SR-0000a1", "VAR-0000c1", "validation"),
+    ];
+    expect(validations.map((e) => [e.code, e.details?.["reason"]])).toEqual([
+      ["input.invalid", "excluded-in-variant"],
+      ["input.invalid", "replaced-in-variant"],
     ]);
     // In B, where K1 and K2 are, a record is written.
     const written = (await invoke(

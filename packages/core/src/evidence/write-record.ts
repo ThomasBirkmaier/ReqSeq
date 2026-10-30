@@ -400,7 +400,9 @@ interface Prepared {
 
 /**
  * The variant of rule 1: its UUID, undefined for the core; `input.invalid` when the element does not
- * apply in it, or when the variant's view leaves it out: excluded, or replaced (SR-047 AK4).
+ * apply in it (SR-040), or when the variant's view leaves it out: excluded, or replaced (SR-047 AK4).
+ * Every refusal names the element and the variant by short ID (the app gives UUIDs) and gives
+ * `details.variant`, the UUID of the variant or `core`.
  */
 const variantOf = (
   context: Parameters<typeof resolveView>[0] & { readonly workspace: Workspace },
@@ -411,10 +413,16 @@ const variantOf = (
     return undefined;
   }
   const view = resolveView(context, input.variant, COMMAND, "variant", false);
+  const { shortIds } = context;
+  const ref = shortIds.of(element);
+  const [variant, id] =
+    view.kind === "core" ? ["core", "core"] : [shortIds.of(view.variant), view.variant.id];
+  const refused = (why: string, reason: string, more: Readonly<Record<string, unknown>> = {}): CommandError =>
+    invalid(`${ref} ${why}`, { fields: ["variant"], reason, variant: id, ...more });
   if (!appliesIn(validityOf(context.metamodel), element, view)) {
-    throw invalid(
-      `${input.ref} does not apply in ${input.variant}, so a record for it there would count nowhere (SR-040)`,
-      { fields: ["variant"], reason: "not-valid-in-variant" },
+    throw refused(
+      `does not apply in ${variant}, so a record for it there would count nowhere (SR-040)`,
+      "not-valid-in-variant",
     );
   }
   if (view.kind === "core") {
@@ -425,29 +433,18 @@ const variantOf = (
     return view.variant.id;
   }
   // Out of the view though it applies: the variant excludes it, or a requirement replaces it there.
-  // Named by short ID: the app gives UUIDs.
-  const { shortIds } = context;
-  const [ref, variant] = [
-    shortIds.of(element),
-    shortIds.of(resolveRef(context.store, shortIds, input.variant)),
-  ];
   if (rule.excludes(element)) {
-    throw invalid(`${ref} is excluded in ${variant}, so a record for it there would count nowhere (SR-047)`, {
-      fields: ["variant"],
-      reason: "excluded-in-variant",
-      variant: view.variant.id,
-    });
+    throw refused(
+      `is excluded in ${variant}, so a record for it there would count nowhere (SR-047)`,
+      "excluded-in-variant",
+    );
   }
   const replacements = rule.replacedBy(element);
   const names = replacements.map((r) => shortIds.of(r)).join(", ");
-  throw invalid(
-    `${ref} is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
-    {
-      fields: ["variant"],
-      reason: "replaced-in-variant",
-      variant: view.variant.id,
-      replacedBy: replacements.map((r) => r.id),
-    },
+  throw refused(
+    `is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
+    "replaced-in-variant",
+    { replacedBy: replacements.map((r) => r.id) },
   );
 };
 

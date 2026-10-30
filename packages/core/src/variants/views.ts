@@ -25,6 +25,10 @@ export type View =
   | { readonly kind: "core" }
   | { readonly kind: "variant"; readonly variant: Pick<ElementRecord, "id" | "repository"> };
 
+/** A view as `resolveView` gives it: a variant's view with the variant's record. */
+export type ResolvedView =
+  { readonly kind: "core" } | { readonly kind: "variant"; readonly variant: ElementRecord };
+
 /** The validity property: its key, how messages name it and whether it holds a list (`relationKey`). */
 export type Validity = Pick<RelationKey, "label" | "many"> & { readonly key: string };
 
@@ -141,7 +145,7 @@ export const resolveView = (
   field = "view",
   /** Whether the field takes `core` too, as `view` does; the message says so. */
   takesCore = field === "view",
-): View => {
+): ResolvedView => {
   const { metamodel, store, shortIds } = context;
   requireMeaning(metamodel, "validity", command);
   // In any case, as element references are (#309, #305).
