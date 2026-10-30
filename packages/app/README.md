@@ -13,7 +13,7 @@ pnpm --filter @reqseq/app test:electron      # install, build and the Playwright
 
 The details are in the parts under [`docs/`](docs/), one file per topic. Read only the part you work on.
 
-- [Buffers and views](docs/buffers.md): start, buffers again after a restart, buffers, elements with a value, package page, neighbourhood, traceability matrix, modeline, view, follow agent, what is not shown
+- [Buffers and views](docs/buffers.md): start, buffers again after a restart, buffers, split window, variant difference, elements with a value, package page, neighbourhood, traceability matrix, modeline, view, follow agent, what is not shown
 - [Property boxes and title](docs/property-boxes.md): property boxes, choice and relation values, saving boxes, title
 - [Graph (SR-111)](docs/graph.md): the graph of an element
 - [Metamodel (SR-130)](docs/metamodel.md): the metamodel buffer

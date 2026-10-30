@@ -12,6 +12,7 @@ import {
   metamodelBuffer,
   neighbourhoodBuffer,
   overviewBuffer,
+  readOnlyBuffer,
   resultBuffer,
   searchBuffer,
 } from "./buffers.js";
@@ -160,10 +161,12 @@ describe("buffer session (SR-115 AK4)", () => {
     expect(result).toEqual(
       resultBuffer("evidence.list", { ref: "SR-1" }, "List evidence SR-1", undefined, RESTORED_REVISION),
     );
-    // Buffers as they open first, with nothing chosen, come back the same.
+    // Buffers as they open first, with nothing chosen, come back the same; an element shown read-only
+    // (SR-044 AK2) comes back read-only.
     const plain = [
       filteredList([]),
       elementBuffer("uuid-1", "spec", "SR-1 Secret title 1"),
+      readOnlyBuffer(elementBuffer("uuid-1", "spec", "SR-1 Secret title 1")),
       graphBuffer("uuid-3", "other", "SR-3 Secret title 3"),
     ];
     saveSession(() => storage, "plain", sessionText(plain, []));

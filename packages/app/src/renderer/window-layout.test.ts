@@ -9,6 +9,7 @@ import {
   graphBuffer,
   listBuffer,
   overviewBuffer,
+  readOnlyBuffer,
   resultBuffer,
 } from "./buffers.js";
 import { FOLLOW_OFF, onAccess, place, startFollowing } from "./follow.js";
@@ -224,5 +225,31 @@ describe("window layout (SR-115 AK3)", () => {
     state = run(state, ...placed.actions);
     expect(shown(state)).toEqual([`${element(2).key}*`, list.key]);
     sound(state);
+  });
+
+  it("[SR-044/AK2] side by side shows two buffers in two areas, the first on the left and active, from one area or from a split", () => {
+    const core = readOnlyBuffer(element(1));
+    const replacement = readOnlyBuffer(element(2));
+    const from = opened(element(1), list);
+    const state = reduceWindow(from, { type: "side-by-side", left: core, right: replacement });
+    expect(shown(state)).toEqual([`${core.key}*`, replacement.key]);
+    expect(state.buffers.map((buffer) => buffer.key)).toEqual([
+      core.key,
+      replacement.key,
+      list.key,
+      element(1).key,
+      overview.key,
+    ]);
+    sound(state);
+    // From a split whose active area is on the right: the pair takes both areas, the first on the left.
+    const split = run(opened(element(3), list), { type: "split" }, { type: "switch", key: element(3).key });
+    expect(areas(split).map((area) => area.side)).toEqual(["left", "right"]);
+    expect(split.layout.active).toBe("right");
+    const again = reduceWindow(split, { type: "side-by-side", left: core, right: replacement });
+    expect(shown(again)).toEqual([`${core.key}*`, replacement.key]);
+    sound(again);
+    // One buffer under both keys opens alone, as `open` does.
+    const alone = reduceWindow(from, { type: "side-by-side", left: core, right: core });
+    expect(alone).toEqual(reduceWindow(from, { type: "open", buffer: core }));
   });
 });

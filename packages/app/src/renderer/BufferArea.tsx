@@ -2,7 +2,7 @@
 // by side after "Split window" (`window-layout.ts`). An area has no heading, label or tab (AK2): the
 // modeline names the buffer of the active one. A press or a focus in the inactive area makes it active.
 import type { ElementBuffer, GraphBuffer, MetamodelBuffer, OverviewBuffer } from "./buffers.js";
-import type { Buffer, BufferAction } from "./buffers.js";
+import type { Buffer } from "./buffers.js";
 import { inMatrix } from "./buffers.js";
 import type { Call } from "./call.js";
 import type { ElementViewProps } from "./ElementView.js";
@@ -20,7 +20,7 @@ import { OverviewView } from "./OverviewView.js";
 import type { OutsideChanges } from "./outside-marks.js";
 import type { RecentRow } from "./overview.js";
 import { ResultView } from "./ResultView.js";
-import type { Area } from "./window-layout.js";
+import type { Area, WindowAction } from "./window-layout.js";
 
 type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffer | MetamodelBuffer>;
 
@@ -31,7 +31,11 @@ type LoadingBuffer = Exclude<Buffer, ElementBuffer | OverviewBuffer | GraphBuffe
 export const LoadingView = ({
   buffer,
   ...props
-}: Omit<ListViewProps, "buffer"> & { readonly buffer: LoadingBuffer }): React.JSX.Element => {
+}: Omit<ListViewProps, "buffer" | "dispatch"> & {
+  readonly buffer: LoadingBuffer;
+  /** Also the window's actions: a pair line of a result opens two elements side by side (SR-044 AK2). */
+  readonly dispatch: (action: WindowAction) => void;
+}): React.JSX.Element => {
   const shared = {
     call: props.call,
     revision: props.revision,
@@ -68,7 +72,7 @@ export interface AreaViews {
   /** Counts up also on every change from outside: what views of several elements read again on. */
   readonly seen: number;
   readonly outside: OutsideChanges;
-  readonly dispatch: (action: BufferAction) => void;
+  readonly dispatch: (action: WindowAction) => void;
   readonly onData: (key: string, data: BufferData | undefined) => void;
   readonly onEcho: (message: string) => void;
   /** The names of the types by their key, from the metamodel. */

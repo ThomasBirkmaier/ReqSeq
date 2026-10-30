@@ -50,7 +50,7 @@ export interface SearchBuffer {
   readonly cursor: number;
 }
 
-/** One element, read-only. `repository` and `id` identify it: a UUID may exist in several repositories. */
+/** One element. `repository` and `id` identify it: a UUID may exist in several repositories. */
 export interface ElementBuffer {
   readonly kind: "element";
   readonly key: string;
@@ -58,6 +58,11 @@ export interface ElementBuffer {
   readonly repository: string;
   /** "<identifier or short ID> <title>". */
   readonly name: string;
+  /**
+   * The element is shown read-only (`readOnlyBuffer`), as a comparison shows it (SR-044 AK2): a buffer of
+   * its own beside the element's editable one, whose input it never takes.
+   */
+  readonly readOnly?: true;
   /** A package page (SR-112): how its elements are sorted, kept while the buffer is open (as `ListBuffer.sort`). */
   readonly memberSort?: readonly FilterSortKeyWithDefaults[] | undefined;
   /** A package page: the selected row of its elements; set once the reader has used them. */
@@ -304,6 +309,16 @@ export const elementBuffer = (id: string, repository: string, name: string): Ele
   name,
 });
 
+/** The element of `buffer` shown read-only (SR-044 AK2), in a buffer of its own. */
+export const readOnlyBuffer = (buffer: ElementBuffer): ElementBuffer => ({
+  kind: "element",
+  key: `read-only:${buffer.repository}:${buffer.id}`,
+  id: buffer.id,
+  repository: buffer.repository,
+  name: buffer.name,
+  readOnly: true,
+});
+
 export const neighbourhoodBuffer = (id: string, repository: string, name: string): NeighbourhoodBuffer => ({
   kind: "neighbourhood",
   key: `neighbourhood:${repository}:${id}`,
@@ -448,7 +463,7 @@ export const bufferName = (buffer: Buffer): string => {
     case "search":
       return `Search: ${buffer.query}`;
     case "element":
-      return buffer.name;
+      return buffer.readOnly === true ? `${buffer.name} · read-only` : buffer.name;
     case "overview":
       return "Overview";
     case "neighbourhood":
