@@ -33,7 +33,7 @@ concurrency:
 # Two lanes (#303, #412): every push starts the Ubuntu lane (`static`, `checks` and `electron` on ubuntu-24.04). A draft
 # pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
 # is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
-# `checks` and `electron` on macos-14 and windows-2025, Electron on Windows in two shards. The lanes ran one after the
+# `checks` and `electron` on macos-26 and windows-2025, Electron on Windows in two shards. The lanes ran one after the
 # other while runner minutes cost money; in a public repository they are free, and in sequence a full run took about
 # 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
 # three systems before its merge (merge.md), but not every push.
@@ -144,7 +144,7 @@ jobs:
 
   # Build, unit tests with coverage (ADR-0016), the spec check and the CLI e2e suite (ADR-0011), on Ubuntu in the
   # Ubuntu lane. `checks-platform` runs the same steps on macOS and Windows.
-  # SR-076: Windows 11, macOS 14 and Ubuntu 24.04 are the reference systems.
+  # SR-076: Windows 11, macOS 26 and Ubuntu 24.04 are the reference systems.
   checks:
     name: checks (ubuntu-24.04)
     # A normal run takes 6-7 minutes; the bound ends a hang early.
@@ -387,7 +387,7 @@ jobs:
           RESULT: ${{ needs.electron-shard.result }}
         run: test "$RESULT" = success
 
-  # The platform lane (#303, #412): the steps of `checks` and `electron-shard` on macOS 14 and Windows 2025, in parallel
+  # The platform lane (#303, #412): the steps of `checks` and `electron-shard` on macOS 26 and Windows 2025, in parallel
   # to the Ubuntu lane. A pull request runs it only when it is not a draft. A skipped platform job shows its name
   # without the system (`checks (${{ matrix.os }})`), so a draft never shows the required names, and merge.md asks
   # for the jobs of all three systems to be present and green.
@@ -400,7 +400,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, windows-2025]
+        # macos-14 runs only until the ruleset of main requires the macos-26 checks (#490); GitHub shuts it down
+        # on 2026-11-02.
+        os: [macos-14, macos-26, windows-2025]
     runs-on: ${{ matrix.os }}
     steps: *checks-steps
 
@@ -414,7 +416,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14]
+        os: [macos-14, macos-26]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
