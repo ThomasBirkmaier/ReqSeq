@@ -6,8 +6,11 @@
 //   folder; `package` and `view` as `{ id, title }` (the title now, D-058), `{ id, repository }`
 //   outside it; `view: core` as the text; `where` as filter.save writes it (`canonicalCondition`).
 // - A saved filter is written resolved, never by name: its `where` (under `all` with the input's
-//   `where`) and its `view`, so a later change of the filter does not change the baseline. When the
-//   input and the filter both name a view, the input's is stored.
+//   `where`) and its `view`, so a later change of the filter does not change the baseline. The
+//   views are the ones the selection was resolved with (`Selected.views`). When the input and the
+//   filter name different views, the elements apply in both (SR-101 AK2), which one stored view
+//   cannot say: refused with `input.invalid` (assumption of the spec question on SR-050 AK3); the
+//   same view is stored once.
 // - `selection.baseline` is refused: a baseline is not made of another one.
 import type { CommandOutput } from "../../catalog.js";
 import { defineCommand } from "../../catalog.js";
@@ -18,6 +21,7 @@ import { resolveRef, titleKeyOrEmpty } from "../../model/index.js";
 import type { QueryContext, Selected } from "../../query/index.js";
 import { canonicalCondition, resolveSelection } from "../../query/index.js";
 import { invalidAt } from "../../query/context.js";
+import type { View } from "../../variants/index.js";
 import { settingLocation, workspaceLayoutState } from "../../workspace/index.js";
 
 /** `selection` as the baseline file stores it, for a file in the repository `home` (see the file comment). */
@@ -31,9 +35,9 @@ const storedSelection = (
   const titleKey = titleKeyOrEmpty(context.metamodel);
   const recordOf = (ref: string): ElementRecord => resolveRef(store, shortIds, ref);
   const refOf = (
-    record: ElementRecord,
+    record: Pick<ElementRecord, "id" | "repository">,
   ): { id: string; title: string } | { id: string; repository: string } => {
-    const title = record.data[titleKey];
+    const title = store.byId.get(record.id)?.find((r) => r.repository === record.repository)?.data[titleKey];
     return record.repository === home
       ? { id: record.id, title: typeof title === "string" ? title : "" }
       : { id: record.id, repository: record.repository };
@@ -41,7 +45,16 @@ const storedSelection = (
   const wheres = [selected.filter?.data.where, selection.where].flatMap((where) =>
     where === undefined ? [] : [canonicalCondition(context, where, "selection.where")],
   );
-  const view = selection.view ?? selected.filter?.data.view;
+  const [view, other] = selected.views;
+  const key = (shown: View): string =>
+    shown.kind === "core" ? "core" : `${shown.variant.id}\n${shown.variant.repository}`;
+  if (view !== undefined && other !== undefined && key(view) !== key(other)) {
+    throw invalidAt(
+      context,
+      "selection.view",
+      `the saved filter ${String(selected.filter?.name)} has the view ${String(selected.filter?.data.view)}, another than ${String(selection.view)}; a baseline stores one view, so give the filter's view or leave view out`,
+    );
+  }
   return {
     ...(selection.ids === undefined
       ? {}
@@ -52,7 +65,7 @@ const storedSelection = (
         }),
     ...(wheres.length === 0 ? {} : { where: wheres.length === 1 ? wheres[0] : { all: wheres } }),
     ...(selection.package === undefined ? {} : { package: refOf(recordOf(selection.package)) }),
-    ...(view === undefined ? {} : { view: view.toLowerCase() === "core" ? "core" : refOf(recordOf(view)) }),
+    ...(view === undefined ? {} : { view: view.kind === "core" ? "core" : refOf(view.variant) }),
   };
 };
 

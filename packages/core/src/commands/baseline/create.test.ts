@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions, FixtureWorkspace } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { baselineStem, baselineText, readBaselines } from "../../baselines/index.js";
+import { readBaselines } from "../../baselines/index.js";
 import { scanBaseline } from "../../baselines/scan.js";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
@@ -72,7 +72,7 @@ const bodyOf = (ws: FixtureWorkspace, out: Output): string =>
   read(ws, out.baseline.file).slice(read(ws, out.baseline.file).indexOf("repositories:"));
 
 describe("baseline.create", () => {
-  it("[SR-050/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version", async () => {
+  it("[SR-050/AK1] [SR-101/AK1] baseline.create writes a file in the baseline folder with name, date, commits and id plus version, for exactly the elements of the package", async () => {
     const ws = await fixture();
     const head = await ws.head("system");
     const out = await create(ws, "Release 2", PACKAGE);
@@ -139,6 +139,14 @@ describe("baseline.create", () => {
       elements: [b1],
       files: [{ repository: "system", file: "requirements/wind.png" }],
     });
+    // A committed metamodel file removed from disk, which the metamodel no longer lists.
+    await ws.write("system/metamodel/extra.yaml", "reqseq-metamodel: 1\n");
+    await ws.commit("system");
+    const removeExtra = async (): Promise<void> => fs.promises.rm(ws.path("system/metamodel/extra.yaml"));
+    expect(await refused(removeExtra)).toEqual({
+      elements: [],
+      files: [{ repository: "system", file: "metamodel/extra.yaml" }],
+    });
     // Allowed: an element outside the selection, a new evidence record, a file touched but equal.
     await fs.promises.appendFile(ws.path("system/requirements/SR-0000000000b3.md"), "edited\n");
     await ws.write(
@@ -147,6 +155,24 @@ describe("baseline.create", () => {
     );
     fs.writeFileSync(ws.path(`system/${b1.file}`), read(ws, b1.file));
     expect((await create(ws, "Allowed", PACKAGE)).baseline.elements).toBe(2);
+  });
+
+  it("refuses a view that differs from the saved filter's view and stores the same view once", async () => {
+    const ws = await fixture();
+    await ws.write(
+      "system/filters/coast.yaml",
+      "reqseq-filter: 1\nname: CoastOnly\nview: VAR-0000c1\nwhere: { all: [] }\n",
+    );
+    const error = await failure(ws, "X", { filter: "CoastOnly", view: "VAR-0000c2" });
+    expect([error.code, error.details]).toEqual([
+      "input.invalid",
+      { command: "baseline.create", fields: ["selection.view"] },
+    ]);
+    expect(error.message).toContain("CoastOnly has the view VAR-0000c1");
+    const same = await create(ws, "Coast again", { filter: "CoastOnly", view: `${ID}c1` });
+    expect(read(ws, same.baseline.file)).toContain(
+      `selection:\n  where:\n    all: []\n  view: { id: ${ID}c1, title: Coast }\nrepositories:\n`,
+    );
   });
 
   it("[SR-050/AK3] a baseline through a variant view names the variant", async () => {
@@ -293,39 +319,18 @@ describe("baseline.create", () => {
     expect(out.problems?.map((p) => p.code)).toEqual(["workspace.repository-missing"]);
     write.mockRejectedValueOnce(new CommandError("file.faulty", "read-only"));
     expect((await failure(ws, "Other", PACKAGE)).code).toBe("file.faulty");
+    // A metamodel in a repository that is not here makes the workspace read-only: refused before Git is asked.
+    const settings = read(ws, "reqseq-workspace.yaml");
+    await ws.write(
+      "system/reqseq-workspace.yaml",
+      settings.replace("metamodel: { repository: system", "metamodel: { repository: sensor"),
+    );
+    expect((await failure(ws, "Away", { ids: [] })).code).toBe("workspace.read-only");
+    await ws.write("system/reqseq-workspace.yaml", settings);
     // A package without title is stored with an empty one.
     const pkg = "packages/PKG-0000000000d1.md";
     await ws.write(`system/${pkg}`, read(ws, pkg).replace("title: Display\n", ""));
     const untitled = await create(ws, "Untitled", PACKAGE);
     expect(read(ws, untitled.baseline.file)).toContain(`  package: { id: ${ID}d1, title: "" }\n`);
-  });
-
-  it("names files portably and writes the layout of ADR-0018 for any names", () => {
-    expect(["Release 1", "Größe", "基线一", "CON", "  "].map(baselineStem)).toEqual([
-      "Release-1",
-      "Gro-e",
-      "baseline",
-      "CON-baseline",
-      "baseline",
-    ]);
-    const text = baselineText({
-      "reqseq-baseline": 1,
-      name: "true",
-      date: "2026-11-02T13:00:00Z",
-      repositories: [{ name: "123", commit: "a".repeat(40) }],
-      elements: [{ id: `${ID}e1`, version: "n1:31d60ac7c791e279", repository: "true" }],
-    });
-    expect(text).toBe(
-      [
-        "reqseq-baseline: 1",
-        'name: "true"',
-        "date: 2026-11-02T13:00:00Z",
-        "repositories:",
-        `  - { name: "123", commit: ${"a".repeat(40)} }`,
-        "elements:",
-        `  - { id: ${ID}e1, version: n1:31d60ac7c791e279, repository: "true" }`,
-        "",
-      ].join("\n"),
-    );
   });
 });

@@ -60,7 +60,7 @@ export interface StateRules {
  * `location` relative to the folder of `repository` (`/`, NFC, `""` for the folder itself), or
  * undefined when it lies in another repository or leaves this one.
  */
-const relativeIn = (
+export const relativeIn = (
   repository: Pick<RepositoryLocation, "name" | "folder">,
   location: { readonly repository: string; readonly path: string },
 ): string | undefined => {

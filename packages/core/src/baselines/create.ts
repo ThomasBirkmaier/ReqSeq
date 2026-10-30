@@ -4,21 +4,19 @@
 // - Refused, in this order, and nothing is written: a valid baseline has the name, ignoring case and
 //   Unicode normal form (`baseline.exists` with its file, AK6); the folder's repository is not here
 //   (`file.folder-missing`); a selected element has no version (`file.faulty`); a repository
-//   involved is not here, not under Git or has no commit, or Git cannot tell its changes
-//   (`git.unavailable`, AK7); a file of the selection differs from HEAD or was never committed
-//   (`baseline.uncommitted-changes`, AK2).
+//   involved has no commit, with the reason in words (`NO_COMMIT_TEXT`), or Git cannot tell its
+//   changes (`git.unavailable`, AK7); a file of the selection differs from HEAD or was never
+//   committed (`baseline.uncommitted-changes`, AK2).
 // - Involved (AK4): the repositories of the selected elements, the main repository and the
 //   metamodel's, each once, in the order of the workspace file, with the HEAD commit.
 // - Uncommitted (AK2), per repository with `uncommittedFiles`: the files of the selected elements,
 //   the files they embed, the YAML files of the metamodel folder and the workspace file; no evidence
 //   record, no other element. The message and `details.elements` name the elements whose file or
 //   embedded file changed, `details.files` the other files.
-// - The text is the layout of ADR-0018, which the line scanner reads (scan.ts); `elements: []` for
-//   an empty selection (AK5). The file name is the name made portable (`portableName`), case kept;
-//   a file name the folder has in any case or normal form gets `-2`, `-3`, … The file is created,
-//   never replaced (`writeFileAtomic` with no snapshot), and never committed (D-036).
+// - The text and the file name are text.ts (`elements: []` for an empty selection, AK5); a file name
+//   the folder has in any case or normal form gets `-2`, `-3`, … The file is created, never
+//   replaced (`writeFileAtomic` with no snapshot), and never committed (D-036).
 import path from "node:path";
-import { Document, isMap, isScalar, visit } from "yaml";
 import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
 import { createFolder, listFolderFiles, writeFileAtomic } from "../files/index.js";
@@ -28,18 +26,18 @@ import {
   clashKey,
   currentVersionsOf,
   elementStoreState,
-  portableName,
+  NO_COMMIT_TEXT,
+  relativeIn,
   repositoryCommit,
   shortIdState,
   uncommittedFiles,
-  windowsChanges,
   workspacePath,
 } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, locate, workspaceLayoutState } from "../workspace/index.js";
 import { BASELINE_FILE_EXTENSION, foldName, workspaceBaselines } from "./read.js";
-import { NOT_A_STRING } from "./scan.js";
+import { baselineStem, baselineText } from "./text.js";
 
 /** What `createBaseline` writes. */
 export interface BaselineRequest {
@@ -57,55 +55,6 @@ export interface BaselineRequest {
     readonly files: readonly string[];
   };
 }
-
-const YAML_OPTIONS = { version: "1.2", schema: "core" } as const;
-
-/** A repository name as a plain scalar, quoted where YAML would read it as no string. */
-const plain = (name: string): string => (NOT_A_STRING.test(name) ? JSON.stringify(name) : name);
-
-/** The header lines: `package`, `view` and `ids` items as flow mappings, lists of plain values in `where` on one line. */
-const headerText = (header: Omit<BaselineFile, "repositories" | "elements">): string => {
-  const document = new Document(header, YAML_OPTIONS);
-  for (const node of [
-    document.getIn(["selection", "package"], true),
-    document.getIn(["selection", "view"], true),
-    ...((document.getIn(["selection", "ids"], true) as { items?: unknown[] } | undefined)?.items ?? []),
-  ]) {
-    if (isMap(node)) {
-      node.flow = true;
-    }
-  }
-  const where = document.getIn(["selection", "where"], true);
-  if (isMap(where)) {
-    visit(where, {
-      Seq: (_, node) => {
-        node.flow = node.items.every((item) => isScalar(item));
-      },
-    });
-  }
-  return document.toString({ lineWidth: 0, minContentWidth: 0, blockQuote: false });
-};
-
-/** The text of `data` in the layout of ADR-0018 (see the file comment). */
-export const baselineText = (data: BaselineFile): string => {
-  const { repositories, elements, ...header } = data;
-  return [
-    `${headerText(header)}repositories:`,
-    ...repositories.map((r) => `  - { name: ${plain(r.name)}, commit: ${r.commit} }`),
-    elements.length === 0 ? "elements: []" : "elements:",
-    ...elements.map(
-      (e) =>
-        `  - { id: ${e.id}, version: ${e.version}${e.repository === undefined ? "" : `, repository: ${plain(e.repository)}`} }`,
-    ),
-    "",
-  ].join("\n");
-};
-
-/** The file name of a baseline without `-<n>` and extension: the name made portable, `baseline` when nothing is left. */
-export const baselineStem = (name: string): string => {
-  const stem = portableName(name, "baseline");
-  return windowsChanges(`${stem}${BASELINE_FILE_EXTENSION}`) ? `${stem}-baseline` : stem;
-};
 
 /** A file relative to its repository as `relativeIn` gives it: `/`, NFC, `""` for the folder itself. */
 const relativeTo = (repository: RepositoryLocation, absolute: string): string =>
@@ -146,7 +95,10 @@ const writeNew = async (
 const gitUnavailable = (repository: string, why: string): CommandError =>
   new CommandError("git.unavailable", `Not created: repository ${repository} ${why}`, { repository });
 
-/** The repositories involved (AK4), each with its HEAD commit (AK7). */
+/**
+ * The repositories involved (AK4), each with its HEAD commit (AK7). Each is on this machine: the
+ * selected elements are, the main repository is, and without the metamodel's the workspace is read-only.
+ */
 const commitsOf = async (
   layout: WorkspaceLayout,
   elements: readonly ElementRecord[],
@@ -157,7 +109,10 @@ const commitsOf = async (
     involved.map(async (repository) => {
       const head = await repositoryCommit(repository);
       if (head.commit === undefined) {
-        throw gitUnavailable(repository.name, `has no commit (${head.unknown}); put it under Git and commit`);
+        throw gitUnavailable(
+          repository.name,
+          `has no commit (${NO_COMMIT_TEXT[head.unknown]}); put it under Git and commit, or check the folder`,
+        );
       }
       return { repository, commit: head.commit };
     }),
@@ -186,18 +141,20 @@ const changesIn = async (
 ): Promise<{ readonly elements: ElementRecord[]; readonly files: ChangedFile[] }> => {
   const own = checked.elements.filter((e) => e.repository === repository.name);
   const embeds = checked.embeds.get(repository.name) ?? new Map<string, readonly ElementRecord[]>();
-  const metamodel = checked.metamodel.repository === repository.name;
-  const folder = path.posix.join(checked.metamodel.path, ".");
+  // The metamodel folder relative to this repository as data.export takes it (`relativeIn`), or undefined.
+  const folder = relativeIn(repository, checked.metamodel);
   const files = [
     ...(repository.main ? [WORKSPACE_FILE] : []),
-    ...(metamodel ? checked.metamodel.files : []),
+    ...(folder === undefined ? [] : checked.metamodel.files),
     ...own.map((e) => e.file),
     ...embeds.keys(),
   ].map((file) => file.normalize("NFC"));
   const known = new Set(files);
   const counts = (file: string): boolean =>
     known.has(file.normalize("NFC")) ||
-    (metamodel && /\.ya?ml$/i.test(file) && path.posix.dirname(file) === folder);
+    (folder !== undefined &&
+      /\.ya?ml$/i.test(file) &&
+      path.posix.join(folder, path.posix.basename(file)) === file.normalize("NFC"));
   const found = await uncommittedFiles(repository.folder, commit, files, counts);
   if (!found.known) {
     throw gitUnavailable(repository.name, `cannot be read by Git (${found.reason})`);

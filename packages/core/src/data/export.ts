@@ -59,13 +59,13 @@ import type {
   CurrentVersions,
   ElementRecord,
   ElementStore,
-  NoCommitReason,
   RepositoryState,
   StateReader,
 } from "../model/index.js";
 import {
   currentVersions,
   currentVersionsOf,
+  NO_COMMIT_TEXT,
   isOutdatedVersion,
   isUuid,
   listElements,
@@ -225,16 +225,6 @@ export interface ExportOptions {
   /** Reads Git and the disk for `dirty`; default `DEFAULT_STATE_READER` (model/uncommitted.ts). */
   readonly state?: StateReader;
 }
-
-/** Why there is no commit, in words (`NoCommitReason`). */
-export const NO_COMMIT_TEXT: Readonly<Record<NoCommitReason, string>> = {
-  "no-git": "Git is not installed or not on PATH",
-  refused: "Git refuses to read it because another user owns it, see git config safe.directory",
-  timeout: "Git did not answer in time",
-  "not-a-repository": "it is in no Git repository",
-  "no-commit": "its Git repository has no commit yet",
-  "no-tree": "its commit holds nothing at this folder",
-};
 
 /** Why Git cannot tell `dirty`, in words (`GitUnknownReason`). */
 const DIRTY_UNKNOWN_TEXT: Readonly<Record<GitUnknownReason, string>> = {

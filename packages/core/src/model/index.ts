@@ -170,7 +170,7 @@ export {
   relationPath,
 } from "./incoming.js";
 export { changedFiles, restrictTo, treeAt } from "./changed.js";
-export { repositoryCommit } from "./repository-commit.js";
+export { NO_COMMIT_TEXT, repositoryCommit } from "./repository-commit.js";
 export type { NoCommitReason, RepositoryCommit } from "./repository-commit.js";
 export {
   DEFAULT_STATE_READER,
@@ -179,6 +179,7 @@ export {
   repositoryState,
   stateFiles,
   stateRules,
+  relativeIn,
   uncommittedFiles,
   uncommittedStateFiles,
 } from "./uncommitted.js";
