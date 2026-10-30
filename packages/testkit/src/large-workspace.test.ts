@@ -3,7 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, onTestFinished } from "vitest";
-import type { GeneratedElement, GeneratedWorkspace, LargeFixtureWorkspace, VersionSubject } from "./index.js";
+import type {
+  GeneratedElement,
+  GeneratedWorkspace,
+  LargeFixtureWorkspace,
+  VariantRulesOptions,
+  VersionSubject,
+} from "./index.js";
 import {
   DEFAULT_ELEMENTS,
   DEFAULT_RELATIONS,
@@ -239,6 +245,72 @@ describe("generateLargeWorkspace", () => {
     expect(withValidity.size).toBeGreaterThan(10);
     expect(excluded.length).toBeGreaterThan(20);
     expect(excluded.filter((id) => withValidity.has(id))).toEqual([]);
+  });
+
+  describe("variantRules (stage 5 plan, VR-S6)", () => {
+    const base = (): GeneratedWorkspace => small(7, 5000, 20_000);
+    const withRules = (rules: VariantRulesOptions): GeneratedWorkspace =>
+      generateLargeWorkspace({
+        version: fakeVersion,
+        seed: 7,
+        elements: 5000,
+        relations: 20_000,
+        variantRules: rules,
+      });
+
+    it("adds exclusions and replacements onto core requirements in a pass of its own, changing only the files of their sources", () => {
+      const plain = base();
+      const generated = withRules({ exclusions: 300, replacements: 200 });
+      const relations = relationsOf(generated);
+      const withValidity = new Set(relations.filter((r) => r.key === "validity").map((r) => r.source.id));
+      const replaces = relations.filter((r) => r.key === "replaces");
+      const excludes = relations.filter((r) => r.key === "excludes");
+      expect([generated.exclusions, generated.replacements]).toEqual([300, 200]);
+      expect([excludes.length, replaces.length]).toEqual([300, 200]);
+      expect(plain.replacements).toBe(0);
+      expect(generated.relations).toBe(plain.relations + 300 - plain.exclusions + 200);
+      // Sources: requirements with a validity, at most two items each; targets: core requirements.
+      expect(replaces.every((r) => withValidity.has(r.source.id))).toBe(true);
+      const perSource = new Map<string, number>();
+      for (const r of replaces) {
+        perSource.set(r.source.id, (perSource.get(r.source.id) ?? 0) + 1);
+      }
+      expect(Math.max(...perSource.values())).toBeLessThanOrEqual(2);
+      const targets = [...replaces, ...excludes].map((r) => r.target["id"] ?? "");
+      expect(targets.filter((id) => withValidity.has(id))).toEqual([]);
+      // Versions and every other file stay as they were; the sources keep their text.
+      expect(generated.elements).toEqual(plain.elements);
+      const sources = new Set(
+        [...replaces, ...excludes].map((r) => `${r.source.repository}/${r.source.file}`),
+      );
+      for (const [file, content] of generated.files) {
+        if (!sources.has(file)) {
+          expect(content).toBe(plain.files.get(file));
+        }
+      }
+      expect(withRules({ exclusions: 300, replacements: 200 }).digest).toBe(generated.digest);
+      expect(withRules({ seed: 8, exclusions: 300, replacements: 200 }).digest).not.toBe(generated.digest);
+    });
+
+    it("throws at once when the items do not fit, and fills exactly the room it names", () => {
+      const room = (rules: VariantRulesOptions): number => {
+        try {
+          withRules(rules);
+        } catch (error) {
+          return Number(/room for (\d+) from/.exec(String(error))?.[1]);
+        }
+        return -1;
+      };
+      // 5,000 by default fit N-036 only: more than two each from the requirements with a validity here.
+      const replacements = room({ exclusions: 0 });
+      expect(replacements).toBeGreaterThan(100);
+      expect(replacements).toBeLessThan(5000);
+      expect(withRules({ exclusions: 0, replacements }).replacements).toBe(replacements);
+      expect(room({ exclusions: 0, replacements: 1_000_000 })).toBe(replacements);
+      expect(() =>
+        generateLargeWorkspace({ version: fakeVersion, elements: 6, relations: 0, variantRules: {} }),
+      ).toThrow(/^cannot place 5000 excludes items: room for \d from 1 sources onto \d core requirements/);
+    });
   });
 
   it("passes the text and every value but the relation kinds to the version function (ADR-0005)", () => {

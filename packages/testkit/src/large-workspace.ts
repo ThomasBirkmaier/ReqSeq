@@ -72,6 +72,36 @@ export interface LargeWorkspaceOptions {
   readonly relations?: number;
   /** Text of the metamodel file. Default: the standard model (`defaultStandardModelFile`). */
   readonly metamodel?: string;
+  /** Adds exclusions and replacements in a pass of its own (`VariantRulesOptions`). Default: none. */
+  readonly variantRules?: VariantRulesOptions;
+}
+
+/** Seed of the variant rules pass, so that the elements and the other relations stay as without it. */
+export const VARIANT_RULES_SEED = 43;
+/**
+ * Exclusion and replacement items of the variant perf workspace (stage 5 plan, VR-S6). They fit the
+ * N-036 workspace (room for about 5,900 replacements there); a smaller workspace passes its own.
+ */
+export const DEFAULT_EXCLUSIONS = 5_000;
+export const DEFAULT_REPLACEMENTS = 5_000;
+/** At most this many `replaces` items per system requirement with a validity. */
+const REPLACEMENTS_PER_SOURCE = 2;
+
+/**
+ * Exclusions and replacements of the view rule (SR-041, SR-042, SR-043), added after the other
+ * relations with a random sequence of their own: relation kinds never count to a version
+ * (ADR-0005), so only the files of the variants and of the replacing requirements change.
+ */
+export interface VariantRulesOptions {
+  /** Default `VARIANT_RULES_SEED`. */
+  readonly seed?: number;
+  /** `excludes` items in all variant files after the pass, those already there included, each onto a core requirement. Default 5,000. */
+  readonly exclusions?: number;
+  /**
+   * `replaces` items in all files after the pass, from system requirements with a validity (at most
+   * two each) onto core requirements. Default 5,000.
+   */
+  readonly replacements?: number;
 }
 
 export interface GeneratedRepository {
@@ -100,6 +130,9 @@ export interface GeneratedWorkspace {
   readonly elements: readonly GeneratedElement[];
   /** Number of relation targets written. */
   readonly relations: number;
+  /** Of them, `excludes` items (variant files) and `replaces` items (`variantRules`). */
+  readonly exclusions: number;
+  readonly replacements: number;
   /** Number of inline references written in the texts (about 2 per element, ADR-0004). */
   readonly references: number;
   /**
@@ -458,6 +491,67 @@ const addRelations = (drafts: readonly Draft[], pools: Pools, count: number, ran
 };
 
 /**
+ * Adds `key` items from `sources` onto `targets` until there are `total` in all of `sources`, at
+ * most `perSource` per source and each target once per source. Throws at once when they do not fit
+ * (the room is known up front); a source with no room left is no longer drawn.
+ */
+const addRuleItems = (
+  sources: readonly Draft[],
+  targets: readonly Draft[],
+  rule: { readonly key: string; readonly total: number; readonly perSource: number },
+  random: Random,
+): void => {
+  const { key, total, perSource } = rule;
+  const cap = Math.min(perSource, targets.length);
+  const listOf = (source: Draft): Draft[] => source.relations.get(key) ?? [];
+  const open = sources.filter((s) => listOf(s).length < cap);
+  const room = open.reduce((n, s) => n + cap - listOf(s).length, 0);
+  let placed = itemsCount(sources, key);
+  if (total - placed > room) {
+    throw new Error(
+      `cannot place ${String(total)} ${key} items: room for ${String(placed + room)} from ${String(sources.length)} sources onto ${String(targets.length)} core requirements (pass smaller counts for a smaller workspace)`,
+    );
+  }
+  while (placed < total) {
+    const at = random.below(open.length);
+    const source = itemAt(open, at);
+    const target = random.pick(targets);
+    const list = listOf(source);
+    if (!list.includes(target)) {
+      list.push(target);
+      source.relations.set(key, list);
+      placed++;
+      if (list.length === cap) {
+        open[at] = itemAt(open, open.length - 1);
+        open.pop();
+      }
+    }
+  }
+};
+
+/** The pass of `LargeWorkspaceOptions.variantRules`: exclusions first, then replacements. */
+const addVariantRules = (pools: Pools, options: VariantRulesOptions): void => {
+  const random = new Random(options.seed ?? VARIANT_RULES_SEED);
+  addRuleItems(
+    pools.variant,
+    pools.core,
+    { key: "excludes", total: options.exclusions ?? DEFAULT_EXCLUSIONS, perSource: Infinity },
+    random,
+  );
+  const withValidity = pools.requirement.filter((d) => d.relations.has("validity"));
+  addRuleItems(
+    withValidity,
+    pools.core,
+    {
+      key: "replaces",
+      total: options.replacements ?? DEFAULT_REPLACEMENTS,
+      perSource: REPLACEMENTS_PER_SOURCE,
+    },
+    random,
+  );
+};
+
+/**
  * Adds 0 to 4 inline references (about 2 on average) to the text of `draft`, which is
  * `drafts[index]`, each to an earlier element, whose version is already known (ADR-0004, D-058):
  * `[<title>](reqseq:<uuid>?version=<version>)` within the source's repository,
@@ -478,6 +572,10 @@ const withReferences = (draft: Draft, drafts: readonly Draft[], index: number, r
   }
   return count;
 };
+
+/** The items of relation `key` in all of `drafts`. */
+const itemsCount = (drafts: readonly Draft[], key: string): number =>
+  drafts.reduce((n, d) => n + (d.relations.get(key)?.length ?? 0), 0);
 
 /** `items[index]`, which the caller knows exists. */
 const itemAt = <T>(items: readonly T[], index: number): T => items[index] as T;
@@ -512,7 +610,7 @@ const withCriterionReference = (draft: Draft, drafts: readonly Draft[], index: n
 };
 
 /** Relation keys in file order: relation-valued properties first, then relation kinds. */
-const RELATION_KEYS = ["validity", "packages", "derives-from", "refines", "based-on", "excludes"];
+const RELATION_KEYS = ["validity", "packages", "derives-from", "refines", "based-on", "excludes", "replaces"];
 /** Relation-valued properties count to the version with their target IDs; relation kinds never do (ADR-0005). */
 const RELATION_PROPERTIES = new Set(["validity", "packages"]);
 
@@ -631,6 +729,10 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
       properties: versionProperties(draft),
     });
   });
+  // Relation kinds never count to a version, and every target has its version now.
+  if (options.variantRules !== undefined) {
+    addVariantRules(pools, options.variantRules);
+  }
   // Relation kinds may point at later elements (a variant excludes requirements), so the files are
   // written once every version is known.
   const files = new Map<string, string>([
@@ -655,6 +757,8 @@ export function generateLargeWorkspace(options: LargeWorkspaceOptions): Generate
       (sum, d) => sum + [...d.relations.values()].reduce((n, list) => n + list.length, 0),
       0,
     ),
+    exclusions: itemsCount(drafts, "excludes"),
+    replacements: itemsCount(drafts, "replaces"),
     references,
     criterionReferences,
     files: sorted,
