@@ -58,7 +58,7 @@ const Line = ({
   readonly onOpen: (target: ElementBuffer) => void;
 }): React.JSX.Element | null =>
   parts === undefined ? null : (
-    <p className="variant-line" aria-label={label}>
+    <p className="variant-line" role="group" aria-label={label}>
       {parts.map((part, at) => (
         <Part key={at} part={part} onOpen={onOpen} />
       ))}

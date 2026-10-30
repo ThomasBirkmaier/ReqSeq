@@ -388,6 +388,25 @@ describe("App, changes from outside (SR-116, SR-106)", () => {
     expect(calls("element.get")).toHaveLength(reads + 1);
   });
 
+  it("reads a requirement again for its variant lines alone when a change names another element (SR-046, SR-047)", async () => {
+    const { outside, calls, disk } = await start();
+    const shown = disk.get("uuid-1");
+    Object.assign(shown ?? {}, { verification: [{ view: "core", status: "open" }] });
+    await listAll();
+    await openRow(0);
+    const line = () => query('[role="group"][aria-label="Verification"]').textContent;
+    expect(line()).toBe("Verification — Core: open");
+    const reads = calls("element.get").length;
+    // A record written outside: the change names the record's element only through another file.
+    Object.assign(shown ?? {}, { verification: [{ view: "core", status: "verified" }] });
+    await outside("uuid-2", { title: "Show gust speed" });
+    expect(calls("element.get")).toHaveLength(reads + 1);
+    expect(line()).toBe("Verification — Core: verified");
+    // Only the lines took the answer: nothing is highlighted, the text stays.
+    expect(marked()).toEqual([]);
+    expect(editorView().state.doc.toString()).toBe("The wind blows.");
+  });
+
   it("[SR-116/AK1] reads the shown element again when its change and a later one arrive before the window renders", async () => {
     const { send, calls, disk } = await start();
     await listAll();

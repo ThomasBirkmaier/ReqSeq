@@ -3,6 +3,8 @@
 // (VAR-0000c2) also excludes K1 and Desert (VAR-0000c3) excludes K3 (SR-0000a3), and A2 (SR-0000b2) is
 // valid for Coast and Mountain. The records are written with the CLI (SR-080) before the element is opened.
 // Keys use ControlOrMeta, so the same tests run on Linux and macOS.
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { RunningApp } from "./support/app.js";
@@ -42,7 +44,7 @@ const openEditor = async (window: Page, title: string): Promise<void> => {
 };
 
 const line = (window: Page, label: string): Locator =>
-  window.locator(`article p.variant-line[aria-label="${label}"]`);
+  window.locator("article").getByRole("group", { name: label, exact: true });
 
 /** Writes a verification record of `result` for `shortId`, for `variant` or else the core. */
 const record = async (
@@ -92,6 +94,15 @@ test.describe("the page of a requirement with variants", () => {
     const use = line(window, "Replaced or excluded");
     await expect(use).toHaveText(
       "Replaced in Coast by SR-0000b1 Response time at most 20 ms · Excluded in Mountain",
+    );
+    // A change of another file from outside (Desert now excludes K1 too) shows without reopening the page.
+    await fs.writeFile(
+      path.join(running.workspace?.root ?? "", "variants", "VAR-0000000000c3.md"),
+      `---\nid: 43043043-0000-4000-8000-0000000000c3\ntype: variant\nstatus: draft\ntitle: Desert\n` +
+        `excludes: [${ref("a3", "Measure the rain")}, ${ref("a1", "Response time at most 10 ms")}]\n---\n`,
+    );
+    await expect(use).toHaveText(
+      "Replaced in Coast by SR-0000b1 Response time at most 20 ms · Excluded in Mountain, Desert",
     );
     // Each name opens its element.
     await use.getByRole("link", { name: "Mountain" }).click();

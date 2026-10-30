@@ -348,15 +348,6 @@ mark {
   line-height: 1.5;
 }
 
-.element .variant-line [role="link"] {
-  cursor: pointer;
-}
-
-.element .variant-line [role="link"]:hover,
-.element .variant-line [role="link"]:focus-visible {
-  text-decoration: underline;
-}
-
 /* The title is edited in its heading (#621): its editor looks like the heading and moves nothing when it
    comes (no margin of the text editor, the heading's line height). An empty title shows the ID, muted. */
 .element h1 .editor {
@@ -501,12 +492,16 @@ mark {
   list-style: none;
 }
 
-.element .relation [role="link"] {
+/* The links of a relation and of the variant lines (SR-046) look the same, focused too. */
+.element .relation [role="link"],
+.element .variant-line [role="link"] {
   cursor: pointer;
 }
 
 .element .relation [role="link"]:hover,
-.element .relation [role="link"]:focus-visible {
+.element .relation [role="link"]:focus-visible,
+.element .variant-line [role="link"]:hover,
+.element .variant-line [role="link"]:focus-visible {
   text-decoration: underline;
 }
 

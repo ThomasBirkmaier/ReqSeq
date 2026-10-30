@@ -7,6 +7,7 @@
 import type { ElementGetOutput, ElementName } from "@reqseq/core";
 import type { ElementBuffer } from "./buffers.js";
 import { elementBufferOf } from "./buffers.js";
+import { CORE_VIEW } from "./views.js";
 
 /** A piece of a line: text, or an element named by its title that opens it. */
 export type LinePart =
@@ -18,9 +19,6 @@ export interface VariantLines {
   /** Its verification status per view; undefined when `element.get` gives none (not a requirement). */
   readonly verification: readonly LinePart[] | undefined;
 }
-
-/** The view ID `element.get` gives for the core (`ViewId`). */
-const CORE = "core";
 
 const SEPARATOR: LinePart = { text: " · " };
 
@@ -66,7 +64,7 @@ export const variantLines = (output: Pick<ElementGetOutput, "element" | "names">
         ];
   const use = [...replaced, ...excluded];
   const verification = element.verification?.map((entry): LinePart[] => [
-    entry.view === CORE ? { text: "Core" } : named(byId, entry.view, titleOf),
+    entry.view === CORE_VIEW.view ? { text: CORE_VIEW.title } : named(byId, entry.view, titleOf),
     { text: `: ${entry.status}` },
   ]);
   return {
