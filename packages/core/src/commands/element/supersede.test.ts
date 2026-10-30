@@ -388,7 +388,7 @@ describe("element.supersede sets the chosen invalid status and on request a rela
     expect(await readAll(opened)).toEqual(before);
 
     const noInvalid = await open({
-      files: { [MODEL]: await changedModel((text) => text.replace(", invalid: true", "")) },
+      files: { [MODEL]: await changedModel((text) => text.replace("      invalid: true,\n", "")) },
     });
     const error = await supersedeError(noInvalid, { ref: N_OLD.id, status: "obsolete" });
     expect([error.message, error.details]).toEqual([
