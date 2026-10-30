@@ -78,7 +78,10 @@ export interface LargeWorkspaceOptions {
 
 /** Seed of the variant rules pass, so that the elements and the other relations stay as without it. */
 export const VARIANT_RULES_SEED = 43;
-/** Exclusion and replacement items of the variant perf workspace (stage 5 plan, VR-S6). */
+/**
+ * Exclusion and replacement items of the variant perf workspace (stage 5 plan, VR-S6). They fit the
+ * N-036 workspace (room for about 5,900 replacements there); a smaller workspace passes its own.
+ */
 export const DEFAULT_EXCLUSIONS = 5_000;
 export const DEFAULT_REPLACEMENTS = 5_000;
 /** At most this many `replaces` items per system requirement with a validity. */
@@ -489,7 +492,8 @@ const addRelations = (drafts: readonly Draft[], pools: Pools, count: number, ran
 
 /**
  * Adds `key` items from `sources` onto `targets` until there are `total` in all of `sources`, at
- * most `perSource` per source and each target once per source; throws when they do not fit.
+ * most `perSource` per source and each target once per source. Throws at once when they do not fit
+ * (the room is known up front); a source with no room left is no longer drawn.
  */
 const addRuleItems = (
   sources: readonly Draft[],
@@ -498,21 +502,29 @@ const addRuleItems = (
   random: Random,
 ): void => {
   const { key, total, perSource } = rule;
+  const cap = Math.min(perSource, targets.length);
+  const listOf = (source: Draft): Draft[] => source.relations.get(key) ?? [];
+  const open = sources.filter((s) => listOf(s).length < cap);
+  const room = open.reduce((n, s) => n + cap - listOf(s).length, 0);
   let placed = itemsCount(sources, key);
-  const limit = total * 50 + 1000;
-  for (let attempt = 0; placed < total; attempt++) {
-    if (attempt > limit || sources.length === 0 || targets.length === 0) {
-      throw new Error(
-        `cannot place ${String(total)} ${key} items from ${String(sources.length)} sources onto ${String(targets.length)} core requirements`,
-      );
-    }
-    const source = random.pick(sources);
+  if (total - placed > room) {
+    throw new Error(
+      `cannot place ${String(total)} ${key} items: room for ${String(placed + room)} from ${String(sources.length)} sources onto ${String(targets.length)} core requirements (pass smaller counts for a smaller workspace)`,
+    );
+  }
+  while (placed < total) {
+    const at = random.below(open.length);
+    const source = itemAt(open, at);
     const target = random.pick(targets);
-    const list = source.relations.get(key) ?? [];
-    if (list.length < perSource && !list.includes(target)) {
+    const list = listOf(source);
+    if (!list.includes(target)) {
       list.push(target);
       source.relations.set(key, list);
       placed++;
+      if (list.length === cap) {
+        open[at] = itemAt(open, open.length - 1);
+        open.pop();
+      }
     }
   }
 };

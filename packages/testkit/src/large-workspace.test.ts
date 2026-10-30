@@ -292,15 +292,24 @@ describe("generateLargeWorkspace", () => {
       expect(withRules({ seed: 8, exclusions: 300, replacements: 200 }).digest).not.toBe(generated.digest);
     });
 
-    it("throws when the items do not fit", () => {
-      expect(() => withRules({ exclusions: 0, replacements: 1_000_000 })).toThrow(
-        /cannot place 1000000 replaces items/,
-      );
-      // 5,000 by default, more than two each from the requirements with a validity of 5,000 elements.
-      expect(() => withRules({ exclusions: 0 })).toThrow(/cannot place 5000 replaces items/);
+    it("throws at once when the items do not fit, and fills exactly the room it names", () => {
+      const room = (rules: VariantRulesOptions): number => {
+        try {
+          withRules(rules);
+        } catch (error) {
+          return Number(/room for (\d+) from/.exec(String(error))?.[1]);
+        }
+        return -1;
+      };
+      // 5,000 by default fit N-036 only: more than two each from the requirements with a validity here.
+      const replacements = room({ exclusions: 0 });
+      expect(replacements).toBeGreaterThan(100);
+      expect(replacements).toBeLessThan(5000);
+      expect(withRules({ exclusions: 0, replacements }).replacements).toBe(replacements);
+      expect(room({ exclusions: 0, replacements: 1_000_000 })).toBe(replacements);
       expect(() =>
         generateLargeWorkspace({ version: fakeVersion, elements: 6, relations: 0, variantRules: {} }),
-      ).toThrow(/cannot place 5000 excludes items from 1 sources onto/);
+      ).toThrow(/^cannot place 5000 excludes items: room for \d from 1 sources onto \d core requirements/);
     });
   });
 

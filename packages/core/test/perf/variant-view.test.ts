@@ -6,13 +6,14 @@
 // - Tagged `[SR-082/AK4]` and asserted at 500 ms: `element.list` with a filter and `trace.chain`,
 //   each in the view of the variant that removes the most core requirements, the first call after
 //   the start (it builds the view rule index of the store) and again.
-// - `element.search` in that view at 300 ms (quality goal 3, SR-098 AK1's threshold), asserted on the
-//   median of 7 runs as search-speed.test.ts does, untagged.
+// - Tagged `[SR-098/AK1]` and asserted at 300 ms (quality goal 3): `element.search` in that view, the
+//   median of 7 runs as search-speed.test.ts does.
 // - `evidence.coverage` and `evidence.status` (indirect, the top requirements) in that view: recorded
 //   with AK4's 500 ms for comparison only (spec question #693, as evidence.test.ts).
-// - Recorded: the cold build of the view rule index and of its removal map, as the first command of
-//   a one-shot process pays it, and what follows `variant.exclude`: the new store's index and the
-//   status state rebuilt (the changed variant record fails `sameViews` in verification.ts).
+// - The first filter is the first command in a view (the asserted cold row: it builds the view rule
+//   index and its removal map). Recorded: that build once more on the same store with the code warmed,
+//   and what follows `variant.exclude`: the new store's index and the status state rebuilt (the
+//   changed variant record fails `sameViews` in verification.ts).
 //
 // The tests check the view against an oracle written from the element data here, not with the rule.
 import type { GeneratedEvidence, GeneratedWorkspace, LargeFixtureWorkspace } from "@reqseq/testkit";
@@ -160,24 +161,6 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     await fs.rm(cacheFolder, { recursive: true, force: true });
   });
 
-  it("records the cold build of the view rule index and its removal map (one-shot process)", async () => {
-    const { result: index } = await measure(
-      "view rule index: built from the store (exclusion and replacement items of 50,000 elements)",
-      () => buildViewRuleIndex(store, metamodel),
-      { basis: "SR-043, stage 5 plan VR-S6 (first command of a one-shot process; recorded)" },
-    );
-    expect(index.items).toHaveLength(tree.exclusions + tree.replacements);
-    const first = store.elements.find((e) => e.type === REQUIREMENT);
-    if (first === undefined) {
-      throw new Error("no system requirement");
-    }
-    await measure(
-      "view rule index: removal map (the variants that remove each core requirement)",
-      () => removersOf(index, first),
-      { basis: "SR-043, stage 5 plan VR-S6 (built on the first `includes`; recorded)" },
-    );
-  });
-
   it("[SR-082/AK4] applies a filter in the view of a variant within 500 ms (SR-043 AK3)", async () => {
     const { result: cold, measurement: first } = await measure(
       "filter in the view of a variant (draft system requirements by title), first page: first after the start (builds the view rule index)",
@@ -203,6 +186,27 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect(warm.elements.every((e) => e.type === REQUIREMENT)).toBe(true);
     expect(first.ms, thresholdMessage(first)).toBeLessThanOrEqual(RESULT_MS);
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
+  });
+
+  it("records the build of the view rule index and its removal map once more, on the same store", async () => {
+    const { result: index } = await measure(
+      "view rule index: built from the store (exclusion and replacement items of 50,000 elements; code warmed by the first filter)",
+      () => buildViewRuleIndex(store, metamodel),
+      {
+        basis:
+          "SR-043, stage 5 plan VR-S6 (what the first command in a view pays per store, here after the first filter warmed the code; recorded)",
+      },
+    );
+    expect(index.items).toHaveLength(tree.exclusions + tree.replacements);
+    const first = store.elements.find((e) => e.type === REQUIREMENT);
+    if (first === undefined) {
+      throw new Error("no system requirement");
+    }
+    await measure(
+      "view rule index: removal map (the variants that remove each core requirement; code warmed)",
+      () => removersOf(index, first),
+      { basis: "SR-043, stage 5 plan VR-S6 (built on the first `includes`; recorded)" },
+    );
   });
 
   it("[SR-082/AK4] computes a chain in the view of a variant within 500 ms (SR-043 AK4)", async () => {
@@ -232,23 +236,33 @@ describe("the view of a variant with 50,000 elements, 5,000 exclusions and 5,000
     expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(RESULT_MS);
   });
 
-  it("searches in the view of a variant within 300 ms, median of 7 (quality goal 3, SR-043 AK2)", async () => {
-    const title = String(store.elements[Math.floor(ELEMENTS / 2)]?.data["title"]);
-    for (const [what, query] of [
-      ["a word of every text", "station"],
-      ["a whole title", title],
+  it("[SR-098/AK1] shows the first hits of a search in the view of a variant within 300 ms, median of 7 (SR-043 AK2)", async () => {
+    // A requirement of the variant itself, from the middle of the store: its title names it alone.
+    const own = store.elements
+      .slice(ELEMENTS / 2)
+      .find((e) => e.type === REQUIREMENT && targetIds(e, "validity").includes(variant));
+    if (own === undefined) {
+      throw new Error("no requirement of the variant");
+    }
+    for (const [what, query, expected] of [
+      ["a word of every text", "station", undefined],
+      ["a whole title of a requirement of the variant", String(own.data["title"]), own.id],
     ] as const) {
       const { result, measurement } = await measureMedian(
         `element.search in the view of a variant: ${what} (${query}), first page of 50`,
         () => run("element.search", { query, selection: { view: variant } }),
         {
-          basis: "quality goal 3, SR-098 AK1, SR-043 AK2 (median of 7 runs; untagged, asserted)",
+          basis:
+            "SR-098 AK1, quality goal 3, SR-043 AK2 (element.search with selection.view; median of 7 runs)",
           thresholdMs: SEARCH_MS,
           runs: SEARCH_RUNS,
         },
       );
       expect(result.hits.length).toBeGreaterThan(0);
       expect(result.hits.every((e) => idInView(e.id))).toBe(true);
+      if (expected !== undefined) {
+        expect(result.hits.map((e) => e.id)).toContain(expected);
+      }
       expect(measurement.ms, thresholdMessage(measurement)).toBeLessThanOrEqual(SEARCH_MS);
     }
   });
