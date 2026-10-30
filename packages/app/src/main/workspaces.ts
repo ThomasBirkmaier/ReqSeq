@@ -59,6 +59,8 @@ export interface WorkspaceSwitch {
   readonly running: boolean;
   /** The key of the open workspace in the list, undefined while none is open. */
   readonly key: string | undefined;
+  /** The root of the open workspace when it belongs in the list, which may not hold it yet. */
+  readonly listedRoot: string | undefined;
   /** Opens `folder` in the window in place of the open workspace; never rejects. */
   open(folder: string, options: { readonly exact: boolean }): Promise<void>;
 }
@@ -231,10 +233,16 @@ export const handleWorkspaces = (
       try {
         const states = await (await recent()).recentWorkspaceStates();
         const open = options.core.key;
-        return states.map(({ root, key, exists }) => ({
-          root,
-          state: key === open ? "open" : exists ? "found" : "missing",
-        }));
+        // The open workspace is the one opened last, so it comes first, also while the core process has
+        // not written it to the stored list yet (#423).
+        const root = states.find((entry) => entry.key === open)?.root ?? options.core.listedRoot;
+        const first: RecentWorkspaceEntry[] = root === undefined ? [] : [{ root, state: "open" }];
+        return [
+          ...first,
+          ...states
+            .filter(({ key }) => key !== open)
+            .map(({ root, exists }): RecentWorkspaceEntry => ({ root, state: exists ? "found" : "missing" })),
+        ];
       } catch (error) {
         options.log(`The recent workspaces could not be read: ${messageOf(error)}`);
         return [];

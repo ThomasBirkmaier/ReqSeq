@@ -15,3 +15,7 @@ export {
   supersededValidityFindingsOf,
   supersededValidityProblemsState,
 } from "./superseded-validity.js";
+export { isCoreRequirement } from "./core.js";
+export { targetNotCoreFindingsOf, targetNotCoreProblemsState } from "./target-not-core.js";
+export { viewRuleOf } from "./view-rule.js";
+export type { ViewRule } from "./view-rule.js";

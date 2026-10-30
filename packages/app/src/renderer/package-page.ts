@@ -2,9 +2,12 @@
 // title and text the elements that name it. This module only builds the input of `element.list`
 // (`where.package`) and tells which types are packages; core selects and sorts (ADR-0002). The rule
 // "which types are packages" is the one of core: the effective `meaning` of the type in `metamodel.get`.
+// The line under the title (AK3, AK4) is core's counts with core's formatter (`packageSummaryText`).
 import type { ElementSelection, MetamodelGetOutput } from "@reqseq/core";
+import { packageSummaryText } from "@reqseq/core/verification-degree";
 import type { ElementBuffer, ListBuffer } from "./buffers.js";
 import { sortLabel } from "./buffers.js";
+import type { Call } from "./call.js";
 import type { BufferData } from "./modeline.js";
 import { INCOMPLETE } from "./modeline.js";
 
@@ -59,3 +62,29 @@ export const memberCount = (data: BufferData | undefined): MemberCount | undefin
 /** The muted part of the heading: "37", "37 · tree", "37 · incomplete: a repository is missing · sorted by title". */
 export const memberSummary = (count: MemberCount, sort: ElementBuffer["memberSort"]): string =>
   `${String(count.total)}${count.incomplete ? ` · ${INCOMPLETE}` : ""}${sortLabel(sort)}`;
+
+/** The line under the title of a package page (SR-112 AK3, AK4): undefined when it has none, or the message of a failed call. */
+export type PackageSummary =
+  { readonly ok: true; readonly line: string | undefined } | { readonly ok: false; readonly message: string };
+
+/**
+ * Asks `evidence.coverage` and `evidence.degree` for the package with this UUID, side by side, as the CLI,
+ * API and MCP do with `selection.package`. No line without a counted requirement (AK4); "incomplete" when a
+ * repository was missing for either answer.
+ */
+export const askPackageSummary = async (call: Call, id: string): Promise<PackageSummary> => {
+  const selection = { package: id };
+  const [coverage, degree] = await Promise.all([
+    call("evidence.coverage", { selection }),
+    call("evidence.degree", { selection }),
+  ]);
+  if (!coverage.ok) {
+    return { ok: false, message: coverage.message };
+  }
+  if (!degree.ok) {
+    return { ok: false, message: degree.message };
+  }
+  const text = packageSummaryText(coverage.output.levels, degree.output.degree);
+  const incomplete = coverage.output.incomplete === true || degree.output.incomplete === true;
+  return { ok: true, line: text === undefined || !incomplete ? text : `${text} · ${INCOMPLETE}` };
+};

@@ -15,6 +15,8 @@ export interface ElementTextProps {
   /** The block "On disk" under the title and under the text, when each is in conflict. */
   readonly titleDisk: React.ReactNode;
   readonly textDisk: React.ReactNode;
+  /** What stands right under the title, before the text: the line of a package page (SR-112 AK3). */
+  readonly belowTitle?: React.ReactNode;
   readonly onCopy: (label: string) => void;
   /** The fields that changed outside the app and are highlighted now (SR-116), by label. */
   readonly marked: ReadonlySet<string>;
@@ -25,6 +27,7 @@ export const ElementText = ({
   text,
   titleDisk,
   textDisk,
+  belowTitle,
   onCopy,
   marked,
 }: ElementTextProps): React.JSX.Element => (
@@ -33,6 +36,7 @@ export const ElementText = ({
       <TitleBox {...title} />
     </FieldBox>
     {titleDisk}
+    {belowTitle}
     <FieldBox label={TEXT_FIELD} onCopy={onCopy} marked={marked}>
       <Editor {...text} />
     </FieldBox>

@@ -91,7 +91,7 @@ problems:
     cause: A variant has validity entries, but a variant builds only on the core (D-020, SR-039 AK2/AK3). This version does not raise it yet.
     remedy: Remove the validity entries of the variant; a relation between variants is allowed.
   variant.target-not-core:
-    cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view (SR-041 AK8, SR-042 AK7). This version does not raise it yet.
+    cause: A `replaces` or exclusion entry names an element that is no core requirement, either one with a validity or one whose type has no validity property (a need, a package). It changes no view (SR-041 AK8, SR-042 AK7).
     remedy: Point the entry at a core requirement, or remove it; to retire an element for everyone, supersede it (SR-072).
   variant.core-changed-since-baseline:
     cause: A core requirement that the variant adopts has changed since the variant's newest baseline (SR-103 AK1). The hint is at the variant and gives the version in the baseline and the current one. This version does not raise it yet.
