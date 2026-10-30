@@ -409,6 +409,21 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       },
     },
     {
+      name: "a package is an element file of type package",
+      input: { type: "package", title: "Release 3" },
+      tag: "[SR-048/AK1]",
+      expect: "output",
+      newElement: true,
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: Written }).output;
+        const file = "package/PKG-<tail12>.md";
+        expect(output.files).toEqual([file]);
+        expect(results["core"]?.files[file]).toBe(
+          "---\nid: <id>\ntype: package\nstatus: draft\ntitle: Release 3\n---\n",
+        );
+      },
+    },
+    {
       name: "choice values by display name, in any case, written as keys (#309)",
       input: {
         type: "system-requirement",
