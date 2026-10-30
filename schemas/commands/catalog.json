@@ -4025,7 +4025,7 @@
       },
       "output": {
         "type": "object",
-        "description": "Errors: git.commit-not-found (the baseline commit is not here), ref.unknown, input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. A UUID the baseline lists works also after its file was removed.",
+        "description": "Errors: git.commit-not-found when the baseline names no commit of the repository or the repository does not have it, git.unavailable when Git cannot tell, ref.unknown, input.invalid with details.reason unknown-baseline, ambiguous-baseline or not-in-baseline. A UUID the baseline lists works also after its file was removed.",
         "properties": {
           "repository": {
             "type": "string"
