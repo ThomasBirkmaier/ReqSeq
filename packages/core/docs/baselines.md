@@ -19,3 +19,7 @@ The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr
 ## Kept between calls
 
 `baselineFilesState` (reset with the workspace layout) keeps what each file gave with its size and modification time. `workspaceBaselines(workspace)` lists the folder on every call and parses again only a file that is new or whose size or time changed, and drops files that are gone. So a baseline committed by another person counts as soon as the working copy has it, also in a running server or the app, and a baseline of 50,000 elements is parsed once (N-036).
+
+## Text of a new file
+
+`baselineText(data)` (`text.ts`) writes the layout of ADR-0018 that `scanBaseline` reads: the header in block style with `package`, `view` and `ids` items as flow mappings and lists of plain values in `where` on one line, then one flow mapping per line for `repositories` and `elements` (`elements: []` when empty); a repository name YAML would read as no string is quoted. `baselineStem(name)` is the file name without extension: `portableName` with `baseline` when nothing is left, `-baseline` after a Windows device name.
