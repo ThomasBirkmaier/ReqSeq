@@ -1,4 +1,4 @@
-import type { DataExportElement, ElementGetOutput, ElementName } from "@reqseq/core";
+import type { DataExportElement, ElementGetOutput, ElementName, ProblemCode } from "@reqseq/core";
 import { describe, expect, it } from "vitest";
 import { elementBuffer } from "./buffers.js";
 import type { LinePart } from "./variant-lines.js";
@@ -18,7 +18,7 @@ const DESERT = name("uuid-c", "VAR-0000c3", "Desert");
 const REPLACEMENT = name("uuid-r", "SR-0000b1", "Response time at most 20 ms", "SR-900");
 
 const output = (
-  fields: Pick<DataExportElement, "replacedBy" | "excludedBy" | "verification">,
+  fields: Pick<DataExportElement, "replacedBy" | "excludedBy" | "verification" | "problems">,
   names?: readonly ElementName[],
 ): Pick<ElementGetOutput, "element" | "names"> => ({
   element: { ...fields } as DataExportElement,
@@ -74,5 +74,23 @@ describe("the lines of a requirement's variants", () => {
     expect(text(lines.use)).toBe("Replaced in uuid-x by uuid-y");
     expect(lines.use?.some((part) => "open" in part)).toBe(false);
     expect(lines.verification).toBeUndefined();
+  });
+
+  it("[SR-103/AK1] gives a variant's hints since its newest baseline, core's messages in core's order, and no other hint", () => {
+    const hint = (code: ProblemCode, message: string) => ({ code, severity: "warning" as const, message });
+    const lines = variantLines(
+      output({
+        problems: [
+          hint("variant.core-changed-since-baseline", "SR-0000a1 has changed since R1"),
+          hint("relation.outdated", "Relation is outdated"),
+          hint("variant.core-new-since-baseline", "SR-0000a5 has come into the view since R1"),
+        ],
+      }),
+    );
+    expect(lines.sinceBaseline).toEqual([
+      "SR-0000a1 has changed since R1",
+      "SR-0000a5 has come into the view since R1",
+    ]);
+    expect(variantLines(output({})).sinceBaseline).toEqual([]);
   });
 });
