@@ -38,7 +38,7 @@ async function request(url, init) {
     const retryAfter = res.headers.get("retry-after");
     const message = `${url}: ${res.status} ${body}`;
     if (transientStatus(res.status, body, retryAfter)) {
-      throw new TransientError(message, Number(retryAfter ?? 0));
+      throw new TransientError(message, Number.isFinite(Number(retryAfter)) ? Number(retryAfter) : undefined);
     }
     throw new Error(message);
   }
@@ -133,7 +133,7 @@ async function loadItems(projectId) {
         `query($p:ID!,$a:String){ node(id:$p){ ... on ProjectV2 { items(first:100, after:$a){
         pageInfo{ hasNextPage endCursor }
         nodes{ id content{ ... on Issue { number repository{ nameWithOwner } } }
-          fieldValues(first:20){ nodes{
+          fieldValues(first:50){ nodes{
             ... on ProjectV2ItemFieldSingleSelectValue { name field{ ... on ProjectV2FieldCommon { name } } }
             ... on ProjectV2ItemFieldTextValue { text field{ ... on ProjectV2FieldCommon { name } } } } } } } } } }`,
         { p: projectId, a: after },
@@ -167,27 +167,37 @@ const fields = await ensureFields(project.id);
 const [issues, items] = await Promise.all([loadIssues(), loadItems(project.id)]);
 const ops = plan(issues, items, fields);
 const itemIds = new Map([...items].map(([number, item]) => [number, item.id]));
+// A write that still fails after its retries must not stop the others; the run fails at the end.
+let failed = 0;
 for (const o of ops) {
-  if (o.op === "add") {
-    const added = await gql(
-      `mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }`,
-      { p: project.id, c: o.issue.node_id },
-    );
-    itemIds.set(o.issue.number, added.addProjectV2ItemById.item.id);
-  } else if (o.op === "clear") {
-    await gql(
-      `mutation($p:ID!,$i:ID!,$f:ID!){ clearProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f}){ clientMutationId } }`,
-      { p: project.id, i: itemIds.get(o.number), f: o.field },
-    );
-  } else {
-    await gql(
-      `mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
-        updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }`,
-      { p: project.id, i: itemIds.get(o.number), f: o.field, v: o.value },
-    );
+  try {
+    if (o.op === "add") {
+      const added = await gql(
+        `mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }`,
+        { p: project.id, c: o.issue.node_id },
+      );
+      itemIds.set(o.issue.number, added.addProjectV2ItemById.item.id);
+    } else if (o.op === "clear") {
+      await gql(
+        `mutation($p:ID!,$i:ID!,$f:ID!){ clearProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f}){ clientMutationId } }`,
+        { p: project.id, i: itemIds.get(o.number), f: o.field },
+      );
+    } else {
+      await gql(
+        `mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
+          updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }`,
+        { p: project.id, i: itemIds.get(o.number), f: o.field, v: o.value },
+      );
+    }
+  } catch (e) {
+    failed++;
+    console.log(`::error::issue #${o.issue?.number ?? o.number}: ${e.message}`);
   }
 }
 console.log(
   `reconciled ${issues.length} issue(s) with project #${project.number}: ` +
-    `${ops.filter((o) => o.op === "add").length} added, ${ops.filter((o) => o.op !== "add").length} field write(s)`,
+    `${ops.filter((o) => o.op === "add").length} added, ${ops.filter((o) => o.op !== "add").length} field write(s), ${failed} failed`,
 );
+if (failed) {
+  process.exit(1);
+}
