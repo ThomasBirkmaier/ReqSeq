@@ -213,6 +213,11 @@ export interface ElementViewProps {
   readonly register: (controls: ElementControls | undefined) => void;
   /** The types that are packages (SR-112); an element of one shows the elements that name it. */
   readonly packages: PackageModel | undefined;
+  /**
+   * The types with the meaning `variant` (`metamodel.get`): the page of one is read again on every change
+   * from outside, since its hints since its newest baseline depend on other files (SR-103). Default: none.
+   */
+  readonly variantTypes?: ReadonlySet<string>;
   /** The properties of each type (`metamodel.get`): which boxes can be edited, and which show Markdown (SR-104, SR-127). */
   readonly properties: PropertyModel;
   /** For the list of the elements of a package page: its selected row, and opening one of them. */
@@ -230,6 +235,10 @@ export interface ElementViewProps {
    */
   readonly active?: boolean;
 }
+
+/** Whether the loaded element is of a type with the meaning `variant`. */
+const isVariantPage = (view: ElementLoad, variantTypes: ReadonlySet<string> | undefined): boolean =>
+  view.status === "ok" && variantTypes?.has(view.element.type) === true;
 
 /** The focused target link of a relation box or a relation group of the element buffer, if one has the focus. */
 const focusedTarget = (): HTMLElement | null =>
@@ -350,6 +359,7 @@ export const ElementView = ({
   onDraft,
   register,
   packages,
+  variantTypes,
   properties,
   dispatch,
   keep,
@@ -380,11 +390,14 @@ export const ElementView = ({
   // (SR-046, SR-047) depend on other files (a variant's exclusions, a replacing requirement, the records).
   const [elsewhere, setElsewhere] = useState(0);
   const seenChange = useRef(outside.seq);
+  // The page of a variant: its hints since its newest baseline (SR-103) follow a change of a core
+  // requirement or a baseline file, so every change from outside reads it again, the modeline's count too.
+  const isVariant = isVariantPage(view, variantTypes);
   useEffect(() => {
     if (outside.seq !== seenChange.current) {
       const named = touchedSince(outside, buffer.id, seenChange.current);
       seenChange.current = outside.seq;
-      if (named) {
+      if (named || isVariant) {
         setTouched((count) => count + 1);
       } else {
         setElsewhere((count) => count + 1);

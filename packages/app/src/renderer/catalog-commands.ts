@@ -555,8 +555,12 @@ const inputOf = (context: ActionContext, entry: Entry): Record<string, unknown> 
   const input: Record<string, unknown> = {};
   const listed = shownSelection(context);
   const shown = context.views?.shown;
+  // The list of all elements has no selection: in a view it is the view's (`baseline.create` of a variant's
+  // view, SR-103), elsewhere none.
   const selection =
-    listed === undefined || shown === undefined ? listed : selectionInView(listed, shown.view);
+    shown === undefined || (listed === undefined && context.buffers[0]?.kind !== "list")
+      ? listed
+      : selectionInView(listed, shown.view);
   for (const arg of entry.command.arguments) {
     const values = ordered(entry.given)
       .filter((given) => given.field === arg.field && given.skipped !== true)

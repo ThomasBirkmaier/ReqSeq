@@ -1952,4 +1952,15 @@ describe("a view the window shows (SR-043 AK1)", () => {
     await flush();
     expect(byIds.shownCall).toHaveBeenLastCalledWith("element.bulkUpdate", { selection: { ids: ["SR-1"] } });
   });
+
+  it("gives the list of all elements in the view of Coast the selection of that view (SR-103 AK2)", async () => {
+    const create = {
+      ...command("baseline.create"),
+      arguments: [{ field: "selection", complete: "selection" as const }],
+    };
+    const all = inCoast([listBuffer("All elements")], { "baseline.create": () => ({ files: [] }) });
+    catalogItems(all.context, [create], [])[0]?.run();
+    await flush();
+    expect(all.shownCall).toHaveBeenLastCalledWith("baseline.create", { selection: { view: "u-coast" } });
+  });
 });
