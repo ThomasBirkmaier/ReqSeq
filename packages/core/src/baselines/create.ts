@@ -13,17 +13,14 @@
 //   the files they embed, the YAML files of the metamodel folder and the workspace file; no evidence
 //   record, no other element. The message and `details.elements` name the elements whose file or
 //   embedded file changed, `details.files` the other files.
-// - The text and the file name are text.ts (`elements: []` for an empty selection, AK5); a file name
-//   the folder has in any case or normal form gets `-2`, `-3`, … The file is created, never
-//   replaced (`writeFileAtomic` with no snapshot), and never committed (D-036).
+// - The text and the file name are text.ts (`elements: []` for an empty selection, AK5), the write
+//   write.ts: a new file under a free name, never replacing one, never committed (D-036).
 import path from "node:path";
 import { CommandError } from "../catalog.js";
 import type { CommandOutput } from "../catalog.js";
-import { createFolder, listFolderFiles, writeFileAtomic } from "../files/index.js";
 import type { BaselineFile, BaselineStoredSelection } from "../generated/types.js";
 import type { ElementRecord } from "../model/index.js";
 import {
-  clashKey,
   currentVersionsOf,
   elementStoreState,
   NO_COMMIT_TEXT,
@@ -36,8 +33,9 @@ import {
 import type { Workspace } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, locate, workspaceLayoutState } from "../workspace/index.js";
-import { BASELINE_FILE_EXTENSION, foldName, workspaceBaselines } from "./read.js";
-import { baselineStem, baselineText } from "./text.js";
+import { foldName, workspaceBaselines } from "./read.js";
+import { baselineText } from "./text.js";
+import { writeNewBaseline } from "./write.js";
 
 /** What `createBaseline` writes. */
 export interface BaselineRequest {
@@ -59,38 +57,6 @@ export interface BaselineRequest {
 /** A file relative to its repository as `relativeIn` gives it: `/`, NFC, `""` for the folder itself. */
 const relativeTo = (repository: RepositoryLocation, absolute: string): string =>
   path.relative(repository.folder, absolute).split(path.sep).join("/").normalize("NFC");
-
-/** Writes `text` as a new file in `folder` (relative to `repository`), with the first free name; returns the file. */
-const writeNew = async (
-  repository: RepositoryLocation,
-  folder: string,
-  name: string,
-  text: string,
-): Promise<string> => {
-  const listing = await listFolderFiles(path.join(repository.folder, folder));
-  if (listing.kind === "missing") {
-    await createFolder(repository.folder, folder);
-  }
-  const taken = new Set(listing.kind === "names" ? listing.entries.map(clashKey) : []);
-  const stem = baselineStem(name);
-  for (let n = 1; ; n++) {
-    const file = path.posix.join(
-      folder,
-      `${stem}${n === 1 ? "" : `-${String(n)}`}${BASELINE_FILE_EXTENSION}`,
-    );
-    if (!taken.has(clashKey(path.posix.basename(file)))) {
-      try {
-        await writeFileAtomic(repository.folder, file, text, null, { kind: "yaml" });
-        return file;
-      } catch (error) {
-        // A file that appeared since the folder was listed: take the next name.
-        if (!(error instanceof CommandError && error.code === "file.changed-on-disk")) {
-          throw error;
-        }
-      }
-    }
-  }
-};
 
 const gitUnavailable = (repository: string, why: string): CommandError =>
   new CommandError("git.unavailable", `Not created: repository ${repository} ${why}`, { repository });
@@ -282,7 +248,7 @@ export const createBaseline = async (
     repositories: commits.map((c) => ({ name: c.repository.name, commit: c.commit })),
     elements: entries,
   });
-  const file = await writeNew(repository, relativeTo(repository, folder), request.name, text);
+  const file = await writeNewBaseline(repository, relativeTo(repository, folder), request.name, text);
   const shownFile = workspacePath(layout, repository, file);
   return {
     files: [shownFile],

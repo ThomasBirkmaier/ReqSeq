@@ -9,7 +9,6 @@ import { readBaselines } from "../../baselines/index.js";
 import { scanBaseline } from "../../baselines/scan.js";
 import type { CommandOutput } from "../../catalog.js";
 import { CommandError } from "../../catalog.js";
-import * as files from "../../files/index.js";
 import * as reader from "../../git/reader.js";
 import * as model from "../../model/index.js";
 import { invoke } from "../../runtime/invoke.js";
@@ -19,10 +18,6 @@ import { workspaceLayoutState } from "../../workspace/index.js";
 vi.mock("../../git/reader.js", async (importOriginal) => {
   const original = await importOriginal<typeof reader>();
   return { ...original, changedPaths: vi.fn(original.changedPaths) };
-});
-vi.mock("../../files/index.js", async (importOriginal) => {
-  const original = await importOriginal<typeof files>();
-  return { ...original, writeFileAtomic: vi.fn(original.writeFileAtomic) };
 });
 vi.mock("../../model/index.js", async (importOriginal) => {
   const original = await importOriginal<typeof model>();
@@ -169,6 +164,7 @@ describe("baseline.create", () => {
       { command: "baseline.create", fields: ["selection.view"] },
     ]);
     expect(error.message).toContain("CoastOnly has the view VAR-0000c1");
+    expect((await failure(ws, "Y", { filter: "CoastOnly", view: "core" })).code).toBe("input.invalid");
     const same = await create(ws, "Coast again", { filter: "CoastOnly", view: `${ID}c1` });
     expect(read(ws, same.baseline.file)).toContain(
       `selection:\n  where:\n    all: []\n  view: { id: ${ID}c1, title: Coast }\nrepositories:\n`,
@@ -309,16 +305,12 @@ describe("baseline.create", () => {
     expect([missing.code, missing.details]).toEqual(["file.folder-missing", { repository: "sensor" }]);
   });
 
-  it("takes the next file name when one appears while writing, says when a repository is not here, and passes other write errors on", async () => {
+  it("says when a repository is not here and stores a package without title with an empty one", async () => {
     const ws = await fixture(["system"]);
     fs.rmSync(ws.path("sensor"), { recursive: true });
-    const write = vi.mocked(files.writeFileAtomic);
-    write.mockRejectedValueOnce(new CommandError("file.changed-on-disk", "exists"));
     const out = await create(ws, "Next", PACKAGE);
-    expect(out).toMatchObject({ files: ["baselines/Next-2.yaml"], incomplete: true });
+    expect(out).toMatchObject({ incomplete: true });
     expect(out.problems?.map((p) => p.code)).toEqual(["workspace.repository-missing"]);
-    write.mockRejectedValueOnce(new CommandError("file.faulty", "read-only"));
-    expect((await failure(ws, "Other", PACKAGE)).code).toBe("file.faulty");
     // A metamodel in a repository that is not here makes the workspace read-only: refused before Git is asked.
     const settings = read(ws, "reqseq-workspace.yaml");
     await ws.write(

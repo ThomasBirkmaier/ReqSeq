@@ -4,6 +4,7 @@
 // commands import it relatively; it never imports `commands`. Block doc: docs/baselines.md.
 export { createBaseline } from "./create.js";
 export { baselineStem, baselineText } from "./text.js";
+export { writeNewBaseline } from "./write.js";
 export type { BaselineRequest } from "./create.js";
 export {
   BASELINE_FILE_EXTENSION,
