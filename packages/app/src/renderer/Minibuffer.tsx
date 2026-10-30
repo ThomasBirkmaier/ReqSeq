@@ -65,6 +65,9 @@ const PromptLine = ({
   // effect that searches it once the parts are there reads these, not its render's `query`: a key that
   // comes between that render and its effect would be taken back (#757).
   const typed = useRef("");
+  // The question whose answer an Enter on stale hits took: the prompt closes in a later render, and a key
+  // that comes before it must not take that answer again (#419).
+  const taken = useRef(0);
   const unsearched = useRef(false);
 
   useEffect(
@@ -133,6 +136,7 @@ const PromptLine = ({
       if (waiting.current === mine) {
         // Enter was pressed before this answer.
         waiting.current = 0;
+        taken.current = mine;
         takeFirst(waitingMore.current);
       }
     });
@@ -153,7 +157,11 @@ const PromptLine = ({
 
   /** Enter or Ctrl/Cmd+Enter on stale hits: on the answer to the typed text, at once when it is in. */
   const awaitAnswer = (more: boolean): void => {
+    if (taken.current === latest.current) {
+      return;
+    }
     if (answered.current === latest.current) {
+      taken.current = latest.current;
       takeFirst(more);
     } else {
       waiting.current = latest.current;
