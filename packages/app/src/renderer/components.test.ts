@@ -975,6 +975,27 @@ describe("Minibuffer", () => {
       expect(closed).toHaveBeenCalledTimes(1);
     });
 
+    it("[SR-119/AK1] opens the hit when Enter comes after the hits arrived and before they are shown (#419)", async () => {
+      const asked: ((choices: Choice[]) => void)[] = [];
+      const find = (): Promise<Choice[]> =>
+        new Promise<Choice[]>((resolve) => {
+          asked.push(resolve);
+        });
+      const { closed } = await mount({ label: "Go to", items: [], find });
+      const hit = choice("e1", "SR-118 Calm start");
+      await type(input(), "SR-118");
+      const field = input();
+      // One act: the answer is in, but React renders the hits only after the key.
+      await act(async () => {
+        asked[0]?.([hit]);
+        await Promise.resolve();
+        field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      });
+      await flush();
+      expect(hit.run).toHaveBeenCalledTimes(1);
+      expect(closed).toHaveBeenCalledTimes(1);
+    });
+
     it("opens the selected buffer at once, without waiting for the hits", async () => {
       const { find } = deferred();
       const buffer = choice("list", "All elements");

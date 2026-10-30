@@ -37,15 +37,24 @@ const PromptLine = ({
 }): React.JSX.Element => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
-  const [found, setFound] = useState<readonly Choice[]>([]);
+  // The hits shown, with the question they answer.
+  const [found, setFound] = useState<{ readonly question: number; readonly choices: readonly Choice[] }>({
+    question: 0,
+    choices: [],
+  });
   // The parts that came later (`fill`): the prompt is open and takes keys while they load.
   const [filled, setFilled] = useState<PromptFill | undefined>(undefined);
   const prompt: Prompt = filled === undefined ? given : { ...given, ...filled };
   const loading = given.fill !== undefined && filled === undefined;
   // The newest question to core; an older answer that arrives later is dropped.
   const latest = useRef(0);
-  // The question whose answer `found` holds: Enter before it arrives must not open an older answer's hit.
+  // The question answered last, with its text and hits, at once: React shows them (`found`) only in a
+  // later render, and a key that comes before it acts on them (#419).
   const answered = useRef(0);
+  const answer = useRef<{ readonly text: string; readonly choices: readonly Choice[] }>({
+    text: "",
+    choices: [],
+  });
   // The question Enter waits for (SR-119 AK1: "Ctrl+P, text, Enter" typed fast); 0: Enter waits for none.
   const waiting = useRef(0);
   // The key that waits: Ctrl/Cmd+Enter (`more`) or Enter.
@@ -91,12 +100,12 @@ const PromptLine = ({
   const known = new Set(ranked.map(({ item }) => item.id));
   const rows: Ranked<Choice>[] = [
     ...ranked,
-    ...found.filter((choice) => !known.has(choice.id)).map((item) => ({ item, ranges: [] })),
+    ...found.choices.filter((choice) => !known.has(choice.id)).map((item) => ({ item, ranges: [] })),
   ];
   const current = rows[selected];
   // The hits shown belong to an older text than the typed one, and the selection is among them.
   // Read when a key is pressed: a question asked in this render (`change`) makes the shown hits stale.
-  const stale = (): boolean => answered.current !== latest.current && selected >= ranked.length;
+  const stale = (): boolean => found.question !== latest.current && selected >= ranked.length;
 
   // `typed` is the text the choice was made for; a choice among the command prompt's own items is
   // remembered (SR-121 AK2), never an element found for the text. `more` (Ctrl/Cmd+Enter) takes it with
@@ -119,20 +128,37 @@ const PromptLine = ({
         return;
       }
       answered.current = mine;
-      setFound(choices);
+      answer.current = { text: value, choices };
+      setFound({ question: mine, choices });
       if (waiting.current === mine) {
-        // Enter was pressed before this answer: the first row of the full text opens, as the list shows it.
+        // Enter was pressed before this answer.
         waiting.current = 0;
-        const [first] = [
-          ...literalOf(value),
-          ...rankByUse(prompt.items, (item) => item.name, value, prompt.use).map(({ item }) => item),
-          ...choices,
-        ];
-        if (first !== undefined) {
-          choose(first, value, waitingMore.current);
-        }
+        takeFirst(waitingMore.current);
       }
     });
+  };
+
+  /** The first row of the text answered last, as the list shows it, is chosen. */
+  const takeFirst = (more: boolean): void => {
+    const { text, choices } = answer.current;
+    const [first] = [
+      ...literalOf(text),
+      ...rankByUse(prompt.items, (item) => item.name, text, prompt.use).map(({ item }) => item),
+      ...choices,
+    ];
+    if (first !== undefined) {
+      choose(first, text, more);
+    }
+  };
+
+  /** Enter or Ctrl/Cmd+Enter on stale hits: on the answer to the typed text, at once when it is in. */
+  const awaitAnswer = (more: boolean): void => {
+    if (answered.current === latest.current) {
+      takeFirst(more);
+    } else {
+      waiting.current = latest.current;
+      waitingMore.current = more;
+    }
   };
 
   const change = (value: string): void => {
@@ -145,8 +171,9 @@ const PromptLine = ({
     if (prompt.find === undefined || value.trim() === "") {
       latest.current += 1;
       answered.current = latest.current;
+      answer.current = { text: value, choices: [] };
       unsearched.current = value.trim() !== "";
-      setFound([]);
+      setFound({ question: latest.current, choices: [] });
     } else {
       search(prompt.find, value);
     }
@@ -160,9 +187,7 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "enter";
     } else if (stale()) {
-      // Wait for the answer to the typed text.
-      waiting.current = latest.current;
-      waitingMore.current = false;
+      awaitAnswer(false);
     } else if (current !== undefined) {
       choose(current.item, query);
     } else if (prompt.text !== undefined) {
@@ -181,8 +206,7 @@ const PromptLine = ({
     } else if (loading) {
       early.current = "more";
     } else if (stale()) {
-      waiting.current = latest.current;
-      waitingMore.current = true;
+      awaitAnswer(true);
     } else if (current?.item.more !== undefined) {
       choose(current.item, query, true);
     } else if (current === undefined && prompt.more !== undefined) {
