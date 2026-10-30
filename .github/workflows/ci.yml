@@ -400,9 +400,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-14 runs only until the ruleset of main requires the macos-26 checks (#490); GitHub shuts it down
-        # on 2026-11-02.
-        os: [macos-14, macos-26, windows-2025]
+        os: [macos-26, windows-2025]
     runs-on: ${{ matrix.os }}
     steps: *checks-steps
 
@@ -416,7 +414,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-26]
+        os: [macos-26]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
 
