@@ -20,23 +20,23 @@ concurrency:
   # the code against the new base (`pnpm merge:main`).
   # Closing or merging a pull request joins the full group and so cancels its queued or running full run; the
   # run of `closed` starts no job (product owner decision, 2026-10-28: no runner time for pull requests that are done).
-  # Marking a pull request ready for review gets a group of its own (#303): it must not cancel the Ubuntu lane that
-  # still runs on the same commit, because a cancelled check on the head commit blocks the merge (merge.md).
+  # Marking a pull request ready for review joins the full group too (#412): its run checks both lanes, so it may cancel
+  # the draft run of the same commit.
   # Scheduled and manual runs get their own groups, so that a pull request never cancels a nightly or a manual run.
   # Keyed on the pull request's number, because the `closed` run of a merged pull request may carry the base branch as
   # its ref.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || github.event.action == 'ready_for_review' && 'ready' || 'full' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && format('schedule-{0}', github.event.schedule) || github.event_name == 'workflow_dispatch' && format('dispatch-{0}', github.run_id) || 'full' }}
   cancel-in-progress: true
 
 # Runners: every job runs on GitHub's hosted runners, never on a self-hosted one (a public repository must not
 # run code from pull requests on a machine of its own).
-# Two lanes (#303, product owner decision, 2026-10-29): every push starts the Ubuntu lane (`static`, `checks` and
-# `electron` on ubuntu-24.04, in parallel). A draft pull request stops there, so the pushes while it is worked on cost
-# a few runner minutes each. On a pull request that is not a draft, the nightly and the manual run the platform lane
-# follows: `checks` and `electron` on macos-14 and windows-2025, after the Ubuntu lane of the same run passed (a pull
-# request) or finished (nightly, manual). Marking a draft ready for review runs only the platform lane: the Ubuntu
-# lane already ran on that commit (merge.md asks for it green first). So every pull request is checked
-# on all three systems before its merge (merge.md), but not every push.
+# Two lanes (#303, #412): every push starts the Ubuntu lane (`static`, `checks` and `electron` on ubuntu-24.04). A draft
+# pull request stops there, so the pushes while it is worked on cost a few runner minutes each. On a pull request that
+# is not a draft (marking it ready included), the nightly and the manual run the platform lane runs at the same time:
+# `checks` and `electron` on macos-14 and windows-2025, Electron on Windows in two shards. The lanes ran one after the
+# other while runner minutes cost money; in a public repository they are free, and in sequence a full run took about
+# 24 minutes instead of about 15 (product owner decision, 2026-10-30, #412). So every pull request is checked on all
+# three systems before its merge (merge.md), but not every push.
 
 jobs:
   # Static checks: they do not depend on the operating system and need no build, so Ubuntu only and apart from the
@@ -46,7 +46,7 @@ jobs:
     name: static
     # A normal run takes 2-3 minutes; the bound ends a hang early.
     timeout-minutes: 8
-    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
+    if: ${{ github.event.action != 'closed' }}
     permissions:
       contents: read
       pull-requests: read # Write PR body
@@ -148,7 +148,7 @@ jobs:
     name: checks (ubuntu-24.04)
     # A normal run takes 6-7 minutes; the bound ends a hang early.
     timeout-minutes: 15
-    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
+    if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps: &checks-steps
       - uses: actions/checkout@v4
@@ -266,12 +266,12 @@ jobs:
   # On Linux under xvfb with Chromium's sandbox on (no --no-sandbox; the runner user is not root).
   # In parallel to `checks`: it is the longest job, so on Ubuntu it runs in two shards on two runners (#303), each
   # with one app at a time (two workers on one runner made apps fail to start under load). `electron (ubuntu-24.04)`
-  # below is green when both shards are. `electron-platform` runs the same steps on macOS and Windows in one job.
+  # below is green when both shards are. `electron-platform` and `electron-windows-shard` run the same steps on macOS and Windows.
   electron-shard:
     name: electron (ubuntu-24.04, ${{ matrix.shard }}/2)
     # A normal run takes 5-6 minutes (install, build, half of about 260 tests one app at a time); the bound ends a hang.
     timeout-minutes: 15
-    if: ${{ !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
+    if: ${{ github.event.action != 'closed' }}
     strategy:
       fail-fast: false
       matrix:
@@ -354,6 +354,8 @@ jobs:
         run: xvfb-run -a pnpm --filter @reqseq/app test:electron
       - name: Electron tests
         if: runner.os != 'Linux' && steps.changes.outputs.tests != 'false'
+        env:
+          ELECTRON_SHARD: ${{ matrix.shard && format('{0}/2', matrix.shard) || '' }}
         run: pnpm --filter @reqseq/app test:electron
       - name: Upload JUnit results (evidence, D-050)
         if: always()
@@ -370,7 +372,7 @@ jobs:
     name: electron (ubuntu-24.04)
     needs: electron-shard
     timeout-minutes: 2
-    if: ${{ !cancelled() && !contains(fromJSON('["closed","ready_for_review"]'), github.event.action) }}
+    if: ${{ !cancelled() && github.event.action != 'closed' }}
     runs-on: ubuntu-24.04
     steps:
       - name: Both shards passed
@@ -378,27 +380,16 @@ jobs:
           RESULT: ${{ needs.electron-shard.result }}
         run: test "$RESULT" = success
 
-  # The platform lane (#303): the steps of `checks` and `electron-shard` (unsharded) on macOS 14 and Windows 2025. A pull request runs
-  # it only when it is not a draft, and only after its Ubuntu lane passed: a red Ubuntu lane starts no macOS or
-  # Windows job. The run of `ready_for_review` has no Ubuntu lane and starts the platform lane at once. Nightly and manual runs run it after the Ubuntu lane whatever its result, so that every system's
-  # result is there. A skipped platform job shows its name without the system (`checks (${{ matrix.os }})`), so
-  # merge.md asks for the jobs of all three systems to be present and green.
+  # The platform lane (#303, #412): the steps of `checks` and `electron-shard` on macOS 14 and Windows 2025, in parallel
+  # to the Ubuntu lane. A pull request runs it only when it is not a draft. A skipped platform job shows its name
+  # without the system (`checks (${{ matrix.os }})`), so a draft never shows the required names, and merge.md asks
+  # for the jobs of all three systems to be present and green.
   checks-platform:
     name: checks (${{ matrix.os }})
-    needs: [static, checks, electron]
     # A normal run takes 7 (macOS) to 13 (Windows) minutes; the bound ends a hang.
     timeout-minutes: 25
-    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
-    # does (#303): a later run's platform job cancels the one still running on a superseded commit. The job name is
-    # written out: `github.job` is empty when a job's concurrency is evaluated.
-    concurrency:
-      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-checks-${{ matrix.os }}
-      cancel-in-progress: true
     if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
-      (github.event.action != 'closed' &&
-      !github.event.pull_request.draft && needs.static.result == 'success' &&
-      needs.checks.result == 'success' && needs.electron.result == 'success')) }}
+      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:
       fail-fast: false
       matrix:
@@ -408,26 +399,51 @@ jobs:
 
   electron-platform:
     name: electron (${{ matrix.os }})
-    needs: [static, checks, electron]
-    # Windows took more than 20 minutes on 2026-10-29 (one app at a time); the bound ends a hang.
+    # A normal run takes 14-16 minutes (one app at a time); the bound ends a hang. macOS is not sharded: GitHub runs at
+    # most five macOS jobs at a time, and more of them would only wait.
     timeout-minutes: 30
-    # The ready run has a concurrency group of its own, so a push after it does not cancel it; this job's own group
-    # does (#303): a later run's platform job cancels the one still running on a superseded commit. The job name is
-    # written out: `github.job` is empty when a job's concurrency is evaluated.
-    concurrency:
-      group: ci-platform-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}-electron-${{ matrix.os }}
-      cancel-in-progress: true
     if: >-
-      ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.action == 'ready_for_review' ||
-      (github.event.action != 'closed' &&
-      !github.event.pull_request.draft && needs.static.result == 'success' &&
-      needs.checks.result == 'success' && needs.electron.result == 'success')) }}
+      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, windows-2025]
+        os: [macos-14]
     runs-on: ${{ matrix.os }}
     steps: *electron-steps
+
+  # Windows runs Electron slowest (about 16 minutes in one job), so in two shards like Ubuntu (#412); `electron
+  # (windows-2025)` below is green when both are.
+  electron-windows-shard:
+    name: electron (${{ matrix.os }}, ${{ matrix.shard }}/2)
+    # A normal run takes about 10 minutes; the bound ends a hang.
+    timeout-minutes: 20
+    if: >-
+      ${{ github.event_name != 'pull_request' || (github.event.action != 'closed' && !github.event.pull_request.draft) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025]
+        shard: [1, 2]
+    runs-on: ${{ matrix.os }}
+    steps: *electron-steps
+
+  electron-windows:
+    # A matrix of one, so that a skipped job shows its name without the system, as the other platform jobs do.
+    name: electron (${{ matrix.os }})
+    needs: electron-windows-shard
+    timeout-minutes: 2
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' || (github.event.action != 'closed' &&
+      !github.event.pull_request.draft)) }}
+    strategy:
+      matrix:
+        os: [windows-2025]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Both shards passed
+        env:
+          RESULT: ${{ needs.electron-windows-shard.result }}
+        run: test "$RESULT" = success
 
   # The cross-access consistency test (SR-080, packages/cli/test/cross-access.test.ts) runs in `checks` on all
   # three systems, the app's IPC included (its bridge and core side, without Electron); the e2e suite also runs

@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
-// The Ubuntu lane of CI runs the files in shards (#303), given as ELECTRON_SHARD=<shard>/<total>, for example 1/2;
+// CI runs the files in shards on Ubuntu and Windows (#303, #412), given as ELECTRON_SHARD=<shard>/<total>, for example 1/2;
 // unset or empty runs all files. Playwright's own --shard cuts the sorted list into blocks, and the slow files sort
 // first (about 340 s against 190 s for two shards); every <total>-th file per shard evens that out (about 255 s
 // against 280 s).
