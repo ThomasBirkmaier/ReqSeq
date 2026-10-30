@@ -125,9 +125,8 @@ export class Workspace {
   #closed = false;
   /** Commands that run on this workspace now (`invoke`). */
   #commands = 0;
-  /** Write commands among them, and who waits for none to be left (`writesSettled`). */
-  #writes = 0;
-  readonly #writeWaiters: (() => void)[] = [];
+  /** Write commands among them, each settled when it ends (`writesSettled`). */
+  readonly #writes = new Set<Promise<unknown>>();
 
   /** Creates the object only; nothing is read until a command asks for state. */
   constructor(root: string, options: WorkspaceOptions = {}) {
@@ -153,37 +152,30 @@ export class Workspace {
    * (a `write-files` command), `writesSettled` waits for it too.
    */
   async runCommand<T>(command: () => Promise<T>, options: { readonly writes?: boolean } = {}): Promise<T> {
-    const writes = options.writes === true;
     this.#commands += 1;
-    if (writes) {
-      this.#writes += 1;
+    // A synchronous throw of `command` becomes a rejection, so `finally` counts it as ended too.
+    const run = (async () => command())();
+    const ended = run.catch(() => undefined);
+    if (options.writes === true) {
+      this.#writes.add(ended);
+      void ended.then(() => this.#writes.delete(ended));
     }
     try {
-      return await command();
+      return await run;
     } finally {
       this.#commands -= 1;
-      if (writes) {
-        this.#writes -= 1;
-        if (this.#writes === 0) {
-          for (const resolve of this.#writeWaiters.splice(0)) {
-            resolve();
-          }
-        }
-      }
     }
   }
 
   /**
-   * Resolves once no write command runs on this workspace. The watcher waits for it before it looks
-   * at a batch, so a file a command of this process is writing counts as that command's, which puts
-   * it into the element store itself (`recordWrites`), and not as a change from outside (#432).
+   * Resolves once the write commands that run on this workspace now have ended; later ones are not
+   * waited for, so writes that overlap without a pause hold no one for ever. The watcher waits for
+   * it before it looks at a batch, so a file a command of this process is writing counts as that
+   * command's, which puts it into the element store itself (`recordWrites`), and not as a change
+   * from outside (#432).
    */
-  writesSettled(): Promise<void> {
-    return this.#writes === 0
-      ? Promise.resolve()
-      : new Promise((resolve) => {
-          this.#writeWaiters.push(resolve);
-        });
+  async writesSettled(): Promise<void> {
+    await Promise.all(this.#writes);
   }
 
   /** The state of this workspace for `key`, created on first use and kept until `reset` or `close`. */

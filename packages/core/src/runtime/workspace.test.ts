@@ -287,12 +287,33 @@ describe("Workspace.writesSettled (#432)", () => {
     expect(ws.busy).toBe(false);
   });
 
+  it("does not wait for a write that starts after it was asked, so overlapping writes hold no one", async () => {
+    const ws = new Workspace("/w");
+    const ends: (() => void)[] = [];
+    const write = (): Promise<void> =>
+      ws.runCommand(() => new Promise<void>((resolve) => ends.push(resolve)), { writes: true });
+    const first = write();
+    const waiting = ws.writesSettled();
+    const second = write();
+    ends[0]?.();
+    await first;
+    await waiting;
+    ends[1]?.();
+    await second;
+  });
+
   it("counts a write that fails as ended", async () => {
     const ws = new Workspace("/w");
     await expect(ws.runCommand(() => Promise.reject(new Error("full")), { writes: true })).rejects.toThrow(
       "full",
     );
     await ws.writesSettled();
+    const thrown = (): Promise<void> => {
+      throw new Error("at once");
+    };
+    await expect(ws.runCommand(thrown, { writes: true })).rejects.toThrow("at once");
+    await ws.writesSettled();
+    expect(ws.busy).toBe(false);
   });
 });
 
