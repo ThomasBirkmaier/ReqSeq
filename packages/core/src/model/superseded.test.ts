@@ -40,7 +40,10 @@ describe("hints on relations to superseded elements (SR-072 AK2)", () => {
       "utf8",
     );
     expect(
-      await hints({ [MODEL]: model.replace(", invalid: true", ""), "needs/N-a1b2c3d4e5f6.md": OLD_NEED }),
+      await hints({
+        [MODEL]: model.replace("      invalid: true,\n", ""),
+        "needs/N-a1b2c3d4e5f6.md": OLD_NEED,
+      }),
     ).toEqual([]);
   });
 

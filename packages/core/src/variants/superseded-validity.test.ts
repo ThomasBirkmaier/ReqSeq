@@ -81,7 +81,9 @@ describe("hints on validities that list a superseded variant (SR-040 AK3)", () =
 
   it("[SR-040/AK3] gives no hint when the metamodel marks no status invalid or has no validity", async () => {
     const model = await fixtureModel();
-    expect(await hints({ ...MOUNTAIN_OBSOLETE, [MODEL]: model.replace(", invalid: true", "") })).toEqual([]);
+    expect(
+      await hints({ ...MOUNTAIN_OBSOLETE, [MODEL]: model.replace("      invalid: true,\n", "") }),
+    ).toEqual([]);
     expect(
       await hints({ ...MOUNTAIN_OBSOLETE, [MODEL]: model.replace("    meaning: validity\n", "") }),
     ).toEqual([]);

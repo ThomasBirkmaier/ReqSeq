@@ -33,6 +33,7 @@ export default defineConfig({
         { label: "Problem and error codes", slug: "reference/problem-codes" },
         { label: "File formats", items: [{ autogenerate: { directory: "reference/formats" } }] },
         { label: "Common types", slug: "reference/common-types" },
+        { label: "Standard model", slug: "reference/standard-model" },
       ],
       // A dead internal link fails the build.
       plugins: [starlightLinksValidator()],

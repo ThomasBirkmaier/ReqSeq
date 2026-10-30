@@ -135,6 +135,7 @@ describe("standard model", () => {
       key: "topic",
       name: "Topic",
       kind: "text",
+      description: "The topic the element belongs to, as the project names its topics.",
     });
     const withTopic = metamodel.types.filter((t) => t.properties?.includes("topic") === true);
     expect(withTopic.map((t) => t.key)).toEqual(["need", "system-requirement"]);

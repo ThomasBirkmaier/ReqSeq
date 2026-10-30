@@ -8,6 +8,8 @@ import type { ProblemCodes } from "./codes.js";
 import { CODES_PAGE, codesPage } from "./codes.js";
 import { COMMANDS_FOLDER, commandIndex, commandPage, commandSlug } from "./command-page.js";
 import type { Example } from "./formats.js";
+import type { StandardModel } from "./standard-model.js";
+import { STANDARD_MODEL_PAGE, standardModelPage } from "./standard-model.js";
 import {
   COMMON_TYPES_PAGE,
   FORMATS,
@@ -38,7 +40,7 @@ export async function readGeneratedContracts(repoRoot: string): Promise<Generate
 
 /**
  * The sources of the reference: the catalog (of `runtime`), the generated contracts, the code texts, the schemas
- * (`runtime.contracts.schemas` in a build) and the examples of the formats.
+ * (`runtime.contracts.schemas` in a build), the examples of the formats and the standard model.
  */
 export interface ReferenceSources {
   readonly runtime: CommandRuntime;
@@ -46,6 +48,7 @@ export interface ReferenceSources {
   readonly codes: ProblemCodes;
   readonly schemas: readonly JsonSchema[];
   readonly examples: Readonly<Record<string, readonly Example[]>>;
+  readonly standardModel: StandardModel;
 }
 
 /** The format pages, their index and the page of the common types. */
@@ -79,9 +82,9 @@ function formatPages(
   ];
 }
 
-/** The command index and pages (catalog order), the page of the codes, and the pages of the formats. */
+/** The command index and pages (catalog order), the codes page, the format pages and the standard model page. */
 export async function referencePages(
-  { runtime, generated, codes, schemas, examples }: ReferenceSources,
+  { runtime, generated, codes, schemas, examples, standardModel }: ReferenceSources,
   base: string,
 ): Promise<Page[]> {
   const entries = runtime.contracts.commands;
@@ -90,6 +93,7 @@ export async function referencePages(
     { path: `${COMMANDS_FOLDER}/index.md`, text: commandIndex(entries, base) },
     { path: CODES_PAGE, text: codesPage(codes) },
     ...formatPages(schemas, examples, base),
+    { path: STANDARD_MODEL_PAGE, text: standardModelPage(standardModel) },
   ];
   for (const [index, entry] of entries.entries()) {
     const access = await commandAccess(entry, runtime, generated);
