@@ -1,6 +1,6 @@
 # Standard model (D-037, extended by D-059 and D-060), shipped with ReqSeq and written by workspace.init (SR-014).
 # Keys never change (D-043); names are English (D-019). Every built-in meaning has a key (SR-014 AK3):
-# each type and property meaning exactly one, derivation and replacement two relation kinds each
+# each type and property meaning exactly one, derivation two relation kinds
 # (open question #150).
 # Marked "assumption": not yet covered by a decision.
 reqseq-metamodel: 1
@@ -190,11 +190,11 @@ relations:
     description: "The source is based on a decision."
     inverse-name: Basis for
     target-types: [decision]
-  - key: supersedes # replacement by a successor, D-045 / SR-072
+  - key: supersedes # a successor supersedes the target, D-045 / SR-072
     name: Supersedes
     description: "The source says that it supersedes the target. Superseding an element (element.supersede) also sets the target to an invalid status; the relation alone does not."
     inverse-name: Superseded by
-    meaning: replacement
+    meaning: succession
   - key: replaces
     name: Replaces
     description: "A system requirement of a variant replaces one of the core in that variant."

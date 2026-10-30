@@ -433,8 +433,12 @@ describe("recording the last API or MCP access (SR-117)", () => {
     expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_036);
 
     vi.advanceTimersByTime(ACTIVITY_WRITE_MS);
-    await until(async () => (await readActivity(opened.cache))?.seq === 2);
     expect(writes() - before).toBe(2);
+    // The timer's write itself is awaited, not the file read in a loop: on Windows a reader that holds
+    // the file open makes each rename over it fail, until the retries are used up and the write is
+    // dropped (#385).
+    await vi.mocked(WorkspaceBlock.writeCacheFile).mock.results.at(-1)?.value;
+    expect((await readActivity(opened.cache))?.seq).toBe(2);
     expect((await readActivity(opened.cache))?.access.element.id).toBe(SR_037);
   });
 
@@ -954,6 +958,40 @@ describe("watching the last access (SR-117)", () => {
     expect(seen.seen.map((a) => a.element.id)).toEqual([SR_037, SR_037]);
   });
 
+  it("reads the file again on each watcher batch, for an access whose file event was lost", async () => {
+    const opened = await copy(IDENTIFIERS);
+    const store = await opened.workspace.get(elementStoreState);
+    const known = store.byId.get(SR_036)?.[0]?.snapshot.sha256 ?? "";
+    // Every event of the cache folder is lost to the watch, as one is on macOS while a folder watch of
+    // the process starts or closes (#385): only a batch of the workspace watcher can bring the access.
+    const actual = await vi.importActual<typeof NodeFs>("node:fs");
+    const watchMock = vi.mocked(fsWatch);
+    watchMock.mockImplementation(((
+      folder: string,
+      options: NodeFs.WatchOptionsWithStringEncoding,
+      listener: NodeFs.WatchListener<string>,
+    ) =>
+      actual.watch(folder, options, (event, name) => {
+        if (folder !== opened.cache) {
+          listener(event, name);
+        }
+      })) as typeof fsWatch);
+    onTestFinished(() => {
+      watchMock.mockImplementation(actual.watch);
+    });
+    const seen = accesses();
+    await watching(opened, { ...seen.options, holdMs: 10_000 });
+    await WorkspaceBlock.writeCacheFile(opened.cache, ACTIVITY_FILE, JSON.stringify(activityFile(known, 1)));
+
+    const element = opened.fixture.path("requirements/SR-0000000b0037.md");
+    const text = await fs.readFile(element, "utf8");
+    await untilWatching({
+      probe: (attempt) => fs.writeFile(element, `${text}\nProbe ${String(attempt)}\n`),
+      seen: () => Promise.resolve(seen.seen.length > 0),
+    });
+    expect(seen.seen.map((a) => a.element.id)).toEqual([SR_036]);
+  });
+
   it("reports nothing that it was still reading or checking when it closed", async () => {
     const opened = await copy(IDENTIFIERS);
     const seen = accesses();
@@ -1115,6 +1153,10 @@ describe("a watch that goes on or ends on its own", () => {
 
   it("logs what a throwing onAccess throws, and goes on reporting", async () => {
     const opened = await copy(IDENTIFIERS);
+    // On macOS a file event is lost while any folder watch of the process starts or closes (#385):
+    // the workspace watcher must not watch its repositories anew, after FSEvents reported the
+    // fixture's own files, while the access is written.
+    await holdWorkspaceEvents();
     const logged: string[] = [];
     const reported: number[] = [];
     await watching(opened, {
@@ -1171,6 +1213,10 @@ describe("following opens no network connection (SR-117 AK6)", () => {
     });
     const opened = await copy(IDENTIFIERS);
     await opened.workspace.get(elementStoreState);
+    // On macOS a file event is lost while any folder watch of the process starts or closes (#385):
+    // the workspace watcher must not watch its repositories anew, after FSEvents reported the
+    // fixture's own files, while the access is written.
+    await holdWorkspaceEvents();
     const seen = accesses();
     await watching(opened, seen.options);
     const next = seen.next();

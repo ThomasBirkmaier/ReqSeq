@@ -436,7 +436,7 @@ describe("which findings fail the check: --fail-on, apart from --severity (#304)
   });
 
   it("ends with exit code 0 after a supersede with a successor, whose own relation gets a hint", async () => {
-    // The issue's steps 2 and 3: the successor's replacement relation points at a superseded element,
+    // The issue's steps 2 and 3: the successor's succession relation points at a superseded element,
     // a hint that cannot be confirmed (SR-072 AK2); it must not fail a correct workspace.
     const ws = await fixture("SR-072/supersede");
     const supersede = await reqseq(
