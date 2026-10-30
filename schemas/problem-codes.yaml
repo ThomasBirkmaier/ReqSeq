@@ -61,7 +61,7 @@ problems:
     cause: A relation connects two element types that the metamodel does not allow for this relation kind.
     remedy: Use a relation kind that is allowed between the two types, or change the metamodel.
   relation.outdated:
-    cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. From SR-045 on, a `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement (SR-041 AK8) or from a requirement without validity (SR-041 AK6) it stays `relation.outdated`.
+    cause: The target of a relation or inline reference has changed since the relation stored its version, so the relation may need a review. A `replaces` item onto a core requirement from a requirement with a validity gives `variant.core-changed` instead; onto an element that is no core requirement (SR-041 AK8) or from a requirement without validity (SR-041 AK6) it stays `relation.outdated`.
     remedy: Check the source against the changed target, then confirm the hint (`hint.confirm`), which stores the target's current version.
   relation.target-superseded:
     cause: A relation points to an element whose status marks it as superseded.
@@ -82,7 +82,7 @@ problems:
     cause: Relations of a deriving kind form a cycle, so the chain of the elements in it never ends.
     remedy: Remove or change one of the relations of the cycle the message lists.
   variant.core-changed:
-    cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version (SR-045). It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. This version does not raise it yet.
+    cause: A core requirement that a variant requirement replaces has changed since the replacement stored its version (SR-045). It comes instead of `relation.outdated` for a `replaces` item (meaning `replacement`) from a requirement with a validity onto a core requirement, whatever the variant excludes, so the change gives one hint, not two. A superseded core requirement keeps the usual hints of a relation instead, `relation.target-superseded` and, when its content changed too, `relation.outdated` (SR-045 AK4).
     remedy: Check the replacing requirement against the change, then confirm the hint (`hint.confirm`). It stores the core requirement's current version, and its title when both are in one repository (D-058); a variant in its own repository (D-020) gets the version only.
   variant.superseded-in-validity:
     cause: The validity of an element lists a variant element that is superseded.

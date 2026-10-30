@@ -2,7 +2,10 @@
 // binary with the product commands on fixtures/SR-026/hints, its exit code, its JSON and its
 // readable output. The list in the app (AK1) and the hint at the element in the app (AK3) come with
 // the app in stage 3 (#127 option 1); core and this test cover the function now.
+// fixtures/SR-045/core-changed gives the hint on a changed core requirement (SR-045 AK1); its
+// place on the pages of the app comes with the app package of stage 5.
 // Run after `pnpm build` with `pnpm test:e2e`.
+import fs from "node:fs/promises";
 import type { FixtureWorkspace } from "@reqseq/testkit";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -119,5 +122,38 @@ describe("reqseq hint list (SR-026)", () => {
       ["relation.outdated", `${P}a1`, 14],
       ["relation.outdated", `${P}a1`, 17],
     ]);
+  });
+});
+
+describe("reqseq hint list with a changed core requirement (SR-045)", () => {
+  it("[SR-045/AK1] lists one hint at the replacement with both versions, also for its variant, and none beside it", async () => {
+    const ws = await createFixtureWorkspace({ fixture: "SR-045/core-changed", git: true });
+    fixtures.push(ws);
+    const file = ws.path("requirements/SR-0000000000a1.md");
+    await fs.writeFile(file, (await fs.readFile(file, "utf8")).replace("within 10 ms.\n", "within 12 ms.\n"));
+    await ws.commit();
+    const json = await reqseq(["hint", "list", "--variant", "VAR-0000c1", "--json"], ws.root);
+    expect([json.code, json.stderr]).toEqual([0, ""]);
+    const { hints } = JSON.parse(json.stdout) as {
+      readonly hints: readonly (Hint & { storedVersion: string; currentVersion: string })[];
+    };
+    const C = "45045045-0000-4000-8000-0000000000";
+    // B2 has no validity: its replacement stays an outdated relation (SR-041 AK6).
+    expect(hints.map((h) => [h.code, h.elementId, h.targetId])).toEqual([
+      ["variant.core-changed", `${C}b1`, `${C}a1`],
+      ["relation.outdated", `${C}b2`, `${C}a1`],
+    ]);
+    expect(hints[0]?.storedVersion).toBe("n1:0b18d8dadbb9f1a5");
+    expect(hints[0]?.currentVersion).not.toBe("n1:0b18d8dadbb9f1a5");
+    expect(hints[0]?.currentDate).toMatch(/^\d{4}-/);
+    const human = await reqseq(["hint", "list", "--variant", "VAR-0000c1"], ws.root);
+    expect(human.stdout).toMatch(
+      /\n {2}SR-0000b1 {2}variant\.core-changed {2}Core requirement System Requirement SR-0000a1, which System Requirement SR-0000b1 replaces, has changed .* {2}hint: variant\.core-changed\/system\/.*\/replaces\/.*\?version=n1:0b18d8dadbb9f1a5\n/,
+    );
+    const mountain = await reqseq(
+      ["hint", "list", "--variant", "VAR-0000c2", "--kind", "variant.core-changed", "--json"],
+      ws.root,
+    );
+    expect((JSON.parse(mountain.stdout) as Output).hints).toEqual([]);
   });
 });

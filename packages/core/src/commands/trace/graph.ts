@@ -8,7 +8,8 @@
 // The marks (SR-111 AK4; assumptions of spec question #478) are the rules of the hints and the chain,
 // so the graph says what element.get and trace.chain say:
 // - `outdated`: the element stores an outdated relation, relation property or inline reference, the
-//   `relation.outdated` hints of element.get (`outdatedAmong`), whatever kinds are followed;
+//   `relation.outdated` and `variant.core-changed` hints of element.get (`outdatedAmong`), whatever
+//   kinds are followed;
 // - `superseded`: its status is one the metamodel marks invalid (D-044, `invalidStatuses`), the rule
 //   of `relation.target-superseded`;
 // - `no-evidence`: the gap rule of trace.chain (`lacksEvidence`, SR-022 AK3), in the same view.
