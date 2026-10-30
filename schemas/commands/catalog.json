@@ -3640,10 +3640,12 @@
       "input": {
         "type": "object",
         "properties": {
-          "name": { "$ref": "../baseline.schema.json#/$defs/name" },
+          "name": {
+            "$ref": "../baseline.schema.json#/$defs/name"
+          },
           "selection": {
             "$ref": "../common.schema.json#/$defs/selection",
-            "description": "Stored in the file: a saved filter as its where and view, elements as UUID and title. Not baseline."
+            "description": "Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline."
           }
         },
         "additionalProperties": false,
@@ -3651,7 +3653,7 @@
       },
       "output": {
         "type": "object",
-        "description": "Errors: baseline.exists when a baseline has the name or a file the file name (details.file, details.repository; nothing written, SR-050 AK6); baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
+        "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
         "properties": {
           "files": {
             "type": "array",
@@ -3663,7 +3665,9 @@
           "baseline": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
+              "name": {
+                "type": "string"
+              },
               "file": {
                 "type": "string",
                 "description": "The file, relative to the workspace root, / as separator."
@@ -3672,7 +3676,9 @@
                 "type": "string",
                 "description": "The repository that holds the file; `repository` in the file is relative to it."
               },
-              "date": { "$ref": "../common.schema.json#/$defs/dateTime" },
+              "date": {
+                "$ref": "../common.schema.json#/$defs/dateTime"
+              },
               "elements": {
                 "type": "integer",
                 "minimum": 0,
@@ -3700,7 +3706,7 @@
     {
       "name": "baseline.list",
       "title": "List baselines",
-      "summary": "Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).",
+      "summary": "Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).",
       "effect": "read",
       "stage": 5,
       "implements": ["SR-051"],
@@ -3726,8 +3732,13 @@
                   "type": "string",
                   "description": "Relative to the workspace root, / as separator."
                 },
-                "repository": { "type": "string", "description": "The repository that holds the file." },
-                "date": { "$ref": "../common.schema.json#/$defs/dateTime" },
+                "repository": {
+                  "type": "string",
+                  "description": "The repository that holds the file."
+                },
+                "date": {
+                  "$ref": "../common.schema.json#/$defs/dateTime"
+                },
                 "view": {
                   "$ref": "../common.schema.json#/$defs/viewId",
                   "description": "The variant whose baseline it is: its stored selection is only that view (SR-103 AK4). Left out otherwise."
@@ -3794,7 +3805,11 @@
             "default": 200,
             "description": "Elements of the page; total counts all."
           },
-          "offset": { "type": "integer", "minimum": 0, "default": 0 }
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
         },
         "additionalProperties": false,
         "required": ["baseline"]
@@ -3806,8 +3821,14 @@
           "name": {
             "type": "string"
           },
-          "file": { "type": "string", "description": "Relative to the workspace root, / as separator." },
-          "repository": { "type": "string", "description": "The repository that holds the file." },
+          "file": {
+            "type": "string",
+            "description": "Relative to the workspace root, / as separator."
+          },
+          "repository": {
+            "type": "string",
+            "description": "The repository that holds the file."
+          },
           "date": {
             "$ref": "../common.schema.json#/$defs/dateTime"
           },
@@ -3827,7 +3848,9 @@
                 "name": {
                   "type": "string"
                 },
-                "commit": { "$ref": "../common.schema.json#/$defs/commit" }
+                "commit": {
+                  "$ref": "../common.schema.json#/$defs/commit"
+                }
               },
               "additionalProperties": false,
               "required": ["name", "commit"]
@@ -3839,7 +3862,9 @@
             "items": {
               "type": "object",
               "properties": {
-                "id": { "$ref": "../common.schema.json#/$defs/uuid" },
+                "id": {
+                  "$ref": "../common.schema.json#/$defs/uuid"
+                },
                 "repository": {
                   "type": "string",
                   "description": "The repository of the copy, whenever it is known."
@@ -3865,18 +3890,27 @@
                   "type": "object",
                   "description": "With withEvidence, for entries of the file whose type has the meaning requirement; never indirect (SR-094 AK5).",
                   "properties": {
-                    "view": { "$ref": "../common.schema.json#/$defs/viewId" },
-                    "status": { "enum": ["open", "verified", "failed", "outdated"] },
+                    "view": {
+                      "$ref": "../common.schema.json#/$defs/viewId"
+                    },
+                    "status": {
+                      "enum": ["open", "verified", "failed", "outdated"]
+                    },
                     "decidedBy": {
                       "type": "object",
                       "description": "The record that decides the status.",
                       "properties": {
-                        "repository": { "type": "string" },
+                        "repository": {
+                          "type": "string"
+                        },
                         "file": {
                           "type": "string",
                           "description": "Relative to the workspace root, / as separator."
                         },
-                        "line": { "type": "integer", "minimum": 1 }
+                        "line": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
                       },
                       "additionalProperties": false,
                       "required": ["repository", "file"]
@@ -3912,7 +3946,9 @@
           "names": {
             "type": "array",
             "description": "The elements of the page and the variant of `view`, each once in the order first named (#588).",
-            "items": { "$ref": "../common.schema.json#/$defs/elementName" }
+            "items": {
+              "$ref": "../common.schema.json#/$defs/elementName"
+            }
           },
           "problems": {
             "type": "array",
@@ -3920,7 +3956,9 @@
               "$ref": "../common.schema.json#/$defs/problem"
             }
           },
-          "incomplete": { "$ref": "../common.schema.json#/$defs/incomplete" }
+          "incomplete": {
+            "$ref": "../common.schema.json#/$defs/incomplete"
+          }
         },
         "additionalProperties": false,
         "required": [
@@ -3976,7 +4014,10 @@
             "type": ["string", "null"],
             "description": "The commit to compare with; null for the working copy."
           },
-          "file": { "type": "string", "description": "The element file now, relative to its repository." },
+          "file": {
+            "type": "string",
+            "description": "The element file now, relative to its repository."
+          },
           "oldFile": {
             "type": "string",
             "description": "Its path at the baseline commit, when the file moved."

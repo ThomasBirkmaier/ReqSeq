@@ -205,25 +205,33 @@
             },
             "additionalProperties": false
           },
-          "description": "Sorted by id, then repository; one flow mapping per line."
+          "description": "Sorted by id, then repository (code units; none first), each element copy once; one flow mapping per line."
         }
       },
       "additionalProperties": false,
       "$defs": {
         "name": {
-          "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004).",
+          "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004); a taken file name gets -2, -3, ….",
           "type": "string",
           "maxLength": 200,
           "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
         },
         "storedSelection": {
-          "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, elements as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058). The title is the one at baseline time.",
+          "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.",
           "type": "object",
           "properties": {
             "ids": {
+              "description": "A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018).",
               "type": "array",
               "items": {
-                "$ref": "#/$defs/baseline/$defs/storedRef"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/common/$defs/elementRef"
+                  },
+                  {
+                    "$ref": "#/$defs/baseline/$defs/elsewhere"
+                  }
+                ]
               }
             },
             "filter": {
@@ -272,22 +280,26 @@
               "additionalProperties": false
             },
             {
-              "type": "object",
-              "required": [
-                "id",
-                "repository"
-              ],
-              "properties": {
-                "id": {
-                  "$ref": "#/$defs/common/$defs/uuid"
-                },
-                "repository": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/$defs/baseline/$defs/elsewhere"
             }
           ]
+        },
+        "elsewhere": {
+          "description": "An element in another repository than the file's (D-058).",
+          "type": "object",
+          "required": [
+            "id",
+            "repository"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/common/$defs/uuid"
+            },
+            "repository": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -6573,7 +6585,7 @@
           },
           "selection": {
             "$ref": "#/$defs/common/$defs/selection",
-            "description": "Stored in the file: a saved filter as its where and view, elements as UUID and title. Not baseline."
+            "description": "Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline."
           }
         },
         "additionalProperties": false,
@@ -6584,7 +6596,7 @@
       },
       "outputSchema": {
         "type": "object",
-        "description": "Errors: baseline.exists when a baseline has the name or a file the file name (details.file, details.repository; nothing written, SR-050 AK6); baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
+        "description": "Errors: baseline.exists when a baseline has the name, ignoring case and Unicode normal form (details.file, details.repository: its file; nothing written, SR-050 AK6); a taken file name gets -2, -3, …; baseline.uncommitted-changes (details.elements[] {id, repository, file}, details.files[] {repository, file}; SR-050 AK2); git.unavailable when a repository involved is not under Git or has no commit (details.repository; AK7); file.faulty when a selected element has no version (details.elements[]); input.invalid for selection.baseline. The baseline is never replaced afterwards.",
         "properties": {
           "files": {
             "type": "array",
@@ -6646,7 +6658,7 @@
     {
       "name": "baseline_list",
       "title": "List baselines",
-      "description": "Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).",
+      "description": "Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,

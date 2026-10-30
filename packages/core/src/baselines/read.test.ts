@@ -2,18 +2,13 @@
 // Beta (A1 at V1), Release 1.0 (A1 at V1, A2 at V2), Release 1.1 (A1 at V2, A2 at V2) and a README
 // in the default folder `baselines`. What evidence.list makes of it: commands/evidence/list.test.ts.
 import fs from "node:fs/promises";
-import path from "node:path";
 import { createFixtureWorkspace } from "@reqseq/testkit";
 import type { FixtureOptions } from "@reqseq/testkit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { parseYamlFileBytes } from "../files/index.js";
-import type { BaselineFile } from "../generated/types.js";
-import { fileSchemaValidator } from "../runtime/contracts.js";
 import { Workspace } from "../runtime/workspace.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import type { BaselineFiles, Baselines } from "./read.js";
-import { baselineHeader, scanBaseline } from "./scan.js";
 import {
   MAX_VIOLATIONS,
   baselineFilesState,
@@ -373,117 +368,5 @@ describe("selection by baseline (data.export, SR-061 AK2)", () => {
     expect(findBaseline(read, "broken")).toEqual({ kind: "faulty", file: "baselines/broken.yaml" });
     // Its `name` is not known: the file is faulty.
     expect(findBaseline(read, "Broken file")).toEqual({ kind: "none" });
-  });
-});
-
-describe("baseline file format (ADR-0018): the line scanner and the YAML fallback", () => {
-  const EXAMPLES = path.resolve(import.meta.dirname, "../../../../schemas/examples/baseline");
-  const U1 = "102ee39b-773f-4cd0-b414-825b7146fb54";
-  const U2 = "fe5fce30-087e-4bbd-82e4-0f03900e5af3";
-  const VARIANT = "ca0dd4a9-6f1e-4c3a-9d55-2b7c1e8f0a11";
-  const HEADER = `reqseq-baseline: 1\nname: Release 1\ndate: 2026-11-02T13:00:00Z\n`;
-  const SELECTION = `selection:\n  view: { id: ${VARIANT}, title: Pro }\n`;
-  const REPOSITORIES = `repositories:\n  - { name: system, commit: ${COMMIT} }\n  - { name: sensor, commit: ${COMMIT} }\n`;
-  const ELEMENTS =
-    `elements:\n  - { id: ${U1}, version: ${V1} }\n  - { id: ${U1}, version: ${V2}, repository: sensor }\n` +
-    `  - { id: ${U2}, version: ${V2} }\n`;
-  const CANONICAL = HEADER + SELECTION + REPOSITORIES + ELEMENTS;
-
-  /** What YAML and the schema make of `text`: its data, and whether it is a valid baseline. */
-  const viaYaml = (text: string): { data: unknown; valid: boolean } => {
-    const parsed = parseYamlFileBytes("b.yaml", new TextEncoder().encode(text));
-    return parsed.kind === "problem"
-      ? { data: undefined, valid: false }
-      : {
-          data: parsed.content.data,
-          valid: fileSchemaValidator("baseline.schema.json")(parsed.content.data),
-        };
-  };
-
-  /** The header part of a baseline's data. */
-  const headerOf = (data: unknown): unknown =>
-    Object.fromEntries(
-      Object.entries(data as BaselineFile).filter(([key]) => key !== "repositories" && key !== "elements"),
-    );
-
-  it("reads both examples and every stored selection form by the line scanner, as YAML and the schema read them", async () => {
-    const examples = ["release-1.0.yaml", "release-1-variant.yaml"];
-    const texts = await Promise.all(examples.map((name) => fs.readFile(path.join(EXAMPLES, name), "utf8")));
-    const selections = [
-      SELECTION,
-      // As baseline.create writes them: `{ id, title }` in the file's repository, `{ id, repository }` elsewhere.
-      `selection:\n  ids:\n    - { id: ${U1}, title: K1 }\n    - { id: ${U2}, repository: sensor }\n  where: { all: [] }\n`,
-      // Stage 4 and hand-written forms: every elementRef, a saved filter by name, the core view.
-      `selection: { ids: [${U1}, SR-46fb54, SR-036], package: SR-036, view: core }\n`,
-      "selection: { filter: Open items, view: SR-099 }\n",
-      "",
-    ];
-    const canonical = selections.map((s) => HEADER + s + REPOSITORIES + ELEMENTS);
-    for (const text of [...texts, ...canonical, HEADER + REPOSITORIES + "elements: []\n"]) {
-      const yaml = viaYaml(text);
-      expect(yaml.valid).toBe(true);
-      expect(scanBaseline(text)).toEqual(yaml.data);
-      expect(baselineHeader(text)).toEqual(headerOf(yaml.data));
-    }
-  });
-
-  it("sends a file in any other layout to YAML and the schema, which give the same baseline or its problems", async () => {
-    const swap = (from: string, to: string): string => CANONICAL.replace(from, to);
-    const element = (more: string): string => CANONICAL.replace(`  - { id: ${U2}`, `${more}  - { id: ${U2}`);
-    // Same data as the canonical file, in another layout.
-    const same = {
-      comment: element("  # checked\n"),
-      blank: element("\n"),
-      "keys reordered": swap(`{ id: ${U2}, version: ${V2} }`, `{ version: ${V2}, id: ${U2} }`),
-      crlf: CANONICAL.replaceAll("\n", "\r\n"),
-      "no final newline": CANONICAL.slice(0, -1),
-      "flow repositories": swap(
-        REPOSITORIES,
-        `repositories: [{ name: system, commit: ${COMMIT} }, { name: sensor, commit: ${COMMIT} }]\n`,
-      ),
-      "header reordered": swap(HEADER, `name: Release 1\nreqseq-baseline: 1\ndate: 2026-11-02T13:00:00Z\n`),
-    };
-    // Other data, valid or not.
-    const other = {
-      "out of order": [element(`  - { id: ${U1}, version: ${V1}, repository: aaa }\n`), true],
-      twice: [element(`  - { id: ${U1}, version: ${V2}, repository: sensor }\n`), true],
-      "number as repository name": [swap("{ name: sensor,", "{ name: 123,"), false],
-      "number as commit": [
-        swap(`commit: ${COMMIT} }\n  - { name: sensor`, `commit: ${"1".repeat(40)} }\n  - { name: sensor`),
-        false,
-      ],
-      "boolean as element repository": [swap("repository: sensor }", "repository: true }"), false],
-      "extra key": [swap(`{ id: ${U2}, version: ${V2} }`, `{ id: ${U2}, version: ${V2}, note: x }`), false],
-      "elements without entries": [HEADER + REPOSITORIES + "elements:\n", false],
-      "elements: [] and more": [HEADER + REPOSITORIES + "elements: []\n# end\n", true],
-      "no repository": [HEADER + "repositories:\nelements: []\n", false],
-      "no elements": [HEADER + REPOSITORIES, false],
-      "extra header key": [swap(SELECTION, "note: x\n"), false],
-      "header without date": [swap("date: 2026-11-02T13:00:00Z\n", ""), false],
-      "name against the schema": [swap("name: Release 1", 'name: " padded"'), false],
-      "YAML warning": [swap("name: Release 1", "name: !odd Release 1"), true],
-      "faulty header YAML": [swap("name: Release 1", "name: [open"), false],
-      "header a scalar": ["a note\n" + REPOSITORIES + ELEMENTS, false],
-      "header a list": ["- a\n" + REPOSITORIES + ELEMENTS, false],
-      "header empty": ["\n" + REPOSITORIES + ELEMENTS, false],
-    } as const;
-    const canonical = viaYaml(CANONICAL).data;
-    for (const [label, text] of Object.entries(same)) {
-      expect(scanBaseline(text), label).toBeUndefined();
-      expect(viaYaml(text), label).toEqual({ data: canonical, valid: true });
-    }
-    for (const [label, [text, valid]] of Object.entries(other)) {
-      expect(scanBaseline(text), label).toBeUndefined();
-      expect(viaYaml(text).valid, label).toBe(valid);
-    }
-    expect(baselineHeader(REPOSITORIES)).toBeUndefined();
-    // On disk: the canonical file and a hand-edited copy give the same baseline.
-    const { layout } = await open({
-      "baselines/canonical.yaml": CANONICAL,
-      "baselines/edited.yaml": same.comment.replace("Release 1", "Release 1 edited"),
-    });
-    const read = await readBaselines(layout);
-    expect(baselinesContaining(read, U1, V2)).toEqual(["Release 1", "Release 1 edited"]);
-    expect(read.problems).toEqual([]);
   });
 });

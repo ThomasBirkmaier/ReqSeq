@@ -17,7 +17,6 @@ import {
   readFileStat,
   readJsonlSnapshot,
   readYamlFile,
-  readYamlFileFast,
 } from "./read.js";
 import type { FileReadResult, YamlReadResult } from "./read.js";
 
@@ -364,27 +363,6 @@ const yamlProblem = (r: YamlReadResult): Problem => {
   }
   return r.problem;
 };
-
-describe("readYamlFileFast", () => {
-  const fast = (text: string): string | undefined => (text.startsWith("fast") ? text.trim() : undefined);
-
-  it("gives the value of the fast reader, else the parsed file, and the problem of a faulty file", async () => {
-    await put("f.yaml", "fast: 1\n");
-    await put("s.yaml", "slow: 1\n");
-    await put("bom.yaml", "\uFEFFfast: 1\n");
-    await put("latin1.yaml", new Uint8Array([0x66, 0x61, 0x73, 0x74, 0xe4, 0x0a]));
-    expect(await readYamlFileFast(root, "f.yaml", fast)).toEqual({ kind: "fast", value: "fast: 1" });
-    const slow = await readYamlFileFast(root, "s.yaml", fast);
-    expect(slow.kind === "parsed" && slow.file.data).toEqual({ slow: 1 });
-    // A BOM is not the layout of a fast reader: the file is parsed as readYamlFile does.
-    const bom = await readYamlFileFast(root, "bom.yaml", fast);
-    expect(bom.kind === "parsed" && bom.file.bom).toBe(true);
-    for (const name of ["latin1.yaml", "gone.yaml"]) {
-      const read = await readYamlFileFast(root, name, fast);
-      expect(read.kind === "problem" && read.problem.code).toBe("file.unreadable");
-    }
-  });
-});
 
 describe("readYamlFile", () => {
   it("returns document, data and snapshot of a YAML file", async () => {

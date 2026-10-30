@@ -42,22 +42,28 @@
         },
         "additionalProperties": false
       },
-      "description": "Sorted by id, then repository; one flow mapping per line."
+      "description": "Sorted by id, then repository (code units; none first), each element copy once; one flow mapping per line."
     }
   },
   "additionalProperties": false,
   "$defs": {
     "name": {
-      "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004).",
+      "description": "Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004); a taken file name gets -2, -3, ….",
       "type": "string",
       "maxLength": 200,
       "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:[^\\u0000-\\u001f\\u007f-\\u009f]*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$"
     },
     "storedSelection": {
-      "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, elements as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058). The title is the one at baseline time.",
+      "description": "The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.",
       "type": "object",
       "properties": {
-        "ids": { "type": "array", "items": { "$ref": "#/$defs/storedRef" } },
+        "ids": {
+          "description": "A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018).",
+          "type": "array",
+          "items": {
+            "anyOf": [{ "$ref": "common.schema.json#/$defs/elementRef" }, { "$ref": "#/$defs/elsewhere" }]
+          }
+        },
         "filter": {
           "type": "string",
           "description": "Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written."
@@ -78,16 +84,18 @@
           "properties": { "id": { "$ref": "common.schema.json#/$defs/uuid" }, "title": { "type": "string" } },
           "additionalProperties": false
         },
-        {
-          "type": "object",
-          "required": ["id", "repository"],
-          "properties": {
-            "id": { "$ref": "common.schema.json#/$defs/uuid" },
-            "repository": { "type": "string" }
-          },
-          "additionalProperties": false
-        }
+        { "$ref": "#/$defs/elsewhere" }
       ]
+    },
+    "elsewhere": {
+      "description": "An element in another repository than the file's (D-058).",
+      "type": "object",
+      "required": ["id", "repository"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/uuid" },
+        "repository": { "type": "string" }
+      },
+      "additionalProperties": false
     }
   }
 }

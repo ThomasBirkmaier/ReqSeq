@@ -4,12 +4,13 @@ Part of the [`@reqseq/core` README](../README.md). Baseline files (D-039, `basel
 
 ## Reading
 
+The file format, the fast reader and the bounds are [ADR-0018](../../../docs/adr/0018-baseline-file.md).
+
 `readBaselines(layout, kept?)` → `{ location, baselines, problems, faulty, incomplete }`:
 
 - Where: the `baselines` location of the workspace file, default the folder `baselines` in the main repository (`settingLocation`). Every `*.yaml` file directly in the folder, in file order (code units), as saved filters are read; the workspace file is never one. A `.yml` file is `baseline.invalid` (warning) and not read; other files (a README) are passed over; a folder that does not exist holds no baseline; a path that is no folder is `file.unreadable`.
-- File format and reading: [ADR-0018](../../../docs/adr/0018-baseline-file.md). A file in the layout ReqSeq writes is read by the line scanner (`scan.ts`: `scanBaseline`, and `baselineHeader` for the lines before `repositories:`), through `readYamlFileFast` of the files block; any other layout (a comment, a blank line, CRLF, a BOM, entries out of order) falls back to YAML and the schema, with the same baseline or the same problems.
 - A file is checked against `baseline.schema.json`: YAML errors are the problems of `readYamlFile` (`file.invalid-yaml`, ...); a schema violation is `baseline.invalid` (error) with the line of the value, at most `MAX_VIOLATIONS` per file and then one problem that counts the rest. A faulty file gives no baseline.
-- `Baseline`: `name`, `repository`, `file` and `contains(id, version)`: the file lists the element's UUID with that version (in any repository; `elements[].repository` names a copy, SR-088). `selects({ id, repository })` (`data.export`): the file lists the UUID in any version, an entry with `repository` for that copy only, one without for every copy; one index per file read, kept with it.
+- `Baseline`: `name`, `repository`, `file` and `contains(id, version)`: the file lists the element's UUID with that version (in any repository; `elements[].repository` names a copy, SR-088). `selects({ id, repository })` (`data.export`): the file lists the UUID in any version, an entry with `repository` for that copy only, one without for every copy; one index per file read, kept with it. Taking an entry without `repository` as every copy is the interim rule: ADR-0018 takes it as the copy in the file's repository, else the only copy, and `baselineOf` follows with SR-051.
 - `faulty`: the files that gave no baseline, relative to their repository, in file order.
 - `findBaseline(baselines, text)` → `found`, `ambiguous` (the files), `faulty` (the file) or `none`: by `name` first (ignoring case and Unicode normal form, as saved filters), then by file name in the folder with or without `.yaml` (the folder is configurable, so no folder part); a text that names only a faulty file by its file name is `faulty`.
 - `incomplete`: the repository of the folder is not on this machine (SR-006 AK2). A location in a repository the workspace file does not list gives nothing (the layout reports it).

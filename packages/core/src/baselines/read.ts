@@ -7,8 +7,6 @@
 //   main repository (`settingLocation`). A baseline is a `*.yaml` file directly in that folder that
 //   matches `baseline.schema.json`, as saved filters are read (query/saved.ts); a `.yml` file is
 //   reported and not read, a folder that does not exist holds no baseline.
-// - Read (ADR-0018 "Reading"): a file in the layout ReqSeq writes by the line scanner of scan.ts,
-//   any other parsed with YAML and checked against the schema; both give the same baseline.
 // - A file that is no valid baseline is a problem (`baseline.invalid` with the line of the value, or
 //   the problem of reading the YAML) and names no baseline; at most `MAX_VIOLATIONS` violations of
 //   one file are listed, so a file that breaks one rule in each of its 50,000 entries gives a short
@@ -34,7 +32,7 @@ import type { BigIntStats } from "node:fs";
 import fs from "node:fs/promises";
 import type { Problem, WorkspaceLocation } from "../generated/types.js";
 import type { YamlFile } from "../files/index.js";
-import { listFolderFiles, readYamlFileFast, yamlPointerLine } from "../files/index.js";
+import { listFolderFiles, readYamlFile, yamlPointerLine } from "../files/index.js";
 import { changeStamp } from "../model/index.js";
 import { contractsBundle, fileSchemaValidator } from "../runtime/contracts.js";
 import { inputViolations } from "../runtime/input-errors.js";
@@ -43,7 +41,6 @@ import { defineWorkspaceState } from "../runtime/workspace.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { WORKSPACE_FILE, locate, settingLocation, workspaceLayoutState } from "../workspace/index.js";
 import type { BaselineFile } from "../generated/types.js";
-import { scanBaseline } from "./scan.js";
 
 /** Baseline files end in `.yaml` (D-056). */
 export const BASELINE_FILE_EXTENSION = ".yaml";
@@ -156,15 +153,9 @@ const violationsOf = (yaml: YamlFile, repository: string, file: string): Problem
     : shown;
 };
 
-/**
- * Reads one baseline file: in the layout ReqSeq writes with the line scanner (`scanBaseline`), else
- * parsed with YAML and checked against `baseline.schema.json` (ADR-0018 "Reading").
- */
+/** Reads one baseline file and checks it against `baseline.schema.json`. */
 const readBaselineFile = async (repository: RepositoryLocation, file: string): Promise<FileRead> => {
-  const read = await readYamlFileFast(repository.folder, file, scanBaseline);
-  if (read.kind === "fast") {
-    return { kind: "valid", baseline: baselineOf(read.value, repository.name, file), problems: [] };
-  }
+  const read = await readYamlFile(repository.folder, file);
   if (read.kind === "problem") {
     return { kind: "faulty", problems: [{ ...read.problem, repository: repository.name }] };
   }

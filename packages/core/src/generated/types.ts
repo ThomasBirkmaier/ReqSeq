@@ -65,7 +65,7 @@ export interface BaselineFile {
     readonly name: string;
     readonly commit: Commit;
   }[];
-  /** Sorted by id, then repository; one flow mapping per line. */
+  /** Sorted by id, then repository (code units; none first), each element copy once; one flow mapping per line. */
   readonly elements: readonly {
     readonly id: Uuid;
     readonly version: Version;
@@ -75,17 +75,18 @@ export interface BaselineFile {
 }
 
 /**
- * Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004).
+ * Name of a baseline (SR-050), unique in the workspace ignoring case and Unicode normal form. The file name is the name made portable, as attachment names (ADR-0004); a taken file name gets -2, -3, ….
  * Schema: `schemas/baseline.schema.json#/$defs/name`.
  */
 export type BaselineName = string;
 
 /**
- * The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, elements as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058). The title is the one at baseline time.
+ * The selection the baseline was created with, which SR-051, SR-094 and SR-103 read. ReqSeq writes it canonical: `where` as filter.save writes it, a saved filter as its `where` and `view`, `package` and `view` as `{ id, title }` in the repository of the file and `{ id, repository }` elsewhere (D-058), the title at baseline time; `ids` items without title.
  * Schema: `schemas/baseline.schema.json#/$defs/storedSelection`.
  */
 export interface BaselineStoredSelection {
-  readonly ids?: readonly BaselineStoredRef[];
+  /** A UUID in the repository of the file, `{ id, repository }` elsewhere; one per line, read line by line like `elements` (ADR-0018). */
+  readonly ids?: readonly (ElementRef | BaselineElsewhere)[];
   /** Name of a saved filter, as stage 4 files may hold; read with the filter as it is now. Not written. */
   readonly filter?: string;
   readonly where?: FilterCondition;
@@ -103,10 +104,16 @@ export type BaselineStoredRef =
     readonly id: Uuid;
     readonly title: string;
   }
-  | {
-    readonly id: Uuid;
-    readonly repository: string;
-  };
+  | BaselineElsewhere;
+
+/**
+ * An element in another repository than the file's (D-058).
+ * Schema: `schemas/baseline.schema.json#/$defs/elsewhere`.
+ */
+export interface BaselineElsewhere {
+  readonly id: Uuid;
+  readonly repository: string;
+}
 
 /**
  * Element ID: random UUID version 4, lower case, never changes (D-017, SR-002).
@@ -2626,7 +2633,7 @@ export interface VariantExcludeOutput {
  */
 export interface BaselineCreateInput {
   readonly name: BaselineName;
-  /** Stored in the file: a saved filter as its where and view, elements as UUID and title. Not baseline. */
+  /** Stored in the file: a saved filter as its where and view, package and view with their title. Not baseline. */
   readonly selection: ElementSelection;
 }
 
@@ -2652,13 +2659,13 @@ export interface BaselineCreateOutput {
 }
 
 /**
- * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).
+ * Input of `baseline.list` as `run` gets it: validated, properties with a `default` filled in. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list input`.
  */
 export type BaselineListInput = Readonly<Record<string, never>>;
 
 /**
- * Output of `baseline.list`. Baseline files of the workspace, with name, date, view and number of elements; reads only their headers (ADR-0018).
+ * Output of `baseline.list`. Baseline files of the workspace, with name, date, view and number of elements (ADR-0018).
  * Schema: `schemas/commands/catalog.json baseline.list output`.
  */
 export interface BaselineListOutput {
