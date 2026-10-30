@@ -83,6 +83,10 @@ export async function assembleContent(
     const text = await readFile(join(paths.contentDir, ...file.split("/")), "utf8");
     missing.push(...imageProblems(file, text, new Set(copied)));
   }
+  // A generated page, such as the standard model, may show an image of the guide too.
+  for (const page of pages) {
+    missing.push(...imageProblems(page.path, page.text, new Set(copied)));
+  }
   if (missing.length > 0) {
     throw new Error(`docs/guide: ${missing.join("; ")}`);
   }

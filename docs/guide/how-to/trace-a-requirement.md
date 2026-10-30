@@ -18,6 +18,8 @@ A system requirement traces to the need it meets through a relation stored in it
 
 ![The neighbourhood of a need: the requirements derived from it.](../images/app-neighbourhood.png)
 
+![The traceability matrix of the system requirements: each with the need it derives from.](../images/app-trace-matrix.png)
+
 ## CLI
 
 The commands start from a new workspace; in yours, use your own short IDs.
