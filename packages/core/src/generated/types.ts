@@ -351,6 +351,7 @@ export interface CommandErrorObject {
     | "git.commit-not-found"
     | "file.changed-on-disk"
     | "file.faulty"
+    | "file.unreadable"
     | "file.read-only"
     | "file.not-regular"
     | "file.folder-missing"

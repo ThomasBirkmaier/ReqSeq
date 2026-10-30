@@ -9,7 +9,7 @@
 //   `where`) and its `view`, so a later change of the filter does not change the baseline. The
 //   views are the ones the selection was resolved with (`Selected.views`). When the input and the
 //   filter name different views, the elements apply in both (SR-101 AK2), which one stored view
-//   cannot say: refused with `input.invalid` (assumption of the spec question on SR-050 AK3); the
+//   cannot say: refused with `input.invalid` (assumption of spec question #440 on SR-050 AK3); the
 //   same view is stored once.
 // - `selection.baseline` is refused: a baseline is not made of another one.
 import type { CommandOutput } from "../../catalog.js";

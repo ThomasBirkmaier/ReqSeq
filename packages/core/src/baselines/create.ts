@@ -90,6 +90,15 @@ export const createBaseline = async (
 ): Promise<CommandOutput<"baseline.create">> => {
   const layout = await workspace.get(workspaceLayoutState);
   const baselines = await workspaceBaselines(workspace);
+  // A folder that cannot be listed hides the names taken there (SR-050 AK6).
+  const unreadable = baselines.problems.find((p) => p.code === "file.unreadable");
+  if (unreadable !== undefined) {
+    throw new CommandError(
+      "file.unreadable",
+      `Not created: ${unreadable.message}, so the names of its baselines are not known`,
+      { repository: unreadable.repository, file: unreadable.file },
+    );
+  }
   const existing = baselines.baselines.find((b) => foldName(b.name) === foldName(request.name));
   if (existing !== undefined) {
     throw new CommandError(

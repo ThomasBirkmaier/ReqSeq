@@ -267,7 +267,7 @@ describe("baseline.create", () => {
     expect(fs.readdirSync(ws.path("system/baselines")).sort()).toEqual(["broken.yaml", "release-1.yaml"]);
   });
 
-  it("refuses selection.baseline, a folder that is not here, and an element without version", async () => {
+  it("refuses selection.baseline, a folder that is not here or cannot be read, and an element without version", async () => {
     const ws = await fixture();
     expect((await failure(ws, "B", { baseline: "Release 1" })).details).toMatchObject({
       fields: ["selection.baseline"],
@@ -289,6 +289,15 @@ describe("baseline.create", () => {
       { elements: [{ id: `${ID}b1`, repository: "system", file: "requirements/SR-0000000000b1.md" }] },
     ]);
     const settings = read(ws, "reqseq-workspace.yaml");
+    await ws.write(
+      "system/reqseq-workspace.yaml",
+      `${settings}baselines: { repository: system, path: requirements/SR-0000000000b1.md }\n`,
+    );
+    const unreadable = await failure(ws, "U", PACKAGE);
+    expect([unreadable.code, unreadable.details]).toEqual([
+      "file.unreadable",
+      { repository: "system", file: "requirements/SR-0000000000b1.md" },
+    ]);
     await ws.write(
       "system/reqseq-workspace.yaml",
       `${settings}baselines: { repository: sensor, path: baselines }\n`,
