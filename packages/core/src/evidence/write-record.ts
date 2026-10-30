@@ -5,7 +5,9 @@
 //
 // 1. Element: `resolveRef`. D-012: a verification names a requirement, a validation a need or a
 //    requirement (by the meaning of the element's type); anything else is `input.invalid`. A given
-//    `variant` must be a variant the element applies in (SR-040), else the record would count nowhere.
+//    `variant` must be a variant the element applies in (SR-040), else the record would count nowhere;
+//    for a core requirement the variant excludes or replaces (the view rule) the refusal names the
+//    exclusion or the replacing requirements (SR-047 AK4).
 // 2. ID and current version (AK1): the UUID and `currentVersionsOf` (one file read in a fresh process,
 //    N-036); neither is an input. No current version: `file.faulty`, nothing written.
 // 3. Fields as given; `date` defaults to the time of the call, UTC, whole seconds. The frontmatter is
@@ -46,7 +48,7 @@ import type { SchemaViolation } from "../runtime/contracts.js";
 import { fileSchemaValidator, schemaViolations } from "../runtime/contracts.js";
 import { settledValue } from "../runtime/settled.js";
 import type { Workspace } from "../runtime/workspace.js";
-import { appliesIn, resolveView, validityOf } from "../variants/index.js";
+import { appliesIn, resolveView, validityOf, viewRuleOf } from "../variants/index.js";
 import type { RepositoryLocation, WorkspaceLayout } from "../workspace/index.js";
 import { locate, workspaceLayoutState } from "../workspace/index.js";
 import { readMarkdownRecord, RECORD_KEY } from "./markdown.js";
@@ -396,9 +398,12 @@ interface Prepared {
   readonly fields: RecordFields;
 }
 
-/** The variant of rule 1: its UUID, undefined for the core; `input.invalid` when the element does not apply in it. */
+/**
+ * The variant of rule 1: its UUID, undefined for the core; `input.invalid` when the element does not
+ * apply in it, or when the variant's view leaves it out: excluded, or replaced (SR-047 AK4).
+ */
 const variantOf = (
-  context: Parameters<typeof resolveView>[0],
+  context: Parameters<typeof resolveView>[0] & { readonly workspace: Workspace },
   element: ElementRecord,
   input: EvidenceRecordInput,
 ): string | undefined => {
@@ -412,7 +417,38 @@ const variantOf = (
       { fields: ["variant"], reason: "not-valid-in-variant" },
     );
   }
-  return view.kind === "core" ? undefined : view.variant.id;
+  if (view.kind === "core") {
+    return undefined;
+  }
+  const rule = viewRuleOf(context, view);
+  if (rule.includes(element)) {
+    return view.variant.id;
+  }
+  // Out of the view though it applies: the variant excludes it, or a requirement replaces it there.
+  // Named by short ID: the app gives UUIDs.
+  const { shortIds } = context;
+  const [ref, variant] = [
+    shortIds.of(element),
+    shortIds.of(resolveRef(context.store, shortIds, input.variant)),
+  ];
+  if (rule.excludes(element)) {
+    throw invalid(`${ref} is excluded in ${variant}, so a record for it there would count nowhere (SR-047)`, {
+      fields: ["variant"],
+      reason: "excluded-in-variant",
+      variant: view.variant.id,
+    });
+  }
+  const replacements = rule.replacedBy(element);
+  const names = replacements.map((r) => shortIds.of(r)).join(", ");
+  throw invalid(
+    `${ref} is replaced in ${variant} by ${names}, so a record for it there would count nowhere; record ${names} instead (SR-047)`,
+    {
+      fields: ["variant"],
+      reason: "replaced-in-variant",
+      variant: view.variant.id,
+      replacedBy: replacements.map((r) => r.id),
+    },
+  );
 };
 
 /** Rules 1 to 3: the element, its current version and the fields, checked against the format. */
@@ -428,7 +464,7 @@ const prepare = async (
   const keys = (meaning: "requirement" | "need"): Set<string> =>
     new Set(typesWithMeaning(metamodel, meaning).map((t) => t.key));
   checkKind({ requirements: keys("requirement"), needs: keys("need") }, element, input.kind, input.ref);
-  const variant = variantOf({ metamodel, store, shortIds }, element, input);
+  const variant = variantOf({ workspace, metamodel, store, shortIds }, element, input);
   // AK1: `currentVersionsOf` gives an entry for every record it is given.
   const entry = (await currentVersionsOf(workspace, [element])).get(element);
   if (entry?.kind !== "version") {

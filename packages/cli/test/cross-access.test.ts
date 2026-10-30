@@ -248,6 +248,27 @@ const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
 /** The example of SR-043: variant A (VAR-0000c1) replaces K1 by A1, excludes K2 and adds A2. */
 const VARIANT_VIEWS: FixtureOptions = { fixture: "SR-043/example", git: true };
 
+/** A verification record of the example's `tail` with `result`, for `variant` when given (SR-047). */
+const exampleRecord = (tail: string, result: string, variant?: string): string =>
+  `---\nreqseq-record: 1\nkind: verification\nelement: 43043043-0000-4000-8000-0000000000${tail}\n` +
+  `version: n1:67ebd0624004c969\nmethod: test\n${variant === undefined ? "" : `variant: 43043043-0000-4000-8000-0000000000${variant}\n`}` +
+  `item: build-47\nresult: ${result}\ndate: 2026-11-01T10:00:00Z\n---\n`;
+
+/** The example of SR-043 with an evidence location: K2, excluded in A, passed in the core and failed in B; K1 with a record for A, which replaces it (SR-047). */
+const VARIANT_EVIDENCE: FixtureOptions = {
+  fixture: "SR-043/example",
+  files: {
+    "reqseq-workspace.yaml":
+      "reqseq-workspace: 1\nname: Weather station\nrepositories:\n" +
+      '  - { name: system, url: "git@git.example.com:ws/system.git", main: true }\n' +
+      "metamodel: { repository: system, path: metamodel }\nevidence:\n  - { repository: system, path: evidence }\n",
+    "evidence/k2-core.md": exampleRecord("a2", "passed"),
+    "evidence/k2-b.md": exampleRecord("a2", "failed", "c2"),
+    "evidence/k1-a.md": exampleRecord("a1", "passed", "c1"),
+  },
+  git: true,
+};
+
 /** SR-004/one-repository with an image to attach, whose name ReqSeq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
   fixture: "SR-004/one-repository",
@@ -1232,8 +1253,43 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
       input: { ref: "SR-ffffff", kind: "validation", result: "passed", date: "2026-10-27T10:00:00Z" },
       expect: "error",
     },
+    {
+      name: "a record for a variant that excludes the requirement is refused (SR-047 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a2",
+        kind: "verification",
+        method: "test",
+        item: "build-47",
+        result: "passed",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-047/AK4]",
+      expect: "error",
+    },
+    {
+      name: "a record for a variant that replaces the requirement is refused (SR-047 AK4)",
+      fixture: VARIANT_EVIDENCE,
+      input: {
+        ref: "SR-0000a1",
+        kind: "verification",
+        method: "test",
+        item: "build-47",
+        result: "passed",
+        variant: "VAR-0000c1",
+      },
+      tag: "[SR-047/AK4]",
+      expect: "error",
+    },
   ],
   "evidence.status": [
+    {
+      name: "no row for a variant that excludes or replaces the requirement (SR-047 AK3)",
+      fixture: VARIANT_EVIDENCE,
+      input: { selection: { ids: ["SR-0000a1", "SR-0000a2", "SR-0000b1"] } },
+      tag: "[SR-047/AK3]",
+      expect: "output",
+    },
     {
       name: "the verification status of a workspace with an evidence location (#535, SR-031)",
       fixture: EVIDENCE,
