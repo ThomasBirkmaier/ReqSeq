@@ -7,8 +7,8 @@
 //     `ref.unknown`, `ref.ambiguous`); an element named twice is selected once.
 //   - `where`: the condition (condition.ts, SR-069).
 //   - `package`: the elements assigned to the package (SR-048 AK3), as the condition `package`.
-//   - `view`: the elements that apply in the core or a variant by their validity (`appliesIn`,
-//     SR-040); replacement and exclusion narrow a view in stage 5 (SR-041, SR-042). It is also the
+//   - `view`: the elements the view of the core or a variant holds (`viewRuleOf`: the validity,
+//     SR-040, less what the variant excludes or replaces, SR-041, SR-042, SR-043). It is also the
 //     view of `verification` without `variant` (SR-047).
 //   Without any part, every element of the workspace.
 //   - `filter`: a saved filter by name (SR-070, saved.ts), read from its file on every call: its
@@ -46,7 +46,7 @@ import type { ElementRecord, ElementStore, ShortIds } from "../model/index.js";
 import { elementStoreState, resolveRef, shortIdState } from "../model/index.js";
 import type { Workspace } from "../runtime/workspace.js";
 import type { View } from "../variants/index.js";
-import { appliesIn, resolveView, validityOf } from "../variants/index.js";
+import { resolveView, viewRuleOf } from "../variants/index.js";
 import type { WorkspaceLayout } from "../workspace/index.js";
 import { workspaceLayoutState } from "../workspace/index.js";
 import { compileWhere } from "./condition.js";
@@ -193,9 +193,8 @@ export const resolveSelection = async (
     notes.push(compiled.notes);
   }
   const views = [view, savedView].filter((shown): shown is View => shown !== undefined);
-  const validity = validityOf(metamodel);
   for (const shown of views) {
-    tests.push((e) => appliesIn(validity, e, shown));
+    tests.push(viewRuleOf({ workspace, store, metamodel }, shown).includes);
   }
   const named =
     selection.ids === undefined

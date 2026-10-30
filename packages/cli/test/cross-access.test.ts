@@ -234,6 +234,8 @@ const VALIDATION: FixtureOptions = { fixture: "SR-038/validation", git: true };
 
 /** Requirements marked emergent, with and without own records, and their children (SR-035). */
 const EMERGENT: FixtureOptions = { fixture: "SR-035/emergent", git: true };
+/** The example of SR-043: variant A (VAR-0000c1) replaces K1 by A1, excludes K2 and adds A2. */
+const VARIANT_VIEWS: FixtureOptions = { fixture: "SR-043/example", git: true };
 
 /** SR-004/one-repository with an image to attach, whose name ReqSeq makes portable (SR-097). */
 const WITH_IMAGE: FixtureOptions = {
@@ -535,6 +537,34 @@ const SCENARIOS: Partial<Record<CommandName, readonly Scenario[]>> = {
     },
   ],
   "element.list": [
+    {
+      tag: "[SR-041/AK1]",
+      name: "the view of A lists A1 instead of K1",
+      fixture: VARIANT_VIEWS,
+      input: { selection: { view: "VAR-0000c1" } },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        const shown = output.elements.map((e) => e.shortId);
+        expect([shown.includes("SR-0000b1"), shown.includes("SR-0000a1")]).toEqual([true, false]);
+      },
+    },
+    {
+      tag: "[SR-043/AK1]",
+      name: "the view of A holds K3, K4, A1 and A2 of the requirements",
+      fixture: VARIANT_VIEWS,
+      input: { selection: { view: "VAR-0000c1", where: { type: ["system-requirement"] } } },
+      expect: "output",
+      check: (results) => {
+        const output = (results["core"]?.outcome as { output: { elements: { shortId: string }[] } }).output;
+        expect(output.elements.map((e) => e.shortId)).toEqual([
+          "SR-0000a3",
+          "SR-0000a4",
+          "SR-0000b1",
+          "SR-0000b2",
+        ]);
+      },
+    },
     {
       name: "requirements without child, combined, one page with text (SR-069 AK1 to AK3)",
       fixture: FILTER,
