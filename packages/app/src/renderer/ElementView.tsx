@@ -26,8 +26,8 @@
 // file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
 // and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
 // the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
-// (`RelationLink.tsx`), the elements of a package page (`PackageMembers.tsx`) and a block "On disk"
-// (`OnDisk.tsx`).
+// (`RelationLink.tsx`), the line and the elements of a package page (`PackageSummary.tsx`,
+// `PackageMembers.tsx`) and a block "On disk" (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
@@ -109,6 +109,7 @@ import { ElementText } from "./ElementText.js";
 import { fieldKey, fieldLabel, forBuffer, takesBackEdit } from "./element-keys.js";
 import { OnDisk } from "./OnDisk.js";
 import { PackageMembers } from "./PackageMembers.js";
+import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
@@ -1689,6 +1690,16 @@ export const ElementView = ({
                 },
               }}
               titleDisk={diskBlock(TITLE_FIELD)}
+              belowTitle={
+                packageModel === undefined ? undefined : (
+                  <PackageSummaryLine
+                    call={call}
+                    id={buffer.id}
+                    revision={revision + outside.seq}
+                    onEcho={onEcho}
+                  />
+                )
+              }
               text={{
                 text,
                 readOnly: locked,
