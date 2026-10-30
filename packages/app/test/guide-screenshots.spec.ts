@@ -1,8 +1,9 @@
 // Screenshots of the app for the user documentation (ADR-0017, #344): the overview, an open requirement, the
 // command prompt and the neighbourhood of a need, on the fixed workspace `fixtures/enabler-344/weather-station`
-// (the elements of Get started), light, 1024×576. They are made on Linux only, where they go to
-// `docs/guide/images/` (the site's copy, committed after a run) and to `test-results/electron/guide-images/`
-// (the CI artifact); fonts differ between systems, so other systems skip them, and nothing compares pixels.
+// (the elements of Get started, with the same IDs), light, 1024×576. They go to
+// `test-results/electron/guide-images/` (the CI artifact), and with REQSEQ_GUIDE_IMAGES set (`pnpm docs:screenshots`)
+// also to `docs/guide/images/`, the site's copy, committed after a run; a normal run leaves tracked files alone. They
+// are made on Linux only, because fonts differ between systems, and nothing compares pixels.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,9 +12,10 @@ import type { Page } from "@playwright/test";
 import { launchApp } from "./support/app.js";
 
 const FIXTURE = { fixture: "enabler-344/weather-station" };
+const folder = (relative: string): string => fileURLToPath(new URL(`../../../${relative}`, import.meta.url));
 const FOLDERS = [
-  process.env["REQSEQ_GUIDE_IMAGES"] ?? fileURLToPath(new URL("../../../docs/guide/images", import.meta.url)),
-  fileURLToPath(new URL("../../../test-results/electron/guide-images", import.meta.url)),
+  folder("test-results/electron/guide-images"),
+  ...((process.env["REQSEQ_GUIDE_IMAGES"] ?? "") === "" ? [] : [folder("docs/guide/images")]),
 ];
 
 const candidates = (window: Page) => window.locator('.candidates [role="option"]');
