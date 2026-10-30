@@ -26,14 +26,15 @@
 // file in `disk-state.ts`, the input and the file's values per field in `field-state.ts`, what a save sends
 // and says in `save-flow.ts`, the keys of the fields in `element-keys.ts`. It renders the parts without state:
 // the title and the text (`ElementText.tsx`), a property box (`PropertyField.tsx`), the relation groups
-// (`RelationLink.tsx`), the line and the elements of a package page (`PackageSummary.tsx`,
-// `PackageMembers.tsx`) and a block "On disk" (`OnDisk.tsx`).
+// (`RelationLink.tsx`), the lines of its variants and verification status (`VariantLines.tsx`), the line
+// and the elements of a package page (`PackageSummary.tsx`, `PackageMembers.tsx`) and a block "On disk"
+// (`OnDisk.tsx`).
 import { Prec } from "@codemirror/state";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Autosave } from "./autosave.js";
 import { createAutosave } from "./autosave.js";
 import type { BufferKeep, UndoMemory } from "./buffer-memory.js";
-import type { DataExportElement } from "@reqseq/core";
+import type { DataExportElement, ElementGetOutput } from "@reqseq/core";
 import type { ElementControls, Prompt } from "./actions.js";
 import { findElements } from "./actions.js";
 import type { BufferAction, ElementBuffer } from "./buffers.js";
@@ -112,6 +113,7 @@ import { PackageMembers } from "./PackageMembers.js";
 import { PackageSummaryLine } from "./PackageSummary.js";
 import { PropertyField } from "./PropertyField.js";
 import { RelationGroups } from "./RelationLink.js";
+import { VariantLines } from "./VariantLines.js";
 import type { ConflictField, OutsideChange } from "./outside-change.js";
 import {
   TEXT_FIELD,
@@ -269,6 +271,38 @@ const useHintDates = (
   return useCallback((element: DataExportElement) => withHintDates(element, datedHints), [datedHints]);
 };
 
+/**
+ * A change from outside that did not name the element can still change its variant lines (SR-046, SR-047): a
+ * variant's exclusions, a replacing requirement, the records. A requirement (one with a verification
+ * status) is read again for the lines alone on each such change (`elsewhere` counts them), as the parents
+ * line is on every change. Only the lines take the answer, so the fields, their highlights and the input
+ * stay as they are.
+ */
+const useLinesAgain = (
+  call: Call,
+  buffer: ElementBuffer,
+  elsewhere: number,
+  got: Pick<ElementGetOutput, "element" | "names"> | undefined,
+  setGot: (output: Pick<ElementGetOutput, "element" | "names">) => void,
+): void => {
+  const asked = got?.element.verification !== undefined;
+  useEffect(() => {
+    if (elsewhere === 0 || !asked) {
+      return;
+    }
+    let current = true;
+    void call("element.get", { ref: buffer.id, repository: buffer.repository }).then((answer) => {
+      // A failed read keeps the lines; the next read of the element says why.
+      if (current && answer.ok) {
+        setGot(answer.output);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [call, buffer.id, buffer.repository, elsewhere]);
+};
+
 /** The undo history of the buffer (SR-105 AK2): the app's, kept with the buffer, or else one of the view's own. */
 const useUndoMemory = (keep: BufferKeep | undefined): UndoMemory => {
   const own = useRef<UndoMemory>({ editors: new Map(), values: new Map() });
@@ -322,6 +356,9 @@ export const ElementView = ({
   active: inArea,
 }: ElementViewProps): React.JSX.Element => {
   const [view, setView] = useState<ElementLoad>({ status: "loading" });
+  // The last answer of `element.get`, for the lines of the variants and the verification status (SR-046,
+  // SR-047): a save answers without them, so they stay until the element is read again.
+  const [got, setGot] = useState<Pick<ElementGetOutput, "element" | "names"> | undefined>(undefined);
   // The text as last loaded or saved: what the document is compared with.
   const [text, setText] = useState("");
   const [handle, setHandle] = useState<EditorHandle | undefined>(undefined);
@@ -339,6 +376,9 @@ export const ElementView = ({
   // The changes from outside that named this element since it was shown: each asks for it again. A removal
   // asks too, and only the answer says whether the file is gone (SR-106 AK3).
   const [touched, setTouched] = useState(0);
+  // The changes from outside that did not name it: the lines of its variants and verification status
+  // (SR-046, SR-047) depend on other files (a variant's exclusions, a replacing requirement, the records).
+  const [elsewhere, setElsewhere] = useState(0);
   const seenChange = useRef(outside.seq);
   useEffect(() => {
     if (outside.seq !== seenChange.current) {
@@ -346,6 +386,8 @@ export const ElementView = ({
       seenChange.current = outside.seq;
       if (named) {
         setTouched((count) => count + 1);
+      } else {
+        setElsewhere((count) => count + 1);
       }
     }
   }, [outside]);
@@ -902,6 +944,8 @@ export const ElementView = ({
         return;
       }
       if (answer.ok) {
+        // The lines show what the file holds, also when `apply` keeps input over a change on disk.
+        setGot(answer.output);
         apply(answer.output.element, answer.output.fileSha256, changedJustNow);
       } else {
         // An "Edit text" that waited for this element is void: it must not act when a later load succeeds.
@@ -913,6 +957,7 @@ export const ElementView = ({
       current = false;
     };
   }, [call, buffer.key, buffer.id, buffer.repository, revision, touched]);
+  useLinesAgain(call, buffer, elsewhere, got, setGot);
   // The parents line is asked for at the same time as the element, and the element is shown with it, so
   // nothing above the title comes in later and moves the fields under the pointer (#542). Every change from
   // outside asks for the parents again (SR-116), the element only when the change names it (`touched`);
@@ -1134,6 +1179,8 @@ export const ElementView = ({
     }
     const next = checkStep(answer.output.fileSha256, expected, refused);
     if (next.kind === "apply") {
+      // The lines show what the file holds, also when `apply` keeps input over a change on disk.
+      setGot(answer.output);
       apply(answer.output.element, answer.output.fileSha256, false);
       // Read after `apply`, which may have found a conflict or kept input.
       return diskState.current.conflict === undefined && inputDocs().size === 0;
@@ -1812,6 +1859,7 @@ export const ElementView = ({
                 />
               );
             })}
+            {got === undefined ? null : <VariantLines output={got} onOpenRelation={onOpenRelation} />}
             <RelationGroups
               element={dated(view.element)}
               onCopy={copy}
